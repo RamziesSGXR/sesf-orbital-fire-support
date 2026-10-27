@@ -12,9 +12,19 @@ export const CONFIG = {
   // SEAF arrive when the player calls a pod. By default they go and clear the nearest objective on their own.
   seaf:     { max: 12, dropSize: 5, dropCooldownSec: 28, dropDelaySec: 6, patrolRadius: 30, patrolSpeed: 2.5,
               followSec: 45, followSpread: 28, protectR: 36, protectLeash: 80, clearR: 55, clearMaxSec: 70, clearQuietSec: 5,
-              grenChance: 0.3, rocketChance: 0.6, attackSec: 35 },
+              grenChance: 0.3, rocketChance: 0.6, attackSec: 35, squads: 4, medicChance: 0.45, spotChance: 0.3,
+              formationSpacing: 5, pathReach: 9, assignR: 22 },
+  // The troop pelican: flies in, hovers a moment while the troops fast-rope down, then climbs away. Its belly autocannon
+  // shoots any enemy it can see while it is on station.
+  pelican:  { speed: 92, approach: 330, hover: 1.6, climb: 4.5, dropEvery: 0.22, gunRange: 66, gunEvery: 0.3, gunDmg: 30, gunSplash: 2.4, gunAcc: 0.85 },
+  // SEAF specialists. A medic patches up anyone near it. A spotter radios in an Eagle fire mission on a big group or a heavy.
+  medic:    { range: 26, heal: 24, every: 1.3, hp: 90 },
+  spotter:  { coolSec: 70, minGroup: 6, minDist: 26, n: 7, len: 24, dmg: 240, splash: 8.5, delay: 5, span: 1.2, range: 150 },
   squad:    { speed: 6, chaseSpeed: 8.5, engageRange: 38, holdDistance: 75, pushDistance: 55, pushAfterSec: 45,
               clusterRadius: 15, setupSec: 5, setupCooldownSec: 15, carrySlow: 0.85 },
+  // Bases and the citadel. The Helldivers destroy them with rifles, support weapons and stratagems, exactly as the destroyer
+  // can: rifle fire counts for a fraction of its normal damage, and anything the squad calls hits structures harder (stratMul).
+  structure: { range: 48, standOff: 26, push: 14, rifleH: 0.55, rifleS: 0.2, stratMul: 2.2, weaponTry: 0.4 },
 
   // Sight in meters. Multiplied by the biome visibility. The player sees a little farther than each ally (playerBonus).
   // The strike zone is the ring in which strikes and drops can be called: it extends strikeBonus past what the player sees.
@@ -57,6 +67,9 @@ export const CONFIG = {
   pressure: { start: 1, perSessionMin: 0.015, perMissionMin: 0.06, onBaseKill: 0.5, floor: 0.5 },
   // The war escalates with every minute of the session, so the run only ends in failure: tougher, harder-hitting enemies and more heavies.
   ramp:     { hp: 0.004, dmg: 0.003, mediumEvery: 40, heavyEvery: 60, hpCap: 4, dmgCap: 3 },
+  // Large enemy assaults: a big force that comes straight for the squad from one direction. The warning gives the player time to
+  // scan, set a SEAF line and get strikes ready. Later in the session they get bigger.
+  assault:  { firstSec: 210, everySec: 165, jitterSec: 35, warnSec: 18, groups: 4, perSessionMin: 0.06, maxGroups: 12, hunt: 80, ahead: 150, spacing: 26, reward: 140, score: 400, minLeft: 3, giveUpSec: 140 },
   // When the squad spots a group, the enemy may call for support. That opens a breach that spawns groups until it is destroyed.
   support:  { enemyChance: 0.3, enemyCooldownSec: 24, enemyDelaySec: 6 },
   breach:   { hp: 650, r: 12, lifeSec: 80, everySec: 11, groups: 3, reward: 70 },
@@ -66,12 +79,16 @@ export const CONFIG = {
   extract:  { minFromLz: 600, minFromBase: 150, radius: 25, holdSec: 10,
               waveSec: 25, waveMin: 150, waveMax: 250 },
   weapons:  { swapSec: 0.3, warmupSec: 8 },
+  // The destroyer's free-fire Ship Gatling. It fires wherever the player can see, so it is not tied to the strike zone, and it is the
+  // only thing that uses the player's ammo. Rounds scatter around the aim point and the spread blooms while the trigger is held.
+  gun:      { ammo: 600, regen: 9, regenDelay: 1.3, rps: 22, dmg: 12, splash: 1.9, spread: 4.5, bloom: 7, bloomUp: 2.4, bloomDown: 5, struct: 0.04,
+              upAmmo: 150, upDmg: 0.2, upRegen: 0.25, upSpread: 0.1, maxLevel: 5 },
 
   // The player's kit. Orbital strikes level 1 to 5; every level adds damage, size and shell count and trims the recharge.
   orbital:  { boost: 1.4, maxLevel: 5, dmg: 0.2, size: 0.05, shells: 0.12, cd: 0.08, cdMul: 0.8, laserUses: 3 },
   // UAV scan: a big circle of sight the whole squad can use for a while. Indexed by level 1..5.
   uav:      { r: [95, 120, 145, 175, 205], sec: [24, 28, 32, 36, 40], cd: [42, 38, 34, 30, 26] },
-  kit:      { slotsStart: 3, slotsMax: 5, seafCap: 3, seafDropEvery: 2, seafHp: 0.18, seafDmg: 0.12, seafGren: 0.06, seafRocket: 0.07,
+  kit:      { slotsStart: 3, slotsMax: 5, seafCap: 3, seafDropEvery: 2, seafHp: 0.18, seafDmg: 0.12, seafGren: 0.06, seafRocket: 0.07, seafMedic: 0.14, medicRate: 0.25, seafSpot: 0.15, spotCool: 0.12, spotDmg: 0.18,
               livesPer: 2, zonePer: 18, startLoadout: ['orb_gatling', 'orb_120', 'orb_precision'] },
   // Credits: earned from kills, bases, POIs, breaches and the objective, with a bonus at extraction. Spent in the armory.
   credits:  { start: 1200, kill: { L: 2, M: 10, H: 60 }, base: 150, objective: 500, extraction: 800, perMission: 0 },
@@ -83,10 +100,10 @@ export const CONFIG = {
     vip:  { pickR: 22, pickSec: 6, dropR: 28, deliverSec: 8, waveSec: 22, gap: 500, garrisonR: 220 },
   },
 
-  // Stratagems. Twelve distinct picks, dealt into four groups of three. Each group belongs to one Helldiver.
+  // Stratagems. Sixteen distinct picks, dealt into four groups of four. Each group belongs to one Helldiver.
   // dmgMul scales every stratagem the squad calls.
   strat: {
-    slots: 12, groups: 4, perGroup: 3, dmgMul: 0.8, callGapSec: 1.2, startDelaySec: [8, 30],
+    slots: 16, groups: 4, perGroup: 4, dmgMul: 0.8, callGapSec: 1.2, startDelaySec: [8, 30],
     frv:   { hp: 800, speed: 14, life: 160, seats: 4, gunRange: 70, gunDmg: 62, gunEvery: 0.42, ejectAt: 0.25, dropSec: 4 },
     mech:  { hp: 850, armor: 0.5, gatAmmo: 500, rktAmmo: 12, dropSec: 5 },
     dog:   { hp: 140, life: 150, range: 38, every: 0.45, dmg: 9 },

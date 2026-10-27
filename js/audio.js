@@ -99,6 +99,9 @@ export class Audio {
     this._tone(1900, 1900, 0.05, 0.08, 'square', 0.75); this._tone(1900, 1900, 0.05, 0.08, 'square', 0.9);
   }
 
+  // A troop pelican arriving: rotor wash.
+  rotor() { if (!this._ok('rotor', 0.5)) return; this._noise(1.4, 500, 140, 0.22, 'bandpass', 0.8); this._tone(70, 50, 1.0, 0.16, 'sawtooth'); }
+
   // Low ship hum while a mission runs.
   humStart() {
     const c = this.ctx; if (!c || this.hum) return;
@@ -125,6 +128,10 @@ const VOICES = {
   mg:      { gap: 0.06, vol: 1, f: (a, v) => { a._noise(0.07, 2000, 500, 0.12 * v); a._tone(150, 110, 0.05, 0.07 * v, 'square'); } },
   gat:     { gap: 0.045, vol: 1, f: (a, v) => a._noise(0.04, 2600, 1100, 0.08 * v, 'bandpass', 1.1) },
   ac:      { gap: 0.1,  vol: 1, f: (a, v) => { a._noise(0.16, 1600, 140, 0.26 * v); a._tone(120, 52, 0.14, 0.2 * v); } },
+  pelican: { gap: 0.11, vol: 0.9, f: (a, v) => { a._noise(0.12, 1500, 200, 0.2 * v); a._tone(130, 60, 0.1, 0.16 * v); } },
+  shipgat: { gap: 0.045, vol: 1, f: (a, v) => { a._noise(0.06, 1500, 380, 0.17 * v); a._tone(92, 62, 0.06, 0.12 * v, 'square'); } },
+  heal:    { gap: 0.3,  vol: 0.7, f: (a, v) => { a._tone(880, 1320, 0.14, 0.06 * v, 'sine'); a._tone(1320, 1760, 0.12, 0.04 * v, 'sine', 0.1); } },
+  thud:    { gap: 0.12, vol: 0.7, f: (a, v) => { a._tone(110, 55, 0.09, 0.12 * v); a._noise(0.06, 700, 200, 0.07 * v); } },
   mortar:  { gap: 0.2,  vol: 1, f: (a, v) => { a._tone(100, 38, 0.22, 0.28 * v); a._noise(0.18, 500, 90, 0.18 * v); a._tone(1300, 450, 0.35, 0.03 * v, 'sine', 0.1); } },
   zap:     { gap: 0.08, vol: 1, f: (a, v) => { a._tone(1500, 260, 0.1, 0.07 * v, 'sawtooth'); a._noise(0.08, 5000, 1500, 0.06 * v, 'bandpass', 2); } },
   flame:   { gap: 0.11, vol: 1, f: (a, v) => a._noise(0.26, 1000, 450, 0.1 * v, 'lowpass', 0.5) },

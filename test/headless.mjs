@@ -44,7 +44,7 @@ for (let i = 0; i < N; i++) {
     outcome: r.outcome, min: +(r.t / 60).toFixed(1), objAt: tObj ? +(tObj / 60).toFixed(1) : '-', ext: r.extracted ? 'y' : 'n',
     bases: `${r.bases}/${r.baseTotal}`, pois: `${r.pois}/${r.poiTotal}`, br: r.breaches, score: r.score, kills: r.kills,
     lostH: r.stats.lostH, lostS: r.stats.lostS, wipes: r.stats.wipes, lives: r.livesLeft, ff: r.stats.ff,
-    cr: r.credits.total, bal: r.credits.balance, plr: Math.round(r.share.player * 100), sqd: Math.round(r.share.squad * 100), str: Math.round(r.share.strat * 100), peak,
+    as: `${r.assaults || 0}/${r.assaultsHit || 0}`, gun: m.stats.gunRounds || 0, spot: m.stats.spotCalls || 0, cr: r.credits.total, bal: r.credits.balance, plr: Math.round(r.share.player * 100), sqd: Math.round(r.share.squad * 100), str: Math.round(r.share.strat * 100), peak,
   });
   if (session && r.outcome !== 'victory') { console.log(`session ended at mission ${i + 1}: ${r.outcome}`); break; }
 }

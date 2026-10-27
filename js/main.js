@@ -32,7 +32,8 @@ let session = null, info = null, mission = null, bot = null, lastRes = null;
 let firePending = false;
 let acc = 0, lastT = 0, overAt = 0, endHandled = false;
 let terrainKey = '', briefCtl = null, noticePending = false, settingsReturn = null, namesReturn = null, armoryFrom = null;
-let placing = null; // desktop placement mode for orders: 'seaf' | 'move' | 'protect' | 'attack'
+let placing = null; // desktop placement mode for orders: 'seaf' | 'move' | 'protect' | 'attack' | 'assign'
+let drawing = false, stroke = null; // draw mode: drag on the map to draw a route, line or ring for the selected squad(s)
 let ema = 16, slowFor = 0, fpsT = 0, fpsN = 0, fps = 0;
 let wantAbort = false;
 
@@ -60,7 +61,7 @@ function onSettingChange(key) {
 
 // ---------------- input hooks ----------------
 const input = new Input(canvas, $('minimap'), cam, {
-  weapon: (i) => { if (live()) mission.selectWeapon(i); },
+  weapon: (i) => { if (live()) { setDrawing(false); mission.selectWeapon(i); } },
   cycle: (d) => {
     if (!live()) return;
     const p = mission.player, n = p.slots.length;
@@ -72,7 +73,10 @@ const input = new Input(canvas, $('minimap'), cam, {
       mission.selectWeapon(i); break;
     }
   },
-  fire: (b) => { if (b && live()) { audio.unlock(); firePending = true; } },
+  fire: (b) => {
+    if (b && live()) { audio.unlock(); firePending = true; }
+    if (mission && !bot) mission.setFiring(b && live());   // the gatling fires for as long as the trigger is held
+  },
   order: (kind, viaKey) => order(kind, viaKey),
   placing: () => !!placing && live(),
   place: () => placeNow(),
@@ -81,10 +85,21 @@ const input = new Input(canvas, $('minimap'), cam, {
   armory: () => openArmory(),
   polarity: () => { settings.polarity = settings.polarity === 'white' ? 'black' : 'white'; onSettingChange('polarity'); },
   follow: () => { cam.follow = !cam.follow; },
+  squad: (i) => selectSquad(i),
+  squadCycle: (d) => cycleSquad(d),
+  squadAct: (kind) => squadAct(kind, true),
+  drawing: () => drawing && live(),
+  drawBegin: (x, y) => strokeBegin(x, y),
+  drawMove: (x, y) => strokeMove(x, y),
+  drawEnd: () => strokeEnd(),
+  drawCancel: () => { stroke = null; },
+  drawExit: () => setDrawing(false),
 }, () => state === 'play' && !paused && !UI.anyOverlay());
 input.setTouch(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
 hud.onWeapon = (i) => { audio.unlock(); if (live()) mission.selectWeapon(i); };
 hud.onOrder = (kind) => order(kind, false);
+hud.onSquad = (i) => { audio.unlock(); selectSquad(i); };
+hud.onSquadAct = (kind) => { audio.unlock(); squadAct(kind, false); };
 
 const live = () => state === 'play' && !paused && mission && !mission.over;
 
@@ -93,8 +108,63 @@ const DENY = {
   nocoverage: 'NO COVERAGE THERE. STAY INSIDE THE STRIKE ZONE', cooldown: 'RECHARGING', full: 'SEAF ALREADY AT MAXIMUM',
   noseaf: 'NO SEAF ON THE GROUND', nohd: 'NO HELLDIVERS TO ESCORT', noallies: 'NO ALLIES ON THE GROUND', nomark: 'THE NUKE IS NOT ARMED',
   funds: 'NOT ENOUGH CREDITS', between: 'BUY THAT BETWEEN MISSIONS', maxed: 'ALREADY AT MAXIMUM', locked: 'LOCKED',
+  novisual: 'NO VISUAL. THE GATLING NEEDS SIGHT OF THE TARGET', gundry: 'GATLING MAGAZINE EMPTY',
+  short: 'DRAG A LONGER STROKE', splitsmall: 'A SQUAD NEEDS AT LEAST 2 TROOPERS TO SPLIT', splitnosquad: 'ALL FOUR SQUADS ARE IN USE',
+  splitunknown: 'NO SUCH SQUAD', mergesel: 'PICK A SQUAD TO MERGE', mergesmall: 'THAT SQUAD IS EMPTY', mergenosquad: 'NO OTHER SQUAD TO MERGE INTO',
+  assignsel: 'PICK A SQUAD FIRST', assignnone: 'NO TROOPERS THERE TO ASSIGN',
 };
-function setPlacing(kind) { placing = kind; hud.setPlacing(kind); }
+function setPlacing(kind) { if (kind) setDrawing(false); placing = kind; hud.setPlacing(kind); }
+function setDrawing(on) {
+  if (on && !live()) on = false;
+  if (on) { placing = null; hud.setPlacing(null); }
+  drawing = on; stroke = null;
+  hud.setDrawing(on, mission && mission.seaf.sel >= 0 ? `FOR SQUAD ${mission.seaf.sel + 1}` : 'FOR ALL SQUADS');
+}
+function selectSquad(i) {
+  if (!live()) return;
+  audio.click(); mission.selectSquad(i);
+  if (drawing) hud.setDrawing(true, i >= 0 ? `FOR SQUAD ${i + 1}` : 'FOR ALL SQUADS');
+}
+function cycleSquad(d) {
+  if (!live()) return;
+  const n = mission.seaf.squads.length, cur = mission.seaf.sel;   // -1 is ALL
+  let next = cur + d; if (next < -1) next = n - 1; if (next >= n) next = -1;
+  selectSquad(next);
+}
+function squadAct(kind, viaKey) {
+  if (!live()) return;
+  audio.unlock();
+  if (kind === 'draw') {
+    if (!drawing && !mission.seafAlive.length) { audio.deny(); hud.message(DENY.noseaf, 1500); return; }
+    setDrawing(!drawing);
+  } else if (kind === 'split') { setDrawing(false); const r = mission.splitSeaf(); if (r && r.ok) audio.ready(); }
+  else if (kind === 'merge') { setDrawing(false); const r = mission.mergeSeaf(); if (r && r.ok) audio.ready(); }
+  else if (kind === 'assign') {
+    if (mission.seaf.sel < 0) { audio.deny(); hud.message(DENY.assignsel, 1500); return; }
+    if (!input.touch && !viaKey) { setPlacing(placing === 'assign' ? null : 'assign'); return; }
+    const w = aimWorld(); if (w) runOrder('assign', w.x, w.y);
+  }
+}
+// ---- draw mode: a finger or the mouse traces a play on the map ----
+function strokePoint(sx, sy) { return renderer.screenToWorld(sx, sy, canvas); }
+function strokeBegin(sx, sy) {
+  if (!live() || !drawing) return;
+  const w = strokePoint(sx, sy); if (!w) return;
+  stroke = { pts: [{ x: w.x, y: w.y }] };
+}
+function strokeMove(sx, sy) {
+  if (!stroke) return;
+  const w = strokePoint(sx, sy); if (!w) return;
+  const l = stroke.pts[stroke.pts.length - 1];
+  if (Math.hypot(w.x - l.x, w.y - l.y) >= 2 && stroke.pts.length < 500) stroke.pts.push({ x: w.x, y: w.y });
+}
+function strokeEnd() {
+  const st = stroke; stroke = null;
+  if (!st || !live()) return;
+  if (st.pts.length < 2) { audio.deny(); hud.message(DENY.short, 1200); return; }
+  const r = mission.seafDraw(st.pts);
+  if (r && r.ok) { audio.chirp(); hud.message(`PLAY CALLED: ${r.kind === 'path' ? 'ROUTE' : r.kind.toUpperCase()}`, 1100); }
+}
 function aimWorld() { const sa = input.screenAim(), w = renderer.screenToWorld(sa.x, sa.y, canvas); return w; }
 // Clicking on a breach or a point of interest sends SEAF straight at it.
 function snap(x, y) {
@@ -108,6 +178,7 @@ function runOrder(kind, x, y) {
   const m = mission;
   if (kind === 'seaf') return m.callSeaf(x, y);
   if (kind === 'auto' || kind === 'escort') return m.seafOrder(kind);
+  if (kind === 'assign') return m.assignSeaf(x, y, C.seaf.assignR);
   const p = snap(x, y);
   return m.seafOrder(kind, p.x, p.y);
 }
@@ -214,6 +285,7 @@ function deploy() {
   cam.x = mission.lz.x; cam.y = mission.lz.y; cam.follow = true;
   cam.view = window.innerWidth >= window.innerHeight ? C.world.viewWidth : 280;
   firePending = false; acc = 0; endHandled = false; overAt = 0; wantAbort = false;
+  drawing = false; stroke = null;
   hud.reset(); hud.setOp(info.op); hud.setMission(mission); UI.showScreen(null); UI.hideOverlays();
   state = 'play'; paused = false;
   audio.humStart();
@@ -223,7 +295,7 @@ function deploy() {
 }
 
 function finishMission() {
-  endHandled = true; setPlacing(null);
+  endHandled = true; setPlacing(null); setDrawing(false);
   const res = lastRes = mission.result();
   S.recordMission(session, info, res);
   if (res.outcome === 'victory') persist(); else S.drop('session');    // a failed mission ends the session for good
@@ -247,7 +319,7 @@ function togglePause(force) {
   if (state !== 'play' || !mission || mission.over) return;
   if (UI.isOn('s-settings')) return;
   paused = force !== undefined ? force : !paused;
-  firePending = false; setPlacing(null);
+  firePending = false; setPlacing(null); setDrawing(false); if (mission) mission.setFiring(false);
   UI.overlay('s-pause', paused);
   $('abort-confirm').classList.add('hidden'); wantAbort = false;
   if (paused) audio.humStop(); else { audio.unlock(); audio.humStart(); }
@@ -301,7 +373,7 @@ function drawArmory(note) {
 function openArmory(from) {
   if (state !== 'play' || !mission || mission.over || UI.isOn('s-armory')) return;
   armoryFrom = from || (paused ? 'pause' : 'play');
-  paused = true; firePending = false; setPlacing(null); audio.humStop();
+  paused = true; firePending = false; setPlacing(null); setDrawing(false); if (mission) mission.setFiring(false); audio.humStop();
   UI.overlay('s-pause', false); UI.overlay('s-armory', true); drawArmory();
 }
 function closeArmory() {
@@ -378,6 +450,12 @@ function onEvent(ev, now) {
       break;
     case 'tracer': if (mission.visLevel(ev.x, ev.y) > 0 || mission.visLevel(ev.tx, ev.ty) > 0) audio.snd(ev.snd || ev.s, loudness(ev.x, ev.y)); break;
     case 'beam': audio.beam(); break;
+    case 'gun': audio.snd('shipgat', loudness(ev.x, ev.y)); break;
+    case 'heal': audio.snd('heal', loudness(ev.x, ev.y)); break;
+    case 'pelican_arrive': audio.rotor(); break;
+    case 'pelican_drop': audio.snd('thud', loudness(ev.x, ev.y)); break;
+    case 'assault_warn': audio.siren(); hud.message('LARGE ENEMY ASSAULT FORMING', 2400); break;
+    case 'assault_go': audio.alarm(); break;
     case 'strat_call': audio.stratCall(); break;
     case 'strike_call': audio.strikeCall(ev.id); hud.message(`${ev.name.toUpperCase()} INBOUND`, 1400); break;
     case 'uav': audio.uav(); hud.message('UAV SCAN ONLINE', 1400); break;
@@ -439,7 +517,7 @@ function frame(ts) {
     }
     renderer.updateView(cam, now);
     const p = mission.player;
-    renderer.draw(mission, cam, { now, aim: { x: p.aimX, y: p.aimY }, placing, snap: (x, y) => snap(x, y) });
+    renderer.draw(mission, cam, { now, aim: drawing ? null : { x: p.aimX, y: p.aimY }, placing, draw: stroke, snap: (x, y) => snap(x, y) });
     renderer.drawMinimap($('minimap'), mission, cam);
     hud.update(mission, cam, session, now);
     if (mission.over && !endHandled) {
@@ -488,5 +566,5 @@ requestAnimationFrame((t) => { lastT = t / 1000; frame(t); });
 // Test hooks (used by the Playwright checks; harmless in production).
 window.__game = {
   get state() { return state; }, get mission() { return mission; }, get session() { return session; }, get info() { return info; },
-  cam, input, renderer, settings, order, get placing() { return placing; }, goShop, openArmory, closeArmory,
+  cam, input, renderer, settings, order, get placing() { return placing; }, get drawing() { return drawing; }, squadAct, selectSquad, strokeBegin, strokeMove, strokeEnd, goShop, openArmory, closeArmory,
 };

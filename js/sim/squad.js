@@ -1,12 +1,11 @@
-// Squad AI. Helldivers head for the objective and never take orders.
-// SEAF clear the nearest objective (a breach, a point of interest or a base) on their own, unless the player gives an order.
+// Squad AI. Helldivers head for the objective and never take orders. SEAF (see seaf.js) are stepped from here.
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
 import { compass } from './enemies.js';
 import { onSpot } from './director.js';
 import { objectiveGoal } from './objectives.js';
-import { nearestObjective } from './pois.js';
 import { bark } from './chatter.js';
+import { updateSeaf } from './seaf.js';
 
 function nearestBase(m, x, y) {
   let best = null, bd = Infinity;
@@ -104,7 +103,8 @@ export function updateSquad(m, dt) {
     if (baseGoal) {
       if (sq.base !== baseGoal) { sq.base = baseGoal; sq.holdT = 0; sq.pushed = false; sq.hpAt = baseGoal.hp; }
       const b = baseGoal;
-      const hold = (sq.pushed ? C.squad.pushDistance : C.squad.holdDistance) + (b.fortress ? b.r : 0);
+      // Close enough that rifles reach the structure: just outside its edge, then closer once the stalemate has lasted a while.
+      const hold = b.r + (sq.pushed ? C.structure.push : C.structure.standOff);
       const dx = sq.ax - b.x, dy = sq.ay - b.y, d = Math.hypot(dx, dy) || 1;
       sq.dir = Math.atan2(b.y - sq.ay, b.x - sq.ax);
       sq.goalDist = Math.max(0, d - hold);
@@ -147,92 +147,4 @@ export function updateSquad(m, dt) {
 
   // ---------------- SEAF ----------------
   updateSeaf(m, dt, speed, bm);
-}
-
-const done = (t) => (t.kind === 'breach' ? t.obj.dead : t.kind === 'poi' ? t.obj.done : t.obj.destroyed);
-
-// Change the standing order. Every SEAF trooper follows the same order.
-export function setSeafOrder(m, kind, x = 0, y = 0) {
-  const o = m.seaf.order, t = m.t;
-  o.kind = kind; o.x = x; o.y = y;
-  o.until = kind === 'escort' ? t + C.seaf.followSec : kind === 'attack' ? t + C.seaf.attackSec : 0;
-  m.seaf.followUntil = kind === 'escort' ? o.until : 0;
-  m.seaf.tgt = null; m.seaf.clearT = 0; m.seaf.tgtT = 0;
-  const s = m.seafAlive[Math.floor(m.crng.next() * m.seafAlive.length)];
-  if (s) bark(m, s, kind === 'auto' ? 'clear' : kind, kind === 'auto' ? 'the nearest objective' : '', true);
-}
-
-function updateSeaf(m, dt, speed, bm) {
-  const sf = m.seaf, t = m.t, sq = m.squad, eg = m.eGrid, size = C.world.size, ord = sf.order, S = C.seaf;
-  if (!m.seafAlive.length) { sf.tgt = null; return; }
-  const chase = C.squad.chaseSpeed * bm;
-
-  if (ord.kind === 'escort' && (t >= ord.until || !m.hdAlive.length)) setSeafOrder(m, 'auto');
-  if (ord.kind === 'attack' && t >= ord.until) { ord.kind = 'protect'; ord.until = 0; }   // hold the ground they took
-
-  let cx = 0, cy = 0;
-  for (const a of m.seafAlive) { cx += a.x; cy += a.y; }
-  cx /= m.seafAlive.length; cy /= m.seafAlive.length;
-
-  // Default behavior: always clear the nearest objective, so the Helldivers get clean ground.
-  let dest = null;
-  if (ord.kind === 'auto') {
-    sf.tgtT -= dt;
-    if (sf.tgt) sf.clearT += dt;
-    if (sf.tgt && (done(sf.tgt) || sf.clearT > S.clearMaxSec * (sf.tgt.kind === 'base' ? 1 : 1.6))) {
-      if (!done(sf.tgt)) sf.skip.set(sf.tgt.obj.id, t + 120);
-      sf.tgt = null;
-    }
-    if (sf.tgtT <= 0) {
-      sf.tgtT = 2;
-      const best = nearestObjective(m, m.cx, m.cy, sf.skip);
-      if (best && (!sf.tgt || (best.kind === 'breach' && sf.tgt.kind !== 'breach'))) {
-        sf.tgt = best; sf.clearT = 0;
-        const s = m.seafAlive[Math.floor(m.crng.next() * m.seafAlive.length)];
-        bark(m, s, 'clear', best.name.toLowerCase());
-        m.emit('seaf_target', { x: best.x, y: best.y, kind: best.kind });
-      }
-    }
-    if (sf.tgt) {
-      const t0 = sf.tgt, d = Math.hypot(cx - t0.x, cy - t0.y);
-      dest = d > t0.stand ? { x: t0.x + ((cx - t0.x) / d) * t0.stand, y: t0.y + ((cy - t0.y) / d) * t0.stand } : { x: cx, y: cy };
-      // Keep the last stand point steady so the group does not drift around the target.
-      if (!sf.stand || sf.stand.id !== t0.obj.id) sf.stand = { id: t0.obj.id, x: dest.x, y: dest.y };
-      dest = sf.stand;
-    } else sf.stand = null;
-  }
-
-  for (const a of m.seafAlive) {
-    const en = eg.nearest(a.x, a.y, ord.kind === 'attack' ? 14 : C.squad.engageRange);
-    a.engaged = !!en;
-    if (en) continue;   // stand and fight
-    let tx, ty, spd = speed, wander = false;
-    if (ord.kind === 'escort') {
-      tx = sq.ax + a.fx; ty = sq.ay + a.fy; spd = chase;
-      if (Math.hypot(tx - a.x, ty - a.y) <= 4) continue;
-    } else if (ord.kind === 'attack') {
-      tx = ord.x + a.ox; ty = ord.y + a.oy; spd = chase;
-    } else if (ord.kind === 'protect') {
-      // Guard the marked ground: close on anything hunting near it, but never leave the leash.
-      const thr = eg.nearest(ord.x, ord.y, 70);
-      if (thr && Math.hypot(thr.x - ord.x, thr.y - ord.y) <= S.protectLeash) { tx = thr.x; ty = thr.y; spd = chase; }
-      else { tx = ord.x + a.ox * 0.6; ty = ord.y + a.oy * 0.6; wander = true; }
-    } else if (ord.kind === 'move') {
-      tx = ord.x + a.ox; ty = ord.y + a.oy; wander = true;
-    } else if (dest) {
-      tx = dest.x + a.ox; ty = dest.y + a.oy;
-      // On the way, keep up with the Helldivers' pace; near the target, take it slowly.
-      spd = Math.hypot(tx - a.x, ty - a.y) > 60 ? chase * 0.8 : speed;
-    } else {   // nothing to clear: stay with the Helldivers at a distance
-      tx = sq.ax + a.fx * 1.6; ty = sq.ay + a.fy * 1.6; spd = speed;
-    }
-    const d = Math.hypot(tx - a.x, ty - a.y);
-    if (d > (wander ? S.patrolRadius : 3)) { step(a, tx, ty, spd, dt); a.wT = 0; }
-    else if (wander) {
-      a.wT -= dt;
-      if (a.wT <= 0) { const [ox, oy] = m.rng.inDisc(S.patrolRadius * 0.6); a.wx = tx + ox; a.wy = ty + oy; a.wT = m.rng.range(4, 8); }
-      step(a, a.wx, a.wy, S.patrolSpeed * bm, dt);
-    }
-    a.x = Math.max(0, Math.min(size, a.x)); a.y = Math.max(0, Math.min(size, a.y));
-  }
 }

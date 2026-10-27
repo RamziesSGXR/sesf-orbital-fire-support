@@ -17,13 +17,13 @@ export function newKit() {
   for (const id of C.kit.startLoadout) owned[id] = 1;
   const loadout = Array(C.kit.slotsMax).fill('');
   C.kit.startLoadout.forEach((id, i) => { loadout[i] = id; });
-  return { slots: C.kit.slotsStart, loadout, owned, uav: 1, seaf: { cap: 0, drop: 0, hp: 0, gren: 0, rocket: 0 }, sup: { lives: 0, zone: 0 } };
+  return { slots: C.kit.slotsStart, loadout, owned, uav: 1, seaf: { cap: 0, drop: 0, hp: 0, gren: 0, rocket: 0, medic: 0, spot: 0 }, sup: { lives: 0, zone: 0 }, gun: { dmg: 0, ammo: 0, regen: 0, spread: 0 } };
 }
 // Old or partial saves are filled in rather than thrown away.
 export function fixKit(k) {
   const base = newKit();
   if (!k || typeof k !== 'object') return base;
-  const out = { ...base, ...k, seaf: { ...base.seaf, ...(k.seaf || {}) }, sup: { ...base.sup, ...(k.sup || {}) }, owned: { ...base.owned, ...(k.owned || {}) } };
+  const out = { ...base, ...k, seaf: { ...base.seaf, ...(k.seaf || {}) }, sup: { ...base.sup, ...(k.sup || {}) }, gun: { ...base.gun, ...(k.gun || {}) }, owned: { ...base.owned, ...(k.owned || {}) } };
   out.loadout = Array.from({ length: C.kit.slotsMax }, (_, i) => (k.loadout && out.owned[k.loadout[i]] ? k.loadout[i] : ''));
   out.slots = Math.max(C.kit.slotsStart, Math.min(C.kit.slotsMax, out.slots | 0));
   return out;
@@ -54,6 +54,17 @@ export function seafStats(kit) {
     hpMul: 1 + K.seafHp * s.hp, dmgMul: 1 + K.seafDmg * s.hp,
     grenChance: Math.min(0.8, C.seaf.grenChance + K.seafGren * s.gren),
     rocketChance: Math.min(1, C.seaf.rocketChance + K.seafRocket * s.rocket),
+    medicChance: Math.min(1, C.seaf.medicChance + K.seafMedic * s.medic), medicRate: 1 + K.medicRate * s.medic,
+    spotChance: Math.min(1, C.seaf.spotChance + K.seafSpot * s.spot), spotCool: C.spotter.coolSec * (1 - K.spotCool * s.spot),
+    spotN: C.spotter.n + Math.floor(s.spot / 2), spotDmg: 1 + K.spotDmg * s.spot,
+  };
+}
+// The Ship Gatling: damage, magazine, ammo regeneration and how tight the rounds group, from the kit's gun upgrades.
+export function gunStats(kit) {
+  const g = kit.gun || {}, G = C.gun;
+  return {
+    ammo: G.ammo + G.upAmmo * (g.ammo || 0), dmg: G.dmg * (1 + G.upDmg * (g.dmg || 0)), regen: G.regen * (1 + G.upRegen * (g.regen || 0)),
+    spread: G.spread * (1 - G.upSpread * (g.spread || 0)), bloom: G.bloom * (1 - G.upSpread * (g.spread || 0)),
   };
 }
 export const maxLives = (kit) => C.helldivers.lives + C.kit.livesPer * kit.sup.lives;
@@ -63,10 +74,18 @@ export const zoneExtra = (kit) => C.kit.zonePer * kit.sup.zone;
 // Every item has: id, section, name, blurb, level, max, cost (null when maxed), and live (true when it can be bought mid-mission).
 const SEAF_UP = {
   cap:    { name: 'SEAF Barracks', blurb: `+${C.kit.seafCap} SEAF allowed on the ground per level.`, max: 4, price: 300 },
-  drop:   { name: 'Pod Bay', blurb: 'Bigger SEAF drops and faster pod recharge.', max: 3, price: 400 },
+  drop:   { name: 'Pelican Hangar', blurb: 'Bigger SEAF drops and a faster pelican turnaround.', max: 3, price: 400 },
   hp:     { name: 'SEAF Armor and Rifles', blurb: 'SEAF take less damage and hit harder.', max: 4, price: 350 },
-  gren:   { name: 'Grenadier Training', blurb: 'More SEAF pods include a grenadier.', max: 4, price: 300 },
-  rocket: { name: 'Rocket Troopers', blurb: 'More SEAF pods include a rocket trooper for heavies.', max: 4, price: 350 },
+  gren:   { name: 'Grenadier Training', blurb: 'More pelican drops include a grenadier.', max: 4, price: 300 },
+  rocket: { name: 'Rocket Troopers', blurb: 'More pelican drops include a rocket trooper for heavies.', max: 4, price: 350 },
+  medic:  { name: 'Field Medics', blurb: 'More drops bring a medic, and medics heal faster.', max: 4, price: 300 },
+  spot:   { name: 'Forward Observers', blurb: 'More drops bring a spotter who calls Eagle fire missions. Bigger, faster fire missions.', max: 4, price: 400 },
+};
+const GUN_UP = {
+  dmg:    { name: 'Gatling Barrels', blurb: 'Every round hits harder.', max: 5, price: 300 },
+  ammo:   { name: 'Gatling Ammo Bay', blurb: `+${C.gun.upAmmo} rounds in the magazine.`, max: 5, price: 250 },
+  regen:  { name: 'Ammo Synthesizer', blurb: 'The magazine refills faster.', max: 5, price: 250 },
+  spread: { name: 'Gatling Stabilizers', blurb: 'Rounds land in a tighter group.', max: 5, price: 300 },
 };
 const SUP_UP = {
   lives: { name: 'Reinforcement Budget', blurb: `+${C.kit.livesPer} Helldiver lives per level.`, max: 5, price: 300 },
@@ -90,11 +109,16 @@ export function shopItems(kit) {
     if (!lvl) items.push({ id: `own:${id}`, section: 'ORBITALS', name: d.name, blurb: d.blurb, level: 0, max: MAXL, cost: ORB_PRICE[id], orb: id, live: false });
     else items.push({ id: `up:${id}`, section: 'ORBITALS', name: d.name, blurb: d.blurb, level: lvl, max: MAXL, cost: lvl >= MAXL ? null : orbUpCost(id, lvl), orb: id, owned: true, live: true });
   }
+  // Ship Gatling
+  for (const [k, u] of Object.entries(GUN_UP)) {
+    const lvl = kit.gun[k];
+    items.push({ id: `gun.${k}`, section: 'SHIP GATLING', name: u.name, blurb: u.blurb, level: lvl, max: u.max, cost: lvl >= u.max ? null : u.price * (lvl + 1), live: true });
+  }
   // UAV
   items.push({ id: 'uav', section: 'UAV SCAN', name: 'UAV Scan', blurb: 'A bigger, longer, faster-recharging circle of sight for the whole squad.', level: kit.uav, max: C.uav.r.length, cost: kit.uav >= C.uav.r.length ? null : 350 * kit.uav, live: true });
   for (const [k, u] of Object.entries(SEAF_UP)) {
     const lvl = kit.seaf[k];
-    items.push({ id: `seaf.${k}`, section: 'SEAF', name: u.name, blurb: u.blurb, level: lvl, max: u.max, cost: lvl >= u.max ? null : u.price * (lvl + 1), live: true });
+    items.push({ id: `seaf.${k}`, section: k === 'medic' || k === 'spot' || k === 'gren' || k === 'rocket' ? 'SEAF SPECIALISTS' : 'SEAF TROOPS', name: u.name, blurb: u.blurb, level: lvl, max: u.max, cost: lvl >= u.max ? null : u.price * (lvl + 1), live: true });
   }
   for (const [k, u] of Object.entries(SUP_UP)) {
     const lvl = kit.sup[k];
@@ -117,6 +141,7 @@ export function buy(kit, wallet, id, inMission = false) {
   else if (kind === 'up') kit.owned[arg] = Math.min(MAXL, kit.owned[arg] + 1);
   else if (kind === 'uav') kit.uav++;
   else if (kind === 'seaf') kit.seaf[arg]++;
+  else if (kind === 'gun') kit.gun[arg]++;
   else if (kind === 'sup') kit.sup[arg]++;
   return { ok: true, item: it };
 }

@@ -153,7 +153,7 @@ textarea {
 .sg { --tc: var(--g); min-width: 0; padding: 3px; border: 1px solid color-mix(in srgb, var(--tc) 45%, transparent); border-radius: 4px; background: rgba(2, 14, 7, 0.4); }
 .sh { display: flex; align-items: baseline; gap: 4px; font-size: 8.5px; line-height: 1.2; margin-bottom: 3px; min-width: 0; letter-spacing: 0.02em; }
 .sh b { color: var(--tc); font-size: 10px; } .sh span { color: var(--g-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.cells { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; }
+.cells { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; }
 .sc {
   position: relative; aspect-ratio: 1 / 1; min-width: 0; overflow: hidden; border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); border-radius: 4px;
   background: rgba(2, 14, 7, 0.75); display: flex; align-items: center; justify-content: center; cursor: help;
@@ -175,7 +175,7 @@ textarea {
 .tr-btns { display: flex; gap: 6px; }
 .tr-btns .btn { min-height: 36px; padding: 4px 10px; font-size: 11px; }
 
-#radio { position: absolute; left: max(10px, env(safe-area-inset-left)); bottom: 168px; width: min(340px, 56vw); display: flex; flex-direction: column; gap: 3px; }
+#radio { position: absolute; left: max(10px, env(safe-area-inset-left)); bottom: 224px; width: min(340px, 56vw); display: flex; flex-direction: column; gap: 3px; }
 #radio .line { padding: 3px 8px; background: rgba(2, 14, 7, 0.6); border-left: 2px solid var(--yellow); font-size: 12px; animation: fadein .2s; transition: opacity 1s; }
 #radio .line.old { opacity: 0; }
 @keyframes fadein { from { opacity: 0; transform: translateX(-6px); } }
@@ -192,6 +192,24 @@ textarea {
 .ord.ready .s { color: #7dff9b; } .ord.cd .s { color: var(--amber); } .ord.off { opacity: 0.45; } .ord.off .s { color: var(--g-dim); }
 .ord.active { border-color: var(--yellow); background: rgba(70, 60, 0, 0.7); box-shadow: 0 0 12px rgba(255, 230, 0, 0.3); } .ord.active .s { color: var(--yellow); }
 .ord:hover:not(.off) { border-color: var(--g); }
+/* SEAF squads: pick one, draw it a play, split it, merge it, hand it troopers */
+#squads { position: absolute; left: max(10px, env(safe-area-inset-left)); bottom: 160px; width: min(500px, 66vw); display: grid; grid-template-columns: repeat(5, minmax(0, 1.1fr)) repeat(4, minmax(0, 1fr)); gap: 4px; padding: 4px; pointer-events: auto; }
+.sqb, .sqa {
+  position: relative; min-width: 0; height: 40px; padding: 3px 2px; text-align: center; touch-action: none; cursor: pointer;
+  font: inherit; font-size: 10px; color: var(--g); background: rgba(8, 30, 16, 0.85); border: 1px solid var(--line); border-radius: 5px;
+}
+.sqb { --sc: var(--g); border-color: color-mix(in srgb, var(--sc) 55%, transparent); }
+.sqb[data-sq="-1"] { --sc: #ffffff; }
+.sqb .n { display: block; font-size: 11px; font-weight: 700; color: var(--sc); margin-top: 1px; }
+.sqb .s { display: block; font-size: 9px; color: #fff; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sqb.sel { background: color-mix(in srgb, var(--sc) 26%, rgba(8, 30, 16, 0.92)); border-color: var(--sc); box-shadow: 0 0 10px color-mix(in srgb, var(--sc) 55%, transparent); }
+.sqb.empty { opacity: 0.55; } .sqb.empty.sel { opacity: 1; }
+.sqa .k { position: absolute; top: 1px; right: 3px; color: var(--g-dim); font-size: 8px; }
+.sqa .n { display: block; font-size: 9px; margin-top: 8px; letter-spacing: 0.02em; }
+.sqa.ready .n { color: #7dff9b; } .sqa.off { opacity: 0.45; }
+.sqa.active { border-color: var(--yellow); background: rgba(70, 60, 0, 0.7); box-shadow: 0 0 12px rgba(255, 230, 0, 0.3); } .sqa.active .n { color: var(--yellow); }
+.sqb:hover, .sqa:hover:not(.off) { border-color: var(--g); }
+body.drawing #view { cursor: crosshair; }
 #flavor { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: 96px; text-align: right; font-size: 10px; color: var(--g-dim); line-height: 1.6; white-space: pre; }
 
 /* UAV, orbitals, nuke */
@@ -213,6 +231,7 @@ textarea {
 .wbtn.cd .sub { color: var(--amber); }
 .wbtn.nomark .sub { color: var(--red); }
 .wbtn.ready .sub { color: #7dff9b; }
+.wbtn.gun-w { border-color: rgba(255, 194, 71, 0.55); } .wbtn.gun-w .n { color: #ffc247; } .wbtn.gun-w.sel .n { color: var(--yellow); } .wbtn.gun-w .bar i { background: #ffc247; } .wbtn.gun-w.cd .bar i { background: var(--red); }
 .wbtn.obj-w { border-color: rgba(255, 90, 60, 0.5); }
 .wbtn.obj-w.ready { border-color: #ff5a3a; box-shadow: 0 0 14px rgba(255, 90, 60, 0.6); animation: blink 0.9s steps(2) infinite; }
 .wbtn.obj-w .bar i { background: #ff5a3a; }
@@ -266,6 +285,17 @@ body.lefty #orders { left: auto; right: 10px; } body.lefty #radio { left: 10px; 
 .btn.buy:not(:disabled):not(.poor) { border-color: var(--yellow); }
 .btn.buy:disabled:not(.poor) small { display: none; }
 .it-btns .btn { touch-action: manipulation; }
+/* armory colours: one per kind of upgrade, plus a tag on every item so colour is never the only cue */
+.sec-loadout { --sec: #ffe600; } .sec-orbitals { --sec: #ff7a3d; } .sec-ship-gatling { --sec: #ffc247; } .sec-uav-scan { --sec: #6dffa0; }
+.sec-seaf-troops { --sec: #4db3ff; } .sec-seaf-specialists { --sec: #c58bff; } .sec-squad-support { --sec: #3fe0c4; }
+.shop-h[class*="sec-"] { display: flex; align-items: center; gap: 8px; color: var(--sec); letter-spacing: 0.24em; border-bottom: 1px solid color-mix(in srgb, var(--sec) 35%, transparent); padding-bottom: 4px; }
+.shop-h .dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: var(--sec); box-shadow: 0 0 8px color-mix(in srgb, var(--sec) 70%, transparent); }
+.item[class*="sec-"] { border-left: 4px solid var(--sec); background: color-mix(in srgb, var(--sec) 7%, rgba(2, 14, 7, 0.4)); }
+.item[class*="sec-"].owned { background: color-mix(in srgb, var(--sec) 11%, rgba(2, 14, 7, 0.4)); }
+.it-name .tagc { margin-left: 8px; padding: 1px 5px; border: 1px solid color-mix(in srgb, var(--sec) 65%, transparent); border-radius: 3px; color: var(--sec); font-size: 9px; letter-spacing: 0.1em; }
+.item[class*="sec-"] .it-name .pips { color: var(--sec); }
+.item[class*="sec-"] .btn.buy:not(:disabled):not(.poor) { border-color: var(--sec); }
+.item[class*="sec-"] .it-stat { color: color-mix(in srgb, var(--sec) 55%, var(--g)); }
 .shop-go { justify-content: space-between; padding-top: 12px; margin-top: 10px; border-top: 1px solid var(--line); }
 .btns.col { flex-direction: column; align-items: stretch; }
 
@@ -328,6 +358,7 @@ tr.sum td { color: #fff; border-top: 1px solid var(--line); font-weight: 700; }
   .hud-tc { width: min(330px, calc(100vw - 2 * 182px)); gap: 4px; } #objective { font-size: 11px; padding: 4px 8px; } #obj-sub { display: none; }
   #strats { gap: 3px; padding: 3px; } .sg { padding: 2px; } .sh { font-size: 7.5px; margin-bottom: 2px; } .sh b { font-size: 9px; } .sc .g { font-size: 7px; }
   .wbtn { width: auto; flex: 1; min-width: 0; height: 52px; padding: 4px 4px; } .wbtn .n { font-size: 9px; } .wbtn .sub { font-size: 10px; margin-top: 2px; }
+  #squads { bottom: 148px; } .sqb, .sqa { height: 34px; } .sqa .n { margin-top: 6px; font-size: 8.5px; } .sqb .s { margin-top: 1px; }
   .ord { height: 40px; padding: 3px 2px; } .ord .n { font-size: 8px; margin-top: 2px; padding-right: 6px; } .ord .s { font-size: 10px; margin-top: 2px; } .ord .k { display: none; }
   #radio { width: min(250px, 50vw); } #radio .line { font-size: 10.5px; } #flavor { display: none; }
   #fire-btn { width: 88px; height: 88px; font-size: 16px; } #btn-follow { width: 88px; }
@@ -346,6 +377,9 @@ tr.sum td { color: #fff; border-top: 1px solid var(--line); font-weight: 700; }
   #btn-follow { bottom: 100px; right: max(12px, env(safe-area-inset-right)); width: 84px; min-height: 32px; }
   body.lefty #fire-btn, body.lefty #btn-follow { right: auto; left: max(12px, env(safe-area-inset-left)); }
   body.lefty #orders { left: auto; right: max(8px, env(safe-area-inset-right)); } body.lefty #weapons { left: 112px; right: calc(max(8px, env(safe-area-inset-right)) + 226px); }
+  #squads { left: calc(max(8px, env(safe-area-inset-left)) + 226px); right: 112px; width: auto; bottom: 66px; gap: 3px; padding: 3px; }
+  .sqb, .sqa { height: 30px; padding: 2px 1px; } .sqb .n { font-size: 10px; margin-top: 0; } .sqb .s { font-size: 8.5px; margin-top: 0; } .sqa .n { margin-top: 5px; font-size: 8px; } .sqa .k { display: none; }
+  body.lefty #squads { left: 112px; right: calc(max(8px, env(safe-area-inset-right)) + 226px); }
   #radio { display: none; }
   #notices { width: max-content; max-width: min(250px, 34vw); } #notices .nt:nth-last-child(n+3) { display: none; }
   #btn-follow { white-space: nowrap; font-size: 10px; padding: 2px 4px; }
@@ -361,13 +395,15 @@ tr.sum td { color: #fff; border-top: 1px solid var(--line); font-weight: 700; }
   #center-msg { top: 38%; } #notices .nt:nth-last-child(n+3) { display: none; }
   #minimap { width: 80px; height: 80px; }
   #orders { left: 6px; right: 6px; width: auto; bottom: 68px; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; padding: 3px; }
+  #squads { left: 6px; right: 6px; width: auto; bottom: 118px; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px; padding: 3px; }
+  .sqb, .sqa { height: 32px; } .sqa .k { display: none; } .sqa .n { margin-top: 5px; }
   .ord .n { font-size: 7.5px; letter-spacing: 0; }
   #weapons { left: 6px; right: 6px; bottom: max(8px, env(safe-area-inset-bottom)); gap: 3px; transform: none; }
   .wbtn { padding: 4px 3px; } .wbtn .n { font-size: 8px; letter-spacing: 0; padding-right: 7px; } .wbtn .sub { font-size: 9px; letter-spacing: -0.03em; } .wbtn .k { right: 3px; font-size: 9px; }
-  #radio { bottom: 232px; width: min(230px, 52vw); }
-  #fire-btn { bottom: 124px; right: 12px; } #btn-follow { bottom: 124px; right: auto; left: 12px; min-height: 40px; width: 88px; font-size: 11px; }
+  #radio { bottom: 300px; width: min(230px, 52vw); }
+  #fire-btn { bottom: 206px; right: 12px; } #btn-follow { bottom: 206px; right: auto; left: 12px; min-height: 40px; width: 88px; font-size: 11px; }
   body.lefty #fire-btn { right: auto; left: 12px; } body.lefty #btn-follow { left: auto; right: 12px; }
-  #rotate-hint { top: auto; bottom: 330px; }
+  #rotate-hint { top: auto; bottom: 380px; }
   #s-brief { padding-top: 44px; }
   #b-strats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .it-btns { min-width: 86px; } .it-blurb { display: none; } .it-stat { font-size: 10px; }

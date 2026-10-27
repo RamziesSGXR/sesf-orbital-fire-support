@@ -41,6 +41,17 @@
       </div>
     </div>
     <div id="radio"></div>
+    <div id="squads" class="panel">
+      <button class="sqb" data-sq="-1"><span class="n">ALL</span><span class="s">0</span></button>
+      <button class="sqb" data-sq="0" style="--sc:#5fa8ff"><span class="n">S1</span><span class="s">--</span></button>
+      <button class="sqb" data-sq="1" style="--sc:#ff9d4a"><span class="n">S2</span><span class="s">--</span></button>
+      <button class="sqb" data-sq="2" style="--sc:#c58bff"><span class="n">S3</span><span class="s">--</span></button>
+      <button class="sqb" data-sq="3" style="--sc:#3fe0c4"><span class="n">S4</span><span class="s">--</span></button>
+      <button class="sqa" data-a="draw"><span class="k">R</span><span class="n">DRAW</span></button>
+      <button class="sqa" data-a="split"><span class="k">F</span><span class="n">SPLIT</span></button>
+      <button class="sqa" data-a="merge"><span class="k">M</span><span class="n">MERGE</span></button>
+      <button class="sqa" data-a="assign"><span class="k">Y</span><span class="n">ASSIGN</span></button>
+    </div>
     <div id="orders" class="panel">
       <button class="ord" data-o="seaf"><span class="k">G</span><span class="n">SEAF DROP</span><span class="s">--</span></button>
       <button class="ord" data-o="auto"><span class="k">X</span><span class="n">AUTO</span><span class="s">--</span></button>
@@ -113,9 +124,12 @@
             <div><kbd>MOUSE</kbd> aim <kbd>CLICK</kbd> call the selected scan or strike</div>
             <div><kbd>1</kbd> UAV <kbd>2</kbd>-<kbd>6</kbd> orbitals <kbd>Q</kbd><kbd>E</kbd> cycle</div>
             <div><kbd>7</kbd> the nuke, once the launch site is armed</div>
+            <div><kbd>8</kbd> Ship Gatling: hold <kbd>CLICK</kbd> to free-fire anywhere you can see. It has its own ammo.</div>
             <div><kbd>G</kbd> SEAF pod drop <kbd>X</kbd> auto (clear the nearest target)</div>
             <div><kbd>V</kbd> move <kbd>Z</kbd> protect <kbd>N</kbd> attack <kbd>C</kbd> escort</div>
             <div class="sub">Drops and orders land at the cursor. You can also click an order button, then click the map. Click a breach or a point of interest to send SEAF straight at it.</div>
+            <div><kbd>TAB</kbd> next squad <kbd>`</kbd> all squads <kbd>R</kbd> draw a play <kbd>F</kbd> split <kbd>M</kbd> merge <kbd>Y</kbd> assign</div>
+            <div class="sub">Draw mode: drag on the map. A loop is a ring, a straight stroke is a line, anything else is a route the squad runs.</div>
             <div><kbd>B</kbd> armory (upgrades) <kbd>ESC</kbd> pause, rename squads</div>
             <div><kbd>WASD</kbd> or right-drag pan <kbd>WHEEL</kbd> zoom <kbd>SPACE</kbd> camera lock <kbd>T</kbd> thermal polarity</div>
           </div>
@@ -125,12 +139,14 @@
             <div><kbd>CALL</kbd> fire the selected scan or strike at the crosshair</div>
             <div><kbd>BAR</kbd> pick UAV, orbital or nuke</div>
             <div><kbd>ORDERS</kbd> SEAF drop, auto, move, protect, attack, escort</div>
-            <div class="sub">Drops and orders land at the crosshair. Tap ARMORY to upgrade mid-mission.</div>
+            <div><kbd>S1-S4</kbd> pick a squad, <kbd>DRAW</kbd> then drag one finger to draw a route, line or ring. Two fingers still pan and zoom.</div>
+            <div class="sub">Drops and orders land at the crosshair. Pick the Gatling on the bar and hold CALL to free-fire. Tap ARMORY to upgrade mid-mission.</div>
           </div>
           <ul class="tips">
-            <li>Four Helldivers, one per group. Each calls only the stratagems in its own group. You never steer them.</li>
-            <li>You run the sky: a UAV scan, orbital strikes and SEAF. Calls only land inside the strike zone around your allies or a UAV circle. Your strikes hurt friendlies.</li>
-            <li>SEAF clear the nearest objective on their own: breaches, points of interest, then bases.</li>
+            <li>Four Helldivers, one per group, four stratagems each. They push on and clear bases, the citadel and the map by themselves. You never steer them.</li>
+            <li>You run the sky: scan, direct SEAF, hold the line. Watch for assault warnings, find the force with a UAV, then set a line or a ring and have strikes ready.</li>
+            <li>Orbital calls land inside the strike zone. The Ship Gatling free-fires anywhere you can see. Your fire hurts friendlies, the gatling does not.</li>
+            <li>SEAF arrive by troop pelican, in squads you can split, merge and draw plays for. Medics heal everyone. Spotters call Eagle fire missions.</li>
             <li>Kills, bases, points of interest, breaches and objectives pay credits. Spend them in the armory.</li>
             <li>Only failure ends a session. Keep the squad alive.</li>
           </ul>

@@ -8,7 +8,8 @@ import { FACTIONS, SUBTYPES, ALLY, BIOMES, NUKE, COMMS } from '../data/data.js';
 import { rollLoadout } from '../data/strat.js';
 import { newKit, newWallet, seafStats, maxLives, zoneExtra, buy, loadoutIds } from '../data/kit.js';
 import { seafName } from '../data/names.js';
-import { updateSquad, setSeafOrder } from './squad.js';
+import { updateSquad } from './squad.js';
+import { initSeaf, targetSquads, setSquadOrder, drawOrder, splitSquad, mergeSquad, assignNear, callPelican, pendingTroops, dropSquad } from './seaf.js';
 import { updateEnemies, updateAllies } from './enemies.js';
 import { updateDirector, startGroups } from './director.js';
 import { initPlayer, updatePlayer, syncSlots } from './player.js';
@@ -20,7 +21,7 @@ import { updateChatter } from './chatter.js';
 const SIZE = C.world.size;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const ORDER_KINDS = ['auto', 'move', 'protect', 'attack', 'escort'];
-const ORDER_RADIO = { auto: 'seafAuto', move: 'seafMove', protect: 'seafProtect', attack: 'seafAttack', escort: 'seafEscort' };
+const ORDER_RADIO = { auto: 'seafAuto', move: 'seafMove', protect: 'seafProtect', attack: 'seafAttack', escort: 'seafEscort', path: 'seafPath', line: 'seafLine', ring: 'seafRing' };
 // What killed an ally, by faction and size, for the death report.
 const KIND_NAME = {
   bugs:   { L: 'SWARMER', M: 'BRUISER', H: 'CHARGER' },
@@ -72,17 +73,17 @@ export class Mission {
 
     this.stats = {
       kills: { L: 0, M: 0, H: 0 }, killsPlayer: 0, killsAlly: 0, bases: 0, lostH: 0, lostS: 0, ff: 0, shots: 0, orbCalls: 0, uavs: 0,
-      hdCalls: 0, seafCalls: 0, despawned: 0, pois: 0, breaches: 0,
+      hdCalls: 0, seafCalls: 0, despawned: 0, pois: 0, breaches: 0, assaults: 0, assaultsHit: 0,
       dmg: { player: 0, squad: 0, strat: 0, enemy: 0 }, stratCalls: 0, stratBy: {}, mechs: 0, frvs: 0, wipes: 0, objectives: 0, podKills: 0,
     };
-    this.sc = { kills: 0, allyKills: 0, bases: 0, pois: 0, breaches: 0, objective: 0, timeBonus: 0, extraction: 0, lives: 0, survivor: 0, ff: 0, deaths: 0, wipes: 0 };
+    this.sc = { kills: 0, allyKills: 0, bases: 0, pois: 0, breaches: 0, assaults: 0, objective: 0, timeBonus: 0, extraction: 0, lives: 0, survivor: 0, ff: 0, deaths: 0, wipes: 0 };
     // Credits earned this mission. They go straight into the wallet so the armory can spend them mid-mission.
-    this.cr = { kills: 0, bases: 0, pois: 0, breaches: 0, objective: 0, extraction: 0, total: 0, start: this.wallet.bal, spent0: this.wallet.spent };
+    this.cr = { kills: 0, bases: 0, pois: 0, breaches: 0, assaults: 0, objective: 0, extraction: 0, total: 0, start: this.wallet.bal, spent0: this.wallet.spent };
     this.combo = { mult: 1, last: -99 };
     this.deaths = [];     // the death report: every Helldiver and SEAF who fell, in order
 
     this.enemies = []; this.groups = []; this.allies = []; this.alive = []; this.hdAlive = []; this.seafAlive = [];
-    this.shells = []; this.beams = []; this.markers = []; this.pods = []; this.incoming = []; this.uavs = [];
+    this.shells = []; this.beams = []; this.markers = []; this.pods = []; this.pelicans = []; this.incoming = []; this.uavs = [];
     this.assets = []; this.zones = [];
     this.pois = []; this.breaches = [];
     this.eGrid = new Grid(SIZE, 40); this.aGrid = new Grid(SIZE, 40); this.tGrid = new Grid(SIZE, 40);
@@ -95,8 +96,10 @@ export class Mission {
     this.bag = [];
     this.hd = { lives: maxLives(this.kit), max: maxLives(this.kit) };
     this.wiped = false;
-    this.seaf = { readyAt: 0, order: { kind: 'auto', x: 0, y: 0, until: 0 }, tgt: null, tgtT: 0, clearT: 0, skip: new Map(), stand: null, followUntil: 0 };
+    this.seaf = initSeaf();
     this.support = { enemyReadyAt: 0, spawnT: 0, lastSpawn: -99, scanT: 0, near: 0 };
+    // Large assaults: one at a time. cur is the force that is forming up or marching; nextAt is when the next warning goes out.
+    this.assault = { nextAt: C.assault.firstSec + this.rng.range(-C.assault.jitterSec, C.assault.jitterSec), cur: null, n: 0 };
     this.chat = { t: 0, hd: 0, seaf: 0, moveAt: -99, heavyAt: -99, seafAt: -99, wasEngaged: false, lastState: '' };
     this.noticeAt = { seaf: -99 };
     this.nuke = null;
@@ -174,9 +177,9 @@ export class Mission {
     if (text) this.radio(text, 'deny' + reason, 3);
     return { ok: false, reason };
   }
-  pendingPods(type) { let n = 0; for (const p of this.pods) if (p.type === type) n += p.n; return n; }
+  pendingPods(type) { if (type === 'S') return pendingTroops(this); let n = 0; for (const p of this.pods) if (p.type === type) n += p.n; return n; }
 
-  // Call a SEAF drop. It has to land inside the strike zone.
+  // Call a SEAF drop. A troop pelican flies it in; it has to land inside the strike zone. The troops join the selected squad.
   callSeaf(x, y) {
     const t = this.t, sf = this.seaf, st = seafStats(this.kit);
     if (this.over) return { ok: false, reason: 'over' };
@@ -186,25 +189,59 @@ export class Mission {
     if (room <= 0) return this._deny('full');
     if (t < sf.readyAt) return this._deny('cooldown');
     sf.readyAt = t + st.cool;
-    const n = Math.min(st.drop, room);
-    this.pods.push({ type: 'S', n, landAt: t + C.seaf.dropDelaySec, x, y });
+    const n = Math.min(st.drop, room), squad = dropSquad(this);
+    callPelican(this, x, y, n, squad);
     this.stats.seafCalls++;
     this.radio(COMMS.seafDrop, 'seafDrop', 0);
     this.emit('pod_call', { type: 'S', x, y, n });
-    return { ok: true, n };
+    return { ok: true, n, squad };
   }
 
-  // Give every SEAF trooper the same order: auto (clear the nearest objective), move, protect, attack or escort.
+  // Give the selected squad (or every squad) an order: auto (clear the nearest objective), move, protect, attack or escort.
   seafOrder(kind, x = this.cx, y = this.cy) {
     if (this.over) return { ok: false, reason: 'over' };
     if (!ORDER_KINDS.includes(kind)) return { ok: false, reason: 'kind' };
-    if (!this.seafAlive.length) return this._deny('noseaf');
+    const sq = targetSquads(this).filter((q) => q.n > 0);
+    if (!sq.length) return this._deny('noseaf');
     if (kind === 'escort' && !this.hdAlive.length) return this._deny('nohd');
     x = clamp(x, 20, SIZE - 20); y = clamp(y, 20, SIZE - 20);
-    setSeafOrder(this, kind, x, y);
+    for (const q of sq) setSquadOrder(this, q, kind, x, y);
     this.radio(COMMS[ORDER_RADIO[kind]], 'seaf' + kind, 1);
-    this.emit('seaf_order', { kind, x, y });
+    this.emit('seaf_order', { kind, x, y, sq: this.seaf.sel });
     return { ok: true };
+  }
+  // A freehand stroke on the map becomes a route, a line or a ring for the selected squad(s).
+  seafDraw(pts) {
+    if (this.over) return { ok: false, reason: 'over' };
+    const r = drawOrder(this, pts);
+    if (!r.ok) return r.reason === 'noseaf' ? this._deny('noseaf') : this._deny('short');
+    this.radio(COMMS[ORDER_RADIO[r.kind]], 'seaf' + r.kind, 1);
+    this.emit('seaf_order', { kind: r.kind, x: pts[pts.length - 1].x, y: pts[pts.length - 1].y, sq: this.seaf.sel });
+    return r;
+  }
+  // -1 selects every squad.
+  selectSquad(i) { this.seaf.sel = i >= 0 && i < this.seaf.squads.length ? i : -1; this.emit('squad_select', { sel: this.seaf.sel }); }
+  splitSeaf() {
+    const i = this.seaf.sel >= 0 ? this.seaf.sel : this.seaf.squads.reduce((b, q) => (q.n > (b ? b.n : -1) ? q : b), null).i;
+    const r = splitSquad(this, i);
+    if (!r.ok) return this._deny('split' + r.reason);
+    this.notice(`SQUAD ${i + 1} SPLIT  ${r.n} TROOPERS TO SQUAD ${r.to + 1}`, 'info');
+    return r;
+  }
+  mergeSeaf() {
+    const i = this.seaf.sel;
+    if (i < 0) return this._deny('mergesel');
+    const r = mergeSquad(this, i);
+    if (!r.ok) return this._deny('merge' + r.reason);
+    this.notice(`SQUAD ${i + 1} MERGED INTO SQUAD ${r.to + 1}`, 'info');
+    return r;
+  }
+  assignSeaf(x, y, r = 18) {
+    if (this.seaf.sel < 0) return this._deny('assignsel');
+    const res = assignNear(this, x, y, r, this.seaf.sel);
+    if (!res.ok) return this._deny('assignnone');
+    this.notice(`${res.n} TROOPERS JOINED SQUAD ${this.seaf.sel + 1}`, 'info');
+    return res;
   }
 
   // ----- the armory: upgrades can be bought mid-mission, new orbitals and slots only between missions -----
@@ -291,7 +328,7 @@ export class Mission {
       id: this.nextId++, type, x: x + jx, y: y + jy, ox, oy, fx, fy, hp: base.hp, maxHp: base.hp, dead: false, atk: rng.next(),
       r: base.r, sight: 0, vision: 0, zone: 0, home: { x, y }, wx: x, wy: y, wT: 0,
       hurtAt: -9, mounted: null, sw: null, mech: null,
-      team: -1, code: '', name: '', role: o.role || 'rifle', spT: 2 + rng.next() * 3, engaged: false,
+      team: -1, sq: -1, code: '', name: '', role: o.role || 'rifle', spT: 2 + rng.next() * 3, engaged: false,
       say: null, sayAt: 0, ping: null, lastSrc: null, dmgMul: 1, armorMul: 1, born: this.t,
     };
     if (type === 'H') {
@@ -515,24 +552,24 @@ export class Mission {
   // The running score for the HUD (cheap: no copies).
   liveScore() {
     const sc = this.sc;
-    return Math.max(0, Math.round(sc.kills + sc.allyKills + sc.bases + sc.pois + sc.breaches + sc.objective + sc.timeBonus + sc.extraction + sc.lives + sc.survivor + sc.ff + sc.deaths + sc.wipes));
+    return Math.max(0, Math.round(sc.kills + sc.allyKills + sc.bases + sc.pois + sc.breaches + sc.assaults + sc.objective + sc.timeBonus + sc.extraction + sc.lives + sc.survivor + sc.ff + sc.deaths + sc.wipes));
   }
 
   result() {
     const sc = this.sc;
-    const raw = sc.kills + sc.allyKills + sc.bases + sc.pois + sc.breaches + sc.objective + sc.timeBonus + sc.extraction + sc.lives + sc.survivor + sc.ff + sc.deaths + sc.wipes;
+    const raw = sc.kills + sc.allyKills + sc.bases + sc.pois + sc.breaches + sc.assaults + sc.objective + sc.timeBonus + sc.extraction + sc.lives + sc.survivor + sc.ff + sc.deaths + sc.wipes;
     const d = this.stats.dmg, tot = d.player + d.squad + d.strat || 1;
     const cr = this.cr;
     return {
       outcome: this.outcome, t: this.t, minutes: this.t / 60,
       score: Math.max(0, Math.round(raw)), raw: Math.round(raw), breakdown: { ...sc },
       kills: this.stats.killsPlayer + this.stats.killsAlly, stats: { ...this.stats },
-      bases: this.stats.bases, baseTotal: this.baseTotal, pois: this.stats.pois, poiTotal: this.pois.length, breaches: this.stats.breaches,
+      bases: this.stats.bases, baseTotal: this.baseTotal, pois: this.stats.pois, poiTotal: this.pois.length, breaches: this.stats.breaches, assaults: this.stats.assaults, assaultsHit: this.stats.assaultsHit,
       livesLeft: this.hd.lives, survivorsH: this.countAlly('H'), survivorsS: this.countAlly('S'),
       objectives: this.objectives.map((o) => ({ type: o.type, done: o.done })), objDone: this.objDone, extracted: this.extracted,
       share: { player: d.player / tot, squad: d.squad / tot, strat: d.strat / tot },
       loadout: this.loadout.slice(), orbitals: loadoutIds(this.kit),
-      credits: { kills: cr.kills, bases: cr.bases, pois: cr.pois, breaches: cr.breaches, objective: cr.objective, extraction: cr.extraction,
+      credits: { kills: cr.kills, bases: cr.bases, pois: cr.pois, breaches: cr.breaches, assaults: cr.assaults, objective: cr.objective, extraction: cr.extraction,
         total: cr.total, spent: this.wallet.spent - cr.spent0, start: cr.start, balance: this.wallet.bal },
       deaths: this.deaths.map((x) => ({ ...x })),
       teams: this.teams.map((tm) => ({ letter: tm.letter, ship: tm.ship, deaths: tm.deaths, ids: tm.ids.slice() })),

@@ -90,8 +90,9 @@ export function updateChatter(m, dt) {
   if (sf.length) {
     const s = sf[Math.floor(m.crng.next() * sf.length)];
     if (s.engaged) bark(m, s, 'engage');
-    else if (m.seaf.order.kind === 'auto' && m.seaf.tgt && t - ch.seafAt > 22) {
-      if (bark(m, s, 'clear', m.seaf.tgt.name.toLowerCase())) ch.seafAt = t;
+    else {
+      const q = m.seaf.squads[s.sq];
+      if (q && q.order.kind === 'auto' && q.tgt && t - ch.seafAt > 22 && bark(m, s, 'clear', q.tgt.name.toLowerCase())) ch.seafAt = t;
     }
   }
 }

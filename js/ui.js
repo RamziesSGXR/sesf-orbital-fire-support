@@ -4,7 +4,7 @@ import { FACTIONS, BIOMES } from './data/data.js';
 import { fmtTime, fmtNum, OUT, sessionTotals, MAX_NAME } from './session.js';
 import { STRATS, CAT_COLOR } from './data/strat.js';
 import { LETTERS, TEAM_COLOR } from './data/names.js';
-import { shopItems, orbStats, uavStats, seafStats, maxLives, zoneExtra } from './data/kit.js';
+import { shopItems, orbStats, uavStats, seafStats, gunStats, maxLives, zoneExtra } from './data/kit.js';
 import { stratReady, stratOnline } from './sim/strat.js';
 import { slotStats } from './sim/player.js';
 import { objectiveStatus, OBJ_NAME } from './sim/objectives.js';
@@ -33,11 +33,22 @@ export class Hud {
     this.wb = []; this.sc = []; this.rr = [];
     const bar = $('weapons');
     bar.innerHTML = '';
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 8; i++) {
       const b = el('button', 'wbtn', `<span class="k">${i + 1}</span><span class="n">--</span><span class="sub">--</span><span class="bar"><i></i></span>`);
       b.addEventListener('pointerdown', (e) => { e.preventDefault(); this.onWeapon && this.onWeapon(i); });
       bar.appendChild(b); this.wb.push({ el: b, n: b.querySelector('.n'), sub: b.querySelector('.sub'), bar: b.querySelector('.bar i'), key: '' });
     }
+    this.sqb = []; this.sqa = {}; this.drawing = false;
+    document.querySelectorAll('#squads .sqb').forEach((e) => {
+      const i = Number(e.dataset.sq);
+      e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); this.onSquad && this.onSquad(i); });
+      this.sqb.push({ i, el: e, s: e.querySelector('.s'), key: '' });
+    });
+    document.querySelectorAll('#squads .sqa').forEach((e) => {
+      const kind = e.dataset.a;
+      e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); this.onSquadAct && this.onSquadAct(kind); });
+      this.sqa[kind] = { el: e, key: '' };
+    });
     this.ord = {}; this.placing = null;
     document.querySelectorAll('#orders .ord').forEach((e) => {
       const kind = e.dataset.o;
@@ -78,14 +89,25 @@ export class Hud {
   reset() {
     this.last = {}; this.clearRadio(); this.clearNotices(); $('center-msg').classList.remove('show'); this.setPlacing(null);
     for (const o of Object.values(this.ord)) o.key = '';
+    this.setDrawing(false); for (const b of this.sqb) b.key = ''; for (const a of Object.values(this.sqa)) a.key = '';
   }
   // Placement mode (desktop): the next click on the map drops or sends.
   setPlacing(kind) {
     this.placing = kind;
-    const e = $('place-hint'), name = { seaf: 'SEAF DROP', move: 'SEAF MOVE', protect: 'SEAF PROTECT', attack: 'SEAF ATTACK' }[kind];
-    e.classList.toggle('hidden', !kind);
-    if (kind) e.textContent = `CLICK THE MAP FOR ${name}. ESC TO CANCEL`;
+    const e = $('place-hint'), name = { seaf: 'SEAF DROP', move: 'SEAF MOVE', protect: 'SEAF PROTECT', attack: 'SEAF ATTACK', assign: 'ASSIGNING TROOPERS TO THE SELECTED SQUAD' }[kind];
+    if (!this.drawing) e.classList.toggle('hidden', !kind);
+    if (kind) e.textContent = kind === 'assign' ? `CLICK THE MAP: ${name}. ESC TO CANCEL` : `CLICK THE MAP FOR ${name}. ESC TO CANCEL`;
     for (const o of Object.values(this.ord)) o.key = '';
+    for (const a of Object.values(this.sqa)) a.key = '';
+  }
+  // Draw mode: drag on the map to draw a route, a line or a ring for the selected squad(s).
+  setDrawing(on, label = '') {
+    this.drawing = !!on;
+    const e = $('place-hint');
+    if (on) { e.classList.remove('hidden'); e.textContent = `DRAW MODE ${label}: DRAG A ROUTE, LINE OR RING. ESC EXITS`; }
+    else e.classList.toggle('hidden', !this.placing);
+    document.body.classList.toggle('drawing', !!on);
+    for (const a of Object.values(this.sqa)) a.key = '';
   }
   setOp(op) { $('opname').textContent = op; }
 
@@ -142,7 +164,7 @@ export class Hud {
     const cb = m.combo.mult > 1.05 && m.t - m.combo.last < C.score.comboResetSec ? `COMBO x${m.combo.mult.toFixed(1)}` : '';
     this._set('combo', $('combo'), cb);
 
-    this._roster(m); this._supply(m); this._strats(m); this._orders(m); this._weapons(m);
+    this._roster(m); this._supply(m); this._strats(m); this._orders(m); this._squads(m); this._weapons(m);
 
     const f = FACTIONS[m.faction.id];
     this._set('flavor', $('flavor'), `${f.name} / ${m.biome.name.toUpperCase()}\nPRESSURE ${m.pressure.toFixed(2)}\nVIEW ${Math.round(cam.view)}M ${cam.follow ? 'CAMERA LOCKED' : 'FREE CAMERA'}`);
@@ -198,23 +220,26 @@ export class Hud {
     }
   }
 
-  // State of the SEAF order buttons.
+  // State of the SEAF order buttons. Orders go to the selected squad, or to every squad when ALL is selected.
   _orders(m) {
-    const t = m.t, placing = this.placing, ord = m.seaf.order, none = !m.seafAlive.length;
+    const t = m.t, placing = this.placing, sf = m.seaf;
+    const tq = (sf.sel >= 0 ? [sf.squads[sf.sel]] : sf.squads).filter((q) => q.n > 0), none = !tq.length;
+    const kinds = new Set(tq.map((q) => q.order.kind)), one = tq.length ? tq[0].order : null;
     const set = (kind, sub, cls) => {
       const o = this.ord[kind], key = `${sub}|${cls}`;
       if (o.key === key) return;
       o.key = key; o.sub.textContent = sub; o.el.className = 'ord ' + cls;
     };
     const act = (kind, sub, cls) => set(kind, placing === kind ? 'PLACE' : sub, placing === kind ? 'active' : cls);
-    const st = seafStats(m.kit);
+    const st = seafStats(m.kit), room = st.max - m.countAlly('S') - m.pendingPods('S');
 
+    const dropTo = sf.sel >= 0 ? `S${sf.sel + 1}` : '';
     if (!m.alive.length) act('seaf', 'NO ALLIES', 'off');
-    else if (m.countAlly('S') + m.pendingPods('S') >= st.max) act('seaf', 'FULL', 'off');
-    else if (t < m.seaf.readyAt) act('seaf', `${Math.ceil(m.seaf.readyAt - t)}S`, 'cd');
-    else act('seaf', `+${Math.min(st.drop, st.max - m.countAlly('S') - m.pendingPods('S'))}`, 'ready');
+    else if (room <= 0) act('seaf', 'FULL', 'off');
+    else if (t < sf.readyAt) act('seaf', `${Math.ceil(sf.readyAt - t)}S`, 'cd');
+    else act('seaf', `+${Math.min(st.drop, room)}${dropTo ? ' ' + dropTo : ''}`, 'ready');
 
-    const cur = (kind, ready) => (none ? ['NO SEAF', 'off'] : ord.kind === kind ? (kind === 'attack' || kind === 'escort' ? [`${Math.max(0, Math.ceil(ord.until - t))}S`, 'active'] : ['ACTIVE', 'active']) : [ready, 'ready']);
+    const cur = (kind, ready) => (none ? ['NO SEAF', 'off'] : kinds.size === 1 && one.kind === kind ? (kind === 'attack' || kind === 'escort' ? [`${Math.max(0, Math.ceil(one.until - t))}S`, 'active'] : ['ACTIVE', 'active']) : [ready, 'ready']);
     let r = cur('auto', 'SET'); set('auto', r[0], r[1]);
     r = cur('move', 'READY'); act('move', r[0], r[1]);
     r = cur('protect', 'READY'); act('protect', r[0], r[1]);
@@ -222,6 +247,29 @@ export class Hud {
     if (none) set('escort', 'NO SEAF', 'off');
     else if (!m.hdAlive.length) set('escort', 'NO HD', 'off');
     else r = cur('escort', 'READY'), set('escort', r[0], r[1]);
+  }
+
+  // The squad bar: pick a squad, draw a play, split, merge, assign.
+  _squads(m) {
+    const sf = m.seaf, total = m.countAlly('S'), free = sf.squads.some((q) => !q.n);
+    for (const b of this.sqb) {
+      const q = b.i < 0 ? null : sf.squads[b.i], n = q ? q.n : total, sel = sf.sel === b.i;
+      let sub = n ? String(n) : '--';
+      if (q && n) {
+        const k = q.order.kind;
+        sub = `${n}${k === 'path' ? ' RTE' : k === 'line' ? ' LN' : k === 'ring' ? ' RNG' : k === 'protect' ? ' DEF' : k === 'attack' ? ' ATK' : k === 'move' ? ' MOV' : k === 'escort' ? ' ESC' : ''}`;
+      }
+      const key = `${sub}|${sel}|${n > 0}`;
+      if (b.key === key) continue;
+      b.key = key; b.s.textContent = sub; b.el.className = 'sqb' + (sel ? ' sel' : '') + (n ? '' : ' empty');
+    }
+    const selN = sf.sel >= 0 ? sf.squads[sf.sel].n : 0;
+    const set = (kind, cls) => { const a = this.sqa[kind], key = cls; if (a.key === key) return; a.key = key; a.el.className = 'sqa ' + cls; };
+    set('draw', !total ? 'off' : this.drawing ? 'active' : 'ready');
+    const biggest = sf.sel >= 0 ? selN : Math.max(0, ...sf.squads.map((q) => q.n));
+    set('split', biggest >= 2 && free ? 'ready' : 'off');
+    set('merge', sf.sel >= 0 && selN > 0 && sf.squads.some((q) => q.i !== sf.sel && q.n) ? 'ready' : 'off');
+    set('assign', sf.sel < 0 || !total ? 'off' : this.placing === 'assign' ? 'active' : 'ready');
   }
 
   // UAV, the orbital slots and the nuke.
@@ -246,6 +294,13 @@ export class Hud {
           else if (t < s.readyAt) { sub = `${Math.ceil(s.readyAt - t)}S`; frac = Math.max(0, 1 - (s.readyAt - t) / st.cd); cls = 'cd'; }
           else if (sel && !p.aim.inZone) { sub = 'NO COVER'; cls = 'nomark'; }
           else { sub = s.uses !== Infinity ? `READY x${s.uses}` : 'READY'; cls = 'ready'; }
+        } else if (s.type === 'gun') {
+          const g = p.gun, gs = gunStats(m.kit);
+          name = 'SHIP GUN'; frac = g.ammo / g.max;
+          if (g.dry) { sub = 'RELOADING'; cls = 'cd'; }
+          else if (g.firing) { sub = `${Math.floor(g.ammo)}`; cls = 'act'; }
+          else if (sel && !p.aim.inZone) { sub = 'NO VISUAL'; cls = 'nomark'; }
+          else { sub = `${Math.floor(g.ammo)}/${Math.round(gs.ammo)}`; cls = 'ready'; }
         } else {
           name = 'NUKE';
           if (s.uses <= 0) { sub = 'LAUNCHED'; frac = 0; cls = 'cd'; }
@@ -253,11 +308,11 @@ export class Hud {
           else { sub = 'LOCKED'; frac = 0; cls = 'nomark'; }
         }
       }
-      const key = `${hidden}|${name}|${sub}|${cls}|${i === p.weapon}`;
+      const key = `${hidden}|${name}|${sub}|${cls}|${i === p.weapon}`;   // the gun's ammo changes the text a lot, which is fine
       if (w.key !== key) {
         w.key = key; w.el.style.display = hidden ? 'none' : '';
         w.n.textContent = name; w.sub.textContent = sub;
-        w.el.className = 'wbtn' + (s.type === 'nuke' ? ' big-w obj-w' : s.type === 'uav' ? ' uav-w' : ' orb-w') + (i === p.weapon ? ' sel' : '') + (cls ? ' ' + cls : '');
+        w.el.className = 'wbtn' + (s.type === 'nuke' ? ' big-w obj-w' : s.type === 'uav' ? ' uav-w' : s.type === 'gun' ? ' gun-w' : ' orb-w') + (i === p.weapon ? ' sel' : '') + (cls ? ' ' + cls : '');
       }
       w.bar.style.width = `${Math.max(0, Math.min(1, frac)) * 100}%`;
     });
@@ -351,6 +406,7 @@ export function runBriefing({ info, mission, touch, onContinue, onEnd, canEnd, o
 }
 
 // ---------------- the armory ----------------
+const SEC_TAG = { LOADOUT: 'SLOT', ORBITALS: 'ORBITAL', 'SHIP GATLING': 'GATLING', 'UAV SCAN': 'UAV', 'SEAF TROOPS': 'SEAF', 'SEAF SPECIALISTS': 'SPECIALIST', 'SQUAD SUPPORT': 'SUPPORT' };
 const pips = (lv, max) => { let s = ''; for (let i = 0; i < max; i++) s += i < lv ? '●' : '○'; return s; };
 
 // One line of numbers under an item's name.
@@ -365,10 +421,19 @@ function statLine(it, kit) {
   const s = seafStats(kit);
   if (id === 'uav') { const u = uavStats(kit.uav); return `${u.r}M RADIUS · ${u.sec}S · ${u.cd}S RECHARGE`; }
   if (id === 'seaf.cap') return `UP TO ${s.max} ON THE GROUND`;
-  if (id === 'seaf.drop') return `${s.drop} PER POD · ${s.cool}S RECHARGE`;
+  if (id === 'seaf.drop') return `${s.drop} PER PELICAN · ${s.cool}S BETWEEN DROPS`;
   if (id === 'seaf.hp') return `HEALTH x${s.hpMul.toFixed(2)} · DAMAGE x${s.dmgMul.toFixed(2)}`;
-  if (id === 'seaf.gren') return `${Math.round(s.grenChance * 100)}% OF PODS BRING A GRENADIER`;
-  if (id === 'seaf.rocket') return `${Math.round(s.rocketChance * 100)}% OF PODS BRING A ROCKET TROOPER`;
+  if (id === 'seaf.gren') return `${Math.round(s.grenChance * 100)}% OF DROPS BRING A GRENADIER`;
+  if (id === 'seaf.rocket') return `${Math.round(s.rocketChance * 100)}% OF DROPS BRING A ROCKET TROOPER`;
+  if (id === 'seaf.medic') return `${Math.round(s.medicChance * 100)}% OF DROPS BRING A MEDIC · HEALS x${s.medicRate.toFixed(2)}`;
+  if (id === 'seaf.spot') return `${Math.round(s.spotChance * 100)}% OF DROPS BRING A SPOTTER · FIRE MISSION EVERY ${Math.round(s.spotCool)}S · ${s.spotN} SHELLS`;
+  if (id.startsWith('gun.')) {
+    const g = gunStats(kit);
+    if (id === 'gun.dmg') return `${g.dmg.toFixed(1)} DAMAGE PER ROUND · ${C.gun.rps} ROUNDS A SECOND`;
+    if (id === 'gun.ammo') return `${Math.round(g.ammo)} ROUND MAGAZINE`;
+    if (id === 'gun.regen') return `REFILLS ${g.regen.toFixed(1)} ROUNDS A SECOND`;
+    if (id === 'gun.spread') return `${g.spread.toFixed(1)}M SPREAD, UP TO ${(g.spread + g.bloom).toFixed(1)}M WHEN HELD`;
+  }
   if (id === 'sup.lives') return `${maxLives(kit)} HELLDIVER LIVES PER MISSION`;
   if (id === 'sup.zone') return `STRIKE ZONE ${C.sight.strikeBonus + zoneExtra(kit)}M BEYOND SIGHT`;
   return '';
@@ -400,12 +465,14 @@ export function renderShop(root, opts) {
   for (const it of items) { let s = sections.find((x) => x.name === it.section); if (!s) sections.push(s = { name: it.section, list: [] }); s.list.push(it); }
   for (const sec of sections) {
     if (sec.name === 'ORBITALS') sec.list.sort((a, b) => (b.owned ? 1 : 0) - (a.owned ? 1 : 0));
-    body.appendChild(el('h3', 'shop-h', sec.name));
+    const slug = sec.name.toLowerCase().replace(/[^a-z]+/g, '-');
+    const hd = el('h3', 'shop-h sec-' + slug, `<i class="dot"></i>${esc(sec.name)}`);
+    body.appendChild(hd);
     for (const it of sec.list) {
       const inLoad = it.orb && kit.loadout.slice(0, kit.slots).includes(it.orb);
-      const card = el('div', 'item' + (it.owned ? ' owned' : '') + (it.cost === null ? ' maxed' : '') + (inLoad ? ' equipped' : ''));
+      const card = el('div', 'item sec-' + slug + (it.owned ? ' owned' : '') + (it.cost === null ? ' maxed' : '') + (inLoad ? ' equipped' : ''));
       const main = el('div', 'it-main');
-      main.innerHTML = `<div class="it-name">${esc(it.orb ? shortName(it.name) : it.name)}${it.max > 1 ? `<span class="pips">${pips(it.level, it.max)}</span>` : ''}${inLoad ? '<span class="tagq">EQUIPPED</span>' : ''}</div>`
+      main.innerHTML = `<div class="it-name">${esc(it.orb ? shortName(it.name) : it.name)}<span class="tagc">${esc(SEC_TAG[sec.name] || sec.name)}</span>${it.max > 1 ? `<span class="pips">${pips(it.level, it.max)}</span>` : ''}${inLoad ? '<span class="tagq">EQUIPPED</span>' : ''}</div>`
         + `<div class="it-blurb">${esc(it.blurb)}</div><div class="it-stat">${statLine(it, kit)}</div>`;
       const btns = el('div', 'it-btns');
       const b = el('button', 'btn buy');
@@ -480,6 +547,7 @@ export function fillDebrief(info, res, session) {
     [`Bases destroyed (${res.bases}/${res.baseTotal})`, b.bases],
     [`Points of interest (${res.pois}/${res.poiTotal})`, b.pois],
     [`Enemy breaches closed (${res.breaches})`, b.breaches],
+    [`Assault waves broken (${res.assaults || 0} of ${s.assaultsHit || 0})`, b.assaults || 0],
     ['Extraction', b.extraction],
     [`Helldiver lives left (${res.livesLeft})`, b.lives],
     [`Survivors (${res.survivorsH} Helldivers, ${res.survivorsS} SEAF)`, b.survivor],
@@ -492,7 +560,7 @@ export function fillDebrief(info, res, session) {
   $('d-table').innerHTML = tbl(rows);
   const c = res.credits;
   $('d-credits').innerHTML = tbl([
-    ['Kills', c.kills], ['Bases', c.bases], ['Points of interest', c.pois], ['Breaches', c.breaches], ['Objective', c.objective], ['Extraction bonus', c.extraction],
+    ['Kills', c.kills], ['Bases', c.bases], ['Points of interest', c.pois], ['Breaches', c.breaches], ['Assaults broken', c.assaults], ['Objective', c.objective], ['Extraction bonus', c.extraction],
     ['Earned this mission', c.total, 'sum'], ['Spent this mission', -c.spent], ['Balance', c.balance, 'sum'],
   ].filter(([k, v]) => v !== 0 || k === 'Balance'));
   $('d-deaths').innerHTML = deathList(res);

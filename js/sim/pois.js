@@ -107,6 +107,17 @@ export function softNear(m, x, y, r) {
   return best;
 }
 
+// A base or the citadel whose edge is within r of a point. Allies shoot these when nothing else needs shooting.
+export function baseNear(m, x, y, r) {
+  let best = null, bd = Infinity;
+  for (const b of m.bases) {
+    if (b.destroyed) continue;
+    const d = Math.hypot(b.x - x, b.y - y) - b.r;
+    if (d <= r && d < bd) { bd = d; best = b; }
+  }
+  return best;
+}
+
 // What SEAF should clear next: breaches first, then points of interest, then bases. Distance is measured from (x, y)
 // and weighted so a breach beats a POI that is a bit closer. Anything in skip (id -> until) is passed over.
 export function nearestObjective(m, x, y, skip) {

@@ -81,6 +81,88 @@ export function onSpot(m, g) {
 
 function garrisonCount(m, b) { let n = 0; for (const e of m.enemies) if (!e.dead && e.g.base === b && e.g.garrison) n++; return n; }
 
+// ---------------------------------------------------------------- large assaults
+// Every few minutes a big force forms up well outside the squad's sight on one side, and the radio says which. It holds there for
+// a few seconds (a UAV scan or a strike zone out that way shows it), then marches straight for the Helldivers. The gunner has
+// to scan, set a SEAF line and ready strikes. Breaking it pays credits.
+function assaultSize(m) {
+  const A = C.assault;
+  return Math.max(2, Math.min(A.maxGroups, Math.round(A.groups + m.S * A.perSessionMin + m.assault.n * 0.5)));
+}
+
+function pickAssaultPoint(m) {
+  const rng = m.rng, hds = m.hdAlive;
+  const sight = C.sight.helldiver * m.biome.ping, A = C.assault;
+  const cx = m.hx, cy = m.hy;
+  const base = hds.length ? m.squad.dir : rng.angle();
+  for (let tries = 0; tries < 24; tries++) {
+    // Mostly from the way the squad is heading, sometimes from the flank or behind.
+    const dir = tries < 12 ? base + rng.range(-1.1, 1.1) : rng.angle();
+    const d = sight + A.ahead + rng.range(-20, 40);
+    const x = cx + Math.cos(dir) * d, y = cy + Math.sin(dir) * d;
+    if (x < 80 || y < 80 || x > SIZE - 80 || y > SIZE - 80) continue;
+    let ok = true;
+    for (const b of m.alive) { const r = b.vision + 8; if ((b.x - x) ** 2 + (b.y - y) ** 2 < r * r) { ok = false; break; } }
+    if (ok) return { x, y, dir };
+  }
+  return null;
+}
+
+function assaultAlive(a) {
+  let n = 0;
+  for (const g of a.groups) for (const e of g.members) if (!e.dead) n++;
+  return n;
+}
+
+function updateAssault(m, dt) {
+  const A = C.assault, st = m.assault, t = m.t, rng = m.rng;
+  if (m.phase === 'over' || !m.hdAlive.length) return;
+  const cur = st.cur;
+  if (!cur) {
+    if (m.phase === 'extract' || t < st.nextAt) return;
+    if (m.enemies.length > C.enemies.hardCap - assaultSize(m) * C.enemies.groupSize) { st.nextAt = t + 10; return; }
+    const p = pickAssaultPoint(m);
+    if (!p) { st.nextAt = t + 6; return; }
+    const n = assaultSize(m), dirName = compass(p.x - m.hx, p.y - m.hy);
+    const hold = t + A.warnSec, nx = -Math.sin(p.dir), ny = Math.cos(p.dir);
+    const groups = [];
+    for (let i = 0; i < n; i++) {
+      const o = (i - (n - 1) / 2) * A.spacing, back = (i % 2) * 10;
+      const x = Math.max(40, Math.min(SIZE - 40, p.x + nx * o + Math.cos(p.dir) * back)), y = Math.max(40, Math.min(SIZE - 40, p.y + ny * o + Math.sin(p.dir) * back));
+      const g = spawnGroup(m, x, y, 'hunt', { alertT: A.warnSec + A.hunt });
+      g.hold = hold; g.assault = true; groups.push(g);
+    }
+    st.cur = { x: p.x, y: p.y, dir: p.dir, at: hold, start: t, groups, n, dirName, hit: false, name: `ASSAULT ${st.n + 1}` };
+    m.stats.assaultsHit++;
+    m.markers.push({ type: 'assault', x: p.x, y: p.y, dir: p.dir, start: t, end: hold + A.giveUpSec, at: hold, n, id: st.cur.name });
+    m.radio(COMMS.assaultWarn(dirName, A.warnSec), 'assault', 0);
+    m.notice(`LARGE ENEMY FORCE ${dirName.toUpperCase()}  ${A.warnSec}s`, 'warn');
+    m.emit('assault_warn', { x: p.x, y: p.y, dir: p.dir, n, sec: A.warnSec });
+    return;
+  }
+  // The force marches; once it has left its holding point it counts as "hitting".
+  if (!cur.hit && t >= cur.at) {
+    cur.hit = true;
+    m.radio(COMMS.assaultNow(cur.dirName), 'assaultnow', 0);
+    m.notice('ASSAULT WAVE INBOUND', 'bad');
+    m.emit('assault_go', { x: cur.x, y: cur.y, dir: cur.dir });
+  }
+  // It is broken when nearly all of it is gone. A force that has been left alone for a long time stops counting.
+  const left = assaultAlive(cur);
+  const broken = left <= Math.max(A.minLeft, cur.n * C.enemies.groupSize * 0.12);
+  if (broken || t > cur.at + A.giveUpSec) {
+    if (broken && cur.hit) {
+      m.stats.assaults++; m.sc.assaults += A.score;
+      m.earn('assaults', A.reward, m.cx, m.cy);
+      m.radio(COMMS.assaultBroken, 'assaultbroken', 0);
+      m.notice(`ASSAULT BROKEN  +${A.reward}`, 'good');
+    }
+    for (const mk of m.markers) if (mk.type === 'assault' && mk.id === cur.name) mk.end = t;
+    st.cur = null; st.n++;
+    st.nextAt = t + A.everySec + rng.range(-A.jitterSec, A.jitterSec);
+  }
+}
+
 export function updateDirector(m, dt) {
   const t = m.t, rng = m.rng, sp = m.support;
 
@@ -136,6 +218,8 @@ export function updateDirector(m, dt) {
     }
   }
 
+  updateAssault(m, dt);
+
   // Enemy support: a breach opens just outside sight and keeps sending groups until it is destroyed.
   for (let i = m.incoming.length - 1; i >= 0; i--) {
     const r = m.incoming[i];
@@ -158,22 +242,6 @@ export function updateDirector(m, dt) {
       m.notice(`${m.tag(a)} DEPLOYED  ${m.shipOf(a.team)}`, 'good');
       bark(m, a, 'land', '', true);
       m.radio(COMMS.landed, 'landed', 6);
-    } else {
-      const st = seafStats(m.kit), n = Math.min(p.n, st.max - m.countAlly('S'));
-      const roles = Array(Math.max(0, n)).fill('rifle');
-      if (n > 0 && rng.next() < st.rocketChance) roles[rng.int(n)] = 'rocket';
-      let gr = 0;
-      for (let k = 0; k < n; k++) if (roles[k] === 'rifle' && gr < 2 && rng.next() < st.grenChance) { roles[k] = 'gren'; gr++; }
-      for (let k = 0; k < n; k++) {
-        const ang = rng.angle(), d = rng.range(10, 22);
-        m.addAlly('S', p.x + Math.cos(ang) * d, p.y + Math.sin(ang) * d, { role: roles[k] });
-      }
-      m.emit('pod_land', { type: 'S', x: p.x, y: p.y, n });
-      m.radio(COMMS.seafLanded, 'land', 0);
-      const rk = roles.filter((r) => r === 'rocket').length, gn = roles.filter((r) => r === 'gren').length;
-      m.notice(`SEAF POD DOWN  ${n} TROOPERS${rk ? ' + ROCKET' : ''}${gn ? ` + ${gn} GRENADIER${gn > 1 ? 'S' : ''}` : ''}`, 'info');
-      const s = m.alive.filter((a) => a.type === 'S').pop();
-      if (s) bark(m, s, 'land', '');
     }
   }
   m._refreshAlive();

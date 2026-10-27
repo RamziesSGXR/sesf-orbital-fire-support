@@ -1,4 +1,4 @@
-// Stratagems: the squad's 12 stratagems dealt into four groups (one per Helldiver), the AI that calls them, and everything
+// Stratagems: the squad's 16 stratagems dealt into four groups (one per Helldiver), the AI that calls them, and everything
 // they put on the map (strikes, zones, sentries, mines, shields, support weapons, the recon vehicle, the exosuit, a guard dog).
 // A Helldiver only calls the stratagems in its own group, from where it stands. Squad-wide items (the recon vehicle, jump
 // packs, resupply) can be called by whichever Helldiver is alive. The player's orbital strikes reuse strikeAt() below.
@@ -9,6 +9,7 @@ import { COMMS } from '../data/data.js';
 import { fireShot, hurtEnemy, damageArea } from './combat.js';
 import { alertGroup, compass } from './enemies.js';
 import { bark } from './chatter.js';
+import { baseNear } from './pois.js';
 
 const M = (L, Mm, H, B) => ({ L, M: Mm, H, B });
 const TMULT = { bullet: M(1, 0.8, 0.2, 0.03), shell: M(1, 1, 0.6, 0.15), arc: M(1, 1, 0.5, 0.15), 'arc-zap': M(1, 1, 0.4, 0) };
@@ -156,7 +157,11 @@ function choose(m, g, ctx) {
       if (d.heavyOnly) return pickHeavy(m, d, ctx);
       return pickCluster(m, d, ctx) || (d.heavy ? pickHeavy(m, d, ctx) : null) || (d.base ? pickBase(m, d, ctx) : null);
     case 'heavy':
-      if (d.k === 'weapon') return ctx.heavies.length ? { x: ctx.cx, y: ctx.cy } : null;
+      if (d.k === 'weapon') {
+        // Heavy weapons come out for armor, and also to crack a base the squad is sieging.
+        const sq = m.squad, siege = sq.base && !sq.base.destroyed && sq.state === 'hold' && !d.sw.only && d.sw.mult.B >= C.structure.weaponTry;
+        return ctx.heavies.length || siege ? { x: ctx.cx, y: ctx.cy } : null;
+      }
       return pickHeavy(m, d, ctx) || (d.base ? pickBase(m, d, ctx) : null);
     case 'smoke':
       if (ctx.engaged && ctx.hunt >= 6) return placeSpot(m, ctx, 10);
@@ -238,7 +243,9 @@ export function strikeAt(m, d, tgt, o) {
     if (d.zone) m.queue.push({ at, type: 'zone', kind: d.zone.kind, x, y, r: d.zone.r, sec: d.zone.sec, dps: d.zone.dps || 0, sid: d.name, by: o.by });
   }
   const rr = d.pat === 'point' ? Math.max(d.splash, 6) : d.len || d.splash;
-  m.markers.push({ type: 'strat', x: tgt.x, y: tgt.y, r: rr, start: t, end: at0 + d.span, impact: at0, id: d.name, cat: d.cat, lock: d.lock && tgt.e ? tgt.e : null, by: o.by });
+  // The marker also says which way the strike runs, so the ground shows where an Eagle comes from and which strip it will hit.
+  m.markers.push({ type: 'strat', x: tgt.x, y: tgt.y, r: rr, start: t, end: at0 + d.span, impact: at0, id: d.name, cat: d.cat, lock: d.lock && tgt.e ? tgt.e : null, by: o.by,
+    pat: d.pat, len: d.len || 0, rad: splash, ux, uy, fly: !!d.fly, span: d.span || 0 });
   if (d.fly) {
     const L = 520;
     m.emit('flyby', { x1: tgt.x - ux * L, y1: tgt.y - uy * L, x2: tgt.x + ux * L, y2: tgt.y + uy * L, at: Math.max(t, at0 - 1.6), dur: 3.2 + d.span });
@@ -541,7 +548,19 @@ function updateWeapons(m, dt) {
           fireShot(m, a, e, { dmg: w.dmg * k, acc: w.acc, splash: w.splash, mult: w.mult, flight: w.splash > 0 && w.range > 40 ? 0.35 : 0 }, 'strat', 'a', w.snd);
           w.left--;
           if (w.left <= 0) { a.sw = null; m.radio(COMMS.assetSpent(STRATS[w.id].name), 'aspent', 2); m.emit('asset_down', { kind: 'weapon', sid: w.id, x: a.x, y: a.y, why: 'spent' }); }
-        } else w.t = 0.2;
+        } else {
+          // No enemy to shoot: a weapon that can crack structures works on a base or the citadel in range.
+          const bs = w.only || w.mult.B < C.structure.weaponTry ? null : baseNear(m, a.x, a.y, w.range * 0.9);
+          if (bs) {
+            w.t = w.every;
+            const dx = a.x - bs.x, dy = a.y - bs.y, d = Math.hypot(dx, dy) || 1, kk = bs.r * 0.7 / d;
+            m.emit('tracer', { x: a.x, y: a.y, tx: bs.x + dx * kk, ty: bs.y + dy * kk, s: 'a', hit: true, big: true, fl: w.splash > 0 && w.range > 40 ? 0.35 : 0, snd: w.snd });
+            m.damageBase(bs, w.dmg * k * w.mult.B * C.structure.stratMul, 'strat');
+            if (w.splash >= 3) m.emit('boom', { x: bs.x + dx * kk, y: bs.y + dy * kk, r: w.splash, dmg: w.dmg, by: 'strat' });
+            w.left--;
+            if (w.left <= 0) { a.sw = null; m.radio(COMMS.assetSpent(STRATS[w.id].name), 'aspent', 2); m.emit('asset_down', { kind: 'weapon', sid: w.id, x: a.x, y: a.y, why: 'spent' }); }
+          } else w.t = 0.2;
+        }
       }
     }
     const mc = a.mech;

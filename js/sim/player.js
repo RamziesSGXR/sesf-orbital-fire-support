@@ -3,19 +3,21 @@
 // The player never steers the Helldivers. Friendly fire from the player's own strikes is real.
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
-import { orbStats, uavStats } from '../data/kit.js';
+import { orbStats, uavStats, gunStats } from '../data/kit.js';
 import { noise } from './enemies.js';
 import { damageArea } from './combat.js';
 import { strikeAt, queueZone } from './strat.js';
 
-export const SLOT_UAV = 0, SLOT_NUKE = 6, ORB_SLOTS = 5;
+export const SLOT_UAV = 0, SLOT_NUKE = 6, SLOT_GUN = 7, ORB_SLOTS = 5;
 export const UAV_REACH = 70;       // a UAV can be dropped this far beyond the strike zone of the allies
 const ALL = { L: 1, M: 1, H: 1, B: 1 };
+const GUN_MULT = { L: 1, M: 0.8, H: 0.2, B: C.gun.struct };
 
 export function initPlayer(m) {
   const p = {
     weapon: 1, aimX: m.lz.x, aimY: m.lz.y + 60, firing: false, prevFiring: false, swapUntil: 0,
-    slots: [{ type: 'uav', readyAt: 2 }, { type: 'empty' }, { type: 'empty' }, { type: 'empty' }, { type: 'empty' }, { type: 'empty' }, { type: 'nuke', uses: 1, readyAt: 0 }],
+    slots: [{ type: 'uav', readyAt: 2 }, { type: 'empty' }, { type: 'empty' }, { type: 'empty' }, { type: 'empty' }, { type: 'empty' }, { type: 'nuke', uses: 1, readyAt: 0 }, { type: 'gun' }],
+    gun: { ammo: gunStats(m.kit).ammo, max: gunStats(m.kit).ammo, bloom: 0, idle: 9, acc: 0, dry: false, firing: false },
     aim: { ok: true, inZone: true, danger: false, dangerR: 0, ready: false, splash: 0, spread: 0, delay: 0, name: '' },
   };
   m.player = p;
@@ -35,6 +37,9 @@ export function syncSlots(m) {
     if (cur.type === 'orb' && cur.id === id) { cur.level = level; continue; }
     p.slots[i] = { type: 'orb', id, level, readyAt: m.t + C.weapons.warmupSec, uses: id === 'orb_laser' ? C.orbital.laserUses : Infinity };
   }
+  // gun upgrades bought mid-mission: a bigger magazine arrives full of the extra rounds
+  const gs = gunStats(kit);
+  if (p.gun && gs.ammo !== p.gun.max) { p.gun.ammo = Math.min(gs.ammo, p.gun.ammo + Math.max(0, gs.ammo - p.gun.max)); p.gun.max = gs.ammo; }
   if (p.slots[p.weapon].type === 'empty') {
     const j = p.slots.findIndex((s, i) => i >= 1 && i <= ORB_SLOTS && s.type === 'orb');
     p.weapon = j >= 0 ? j : 0;
@@ -47,6 +52,7 @@ export function slotStats(m, i) {
   if (s.type === 'orb') return orbStats(s.id, s.level);
   if (s.type === 'uav') { const u = uavStats(m.kit.uav); return { name: 'UAV SCAN', g: 'UAV', cd: u.cd, r: u.r, sec: u.sec, delay: 0 }; }
   if (s.type === 'nuke') return { name: 'NUCLEAR STRIKE', g: 'NUKE', cd: 0, delay: 8 };
+  if (s.type === 'gun') return { name: 'SHIP GATLING', g: 'GAT', cd: 0, delay: 0 };
   return null;
 }
 
@@ -142,19 +148,26 @@ export function updatePlayer(m, dt) {
     info.splash = st.r; info.ready = info.inZone && t >= s.readyAt;
   } else if (s.type === 'nuke') {
     info.inZone = true; info.splash = C.objective.nuke.blastR; info.ready = m.nukeReady() && s.uses > 0;
+  } else if (s.type === 'gun') {
+    // free fire: anywhere the player can see, no strike zone needed
+    const gs = gunStats(m.kit), g = p.gun;
+    info.inZone = m.visLevel(p.aimX, p.aimY) > 0;
+    info.splash = gs.spread + gs.bloom * g.bloom; info.ready = info.inZone && g.ammo >= 1 && !g.dry;
+    info.gun = { ammo: g.ammo, max: g.max, dry: g.dry };
   } else { info.inZone = false; info.ready = false; }
   info.ok = info.ready;
-  info.dangerR = s.type === 'uav' ? 0 : info.splash + info.spread + 5;
+  info.dangerR = s.type === 'uav' || s.type === 'gun' ? 0 : info.splash + info.spread + 5;
   info.danger = false;
   if (info.dangerR > 0) {
     for (const a of m.alive) if (!a.dead && Math.hypot(a.x - p.aimX, a.y - p.aimY) <= info.dangerR) { info.danger = true; break; }
   }
 
-  // Fire on the press of the button (one strike per press).
+  // Fire on the press of the button (one strike per press). The gun fires for as long as the trigger is held.
   const pressed = p.firePress || (p.firing && !p.prevFiring);
   p.firePress = false;
   p.prevFiring = p.firing;
-  if (pressed && t >= p.swapUntil) fireSlot(m, p.weapon);
+  if (s.type === 'gun') updateGun(m, dt, pressed);
+  else { if (pressed && t >= p.swapUntil) fireSlot(m, p.weapon); updateGun(m, dt, false); }
 
   // Shells land.
   for (let i = m.shells.length - 1; i >= 0; i--) {
@@ -187,4 +200,37 @@ export function updatePlayer(m, dt) {
   for (let i = m.uavs.length - 1; i >= 0; i--) if (t >= m.uavs[i].until) m.uavs.splice(i, 1);
   // Inbound markers expire.
   for (let i = m.markers.length - 1; i >= 0; i--) if (t >= m.markers[i].end) m.markers.splice(i, 1);
+}
+
+// The Ship Gatling: hold the trigger and rounds scatter around the aim point; the spread blooms while it fires and settles when
+// it stops. The magazine is the player's own: it refills by itself a moment after the trigger is released.
+function updateGun(m, dt, pressed) {
+  const p = m.player, g = p.gun, G = C.gun, gs = gunStats(m.kit), t = m.t;
+  const holding = p.slots[p.weapon].type === 'gun' && p.firing && t >= p.swapUntil;
+  const seen = holding && m.visLevel(p.aimX, p.aimY) > 0;
+  if (g.dry && g.ammo >= 45) g.dry = false;
+  if (holding && pressed) {
+    if (!seen) deny(m, 'novisual', COMMS.noVisual);
+    else if (g.ammo < 1 || g.dry) deny(m, 'gundry', COMMS.gunDry);
+  }
+  if (seen && g.ammo >= 1 && !g.dry) {
+    g.idle = 0; g.firing = true;
+    g.bloom = Math.min(1, g.bloom + G.bloomUp * dt / 3);
+    g.acc += G.rps * dt;
+    const pts = [], spread = gs.spread + gs.bloom * g.bloom;
+    while (g.acc >= 1 && g.ammo >= 1) {
+      g.acc -= 1; g.ammo -= 1;
+      const [ox, oy] = m.rng.inDisc(spread), x = p.aimX + ox, y = p.aimY + oy;
+      damageArea(m, x, y, G.splash * m.biome.splash, gs.dmg, GUN_MULT, 'player', false);
+      if (pts.length < 4) pts.push([x, y]);
+      m.stats.gunRounds = (m.stats.gunRounds || 0) + 1;
+    }
+    if (g.ammo < 1) { g.ammo = 0; g.dry = true; g.firing = false; m.radio(COMMS.gunDry, 'gundry', 4); }
+    if (pts.length) { m.emit('gun', { x: p.aimX, y: p.aimY, pts }); noise(m, p.aimX, p.aimY, 35); }
+    m.stats.shots++;
+  } else {
+    g.firing = false; g.idle += dt; g.acc = 0;
+    g.bloom = Math.max(0, g.bloom - G.bloomDown * dt / 3);
+    if (g.idle >= G.regenDelay) g.ammo = Math.min(g.max, g.ammo + gs.regen * dt);
+  }
 }

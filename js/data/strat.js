@@ -1,6 +1,6 @@
 // Stratagems. Names follow the Helldivers 2 stratagem list; every number, line of text and piece of art here is original
-// to this fan project. Eagle, defense, support, vehicle and gear stratagems are called by the Helldivers: the squad draws 12
-// distinct ones before each drop and deals them into four groups of three, one group per Helldiver (CONFIG.strat).
+// to this fan project. Eagle, defense, support, vehicle and gear stratagems are called by the Helldivers: the squad draws 16
+// distinct ones before each drop and deals them into four groups of four, one group per Helldiver (CONFIG.strat).
 // Orbital stratagems belong to the player: they are bought and upgraded in the armory (see data/kit.js).
 //
 // k      what kind of thing it is: strike | zone | turret | mines | shield | weapon | frv | mech | jump | dog | resupply
@@ -28,7 +28,7 @@ export const STRATS = {
                    zone: { kind: 'fire', r: 8, sec: 10, dps: 30 },
                    blurb: 'Leaves a burning strip that keeps hurting.' },
   eagle_rockets: { name: 'Eagle 110mm Rocket Pods', cat: 'EAGLE', g: 'RKT', cd: 60, k: 'strike', use: 'cluster', min: 3, heavy: true,
-                   pat: 'scatter', n: 6, len: 8, span: 1.2, delay: 3.5, dmg: 240, splash: 5.5, mult: M(1, 1, 0.7, 0.15), fly: true,
+                   pat: 'scatter', n: 6, len: 8, span: 1.2, delay: 3.5, dmg: 240, splash: 5.5, mult: M(1, 1, 0.7, 0.15), fly: true, base: true,
                    blurb: 'Six rockets on one spot. Good against mediums and heavies.' },
   eagle_500:     { name: 'Eagle 500kg Bomb', cat: 'EAGLE', g: '500', cd: 110, k: 'strike', use: 'heavy', base: true,
                    pat: 'point', n: 1, len: 0, span: 0, delay: 5, dmg: 2400, splash: 22, mult: M(1, 1, 1, 0.6), fly: true, safe: 34,
@@ -139,7 +139,7 @@ export const STRAT_IDS = ALL_IDS.filter((id) => STRATS[id].cat !== 'ORBITAL');
 export const ORB_IDS = ALL_IDS.filter((id) => STRATS[id].cat === 'ORBITAL');
 export const CAT_COLOR = { EAGLE: '#ffe600', ORBITAL: '#ffffff', DEFENSE: '#7dff9b', SUPPORT: '#ffb020', VEHICLE: '#7fd8ff', GEAR: '#c9b8ff' };
 
-// Twelve distinct picks for the Helldivers. A list that is too short or has repeats is topped up from the same seed.
+// Sixteen distinct picks for the Helldivers. A list that is too short or has repeats is topped up from the same seed.
 export function rollLoadout(seed, forced = []) {
   const rng = new RNG((seed ^ 0x5bd1e995) >>> 0), out = [];
   for (const id of forced) if (STRAT_IDS.includes(id) && !out.includes(id) && out.length < C.strat.slots) out.push(id);
@@ -148,7 +148,7 @@ export function rollLoadout(seed, forced = []) {
   return out;
 }
 
-// Deal a 12 stratagem loadout into four groups of three. The squad-wide items (recon vehicle, jump packs, resupply)
+// Deal a 16 stratagem loadout into four groups of four. The squad-wide items (recon vehicle, jump packs, resupply)
 // are spread out so no one Helldiver owns all of them. A forced list keeps its order, so tests can pin each group.
 export function dealGroups(loadout, seed, keepOrder = false) {
   const per = C.strat.perGroup, n = C.strat.groups;

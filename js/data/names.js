@@ -25,7 +25,7 @@ const SURNAMES = ['HOLLIS', 'KESSLER', 'MARLOWE', 'OKAFOR', 'BRANDT', 'VASQUEZ',
   'MBEKI', 'HARGROVE', 'ESPOSITO', 'NAKAMURA', 'OYELARAN', 'BRIGHTWELL', 'VOSS', 'CALLAHAN', 'ROSALES', 'IVANOV', 'PEMBERTON'];
 export const surname = (rng) => SURNAMES[rng.int(SURNAMES.length)];
 export function seafName(rng, role) {
-  const rank = role === 'rocket' ? 'SPC' : role === 'gren' ? 'CPL' : rng.next() < 0.18 ? 'SGT' : 'PVT';
+  const rank = role === 'rocket' ? 'SPC' : role === 'gren' ? 'CPL' : role === 'medic' ? 'DOC' : role === 'spotter' ? 'FO' : rng.next() < 0.18 ? 'SGT' : 'PVT';
   return `${rank} ${surname(rng)}`;
 }
 
@@ -67,9 +67,14 @@ export const SEAF_LINES = {
   gren:    ['Frag out!', 'Grenade!', 'Fire in the hole!'],
   rocket:  ['Rocket away!', 'Heavy coming down!', 'Taking the shot!'],
   hurt:    ['I am hit!', 'Need help!'],
-  land:    ['Pod down!', 'Boots on the ground!'],
+  land:    ['Off the pelican!', 'Boots on the ground!', 'Rope is clear!'],
+  medic:   ['Patching you up!', 'Hold still!', 'Medic, I got you!'],
+  spot:    ['Fire mission, danger close!', 'Calling Eagles on that group!', 'Requesting a strike, get down!'],
+  path:    ['Running the play!', 'Following the route!'],
+  line:    ['Forming the line!', 'Spread out, hold the line!'],
+  ring:    ['Ringing the area!', 'All around defense!'],
 };
-export const SEAF_NAMES_FOR_ORDERS = { auto: 'AUTO', move: 'MOVE', protect: 'PROTECT', attack: 'ATTACK', escort: 'ESCORT' };
+export const SEAF_NAMES_FOR_ORDERS = { auto: 'AUTO', move: 'MOVE', protect: 'PROTECT', attack: 'ATTACK', escort: 'ESCORT', path: 'ROUTE', line: 'LINE', ring: 'RING' };
 
 // Short, readable name for a stratagem call in a bark.
 export const pickLine = (rng, list) => list[rng.int(list.length)];

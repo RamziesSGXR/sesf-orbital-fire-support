@@ -3,7 +3,7 @@
 import { CONFIG as C } from '../config.js';
 import { ALLY, COMMS } from '../data/data.js';
 import { fireShot, hurtTarget, nearestTarget, inZoneKind } from './combat.js';
-import { softNear } from './pois.js';
+import { softNear, baseNear } from './pois.js';
 import { bark } from './chatter.js';
 
 const DIRS = ['east', 'northeast', 'north', 'northwest', 'west', 'southwest', 'south', 'southeast'];
@@ -66,18 +66,25 @@ export function updateAllies(m, dt) {
         } else {
           // No enemy: shoot a point of interest or a breach that is close.
           const soft = !e && softNear(m, a.x, a.y, 30);
+          const bs = !e && !soft ? baseNear(m, a.x, a.y, C.structure.range) : null;
           if (soft) {
             a.atk += RIFLE[a.type].burst;
             const dmg = RIFLE[a.type].dmg * (a.dmgMul || 1) * P.rifleMul * (m.rng.next() < RIFLE[a.type].acc ? 1 : 0);
             m.emit('tracer', { x: a.x, y: a.y, tx: soft.x, ty: soft.y, s: 'a', hit: true, big: false, fl: 0, snd: H ? 'rifle' : 'smg' });
             if (dmg > 0) (soft.isPoi ? m.damagePoi(soft, dmg, 'squad') : m.damageBreach(soft, dmg, 'squad'));
+          } else if (bs) {
+            // A base or the citadel: the squad shoots it down itself, so nothing the destroyer can break is out of the Helldivers' reach.
+            a.atk += RIFLE[a.type].burst;
+            const hit = m.rng.next() < RIFLE[a.type].acc, dx = a.x - bs.x, dy = a.y - bs.y, d = Math.hypot(dx, dy) || 1, k = bs.r * 0.7 / d;
+            m.emit('tracer', { x: a.x, y: a.y, tx: bs.x + dx * k, ty: bs.y + dy * k, s: 'a', hit, big: false, fl: 0, snd: H ? 'rifle' : 'smg' });
+            if (hit) m.damageBase(bs, RIFLE[a.type].dmg * (a.dmgMul || 1) * (H ? C.structure.rifleH : C.structure.rifleS), 'squad');
           } else a.atk = 0;
         }
       }
     }
 
     // SEAF specialists
-    if (!H && a.role !== 'rifle') {
+    if (!H && (a.role === 'gren' || a.role === 'rocket')) {
       a.spT -= dt;
       if (a.spT <= 0) {
         const spec = a.role === 'gren' ? C.combat.grenadier : C.combat.rocketeer;
@@ -190,6 +197,12 @@ export function updateEnemies(m, dt) {
       continue;
     }
 
+    // A force forming up for an assault stands still until its hold time is over.
+    if (g.hold > t) {
+      for (const e of g.members) { if (!e.dead) { e.vx = 0; e.vy = 0; e.tgt = null; } }
+      continue;
+    }
+
     // Hunting: head for roughly where the nearest ally (or placed asset) is.
     g.alertT -= dt;
     g.targetT -= dt;
@@ -245,7 +258,7 @@ export function updateEnemies(m, dt) {
 
   // Attacks. Each enemy has its own range, damage and rate. Misses fly wide, smoke makes them worse.
   for (const g of m.groups) {
-    if (g.state !== 'hunt') continue;
+    if (g.state !== 'hunt' || g.hold > t) continue;
     for (const e of g.members) {
       if (e.dead) continue;
       if (e.stunUntil > t) { e.ch = null; continue; }

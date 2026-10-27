@@ -2,7 +2,8 @@
 import { CONFIG as C } from '../config.js';
 import { SUBTYPES } from '../data/data.js';
 import { scorch, makeDecals, mark } from './terrain.js';
-import { drawZones, drawMarkers, drawObjectives, drawAssets, drawEnemyExtras, drawPois, drawBreaches, drawUavs, drawSeafOrder, drawPings } from './world.js';
+import { drawZones, drawMarkers, drawObjectives, drawAssets, drawEnemyExtras, drawPois, drawBreaches, drawUavs, drawPings } from './world.js';
+import { drawSquadOrders, drawSeafMark, drawStroke, drawPelicans, drawAssault, drawMiniSeaf, seafTargets, squadsInUse } from './squads.js';
 
 import { slotStats } from '../sim/player.js';
 
@@ -122,6 +123,19 @@ export class Renderer {
       }
       case 'uav': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: ev.r, t0: now, life: 0.9, a: 1, col: '#9dffb8' }); fx.push({ k: 'ring', x: ev.x, y: ev.y, r: ev.r * 0.6, t0: now, life: 0.7, a: 0.8, col: '#9dffb8' }); break;
       case 'seaf_order': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 36, t0: now, life: 0.9, a: 1, col: this.allyColor() }); break;
+      case 'gun': {
+        // The ship's gatling: rounds fall from above onto the aim point.
+        const black = this.settings.polarity === 'black';
+        for (const [gx, gy] of ev.pts) {
+          fx.push({ k: 'trc', kind: 'streak', x: gx + (Math.random() - 0.5) * 6, y: gy - 70 - Math.random() * 40, x2: gx, y2: gy, t0: now, fl: 0.06, life: 0.2, col: '#ffe9a8', w: 1.5, len: 26, hit: true, big: false, side: 'p', imp: false, d: 90 });
+          if (Math.random() < 0.18) mark(this.decal, gx, gy, 0.5, black);
+        }
+        break;
+      }
+      case 'heal': fx.push({ k: 'line', x: ev.x, y: ev.y, x2: ev.tx, y2: ev.ty, t0: now, life: 0.28, col: '#7dff9b' }); fx.push({ k: 'ring', x: ev.tx, y: ev.ty, r: 8, t0: now, life: 0.5, a: 0.9, col: '#7dff9b' }); break;
+      case 'pelican_arrive': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 40, t0: now, life: 0.9, a: 0.8, col: this.allyColor() }); fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 24, t0: now, life: 0.6, a: 0.7, col: '#cfe9ff' }); break;
+      case 'pelican_drop': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 10, t0: now, life: 0.5, a: 0.9, col: ev.role === 'medic' ? '#7dff9b' : ev.role === 'spotter' ? '#ffd24a' : '#cfe9ff' }); break;
+      case 'assault_warn': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 90, t0: now, life: 1.4, a: 1, col: this.enemyColor(m) }); fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 50, t0: now, life: 1.0, a: 1, col: this.enemyColor(m) }); this.shake = Math.min(12, this.shake + 3); break;
       case 'breach_open':
         fx.push({ k: 'flash', x: ev.x, y: ev.y, r: 28, t0: now, life: 0.7, a: flash, col: this.enemyColor(m) }); fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 60, t0: now, life: 1.2, a: 1, col: this.enemyColor(m) });
         this.shake = Math.min(12, this.shake + 4); break;
@@ -218,7 +232,7 @@ export class Renderer {
     }
 
     // Bases: always known from orbit.
-    const sqBase = m.squad.base, tgB = m.seaf.tgt && m.seaf.tgt.obj;
+    const sqBase = m.squad.base, tgBs = seafTargets(m);
     for (const b of m.bases) {
       const r = Math.max(b.r || C.bases.radius, px(9));
       if (b.destroyed) {
@@ -235,7 +249,7 @@ export class Renderer {
         ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = (i / 6) * TAU + 0.5; ctx.lineTo(b.x + Math.cos(a) * r * 0.62, b.y + Math.sin(a) * r * 0.62); } ctx.closePath(); ctx.stroke();
         for (let i = 0; i < 6; i++) { const a = (i / 6) * TAU + 0.5; ctx.fillStyle = col; ctx.fillRect(b.x + Math.cos(a) * r - px(2.5), b.y + Math.sin(a) * r - px(2.5), px(5), px(5)); }
       }
-      if (tgB === b) this._bracket(ctx, b.x, b.y, r * 1.5, px(1.8), pal.ally);
+      if (tgBs.has(b)) this._bracket(ctx, b.x, b.y, r * 1.5, px(1.8), pal.ally);
       if (b === sqBase && !b.fortress) labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 4, text: m.phase === 'bonus' ? 'BONUS' : 'BASE', col: 'rgba(215,230,220,0.9)' });
       if (b.hp < b.maxHp || b.fortress) {
         const bw = r * 2.2, f = b.hp / b.maxHp;
@@ -247,7 +261,8 @@ export class Renderer {
     drawPois(ctx, m, now, px, labels, scale, pal);
     drawBreaches(ctx, m, now, px, labels, scale, pal);
     drawObjectives(ctx, m, now, px, labels, scale, pal);
-    drawSeafOrder(ctx, m, now, px, labels, scale, pal);
+    drawSquadOrders(ctx, m, now, px, labels, scale, pal);
+    drawAssault(ctx, m, now, px, labels, scale, pal);
 
     // Inbound strikes, drops and warnings, and laser beams
     drawMarkers(ctx, m, now, px, labels, scale);
@@ -282,7 +297,8 @@ export class Renderer {
     }
     drawEnemyExtras(ctx, m, now, px, labels, scale, pal);
 
-    // Allies: blue infrared strobes. Helldivers wear a ring in their group's color.
+    // Allies: blue infrared strobes. Helldivers wear a ring in their group's color; SEAF wear their squad's color and a role mark.
+    const seafMulti = squadsInUse(m) > 1 || m.seaf.sel >= 0;
     for (const a of m.alive) {
       if (a.dead) continue;
       const H_ = a.type === 'H', tm = H_ ? m.teams[a.team] : null;
@@ -298,6 +314,7 @@ export class Renderer {
         ctx.fillStyle = '#e8f6ff'; ctx.globalAlpha = 1; ctx.beginPath(); ctx.arc(a.x, a.y, r * 0.45, 0, TAU); ctx.fill();
       }
       if (H_) { ctx.strokeStyle = tm ? tm.color : '#e8f6ff'; ctx.globalAlpha = 0.95; ctx.lineWidth = px(1.6); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.45, 0, TAU); ctx.stroke(); }
+      else drawSeafMark(ctx, m, a, r, px, seafMulti, on);
       ctx.globalAlpha = 1;
     }
 
@@ -317,17 +334,20 @@ export class Renderer {
       labels.push({ x: p.x, y: p.y, dy: 42, text: `${p.type === 'H' ? (tm ? m.slotTag(tm) : 'HELLDIVER') : `SEAF x${p.n}`} ${Math.ceil(left)}S`, col: tm ? tm.color : col });
     }
 
+    drawPelicans(ctx, m, now, px, labels, scale, pal);
+    if (ui.draw) drawStroke(ctx, m, now, px, labels, scale, ui.draw);
+
     // Placement ghost for SEAF drops and orders
     if (ui.placing && ui.aim) {
       const k = ui.placing;
       const sp = ui.snap && k !== 'seaf' ? ui.snap(ui.aim.x, ui.aim.y) : ui.aim, ax = sp.x, ay = sp.y;
       const covered = k === 'seaf' ? m.inZone(ax, ay, -5) : true;
       const col = !covered ? '#ff4a4a' : pal.ally;
-      const R = k === 'protect' ? C.seaf.protectR : k === 'move' ? C.seaf.patrolRadius : k === 'attack' ? 24 : 22;
+      const R = k === 'protect' ? C.seaf.protectR : k === 'move' ? C.seaf.patrolRadius : k === 'attack' ? 24 : k === 'assign' ? C.seaf.assignR : 22;
       ctx.strokeStyle = col; ctx.lineWidth = px(2); ctx.setLineDash([px(6), px(5)]); ctx.lineDashOffset = -now * px(12);
       ctx.beginPath(); ctx.arc(ax, ay, R, 0, TAU); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
       ctx.fillStyle = col; this._diamond(ctx, ax, ay, Math.max(px(6), 3.5));
-      labels.push({ x: ax, y: ay, dy: 38, text: !covered ? 'NO COVERAGE' : k === 'move' ? 'SEAF MOVE HERE' : k === 'protect' ? 'SEAF PROTECT HERE' : k === 'attack' ? 'SEAF ATTACK HERE' : 'SEAF DROP', col });
+      labels.push({ x: ax, y: ay, dy: 38, text: !covered ? 'NO COVERAGE' : k === 'move' ? 'SEAF MOVE HERE' : k === 'protect' ? 'SEAF PROTECT HERE' : k === 'attack' ? 'SEAF ATTACK HERE' : k === 'assign' ? `ASSIGN TO SQUAD ${m.seaf.sel + 1}` : 'SEAF DROP', col });
     }
 
     // Effects
@@ -601,7 +621,7 @@ export class Renderer {
     try {
       const cv = this.cv || document.getElementById('view');
       const cr = cv.getBoundingClientRect(), k = this.W / cr.width;
-      for (const sel of ['#weapons', '#orders', '#strats', '#objective', '#touch-ctl', '.hud-tl', '#notices', '.hud-tr']) {
+      for (const sel of ['#weapons', '#orders', '#squads', '#strats', '#objective', '#touch-ctl', '.hud-tl', '#notices', '.hud-tr']) {
         const el = document.querySelector(sel);
         if (!el || el.offsetParent === null) continue;
         const r = el.getBoundingClientRect();
@@ -629,6 +649,9 @@ export class Renderer {
     if (m.extraction.revealed) items.push({ x: m.extraction.x, y: m.extraction.y, col: '#ffe600', label: 'EXTRACT' });
     for (const p of m.pods) if (p.type === 'H' && !p.start) items.push({ x: p.x, y: p.y, col: '#ffe600', label: 'DROP' });
     for (const b of m.breaches) if (!b.dead) items.push({ x: b.x, y: b.y, col: this.enemyColor(m), label: 'BREACH' });
+    for (const p of m.pelicans) if (p.state !== 'out') items.push({ x: p.x, y: p.y, col: this.allyColor(), label: 'PELICAN' });
+    const as = m.assault && m.assault.cur;
+    if (as && m.t < as.at + 6) items.push({ x: as.x, y: as.y, col: this.enemyColor(m), label: 'ASSAULT' });
     ctx.font = `${Math.round(10 * d)}px ui-monospace, Menlo, Consolas, monospace`;
     const obs = this._hudRects();
     for (const it of items) {
@@ -663,15 +686,20 @@ export class Renderer {
 
   _reticle(ctx, m, aim, x, y, scale, now, ui) {
     const d = this.dpr, p = m.player, s = p.slots[p.weapon], info = p.aim, t = m.t, place = ui.placing;
-    const isNuke = s.type === 'nuke', isUav = s.type === 'uav';
+    const isNuke = s.type === 'nuke', isUav = s.type === 'uav', isGun = s.type === 'gun';
     let status = '', bad = false;
-    if (isNuke) { if (!info.ready) { status = s.uses <= 0 ? 'LAUNCHED' : 'SITE NOT ARMED'; bad = true; } else status = 'ARMED. FIRE ANYWHERE'; }
+    if (isGun) {
+      const g = info.gun || { ammo: 0, max: 1, dry: true };
+      if (!info.inZone) { status = 'NO VISUAL. FREE FIRE NEEDS SIGHT'; bad = true; }
+      else if (g.dry) { status = 'MAGAZINE EMPTY. RELOADING'; bad = true; }
+      else status = p.gun && p.gun.firing ? 'FIRING' : 'FREE FIRE';
+    } else if (isNuke) { if (!info.ready) { status = s.uses <= 0 ? 'LAUNCHED' : 'SITE NOT ARMED'; bad = true; } else status = 'ARMED. FIRE ANYWHERE'; }
     else if (s.type === 'empty') { status = 'EMPTY SLOT'; bad = true; }
     else if (t < s.readyAt) { status = `COOLDOWN ${Math.ceil(s.readyAt - t)}S`; bad = true; }
     else if (s.uses <= 0) { status = 'NO USES LEFT'; bad = true; }
     else if (!info.inZone) { status = 'NO COVERAGE'; bad = true; }
     else status = isUav ? 'SCAN READY' : 'READY';
-    const danger = info.danger && !isUav;
+    const danger = info.danger && !isUav && !isGun;
     if (danger && !bad) status = 'DANGER CLOSE';
     const col = danger ? '#ff4040' : bad ? '#ffb020' : isUav ? '#9dffb8' : '#7dff9b';
     ctx.save();
@@ -692,8 +720,15 @@ export class Renderer {
       if (info.spread > 0) { ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(0, 0, info.spread * scale, 0, TAU); ctx.stroke(); }
       if (danger) { ctx.setLineDash([]); ctx.globalAlpha = 0.5 + 0.5 * Math.sin(now * 14); ctx.beginPath(); ctx.arc(0, 0, Math.max(12 * d, info.dangerR * scale), 0, TAU); ctx.stroke(); }
       ctx.setLineDash([]); ctx.globalAlpha = 1;
+      // the gatling's magazine as an arc around the reticle
+      if (isGun && info.gun) {
+        const f = Math.max(0, Math.min(1, info.gun.ammo / info.gun.max));
+        ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 4 * d; ctx.beginPath(); ctx.arc(0, 0, 26 * d, 0, TAU); ctx.stroke();
+        ctx.strokeStyle = info.gun.dry ? '#ff4a4a' : f < 0.25 ? '#ffb020' : '#ffd24a'; ctx.lineWidth = 3 * d;
+        ctx.beginPath(); ctx.arc(0, 0, 26 * d, -Math.PI / 2, -Math.PI / 2 + TAU * f); ctx.stroke();
+      }
       // cooldown arc
-      if (t < s.readyAt && s.readyAt - t < 60 && s.type !== 'nuke') {
+      if (!isGun && t < s.readyAt && s.readyAt - t < 60 && s.type !== 'nuke') {
         const cd = (slotCd(m, p.weapon) || 30), f = 1 - (s.readyAt - t) / cd;
         ctx.strokeStyle = '#ffb020'; ctx.lineWidth = 3 * d; ctx.beginPath(); ctx.arc(0, 0, 26 * d, -Math.PI / 2, -Math.PI / 2 + TAU * Math.max(0, Math.min(1, f))); ctx.stroke();
       }
@@ -791,14 +826,11 @@ export class Renderer {
     // Enemies in view
     c.fillStyle = ec;
     for (const e of m.enemies) if (!e.dead && e.vis > 0) c.fillRect(e.x * k - 1, e.y * k - 1, 2, 2);
-    // Pods and the SEAF order
+    // Helldiver pods, SEAF squads with their orders, pelicans and the assault warning
     for (const p of m.pods) { c.strokeStyle = p.type === 'H' ? '#ffe600' : ac; c.lineWidth = 1.5; c.beginPath(); c.arc(p.x * k, p.y * k, 4, 0, TAU); c.stroke(); }
-    const o = m.seaf.order;
-    if (m.seafAlive.length && (o.kind === 'move' || o.kind === 'protect' || o.kind === 'attack')) { c.fillStyle = ac; this._diamond(c, o.x * k, o.y * k, 4); }
-    else if (m.seafAlive.length && m.seaf.tgt) { c.strokeStyle = ac; c.lineWidth = 1; c.beginPath(); c.arc(m.seaf.tgt.x * k, m.seaf.tgt.y * k, 7, 0, TAU); c.stroke(); }
-    // Allies, with each Helldiver's ping in its group color
+    drawMiniSeaf(c, m, k, ac, ec);
+    // Helldivers, with each one's ping in its group color
     c.fillStyle = ac;
-    for (const a of m.seafAlive) { c.beginPath(); c.arc(a.x * k, a.y * k, 2.2, 0, TAU); c.fill(); }
     for (const a of m.hdAlive) {
       const tm = m.teams[a.team], col = tm ? tm.color : '#ffe600';
       if (a.ping) { c.strokeStyle = col; c.lineWidth = 1.5; c.beginPath(); c.arc(a.ping.x * k, a.ping.y * k, 3.5, 0, TAU); c.stroke(); }

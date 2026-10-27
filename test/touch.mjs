@@ -40,16 +40,28 @@ await tap('#fire-btn'); await page.waitForTimeout(400);
 check('orbital called', await page.evaluate(() => window.__game.mission.stats.orbCalls) === shells0 + 1);
 // SEAF drop
 await tap('#orders .ord[data-o=seaf]'); await page.waitForTimeout(400);
-check('SEAF pod called', await page.evaluate(() => window.__game.mission.pods.some((p) => p.type === 'S')));
+check('SEAF pelican called', await page.evaluate(() => window.__game.mission.pelicans.length > 0));
 // orders need SEAF on the ground: wait for the pod, then tap protect
-await page.waitForTimeout(8000);
+await page.waitForTimeout(12000);
 check('SEAF landed', await page.evaluate(() => window.__game.mission.seafAlive.length) > 0);
 await tap('#orders .ord[data-o=protect]'); await page.waitForTimeout(300);
-check('SEAF protect order', await page.evaluate(() => window.__game.mission.seaf.order.kind) === 'protect');
+check('SEAF protect order', await page.evaluate(() => window.__game.mission.seaf.squads[0].order.kind) === 'protect');
 await tap('#orders .ord[data-o=escort]'); await page.waitForTimeout(300);
-check('SEAF escort order', await page.evaluate(() => window.__game.mission.seaf.order.kind) === 'escort');
+check('SEAF escort order', await page.evaluate(() => window.__game.mission.seaf.squads[0].order.kind) === 'escort');
 await tap('#orders .ord[data-o=auto]'); await page.waitForTimeout(300);
-check('SEAF auto order', await page.evaluate(() => window.__game.mission.seaf.order.kind) === 'auto');
+check('SEAF auto order', await page.evaluate(() => window.__game.mission.seaf.squads[0].order.kind) === 'auto');
+// squads: pick S1, split, draw mode on and off, gatling slot
+await tap('#squads .sqb[data-sq="0"]'); await page.waitForTimeout(200);
+check('squad 1 selected', await page.evaluate(() => window.__game.mission.seaf.sel) === 0);
+await tap('#squads .sqa[data-a=split]'); await page.waitForTimeout(300);
+check('split by tap', await page.evaluate(() => window.__game.mission.seaf.squads.filter((q) => q.n > 0).length) === 2);
+await tap('#squads .sqa[data-a=draw]'); await page.waitForTimeout(200);
+check('draw mode on by tap', await page.evaluate(() => window.__game.drawing));
+await tap('#squads .sqa[data-a=draw]'); await page.waitForTimeout(200);
+check('draw mode off by tap', !(await page.evaluate(() => window.__game.drawing)));
+await tap('#squads .sqb[data-sq="-1"]'); await page.waitForTimeout(200);
+await tap('#weapons .wbtn:nth-child(8)'); await page.waitForTimeout(200);
+check('gatling selected by tap', await page.evaluate(() => window.__game.mission.player.weapon) === 7);
 // pinch / drag the map by touch is exercised with synthetic touch events
 const v0 = await page.evaluate(() => window.__game.cam.view);
 await page.evaluate(() => { const c = document.getElementById('view'); const mk = (id, x, y) => new PointerEvent('pointerdown', { pointerId: id, pointerType: 'touch', clientX: x, clientY: y, bubbles: true }); c.dispatchEvent(mk(11, 150, 400)); c.dispatchEvent(mk(12, 250, 400)); const mv = (id, x, y) => new PointerEvent('pointermove', { pointerId: id, pointerType: 'touch', clientX: x, clientY: y, bubbles: true }); c.dispatchEvent(mv(11, 100, 400)); c.dispatchEvent(mv(12, 300, 400)); const up = (id) => new PointerEvent('pointerup', { pointerId: id, pointerType: 'touch', bubbles: true }); c.dispatchEvent(up(11)); c.dispatchEvent(up(12)); });

@@ -3,7 +3,8 @@ import { CONFIG as C } from './config.js';
 
 export class Input {
   /**
-   * hooks: { weapon(i), cycle(d), fire(bool), order(kind, viaKey), placing(), place(), cancelPlace(), pause(), armory(), polarity(), follow() }
+   * hooks: { weapon(i), cycle(d), fire(bool), order(kind, viaKey), placing(), place(), cancelPlace(), pause(), armory(), polarity(), follow(),
+   *          squad(i), squadCycle(d), squadAct(kind), drawing(), drawBegin(x, y), drawMove(x, y), drawEnd(), drawCancel(), drawExit() }
    * cam: { x, y, view, follow } shared with main.js
    */
   constructor(canvas, minimap, cam, hooks, isActive) {
@@ -12,7 +13,7 @@ export class Input {
     this.mx = window.innerWidth / 2; this.my = window.innerHeight / 2; // mouse in CSS px
     this.keys = new Set();
     this.ptrs = new Map();
-    this.pinch = null; this.panning = null;
+    this.pinch = null; this.panning = null; this.stroke = null;
     this.sens = 1;
     this._bind();
   }
@@ -67,12 +68,17 @@ export class Input {
       if (e.pointerType === 'touch') this.setTouch(true); else this.setTouch(false);
       try { cv.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
       this.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType, btn: e.button });
+      const draw = this.h.drawing();
       if (e.pointerType === 'mouse') {
         this.mx = e.clientX; this.my = e.clientY;
+        if (draw && e.button === 0) { this.stroke = e.pointerId; this.h.drawBegin(e.clientX, e.clientY); return; }
         if (e.button === 0 && this.h.placing()) { this.h.place(); return; }
         if (e.button === 0) this.h.fire(true);
         else if (e.button === 2) this.panning = e.pointerId;
+      } else if (draw && this.ptrs.size === 1) {
+        this.stroke = e.pointerId; this.h.drawBegin(e.clientX, e.clientY);   // one finger draws in draw mode
       } else if (this.ptrs.size === 2) {
+        if (this.stroke !== null) { this.h.drawCancel(); this.stroke = null; }   // a second finger turns it back into pan and zoom
         const [a, b] = [...this.ptrs.values()];
         this.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), view: this.cam.view };
       }
@@ -83,6 +89,7 @@ export class Input {
       if (!p || !this.active()) return;
       const dx = e.clientX - p.x, dy = e.clientY - p.y;
       p.x = e.clientX; p.y = e.clientY;
+      if (this.stroke === e.pointerId) { this.h.drawMove(e.clientX, e.clientY); return; }
       if (p.type === 'mouse') {
         if (this.panning === e.pointerId) this._pan(dx, dy);
       } else if (this.ptrs.size >= 2 && this.pinch) {
@@ -95,6 +102,7 @@ export class Input {
       const p = this.ptrs.get(e.pointerId);
       if (!p) return;
       this.ptrs.delete(e.pointerId);
+      if (this.stroke === e.pointerId) { this.stroke = null; if (e.type === 'pointercancel') this.h.drawCancel(); else this.h.drawEnd(); if (p.type !== 'mouse') { if (this.ptrs.size < 2) this.pinch = null; return; } }
       if (p.type === 'mouse') { if (e.button === 0 || e.type === 'pointercancel') this.h.fire(false); if (this.panning === e.pointerId) this.panning = null; }
       if (this.ptrs.size < 2) this.pinch = null;
     };
@@ -102,7 +110,7 @@ export class Input {
 
     // Fire button: independent pointer so a second finger can keep panning.
     const fb = document.getElementById('fire-btn');
-    fb.addEventListener('pointerdown', (e) => { e.preventDefault(); fb.setPointerCapture(e.pointerId); fb.classList.add('held'); this.setTouch(true); this.h.fire(true); });
+    fb.addEventListener('pointerdown', (e) => { e.preventDefault(); try { fb.setPointerCapture(e.pointerId); } catch { /* not capturable */ } fb.classList.add('held'); this.setTouch(true); this.h.fire(true); });
     const fup = (e) => { fb.classList.remove('held'); this.h.fire(false); };
     fb.addEventListener('pointerup', fup); fb.addEventListener('pointercancel', fup);
     document.getElementById('btn-follow').addEventListener('pointerdown', (e) => { e.preventDefault(); this.h.follow(); });
@@ -125,11 +133,19 @@ export class Input {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) return;
       this.keys.add(e.code);
       if (e.repeat) return;
+      if (e.code === 'Escape' && this.h.drawing()) { this.h.drawExit(); return; }
       if (e.code === 'Escape' && this.h.placing()) { this.h.cancelPlace(); return; }
       if (e.code === 'Escape' || e.code === 'KeyP') { this.h.pause(); return; }
       if (!this.active()) return;
-      const dig = /^Digit([1-7])$/.exec(e.code);
-      if (dig) this.h.weapon(Number(dig[1]) - 1);
+      const dig = /^Digit([0-8])$/.exec(e.code);
+      if (dig && e.shiftKey) this.h.squad(Number(dig[1]) >= 1 && Number(dig[1]) <= 4 ? Number(dig[1]) - 1 : -1);   // Shift+1..4 pick a squad, Shift+0 all
+      else if (dig && dig[1] !== '0') this.h.weapon(Number(dig[1]) - 1);
+      else if (e.code === 'Backquote') this.h.squad(-1);
+      else if (e.code === 'Tab') { e.preventDefault(); this.h.squadCycle(e.shiftKey ? -1 : 1); }
+      else if (e.code === 'KeyR') this.h.squadAct('draw');
+      else if (e.code === 'KeyF') this.h.squadAct('split');
+      else if (e.code === 'KeyM') this.h.squadAct('merge');
+      else if (e.code === 'KeyY') this.h.squadAct('assign');
       else if (e.code === 'KeyQ') this.h.cycle(-1);
       else if (e.code === 'KeyE') this.h.cycle(1);
       else if (e.code === 'KeyG') this.h.order('seaf', true);
@@ -145,6 +161,6 @@ export class Input {
       else if (e.code === 'Minus' || e.code === 'NumpadSubtract') this.zoom(1.15);
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
-    window.addEventListener('blur', () => { this.keys.clear(); this.h.fire(false); this.ptrs.clear(); this.pinch = null; this.panning = null; });
+    window.addEventListener('blur', () => { this.keys.clear(); this.h.fire(false); if (this.stroke !== null) this.h.drawCancel(); this.stroke = null; this.ptrs.clear(); this.pinch = null; this.panning = null; });
   }
 }

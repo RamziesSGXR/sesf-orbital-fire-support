@@ -6,13 +6,13 @@ import { slotStats, aimGeom, UAV_REACH, ORB_SLOTS } from './player.js';
 import { pickNukeTarget } from './objectives.js';
 
 export function makeBot(skill = {}) {
-  return { next: 0, orderT: 0, nukeT: null, rot: 0, aimNoise: skill.aimNoise ?? 3, react: skill.react ?? 0.3 };
+  return { next: 0, orderT: 0, nukeT: null, rot: 0, aimNoise: skill.aimNoise ?? 3, react: skill.react ?? 0.3, gunT: 0, gunOn: false, lineFor: 0, splitDone: false };
 }
 
 // What the bot buys, in order. It saves for the first available item rather than spending on the cheap ones.
-const PLAN = ['slot:4', 'own:orb_airburst', 'up:orb_120', 'uav', 'up:orb_gatling', 'sup.lives', 'own:orb_walk', 'seaf.hp', 'up:orb_airburst',
-  'seaf.drop', 'up:orb_precision', 'slot:5', 'own:orb_380', 'up:orb_120', 'sup.zone', 'uav', 'up:orb_walk', 'seaf.rocket', 'up:orb_380', 'seaf.gren',
-  'seaf.cap', 'own:orb_napalm', 'up:orb_gatling', 'sup.lives', 'own:orb_rail', 'up:orb_airburst', 'uav', 'up:orb_walk', 'up:orb_380', 'seaf.hp',
+const PLAN = ['slot:4', 'own:orb_airburst', 'up:orb_120', 'uav', 'gun.ammo', 'up:orb_gatling', 'sup.lives', 'seaf.medic', 'own:orb_walk', 'seaf.hp', 'gun.dmg', 'up:orb_airburst',
+  'seaf.drop', 'seaf.spot', 'gun.regen', 'up:orb_precision', 'slot:5', 'own:orb_380', 'up:orb_120', 'sup.zone', 'uav', 'up:orb_walk', 'seaf.rocket', 'up:orb_380', 'seaf.gren',
+  'seaf.cap', 'gun.spread', 'own:orb_napalm', 'up:orb_gatling', 'sup.lives', 'own:orb_rail', 'up:orb_airburst', 'uav', 'up:orb_walk', 'up:orb_380', 'seaf.hp',
   'up:orb_precision', 'own:orb_laser', 'sup.zone', 'up:orb_napalm', 'up:orb_rail', 'seaf.drop', 'sup.lives', 'up:orb_120'];
 
 // Spend the wallet between missions. Returns the list of what was bought.
@@ -59,12 +59,54 @@ function orders(m, bot) {
   if (m.countAlly('S') + m.pendingPods('S') <= st.max - st.drop && t >= m.seaf.readyAt) {
     m.callSeaf(m.hx + Math.cos(dir) * 25, m.hy + Math.sin(dir) * 25);
   }
+  assaultResponse(m, bot);
   const u = p.slots[0];
   if (u.type === 'uav' && t >= u.readyAt && m.hdAlive.length) {
-    const reach = Math.min(120, m.hdAlive[0].zone + UAV_REACH - 20);
-    const x = m.hx + Math.cos(dir) * reach, y = m.hy + Math.sin(dir) * reach;
+    const reach = Math.min(120, m.hdAlive[0].zone + UAV_REACH - 20), as = m.assault.cur;
+    let ang = dir;
+    if (as && m.t < as.at + 10) ang = Math.atan2(as.y - m.hy, as.x - m.hx);   // scan toward the force that was announced
+    const x = m.hx + Math.cos(ang) * reach, y = m.hy + Math.sin(ang) * reach;
     if (m.inAllyZone(x, y, UAV_REACH)) { m.setAim(x, y); m.selectWeapon(0); if (t >= p.swapUntil && p.weapon === 0) m.fire(); }
   }
+}
+
+// A large assault was announced: pull the SEAF into a line across its path (a drawn play), and go back to auto when it is broken.
+function assaultResponse(m, bot) {
+  const as = m.assault.cur, sf = m.seaf;
+  if (as && as.name !== bot.lineFor && m.seafAlive.length >= 3) {
+    bot.lineFor = as.name;
+    const ang = Math.atan2(as.y - m.hy, as.x - m.hx), cx = m.hx + Math.cos(ang) * 34, cy = m.hy + Math.sin(ang) * 34, nx = -Math.sin(ang), ny = Math.cos(ang), h = 24;
+    m.selectSquad(-1);
+    m.seafDraw([{ x: cx - nx * h, y: cy - ny * h }, { x: cx, y: cy }, { x: cx + nx * h, y: cy + ny * h }]);
+  } else if (!as && bot.lineFor) {
+    bot.lineFor = 0;
+    m.selectSquad(-1); m.seafOrder('auto');
+  }
+  // keep a pair of squads when there are enough troopers: one stays on the line, one keeps clearing
+  if (!bot.splitDone && m.seafAlive.length >= 6 && !as) { bot.splitDone = true; m.selectSquad(0); m.splitSeaf(); m.selectSquad(-1); }
+}
+
+// The ship gatling: free fire on whatever is close to the squad while no orbital is ready.
+function gatlingStep(m, bot) {
+  const p = m.player, t = m.t, g = p.gun;
+  if (!g) return false;
+  let best = null, bn = 0;
+  for (const e of m.enemies) {
+    if (e.dead || e.vis < 1) continue;
+    if (Math.hypot(e.x - m.hx, e.y - m.hy) > 110) continue;
+    let n = 0; m.eGrid.near(e.x, e.y, 9, () => { n++; });
+    if (n > bn) { bn = n; best = e; }
+  }
+  const want = best && !g.dry && g.ammo > 80 && bn >= 2;
+  if (want) {
+    if (p.weapon !== 7) { m.selectWeapon(7); }
+    m.setAim(best.x + (m.rng.next() - 0.5) * 3, best.y + (m.rng.next() - 0.5) * 3);
+    m.setFiring(p.weapon === 7 && t >= p.swapUntil);
+    bot.gunOn = true;
+    return true;
+  }
+  if (bot.gunOn) { m.setFiring(false); bot.gunOn = false; }
+  return false;
 }
 
 // Densest group of visible enemies inside the strike zone that is clear of allies by danger metres.
@@ -134,6 +176,7 @@ export function botStep(m, bot) {
     if (best && p.slots[p.weapon].type === 'orb') m.setAim(best.x, best.y);
   }
 
+  const gunning = gatlingStep(m, bot);
   if (t < bot.next) return;
   bot.next = t + bot.react;
   if (!m.alive.length) return;
@@ -147,6 +190,7 @@ export function botStep(m, bot) {
     const tgt = targetFor(m, st, bot);
     if (!tgt) continue;
     tgt.x += (m.rng.next() - 0.5) * bot.aimNoise; tgt.y += (m.rng.next() - 0.5) * bot.aimNoise;
+    m.setFiring(false); bot.gunOn = false;
     m.selectWeapon(idx); m.setAim(tgt.x, tgt.y);
     if (t >= p.swapUntil && p.weapon === idx) { m.fire(); bot.next = t + 0.15; }
     else bot.next = t + 0.1;

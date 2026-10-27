@@ -1,8 +1,9 @@
 // World-space drawing: stratagem markers, zones, placed assets, objectives, heavy-enemy telegraphs, points of interest,
-// enemy breaches, UAV circles, SEAF orders and Helldiver pings.
+// enemy breaches, UAV circles and Helldiver pings. (SEAF squads and the pelican are in squads.js.)
 // Every function draws in world space (meters). px(n) converts screen pixels to meters at the current zoom.
 import { CONFIG as C } from '../config.js';
 import { STRATS } from '../data/strat.js';
+import { seafTargets } from './squads.js';
 
 const TAU = Math.PI * 2;
 const O = C.objective;
@@ -64,6 +65,45 @@ export function drawZones(ctx, m, now, px) {
   }
 }
 
+// ---------- strike footprints: which strip of ground a line strike will hit, and which way the aircraft comes from ----------
+// A bomb or strafing line: a corridor with chevrons marching in the direction of the run.
+function drawCorridor(ctx, mk, mx, my, now, px, col, pulse) {
+  const ux = mk.ux, uy = mk.uy, nx = -uy, ny = ux, W = Math.max(mk.rad, px(5)), L = mk.len / 2 + W * 0.6;
+  const ax = mx - ux * L, ay = my - uy * L, bx = mx + ux * L, by = my + uy * L;
+  ctx.beginPath();
+  ctx.moveTo(ax + nx * W, ay + ny * W); ctx.lineTo(bx + nx * W, by + ny * W); ctx.lineTo(bx - nx * W, by - ny * W); ctx.lineTo(ax - nx * W, ay - ny * W); ctx.closePath();
+  ctx.fillStyle = `rgba(${col},${0.07 + 0.05 * pulse})`; ctx.fill();
+  ctx.strokeStyle = `rgba(${col},${0.55 + pulse * 0.35})`; ctx.lineWidth = px(1.6); ctx.setLineDash([px(7), px(5)]); ctx.lineDashOffset = -now * px(12); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+  // chevrons point along the run
+  const n = Math.max(3, Math.round((2 * L) / Math.max(px(14), W * 1.6))), ph = (now * 0.9) % 1, cs = Math.max(W * 0.55, px(4));
+  ctx.strokeStyle = `rgba(${col},0.85)`; ctx.lineWidth = px(1.8);
+  for (let i = 0; i < n; i++) {
+    const s = -L + ((i + ph) / n) * 2 * L, cx = mx + ux * s, cy = my + uy * s, f = Math.sin(((i + ph) / n) * Math.PI);
+    ctx.globalAlpha = 0.25 + 0.75 * f;
+    ctx.beginPath(); ctx.moveTo(cx - ux * cs + nx * cs, cy - uy * cs + ny * cs); ctx.lineTo(cx + ux * cs * 0.4, cy + uy * cs * 0.4); ctx.lineTo(cx - ux * cs - nx * cs, cy - uy * cs - ny * cs); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  // bars at the start and the end of the strip
+  ctx.lineWidth = px(2.4); ctx.strokeStyle = `rgba(${col},0.95)`;
+  ctx.beginPath(); ctx.moveTo(ax + nx * W * 1.25, ay + ny * W * 1.25); ctx.lineTo(ax - nx * W * 1.25, ay - ny * W * 1.25); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(bx + nx * W * 1.25, by + ny * W * 1.25); ctx.lineTo(bx - nx * W * 1.25, by - ny * W * 1.25); ctx.stroke();
+}
+// The aircraft's approach: a long dashed lane with arrowheads from the side it comes from, ending at the footprint.
+function drawApproach(ctx, mk, mx, my, now, px, col, ext, active) {
+  const ux = mk.ux, uy = mk.uy, nx = -uy, ny = ux, far = ext + Math.max(px(70), 44), near = ext + px(4);
+  const x0 = mx - ux * far, y0 = my - uy * far, x1 = mx - ux * near, y1 = my - uy * near;
+  ctx.strokeStyle = `rgba(${col},${active ? 0.55 : 0.3})`; ctx.lineWidth = px(1.5); ctx.setLineDash([px(3), px(6)]); ctx.lineDashOffset = -now * px(14);
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+  const n = 3, ph = (now * 0.7) % 1, hs = Math.max(px(6), 5);
+  ctx.fillStyle = `rgba(${col},0.9)`;
+  for (let i = 0; i < n; i++) {
+    const f = (i + ph) / n, cx = x0 + (x1 - x0) * f, cy = y0 + (y1 - y0) * f;
+    ctx.globalAlpha = 0.3 + 0.7 * f;
+    ctx.beginPath(); ctx.moveTo(cx + ux * hs, cy + uy * hs); ctx.lineTo(cx - ux * hs * 0.7 + nx * hs * 0.8, cy - uy * hs * 0.7 + ny * hs * 0.8); ctx.lineTo(cx - ux * hs * 0.7 - nx * hs * 0.8, cy - uy * hs * 0.7 - ny * hs * 0.8); ctx.closePath(); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
 // ---------- markers: stratagem calls, pods, rail / barrage / laser / nuke warnings ----------
 export function drawMarkers(ctx, m, now, px, labels, scale) {
   const t = m.t;
@@ -74,10 +114,15 @@ export function drawMarkers(ctx, m, now, px, labels, scale) {
     if (mk.type === 'strat') {
       const first = mk.impact ?? mk.end, left = Math.max(0, first - t);
       const col = left > 0 ? '255,230,0' : '255,170,40';
-      ctx.strokeStyle = `rgba(${col},${0.5 + pulse * 0.4})`; ctx.lineWidth = px(1.8);
-      ctx.setLineDash([px(6), px(5)]); ctx.lineDashOffset = -now * px(10);
-      ring(ctx, mx, my, Math.max(mk.r, px(8))); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
-      ctx.fillStyle = `rgba(${col},0.05)`; ring(ctx, mx, my, Math.max(mk.r, px(8))); ctx.fill();
+      const corridor = (mk.pat === 'line' || mk.pat === 'walk') && mk.ux !== undefined;
+      if (corridor) drawCorridor(ctx, mk, mx, my, now, px, col, pulse);
+      else {
+        ctx.strokeStyle = `rgba(${col},${0.5 + pulse * 0.4})`; ctx.lineWidth = px(1.8);
+        ctx.setLineDash([px(6), px(5)]); ctx.lineDashOffset = -now * px(10);
+        ring(ctx, mx, my, Math.max(mk.r, px(8))); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+        ctx.fillStyle = `rgba(${col},0.05)`; ring(ctx, mx, my, Math.max(mk.r, px(8))); ctx.fill();
+      }
+      if (mk.fly && mk.ux !== undefined) drawApproach(ctx, mk, mx, my, now, px, col, corridor ? mk.len / 2 + mk.rad : Math.max(mk.r, px(8)), left > 0);
       ctx.fillStyle = `rgba(${col},0.95)`; ctx.beginPath(); ctx.moveTo(mx, my - px(5)); ctx.lineTo(mx + px(4), my + px(3)); ctx.lineTo(mx - px(4), my + px(3)); ctx.closePath(); ctx.fill();
       labels.push({ x: mx, y: my, dy: -Math.max(mk.r * scale, 8) - 6, text: left > 0 ? `${mk.id.toUpperCase()} ${left.toFixed(0)}S` : mk.id.toUpperCase(), col: '#ffe600' });
     } else if (mk.type === 'pod') {
@@ -265,7 +310,7 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal) {
 
 // ---------- points of interest: random targets worth credits ----------
 export function drawPois(ctx, m, now, px, labels, scale, pal) {
-  const t = m.t, tg = m.seaf.tgt && m.seaf.tgt.obj;
+  const t = m.t, tgs = seafTargets(m);
   for (const p of m.pois) {
     if (p.done) {
       const r = Math.max(p.r * 0.5, px(6));
@@ -282,7 +327,7 @@ export function drawPois(ctx, m, now, px, labels, scale, pal) {
     ctx.beginPath(); ctx.moveTo(p.x - h * 0.55, p.y); ctx.lineTo(p.x + h * 0.55, p.y); ctx.moveTo(p.x, p.y - h * 0.55); ctx.lineTo(p.x, p.y + h * 0.55); ctx.stroke();
     ctx.setLineDash([px(4), px(4)]); ctx.globalAlpha = 0.55; ring(ctx, p.x, p.y, R); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
     ctx.fillStyle = 'rgba(255,176,32,0.07)'; ring(ctx, p.x, p.y, R); ctx.fill();
-    if (tg === p) bracket(ctx, p.x, p.y, R * 1.5, px(1.8), pal.ally);
+    if (tgs.has(p)) bracket(ctx, p.x, p.y, R * 1.5, px(1.8), pal.ally);
     if (p.hp < p.maxHp) hpBar(ctx, p.x, p.y + R * 1.15, R * 2, px(4), p.hp / p.maxHp, '#ffb020');
     labels.push({ x: p.x, y: p.y, dy: -R * scale - 6, text: `${p.name}  +${p.reward}`, col: '#ffb020' });
   }
@@ -297,7 +342,7 @@ function bracket(ctx, x, y, r, lw, col) {
 
 // ---------- enemy breaches: temporary spawn points opened by enemy support calls ----------
 export function drawBreaches(ctx, m, now, px, labels, scale, pal) {
-  const t = m.t, col = pal.enemy, tg = m.seaf.tgt && m.seaf.tgt.obj;
+  const t = m.t, col = pal.enemy, tgs = seafTargets(m);
   for (const b of m.breaches) {
     if (b.dead) continue;
     const hit = t - b.hurtAt < 0.12, R = Math.max(b.r, px(10)), left = Math.max(0, b.until - t), f = left / (b.until - b.born);
@@ -312,7 +357,7 @@ export function drawBreaches(ctx, m, now, px, labels, scale, pal) {
     // time left before it closes on its own
     ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = px(3);
     ctx.beginPath(); ctx.arc(b.x, b.y, R + px(5), -Math.PI / 2, -Math.PI / 2 + TAU * f); ctx.stroke();
-    if (tg === b) bracket(ctx, b.x, b.y, R * 1.7, px(1.8), pal.ally);
+    if (tgs.has(b)) bracket(ctx, b.x, b.y, R * 1.7, px(1.8), pal.ally);
     hpBar(ctx, b.x, b.y + R * 1.25, R * 2, px(4), b.hp / b.maxHp, col);
     labels.push({ x: b.x, y: b.y, dy: -R * scale - 8, text: `BREACH ${Math.ceil(left)}S  +${b.reward}`, col });
   }
@@ -335,38 +380,6 @@ export function drawUavs(ctx, m, now, px, labels, scale) {
     ctx.strokeStyle = `rgba(200,255,215,${0.7 * a})`; ctx.lineWidth = px(1.2);
     ctx.beginPath(); ctx.moveTo(u.x, u.y); ctx.lineTo(u.x + Math.cos(ang) * r, u.y + Math.sin(ang) * r); ctx.stroke();
     labels.push({ x: u.x, y: u.y, dy: -r * scale - 6, text: `UAV ${Math.ceil(left)}S`, col: '#9dffb8' });
-  }
-}
-
-// ---------- SEAF: the standing order and the objective they are heading for ----------
-export function drawSeafOrder(ctx, m, now, px, labels, scale, pal) {
-  const sf = m.seaf, o = sf.order, S = C.seaf, ac = pal.ally;
-  if (!m.seafAlive.length) return;
-  let cx = 0, cy = 0;
-  for (const a of m.seafAlive) { cx += a.x; cy += a.y; }
-  cx /= m.seafAlive.length; cy /= m.seafAlive.length;
-  // where the auto order has them heading
-  if (o.kind === 'auto' && sf.tgt) {
-    ctx.strokeStyle = rgba(ac, 0.45); ctx.lineWidth = px(1.2); ctx.setLineDash([px(3), px(5)]); ctx.lineDashOffset = -now * px(10);
-    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(sf.tgt.x, sf.tgt.y); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
-    labels.push({ x: sf.tgt.x, y: sf.tgt.y, dy: 26 + Math.max(0, (sf.tgt.obj.r || 14) * scale), text: 'SEAF TARGET', col: ac });
-    return;
-  }
-  if (o.kind === 'move' || o.kind === 'protect' || o.kind === 'attack') {
-    const R = o.kind === 'protect' ? S.protectR : o.kind === 'move' ? S.patrolRadius : 24;
-    ctx.strokeStyle = ac; ctx.lineWidth = px(1.6); ctx.setLineDash([px(5), px(5)]); ctx.lineDashOffset = -now * px(8);
-    ring(ctx, o.x, o.y, R); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
-    ctx.fillStyle = ac;
-    if (o.kind === 'attack') {
-      const r = Math.max(px(7), 4);
-      ctx.strokeStyle = ac; ctx.lineWidth = px(2); ctx.beginPath(); ctx.moveTo(o.x - r, o.y - r); ctx.lineTo(o.x + r, o.y + r); ctx.moveTo(o.x + r, o.y - r); ctx.lineTo(o.x - r, o.y + r); ctx.stroke();
-    } else if (o.kind === 'protect') {
-      const r = Math.max(px(7), 4);
-      ctx.beginPath(); ctx.moveTo(o.x, o.y - r); ctx.lineTo(o.x + r, o.y - r * 0.4); ctx.lineTo(o.x + r * 0.7, o.y + r * 0.8); ctx.lineTo(o.x, o.y + r * 1.2); ctx.lineTo(o.x - r * 0.7, o.y + r * 0.8); ctx.lineTo(o.x - r, o.y - r * 0.4); ctx.closePath(); ctx.fill();
-    } else { ctx.beginPath(); ctx.moveTo(o.x, o.y - Math.max(px(7), 4)); ctx.lineTo(o.x + Math.max(px(6), 3.5), o.y); ctx.lineTo(o.x, o.y + Math.max(px(7), 4)); ctx.lineTo(o.x - Math.max(px(6), 3.5), o.y); ctx.closePath(); ctx.fill(); }
-    labels.push({ x: o.x, y: o.y, dy: -R * scale - 6, text: `SEAF ${o.kind.toUpperCase()}`, col: ac });
-  } else if (o.kind === 'escort') {
-    labels.push({ x: cx, y: cy, dy: -26, text: 'SEAF ESCORT', col: ac });
   }
 }
 
