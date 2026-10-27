@@ -63,7 +63,7 @@ To add a one-tap "copy and open the channel" button, set `share.channelUrl` in `
 | Send SEAF at a target | Click a breach or point of interest | Tap it with an order |
 | Armory (upgrades) | `B` | MENU, then ARMORY. The menu also opens the stratagem list, squad status and the camera |
 | Camera | `WASD`, right-drag, wheel or `+` / `-` zoom, `Space` locks on the squad | Drag, pinch, tap the minimap |
-| Other | `T` white-hot / black-hot, `Esc` or `P` pause and rename squads | Pause button |
+| Other | `T` white-hot / black-hot, `H` relief map, `Esc` or `P` pause and rename squads | Pause button, relief map in Settings |
 
 ## How a session works
 
@@ -84,6 +84,7 @@ To add a one-tap "copy and open the channel" button, set `share.channelUrl` in `
 - **Objectives.** Every mission has one: **Nuclear Launch** (hold the site, then you aim the nuke anywhere), **VIP Rescue** (find the VIP and bring them to the pickup point) or **Destroy the Citadel** (take down the fortress). After the objective, the squad clears bases for extra credits, then extracts for a bonus.
 - **Credits.** Kills, bases, points of interest, breaches, assaults you break, the objective and extraction all pay. The armory colour-codes upgrades by type. Credits you spend carry across the whole session, and the final screen shows what you earned and spent.
 - **Failure only.** Each mission has a 30 minute clock, and a good one takes about 15. The session continues until a mission fails: the clock runs out with the objective undone, or the squad is dead with no lives left. The war escalates every minute of the session, with tougher enemies, harder hits and more heavies, so every run ends. You can also retire from the pause menu.
+- **The ground.** Every mission has its own land: a height map, a water depth map and a surface map. **Deep water** (rivers, lakes, crevasses) cannot be crossed on foot by anyone; **shallows** (the fords), **mud** (river banks, swamps) and **soft ground** (snow, sand, dust) slow everyone down, enemies too. Allies and enemies route round the water by themselves, and the map is always connected: every island worth reaching has a ford to it. **High ground** helps whoever holds it: units on a rise see farther and hit harder than units below them, with a little extra at the very top. Press `H` (or turn it on in Settings) for the **relief map**, which colours height and water depth, draws contour lines and hatches the slow ground.
 - **Look and sound.** Every mission has a random operation name, enemy faction (Bugs, Bots, Squids) and biome (ice, grass, desert, jungle, moon); the terrain colours follow the biome. Every weapon, yours and the enemies', has its own synthesised sound.
 
 All tuning values live in `js/config.js`, and prices live in `js/data/kit.js`.
@@ -97,6 +98,7 @@ npm run session             # headless full session: shop, missions, until failu
 npm run play                # browser playthrough with screenshots (test/shots)
 npm run touch               # touch checks on a phone viewport
 npm run r6                  # scenario checks: Helldiver kit, dodge, retreat, blast avoidance, recall, faction tactics
+npm run terrain             # terrain checks: generated ground per biome, routes round water, slow ground, high ground, whole missions
 ```
 
 The simulation in `js/sim/` has no DOM code, runs at a fixed 30 Hz and is seeded, so a mission is repeatable. The same code runs in the browser and in Node.

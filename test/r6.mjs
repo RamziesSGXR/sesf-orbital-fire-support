@@ -212,7 +212,7 @@ const nearHd = (m, a, d, ang = 0) => ({ x: a.x + Math.cos(ang) * d, y: a.y + Mat
   check('draws come out overwhelmingly light', n.L / 8000 > 0.88, `L ${(100 * n.L / 8000).toFixed(1)}%  M ${(100 * n.M / 8000).toFixed(1)}%  H ${(100 * n.H / 8000).toFixed(1)}%`);
   m.enemies = [{ kind: 'H', dead: false }, { kind: 'H', dead: false }];
   let h = 0; for (let i = 0; i < 4000; i++) if (m.drawToken() === 'H') h++;
-  check('with the live cap of heavies reached, no more are drawn', h === 0, `${C.enemies.liveCap.H} allowed at once at the start`);
+  check('with the live cap of heavies reached, no more are drawn', h === 0, `${C.enemies.kindCap.H} allowed at once at the start`);
   m.enemies = [];
   check('bigger packs of bugs than of bots or squids', C.enemies.group.bugs > C.enemies.group.bots && C.enemies.group.bugs > C.enemies.group.squids);
 }

@@ -379,7 +379,7 @@ export class Mission {
     const k = this.bag.pop();
     if (k === 'L') return k;
     // Keep the field mostly light: past the cap for live mediums and heavies, the draw comes out light instead.
-    const cap = C.enemies.liveCap, max = k === 'M' ? Math.min(cap.maxM, cap.M + cap.perMinM * this.S) : Math.min(cap.maxH, cap.H + cap.perMinH * this.S);
+    const cap = C.enemies.kindCap, max = k === 'M' ? Math.min(cap.maxM, cap.M + cap.perMinM * this.S) : Math.min(cap.maxH, cap.H + cap.perMinH * this.S);
     let n = 0;
     for (const e of this.enemies) if (!e.dead && e.kind === k) n++;
     return n >= max ? 'L' : k;

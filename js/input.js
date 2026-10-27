@@ -3,7 +3,7 @@ import { CONFIG as C } from './config.js';
 
 export class Input {
   /**
-   * hooks: { weapon(i), cycle(d), fire(bool), order(kind, viaKey), placing(), place(), cancelPlace(), pause(), armory(), polarity(), follow(),
+   * hooks: { weapon(i), cycle(d), fire(bool), order(kind, viaKey), placing(), place(), cancelPlace(), pause(), armory(), polarity(), relief(), follow(),
    *          squad(i), squadCycle(d), squadAct(kind), drawing(), drawBegin(x, y), drawMove(x, y), drawEnd(), drawCancel(), drawExit() }
    * cam: { x, y, view, follow } shared with main.js
    */
@@ -156,6 +156,7 @@ export class Input {
       else if (e.code === 'KeyC') this.h.order('escort', true);
       else if (e.code === 'KeyB') this.h.armory();
       else if (e.code === 'KeyT') this.h.polarity();
+      else if (e.code === 'KeyH') this.h.relief();
       else if (e.code === 'Space') { e.preventDefault(); this.h.follow(); }
       else if (e.code === 'Equal' || e.code === 'NumpadAdd') this.zoom(1 / 1.15);
       else if (e.code === 'Minus' || e.code === 'NumpadSubtract') this.zoom(1.15);

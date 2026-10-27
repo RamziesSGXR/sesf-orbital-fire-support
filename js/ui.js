@@ -722,6 +722,7 @@ export function buildSettings(settings, onChange) {
     r.oninput = () => { settings[key] = Number(r.value); onChange(key); }; return r;
   };
   row('Thermal view', 'White-hot or black-hot', select('polarity', [['white', 'White-hot'], ['black', 'Black-hot']]));
+  row('Relief map', 'Height, water depth and slow ground (key H)', toggle('relief'));
   row('Volume', '', range('volume', 0, 1, 0.05));
   row('Mute', '', toggle('muted'));
   row('Speech bubbles', 'What Helldivers and SEAF say before they act', toggle('bubbles'));

@@ -71,7 +71,7 @@ export class Terrain {
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
       const x = (i + 0.5) * CELL, y = (j + 0.5) * CELL;
       let v = 0.5 + (n.fbm(x / R.hill + o1, y / R.hill + o1, 4) - 0.5) * R.gain + (n.fbm(x / 40 + o2, y / 40 + o2, 2) - 0.5) * 0.06;
-      if (R.terrace) { const q = clamp(v, 0, 1) * 4, f = Math.floor(q); v = (f + smooth(0.3, 0.7, q - f)) / 4; }
+      if (R.terrace) { const q = clamp(v, 0, 1) * 4, f = Math.floor(q); v = (f + smooth(0.12, 0.88, q - f)) / 4; }
       for (const c of craters) {
         const r = Math.hypot(x - c.x, y - c.y);
         if (r > c.r * 1.6) continue;
@@ -104,7 +104,8 @@ export class Terrain {
 
     // Normalise the heights so every map has real rises, then lay the water in the low ground.
     this._normalise();
-    for (let k = 0; k < N * N; k++) h[k] = c01(h[k] - 0.2 * smooth(0, 0.7, d[k]));
+    for (let k = 0; k < N * N; k++) h[k] -= 0.2 * smooth(0, 0.7, d[k]);
+    this._normalise(true);
 
     // Surface: mud on the banks and in swamps, soft ground (snow, sand, dust) where the biome has it.
     const wetNear = new Float32Array(N * N);
@@ -113,6 +114,7 @@ export class Terrain {
       for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
         let m = 0;
         for (let dj = -B; dj <= B && !m; dj += 1) for (let di = -B; di <= B; di += 1) {
+          if (di * di + dj * dj > B * B + 1) continue;
           const ii = i + di, jj = j + dj;
           if (ii >= 0 && jj >= 0 && ii < N && jj < N && d[jj * N + ii] > 0.12) { m = 1; break; }
         }
@@ -142,10 +144,17 @@ export class Terrain {
     }
   }
 
-  _normalise() {
+  // Stretch the heights to 0..1. The extremes are squeezed rather than cut off, so no rise or hollow ends in a flat plateau.
+  _normalise(final = false) {
     const h = this.h, a = Float32Array.from(h).sort();
     const lo = a[Math.floor(a.length * 0.02)], hi = a[Math.floor(a.length * 0.985)], span = Math.max(0.05, hi - lo);
-    for (let k = 0; k < h.length; k++) h[k] = c01((h[k] - lo) / span);
+    let mn = Infinity, mx = -Infinity;
+    for (let k = 0; k < h.length; k++) {
+      let v = (h[k] - lo) / span;
+      v = v < 0 ? v * 0.18 : v > 1 ? 1 + (v - 1) * 0.18 : v;
+      h[k] = v; if (v < mn) mn = v; if (v > mx) mx = v;
+    }
+    if (final) { const r = Math.max(0.05, mx - mn); for (let k = 0; k < h.length; k++) h[k] = (h[k] - mn) / r; }
   }
 
   _speeds() {
@@ -282,8 +291,9 @@ export class Terrain {
   }
 
   // ------------------------------------------------------------------ routes round water
+  // Two route grids: a coarse one (16 m) that is quick, and the map's own 8 m cells for the narrow fords the coarse one cannot see.
   _navBuild() {
-    const cost = this.navCost = new Float32Array(NV * NV), sp = this.spd;
+    const cost = new Float32Array(NV * NV), sp = this.spd;
     for (let b = 0; b < NV; b++) for (let a = 0; a < NV; a++) {
       let s = 0, blocked = false;
       for (let dj = 0; dj < SUB && !blocked; dj++) for (let di = 0; di < SUB; di++) {
@@ -293,31 +303,35 @@ export class Terrain {
       }
       cost[b * NV + a] = blocked ? 0 : 1 / Math.max(0.3, s / (SUB * SUB));
     }
-    this._g = new Float32Array(NV * NV); this._from = new Int32Array(NV * NV); this._stamp = new Int32Array(NV * NV); this._run = 0;
-    this._heap = new Int32Array(NV * NV * 2); this._hf = new Float32Array(NV * NV * 2);
+    const fine = new Float32Array(N * N);
+    for (let k = 0; k < N * N; k++) fine[k] = sp[k] ? 1 / Math.max(0.3, sp[k]) : 0;
+    const mk = (W, cs, c, guard) => ({ W, cs, cost: c, guard, g: new Float32Array(W * W), from: new Int32Array(W * W), stamp: new Int32Array(W * W), closed: new Int32Array(W * W), run: 0, heap: new Int32Array(W * W * 8), hf: new Float32Array(W * W * 8) });
+    this.navCost = cost;
+    this._coarse = mk(NV, NAVC, cost, NV * NV * 6);
+    this._fine = mk(N, CELL, fine, N * N * 6);
   }
-  _openNear(x, y) {
-    const ci = clamp((x / NAVC) | 0, 0, NV - 1), cj = clamp((y / NAVC) | 0, 0, NV - 1);
-    if (this.navCost[cj * NV + ci]) return cj * NV + ci;
+  _openNear(G, x, y) {
+    const { W, cs, cost } = G;
+    const ci = clamp((x / cs) | 0, 0, W - 1), cj = clamp((y / cs) | 0, 0, W - 1);
+    if (cost[cj * W + ci]) return cj * W + ci;
     for (let r = 1; r <= 8; r++) {
       let best = -1, bd = Infinity;
       for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) {
         if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue;
         const i = ci + di, j = cj + dj;
-        if (i < 0 || j < 0 || i >= NV || j >= NV || !this.navCost[j * NV + i]) continue;
-        const dd = (((i + 0.5) * NAVC - x) ** 2) + (((j + 0.5) * NAVC - y) ** 2);
-        if (dd < bd) { bd = dd; best = j * NV + i; }
+        if (i < 0 || j < 0 || i >= W || j >= W || !cost[j * W + i]) continue;
+        const dd = (((i + 0.5) * cs - x) ** 2) + (((j + 0.5) * cs - y) ** 2);
+        if (dd < bd) { bd = dd; best = j * W + i; }
       }
       if (best >= 0) return best;
     }
     return -1;
   }
-  // A* on the 16 m grid. Returns waypoints from near (x1, y1) to (x2, y2), or null if there is no way.
-  path(x1, y1, x2, y2) {
-    const s = this._openNear(x1, y1), g = this._openNear(x2, y2);
+  // A* on one of the grids. Returns the cells from start to goal, or null if there is no way.
+  _astar(G, x1, y1, x2, y2) {
+    const s = this._openNear(G, x1, y1), g = this._openNear(G, x2, y2);
     if (s < 0 || g < 0) return null;
-    const cost = this.navCost, G = this._g, from = this._from, stamp = this._stamp, run = ++this._run;
-    const heap = this._heap, hf = this._hf;
+    const { W, cost, g: Gc, from, stamp, closed, heap, hf } = G, run = ++G.run;
     let hn = 0;
     const push = (k, f) => {
       let i = hn++; heap[i] = k; hf[i] = f;
@@ -338,31 +352,40 @@ export class Terrain {
       }
       return top;
     };
-    const gi = g % NV, gj = (g / NV) | 0;
-    const hh = (k) => { const dx = Math.abs((k % NV) - gi), dy = Math.abs(((k / NV) | 0) - gj); return (dx + dy) + (Math.SQRT2 - 2) * Math.min(dx, dy); };
-    stamp[s] = run; G[s] = 0; from[s] = -1; push(s, hh(s));
+    const gi = g % W, gj = (g / W) | 0;
+    const hh = (k) => { const dx = Math.abs((k % W) - gi), dy = Math.abs(((k / W) | 0) - gj); return (dx + dy) + (Math.SQRT2 - 2) * Math.min(dx, dy); };
+    stamp[s] = run; Gc[s] = 0; from[s] = -1; push(s, hh(s));
     let found = false, guard = 0;
-    while (hn && guard++ < 9000) {
+    while (hn && guard++ < G.guard) {
       const k = pop();
+      if (closed[k] === run) continue;            // an older, worse entry for a cell that is already done
+      closed[k] = run;
       if (k === g) { found = true; break; }
-      const i = k % NV, j = (k / NV) | 0, gk = G[k];
+      const i = k % W, j = (k / W) | 0, gk = Gc[k];
       for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
         if (!di && !dj) continue;
         const ii = i + di, jj = j + dj;
-        if (ii < 0 || jj < 0 || ii >= NV || jj >= NV) continue;
-        const nb = jj * NV + ii;
+        if (ii < 0 || jj < 0 || ii >= W || jj >= W) continue;
+        const nb = jj * W + ii;
         if (!cost[nb]) continue;
-        if (di && dj && (!cost[j * NV + ii] || !cost[jj * NV + i])) continue;       // no cutting a corner of the water
+        if (di && dj && (!cost[j * W + ii] || !cost[jj * W + i])) continue;       // no cutting a corner of the water
         const ng = gk + (di && dj ? Math.SQRT2 : 1) * (cost[nb] + cost[k]) * 0.5;
-        if (stamp[nb] === run && ng >= G[nb]) continue;
-        stamp[nb] = run; G[nb] = ng; from[nb] = k; push(nb, ng + hh(nb));
+        if (stamp[nb] === run && ng >= Gc[nb]) continue;
+        stamp[nb] = run; Gc[nb] = ng; from[nb] = k; push(nb, ng + hh(nb));
       }
     }
     if (!found) return null;
     const cells = [];
     for (let k = g; k >= 0; k = from[k]) cells.push(k);
     cells.reverse();
-    let pts = cells.map((k) => ({ x: ((k % NV) + 0.5) * NAVC, y: (((k / NV) | 0) + 0.5) * NAVC }));
+    return cells;
+  }
+  // Waypoints from near (x1, y1) to (x2, y2) that keep clear of deep water, or null if there is no way at all.
+  path(x1, y1, x2, y2) {
+    let G = this._coarse, cells = this._astar(G, x1, y1, x2, y2);
+    if (!cells) { G = this._fine; cells = this._astar(G, x1, y1, x2, y2); }
+    if (!cells) return null;
+    let pts = cells.map((k) => ({ x: ((k % G.W) + 0.5) * G.cs, y: (((k / G.W) | 0) + 0.5) * G.cs }));
     if (this.spd[this._i(x2, y2)] !== 0) pts[pts.length - 1] = { x: x2, y: y2 };
     // pull the string tight: keep only the corners that the water forces
     const out = [];

@@ -42,7 +42,7 @@ export const CONFIG = {
   // Terrain: a height map, a water depth map and a surface map on an 8 m grid, different for every mission. Deep water cannot be
   // crossed on foot; shallows, mud and soft ground (snow, sand, dust) slow everyone. A rise gives whoever stands on it more sight and
   // harder hits on whoever is below.
-  terrain:  { on: false, cell: 8, navCell: 16, relief: 70, deep: 0.5, wet: 0.03,
+  terrain:  { on: true, cell: 8, navCell: 16, relief: 70, deep: 0.5, wet: 0.03,
               speed: { shallow: 0.5, mud: 0.62, soft: 0.74 },
               hill: 0.5, sight: 0.32, attack: 0.25, top: 0.08, minLandShare: 0.55 },
 
@@ -79,7 +79,7 @@ export const CONFIG = {
               bag: { light: 36, medium: 3, heavy: 1 },
               // Mediums and heavies die slowly, so they pile up in the field while the lights melt away. This keeps them in proportion:
               // only so many of each can be alive at once (more as the session goes on); the rest of the draws come out light.
-              liveCap: { M: 8, H: 2, perMinM: 0.1, perMinH: 0.04, maxM: 40, maxH: 14 },
+              kindCap: { M: 8, H: 2, perMinM: 0.1, perMinH: 0.04, maxM: 40, maxH: 14 },
               tactics: {
                 swarm: { callRadius: 130, rushMul: 1.25, rushN: 8, weave: 3.5, fan: 0.55, arc: 1.7, reach: 48 },
                 line:  { standoff: 0.78, spacing: 4.4, rank: 4.5, tankBack: 10, arm: 70 },
@@ -97,7 +97,7 @@ export const CONFIG = {
   fortress: { hp: 14000, radius: 28, garrisonGroups: 3, garrisonCap: 30, spawnSec: 16, minFromLz: 650 },
   pressure: { start: 1, perSessionMin: 0.04, perMissionMin: 0.06, onBaseKill: 0.5, floor: 0.5 },
   // The war escalates with every minute of the session, so the run only ends in failure: tougher, harder-hitting enemies and more heavies.
-  ramp:     { hp: 0.020, dmg: 0.018, mediumEvery: 25, heavyEvery: 45, hpCap: 7, dmgCap: 5 },
+  ramp:     { hp: 0.012, dmg: 0.010, mediumEvery: 25, heavyEvery: 45, hpCap: 7, dmgCap: 5 },
   // Large enemy assaults: a big force that comes straight for the squad from one direction. The warning gives the player time to
   // scan, set a SEAF line and get strikes ready. Later in the session they get bigger.
   assault:  { firstSec: 210, everySec: 165, jitterSec: 35, warnSec: 18, groups: 4, perSessionMin: 0.06, maxGroups: 12, hunt: 80, ahead: 150, spacing: 26, reward: 140, score: 400, minLeft: 3, giveUpSec: 140 },

@@ -50,12 +50,12 @@ function applySettings() {
 function terrainQuality() { return settings.quality === 'low' || renderer.perf.low ? 0.6 : 1; }
 function buildFor(biome, seed, keepDecals = false) {
   terrainKey = `${biome}|${seed}`;
-  renderer.setTerrain(buildTerrain(biome, seed, { polarity: settings.polarity, quality: terrainQuality() }), keepDecals);
+  renderer.setTerrain(buildTerrain(biome, seed, { polarity: settings.polarity, quality: terrainQuality(), relief: !!settings.relief }), keepDecals);
 }
 
 function onSettingChange(key) {
   applySettings();
-  if (key === 'polarity' && info) buildFor(info.biome, info.seed, true);
+  if ((key === 'polarity' || key === 'relief') && info) buildFor(info.biome, info.seed, true);
   if (key === 'quality') { renderer.perf.low = false; renderer.resize(); if (info) buildFor(info.biome, info.seed, true); }
 }
 
@@ -84,6 +84,7 @@ const input = new Input(canvas, $('minimap'), cam, {
   pause: () => togglePause(),
   armory: () => openArmory(),
   polarity: () => { settings.polarity = settings.polarity === 'white' ? 'black' : 'white'; onSettingChange('polarity'); },
+  relief: () => { settings.relief = !settings.relief; onSettingChange('relief'); if (mission) hud.notice(settings.relief ? 'RELIEF MAP: BLUE WATER, HATCHED SLOW GROUND, ORANGE HIGH GROUND' : 'RELIEF MAP OFF', 'info'); },
   follow: () => { cam.follow = !cam.follow; },
   squad: (i) => selectSquad(i),
   squadCycle: (d) => cycleSquad(d),

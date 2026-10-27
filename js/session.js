@@ -15,7 +15,7 @@ export function save(key, val) {
 export function drop(key) { try { localStorage.removeItem(K[key]); } catch { /* ignore */ } }
 
 export const DEFAULT_SETTINGS = {
-  polarity: 'white', quality: 'auto', reduceFlash: false, colorblind: false,
+  polarity: 'white', relief: false, quality: 'auto', reduceFlash: false, colorblind: false,
   volume: 0.6, muted: false, lefty: false, touchSens: 1, bubbles: true,
 };
 export const getSettings = () => ({ ...DEFAULT_SETTINGS, ...load('settings', {}) });
