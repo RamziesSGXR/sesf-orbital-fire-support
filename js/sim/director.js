@@ -4,7 +4,6 @@ import { CONFIG as C } from '../config.js';
 import { SUBTYPES, COMMS, attackProfile } from '../data/data.js';
 import { compass } from './enemies.js';
 import { damageArea } from './combat.js';
-import { openBreach } from './pois.js';
 import { seafStats } from '../data/kit.js';
 import { bark } from './chatter.js';
 
@@ -21,7 +20,7 @@ export function spawnGroup(m, x, y, state = 'patrol', opts = {}) {
   };
   for (let i = 0; i < m.groupSize; i++) {
     const kind = m.drawToken(), st = SUBTYPES[kind];
-    const [ox, oy] = rng.inDisc(fac.spread);
+    const [ox, oy] = rng.inDisc(opts.emerge ? Math.min(4, fac.spread) : fac.spread);   // out of a hole or off a ship: bunched up
     let px = Math.max(0, Math.min(SIZE, x + ox)), py = Math.max(0, Math.min(SIZE, y + oy));
     if (m.terrain.blocked(px, py)) { const l = m.terrain.nearestLand(px, py); px = l.x; py = l.y; }   // never in deep water
     const e = {
@@ -29,6 +28,7 @@ export function spawnGroup(m, x, y, state = 'patrol', opts = {}) {
       ox, oy, vx: 0, vy: 0, g, lasedUntil: 0, lasedBy: null, vis: 0, atk: rng.next(), tgt: null, dead: false,
       speed: st.speed * fac.speed * m.biome.speed, r: st.r, hurtAt: -9, stunUntil: 0, ch: null,
       ang: rng.angle(), lane: 0, slot: undefined, ra: 0, pt: null, ptT: rng.next() * 0.25,
+      face: rng.angle(), aimA: 0, aimUntil: 0,
     };
     // Heavies have their own pace: the charger sprints, the tank rolls, the harvester stalks.
     if (kind === 'H') e.speed = attackProfile(fac.id, 'H').speed * m.biome.speed;
@@ -100,15 +100,9 @@ export function startGroups(m) {
   }
 }
 
-// The squad spotted a group that has not noticed them. The enemy may call for support, which opens a breach.
-export function onSpot(m, g) {
-  const t = m.t, rng = m.rng, sp = m.support;
-  if (t >= sp.enemyReadyAt && rng.next() < C.support.enemyChance && m.enemies.length < C.enemies.hardCap && m.breaches.length < 2) {
-    sp.enemyReadyAt = t + C.support.enemyCooldownSec;
-    m.incoming.push({ at: t + C.support.enemyDelaySec });
-    m.emit('reinforce_call', {});
-  }
-}
+// The squad spotted a group that has not noticed them. (Whether the enemy calls for help is up to the group itself once it is alerted
+// or shot at: see reinforce.js.)
+export function onSpot(m, g) { void m; void g; }
 
 function garrisonCount(m, b) { let n = 0; for (const e of m.enemies) if (!e.dead && e.g.base === b && e.g.garrison) n++; return n; }
 
@@ -219,11 +213,13 @@ export function updateDirector(m, dt) {
     // Enemies spawn all the time, just outside the squad's sight. Faster with Pressure, and fast to refill an empty field.
     sp.spawnT -= dt;
     if (m.enemies.length < C.enemies.liveCap) {
-      const floor = Math.round(C.enemies.spawn.minLive * m.pressure);
+      // Right after the drop the field fills more slowly, so a late-session squad gets a minute or two to find its feet.
+      const G = C.pressure.dropGrace, P = m.pressure * Math.min(1, G.min + (1 - G.min) * (t / G.sec));
+      const floor = Math.round(C.enemies.spawn.minLive * P);
       const need = sp.near < floor && t - sp.lastSpawn >= C.enemies.spawn.minGapSec;
       if (sp.spawnT <= 0 || need) {
         const p = pickSpawn(m);
-        if (p) { spawnGroup(m, p.x, p.y, 'patrol'); sp.lastSpawn = t; sp.spawnT = C.enemies.spawn.sec / m.pressure; sp.near += m.groupSize; }
+        if (p) { spawnGroup(m, p.x, p.y, 'patrol'); sp.lastSpawn = t; sp.spawnT = C.enemies.spawn.sec / Math.max(0.3, P); sp.near += m.groupSize; }
         else sp.spawnT = 1;
       }
     }
@@ -249,15 +245,6 @@ export function updateDirector(m, dt) {
 
   updateAssault(m, dt);
 
-  // Enemy support: a breach opens just outside sight and keeps sending groups until it is destroyed.
-  for (let i = m.incoming.length - 1; i >= 0; i--) {
-    const r = m.incoming[i];
-    if (t < r.at) continue;
-    if (openBreach(m)) m.incoming.splice(i, 1);
-    else if (!m.alive.length) m.incoming.splice(i, 1);
-    else r.at = t + 1;
-  }
-
   // Pods land: each Helldiver pod brings back the Helldiver of one group; SEAF where the player called them.
   for (let i = m.pods.length - 1; i >= 0; i--) {
     const p = m.pods[i];
@@ -275,31 +262,5 @@ export function updateDirector(m, dt) {
   }
   m._refreshAlive();
 
-  // Last stand and extraction.
-  if (m.phase === 'extract') {
-    const ex = m.extraction;
-    if (t >= ex.nextWave) {
-      ex.nextWave += C.extract.waveSec;
-      if (m.enemies.length < C.enemies.hardCap) {
-        let x = ex.x, y = ex.y;
-        for (let k = 0; k < 20; k++) {
-          const ang = rng.angle(), d = rng.range(C.extract.waveMin, C.extract.waveMax);
-          x = ex.x + Math.cos(ang) * d; y = ex.y + Math.sin(ang) * d;
-          if (x > 40 && x < SIZE - 40 && y > 40 && y < SIZE - 40 && m.terrain.isLand(x, y)) break;
-        }
-        x = Math.max(40, Math.min(SIZE - 40, x)); y = Math.max(40, Math.min(SIZE - 40, y));
-        spawnGroup(m, x, y, 'hunt', { alertT: 90 });
-        m.radio(COMMS.waveInbound, 'wave', 20);
-      }
-    }
-    let all = m.hdAlive.length > 0;
-    for (const a of m.hdAlive) {
-      if (Math.hypot(a.x - ex.x, a.y - ex.y) > C.extract.radius) { all = false; break; }
-    }
-    if (all) {
-      if (ex.holdT === 0) m.radio(COMMS.extracting, 'extracting', 0);
-      ex.holdT += dt;
-      if (ex.holdT >= C.extract.holdSec) { m.extracted = true; m.finish('victory'); }
-    } else ex.holdT = 0;
-  }
+  void rng;
 }

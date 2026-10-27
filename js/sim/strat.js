@@ -11,6 +11,7 @@ import { alertGroup, compass } from './enemies.js';
 import { bark } from './chatter.js';
 import { baseNear } from './pois.js';
 import { restock } from './helldiver.js';
+import { dropNear } from './reinforce.js';
 
 const M = (L, Mm, H, B) => ({ L, M: Mm, H, B });
 const TMULT = { bullet: M(1, 0.8, 0.2, 0.03), shell: M(1, 1, 0.6, 0.15), arc: M(1, 1, 0.5, 0.15), 'arc-zap': M(1, 1, 0.4, 0) };
@@ -63,22 +64,28 @@ export function stratReady(m, id) {
 // ---------------------------------------------------------------- picking where and when
 function safeSpot(m, x, y, r) {
   for (const a of m.alive) if (!a.dead && (a.x - x) ** 2 + (a.y - y) ** 2 < r * r) return false;
+  for (const c of m.civs) if (!c.dead && !c.safe && (c.x - x) ** 2 + (c.y - y) ** 2 < r * r) return false;
   return true;
 }
+// A call lands only inside the caller's own strike zone (not another Helldiver's, not a UAV circle).
+const inOwn = (ctx, x, y) => (x - ctx.cx) ** 2 + (y - ctx.cy) ** 2 <= ctx.zone * ctx.zone;
 
 // What one caller can see and needs. owner is a Helldiver; null means the whole squad (for squad-wide items).
 function buildCtx(m, owner) {
   const cx = owner ? owner.x : m.hx, cy = owner ? owner.y : m.hy, sq = m.squad;
-  // How far out a call can reach: a bit past what the caller can see, so a pack is hit on the way in and not on top of the squad.
-  const reach = Math.min(190, (owner ? owner.vision : C.sight.helldiver + C.sight.playerBonus) + 55);
-  const c = { owner, cx, cy, dir: sq.dir || 0, vis: [], heavies: [], hunt: 0, near: 0, centroid: null, reach,
+  const zone = owner ? owner.zone - 5 : (m.hdAlive.length ? Math.min(...m.hdAlive.map((a) => a.zone)) - 5 : 120);
+  // How far out a call can reach: a bit past what the caller can see, so a pack is hit on the way in and not on top of the squad,
+  // and never past the caller's own strike zone.
+  const reach = Math.min(190, zone, (owner ? owner.vision : C.sight.helldiver + C.sight.playerBonus) + 55);
+  const c = { owner, cx, cy, dir: sq.dir || 0, vis: [], heavies: [], hunt: 0, near: 0, centroid: null, reach, zone,
     engaged: owner ? !!m.eGrid.nearest(cx, cy, C.squad.engageRange) : !!sq.engaged, goalDist: sq.goalDist ?? 0, cl: null,
     panic: !!(owner && owner.retreat) };   // a Helldiver who is running for it calls whatever might save him
   let sx = 0, sy = 0;
   for (const e of m.enemies) {
     if (e.dead) continue;
     const d = Math.hypot(e.x - cx, e.y - cy);
-    if (e.vis >= 2) { c.vis.push(e); if (e.kind === 'H') c.heavies.push(e); }
+    // only what is seen and inside this Helldiver's own zone
+    if (e.vis >= 1 && d <= zone) { c.vis.push(e); if (e.kind === 'H') c.heavies.push(e); }
     if (e.g.state === 'hunt' && d <= reach) { c.hunt++; sx += e.x; sy += e.y; }
     if (d <= 70) c.near++;
   }
@@ -105,38 +112,48 @@ function clusters(m, ctx) {
 // Stratagems never hurt the squad, but a bomb dropped right on top of them looks wrong, so keep a little space.
 const clearance = () => 9;
 
+// Where something moving at (vx, vy) will be after `lead` seconds: the call itself takes C.strat.callSec, then the stratagem's own
+// delay. Capped, so a strike is never thrown at a guess far from anything.
+function ahead(x, y, vx, vy, lead) {
+  let dx = (vx || 0) * lead, dy = (vy || 0) * lead;
+  const L = Math.hypot(dx, dy), cap = C.strat.leadMax;
+  if (L > cap) { dx *= cap / L; dy *= cap / L; }
+  return { x: x + dx, y: y + dy };
+}
+const leadOf = (d) => (d.delay || 0) + C.strat.callSec;
+
 function pickCluster(m, d, ctx) {
-  const need = ctx.panic ? 2 : d.min || 5, lead = d.delay || 0;
+  const need = ctx.panic ? 2 : d.min || 5, lead = leadOf(d);
   for (const c of clusters(m, ctx)) {
     if (c.n < need) continue;
     // aim where the pack will be when the strike lands
-    const x = c.x + c.vx * lead, y = c.y + c.vy * lead;
-    if (safeSpot(m, x, y, clearance(d)) && m.inHdZone(x, y, -5)) return { x, y };
+    const p = ahead(c.x, c.y, c.vx, c.vy, lead);
+    if (safeSpot(m, p.x, p.y, clearance(d)) && inOwn(ctx, p.x, p.y) && m.terrain.isLand(p.x, p.y)) return p;
   }
   return null;
 }
 function pickHeavy(m, d, ctx) {
-  const lead = d.delay || 0;
+  const lead = leadOf(d);
   for (const e of ctx.heavies) {
     // Aim where it will be when the strike lands.
-    const x = e.x + (e.vx || 0) * lead, y = e.y + (e.vy || 0) * lead;
-    if (safeSpot(m, x, y, clearance(d)) && m.inHdZone(x, y, -5)) return { x, y, e };
+    const p = ahead(e.x, e.y, e.vx, e.vy, lead);
+    if (safeSpot(m, p.x, p.y, clearance(d)) && inOwn(ctx, p.x, p.y)) return { x: p.x, y: p.y, e };
   }
   return null;
 }
 function pickBase(m, d, ctx) {
   const sq = m.squad, b = sq.base;
   if (!b || b.destroyed || sq.state !== 'hold') return null;
-  if (!m.inHdZone(b.x, b.y, -5) || !safeSpot(m, b.x, b.y, clearance(d))) return null;
+  if (!inOwn(ctx, b.x, b.y) || !safeSpot(m, b.x, b.y, clearance(d))) return null;
   return { x: b.x, y: b.y, base: b };
 }
 
-// Where a placed asset goes: ahead of the squad toward the threat, kept inside a Helldiver's range.
-function placeSpot(m, ctx, ahead) {
+// Where a placed asset goes: ahead of the squad toward the threat, kept inside the caller's own zone.
+function placeSpot(m, ctx, aheadBy) {
   const ang = ctx.centroid ? Math.atan2(ctx.centroid.y - ctx.cy, ctx.centroid.x - ctx.cx) : ctx.dir;
   const [jx, jy] = m.rng.inDisc(4);
-  let x = ctx.cx + Math.cos(ang) * ahead + jx, y = ctx.cy + Math.sin(ang) * ahead + jy;
-  if (!m.inHdZone(x, y, -5)) { x = ctx.cx + jx; y = ctx.cy + jy; }
+  let x = ctx.cx + Math.cos(ang) * aheadBy + jx, y = ctx.cy + Math.sin(ang) * aheadBy + jy;
+  if (!inOwn(ctx, x, y) || m.terrain.blocked(x, y)) { x = ctx.cx + jx; y = ctx.cy + jy; }
   return { x, y, ang };
 }
 
@@ -213,14 +230,15 @@ function execute(m, g, tgt, ctx) {
   m.stats.stratCalls++; m.stats.stratBy[g.id] = (m.stats.stratBy[g.id] || 0) + 1;
   m.radio(COMMS.stratCall(d.name), 'strat', 1.2);
   bark(m, caller, 'strat', d.name, true);
-  m.emit('strat_call', { id: g.id, x: tgt.x, y: tgt.y, delay: d.delay || 4, team: team.i });
+  const cs = C.strat.callSec;      // the beacon is thrown, then the ship lines up: the ground is marked for this long first
+  m.emit('strat_call', { id: g.id, x: tgt.x, y: tgt.y, delay: (d.delay || 4) + cs, team: team.i, cx: caller ? caller.x : ctx.cx, cy: caller ? caller.y : ctx.cy });
   switch (d.k) {
-    case 'strike': strikeAt(m, d, tgt, { ox: ctx.cx, oy: ctx.cy, by: 'strat', friendly: false, dmgMul: mul() }); break;
-    case 'zone': queueZone(m, d.zone, tgt.x, tgt.y, t + d.delay, d.delay, d, 'strat'); break;
+    case 'strike': strikeAt(m, { ...d, delay: d.delay + cs }, tgt, { ox: ctx.cx, oy: ctx.cy, by: 'strat', friendly: false, dmgMul: mul(), team: team.i }); break;
+    case 'zone': queueZone(m, d.zone, tgt.x, tgt.y, t + d.delay + cs, d.delay + cs, d, 'strat', team.i); break;
     case 'turret': case 'mines': case 'shield': case 'dog': case 'weapon': case 'mech': case 'frv': {
-      const drop = d.k === 'frv' ? C.strat.frv.dropSec : d.k === 'mech' ? C.strat.mech.dropSec : 3.5;
+      const drop = (d.k === 'frv' ? C.strat.frv.dropSec : d.k === 'mech' ? C.strat.mech.dropSec : 3.5) + cs;
       m.queue.push({ at: t + drop, type: d.k, sid: g.id, team: g.team, x: tgt.x, y: tgt.y });
-      m.markers.push({ type: 'pod', x: tgt.x, y: tgt.y, r: 6, start: t, end: t + drop, id: g.id });
+      m.markers.push({ type: 'pod', x: tgt.x, y: tgt.y, r: 6, start: t, end: t + drop, id: g.id, team: g.team });
       if (d.k === 'frv') m.radio(COMMS.frvIn, 'frvin', 5);
       if (d.k === 'mech') m.radio(COMMS.mechIn, 'mechin', 5);
       break;
@@ -230,16 +248,16 @@ function execute(m, g, tgt, ctx) {
       m.emit('jump', {});
       break;
     case 'resupply':
-      m.queue.push({ at: t + 3, type: 'resupply', sid: g.id, team: g.team, x: tgt.x, y: tgt.y });
-      m.markers.push({ type: 'pod', x: tgt.x, y: tgt.y, r: 6, start: t, end: t + 3, id: g.id });
+      m.queue.push({ at: t + 3 + cs, type: 'resupply', sid: g.id, team: g.team, x: tgt.x, y: tgt.y });
+      m.markers.push({ type: 'pod', x: tgt.x, y: tgt.y, r: 6, start: t, end: t + 3 + cs, id: g.id });
       break;
     default:
   }
 }
 
-export function queueZone(m, z, x, y, at, delay, d, by = 'strat') {
+export function queueZone(m, z, x, y, at, delay, d, by = 'strat', team = -1) {
   m.queue.push({ at, type: 'zone', kind: z.kind, x, y, r: z.r, sec: z.sec, dps: z.dps || 0, sid: d.name, by });
-  if (delay > 0) m.markers.push({ type: 'strat', x, y, r: z.r, start: m.t, end: at, impact: at, id: d.name, cat: d.cat, by });
+  if (delay > 0) m.markers.push({ type: 'strat', x, y, r: z.r, start: m.t, end: at, impact: at, id: d.name, cat: d.cat, by, team });
 }
 
 // A strike on a point. d is the stratagem entry (already scaled for the player when the player fires it).
@@ -261,7 +279,7 @@ export function strikeAt(m, d, tgt, o) {
   const rr = d.pat === 'point' ? Math.max(d.splash, 6) : d.len || d.splash;
   // The marker also says which way the strike runs, so the ground shows where an Eagle comes from and which strip it will hit.
   m.markers.push({ type: 'strat', x: tgt.x, y: tgt.y, r: rr, start: t, end: at0 + d.span, impact: at0, id: d.name, cat: d.cat, lock: d.lock && tgt.e ? tgt.e : null, by: o.by,
-    pat: d.pat, len: d.len || 0, rad: splash, ux, uy, fly: !!d.fly, span: d.span || 0 });
+    pat: d.pat, len: d.len || 0, rad: splash, ux, uy, fly: !!d.fly, span: d.span || 0, team: o.team ?? -1 });
   if (d.fly) {
     const L = 520;
     m.emit('flyby', { x1: tgt.x - ux * L, y1: tgt.y - uy * L, x2: tgt.x + ux * L, y2: tgt.y + uy * L, at: Math.max(t, at0 - 1.6), dur: 3.2 + d.span });
@@ -410,6 +428,7 @@ function dismount(m, v, why) {
 // ---------------------------------------------------------------- assets each tick
 function turretTarget(m, s) {
   const p = s.p, focus = s.focus;
+  if (p.prefer && p.prefer.includes('H')) { const d = dropNear(m, s.x, s.y, p.range); if (d) return d; }   // a dropship in reach comes first
   let best = null, bs = -Infinity;
   m.eGrid.near(s.x, s.y, p.range, (e, d2) => {
     if (e.vis <= 0) return;
@@ -445,7 +464,7 @@ function turretStep(m, s, dt) {
       if (n >= p.chain) break;
       m.emit('tracer', { x: s.x, y: s.y, tx: o.x, ty: o.y, s: 't', hit: true, big: false, zap: true, snd: 'zap' });
       alertGroup(m, o.g);
-      hurtEnemy(m, o, p.dmg * k * TMULT['arc-zap'][o.kind], 'strat');
+      hurtEnemy(m, o, p.dmg * k * TMULT['arc-zap'][o.kind], 'strat', s.x, s.y);
       n++;
     }
   } else {
@@ -518,7 +537,7 @@ function vehicleStep(m, s, dt) {
   s.gunner = seats[0];
   s.cool -= dt;
   if (s.cool <= 0) {
-    let best = null, bs = -Infinity;
+    let best = dropNear(m, s.x, s.y, F.gunRange), bs = best ? Infinity : -Infinity;
     m.eGrid.near(s.x, s.y, F.gunRange, (e, d2) => { const sc = (e.kind === 'H' ? 60 : e.kind === 'M' ? 20 : 0) - Math.sqrt(d2); if (sc > bs) { bs = sc; best = e; } });
     if (best) { s.cool = F.gunEvery; fireShot(m, s, best, { dmg: F.gunDmg * mul(), acc: 0.85, splash: 0, mult: FRV_MULT }, 'strat', 't', 'frvgun'); } else s.cool = 0.2;
   }
@@ -542,7 +561,9 @@ function updateAssets(m, dt) {
 function pickWeaponTarget(m, a, w) {
   // a lock-on stays on its target for as long as that target is still there to be locked
   const le = w.lockE;
-  if (le && !le.dead && le.vis > 0 && (le.x - a.x) ** 2 + (le.y - a.y) ** 2 <= w.range * w.range) return le;
+  if (le && !le.dead && le.vis > 0 && (!le.drop || le.low) && (le.x - a.x) ** 2 + (le.y - a.y) ** 2 <= w.range * w.range) return le;
+  // anti-armor weapons go for a dropship or warp ship that is low enough to hit: it carries several groups
+  if ((w.prefer && w.prefer.includes('H')) || w.only === 'H' || (w.kinds && w.kinds.includes('H'))) { const d = dropNear(m, a.x, a.y, w.range); if (d) return d; }
   let best = null, bs = -Infinity;
   m.eGrid.near(a.x, a.y, w.range, (e, d2) => {
     if (e.vis <= 0) return;
@@ -568,7 +589,7 @@ function updateWeapons(m, dt) {
   const sq = m.squad, k = mul();
   for (const a of m.hdAlive) {
     if (a.mounted) continue;
-    const ok = (e) => sq.free || e.g.state === 'hunt';
+    const ok = (e) => e.drop || sq.free || e.g.state === 'hunt';
     if (a.sw) {
       const w = a.sw;
       w.t -= dt;
@@ -608,7 +629,7 @@ function updateWeapons(m, dt) {
         if (e && ok(e)) { mc.gatT = 0.15; mc.gat--; fireShot(m, a, e, { dmg: 6.5 * k, acc: 0.8, splash: 0, mult: MECH_GAT }, 'strat', 'a', 'mechgat'); } else mc.gatT = 0.2;
       }
       if (mc.rktT <= 0 && mc.rkt > 0) {
-        const e = pickWeaponTarget(m, a, { range: 80, prefer: 'HM' });
+        const e = pickWeaponTarget(m, a, { range: 80, prefer: 'HM', mult: MECH_RKT });
         if (e && ok(e)) { mc.rktT = 3.5; mc.rkt--; fireShot(m, a, e, { dmg: 260 * k, acc: 0.9, splash: 5, mult: MECH_RKT, flight: 0.45 }, 'strat', 'a', 'mechrkt'); } else mc.rktT = 0.3;
       }
       if (mc.gat <= 0 && mc.rkt <= 0) mechOut(m, a, 'empty');
@@ -642,9 +663,50 @@ function updateZones(m, dt) {
     z.tick += 0.25;
     if (z.kind === 'fire' || z.kind === 'gas') {
       const dm = z.by === 'player' ? 1 : k;   // the player's zones already carry the player's upgrades
-      m.eGrid.near(z.x, z.y, z.r, (e) => { alertGroup(m, e.g); hurtEnemy(m, e, z.dps * 0.25 * dm, z.by || 'strat'); });
+      m.eGrid.near(z.x, z.y, z.r, (e) => { alertGroup(m, e.g); hurtEnemy(m, e, z.dps * 0.25 * dm, z.by || 'strat', null, null, ''); });
     } else if (z.kind === 'ems') {
       m.eGrid.near(z.x, z.y, z.r, (e) => { e.stunUntil = t + 0.6; });
+    }
+  }
+}
+
+// ---------------------------------------------------------------- free-fire zones
+// A Helldiver who sees a big pack well ahead of the squad asks for a free-fire zone on it. While it lasts every ally keeps out of it
+// (safety.js treats it as a strike footprint) and the player's orbitals landed inside it recharge faster (player.js).
+function updateFfz(m, dt) {
+  const F = C.ffz, t = m.t, z = m.ffz;
+  if (z && t >= z.until) { m.ffz = null; m.radio(COMMS.ffzEnd, 'ffzend', 0); m.emit('ffz_end', { x: z.x, y: z.y }); }
+  if (m.ffz || t < (m.ffzAt ?? F.firstSec) || !m.hdAlive.length || m.phase === 'over' || (m.phase === 'extract' && m.extraction.state !== 'open' && m.extraction.state !== 'called')) return;
+  m.ffzScan = (m.ffzScan || 0) - dt;
+  if (m.ffzScan > 0) return;
+  m.ffzScan = 1;
+  const list = m.enemies.filter((e) => !e.dead && e.vis >= 1);
+  if (list.length < F.minN) return;
+  const stride = Math.max(1, Math.floor(list.length / 50));
+  for (const a of m.hdAlive) {
+    if (a.mounted || a.dead) continue;
+    let best = null, bn = 0;
+    for (let i = 0; i < list.length; i += stride) {
+      const e = list[i], d = Math.hypot(e.x - a.x, e.y - a.y);
+      if (d > Math.min(a.zone - 10, F.maxDist) || d < F.minDist) continue;
+      let n = 0, sx = 0, sy = 0;
+      m.eGrid.near(e.x, e.y, F.r * 0.8, (o) => { n += o.kind === 'H' ? F.heavyN : 1; sx += o.x; sy += o.y; });
+      if (n <= bn) continue;
+      const cnt = Math.max(1, (() => { let c = 0; m.eGrid.near(e.x, e.y, F.r * 0.8, () => { c++; }); return c; })());
+      const x = sx / cnt, y = sy / cnt;
+      if (m.hdAlive.some((h) => Math.hypot(h.x - x, h.y - y) < F.minDist)) continue;
+      bn = n; best = { x, y };
+    }
+    if (best && bn >= F.minN) {
+      m.ffz = { x: best.x, y: best.y, r: F.r, start: t, until: t + F.sec, by: a.id, team: a.team, n: bn, strikes: 0 };
+      m.ffzAt = t + F.cooldownSec;
+      m.stats.ffz = (m.stats.ffz || 0) + 1;
+      const dir = compass(best.x - m.cx, best.y - m.cy);
+      m.radio(COMMS.ffzAsk(m.tag(a), dir), 'ffz', 0);
+      m.notice(`FREE-FIRE ZONE ${dir.toUpperCase()}  ALLIES CLEAR OUT  STRIKES IN IT RECHARGE 2X`, 'warn');
+      m.emit('ffz', { x: best.x, y: best.y, r: F.r, team: a.team });
+      bark(m, a, 'ffz', '', true);
+      return;
     }
   }
 }
@@ -656,6 +718,7 @@ export function updateStrat(m, dt) {
   updateAssets(m, dt);
   updateWeapons(m, dt);
   updateZones(m, dt);
+  updateFfz(m, dt);
   for (let i = m.assets.length - 1; i >= 0; i--) if (m.assets[i].dead) m.assets.splice(i, 1);
   if (m.over || !m.hdAlive.length) return;
   S.scanT -= dt;

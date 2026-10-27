@@ -51,7 +51,7 @@ export function slotStats(m, i) {
   const s = m.player.slots[i];
   if (s.type === 'orb') return orbStats(s.id, s.level);
   if (s.type === 'uav') { const u = uavStats(m.kit.uav); return { name: 'UAV SCAN', g: 'UAV', cd: u.cd, r: u.r, sec: u.sec, delay: 0 }; }
-  if (s.type === 'nuke') return { name: 'NUCLEAR STRIKE', g: 'NUKE', cd: 0, delay: 8 };
+  if (s.type === 'nuke') return { name: 'NUCLEAR STRIKE', g: 'NUKE', cd: 0, delay: C.objective.nuke.delaySec, splash: C.objective.nuke.blastR, dmg: C.objective.nuke.blastDmg };
   if (s.type === 'gun') return { name: 'SHIP GUN', g: 'GUN', cd: 0, delay: 0 };
   return null;
 }
@@ -66,7 +66,7 @@ export function aimGeom(m, st) {
 // A shell lands. by says who fired it; friendly = whether it hurts allies (only the player's strikes do).
 function explode(m, sh) {
   const by = sh.by || 'player', friendly = sh.friendly !== false;
-  damageArea(m, sh.x, sh.y, sh.splash, sh.dmg, sh.mult, by, friendly);
+  damageArea(m, sh.x, sh.y, sh.splash, sh.dmg, sh.mult, by, friendly, sh.cs, sh.fx ?? sh.x, sh.fy ?? sh.y);
   if (sh.splash >= 6) noise(m, sh.x, sh.y, C.enemies.alert.noiseRadius);
   m.emit('boom', { x: sh.x, y: sh.y, r: sh.splash, dmg: sh.dmg, by, big: !!sh.big, nuke: !!sh.nuke });
 }
@@ -91,7 +91,10 @@ function fireOrbital(m, idx) {
   const st = orbStats(s.id, s.level);
   if (t < s.readyAt || s.uses <= 0) return deny(m, 'cooldown');
   if (!m.inZone(p.aimX, p.aimY)) return deny(m, 'nocoverage', COMMS.noCoverage);
-  s.readyAt = t + st.cd;
+  // into a free-fire zone the Helldivers asked for: the destroyer recharges faster, so the gunner can saturate it
+  const inFfz = m.ffz && Math.hypot(p.aimX - m.ffz.x, p.aimY - m.ffz.y) <= m.ffz.r;
+  s.readyAt = t + st.cd * (inFfz ? C.ffz.cdMul : 1);
+  if (inFfz) { m.ffz.strikes++; m.stats.ffzStrikes = (m.stats.ffzStrikes || 0) + 1; }
   if (s.uses !== Infinity) s.uses--;
   let tgt = { x: p.aimX, y: p.aimY };
   if (st.lock) {      // the railcannon picks the biggest enemy near the aim point
@@ -193,7 +196,7 @@ export function updatePlayer(m, dt) {
     dx = b.cx - b.lx; dy = b.cy - b.ly;
     const off = Math.hypot(dx, dy);
     if (off > b.leash) { b.cx = b.lx + (dx / off) * b.leash; b.cy = b.ly + (dy / off) * b.leash; }
-    damageArea(m, b.cx, b.cy, (b.width / 2) * m.biome.splash, b.dps * dt, ALL, 'player', true);
+    damageArea(m, b.cx, b.cy, (b.width / 2) * m.biome.splash, b.dps * dt, ALL, 'player', true, '');
   }
 
   // UAV scans run out.
@@ -221,7 +224,7 @@ function updateGun(m, dt, pressed) {
     while (g.acc >= 1 && g.ammo >= 1) {
       g.acc -= 1; g.ammo -= 1;
       const [ox, oy] = m.rng.inDisc(spread), x = p.aimX + ox, y = p.aimY + oy;
-      damageArea(m, x, y, G.splash * m.biome.splash, gs.dmg, GUN_MULT, 'player', false);
+      damageArea(m, x, y, G.splash * m.biome.splash, gs.dmg, GUN_MULT, 'player', false, 'gun', x, y - 3);   // rounds fall from the ship
       if (pts.length < 4) pts.push([x, y]);
       m.stats.gunRounds = (m.stats.gunRounds || 0) + 1;
     }

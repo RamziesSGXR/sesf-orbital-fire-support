@@ -2,8 +2,7 @@
 // the enemy opens when it calls for support). Both are soft targets that anyone can shoot and any real explosion hurts.
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
-import { spawnGroup, spawnNear, pickSpawn } from './director.js';
-import { compass } from './enemies.js';
+import { spawnGroup, spawnNear } from './director.js';
 
 const SIZE = C.world.size;
 const P = C.poi;
@@ -47,30 +46,22 @@ export function updatePois(m, dt) {
     if (p.owed > 0 && m.enemies.length < C.enemies.hardCap && spawnNear(m, p.x, p.y, 4, 16, 'patrol')) p.owed--;
     if (p.owed <= 0) p.woke = true;
   }
+  // Bug holes (reinforce.js opens them): a rumble, then one group after another digs out, then the hole falls in. Shot closed early,
+  // nothing more comes out of it.
   for (let i = m.breaches.length - 1; i >= 0; i--) {
     const b = m.breaches[i];
     if (b.dead) { m.breaches.splice(i, 1); continue; }
     if (t >= b.next && b.left > 0) {
-      b.next = t + C.breach.everySec / m.pressure; b.left--;
+      b.next = t + b.every; b.left--;
+      if (b.left === b.total - 1) m.emit('breach_open', { x: b.x, y: b.y, id: b.id });
       if (m.enemies.length < C.enemies.hardCap) {
-        spawnGroup(m, b.x + rng.range(-8, 8), b.y + rng.range(-8, 8), 'hunt', { alertT: 30 });
-        m.emit('breach_spawn', { x: b.x, y: b.y });
+        const g = spawnGroup(m, b.x + rng.range(-3, 3), b.y + rng.range(-3, 3), 'hunt', { alertT: 45, emerge: true });
+        g.reinf = true; g.called = true;
+        m.emit('reinf_spawn', { x: b.x, y: b.y, kind: 'bugs', src: 'hole' });
       }
     }
-    if (t >= b.until || (b.left <= 0 && t >= b.next + 4)) { b.dead = true; m.emit('breach_close', { x: b.x, y: b.y, destroyed: false, id: b.id }); }
+    if (t >= b.until || (b.left <= 0 && t >= b.next + b.linger)) { b.dead = true; m.emit('breach_close', { x: b.x, y: b.y, destroyed: false, id: b.id }); }
   }
-}
-
-// The enemy called for support: a breach opens just outside the squad's view. Everyone can see it and everyone can shoot it.
-export function openBreach(m) {
-  const p = pickSpawn(m, C.breach.r);
-  if (!p) return false;
-  const B = C.breach, id = m.nextId++;
-  m.breaches.push({ id, x: p.x, y: p.y, r: B.r, hp: B.hp, maxHp: B.hp, born: m.t, until: m.t + B.lifeSec, next: m.t + 3, left: B.groups, dead: false, hurtAt: -9, reward: B.reward });
-  m.radio(COMMS.breach(compass(p.x - m.cx, p.y - m.cy)), 'breach', 0);
-  m.emit('breach_open', { x: p.x, y: p.y, id });
-  m.notice(`ENEMY BREACH OPENING ${compass(p.x - m.cx, p.y - m.cy).toUpperCase()}`, 'warn');
-  return true;
 }
 
 export function damagePoi(m, p, dmg, by) {
@@ -95,6 +86,8 @@ export function damageBreach(m, b, dmg, by) {
   if (by in m.stats.dmg) m.stats.dmg[by] += dealt;
   if (b.hp > 0) return;
   b.dead = true; b.hp = 0;
+  if (b.left > 0) m.notice(`BREACH COLLAPSED  ${b.left} GROUPS NEVER CAME OUT`, 'good');
+  b.left = 0;
   m.stats.breaches++;
   m.sc.breaches += C.score.breach;
   m.earn('breach', b.reward, b.x, b.y);

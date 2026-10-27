@@ -20,6 +20,10 @@ import { updateChatter } from './chatter.js';
 import { initKit, updateHelldivers } from './helldiver.js';
 import { buildDanger, updateEvade } from './safety.js';
 import { getTerrain } from './terrain.js';
+import { boardingNow } from './extract.js';
+import { initReinf, updateReinf, damageDrop } from './reinforce.js';
+import { updateExtract } from './extract.js';
+import { hurtCiv, updateCivs } from './civilians.js';
 
 const SIZE = C.world.size;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -82,16 +86,17 @@ export class Mission {
       hdCalls: 0, seafCalls: 0, despawned: 0, pois: 0, breaches: 0, assaults: 0, assaultsHit: 0,
       dmg: { player: 0, squad: 0, strat: 0, enemy: 0 }, stratCalls: 0, stratBy: {}, mechs: 0, frvs: 0, wipes: 0, objectives: 0, podKills: 0,
     };
-    this.sc = { kills: 0, allyKills: 0, bases: 0, pois: 0, breaches: 0, assaults: 0, objective: 0, timeBonus: 0, extraction: 0, lives: 0, survivor: 0, ff: 0, deaths: 0, wipes: 0 };
+    this.sc = { kills: 0, allyKills: 0, bases: 0, pois: 0, breaches: 0, assaults: 0, objective: 0, timeBonus: 0, extraction: 0, lives: 0, survivor: 0, ff: 0, deaths: 0, wipes: 0, drops: 0, civ: 0 };
     // Credits earned this mission. They go straight into the wallet so the armory can spend them mid-mission.
-    this.cr = { kills: 0, bases: 0, pois: 0, breaches: 0, assaults: 0, objective: 0, extraction: 0, total: 0, start: this.wallet.bal, spent0: this.wallet.spent };
+    this.cr = { kills: 0, bases: 0, pois: 0, breaches: 0, assaults: 0, objective: 0, extraction: 0, drops: 0, civ: 0, total: 0, start: this.wallet.bal, spent0: this.wallet.spent };
     this.combo = { mult: 1, last: -99 };
     this.deaths = [];     // the death report: every Helldiver and SEAF who fell, in order
 
     this.enemies = []; this.groups = []; this.allies = []; this.alive = []; this.hdAlive = []; this.seafAlive = [];
     this.shells = []; this.beams = []; this.markers = []; this.pods = []; this.pelicans = []; this.incoming = []; this.uavs = [];
-    this.assets = []; this.zones = [];
+    this.assets = []; this.zones = []; this.civs = []; this.ffz = null;
     this.pois = []; this.breaches = [];
+    initReinf(this);
     this.eGrid = new Grid(SIZE, 40); this.aGrid = new Grid(SIZE, 40); this.tGrid = new Grid(SIZE, 40);
     this.cx = 0; this.cy = 0; // centroid of the Helldivers (or of everyone if none are alive)
     this.hx = 0; this.hy = 0;
@@ -104,12 +109,14 @@ export class Mission {
     this.recallAt = null;   // when the next free recall arrives, while the squad is under strength with no lives left
     this.wiped = false;
     this.seaf = initSeaf();
-    this.support = { enemyReadyAt: 0, spawnT: 0, lastSpawn: -99, scanT: 0, near: 0 };
+    this.support = { spawnT: 0, lastSpawn: -99, scanT: 0, near: 0 };
     // Large assaults: one at a time. cur is the force that is forming up or marching; nextAt is when the next warning goes out.
     this.assault = { nextAt: C.assault.firstSec + this.rng.range(-C.assault.jitterSec, C.assault.jitterSec), cur: null, n: 0 };
     this.chat = { t: 0, hd: 0, seaf: 0, moveAt: -99, heavyAt: -99, seafAt: -99, wasEngaged: false, lastState: '' };
     this.noticeAt = { seaf: -99 };
     this.nuke = null;
+    // The hour of the drop (cosmetic: it sets the light and the tint of the map, see render/sky.js). opts.tod forces it.
+    this.tod0 = opts.tod ?? this.crng.range(0, 24);
 
     this._setup(opts);
   }
@@ -145,7 +152,16 @@ export class Mission {
 
     // Hidden extraction point.
     const exAvoid = [{ x: this.lz.x, y: this.lz.y, r: C.extract.minFromLz }, ...this.bases.map((b) => ({ x: b.x, y: b.y, r: C.extract.minFromBase }))];
-    const ex = placePoints(rng, 1, 0, exAvoid, 100, land)[0];
+    // Early on it is not far from where the objective ends, so the first missions stay short.
+    const lastO = this.objectives[this.objectives.length - 1], end = lastO ? (lastO.type === 'vip' ? { x: lastO.dx, y: lastO.dy } : lastO) : null;
+    const exReach = C.objective.reach.start + C.objective.reach.perMin * this.S;
+    let ex = null, exD = Infinity;
+    for (let k = 0; k < 24; k++) {
+      const p = placePoints(rng, 1, 0, exAvoid, 100, land)[0];
+      const d = end ? Math.hypot(p.x - end.x, p.y - end.y) : 0;
+      if (d < exD) { exD = d; ex = p; }
+      if (d <= exReach) break;
+    }
     this.extraction = { x: ex.x, y: ex.y, revealed: false, holdT: 0, nextWave: Infinity };
 
     // Points of interest SEAF can take out for credits.
@@ -303,6 +319,7 @@ export class Mission {
     this.stats.shots++;
     return true;
   }
+  completeObjective(o) { completeObjective(this, o); }
   onNukeLanded() {
     const o = this.nukeObj();
     if (o && !o.done) completeObjective(this, o);
@@ -334,6 +351,8 @@ export class Mission {
     if (amt >= 10 && x !== undefined) this.emit('credit', { x, y, amt, kind });
   }
   damagePoi(p, dmg, by) { damagePoi(this, p, dmg, by); }
+  damageDrop(d, dmg, by) { damageDrop(this, d, dmg, by); }
+  hurtCiv(c, dmg, by) { hurtCiv(this, c, dmg, by); }
   damageBreach(b, dmg, by) { damageBreach(this, b, dmg, by); }
 
   addAlly(type, x, y, o = {}) {
@@ -347,6 +366,7 @@ export class Mission {
       hurtAt: -9, mounted: null, sw: null, mech: null,
       team: -1, sq: -1, code: '', name: '', role: o.role || 'rifle', spT: 2 + rng.next() * 3, engaged: false,
       say: null, sayAt: 0, ping: null, lastSrc: null, dmgMul: 1, armorMul: 1, born: this.t,
+      face: (this.squad ? this.squad.dir : 0) + rng.range(-0.6, 0.6), aimA: 0, aimUntil: 0,
     };
     if (type === 'H') {
       let ti = o.team;
@@ -543,6 +563,7 @@ export class Mission {
   // down still has a chance to come back.
   _recall() {
     const t = this.t, hd = this.hd, H = C.helldivers;
+    if (boardingNow(this)) { this.recallAt = null; return; }
     const strength = this.hdAlive.length + this.pendingPods('H');
     if (hd.lives > 0 || strength >= H.max) { this.recallAt = null; return; }
     if (this.recallAt === null) { this.recallAt = t + H.recallSec; return; }
@@ -557,6 +578,7 @@ export class Mission {
     if (this.over) return;
     this._recall();
     const t = this.t, hd = this.hd, H = C.helldivers;
+    if (boardingNow(this)) return;    // nobody drops in while the pelican is loading
     if (!this.hdAlive.length) {
       if (!this.wiped && !this.pods.some((p) => p.type === 'H' && p.start)) {
         this.wiped = true;
@@ -585,7 +607,8 @@ export class Mission {
       this.earn('extraction', C.credits.perMission);
     }
     if (outcome === 'victory' || outcome === 'timeout') {
-      this.sc.survivor = this.countAlly('H') * s.survivorHelldiver + this.countAlly('S') * s.survivorSeaf;
+      const ex = this.extraction;
+      this.sc.survivor = (this.countAlly('H') + (ex.boardedH || 0)) * s.survivorHelldiver + (this.countAlly('S') + (ex.boardedS || 0)) * s.survivorSeaf;
     }
     this.radio(outcome === 'victory' ? COMMS.victory : outcome === 'timeout' ? COMMS.timeout : COMMS.defeat, 'end', 0);
     this.emit('end', { outcome });
@@ -594,12 +617,12 @@ export class Mission {
   // The running score for the HUD (cheap: no copies).
   liveScore() {
     const sc = this.sc;
-    return Math.max(0, Math.round(sc.kills + sc.allyKills + sc.bases + sc.pois + sc.breaches + sc.assaults + sc.objective + sc.timeBonus + sc.extraction + sc.lives + sc.survivor + sc.ff + sc.deaths + sc.wipes));
+    return Math.max(0, Math.round(sc.kills + sc.allyKills + sc.bases + sc.pois + sc.breaches + sc.assaults + sc.objective + sc.timeBonus + sc.extraction + sc.lives + sc.survivor + sc.ff + sc.deaths + sc.wipes + sc.drops + sc.civ));
   }
 
   result() {
     const sc = this.sc;
-    const raw = sc.kills + sc.allyKills + sc.bases + sc.pois + sc.breaches + sc.assaults + sc.objective + sc.timeBonus + sc.extraction + sc.lives + sc.survivor + sc.ff + sc.deaths + sc.wipes;
+    const raw = sc.kills + sc.allyKills + sc.bases + sc.pois + sc.breaches + sc.assaults + sc.objective + sc.timeBonus + sc.extraction + sc.lives + sc.survivor + sc.ff + sc.deaths + sc.wipes + sc.drops + sc.civ;
     const d = this.stats.dmg, tot = d.player + d.squad + d.strat || 1;
     const cr = this.cr;
     return {
@@ -607,11 +630,12 @@ export class Mission {
       score: Math.max(0, Math.round(raw)), raw: Math.round(raw), breakdown: { ...sc },
       kills: this.stats.killsPlayer + this.stats.killsAlly, stats: { ...this.stats },
       bases: this.stats.bases, baseTotal: this.baseTotal, pois: this.stats.pois, poiTotal: this.pois.length, breaches: this.stats.breaches, assaults: this.stats.assaults, assaultsHit: this.stats.assaultsHit,
-      livesLeft: this.hd.lives, survivorsH: this.countAlly('H'), survivorsS: this.countAlly('S'),
+      livesLeft: this.hd.lives, survivorsH: this.countAlly('H') + (this.extraction.boardedH || 0), survivorsS: this.countAlly('S') + (this.extraction.boardedS || 0),
+      civSaved: this.stats.civSaved || 0, civLost: this.stats.civLost || 0,
       objectives: this.objectives.map((o) => ({ type: o.type, done: o.done })), objDone: this.objDone, extracted: this.extracted,
       share: { player: d.player / tot, squad: d.squad / tot, strat: d.strat / tot },
       loadout: this.loadout.slice(), orbitals: loadoutIds(this.kit),
-      credits: { kills: cr.kills, bases: cr.bases, pois: cr.pois, breaches: cr.breaches, assaults: cr.assaults, objective: cr.objective, extraction: cr.extraction,
+      credits: { kills: cr.kills, bases: cr.bases, pois: cr.pois, breaches: cr.breaches, assaults: cr.assaults, objective: cr.objective, extraction: cr.extraction, drops: cr.drops, civ: cr.civ,
         total: cr.total, spent: this.wallet.spent - cr.spent0, start: cr.start, balance: this.wallet.bal },
       deaths: this.deaths.map((x) => ({ ...x })),
       teams: this.teams.map((tm) => ({ letter: tm.letter, ship: tm.ship, deaths: tm.deaths, ids: tm.ids.slice() })),
@@ -629,7 +653,19 @@ export class Mission {
     const sq = this.squad; sq.pax = sq.ax; sq.pay = sq.ay;
     for (const q of this.seaf.squads) { q.pax = q.ax; q.pay = q.ay; }
   }
-  _walk() {
+  // Turn every unit toward where it is shooting, or else where it is going, at its own turning speed (heavies turn slowly).
+  _turn(o, rate, dt) {
+    let want = null;
+    if (o.aimUntil > this.t) want = o.aimA;
+    else { const dx = o.x - o.px, dy = o.y - o.py; if (dx * dx + dy * dy > 0.0004) want = Math.atan2(dy, dx); }
+    if (want === null || want === undefined) return;
+    let d = want - o.face;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    const s = rate * dt;
+    o.face += Math.abs(d) <= s ? d : Math.sign(d) * s;
+  }
+  _walk(dt = 1 / C.world.tickHz) {
     const tr = this.terrain, jump = this.t < this.buff.jumpUntil;
     const go = (o, kx, ky, pkx, pky, soft) => {      // soft: how much of the slow going applies (0 = none, 1 = all of it)
       const x0 = o[pkx], y0 = o[pky];
@@ -657,6 +693,9 @@ export class Mission {
     const sq = this.squad;
     go(sq, 'ax', 'ay', 'pax', 'pay', jump ? 0 : sq.mounted ? 0.5 : 1);
     for (const q of this.seaf.squads) go(q, 'ax', 'ay', 'pax', 'pay', 1);
+    const T = C.combat.turn, hr = T.H[this.faction.id] || 2;
+    for (const e of this.enemies) if (!e.dead) this._turn(e, e.kind === 'H' ? hr : T[e.kind], dt);
+    for (const a of this.alive) if (!a.mounted) this._turn(a, T.ally, dt); else a.face = a.mounted.face;
   }
 
   // ----- one fixed step -----
@@ -681,9 +720,12 @@ export class Mission {
     updatePois(this, dt);
     updateObjectives(this, dt);
     updateDirector(this, dt);
+    updateReinf(this, dt);
+    updateCivs(this, dt);
+    updateExtract(this, dt);
     updateChatter(this, dt);
     this._reinforce();
-    this._walk();
+    this._walk(dt);
 
     if (this.dirtyE) {
       this.enemies = this.enemies.filter((e) => !e.dead);

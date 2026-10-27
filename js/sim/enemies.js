@@ -6,6 +6,7 @@ import { fireShot, hurtTarget, hurtAlly, nearestTarget, inZoneKind, pickClear } 
 import { steer } from './terrain.js';
 import { softNear, baseNear } from './pois.js';
 import { bark } from './chatter.js';
+import { dropNear } from './reinforce.js';
 
 const DIRS = ['east', 'northeast', 'north', 'northwest', 'west', 'southwest', 'south', 'southeast'];
 // Compass word for a vector on the map (north is up, so -y).
@@ -84,7 +85,7 @@ export function updateAllies(m, dt) {
           const bs = !e && !soft ? baseNear(m, a.x, a.y, C.structure.range) : null;
           if (soft) {
             a.atk += RIFLE[a.type].burst;
-            const dmg = RIFLE[a.type].dmg * (a.dmgMul || 1) * P.rifleMul * (m.rng.next() < RIFLE[a.type].acc ? 1 : 0);
+            const dmg = RIFLE[a.type].dmg * (a.dmgMul || 1) * (soft.kind === 'hole' ? C.reinf.bugs.rifle : P.rifleMul) * (m.rng.next() < RIFLE[a.type].acc ? 1 : 0);   // a bug hole wants explosives
             m.emit('tracer', { x: a.x, y: a.y, tx: soft.x, ty: soft.y, s: 'a', hit: true, big: false, fl: 0, snd: H ? 'rifle' : 'smg' });
             if (dmg > 0) (soft.isPoi ? m.damagePoi(soft, dmg, 'squad') : m.damageBreach(soft, dmg, 'squad'));
           } else if (bs) {
@@ -106,7 +107,8 @@ export function updateAllies(m, dt) {
         let e = null;
         if (a.role === 'rocket') {
           let bs = -Infinity;
-          m.eGrid.near(a.x, a.y, spec.range, (q, d2) => { if (q.kind === 'L') return; const sc = (q.kind === 'H' ? 90 : 30) - Math.sqrt(d2) * 0.2; if (sc > bs) { bs = sc; e = q; } });
+          e = dropNear(m, a.x, a.y, spec.range);    // a dropship hovering in reach is the best rocket target there is
+          if (!e) m.eGrid.near(a.x, a.y, spec.range, (q, d2) => { if (q.kind === 'L') return; const sc = (q.kind === 'H' ? 90 : 30) - Math.sqrt(d2) * 0.2; if (sc > bs) { bs = sc; e = q; } });
         } else {
           // the densest spot within range
           let bn = 0;
@@ -156,10 +158,12 @@ function squidHeavy(m, e, p, t) {
     if (!c.tgt || c.tgt.dead) c.tgt = nearestTarget(m, e.x, e.y, p.range);
     if (!c.tgt) { e.ch = null; return; }
     if (t < c.t0 + c.dur - p.lock) { c.tx = c.tgt.x; c.ty = c.tgt.y; }   // tracks until the last moment, then locks
+    e.aimA = Math.atan2(c.ty - e.y, c.tx - e.x); e.aimUntil = t + 0.5;
     if (t >= c.t0 + c.dur) {
       const dx = c.tx - e.x, dy = c.ty - e.y, d = Math.hypot(dx, dy) || 1;
       const L = Math.max(p.range, d), ex = e.x + (dx / d) * L, ey = e.y + (dy / d) * L;
-      for (const a of m.alive) if (!a.dead && !a.mounted && segDist(a.x, a.y, e.x, e.y, ex, ey) <= p.width / 2 + 1.5) hurtTarget(m, a, p.dmg * m.dmgMul, 'enemy', 'H');
+      for (const a of m.alive) if (!a.dead && !a.mounted && segDist(a.x, a.y, e.x, e.y, ex, ey) <= p.width / 2 + 1.5) hurtTarget(m, a, p.dmg * m.dmgMul, 'enemy', 'H', e.x, e.y);
+      for (const cv of m.civs) if (!cv.dead && !cv.safe && segDist(cv.x, cv.y, e.x, e.y, ex, ey) <= p.width / 2 + 1.5) m.hurtCiv(cv, p.dmg * m.dmgMul, 'enemy');
       for (const s of m.assets) if (!s.dead && s.kind !== 'mines' && segDist(s.x, s.y, e.x, e.y, ex, ey) <= p.width / 2 + 2) hurtTarget(m, s, p.dmg * m.dmgMul, 'enemy');
       m.emit('beam', { x: e.x, y: e.y, tx: ex, ty: ey, w: p.width });
       e.ch = null; e.atk = p.every;
@@ -170,6 +174,7 @@ function squidHeavy(m, e, p, t) {
   const tgt = nearestTarget(m, e.x, e.y, p.range);
   if (tgt) e.ch = { t0: t, dur: p.charge, tgt, tx: tgt.x, ty: tgt.y };
 }
+// (while charging, the harvester turns to its target: see the charge branch above, which keeps aimA fresh)
 
 // ---------------------------------------------------------------- how each faction fights
 const TAU = Math.PI * 2;
@@ -328,6 +333,11 @@ export function updateEnemies(m, dt) {
         const d2 = (s.x - g.cx) ** 2 + (s.y - g.cy) ** 2;
         if (d2 < bd) { bd = d2; best = s; }
       }
+      for (const c of m.civs) {     // civilians on an evacuation are fair game
+        if (c.dead || c.safe) continue;
+        const d2 = (c.x - g.cx) ** 2 + (c.y - g.cy) ** 2;
+        if (d2 < bd) { bd = d2; best = c; }
+      }
       g.target = best;
       g.fuzzT -= 0.5;
       if (best && (g.fuzzT <= 0 || !g.tp)) {
@@ -385,6 +395,7 @@ export function updateEnemies(m, dt) {
       e.atk += p.every;
       const a = e.tgt;
       if (a.dead) continue;
+      e.aimA = Math.atan2(a.y - e.y, a.x - e.x); e.aimUntil = t + 0.9;    // turn to face what it is shooting
       const smoke = inZoneKind(m, a.x, a.y, 'smoke') ? 0.35 : 1;
       const hit = rng.next() < p.acc * smoke;
       let tx = a.x, ty = a.y;
@@ -394,10 +405,11 @@ export function updateEnemies(m, dt) {
       if (!hit) continue;
       const hi = m.terrain.attackMul(e.x, e.y, a.x, a.y);     // shooting down from a rise hits harder
       if (p.splash) {
-        m.aGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * m.dmgMul * hi, 'enemy', e.kind));
+        m.aGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * m.dmgMul * hi, 'enemy', e.kind, e.x, e.y));
         m.tGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * m.dmgMul * hi, 'enemy', e.kind));
+        for (const cv of m.civs) if (!cv.dead && !cv.safe && (cv.x - tx) ** 2 + (cv.y - ty) ** 2 <= p.splash * p.splash) m.hurtCiv(cv, p.dmg * m.dmgMul, 'enemy');
         m.emit('boom', { x: tx, y: ty, r: p.splash, dmg: p.dmg, by: 'enemy' });
-      } else hurtTarget(m, a, p.dmg * m.dmgMul * hi, 'enemy', e.kind);
+      } else hurtTarget(m, a, p.dmg * m.dmgMul * hi, 'enemy', e.kind, e.x, e.y);
     }
   }
 }

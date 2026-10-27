@@ -4,6 +4,8 @@
 import { CONFIG as C } from '../config.js';
 import { STRATS } from '../data/strat.js';
 import { seafTargets } from './squads.js';
+import { TEAM_COLOR } from '../data/names.js';
+import { drawPoiArt, drawNukeSite, drawCrash, drawPad } from './sites.js';
 
 const TAU = Math.PI * 2;
 const O = C.objective;
@@ -104,6 +106,16 @@ function drawApproach(ctx, mk, mx, my, now, px, col, ext, active) {
   ctx.globalAlpha = 1;
 }
 
+// The stratagem beacon a Helldiver throws: a light on the ground with a column above it.
+function hexRgb(hex) { const n = parseInt(hex.slice(1), 16); return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`; }
+function beacon(ctx, x, y, now, px, col) {
+  const pulse = 0.5 + 0.5 * Math.sin(now * 9);
+  ctx.strokeStyle = `rgba(${col},0.55)`; ctx.lineWidth = px(2.4);
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - Math.max(30, px(70))); ctx.stroke();
+  ctx.fillStyle = `rgba(${col},${0.6 + 0.4 * pulse})`; ring(ctx, x, y, Math.max(1.2, px(3.5))); ctx.fill();
+  ctx.strokeStyle = `rgba(${col},${0.8 * (1 - ((now * 1.5) % 1))})`; ctx.lineWidth = px(1.4); ring(ctx, x, y, Math.max(3, px(6)) * (1 + ((now * 1.5) % 1) * 2)); ctx.stroke();
+}
+
 // ---------- markers: stratagem calls, pods, rail / barrage / laser / nuke warnings ----------
 export function drawMarkers(ctx, m, now, px, labels, scale) {
   const t = m.t;
@@ -113,7 +125,10 @@ export function drawMarkers(ctx, m, now, px, labels, scale) {
     const pulse = 0.5 + 0.5 * Math.sin(now * 12);
     if (mk.type === 'strat') {
       const first = mk.impact ?? mk.end, left = Math.max(0, first - t);
-      const col = left > 0 ? '255,230,0' : '255,170,40';
+      // a Helldiver's call is in his group's colour; the player's own strikes and the spotters' in yellow
+      const tc = mk.team >= 0 ? TEAM_COLOR[mk.team] : null;
+      const col = left > 0 ? (tc ? hexRgb(tc) : '255,230,0') : '255,170,40';
+      if (tc && left > 0) beacon(ctx, mx, my, now, px, col);
       const corridor = (mk.pat === 'line' || mk.pat === 'walk') && mk.ux !== undefined;
       if (corridor) drawCorridor(ctx, mk, mx, my, now, px, col, pulse);
       else {
@@ -127,6 +142,7 @@ export function drawMarkers(ctx, m, now, px, labels, scale) {
       labels.push({ x: mx, y: my, dy: -Math.max(mk.r * scale, 8) - 6, text: left > 0 ? `${mk.id.toUpperCase()} ${left.toFixed(0)}S` : mk.id.toUpperCase(), col: '#ffe600' , pri: 2 });
     } else if (mk.type === 'pod') {
       const total = mk.end - mk.start, f = Math.max(0, Math.min(1, (mk.end - t) / total));
+      if (mk.team >= 0) beacon(ctx, mx, my, now, px, hexRgb(TEAM_COLOR[mk.team]));
       ctx.strokeStyle = '#ffe600'; ctx.lineWidth = px(2); ctx.setLineDash([px(4), px(4)]);
       ring(ctx, mx, my, mk.r + 3); ctx.stroke(); ctx.setLineDash([]);
       ctx.lineWidth = px(2.5); ctx.beginPath(); ctx.moveTo(mx, my - 120 * f); ctx.lineTo(mx, my - 4); ctx.stroke();
@@ -159,13 +175,14 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
     const col = o.done ? 'rgba(125,255,155,0.55)' : active ? '#ffe600' : 'rgba(255,230,0,0.45)';
     if (o.type === 'nuke') {
       const r = o.r;
+      drawNukeSite(ctx, o, now, px);
       ctx.strokeStyle = o.state === 'armed' ? `rgba(255,70,50,${0.5 + 0.5 * pulse})` : col; ctx.lineWidth = px(active ? 2.2 : 1.4);
       ctx.setLineDash([px(8), px(6)]); ctx.lineDashOffset = -now * px(8); ring(ctx, o.x, o.y, r); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
-      // trefoil
-      const rr = Math.max(7, px(11));
+      // a small trefoil beside the pad, so the site reads as the launch site from far out
+      const rr = Math.max(4, px(8)), tx = o.x + r * 0.7, ty = o.y - r * 0.7;
       ctx.fillStyle = col;
-      for (let k = 0; k < 3; k++) { const a0 = k * (TAU / 3) - Math.PI / 2 - 0.5; ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.arc(o.x, o.y, rr, a0, a0 + 1.05); ctx.closePath(); ctx.fill(); }
-      ctx.fillStyle = '#000'; ring(ctx, o.x, o.y, rr * 0.22); ctx.fill();
+      for (let k = 0; k < 3; k++) { const a0 = k * (TAU / 3) - Math.PI / 2 - 0.5; ctx.beginPath(); ctx.moveTo(tx, ty); ctx.arc(tx, ty, rr, a0, a0 + 1.05); ctx.closePath(); ctx.fill(); }
+      ctx.fillStyle = '#000'; ring(ctx, tx, ty, rr * 0.22); ctx.fill();
       if (!o.done && (o.state === 'hold' || o.state === 'armed')) {
         const f = o.state === 'armed' ? 1 : o.holdT / O.nuke.holdSec;
         ctx.strokeStyle = o.state === 'armed' ? '#ff5a3a' : '#7dff9b'; ctx.lineWidth = px(4);
@@ -175,6 +192,8 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
       labels.push({ x: o.x, y: o.y, dy: -Math.max(r * scale, 12) - 6, text: txt, col: o.state === 'armed' ? '#ff6a4a' : o.done ? '#7dff9b' : '#ffe600' , pri: 2 });
     } else if (o.type === 'vip') {
       const v = o.vip;
+      drawCrash(ctx, o.x, o.y, (o.x * 7 + o.y) | 0, now, px);
+      drawPad(ctx, o.dx, o.dy, o.state === 'carry' || o.state === 'deliver', now, px);
       if (!o.done) {
         // crash site (until picked up) and the pickup point
         if (v.state !== 'carried') {
@@ -349,12 +368,9 @@ export function drawPois(ctx, m, now, px, labels, scale, pal) {
     }
     const hit = t - p.hurtAt < 0.12, R = Math.max(p.r, px(9)), seen = m.visLevel(p.x, p.y) > 0;
     const col = hit ? '#ffffff' : seen ? '#ffb020' : 'rgba(255,176,32,0.65)';
-    ctx.strokeStyle = col; ctx.lineWidth = px(seen ? 1.8 : 1.3);
-    // a squared marker with a cross: reads as "a thing to blow up", unlike a base hex
-    const h = R * 0.62;
-    ctx.strokeRect(p.x - h, p.y - h, h * 2, h * 2);
-    ctx.beginPath(); ctx.moveTo(p.x - h * 0.55, p.y); ctx.lineTo(p.x + h * 0.55, p.y); ctx.moveTo(p.x, p.y - h * 0.55); ctx.lineTo(p.x, p.y + h * 0.55); ctx.stroke();
-    ctx.setLineDash([px(4), px(4)]); ctx.globalAlpha = 0.55; ring(ctx, p.x, p.y, R); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+    drawPoiArt(ctx, p, m.faction.id, pal.enemy, seen, now, px);
+    ctx.strokeStyle = col; ctx.lineWidth = px(seen ? 1.6 : 1.2);
+    ctx.setLineDash([px(4), px(4)]); ctx.globalAlpha = 0.7; ring(ctx, p.x, p.y, R); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
     ctx.fillStyle = 'rgba(255,176,32,0.07)'; ring(ctx, p.x, p.y, R); ctx.fill();
     if (tgs.has(p)) bracket(ctx, p.x, p.y, R * 1.5, px(1.8), pal.ally);
     if (p.hp < p.maxHp) hpBar(ctx, p.x, p.y + R * 1.15, R * 2, px(4), p.hp / p.maxHp, '#ffb020');

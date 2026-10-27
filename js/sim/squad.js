@@ -9,6 +9,7 @@ import { updateSeaf } from './seaf.js';
 import { speedMul } from './helldiver.js';
 import { canStep } from './safety.js';
 import { steer } from './terrain.js';
+import { boardingNow } from './extract.js';
 
 function nearestBase(m, x, y) {
   let best = null, bd = Infinity;
@@ -98,10 +99,12 @@ export function updateSquad(m, dt) {
       if (!sq.base || sq.base.destroyed || sq.base.fortress) { sq.base = nearestBase(m, sq.ax, sq.ay); sq.holdT = 0; sq.pushed = false; if (sq.base) sq.hpAt = sq.base.hp; }
       baseGoal = sq.base;
     } else if (m.phase === 'extract') {
+      // To the extraction point, then hold it until the pelican is down (the anchor stays on the pad).
       const ex = m.extraction;
       sq.dir = Math.atan2(ex.y - sq.ay, ex.x - sq.ax);
       sq.goalDist = Math.hypot(ex.x - sq.ax, ex.y - sq.ay);
-      if (sq.goalDist > 3) { gx = ex.x; gy = ex.y; goal = 'extract'; }
+      pointGoal = true;
+      if (sq.goalDist > (ex.state === 'open' ? 3 : 8)) { gx = ex.x; gy = ex.y; goal = 'extract'; }
     }
     if (baseGoal) {
       if (sq.base !== baseGoal) { sq.base = baseGoal; sq.holdT = 0; sq.pushed = false; sq.hpAt = baseGoal.hp; }
@@ -126,15 +129,32 @@ export function updateSquad(m, dt) {
       if (Math.hypot(near.x - sq.ax, near.y - sq.ay) <= lim) { gx = near.x; gy = near.y; goal = 'attack'; }
     }
 
-    // Move unless we are fighting or setting up.
-    const hold = engaged || sq.state === 'setup';
+    // Move unless we are fighting or setting up. A squad pinned down for a while on its way to the objective or the pad fights
+    // its way forward at a walk instead of standing in an endless stream of enemies.
+    sq.engT = engaged ? (sq.engT || 0) + dt : Math.max(0, (sq.engT || 0) - dt * 2);
+    const fightOn = engaged && pointGoal && (goal === 'point' || goal === 'extract') && sq.engT >= C.squad.fightOnSec;
+    if (fightOn && !sq.fightOn) m.radio(COMMS.fightOn, 'fighton', 40);
+    sq.fightOn = fightOn;
+    const hold = (engaged && !fightOn) || sq.state === 'setup';
     if (!hold && goal !== 'none') {
       const w = steer(m.terrain, sq, sq.ax, sq.ay, gx, gy, t);     // round the water, if there is any in the way
       const dx = w.x - sq.ax, dy = w.y - sq.ay, d = Math.hypot(dx, dy);
-      if (d > 0.05) { const s = Math.min(speed * dt, d); sq.ax += (dx / d) * s; sq.ay += (dy / d) * s; }
+      const v = speed * (fightOn ? C.squad.fightOnSpeed : 1);
+      if (d > 0.05) { const s = Math.min(v * dt, d); sq.ax += (dx / d) * s; sq.ay += (dy / d) * s; }
     }
   }
 
+  // The pelican is down: every Helldiver runs straight for the ramp, whatever is shooting at him.
+  if (boardingNow(m)) {
+    const ex = m.extraction, run = C.squad.chaseSpeed * bm * 1.15 * dt;
+    for (const a of hds) {
+      if (a.mounted || a.dead) continue;
+      const w = steer(m.terrain, a, a.x, a.y, ex.x, ex.y, t), dx = w.x - a.x, dy = w.y - a.y, d = Math.hypot(dx, dy);
+      if (d > 0.3) { const s = Math.min(run * speedMul(m, a), d); a.x += (dx / d) * s; a.y += (dy / d) * s; }
+    }
+    updateSeaf(m, dt, speed, bm);
+    return;
+  }
   // Helldivers drift to their slots around the anchor; they stand and fight while engaged.
   if (hds.length) {
     const chase = C.squad.chaseSpeed * bm * dt * Math.max(1, mod);
@@ -144,8 +164,9 @@ export function updateSquad(m, dt) {
       const tx = sq.ax + a.ox, ty = sq.ay + a.oy;
       const sw = steer(m.terrain, a, a.x, a.y, tx, ty, t);
       const dx = sw.x - a.x, dy = sw.y - a.y, d = Math.hypot(dx, dy);
-      if (d > 0.8 && !selfEngaged && (!sq.engaged || d > 25) && sq.state !== 'setup') {
-        const s = Math.min(chase * speedMul(m, a), d), nx = a.x + (dx / d) * s, ny = a.y + (dy / d) * s;
+      const keepUp = sq.fightOn && d > 4;      // fighting forward: keep with the anchor, shooting on the move
+      if (d > 0.8 && (keepUp || (!selfEngaged && (!sq.engaged || d > 25))) && sq.state !== 'setup') {
+        const s = Math.min(chase * speedMul(m, a) * (keepUp ? 0.75 : 1), d), nx = a.x + (dx / d) * s, ny = a.y + (dy / d) * s;
         if (canStep(m, a, nx, ny)) { a.x = nx; a.y = ny; }
       }
     }

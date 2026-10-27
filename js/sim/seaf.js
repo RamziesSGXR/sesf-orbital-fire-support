@@ -217,11 +217,18 @@ export function updatePelicans(m, dt) {
   const P = C.pelican, ps = m.pelicans;
   for (let i = ps.length - 1; i >= 0; i--) {
     const p = ps[i];
+    if (p.evac && p.state === 'hover') {
+      // an extraction pelican waits for its squad, then leaves
+      p.hoverT -= dt;
+      pelicanGun(m, p, dt);
+      if (p.hoverT <= 0 || !m.seafAlive.some((a) => !a.dead && a.sq === p.squad)) { p.state = 'out'; p.outT = 0; }
+      continue;
+    }
     if (p.state === 'in') {
       const d = Math.hypot(p.tx - p.x, p.ty - p.y), sp = P.speed * Math.min(1, 0.28 + d / 70);
       step(p, p.tx, p.ty, sp, dt);
       p.alt = 0.3 + 0.7 * Math.min(1, d / 160);
-      if (d <= 2) { p.state = 'hover'; p.dropT = 0.35; p.alt = 0.3; m.emit('pelican_arrive', { x: p.x, y: p.y }); }
+      if (d <= 2) { p.state = 'hover'; p.dropT = 0.35; p.alt = 0.3; m.emit('pelican_arrive', { x: p.x, y: p.y, evac: !!p.evac }); }
       if (d < P.gunRange * 1.2) pelicanGun(m, p, dt);
     } else if (p.state === 'hover') {
       p.hoverT -= dt; p.dropT -= dt;
@@ -332,13 +339,19 @@ export function updateSeaf(m, dt, speed, bm) {
   const claimed = new Set();
   for (const q of sf.squads) if (q.n && q.tgt && q.order.kind === 'auto') claimed.add(q.tgt.obj.id);
   for (const q of sf.squads) if (q.n) stepSquad(m, q, by[q.i], dt, speed, bm, claimed);
-  stepFormations(m, by, dt, bm);
+  if (!(m.phase === 'extract' && m.pelicans.some((p) => p.evac))) stepFormations(m, by, dt, bm);
   updateSpecialists(m, dt);
 }
 
 function stepSquad(m, q, list, dt, speed, bm, claimed) {
   const t = m.t, sq = m.squad, eg = m.eGrid, ord = q.order;
   const chase = C.squad.chaseSpeed * bm;
+  // Extraction: this squad's own pelican is down (or coming). Everyone heads for it.
+  const ride = m.phase === 'extract' && m.pelicans.find((p) => p.evac && p.squad === q.i && p.state !== 'out');
+  if (ride) {
+    for (const a of list) walk(m, a, ride.tx, ride.ty, chase * 1.1, dt);
+    return;
+  }
   if (ord.kind === 'escort' && (t >= ord.until || !m.hdAlive.length)) setSquadOrder(m, q, 'auto');
   if (ord.kind === 'attack' && t >= ord.until) { ord.kind = 'protect'; ord.until = 0; }   // hold the ground they took
   const o = q.order, cx = q.cx, cy = q.cy;

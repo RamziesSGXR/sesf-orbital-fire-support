@@ -5,11 +5,16 @@ import { STRATS, ORB_IDS } from './strat.js';
 
 const MAXL = C.orbital.maxLevel;
 
+// Every price goes through one multiplier (C.econ.priceMul), set so that a session that runs about three hours earns enough to buy
+// everything to its top level, the ship gun included. Rounded to 25 credits.
+export const price = (x) => Math.max(0, Math.round((x * C.econ.priceMul) / 25) * 25);
+
 // Unlock price per orbital. The first three are free and in the starting loadout.
-export const ORB_PRICE = {
+const ORB_BASE = {
   orb_airburst: 0, orb_120: 0, orb_precision: 0,
   orb_ems: 600, orb_gas: 650, orb_walk: 800, orb_napalm: 900, orb_380: 1300, orb_rail: 1600, orb_laser: 2100,
 };
+export const ORB_PRICE = Object.fromEntries(Object.entries(ORB_BASE).map(([k, v]) => [k, price(v)]));
 export const ORB_LIST = ORB_IDS.slice().sort((a, b) => ORB_PRICE[a] - ORB_PRICE[b]);
 
 export function newKit() {
@@ -101,8 +106,8 @@ const SUP_UP = {
 };
 const ORB_UP_BASE = 400;       // upgrade price scale: level L to L+1 costs this (or the unlock price) x 0.5 x L
 
-export function orbUpCost(id, level) { return Math.round(Math.max(ORB_UP_BASE, ORB_PRICE[id]) * 0.5 * level); }
-export const slotCost = (n) => (n === 4 ? 700 : 1500);
+export function orbUpCost(id, level) { return price(Math.max(ORB_UP_BASE, ORB_BASE[id]) * 0.5 * level); }
+export const slotCost = (n) => price(n === 4 ? 700 : 1500);
 
 export function shopItems(kit) {
   const items = [];
@@ -120,17 +125,17 @@ export function shopItems(kit) {
   // Ship Gun
   for (const [k, u] of Object.entries(GUN_UP)) {
     const lvl = kit.gun[k];
-    items.push({ id: `gun.${k}`, section: 'SHIP GUN', name: u.name, blurb: u.blurb, level: lvl, max: u.max, cost: lvl >= u.max ? null : u.price * (lvl + 1), live: true });
+    items.push({ id: `gun.${k}`, section: 'SHIP GUN', name: u.name, blurb: u.blurb, level: lvl, max: u.max, cost: lvl >= u.max ? null : price(u.price * (lvl + 1)), live: true });
   }
   // UAV
-  items.push({ id: 'uav', section: 'UAV SCAN', name: 'UAV Scan', blurb: 'A bigger, longer, faster-recharging circle of sight for the whole squad.', level: kit.uav, max: C.uav.r.length, cost: kit.uav >= C.uav.r.length ? null : 350 * kit.uav, live: true });
+  items.push({ id: 'uav', section: 'UAV SCAN', name: 'UAV Scan', blurb: 'A bigger, longer, faster-recharging circle of sight for the whole squad.', level: kit.uav, max: C.uav.r.length, cost: kit.uav >= C.uav.r.length ? null : price(350 * kit.uav), live: true });
   for (const [k, u] of Object.entries(SEAF_UP)) {
     const lvl = kit.seaf[k];
-    items.push({ id: `seaf.${k}`, section: k === 'medic' || k === 'spot' || k === 'gren' || k === 'rocket' ? 'SEAF SPECIALISTS' : 'SEAF TROOPS', name: u.name, blurb: u.blurb, level: lvl, max: u.max, cost: lvl >= u.max ? null : u.price * (lvl + 1), live: true });
+    items.push({ id: `seaf.${k}`, section: k === 'medic' || k === 'spot' || k === 'gren' || k === 'rocket' ? 'SEAF SPECIALISTS' : 'SEAF TROOPS', name: u.name, blurb: u.blurb, level: lvl, max: u.max, cost: lvl >= u.max ? null : price(u.price * (lvl + 1)), live: true });
   }
   for (const [k, u] of Object.entries(SUP_UP)) {
     const lvl = kit.sup[k];
-    items.push({ id: `sup.${k}`, section: 'SQUAD SUPPORT', name: u.name, blurb: u.blurb, level: lvl, max: u.max, cost: lvl >= u.max ? null : u.price * (lvl + 1), live: true });
+    items.push({ id: `sup.${k}`, section: 'SQUAD SUPPORT', name: u.name, blurb: u.blurb, level: lvl, max: u.max, cost: lvl >= u.max ? null : price(u.price * (lvl + 1)), live: true });
   }
   return items;
 }

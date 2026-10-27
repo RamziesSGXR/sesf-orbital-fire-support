@@ -11,6 +11,7 @@ import { Input } from './input.js';
 import { Audio } from './audio.js';
 import * as S from './session.js';
 import * as UI from './ui.js';
+import { sunAt, todAt, todName, todClock } from './render/sky.js';
 
 const $ = (id) => document.getElementById(id);
 const qs = new URLSearchParams(location.search);
@@ -50,7 +51,8 @@ function applySettings() {
 function terrainQuality() { return settings.quality === 'low' || renderer.perf.low ? 0.6 : 1; }
 function buildFor(biome, seed, keepDecals = false) {
   terrainKey = `${biome}|${seed}`;
-  renderer.setTerrain(buildTerrain(biome, seed, { polarity: settings.polarity, quality: terrainQuality(), relief: !!settings.relief }), keepDecals);
+  const sun = info && info.tod !== undefined ? sunAt(info.tod) : null;   // lit from where the sun (or the moon) is at the hour of the drop
+  renderer.setTerrain(buildTerrain(biome, seed, { polarity: settings.polarity, quality: terrainQuality(), relief: !!settings.relief, sun }), keepDecals);
 }
 
 function onSettingChange(key) {
@@ -85,6 +87,7 @@ const input = new Input(canvas, $('minimap'), cam, {
   armory: () => openArmory(),
   polarity: () => { settings.polarity = settings.polarity === 'white' ? 'black' : 'white'; onSettingChange('polarity'); },
   relief: () => { settings.relief = !settings.relief; onSettingChange('relief'); if (mission) hud.notice(settings.relief ? 'RELIEF MAP: BLUE WATER, HATCHED SLOW GROUND, ORANGE HIGH GROUND' : 'RELIEF MAP OFF', 'info'); },
+  info: () => openInfo(),
   follow: () => { cam.follow = !cam.follow; },
   squad: (i) => selectSquad(i),
   squadCycle: (d) => cycleSquad(d),
@@ -262,6 +265,7 @@ function goBrief() {
   const pre = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: S.sessionMinutes(session), events: false,
     loadout: ovLoad.length ? ovLoad : undefined, objectives: ovObj, kit: session.kit, wallet: session.wallet, names: session.names });
   info.loadout = pre.loadout.slice();
+  info.tod = qs.has('tod') ? ((Number(qs.get('tod')) % 24) + 24) % 24 : pre.tod0;   // ?tod=14 forces the hour (testing)
   UI.setBriefHeader(n, session.score);
   if (briefCtl) briefCtl.cancel();
   const ctl = briefCtl = UI.runBriefing({
@@ -281,7 +285,7 @@ function deploy() {
   audio.unlock();
   if (terrainKey !== `${info.biome}|${info.seed}`) buildFor(info.biome, info.seed);
   mission = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: S.sessionMinutes(session), events: true,
-    loadout: info.loadout, keepOrder: true, objectives: info.ovObj, kit: session.kit, wallet: session.wallet, names: session.names });
+    loadout: info.loadout, keepOrder: true, objectives: info.ovObj, kit: session.kit, wallet: session.wallet, names: session.names, tod: info.tod });
   bot = BOT ? makeBot() : null;
   cam.x = mission.lz.x; cam.y = mission.lz.y; cam.follow = true;
   cam.view = window.innerWidth >= window.innerHeight ? C.world.viewWidth : 280;
@@ -290,7 +294,7 @@ function deploy() {
   hud.reset(); hud.setOp(info.op); hud.setMission(mission); UI.showScreen(null); UI.hideOverlays();
   state = 'play'; paused = false;
   audio.humStart();
-  hud.message(`${info.op.toUpperCase()}`, 2600);
+  hud.message(`${info.op.toUpperCase()}  ${todName(info.tod)} ${todClock(info.tod)}`, 2600);
   hud.radio(COMMS.startDrop);
   if (input.touch && window.innerHeight > window.innerWidth) { const r = $('rotate-hint'); r.classList.remove('hidden'); setTimeout(() => r.classList.add('hidden'), 5000); }
 }
@@ -315,6 +319,8 @@ function endSession() {
 }
 
 function togglePause(force) {
+  if (UI.isOn('s-info')) { closeInfo(); return; }
+  if (UI.isOn('s-about')) { closeAbout(); return; }
   if (UI.isOn('s-armory')) { closeArmory(); return; }
   if (UI.isOn('s-names')) { closeNames(false); return; }
   if (state !== 'play' || !mission || mission.over) return;
@@ -384,6 +390,48 @@ function closeArmory() {
   armoryFrom = null;
 }
 
+// ---------------- mission info and the project page ----------------
+// MISSION INFO: what this mission is and how to finish it, step by step, with the current step lit. The game waits while it is open.
+let infoFrom = null, aboutFrom = null;
+function openInfo(from) {
+  if (state !== 'play' || !mission || UI.isOn('s-info')) return;
+  infoFrom = from || (paused ? 'pause' : 'play');
+  paused = true; firePending = false; setPlacing(null); setDrawing(false); mission.setFiring(false);
+  UI.fillMissionInfo(mission, info);
+  UI.overlay('s-pause', false); UI.overlay('s-info', true);
+}
+function closeInfo() {
+  UI.overlay('s-info', false);
+  if (infoFrom === 'pause') UI.overlay('s-pause', true); else { paused = false; audio.unlock(); }
+  infoFrom = null;
+}
+function openAbout(from) {
+  aboutFrom = from;
+  if (from === 'pause') UI.overlay('s-pause', false);
+  UI.overlay('s-about', true);
+}
+function closeAbout() {
+  UI.overlay('s-about', false);
+  if (aboutFrom === 'pause') UI.overlay('s-pause', true);
+  aboutFrom = null;
+}
+hud.onInfo = () => openInfo();
+for (const a of document.querySelectorAll('a.fb')) a.href = C.share.feedbackUrl;
+$('lnk-proj').href = C.share.projectUrl;
+$('about-ver').textContent = `Version ${C.share.version}. Made for the Super Earth Special Forces community.`;
+$('btn-info').onclick = () => openInfo();
+$('btn-info-m').onclick = () => openInfo('pause');
+$('info-close').onclick = closeInfo;
+$('btn-about-t').onclick = () => { audio.unlock(); openAbout('title'); };
+$('btn-about-m').onclick = () => openAbout('pause');
+$('about-close').onclick = closeAbout;
+// Every panel's close (X) button does what that panel's own back button does.
+const CLOSE = {
+  's-pause': () => togglePause(false), 's-armory': () => closeArmory(), 's-names': () => closeNames(false), 's-settings': () => closeSettings(),
+  's-notice': () => $('btn-notice').click(), 's-info': () => closeInfo(), 's-about': () => closeAbout(),
+};
+for (const b of document.querySelectorAll('.x-close[data-close]')) { const f = CLOSE[b.dataset.close]; if (f) b.addEventListener('click', f); }
+
 // ---------------- buttons ----------------
 $('btn-play').onclick = () => {
   audio.unlock(); audio.click();
@@ -442,22 +490,51 @@ function loudness(x, y) {
   const d = Math.hypot(x - cam.x, y - cam.y);
   return Math.max(0.12, Math.min(1, 1.15 - d / (cam.view * 0.9)));
 }
+// Left or right of where the camera looks (-1 .. 1), for stereo.
+function pan(x) { return Math.max(-1, Math.min(1, (x - cam.x) / (cam.view * 0.55))); }
+// Now and then an enemy on screen makes the noise its kind makes (a chitter, servos, a whisper), and civilians call out.
+let idleT = 0;
+function ambient(m, dt) {
+  idleT -= dt;
+  if (idleT > 0) return;
+  idleT = 0.3;
+  const half = cam.view * 0.55, fac = m.faction.id;
+  const near = m.enemies.filter((e) => !e.dead && e.vis > 0 && Math.abs(e.x - cam.x) < half && Math.abs(e.y - cam.y) < half);
+  for (let i = 0; i < Math.min(2, near.length); i++) { const e = near[Math.floor(Math.random() * near.length)]; audio.snd(`idle_${fac}${e.kind}`, loudness(e.x, e.y) * 0.9, pan(e.x)); }
+  const civ = m.civs.find((c) => !c.dead && !c.safe && Math.abs(c.x - cam.x) < half && Math.abs(c.y - cam.y) < half);
+  if (civ && Math.random() < 0.3) audio.snd('civ', loudness(civ.x, civ.y), pan(civ.x));
+}
 function onEvent(ev, now) {
   renderer.handle(ev, now, mission);
+  const L = ev.x !== undefined ? loudness(ev.x, ev.y) : 1, P = ev.x !== undefined ? pan(ev.x) : 0;
   switch (ev.type) {
     case 'boom':
-      if (ev.nuke) audio.nukeBlast(); else audio.boom(ev.r, loudness(ev.x, ev.y));
+      if (ev.nuke) audio.nukeBlast(); else audio.boom(ev.r, L, P);
       if (ev.r >= 10 && input.touch && !settings.reduceFlash && navigator.vibrate) navigator.vibrate(ev.nuke ? 80 : 12);
       break;
-    case 'tracer': if (mission.visLevel(ev.x, ev.y) > 0 || mission.visLevel(ev.tx, ev.ty) > 0) audio.snd(ev.snd || ev.s, loudness(ev.x, ev.y)); break;
+    case 'tracer': if (mission.visLevel(ev.x, ev.y) > 0 || mission.visLevel(ev.tx, ev.ty) > 0) audio.snd(ev.snd || ev.s, L, P); break;
     case 'beam': audio.beam(); break;
-    case 'gun': audio.snd('shipgat', loudness(ev.x, ev.y)); break;
-    case 'heal': audio.snd('heal', loudness(ev.x, ev.y)); break;
-    case 'stim': audio.snd('stim', loudness(ev.x, ev.y)); break;
-    case 'dodge': audio.snd('dodge', loudness(ev.x, ev.y)); break;
+    case 'gun': audio.snd('shipgat', L, P); break;
+    case 'heal': audio.snd('heal', L, P); break;
+    case 'stim': audio.snd('stim', L, P); break;
+    case 'dodge': audio.snd('dodge', L, P); break;
+    case 'crit': if (ev.by === 'player' || (ev.f & 1)) audio.crit(ev.f & 1, L, P); break;
+    case 'flare': audio.flare(L, P); break;
+    case 'flare_out': audio.ready(); break;
+    case 'reinf': audio.reinf(mission.faction.id, Math.max(0.5, L), P); hud.message(`${mission.faction.id === 'bugs' ? 'BUG BREACH' : mission.faction.id === 'bots' ? 'DROPSHIP' : 'WARP SHIP'} INBOUND`, 1600); break;
+    case 'reinf_spawn': audio.arrive(ev.src === 'hole' ? 'bugs' : ev.src, L, P); break;
+    case 'drop_down': audio.dropDown(Math.max(0.6, L), P); hud.message(ev.kind === 'ship' ? 'DROPSHIP SHOT DOWN' : 'WARP SHIP SHOT DOWN', 1800); break;
+    case 'ffz': audio.ffz(); hud.message('FREE-FIRE ZONE: STRIKES INTO IT RECHARGE 2X', 2600); break;
+    case 'ffz_end': audio.ready(); break;
+    case 'board': audio.board(); break;
+    case 'shuttle': audio.shuttle(Math.max(0.5, L), P); break;
+    case 'civ_down': audio.civDown(L, P); break;
+    case 'extract_call': audio.alarm(); hud.message('EXTRACTION CALLED. HOLD THE ZONE', 2400); break;
+    case 'extract_landing': audio.rotor(); break;
+    case 'extract_down': audio.chirp(); hud.message('PELICAN DOWN. EVERYONE ABOARD', 2200); break;
     case 'recall': audio.win(); hud.message('RECALL GRANTED', 2000); break;
     case 'pelican_arrive': audio.rotor(); break;
-    case 'pelican_drop': audio.snd('thud', loudness(ev.x, ev.y)); break;
+    case 'pelican_drop': audio.snd('thud', L, P); break;
     case 'assault_warn': audio.siren(); hud.message('LARGE ENEMY ASSAULT FORMING', 2400); break;
     case 'assault_go': audio.alarm(); break;
     case 'strat_call': audio.stratCall(); break;
@@ -468,7 +545,7 @@ function onEvent(ev, now) {
       if (ev.type === 'nuke' && ev.state === 'armed') {
         audio.siren(); hud.message('NUKE ARMED. PICK A TARGET', 3200);
         if (live()) mission.selectWeapon(6);
-      } else if (ev.type === 'vip') audio.chirp();
+      } else if (ev.type === 'vip' || ev.type === 'evac') audio.chirp();
       break;
     case 'objective_done': audio.objective(); hud.message('OBJECTIVE COMPLETE', 3000); break;
     case 'extract_live': audio.alarm(); hud.message('EXTRACTION IS LIVE', 2600); break;
@@ -480,7 +557,7 @@ function onEvent(ev, now) {
     case 'credit': audio.coin(); break;
     case 'pod_call': case 'seaf_order': audio.chirp(); break;
     case 'pod_land': audio.podLand(); break;
-    case 'breach_open': audio.alarm(); hud.message('ENEMY BREACH', 1800); break;
+    case 'breach_open': audio.reinf('bugs', Math.max(0.5, L), P); break;
     case 'breach_close': if (ev.destroyed) audio.baseDown(); break;
     case 'poi_down': audio.baseDown(); break;
     case 'ally_down': audio.allyDown(); break;
@@ -514,8 +591,8 @@ function frame(ts) {
 
   if (state === 'play' && mission) {
     input.update(dt);
-    if (!paused) simulate(dt, now);
-    if (cam.follow && mission.alive.length) {
+    if (!paused) { simulate(dt, now); ambient(mission, dt); }
+    if (cam.follow && mission.alive.length && !stroke) {   // the map holds still under a play being drawn
       const k = 1 - Math.exp(-3 * dt);
       cam.x += (mission.cx - cam.x) * k; cam.y += (mission.cy - cam.y) * k;
     }

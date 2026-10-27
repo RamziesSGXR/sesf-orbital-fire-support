@@ -1,0 +1,63 @@
+name: Playtest feedback
+description: Tell us how Orbital Fire Support played for you. Every report is read.
+title: "[Feedback] "
+labels: ["feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for playing **Orbital Fire Support**, the unofficial Super Earth Special Forces fan minigame.
+        A few short answers help a lot. Only the first two questions are required.
+  - type: dropdown
+    id: device
+    attributes:
+      label: What did you play on?
+      options:
+        - Computer (mouse and keyboard)
+        - Phone
+        - Tablet
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: time
+    attributes:
+      label: How long did your session last?
+      options:
+        - Under 15 minutes
+        - 15 to 45 minutes
+        - 45 minutes to 1.5 hours
+        - 1.5 to 2.5 hours
+        - More than 2.5 hours
+    validations:
+      required: true
+  - type: input
+    id: reached
+    attributes:
+      label: How far did you get?
+      description: The mission number, or paste your score block below instead.
+      placeholder: "Mission 6, died on a bots citadel"
+  - type: textarea
+    id: good
+    attributes:
+      label: What was fun or worked well?
+  - type: textarea
+    id: bad
+    attributes:
+      label: What was confusing, too hard, too easy or broken?
+      description: If something went wrong, say what you were doing when it happened.
+  - type: textarea
+    id: change
+    attributes:
+      label: What would you change or add?
+  - type: textarea
+    id: score
+    attributes:
+      label: Score block (optional)
+      description: The final screen has a COPY button. Paste it here.
+      render: text
+  - type: input
+    id: browser
+    attributes:
+      label: Browser (optional)
+      placeholder: "Chrome on Windows, Safari on iPhone"

@@ -154,7 +154,7 @@ export function drawStroke(ctx, m, now, px, labels, scale, dr) {
 }
 
 // ---------- the troop pelican ----------
-function pelicanBody(ctx, x, y, ang, s) {
+export function pelicanBody(ctx, x, y, ang, s) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
   ctx.beginPath();
   ctx.moveTo(s, 0); ctx.lineTo(s * 0.5, -s * 0.2); ctx.lineTo(-s * 0.55, -s * 0.22); ctx.lineTo(-s, -s * 0.1); ctx.lineTo(-s, s * 0.1); ctx.lineTo(-s * 0.55, s * 0.22); ctx.lineTo(s * 0.5, s * 0.2); ctx.closePath();

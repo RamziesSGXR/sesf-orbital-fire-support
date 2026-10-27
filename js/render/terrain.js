@@ -62,7 +62,8 @@ function hyps(h, out) {
 }
 
 // relief: true draws the height and depth overlay (false colour, strong contours, hatching on slow ground).
-export function buildTerrain(biomeId, seed, { polarity = 'white', quality = 1, relief = false } = {}) {
+// sun: where the light comes from at the hour of the drop ({ lx, ly, lz }, see sky.js); north-west light when it is not given.
+export function buildTerrain(biomeId, seed, { polarity = 'white', quality = 1, relief = false, sun = null } = {}) {
   const SIZE = C.world.size, W = Math.round(SIZE * quality), G = Math.round(800 * quality);
   const n = new Noise(seed ^ 0x5bd1e995);
   const T = getTerrain(biomeId, seed);
@@ -131,7 +132,7 @@ export function buildTerrain(biomeId, seed, { polarity = 'white', quality = 1, r
   }
 
   // Light from the north west. Slopes are in metres of rise per metre along the ground.
-  const REL = kd.relief, lx = -0.5, ly = -0.5, lz = 0.72, ln = Math.hypot(lx, ly, lz);
+  const REL = kd.relief, lx = sun ? sun.lx : -0.5, ly = sun ? sun.ly : -0.5, lz = sun ? sun.lz : 0.72, ln = Math.hypot(lx, ly, lz);
   const flat = lz / ln, per = 1 / (2 * step), rim = [0, 0, 0], tint = [0, 0, 0];
   const tmp = document.createElement('canvas');
   tmp.width = tmp.height = G;

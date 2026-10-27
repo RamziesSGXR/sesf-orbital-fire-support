@@ -548,3 +548,44 @@ body.touch.lefty #fire-btn { right: auto; left: max(10px, env(safe-area-inset-le
   body.touch.lefty #weapons { left: 100px; right: max(8px, env(safe-area-inset-right)); }
   body.touch.lefty #tray { left: auto; right: max(6px, env(safe-area-inset-right)); }
 }
+
+/* ---------- Revision 7: close buttons, info cards, mission info, the project page, feedback ---------- */
+.card { position: relative; }
+.x-close {
+  position: absolute; top: 8px; right: 8px; width: 34px; height: 34px; border-radius: 6px; border: 1px solid var(--line);
+  background: rgba(8, 30, 16, 0.9); color: var(--g); font: inherit; font-size: 16px; line-height: 1; cursor: pointer; pointer-events: auto; z-index: 3;
+}
+.x-close:hover { border-color: var(--g); color: #fff; }
+#menu { position: relative; }
+#menu .x-close { top: 4px; right: 4px; width: 28px; height: 28px; font-size: 13px; }
+#menu .mn:first-of-type { margin-top: 24px; }
+#infocard {
+  position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); width: min(440px, 92vw); z-index: 6;
+  font-size: 11px; line-height: 1.45; pointer-events: none; text-align: left; padding: 8px 12px; background: rgba(2, 14, 7, 0.88);
+}
+#infocard .ic-h { color: var(--yellow); font-weight: 700; margin-bottom: 4px; letter-spacing: 0.08em; }
+#infocard .ic-h i { font-style: normal; color: var(--g-dim); font-weight: 400; margin-left: 6px; }
+#infocard .ic-row { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px dotted rgba(157, 255, 184, 0.15); padding: 1px 0; }
+#infocard .ic-row span { color: var(--g-dim); }
+#infocard .ic-row b { text-align: right; font-weight: 600; }
+#infocard .ic-b { margin-top: 5px; color: var(--g); opacity: 0.9; }
+body.touch #infocard { bottom: 132px; font-size: 10.5px; }
+#info-body { text-align: left; font-size: 12.5px; line-height: 1.55; max-height: 62vh; overflow-y: auto; padding-right: 4px; touch-action: pan-y; }
+#info-body h3 { margin: 14px 0 6px; font-size: 13px; color: var(--yellow); letter-spacing: 0.1em; }
+#info-body h3 .ok { color: #7dff9b; font-size: 11px; margin-left: 6px; }
+#info-body p { margin: 4px 0; color: var(--g); opacity: 0.92; }
+ol.steps { margin: 4px 0; padding-left: 22px; }
+ol.steps li { margin: 4px 0; color: var(--g-dim); }
+ol.steps li.done { color: rgba(125, 255, 155, 0.55); text-decoration: line-through; }
+ol.steps li.now { color: #fff; font-weight: 600; }
+ol.steps li.now::marker { color: var(--yellow); }
+.about { text-align: left; font-size: 13px; line-height: 1.6; }
+.about p { margin: 8px 0; }
+a.btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+.btn.fb { border-color: var(--yellow); color: var(--yellow); }
+.btn.fb.primary { color: #000; }
+.fb-note { max-width: 520px; margin-left: auto; margin-right: auto; }
+.tr-btns #btn-info { color: var(--yellow); border-color: rgba(255, 230, 0, 0.5); }
+.card > .x-close ~ .eyebrow { padding: 0 38px; }
+#about-body { max-height: 58vh; overflow-y: auto; padding-right: 4px; touch-action: pan-y; }
+body.touch #info-body { max-height: 56vh; }

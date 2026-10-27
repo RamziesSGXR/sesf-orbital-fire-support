@@ -63,6 +63,8 @@ export const HD_LINES = {
   dodge:   ['Not today!', 'Missed me!', 'Rolling clear!'],
   flee:    ['Danger close, moving!', 'Clear the blast!', 'Get out of the zone!'],
   recall:  ['Cleared to drop, thank you!', 'Boots going down again!'],
+  ffz:     ['Requesting a free-fire zone on that pack!', 'Gunner, light that area up! We are clear!', 'Free-fire zone, everybody out of there!'],
+  board:   ['Get on the ship!', 'Ramp is down, move!', 'Go go go, on board!'],
 };
 export const SEAF_LINES = {
   move:    ['Moving up!', 'On the move!', 'Following orders.'],

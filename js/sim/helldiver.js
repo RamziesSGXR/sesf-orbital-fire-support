@@ -87,7 +87,7 @@ export function updateHelldivers(m, dt) {
     if (a.dv) {
       if (t < a.dv.until) { a.x = clamp(a.x + a.dv.vx * dt, 0, SIZE); a.y = clamp(a.y + a.dv.vy * dt, 0, SIZE); } else a.dv = null;
     }
-    if (a.mounted || (a.mech && a.mech.hp > 0)) { a.retreat = false; continue; }
+    if (a.mounted || (a.mech && a.mech.hp > 0) || (m.phase === 'extract' && m.extraction.state === 'boarding')) { a.retreat = false; continue; }
 
     // who is close, and which way is away from them
     const frac = a.hp / a.maxHp;

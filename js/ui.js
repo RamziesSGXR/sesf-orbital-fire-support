@@ -8,10 +8,11 @@ import { shopItems, orbStats, uavStats, seafStats, gunStats, maxLives, zoneExtra
 import { stratReady, stratOnline } from './sim/strat.js';
 import { slotStats } from './sim/player.js';
 import { objectiveStatus, OBJ_NAME } from './sim/objectives.js';
+import { todAt, todName, todClock } from './render/sky.js';
 
 const $ = (id) => document.getElementById(id);
 const SCREENS = ['s-title', 's-shop', 's-brief', 's-debrief', 's-final'];
-const OVERLAYS = ['s-pause', 's-armory', 's-names', 's-settings', 's-notice'];
+const OVERLAYS = ['s-pause', 's-armory', 's-names', 's-settings', 's-notice', 's-info', 's-about'];
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // "Orbital 120mm HE Barrage" -> "120mm HE"
@@ -75,7 +76,21 @@ export class Hud {
     // Idle fade (touch): the HUD steps back a few seconds after the last touch on it, so the map stays readable.
     $('hud').addEventListener('pointerdown', () => this.wake(), true);
     this.wake(5000);
+    // Info cards: what the selected weapon, squad or stratagem does. Hover (desktop) or select (anything) shows one.
+    this.card = $('infocard');
+    this.wb.forEach((w, i) => w.el.addEventListener('mouseenter', () => { if (this.m) this.showCard(weaponInfo(this.m, i), 3500); }));
+    $('weapons').addEventListener('mouseleave', () => this.hideCard(600));
+    document.querySelectorAll('.x-close[data-close="menu"]').forEach((b) => b.addEventListener('click', () => this.menuToggle(false)));
   }
+
+  // ---- info cards
+  showCard(html, ms = 4200) {
+    if (!html) return;
+    const c = this.card;
+    c.innerHTML = html; c.classList.remove('hidden');
+    clearTimeout(this._ct); this._ct = setTimeout(() => c.classList.add('hidden'), ms);
+  }
+  hideCard(ms = 0) { clearTimeout(this._ct); this._ct = setTimeout(() => this.card.classList.add('hidden'), ms); }
 
   // Bring the HUD to full strength; it fades again after ms of no HUD touches.
   wake(ms = 3200) {
@@ -88,7 +103,8 @@ export class Hud {
     clearTimeout(this._mnt); if (on) { this.trayToggle(false); this._mnt = setTimeout(() => this.menu.classList.add('hidden'), 7000); }
   }
   menuAct(kind) {
-    if (kind === 'armory') { this.menuToggle(false); $('btn-shop').click(); }
+    if (kind === 'info') { this.menuToggle(false); this.onInfo && this.onInfo(); }
+    else if (kind === 'armory') { this.menuToggle(false); $('btn-shop').click(); }
     else if (kind === 'strats') { this.menuToggle(false); this.stratsToggle(); }
     else if (kind === 'roster') { this.menuToggle(false); const c = document.querySelector('.hud-tl'); c.classList.add('open'); clearTimeout(this._rt); this._rt = setTimeout(() => c.classList.remove('open'), 7000); }
     else if (kind === 'cam') { $('btn-follow').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })); this.menuToggle(false); }
@@ -154,6 +170,7 @@ export class Hud {
 
   reset() {
     this.last = {}; this.clearRadio(); this.clearNotices(); $('center-msg').classList.remove('show'); this.setPlacing(null);
+    if (this.card) this.card.classList.add('hidden');
     for (const o of Object.values(this.ord)) o.key = '';
     this.setDrawing(false); for (const b of this.sqb) b.key = ''; for (const a of Object.values(this.sqa)) a.key = '';
     this.trayToggle(false); this.menu.classList.add('hidden'); $('hud').classList.remove('strats-open'); document.querySelector('.hud-tl').classList.remove('open'); this.dkKey = '';
@@ -185,6 +202,7 @@ export class Hud {
 
   // Build the per-mission parts: the four team rows, the stratagem groups and the weapon bar.
   setMission(m) {
+    this.m = m;
     const roster = $('roster'); roster.innerHTML = ''; this.rr = [];
     m.teams.forEach((tm) => {
       const r = el('div', 'rr', `<b class="l">${tm.letter}</b><span class="t">--</span><i class="hp"><u></u></i><span class="st"></span>`);
@@ -200,6 +218,8 @@ export class Hud {
         const sg = m.strat.groups[id], d = sg.def, c = el('div', 'sc', `<span class="g">${d.g}</span><i class="f"></i>`);
         c.style.setProperty('--c', CAT_COLOR[d.cat]);
         c.title = `${d.name}${d.shared ? ' (squad item)' : ''}: ${d.blurb}`;
+        const show = (ev) => { if (ev) ev.stopPropagation(); this.showCard(stratInfo(m, id), 5000); };
+        c.addEventListener('mouseenter', () => show()); c.addEventListener('pointerdown', show);
         cells.appendChild(c); this.sc.push({ el: c, f: c.querySelector('.f'), id, key: '' });
       }
       box.appendChild(g);
@@ -218,9 +238,12 @@ export class Hud {
       const st = objectiveStatus(m);
       obj = st ? st.text : 'MISSION OVER'; prog = st ? st.p : null; urgent = !!(st && st.urgent);
     } else if (m.phase === 'extract') {
-      const ex = m.extraction;
-      obj = ex.holdT > 0 ? `EXTRACTING ${Math.ceil(C.extract.holdSec - ex.holdT)}S` : 'OBJECTIVE DONE. REACH EXTRACTION';
-      prog = ex.holdT > 0 ? ex.holdT / C.extract.holdSec : null;
+      const ex = m.extraction, t = m.t;
+      if (ex.state === 'called') { obj = `EXTRACTION: HOLD THE ZONE. PELICAN IN ${Math.max(0, Math.ceil(ex.landAt - t))}S`; prog = 1 - Math.max(0, ex.landAt - t) / Math.max(1, ex.wait || 60); }
+      else if (ex.state === 'landing') { obj = 'EXTRACTION: PELICAN LANDING'; prog = 1; }
+      else if (ex.state === 'boarding') { obj = `EXTRACTION: EVERYONE ABOARD  ${ex.boardedH || 0} ON  ${Math.max(0, Math.ceil(ex.leaveBy - t))}S`; prog = 1; urgent = true; }
+      else if (ex.state === 'away') obj = 'PELICAN AWAY';
+      else obj = 'OBJECTIVE DONE. REACH EXTRACTION AND CALL THE PELICAN';
     } else obj = 'MISSION OVER';
     if (this._set('obj', $('obj-main'), obj)) {
       const stage = obj.replace(/[0-9.,]+/g, '#');
@@ -241,9 +264,13 @@ export class Hud {
     this._set('combo', $('combo'), cb);
 
     this._roster(m); this._supply(m); this._strats(m); this._orders(m); this._squads(m); this._weapons(m);
+    // a new weapon or squad selected: say what it is
+    if (this.last.selW !== m.player.weapon) { if (this.last.selW !== undefined) this.showCard(weaponInfo(m, m.player.weapon)); this.last.selW = m.player.weapon; }
+    if (this.last.selS !== m.seaf.sel) { if (this.last.selS !== undefined) this.showCard(squadInfo(m, m.seaf.sel)); this.last.selS = m.seaf.sel; }
 
     const f = FACTIONS[m.faction.id];
-    this._set('flavor', $('flavor'), `${f.name} / ${m.biome.name.toUpperCase()}\nPRESSURE ${m.pressure.toFixed(2)}\nVIEW ${Math.round(cam.view)}M ${cam.follow ? 'CAMERA LOCKED' : 'FREE CAMERA'}`);
+    const h = todAt(m);
+    this._set('flavor', $('flavor'), `${f.name} / ${m.biome.name.toUpperCase()}\n${todName(h)} ${todClock(h)}  PRESSURE ${m.pressure.toFixed(2)}\nVIEW ${Math.round(cam.view)}M ${cam.follow ? 'CAMERA LOCKED' : 'FREE CAMERA'}`);
     const touch = document.body.classList.contains('touch');
     this._set('follow', $('btn-follow').firstElementChild, touch ? 'RE-CENTER' : cam.follow ? 'CAM LOCK' : 'CAM FREE');
     $('btn-follow').classList.toggle('free', !cam.follow);   // phones: the button only shows once the camera has been moved off the squad
@@ -427,12 +454,13 @@ export function squadStatus(m) {
   const sq = m.squad;
   if (sq.mounted) return 'SQUAD DRIVING THE RECON VEHICLE';
   if (m.vip && m.vip.carrier) return 'SQUAD CARRYING THE VIP';
-  if (m.phase === 'extract') return m.extraction.holdT > 0 ? 'SQUAD AT EXTRACTION' : 'SQUAD MOVING TO EXTRACTION';
+  if (m.phase === 'extract') { const s = m.extraction.state; return s === 'boarding' ? 'SQUAD RUNNING FOR THE PELICAN' : s === 'called' || s === 'landing' ? 'SQUAD HOLDING THE EXTRACTION ZONE' : 'SQUAD MOVING TO EXTRACTION'; }
   const ao = m.objectives.find((o) => !o.done);
   if (m.phase === 'objective' && ao && !sq.engaged && sq.state !== 'setup') {
     if (ao.type === 'nuke' && (ao.state === 'hold' || ao.state === 'armed')) return 'SQUAD HOLDING THE LAUNCH SITE';
     if (ao.type === 'vip' && ao.state === 'pick') return 'SQUAD SECURING THE VIP';
     if (ao.type === 'vip' && ao.state === 'deliver') return 'SQUAD HOLDING THE PICKUP POINT';
+    if (ao.type === 'evac' && ao.state === 'run') return 'SQUAD HOLDING THE EVACUATION SITE';
   }
   if (sq.state === 'setup') return 'SQUAD SETTING UP ON CONTACT';
   if (sq.engaged) return 'SQUAD ENGAGED';
@@ -731,4 +759,119 @@ export function buildSettings(settings, onChange) {
   row('Left-handed layout', 'Moves touch buttons to the left', toggle('lefty'));
   row('Touch drag speed', '', range('touchSens', 0.5, 2, 0.1));
   row('Graphics', 'Auto lowers detail if the game stutters', select('quality', [['auto', 'Auto'], ['high', 'High'], ['low', 'Low']]));
+}
+
+// ---------------- info cards and the mission info panel ----------------
+const row = (k, v) => `<div class="ic-row"><span>${k}</span><b>${v}</b></div>`;
+const pctS = (v) => `${Math.round(v * 100)}%`;
+
+// What a weapon slot does, with its real numbers at its current level.
+export function weaponInfo(m, i) {
+  const s = m.player.slots[i];
+  if (!s || s.type === 'empty') return '';
+  const K = C.combat.crit;
+  if (s.type === 'uav') {
+    const u = uavStats(m.kit.uav);
+    return `<div class="ic-h">UAV SCAN <i>LEVEL ${m.kit.uav}</i></div>` + row('SIGHT CIRCLE', `${u.r} M`) + row('LASTS', `${u.sec} S`) + row('RECHARGE', `${u.cd} S`)
+      + `<div class="ic-b">Everyone sees inside the circle, and strikes can land there. It can be dropped a little past the strike zone.</div>`;
+  }
+  if (s.type === 'gun') {
+    const g = gunStats(m.kit), lv = m.kit.gun;
+    return `<div class="ic-h">SHIP GUN <i>DMG ${lv.dmg} · AMMO ${lv.ammo} · REFILL ${lv.regen} · SPREAD ${lv.spread}</i></div>`
+      + row('DAMAGE', `${g.dmg.toFixed(1)} A ROUND · ${C.gun.rps} ROUNDS A SECOND`) + row('MAGAZINE', `${Math.round(g.ammo)} · REFILLS ${g.regen.toFixed(1)}/S`)
+      + row('SPREAD', `${g.spread.toFixed(1)} M, UP TO ${(g.spread + g.bloom).toFixed(1)} M`) + row('CRITICAL', `${pctS(K.gun)} · x${K.mul}`)
+      + `<div class="ic-b">Hold to fire anywhere you can see. No strike zone needed, and it does not hurt allies. Weak against heavies, good on packs.</div>`;
+  }
+  if (s.type === 'nuke') {
+    const N = C.objective.nuke;
+    return `<div class="ic-h">NUCLEAR STRIKE</div>` + row('BLAST', `${N.blastR} M`) + row('DAMAGE', fmtNum(N.blastDmg)) + row('IMPACT', `${N.delaySec} S AFTER THE CALL`)
+      + `<div class="ic-b">${m.nukeReady() ? 'ARMED. Aim anywhere on the map and fire. It kills everything in the blast, allies too.' : 'Only once the launch site is held and the missile is armed. See MISSION INFO.'}</div>`;
+  }
+  const st = orbStats(s.id, s.level), cd = Math.round(st.cd);
+  let h = `<div class="ic-h">${esc(shortName(st.name)).toUpperCase()} <i>LEVEL ${s.level}/${C.orbital.maxLevel}</i></div>`;
+  if (st.k === 'beam') h += row('BEAM', `${Math.round(st.beam.dps)} DAMAGE A SECOND FOR ${st.beam.dur.toFixed(0)} S`) + row('STEER', `FOLLOWS YOUR AIM, ${st.beam.leash} M LEASH`);
+  else if (st.k === 'zone') h += row('FIELD', `${st.zone.r.toFixed(0)} M FOR ${st.zone.sec.toFixed(0)} S`);
+  else {
+    h += row('DAMAGE', `${Math.round(st.dmg)}${st.n > 1 ? ` x ${st.n} SHELLS` : ''}`) + row('BLAST', `${st.splash.toFixed(0)} M${st.len ? ` · SPREAD ${st.len} M` : ''}`);
+    if (st.zone) h += row('THEN', `${st.zone.kind.toUpperCase()} ${st.zone.r.toFixed(0)} M FOR ${st.zone.sec.toFixed(0)} S`);
+    h += row('VS HEAVY / BASE', `${pctS(st.mult.H)} / ${pctS(st.mult.B)}`);
+  }
+  h += row('IMPACT', `${st.delay} S`) + row('RECHARGE', `${cd} S${m.ffz ? ` · ${Math.round(cd * C.ffz.cdMul)} S INTO THE FREE-FIRE ZONE` : ''}`) + row('CRITICAL', `${pctS(K.player)} · x${K.mul}`);
+  if (s.uses !== Infinity) h += row('USES LEFT', String(s.uses));
+  return h + `<div class="ic-b">${esc(st.blurb)} Hurts allies and civilians in the blast.</div>`;
+}
+
+// What a SEAF squad (or all of them) is made of and doing.
+export function squadInfo(m, i) {
+  const list = i >= 0 ? m.seafAlive.filter((a) => a.sq === i) : m.seafAlive;
+  const roles = {}; for (const a of list) roles[a.role] = (roles[a.role] || 0) + 1;
+  const NAME = { rifle: 'RIFLEMEN', gren: 'GRENADIERS', rocket: 'ROCKET TROOPERS', medic: 'MEDICS', spotter: 'SPOTTERS' };
+  const q = i >= 0 ? m.seaf.squads[i] : null, ORD = { auto: 'AUTO: CLEARING THE NEAREST TARGET', move: 'MOVE', protect: 'PROTECT', attack: 'ATTACK', escort: 'ESCORT THE HELLDIVERS', path: 'RUNNING A ROUTE', line: 'HOLDING A LINE', ring: 'HOLDING A RING' };
+  let h = `<div class="ic-h">${i >= 0 ? `SQUAD S${i + 1}` : 'ALL SEAF SQUADS'} <i>${list.length} TROOPERS</i></div>`;
+  h += Object.entries(roles).map(([r, n]) => row(NAME[r] || r.toUpperCase(), n)).join('') || row('TROOPERS', 'NONE YET');
+  if (q && q.n) h += row('ORDER', ORD[q.order.kind] || q.order.kind.toUpperCase());
+  return h + `<div class="ic-b">${i >= 0 ? 'Orders and drops go to this squad. ` (backtick) or ALL selects every squad.' : 'Orders go to every squad. Pick S1 to S4 to give one squad its own.'}</div>`;
+}
+
+// What one of the Helldivers' stratagems is, who calls it and when it is ready.
+export function stratInfo(m, id) {
+  const g = m.strat.groups[id]; if (!g) return '';
+  const d = g.def, tm = m.teams[g.team], left = Math.max(0, g.readyAt - m.t);
+  let h = `<div class="ic-h">${esc(d.name).toUpperCase()} <i>${d.cat}</i></div>`;
+  h += row('CALLED BY', d.shared ? 'ANY HELLDIVER (SQUAD ITEM)' : `${tm.letter} ${esc(m.slotTag(tm))}`) + row('STATE', stratOnline(m, id) ? (left > 0 ? `RECHARGING ${Math.ceil(left)} S` : 'READY') : 'OFFLINE (HELLDIVER DOWN)');
+  h += row('RECHARGE', `${d.cd} S`);
+  if (d.anti) h += row('ANTI-ARMOR', 'YES');
+  return h + `<div class="ic-b">${esc(d.blurb)} The Helldivers call it themselves, only inside their own strike zone, a moment after throwing the beacon.</div>`;
+}
+
+const STEPS = {
+  nuke: [
+    ['travel', 'Get the Helldivers to the launch site (the yellow trefoil). They go there on their own.'],
+    ['hold', 'Hold the site while the missile warms up (80 seconds). The countdown stalls if every Helldiver leaves. Waves of reinforcements come in.'],
+    ['armed', 'Fire it: pick the NUKE (key 7 or the weapon bar), aim anywhere on the map and click. It hits 230 m wide and kills allies too. Wait too long and it fires itself at the biggest pack.'],
+  ],
+  vip: [
+    ['travel', 'Get the Helldivers to the VIP\'s crash site.'],
+    ['pick', 'Secure the VIP (a few seconds next to the wreck).'],
+    ['carry', 'Carry the VIP to the pickup pad. The squad is slower while carrying.'],
+    ['deliver', 'Hold the pad until the shuttle lands. If the carrier falls, the VIP has to be picked up again.'],
+  ],
+  fortress: [
+    ['travel', 'Destroy the enemy citadel. The Helldivers attack it with everything they have; your Precision Strike, 380mm and the 500kg-class strikes hit structures hardest.'],
+  ],
+  evac: [
+    ['travel', 'Get the Helldivers to the evacuation site: a shelter and a hangar.'],
+    ['run', 'Hold the site. While a Helldiver is within 75 m the shelter sends civilians out, a few at a time, and they walk to the hangar. Keep the enemy off them, and keep your strikes off them: your blasts kill civilians too.'],
+    ['done', 'Forty civilians aboard the shuttles completes it. A shuttle leaves for every ten.'],
+  ],
+};
+const ORDER = { nuke: ['travel', 'hold', 'armed', 'inbound', 'done'], vip: ['travel', 'pick', 'carry', 'deliver', 'done'], fortress: ['travel', 'done'], evac: ['travel', 'run', 'done'] };
+const FAC_NOTES = {
+  bugs: 'Bugs swarm: packs run in from every side at once. When a patrol finds the squad (or is shot) it may fire a flare; kill the one holding it before it burns out, or a bug breach opens nearby and pack after pack digs out of one hole. Shoot the hole to close it. A charger turns slowly: hit it from behind, where its glowing sac is.',
+  bots: 'Bots form a firing line and stand there shooting. A patrol that finds the squad may fire a flare; kill the caller first, or a dropship comes in. Shoot it down while it hovers low and its troops go down with it. Tanks turn slowly; their rear vents are the weak spot.',
+  squids: 'Squids spread out and surround their target. A patrol that finds the squad may fire a flare; kill the caller first, or a warp ship slides over and teleports troops down. It can be shot down while it hangs low. The harvester charges a beam you can see coming; its back is softer.',
+};
+export function fillMissionInfo(m, info) {
+  const f = FACTIONS[m.faction.id], h = todAt(m);
+  $('info-eyebrow').textContent = `${info ? info.op : 'Operation'} · ${f.name} · ${m.biome.name} · ${todName(h)} ${todClock(h)}`;
+  $('info-title').textContent = m.objectives.map((o) => OBJ_NAME[o.type]).join(' + ');
+  const parts = [];
+  m.objectives.forEach((o, n) => {
+    const order = ORDER[o.type], cur = o.done ? order.length : Math.max(0, order.indexOf(o.state));
+    const steps = STEPS[o.type].map(([st, text]) => {
+      const k = order.indexOf(st), cls = o.done || k < cur ? 'done' : k === cur || (k > cur && k === cur + 1 && st === 'done') ? 'now' : '';
+      return `<li class="${cls}">${esc(text)}</li>`;
+    }).join('');
+    parts.push(`<h3>${m.objectives.length > 1 ? `${n + 1}. ` : ''}${OBJ_NAME[o.type]}${o.done ? ' <span class="ok">DONE</span>' : ''}</h3><ol class="steps">${steps}</ol>`);
+  });
+  const ex = m.extraction;
+  parts.push(`<h3>THEN</h3><ol class="steps"><li class="${m.phase === 'bonus' ? 'now' : m.phase === 'extract' || m.over ? 'done' : ''}">Once the objective is done the squad clears enemy bases for extra credits for a while (the timer is on the objective panel).</li>`
+    + `<li class="${m.phase === 'extract' && ex.state === 'open' ? 'now' : ex.state && ex.state !== 'open' ? 'done' : ''}">Then the extraction point goes live. The squad heads there and calls the pelican.</li>`
+    + `<li class="${ex.state === 'called' || ex.state === 'landing' ? 'now' : ex.state === 'boarding' || ex.state === 'away' ? 'done' : ''}">Hold the zone until it lands. The enemy reinforces the pad; you do not have to clear the map.</li>`
+    + `<li class="${ex.state === 'boarding' ? 'now' : ex.state === 'away' ? 'done' : ''}">The Helldivers run for the ramp and board. SEAF squads get pelicans of their own.</li></ol>`);
+  parts.push(`<h3>THE ENEMY: ${f.name}</h3><p>${esc(FAC_NOTES[m.faction.id])}</p>`);
+  parts.push(`<h3>HITS</h3><p>Every unit has a front and a back. Hits from behind do ${C.combat.back.mul}x, and ${C.combat.back.heavy}x on a heavy. Every hit can be critical (x${C.combat.crit.mul}): your strikes ${pctS(C.combat.crit.player)} of the time, the ship gun ${pctS(C.combat.crit.gun)}, the squad ${pctS(C.combat.crit.ally)}, the enemy ${pctS(C.combat.crit.enemy)}.</p>`);
+  parts.push(`<h3>FREE-FIRE ZONES</h3><p>When the Helldivers see a big pack well ahead they ask for a free-fire zone (the orange hatched circle). Every ally keeps out of it, and your orbitals called into it recharge in half the time. Saturate it.</p>`);
+  parts.push(`<h3>FAILING</h3><p>A mission fails if the ${Math.round(m.limitSec / 60)}-minute clock runs out with the objective undone, or if every Helldiver and SEAF trooper is gone with no lives left. A failed mission ends the session.</p>`);
+  $('info-body').innerHTML = parts.join('');
 }

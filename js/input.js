@@ -157,6 +157,7 @@ export class Input {
       else if (e.code === 'KeyB') this.h.armory();
       else if (e.code === 'KeyT') this.h.polarity();
       else if (e.code === 'KeyH') this.h.relief();
+      else if (e.code === 'KeyI') this.h.info();
       else if (e.code === 'Space') { e.preventDefault(); this.h.follow(); }
       else if (e.code === 'Equal' || e.code === 'NumpadAdd') this.zoom(1 / 1.15);
       else if (e.code === 'Minus' || e.code === 'NumpadSubtract') this.zoom(1.15);

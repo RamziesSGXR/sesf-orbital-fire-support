@@ -36,11 +36,14 @@
       </div>
       <canvas id="minimap" class="fadeable" width="240" height="240"></canvas>
       <div class="tr-btns">
+        <button id="btn-info" class="btn icon" aria-label="Mission info" title="What this mission is and how to finish it">INFO</button>
         <button id="btn-shop" class="btn icon" aria-label="Armory">ARMORY</button>
         <button id="btn-menu" class="btn icon" aria-label="Menu">MENU</button>
         <button id="btn-pause" class="btn icon" aria-label="Pause">II</button>
       </div>
       <div id="menu" class="panel hidden">
+        <button class="x-close" data-close="menu" aria-label="Close menu">✕</button>
+        <button class="mn" data-mn="info">MISSION INFO</button>
         <button class="mn" data-mn="armory">ARMORY</button>
         <button class="mn" data-mn="strats">STRATAGEMS</button>
         <button class="mn" data-mn="roster">SQUAD STATUS</button>
@@ -75,6 +78,7 @@
       <button id="btn-follow" class="dkb"><span class="n">CAM LOCK</span></button>
     </div>
     <div id="flavor" class="fadeable"></div>
+    <div id="infocard" class="panel hidden" role="status"></div>
     <div id="weapons"></div>
     <div id="touch-ctl">
       <button id="fire-btn" class="btn fire">CALL</button>
@@ -94,7 +98,10 @@
         <button id="btn-resume" class="btn hidden">RESUME SESSION</button>
         <button id="btn-names-t" class="btn">SQUAD NAMES</button>
         <button id="btn-settings" class="btn">SETTINGS</button>
+        <button id="btn-about-t" class="btn">ABOUT THIS PROJECT</button>
+        <a id="lnk-fb-t" class="btn fb" target="_blank" rel="noopener">GIVE FEEDBACK</a>
       </div>
+      <p class="fine fb-note">GIVE FEEDBACK opens a short form on the project's GitHub page in a new tab (a free GitHub account is needed). Tell us your device, what happened, and what you would change.</p>
       <p id="best" class="fine"></p>
       <p class="fine">Unofficial fan project. Not affiliated with or endorsed by Arrowhead Game Studios or Sony Interactive Entertainment.</p>
     </div>
@@ -144,7 +151,7 @@
             <div><kbd>TAB</kbd> next squad <kbd>`</kbd> all squads <kbd>R</kbd> draw a play <kbd>F</kbd> split <kbd>M</kbd> merge <kbd>Y</kbd> assign</div>
             <div class="sub">Draw mode: drag on the map. A loop is a ring, a straight stroke is a line, anything else is a route the squad runs.</div>
             <div><kbd>B</kbd> armory (upgrades) <kbd>ESC</kbd> pause, rename squads</div>
-            <div><kbd>WASD</kbd> or right-drag pan <kbd>WHEEL</kbd> zoom <kbd>SPACE</kbd> camera lock <kbd>T</kbd> thermal polarity <kbd>H</kbd> relief map</div>
+            <div><kbd>WASD</kbd> or right-drag pan <kbd>WHEEL</kbd> zoom <kbd>SPACE</kbd> camera lock <kbd>T</kbd> thermal polarity <kbd>H</kbd> relief map <kbd>I</kbd> mission info</div>
           </div>
           <div id="controls-touch" class="ctl">
             <div><kbd>DRAG</kbd> slide the map under the crosshair</div>
@@ -199,28 +206,36 @@
         <button id="btn-post" class="btn hidden">POST</button>
         <button id="btn-share" class="btn hidden">SHARE</button>
         <button id="btn-again" class="btn">PLAY AGAIN</button>
+        <a id="lnk-fb-f" class="btn fb" target="_blank" rel="noopener">GIVE FEEDBACK</a>
       </div>
       <p id="f-msg" class="fine"></p>
+      <p class="fine fb-note">How did it go? GIVE FEEDBACK opens a short form on the project's GitHub page in a new tab (a free GitHub account is needed). Paste your score block in it if you like.</p>
     </div>
   </section>
 
   <!-- Overlays -->
   <section id="s-pause" class="screen overlay">
     <div class="card">
+      <button class="x-close" data-close="s-pause" aria-label="Close and resume">✕</button>
       <h2>PAUSED</h2>
       <div class="btns col">
         <button id="btn-resume-m" class="btn primary big">RESUME</button>
+        <button id="btn-info-m" class="btn">MISSION INFO</button>
         <button id="btn-armory-m" class="btn">ARMORY</button>
         <button id="btn-names-m" class="btn">SQUAD NAMES</button>
         <button id="btn-settings-m" class="btn">SETTINGS</button>
+        <button id="btn-about-m" class="btn">ABOUT THIS PROJECT</button>
+        <a id="lnk-fb-m" class="btn fb" target="_blank" rel="noopener">GIVE FEEDBACK</a>
         <button id="btn-abort" class="btn danger">RETIRE FROM MISSION</button>
       </div>
+      <p class="fine fb-note">GIVE FEEDBACK opens the project's GitHub page in a new tab. The game stays paused here.</p>
       <p id="abort-confirm" class="fine hidden">Retiring ends the session unless the objective is already done. Tap again to confirm.</p>
     </div>
   </section>
 
   <section id="s-armory" class="screen overlay">
     <div class="card wide3">
+      <button class="x-close" data-close="s-armory" aria-label="Close the armory">✕</button>
       <h2>ARMORY</h2>
       <p class="fine">Mid-mission you can upgrade what you own. New orbitals and extra slots are bought between missions.</p>
       <div id="arm-root"></div>
@@ -230,6 +245,7 @@
 
   <section id="s-names" class="screen overlay">
     <div class="card">
+      <button class="x-close" data-close="s-names" aria-label="Close without saving">✕</button>
       <h2>SQUAD NAMES</h2>
       <p class="fine">Four groups, one Helldiver each. A blank ship gets a random Super Destroyer name every mission. A blank Helldiver uses its code, like B4.</p>
       <div id="names-body"></div>
@@ -243,14 +259,47 @@
 
   <section id="s-settings" class="screen overlay">
     <div class="card">
+      <button class="x-close" data-close="s-settings" aria-label="Close settings">✕</button>
       <h2>SETTINGS</h2>
       <div id="settings-body"></div>
       <div class="btns"><button id="btn-settings-close" class="btn primary">DONE</button></div>
     </div>
   </section>
 
+  <section id="s-info" class="screen overlay">
+    <div class="card wide">
+      <button class="x-close" data-close="s-info" aria-label="Close mission info">✕</button>
+      <div class="eyebrow" id="info-eyebrow">Mission info</div>
+      <h2 id="info-title">THE MISSION</h2>
+      <div id="info-body"></div>
+      <div class="btns"><button id="info-close" class="btn primary big">BACK TO THE MISSION</button></div>
+    </div>
+  </section>
+
+  <section id="s-about" class="screen overlay">
+    <div class="card wide">
+      <button class="x-close" data-close="s-about" aria-label="Close">✕</button>
+      <div class="eyebrow">About this project</div>
+      <h2>ORBITAL FIRE SUPPORT</h2>
+      <div id="about-body" class="about">
+        <p>A free, fan-made minigame for the <b>Super Earth Special Forces</b> community. You are the gunner on a Super Destroyer: you scan the ground, call orbital strikes, fire the ship gun and drop SEAF troops, while four Helldivers fight their way through the mission below you.</p>
+        <p>It is an <b>unofficial fan project</b>, not affiliated with or endorsed by Arrowhead Game Studios or Sony Interactive Entertainment. Everything in it (art, sound, text, numbers) is made from scratch for this project; there are no game assets in it.</p>
+        <p>It runs in the browser on a phone or a computer, with nothing to install. Your progress and best scores stay on your own device.</p>
+        <p><b>How a session works:</b> missions follow one another until one fails. The first few are quick; later ones are bigger and harder, and the war escalates every minute. Credits buy and upgrade your orbitals, the ship gun, the UAV scan, SEAF and squad support.</p>
+        <p><b>Feedback is how it gets better.</b> GIVE FEEDBACK opens a short form on the project's GitHub page in a new tab (a free GitHub account is needed). Say what device you played on, what happened, and what you would change.</p>
+        <p class="fine" id="about-ver"></p>
+      </div>
+      <div class="btns">
+        <a id="lnk-fb-a" class="btn primary fb" target="_blank" rel="noopener">GIVE FEEDBACK</a>
+        <a id="lnk-proj" class="btn" target="_blank" rel="noopener">PROJECT PAGE</a>
+        <button id="about-close" class="btn">CLOSE</button>
+      </div>
+    </div>
+  </section>
+
   <section id="s-notice" class="screen overlay">
     <div class="card">
+      <button class="x-close" data-close="s-notice" aria-label="Understood">✕</button>
       <h2>FLASHING LIGHTS</h2>
       <p>This game uses blinking infrared strobes and bright explosion flashes. Turn on Reduce flashing in Settings if that bothers you.</p>
       <div class="btns"><button id="btn-notice" class="btn primary big">UNDERSTOOD</button><button id="btn-notice-set" class="btn">SETTINGS</button></div>

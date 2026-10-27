@@ -34,7 +34,7 @@ export const BIOMES = {
 };
 
 // The nuclear strike is the only destroyer weapon that is not bought: it appears once the launch site is armed.
-export const NUKE = { id: 'nuke', name: 'NUCLEAR STRIKE', delay: 8, splash: C.objective.nuke.blastR };
+export const NUKE = { id: 'nuke', name: 'NUCLEAR STRIKE', delay: C.objective.nuke.delaySec, splash: C.objective.nuke.blastR };
 
 export const ADJECTIVES = ['Crimson', 'Steel', 'Righteous', 'Eternal', 'Mighty', 'Swift', 'Iron', 'Radiant', 'Unyielding', 'Vigilant', 'Glorious', 'Resolute'];
 export const NOUNS = ['Liberty', 'Democracy', 'Thunder', 'Hammer', 'Dawn', 'Resolve', 'Verdict', 'Harvest', 'Lance', 'Bastion', 'Fury', 'Anthem'];
@@ -60,6 +60,7 @@ export const COMMS = {
   baseDown: (n, total) => `Base destroyed. ${total - n} to go.`,
   lastBase: 'All bases down. Extraction point is live. Get them home.',
   push: 'Squad is pushing in. Hit that base.',
+  fightOn: 'Squad is pinned but fighting forward. Clear them a path.',
   holdFire: 'Nothing to hit there. Strike is not available.',
   noCoverage: 'Out of the strike zone. Keep it close to the squad, or scan it with the UAV.',
   waveInbound: 'Hostiles converging on the extraction point.',
@@ -109,4 +110,17 @@ export const COMMS = {
   fortressDone: 'The citadel is down. Objective done.',
   objDone: 'Objective complete. Extraction is live. Bases are bonus points now.',
   pullOut: 'Time to pull out. Squad is heading for extraction.',
+  extractCalled: (s) => `Extraction called. Pelican is ${s} seconds out. Hold that zone.`,
+  pelicanLanding: 'Pelican on final approach. Clear the pad.',
+  board: 'Pelican is down. Everyone on board, now!',
+  extractEmpty: 'Pelican is lifting off without the squad.',
+  dropshipDown: 'Dropship down! That is one less load of bots.',
+  warpDown: 'Warp ship destroyed! Nothing is coming out of that one.',
+  objEvac: 'Objective: hold the evacuation site. Get forty civilians from the shelter onto the shuttles in the hangar.',
+  evacStart: 'Shelter doors are open. Civilians moving to the hangar. Keep them alive.',
+  evacPaused: 'No Helldivers at the site. The shelter doors are shut until the squad is back.',
+  evacDone: 'Last shuttle is away. Forty civilians out. Objective done.',
+  civFriendly: 'Civilians hit by our own fire. Check your strikes, gunner.',
+  ffzAsk: (who, dir) => `${who} requests a free-fire zone ${dir}. Allies are clearing out. Saturate it, gunner.`,
+  ffzEnd: 'Free-fire zone closed. Allies moving back in.',
 };

@@ -30,6 +30,7 @@ export function buildDanger(m) {
     if (s) out.push(s);
   }
   for (const b of m.beams) if (t >= b.start - 1.5 && t < b.end) out.push({ x1: b.cx, y1: b.cy, x2: b.cx, y2: b.cy, r: (b.width / 2) * m.biome.splash + 7, hard: true });
+  if (m.ffz) out.push({ x1: m.ffz.x, y1: m.ffz.y, x2: m.ffz.x, y2: m.ffz.y, r: m.ffz.r, hard: true, ffz: true });   // a free-fire zone: keep out
 }
 
 // Distance from a point to a shape's spine, and the closest point on it.
@@ -51,11 +52,14 @@ export function inDanger(m, x, y, pad = 0, soft = false) {
   return null;
 }
 
-// May this ally step to (nx, ny)? Not into a danger shape it is not already standing in.
+// May this ally step to (nx, ny)? Not into a danger shape, and not deeper into one it is already standing in (so walking back
+// to a slot inside a footprint never cancels out running from it).
 export function canStep(m, a, nx, ny) {
   const list = m.danger;
   if (!list || !list.length) return true;
-  return !(inDanger(m, nx, ny, 1.5) && !inDanger(m, a.x, a.y, 1.5));
+  const here = inDanger(m, a.x, a.y, 1.5);
+  if (!here) return !inDanger(m, nx, ny, 1.5);
+  return spine(here, nx, ny).d >= spine(here, a.x, a.y).d;
 }
 
 // Anyone inside a danger shape runs for the edge.

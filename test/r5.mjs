@@ -75,14 +75,14 @@ const W = VP[vp].width, H = VP[vp].height, cx = W / 2, cy = H * 0.45;
 if (touch) {
   // a finger drags: use CDP touch events
   const cdp = await ctx.newCDPSession(page);
-  const pts = []; for (let k = 0; k <= 16; k++) pts.push({ x: cx - 60 + k * 9, y: cy + Math.sin(k / 2.6) * 26 });
+  const pts = []; for (let k = 0; k <= 16; k++) pts.push({ x: cx - 60 + k * 9, y: cy + Math.sin(k / 2.6) * 34 });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [pts[0]] });
   for (const p of pts.slice(1)) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [p] }); await page.waitForTimeout(25); }
   await page.screenshot({ path: out('8-drawing') });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 } else {
   await page.mouse.move(cx - 60, cy); await page.mouse.down();
-  for (let k = 1; k <= 16; k++) { await page.mouse.move(cx - 60 + k * 9, cy + Math.sin(k / 2.6) * 26); await page.waitForTimeout(25); }
+  for (let k = 1; k <= 16; k++) { await page.mouse.move(cx - 60 + k * 9, cy + Math.sin(k / 2.6) * 34); await page.waitForTimeout(25); }
   await page.screenshot({ path: out('8-drawing') });
   await page.mouse.up();
 }
