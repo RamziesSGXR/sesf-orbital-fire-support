@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#030805">
+<meta name="description" content="Orbital Fire Support: a Super Destroyer targeting minigame for the Super Earth Special Forces community.">
+<title>Orbital Fire Support</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="view"></canvas>
+
+  <!-- In-mission HUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-l">
+      <div class="hud-tl panel">
+        <div class="tl-top"><div id="timer">30:00</div><div id="opname">OPERATION</div></div>
+        <div id="roster"></div>
+        <div id="supply"></div>
+      </div>
+      <div id="notices"></div>
+    </div>
+    <div class="hud-tc">
+      <div id="objective" class="panel"><div id="obj-main">OBJECTIVE</div><div id="obj-bar" class="hidden"><i></i></div><div id="obj-sub">SQUAD ADVANCING</div></div>
+      <div id="strats" class="panel"></div>
+      <div id="place-hint" class="panel hidden"></div>
+    </div>
+    <div class="hud-tr">
+      <div class="panel scorebox">
+        <div>MISSION <b id="sc-mission">0</b></div>
+        <div>SESSION <b id="sc-session">0</b></div>
+        <div>CREDITS <b id="sc-credits" class="cr">0</b></div>
+        <div id="combo" class="combo"></div>
+      </div>
+      <canvas id="minimap" width="240" height="240"></canvas>
+      <div class="tr-btns">
+        <button id="btn-shop" class="btn icon" aria-label="Armory">ARMORY</button>
+        <button id="btn-pause" class="btn icon" aria-label="Pause">II</button>
+      </div>
+    </div>
+    <div id="radio"></div>
+    <div id="orders" class="panel">
+      <button class="ord" data-o="seaf"><span class="k">G</span><span class="n">SEAF DROP</span><span class="s">--</span></button>
+      <button class="ord" data-o="auto"><span class="k">X</span><span class="n">AUTO</span><span class="s">--</span></button>
+      <button class="ord" data-o="move"><span class="k">V</span><span class="n">MOVE</span><span class="s">--</span></button>
+      <button class="ord" data-o="protect"><span class="k">Z</span><span class="n">PROTECT</span><span class="s">--</span></button>
+      <button class="ord" data-o="attack"><span class="k">N</span><span class="n">ATTACK</span><span class="s">--</span></button>
+      <button class="ord" data-o="escort"><span class="k">C</span><span class="n">ESCORT</span><span class="s">--</span></button>
+    </div>
+    <div id="flavor"></div>
+    <div id="weapons"></div>
+    <div id="touch-ctl">
+      <button id="btn-follow" class="btn small">CAM LOCK</button>
+      <button id="fire-btn" class="btn fire">CALL</button>
+    </div>
+    <div id="center-msg"></div>
+  </div>
+
+  <!-- Screens -->
+  <section id="s-title" class="screen">
+    <div class="card">
+      <div class="eyebrow">Super Earth Special Forces</div>
+      <h1>ORBITAL<br>FIRE SUPPORT</h1>
+      <p class="tag">Super Destroyer targeting simulator</p>
+      <label class="field">CALLSIGN <input id="callsign" maxlength="16" placeholder="Optional" autocomplete="off" spellcheck="false"></label>
+      <div class="btns">
+        <button id="btn-play" class="btn primary big">PRESS PLAY</button>
+        <button id="btn-resume" class="btn hidden">RESUME SESSION</button>
+        <button id="btn-names-t" class="btn">SQUAD NAMES</button>
+        <button id="btn-settings" class="btn">SETTINGS</button>
+      </div>
+      <p id="best" class="fine"></p>
+      <p class="fine">Unofficial fan project. Not affiliated with or endorsed by Arrowhead Game Studios or Sony Interactive Entertainment.</p>
+    </div>
+  </section>
+
+  <section id="s-shop" class="screen">
+    <div class="card wide3">
+      <div class="eyebrow" id="shop-eyebrow">Before mission 1</div>
+      <h2>ARMORY</h2>
+      <div id="shop-root"></div>
+      <div class="btns shop-go">
+        <button id="shop-go" class="btn primary big">DEPLOY</button>
+        <button id="shop-names" class="btn">SQUAD NAMES</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="s-brief" class="screen">
+    <div class="brief-top"><span>MISSION <b id="b-num">1</b></span><span>SESSION SCORE <b id="b-score">0</b></span></div>
+    <div id="b-card" class="card wide2">
+      <div class="b-cols">
+        <div class="b-left">
+          <div class="eyebrow">Mission <span id="r-n">1</span></div>
+          <div id="r-op" class="r-line big"></div>
+          <div id="r-enemy" class="r-line"></div>
+          <div id="r-biome" class="r-line"></div>
+          <div id="r-obj" class="r-line"></div>
+          <div id="b-strats"></div>
+          <div id="b-strat-note" class="fine"></div>
+          <div class="progress"><i id="b-prog"></i></div>
+          <div id="b-status" class="fine">LOADING MISSION</div>
+          <div class="btns">
+            <button id="b-continue" class="btn primary big" disabled>LOADING</button>
+            <button id="btn-end" class="btn">END SESSION</button>
+          </div>
+        </div>
+        <div class="b-right">
+          <h2>CONTROLS</h2>
+          <div id="controls-desktop" class="ctl">
+            <div><kbd>MOUSE</kbd> aim <kbd>CLICK</kbd> call the selected scan or strike</div>
+            <div><kbd>1</kbd> UAV <kbd>2</kbd>-<kbd>6</kbd> orbitals <kbd>Q</kbd><kbd>E</kbd> cycle</div>
+            <div><kbd>7</kbd> the nuke, once the launch site is armed</div>
+            <div><kbd>G</kbd> SEAF pod drop <kbd>X</kbd> auto (clear the nearest target)</div>
+            <div><kbd>V</kbd> move <kbd>Z</kbd> protect <kbd>N</kbd> attack <kbd>C</kbd> escort</div>
+            <div class="sub">Drops and orders land at the cursor. You can also click an order button, then click the map. Click a breach or a point of interest to send SEAF straight at it.</div>
+            <div><kbd>B</kbd> armory (upgrades) <kbd>ESC</kbd> pause, rename squads</div>
+            <div><kbd>WASD</kbd> or right-drag pan <kbd>WHEEL</kbd> zoom <kbd>SPACE</kbd> camera lock <kbd>T</kbd> thermal polarity</div>
+          </div>
+          <div id="controls-touch" class="ctl">
+            <div><kbd>DRAG</kbd> slide the map under the crosshair</div>
+            <div><kbd>PINCH</kbd> zoom <kbd>TAP MINIMAP</kbd> jump</div>
+            <div><kbd>CALL</kbd> fire the selected scan or strike at the crosshair</div>
+            <div><kbd>BAR</kbd> pick UAV, orbital or nuke</div>
+            <div><kbd>ORDERS</kbd> SEAF drop, auto, move, protect, attack, escort</div>
+            <div class="sub">Drops and orders land at the crosshair. Tap ARMORY to upgrade mid-mission.</div>
+          </div>
+          <ul class="tips">
+            <li>Four Helldivers, one per group. Each calls only the stratagems in its own group. You never steer them.</li>
+            <li>You run the sky: a UAV scan, orbital strikes and SEAF. Calls only land inside the strike zone around your allies or a UAV circle. Your strikes hurt friendlies.</li>
+            <li>SEAF clear the nearest objective on their own: breaches, points of interest, then bases.</li>
+            <li>Kills, bases, points of interest, breaches and objectives pay credits. Spend them in the armory.</li>
+            <li>Only failure ends a session. Keep the squad alive.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="s-debrief" class="screen">
+    <div class="card wide">
+      <div class="eyebrow" id="d-op">Operation</div>
+      <h2 id="d-outcome">VICTORY</h2>
+      <div id="d-why" class="fine"></div>
+      <table id="d-table"></table>
+      <h3>CREDITS</h3>
+      <table id="d-credits"></table>
+      <h3>DEATH REPORT</h3>
+      <div id="d-deaths" class="deaths"></div>
+      <div id="d-extra" class="fine"></div>
+      <div class="d-total">MISSION SCORE <b id="d-mscore">0</b></div>
+      <div class="d-total">SESSION TOTAL <b id="d-sscore">0</b></div>
+      <div class="btns"><button id="btn-continue" class="btn primary big">NEXT MISSION</button><button id="btn-end-d" class="btn">END SESSION</button></div>
+    </div>
+  </section>
+
+  <section id="s-final" class="screen">
+    <div class="card wide">
+      <div class="eyebrow">Session complete</div>
+      <h2>FINAL SCORE <b id="f-score">0</b></h2>
+      <div class="f-id">SESSION ID <b id="f-id"></b></div>
+      <div class="f-local" id="f-local"></div>
+      <div id="f-totals" class="fine"></div>
+      <table id="f-table"></table>
+      <textarea id="f-text" readonly rows="8" spellcheck="false"></textarea>
+      <div class="btns">
+        <button id="btn-copy" class="btn primary">COPY</button>
+        <button id="btn-post" class="btn hidden">POST</button>
+        <button id="btn-share" class="btn hidden">SHARE</button>
+        <button id="btn-again" class="btn">PLAY AGAIN</button>
+      </div>
+      <p id="f-msg" class="fine"></p>
+    </div>
+  </section>
+
+  <!-- Overlays -->
+  <section id="s-pause" class="screen overlay">
+    <div class="card">
+      <h2>PAUSED</h2>
+      <div class="btns col">
+        <button id="btn-resume-m" class="btn primary big">RESUME</button>
+        <button id="btn-armory-m" class="btn">ARMORY</button>
+        <button id="btn-names-m" class="btn">SQUAD NAMES</button>
+        <button id="btn-settings-m" class="btn">SETTINGS</button>
+        <button id="btn-abort" class="btn danger">RETIRE FROM MISSION</button>
+      </div>
+      <p id="abort-confirm" class="fine hidden">Retiring ends the session unless the objective is already done. Tap again to confirm.</p>
+    </div>
+  </section>
+
+  <section id="s-armory" class="screen overlay">
+    <div class="card wide3">
+      <h2>ARMORY</h2>
+      <p class="fine">Mid-mission you can upgrade what you own. New orbitals and extra slots are bought between missions.</p>
+      <div id="arm-root"></div>
+      <div class="btns"><button id="arm-close" class="btn primary big">BACK TO THE MISSION</button></div>
+    </div>
+  </section>
+
+  <section id="s-names" class="screen overlay">
+    <div class="card">
+      <h2>SQUAD NAMES</h2>
+      <p class="fine">Four groups, one Helldiver each. A blank ship gets a random Super Destroyer name every mission. A blank Helldiver uses its code, like B4.</p>
+      <div id="names-body"></div>
+      <div class="btns">
+        <button id="names-clear" class="btn">CLEAR ALL</button>
+        <button id="names-save" class="btn primary">SAVE</button>
+        <button id="names-cancel" class="btn">CANCEL</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="s-settings" class="screen overlay">
+    <div class="card">
+      <h2>SETTINGS</h2>
+      <div id="settings-body"></div>
+      <div class="btns"><button id="btn-settings-close" class="btn primary">DONE</button></div>
+    </div>
+  </section>
+
+  <section id="s-notice" class="screen overlay">
+    <div class="card">
+      <h2>FLASHING LIGHTS</h2>
+      <p>This game uses blinking infrared strobes and bright explosion flashes. Turn on Reduce flashing in Settings if that bothers you.</p>
+      <div class="btns"><button id="btn-notice" class="btn primary big">UNDERSTOOD</button><button id="btn-notice-set" class="btn">SETTINGS</button></div>
+    </div>
+  </section>
+
+  <div id="rotate-hint" class="hidden">Landscape gives you a wider view.</div>
+  <div id="debug" class="hidden"></div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

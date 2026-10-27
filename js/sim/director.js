@@ -1,0 +1,208 @@
+// The director: continuous enemy spawning just outside the squad's sight, despawning, bases, support calls,
+// pods, last stand and extraction.
+import { CONFIG as C } from '../config.js';
+import { SUBTYPES, COMMS, attackProfile } from '../data/data.js';
+import { compass } from './enemies.js';
+import { damageArea } from './combat.js';
+import { openBreach } from './pois.js';
+import { seafStats } from '../data/kit.js';
+import { bark } from './chatter.js';
+
+const POD_MULT = { L: 1, M: 1, H: 1, B: 0.2 };
+
+const SIZE = C.world.size;
+
+export function spawnGroup(m, x, y, state = 'patrol', opts = {}) {
+  const fac = m.faction, rng = m.rng;
+  const g = {
+    id: m.nextId++, cx: x, cy: y, state, members: [], target: null, targetT: 0, tp: null, fuzzT: 0,
+    alertT: opts.alertT ?? (state === 'hunt' ? C.enemies.alert.loseSec : 0), senseT: rng.next() * 0.25,
+    home: { x, y }, pt: null, patrolT: 0, base: opts.base || null, garrison: !!opts.base, engaged: false,
+  };
+  for (let i = 0; i < C.enemies.groupSize; i++) {
+    const kind = m.drawToken(), st = SUBTYPES[kind];
+    const [ox, oy] = rng.inDisc(fac.spread);
+    const e = {
+      id: m.nextId++, kind, hp: Math.round(st.hp * m.hpMul), maxHp: Math.round(st.hp * m.hpMul), x: Math.max(0, Math.min(SIZE, x + ox)), y: Math.max(0, Math.min(SIZE, y + oy)),
+      ox, oy, vx: 0, vy: 0, g, lasedUntil: 0, lasedBy: null, vis: 0, atk: rng.next(), tgt: null, dead: false,
+      speed: st.speed * fac.speed * m.biome.speed, r: st.r, hurtAt: -9, stunUntil: 0, ch: null,
+    };
+    // Heavies have their own pace: the charger sprints, the tank rolls, the harvester stalks.
+    if (kind === 'H') e.speed = attackProfile(fac.id, 'H').speed * m.biome.speed;
+    g.members.push(e); m.enemies.push(e);
+  }
+  m.groups.push(g);
+  m.emit('spawn', { x, y });
+  return g;
+}
+
+// A point just outside what the squad (and the player) can see, mostly in the direction the Helldivers are heading.
+export function pickSpawn(m) {
+  const rng = m.rng, al = m.alive, hds = m.hdAlive;
+  if (!al.length) return null;
+  for (let tries = 0; tries < 14; tries++) {
+    const a = hds.length && rng.next() < 0.75 ? hds[rng.int(hds.length)] : al[rng.int(al.length)];
+    const ahead = a.type === 'H' && rng.next() < 0.65;
+    const dir = ahead ? m.squad.dir + rng.range(-1, 1) : rng.angle();
+    const d = a.sight + rng.range(C.sight.spawnMin, C.sight.spawnMax);
+    const x = a.x + Math.cos(dir) * d, y = a.y + Math.sin(dir) * d;
+    if (x < 30 || y < 30 || x > SIZE - 30 || y > SIZE - 30) continue;
+    let ok = true;
+    for (const b of al) {
+      const r = b.vision + 4;
+      if ((b.x - x) ** 2 + (b.y - y) ** 2 < r * r) { ok = false; break; }
+    }
+    if (ok) for (const u of m.uavs) if ((u.x - x) ** 2 + (u.y - y) ** 2 < (u.r + 4) ** 2) { ok = false; break; }
+    if (ok) return { x, y };
+  }
+  return null;
+}
+
+// The first groups, placed around the landing zone before anyone has landed.
+export function startGroups(m) {
+  const rng = m.rng, sight = C.sight.helldiver * m.biome.ping;
+  for (let i = 0; i < C.enemies.startGroups; i++) {
+    const ang = (i / C.enemies.startGroups) * Math.PI * 2 + rng.range(-0.4, 0.4);
+    const d = sight + rng.range(C.sight.spawnMin, C.sight.spawnMax);
+    const x = Math.max(40, Math.min(SIZE - 40, m.lz.x + Math.cos(ang) * d)), y = Math.max(40, Math.min(SIZE - 40, m.lz.y + Math.sin(ang) * d));
+    spawnGroup(m, x, y, 'patrol');
+  }
+}
+
+// The squad spotted a group that has not noticed them. The enemy may call for support, which opens a breach.
+export function onSpot(m, g) {
+  const t = m.t, rng = m.rng, sp = m.support;
+  if (t >= sp.enemyReadyAt && rng.next() < C.support.enemyChance && m.enemies.length < C.enemies.hardCap && m.breaches.length < 2) {
+    sp.enemyReadyAt = t + C.support.enemyCooldownSec;
+    m.incoming.push({ at: t + C.support.enemyDelaySec });
+    m.emit('reinforce_call', {});
+  }
+}
+
+function garrisonCount(m, b) { let n = 0; for (const e of m.enemies) if (!e.dead && e.g.base === b && e.g.garrison) n++; return n; }
+
+export function updateDirector(m, dt) {
+  const t = m.t, rng = m.rng, sp = m.support;
+
+  // Pressure rises with mission time (and is halved when a base falls).
+  m.pressure = Math.max(C.pressure.floor, m.pressure + (C.pressure.perMissionMin / 60) * dt);
+
+  if (m.alive.length && m.phase !== 'over') {
+    // Despawn groups that are well outside what the player can see, and count the ones nearby.
+    sp.scanT -= dt;
+    if (sp.scanT <= 0) {
+      sp.scanT = 0.5; sp.near = 0;
+      for (const g of m.groups) {
+        let any = false;
+        for (const e of g.members) if (!e.dead && !m.beyondRange(e.x, e.y)) { any = true; break; }
+        if (any) { sp.near += g.members.length; continue; }
+        if (g.state === 'hunt' || g.garrison) continue;
+        for (const e of g.members) if (!e.dead) { e.dead = true; m.stats.despawned++; }
+        m.dirtyE = true;
+      }
+    }
+
+    // Enemies spawn all the time, just outside the squad's sight. Faster with Pressure, and fast to refill an empty field.
+    sp.spawnT -= dt;
+    if (m.enemies.length < C.enemies.liveCap) {
+      const floor = Math.round(C.enemies.spawn.minLive * m.pressure);
+      const need = sp.near < floor && t - sp.lastSpawn >= C.enemies.spawn.minGapSec;
+      if (sp.spawnT <= 0 || need) {
+        const p = pickSpawn(m);
+        if (p) { spawnGroup(m, p.x, p.y, 'patrol'); sp.lastSpawn = t; sp.spawnT = C.enemies.spawn.sec / m.pressure; sp.near += C.enemies.groupSize; }
+        else sp.spawnT = 1;
+      }
+    }
+
+    // Bases garrison themselves when Helldivers get close, and keep sending groups while they stand.
+    const R2 = C.bases.garrisonRadius * C.bases.garrisonRadius;
+    for (const b of m.bases) {
+      if (b.destroyed) continue;
+      let near = false;
+      for (const a of m.hdAlive) if ((a.x - b.x) ** 2 + (a.y - b.y) ** 2 <= R2) { near = true; break; }
+      if (!near) continue;
+      const cfg = b.fortress ? C.fortress : C.bases;
+      if (!b.garrisoned) {
+        b.garrisoned = true; b.nextSpawn = t + cfg.spawnSec / m.pressure;
+        for (let i = 0; i < cfg.garrisonGroups; i++) {
+          if (m.enemies.length < C.enemies.hardCap) spawnGroup(m, b.x + rng.range(-10, 10), b.y + rng.range(-10, 10), 'patrol', { base: b });
+        }
+      } else if (t >= b.nextSpawn) {
+        b.nextSpawn = t + cfg.spawnSec / m.pressure;
+        if (m.enemies.length < C.enemies.liveCap && garrisonCount(m, b) < cfg.garrisonCap) {
+          spawnGroup(m, b.x + rng.range(-10, 10), b.y + rng.range(-10, 10), 'patrol', { base: b });
+        }
+      }
+    }
+  }
+
+  // Enemy support: a breach opens just outside sight and keeps sending groups until it is destroyed.
+  for (let i = m.incoming.length - 1; i >= 0; i--) {
+    const r = m.incoming[i];
+    if (t < r.at) continue;
+    if (openBreach(m)) m.incoming.splice(i, 1);
+    else if (!m.alive.length) m.incoming.splice(i, 1);
+    else r.at = t + 1;
+  }
+
+  // Pods land: each Helldiver pod brings back the Helldiver of one group; SEAF where the player called them.
+  for (let i = m.pods.length - 1; i >= 0; i--) {
+    const p = m.pods[i];
+    if (t < p.landAt) continue;
+    m.pods.splice(i, 1);
+    if (p.type === 'H') {
+      damageArea(m, p.x, p.y, C.helldivers.podRadius, C.helldivers.podDmg, POD_MULT, 'squad', false);
+      const a = m.addAlly('H', p.x, p.y, { team: p.team });
+      m.emit('pod_land', { type: 'H', x: p.x, y: p.y, n: 1, r: C.helldivers.podRadius });
+      m.emit('boom', { x: p.x, y: p.y, r: C.helldivers.podRadius, dmg: C.helldivers.podDmg, by: 'squad', pod: true });
+      m.notice(`${m.tag(a)} DEPLOYED  ${m.shipOf(a.team)}`, 'good');
+      bark(m, a, 'land', '', true);
+      m.radio(COMMS.landed, 'landed', 6);
+    } else {
+      const st = seafStats(m.kit), n = Math.min(p.n, st.max - m.countAlly('S'));
+      const roles = Array(Math.max(0, n)).fill('rifle');
+      if (n > 0 && rng.next() < st.rocketChance) roles[rng.int(n)] = 'rocket';
+      let gr = 0;
+      for (let k = 0; k < n; k++) if (roles[k] === 'rifle' && gr < 2 && rng.next() < st.grenChance) { roles[k] = 'gren'; gr++; }
+      for (let k = 0; k < n; k++) {
+        const ang = rng.angle(), d = rng.range(10, 22);
+        m.addAlly('S', p.x + Math.cos(ang) * d, p.y + Math.sin(ang) * d, { role: roles[k] });
+      }
+      m.emit('pod_land', { type: 'S', x: p.x, y: p.y, n });
+      m.radio(COMMS.seafLanded, 'land', 0);
+      const rk = roles.filter((r) => r === 'rocket').length, gn = roles.filter((r) => r === 'gren').length;
+      m.notice(`SEAF POD DOWN  ${n} TROOPERS${rk ? ' + ROCKET' : ''}${gn ? ` + ${gn} GRENADIER${gn > 1 ? 'S' : ''}` : ''}`, 'info');
+      const s = m.alive.filter((a) => a.type === 'S').pop();
+      if (s) bark(m, s, 'land', '');
+    }
+  }
+  m._refreshAlive();
+
+  // Last stand and extraction.
+  if (m.phase === 'extract') {
+    const ex = m.extraction;
+    if (t >= ex.nextWave) {
+      ex.nextWave += C.extract.waveSec;
+      if (m.enemies.length < C.enemies.hardCap) {
+        let x = ex.x, y = ex.y;
+        for (let k = 0; k < 20; k++) {
+          const ang = rng.angle(), d = rng.range(C.extract.waveMin, C.extract.waveMax);
+          x = ex.x + Math.cos(ang) * d; y = ex.y + Math.sin(ang) * d;
+          if (x > 40 && x < SIZE - 40 && y > 40 && y < SIZE - 40) break;
+        }
+        x = Math.max(40, Math.min(SIZE - 40, x)); y = Math.max(40, Math.min(SIZE - 40, y));
+        spawnGroup(m, x, y, 'hunt', { alertT: 90 });
+        m.radio(COMMS.waveInbound, 'wave', 20);
+      }
+    }
+    let all = m.hdAlive.length > 0;
+    for (const a of m.hdAlive) {
+      if (Math.hypot(a.x - ex.x, a.y - ex.y) > C.extract.radius) { all = false; break; }
+    }
+    if (all) {
+      if (ex.holdT === 0) m.radio(COMMS.extracting, 'extracting', 0);
+      ex.holdT += dt;
+      if (ex.holdT >= C.extract.holdSec) { m.extracted = true; m.finish('victory'); }
+    } else ex.holdT = 0;
+  }
+}

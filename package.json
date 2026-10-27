@@ -1,0 +1,24 @@
+{
+  "name": "orbital-fire-support",
+  "version": "0.4.0",
+  "description": "Orbital Fire Support - a Super Destroyer targeting minigame (unofficial fan project)",
+  "main": "js/main.js",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "sim": "node test/headless.mjs 6 0",
+    "session": "node test/headless.mjs 14 0 - - session",
+    "play": "node test/play.mjs desktop",
+    "touch": "node test/touch.mjs portrait",
+    "bundle": "node tools/bundle.mjs",
+    "package": "python3 tools/package.py"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "type": "module",
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "playwright": "^1.63.0"
+  },
+  "private": true
+}
