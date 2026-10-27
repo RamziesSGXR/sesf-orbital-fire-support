@@ -125,7 +125,7 @@ export class Renderer {
       case 'uav': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: ev.r, t0: now, life: 0.9, a: 1, col: '#9dffb8' }); fx.push({ k: 'ring', x: ev.x, y: ev.y, r: ev.r * 0.6, t0: now, life: 0.7, a: 0.8, col: '#9dffb8' }); break;
       case 'seaf_order': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 36, t0: now, life: 0.9, a: 1, col: this.allyColor() }); break;
       case 'gun': {
-        // The ship's gatling: rounds fall from above onto the aim point.
+        // The ship gun: rounds fall from above onto the aim point.
         const black = this.settings.polarity === 'black';
         for (const [gx, gy] of ev.pts) {
           fx.push({ k: 'trc', kind: 'streak', x: gx + (Math.random() - 0.5) * 6, y: gy - 70 - Math.random() * 40, x2: gx, y2: gy, t0: now, fl: 0.06, life: 0.2, col: '#ffe9a8', w: 1.5, len: 26, hit: true, big: false, side: 'p', imp: false, d: 90 });
@@ -741,7 +741,7 @@ export class Renderer {
       if (info.spread > 0) { ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(0, 0, info.spread * scale, 0, TAU); ctx.stroke(); }
       if (danger) { ctx.setLineDash([]); ctx.globalAlpha = 0.5 + 0.5 * Math.sin(now * 14); ctx.beginPath(); ctx.arc(0, 0, Math.max(12 * d, info.dangerR * scale), 0, TAU); ctx.stroke(); }
       ctx.setLineDash([]); ctx.globalAlpha = 1;
-      // the gatling's magazine as an arc around the reticle
+      // the ship gun's magazine as an arc around the reticle
       if (isGun && info.gun) {
         const f = Math.max(0, Math.min(1, info.gun.ammo / info.gun.max));
         ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 4 * d; ctx.beginPath(); ctx.arc(0, 0, 26 * d, 0, TAU); ctx.stroke();

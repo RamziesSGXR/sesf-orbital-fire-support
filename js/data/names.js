@@ -56,6 +56,13 @@ export const HD_LINES = {
   obj:     ['Objective is in reach.', 'Almost there. Stay sharp.'],
   land:    ['Boots down.', 'On the ground!', 'Pod down, ready to work.'],
   resupply:['Resupply incoming.', 'Restocking!'],
+  stim:    ['Stim in!', 'Stimmed up, moving!', 'Pumping a stim!'],
+  retreat: ['Falling back!', 'Pulling out, cover me!', 'I need a minute, backing off!'],
+  gren:    ['Grenade out!', 'Frag, get down!', 'Throwing a grenade!'],
+  ult:     ['Ultimatum, stand clear!', 'Hand cannon, one shot!', 'Ultimatum out!'],
+  dodge:   ['Not today!', 'Missed me!', 'Rolling clear!'],
+  flee:    ['Danger close, moving!', 'Clear the blast!', 'Get out of the zone!'],
+  recall:  ['Cleared to drop, thank you!', 'Boots going down again!'],
 };
 export const SEAF_LINES = {
   move:    ['Moving up!', 'On the move!', 'Following orders.'],
@@ -73,6 +80,7 @@ export const SEAF_LINES = {
   path:    ['Running the play!', 'Following the route!'],
   line:    ['Forming the line!', 'Spread out, hold the line!'],
   ring:    ['Ringing the area!', 'All around defense!'],
+  flee:    ['Run!', 'Incoming, move!', 'Get clear!'],
 };
 export const SEAF_NAMES_FOR_ORDERS = { auto: 'AUTO', move: 'MOVE', protect: 'PROTECT', attack: 'ATTACK', escort: 'ESCORT', path: 'ROUTE', line: 'LINE', ring: 'RING' };
 

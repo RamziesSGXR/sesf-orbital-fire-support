@@ -6,10 +6,11 @@ import { CONFIG as C } from '../config.js';
 import { STRATS, dealGroups } from '../data/strat.js';
 import { LETTERS, TEAM_COLOR, shipNames } from '../data/names.js';
 import { COMMS } from '../data/data.js';
-import { fireShot, hurtEnemy, damageArea } from './combat.js';
+import { fireShot, hurtEnemy, damageArea, blocker } from './combat.js';
 import { alertGroup, compass } from './enemies.js';
 import { bark } from './chatter.js';
 import { baseNear } from './pois.js';
+import { restock } from './helldiver.js';
 
 const M = (L, Mm, H, B) => ({ L, M: Mm, H, B });
 const TMULT = { bullet: M(1, 0.8, 0.2, 0.03), shell: M(1, 1, 0.6, 0.15), arc: M(1, 1, 0.5, 0.15), 'arc-zap': M(1, 1, 0.4, 0) };
@@ -21,7 +22,7 @@ const DOG_MULT = M(1, 0.7, 0.2, 0.02);
 const FRV_MULT = M(1, 1, 0.95, 0.1);   // the manned gun is heavy-penetration
 // Which sound each stratagem weapon makes (see audio.js).
 const SND = { mg_sentry: 'mg', gat_sentry: 'gat', ac_sentry: 'ac', rk_sentry: 'rocket', mortar: 'mortar', tesla: 'zap',
-  recoilless: 'rocket', autocannon: 'ac', flamethrower: 'flame', railgun: 'rail', mg43: 'mg', spear: 'missile' };
+  recoilless: 'rocket', autocannon: 'ac', flamethrower: 'flame', railgun: 'rail', mg43: 'mg', spear: 'missile', eat: 'rocket' };
 const FOCUS_R = 30;
 const mul = () => C.strat.dmgMul;
 
@@ -68,14 +69,17 @@ function safeSpot(m, x, y, r) {
 // What one caller can see and needs. owner is a Helldiver; null means the whole squad (for squad-wide items).
 function buildCtx(m, owner) {
   const cx = owner ? owner.x : m.hx, cy = owner ? owner.y : m.hy, sq = m.squad;
-  const c = { owner, cx, cy, dir: sq.dir || 0, vis: [], heavies: [], hunt: 0, near: 0, centroid: null,
-    engaged: owner ? !!m.eGrid.nearest(cx, cy, C.squad.engageRange) : !!sq.engaged, goalDist: sq.goalDist ?? 0, cl: null };
+  // How far out a call can reach: a bit past what the caller can see, so a pack is hit on the way in and not on top of the squad.
+  const reach = Math.min(190, (owner ? owner.vision : C.sight.helldiver + C.sight.playerBonus) + 55);
+  const c = { owner, cx, cy, dir: sq.dir || 0, vis: [], heavies: [], hunt: 0, near: 0, centroid: null, reach,
+    engaged: owner ? !!m.eGrid.nearest(cx, cy, C.squad.engageRange) : !!sq.engaged, goalDist: sq.goalDist ?? 0, cl: null,
+    panic: !!(owner && owner.retreat) };   // a Helldiver who is running for it calls whatever might save him
   let sx = 0, sy = 0;
   for (const e of m.enemies) {
     if (e.dead) continue;
     const d = Math.hypot(e.x - cx, e.y - cy);
     if (e.vis >= 2) { c.vis.push(e); if (e.kind === 'H') c.heavies.push(e); }
-    if (e.g.state === 'hunt' && d <= 120) { c.hunt++; sx += e.x; sy += e.y; }
+    if (e.g.state === 'hunt' && d <= reach) { c.hunt++; sx += e.x; sy += e.y; }
     if (d <= 70) c.near++;
   }
   if (c.hunt) c.centroid = { x: sx / c.hunt, y: sy / c.hunt };
@@ -85,13 +89,16 @@ function buildCtx(m, owner) {
 
 function clusters(m, ctx) {
   if (ctx.cl) return ctx.cl;
-  const out = [], cand = ctx.vis.filter((e) => Math.hypot(e.x - ctx.cx, e.y - ctx.cy) <= 130);
-  for (let i = 0; i < cand.length && i < 60; i++) {
-    const e = cand[i]; let n = 0, sx = 0, sy = 0;
-    m.eGrid.near(e.x, e.y, 12, (o) => { n++; sx += o.x; sy += o.y; });
-    out.push({ x: sx / n, y: sy / n, n });
+  const out = [], cand = ctx.vis.filter((e) => Math.hypot(e.x - ctx.cx, e.y - ctx.cy) <= ctx.reach);
+  const stride = Math.max(1, Math.floor(cand.length / 60));
+  for (let i = 0; i < cand.length; i += stride) {
+    const e = cand[i]; let n = 0, sx = 0, sy = 0, vx = 0, vy = 0;
+    m.eGrid.near(e.x, e.y, 12, (o) => { n++; sx += o.x; sy += o.y; vx += o.vx || 0; vy += o.vy || 0; });
+    const x = sx / n, y = sy / n, dist = Math.hypot(x - ctx.cx, y - ctx.cy);
+    // far packs rate higher: hit them while they are still coming, and the call is a few seconds in the air anyway
+    out.push({ x, y, n, vx: vx / n, vy: vy / n, dist, rate: n + Math.min(4, dist / 35) });
   }
-  out.sort((a, b) => b.n - a.n);
+  out.sort((a, b) => b.rate - a.rate);
   return (ctx.cl = out);
 }
 
@@ -99,9 +106,12 @@ function clusters(m, ctx) {
 const clearance = () => 9;
 
 function pickCluster(m, d, ctx) {
+  const need = ctx.panic ? 2 : d.min || 5, lead = d.delay || 0;
   for (const c of clusters(m, ctx)) {
-    if (c.n < (d.min || 5)) break;
-    if (safeSpot(m, c.x, c.y, clearance(d)) && m.inHdZone(c.x, c.y, -5)) return { x: c.x, y: c.y };
+    if (c.n < need) continue;
+    // aim where the pack will be when the strike lands
+    const x = c.x + c.vx * lead, y = c.y + c.vy * lead;
+    if (safeSpot(m, x, y, clearance(d)) && m.inHdZone(x, y, -5)) return { x, y };
   }
   return null;
 }
@@ -164,22 +174,28 @@ function choose(m, g, ctx) {
       }
       return pickHeavy(m, d, ctx) || (d.base ? pickBase(m, d, ctx) : null);
     case 'smoke':
-      if (ctx.engaged && ctx.hunt >= 6) return placeSpot(m, ctx, 10);
+      if (ctx.engaged && (ctx.hunt >= 6 || (ctx.panic && ctx.hunt >= 2))) return placeSpot(m, ctx, 10);
       return null;
     case 'defense': {
-      const need = d.threat || 5;
+      // Running for it: whatever can be dropped between him and what is chasing him, dropped now.
+      const need = ctx.panic ? 2 : d.threat || 5;
       if (ctx.hunt < need && !(d.heavy && ctx.heavies.length)) return null;
-      const ahead = d.k === 'mines' ? 28 : d.t && d.t.style === 'arc' ? -6 : 16;
+      const ahead = ctx.panic ? 10 : d.k === 'mines' ? 28 : d.t && d.t.style === 'arc' ? -6 : 16;
       return placeSpot(m, ctx, ahead);
     }
-    case 'fight':
-      if (!(ctx.engaged || ctx.hunt >= (d.threat || 5)) || ctx.hunt < (d.threat || 4)) return null;
+    case 'fight': {
+      if (d.k === 'weapon' && d.anti && ctx.heavies.length) return { x: ctx.cx, y: ctx.cy };   // the autocannon comes out for armor too
+      const need = ctx.panic ? 2 : d.threat || 4;
+      if (!(ctx.engaged || ctx.hunt >= need) || ctx.hunt < need) return null;
       return placeSpot(m, ctx, 8);
+    }
     case 'travel':
+      if (ctx.panic && ctx.hunt >= 3) return placeSpot(m, ctx, 12);   // a ride out of trouble
       if (ctx.near > 0 || ctx.goalDist < 260) return null;
       return placeSpot(m, ctx, 12);
     case 'resupply': {
       for (const a of m.hdAlive) {
+        if (a.stims <= 1 || a.gren <= 0) return { x: ctx.cx, y: ctx.cy };
         if (a.sw && a.sw.left < a.sw.ammo * 0.3) return { x: ctx.cx, y: ctx.cy };
         if (a.mech && a.mech.hp > 0 && (a.mech.gat < C.strat.mech.gatAmmo * 0.3 || a.mech.rkt <= 3)) return { x: ctx.cx, y: ctx.cy };
       }
@@ -308,7 +324,7 @@ function land(m, it) {
       }
     }
     if (best) {
-      best.sw = { id: it.sid, ...d.sw, left: d.sw.ammo, t: 0.8, snd: SND[it.sid] || 'ac' };
+      best.sw = { id: it.sid, ...d.sw, left: d.sw.ammo, t: 0.8, snd: SND[it.sid] || 'ac', lockE: null, lockT: 0 };
       m.emit('asset_new', { kind: 'weapon', sid: it.sid, x: best.x, y: best.y });
       m.notice(`${m.tag(best)} PICKED UP THE ${d.name.toUpperCase()}`, 'info');
     }
@@ -351,6 +367,7 @@ function land(m, it) {
     m.emit('mount', { x: v.x, y: v.y, n: v.seats.length });
     bark(m, v.seats[0], 'frv', '', true);
   } else if (it.type === 'resupply') {
+    restock(m);
     for (const a of m.hdAlive) {
       if (a.sw) a.sw.left = a.sw.ammo;
       if (a.mech) { a.mech.gat = C.strat.mech.gatAmmo; a.mech.rkt = C.strat.mech.rktAmmo; a.mech.hp = Math.min(a.mech.maxHp, a.mech.hp + 250); }
@@ -384,6 +401,7 @@ function dismount(m, v, why) {
     a.mounted = null;
     const [dx, dy] = m.rng.inDisc(7);
     a.x = v.x + dx; a.y = v.y + dy;
+    if (m.terrain.blocked(a.x, a.y)) { const l = m.terrain.nearestLand(a.x, a.y); a.x = l.x; a.y = l.y; }   // not into deep water
   }
   if (v.seats.length) { m.radio(why === 'bail' ? COMMS.frvBail : COMMS.frvOut, 'frvout', 3); m.emit('dismount', { x: v.x, y: v.y, why }); }
   v.seats = [];
@@ -522,15 +540,28 @@ function updateAssets(m, dt) {
 
 // Support weapons and the exosuit's guns.
 function pickWeaponTarget(m, a, w) {
+  // a lock-on stays on its target for as long as that target is still there to be locked
+  const le = w.lockE;
+  if (le && !le.dead && le.vis > 0 && (le.x - a.x) ** 2 + (le.y - a.y) ** 2 <= w.range * w.range) return le;
   let best = null, bs = -Infinity;
   m.eGrid.near(a.x, a.y, w.range, (e, d2) => {
     if (e.vis <= 0) return;
     if (w.only && e.kind !== w.only) return;
+    if (w.kinds && !w.kinds.includes(e.kind)) return;
     let score = -Math.sqrt(d2);
     if (w.prefer && w.prefer.includes(e.kind)) score += 60;
+    if (w.crowd) { let n = 0; m.eGrid.near(e.x, e.y, 4, () => { n++; }); score += n * 6; }   // the autocannon likes a crowd
     if (score > bs) { bs = score; best = e; }
   });
   return best;
+}
+
+// A lock-on weapon (the Spear, the Expendable Anti-Tank) needs a moment on its target before it will fire.
+function lockedOn(m, w, e, dt) {
+  if (w.lockE !== e) { w.lockE = e; w.lockT = 0; }
+  w.lockT += dt;
+  e.lockedUntil = m.t + 0.2; e.lockFrac = Math.min(1, w.lockT / w.lock);
+  return w.lockT >= w.lock;
 }
 
 function updateWeapons(m, dt) {
@@ -544,11 +575,17 @@ function updateWeapons(m, dt) {
       if (w.t <= 0) {
         const e = pickWeaponTarget(m, a, w);
         if (e && ok(e)) {
-          w.t = w.every;
-          fireShot(m, a, e, { dmg: w.dmg * k, acc: w.acc, splash: w.splash, mult: w.mult, flight: w.splash > 0 && w.range > 40 ? 0.35 : 0 }, 'strat', 'a', w.snd);
-          w.left--;
-          if (w.left <= 0) { a.sw = null; m.radio(COMMS.assetSpent(STRATS[w.id].name), 'aspent', 2); m.emit('asset_down', { kind: 'weapon', sid: w.id, x: a.x, y: a.y, why: 'spent' }); }
+          if (w.splash < 3 && blocker(m, a, e.x, e.y)) { w.t = 0.3; w.lockE = null; w.lockT = 0; }   // a friendly is in the line of fire
+          else if (w.lock && !lockedOn(m, w, e, dt)) w.t = 0;                                        // still acquiring
+          else {
+            w.t = w.every; w.lockE = null; w.lockT = 0;
+            const dmg = w.dmg * k * (w.vary ? 1 + (m.rng.next() * 2 - 1) * w.vary : 1);
+            fireShot(m, a, e, { dmg, acc: w.acc, splash: w.splash, mult: w.mult, flight: w.splash > 0 && w.range > 40 ? 0.35 : 0 }, 'strat', 'a', w.snd);
+            w.left--;
+            if (w.left <= 0) { a.sw = null; m.radio(COMMS.assetSpent(STRATS[w.id].name), 'aspent', 2); m.emit('asset_down', { kind: 'weapon', sid: w.id, x: a.x, y: a.y, why: 'spent' }); }
+          }
         } else {
+          w.lockE = null; w.lockT = 0;
           // No enemy to shoot: a weapon that can crack structures works on a base or the citadel in range.
           const bs = w.only || w.mult.B < C.structure.weaponTry ? null : baseNear(m, a.x, a.y, w.range * 0.9);
           if (bs) {
@@ -635,7 +672,7 @@ export function updateStrat(m, dt) {
     const ctx = ctxs[key] || (ctxs[key] = buildCtx(m, d.shared ? null : team.hd));
     const tgt = choose(m, g, ctx);
     if (!tgt) continue;
-    if (m.rng.next() > 0.7) continue;   // not every opportunity gets taken the instant it appears
+    if (!ctx.panic && m.rng.next() > 0.7) continue;   // not every opportunity gets taken the instant it appears (but a runner calls at once)
     execute(m, g, tgt, ctx);
     g.readyAt = t + d.cd; g.uses++;
     team.callAt = t + C.strat.callGapSec; S.callAt = t + 0.5;

@@ -260,7 +260,7 @@ export class Hud {
         name = m.tag(a);
         const mech = a.mech && a.mech.hp > 0 ? a.mech : null;
         f = mech ? mech.hp / mech.maxHp : a.hp / a.maxHp;
-        st = mech ? 'EXO' : a.mounted ? 'FRV' : a.sw ? 'GUN' : '';
+        st = mech ? 'EXO' : a.mounted ? 'FRV' : a.retreat ? 'FALLING' : a.sw ? 'GUN' : `S${a.stims} G${a.gren}`;   // stims and grenades left
         if (f < 0.35) cls = 'hurt';
       } else {
         name = m.slotTag(tm);
@@ -278,12 +278,14 @@ export class Hud {
 
   _supply(m) {
     const sf = m.countAlly('S'), pods = m.pendingPods('S'), st = seafStats(m.kit), lives = m.hd.lives;
-    const key = `${lives}|${m.hd.max}|${sf}|${pods}|${st.max}`;
+    const rec = m.recallAt === null || m.recallAt === undefined ? 0 : Math.max(0, Math.ceil(m.recallAt - m.t));
+    const key = `${lives}|${m.hd.max}|${sf}|${pods}|${st.max}|${rec}`;
     if (this.last.supply === key) return;
     if (this.last.lives !== undefined && this.last.lives !== lives) this.hot(document.querySelector('.hud-tl'), 3500);
     this.last.lives = lives;
     this.last.supply = key;
-    $('supply').innerHTML = `<span>LIVES <b class="lives${lives <= 3 ? ' low' : ''}">${lives}</b></span><span>SEAF <b>${sf}</b>/${st.max}${pods ? ` <i>+${pods}</i>` : ''}</span>`;
+    const recall = rec ? `<span>RECALL <b>${Math.floor(rec / 60)}:${String(rec % 60).padStart(2, '0')}</b></span>` : '';
+    $('supply').innerHTML = `<span>LIVES <b class="lives${lives <= 3 ? ' low' : ''}">${lives}</b></span>${recall}<span>SEAF <b>${sf}</b>/${st.max}${pods ? ` <i>+${pods}</i>` : ''}</span>`;
   }
 
   // Cooldown fill and state for each stratagem, grouped by Helldiver.
@@ -505,7 +507,7 @@ export function runBriefing({ info, mission, touch, onContinue, onEnd, canEnd, o
 }
 
 // ---------------- the armory ----------------
-const SEC_TAG = { LOADOUT: 'SLOT', ORBITALS: 'ORBITAL', 'SHIP GATLING': 'GATLING', 'UAV SCAN': 'UAV', 'SEAF TROOPS': 'SEAF', 'SEAF SPECIALISTS': 'SPECIALIST', 'SQUAD SUPPORT': 'SUPPORT' };
+const SEC_TAG = { LOADOUT: 'SLOT', ORBITALS: 'ORBITAL', 'SHIP GUN': 'GUN', 'UAV SCAN': 'UAV', 'SEAF TROOPS': 'SEAF', 'SEAF SPECIALISTS': 'SPECIALIST', 'SQUAD SUPPORT': 'SUPPORT' };
 const pips = (lv, max) => { let s = ''; for (let i = 0; i < max; i++) s += i < lv ? '●' : '○'; return s; };
 
 // One line of numbers under an item's name.

@@ -2,7 +2,8 @@
 // Enemy damage depends on size and faction (CONFIG.combat.atk): light enemies nibble, mediums hurt, heavies are special.
 import { CONFIG as C } from '../config.js';
 import { ALLY, COMMS } from '../data/data.js';
-import { fireShot, hurtTarget, nearestTarget, inZoneKind } from './combat.js';
+import { fireShot, hurtTarget, hurtAlly, nearestTarget, inZoneKind, pickClear } from './combat.js';
+import { steer } from './terrain.js';
 import { softNear, baseNear } from './pois.js';
 import { bark } from './chatter.js';
 
@@ -19,7 +20,9 @@ export function alertGroup(m, g) {
   const A = C.enemies.alert;
   if (g.state === 'hunt') { g.alertT = Math.max(g.alertT, A.loseSec); return; }
   g.state = 'hunt'; g.alertT = A.loseSec; g.garrison = false; g.targetT = 0; g.fuzzT = 0;
-  const r2 = A.callRadius * A.callRadius;
+  // Bugs swarm: when one pack finds the squad every pack within earshot comes with it.
+  const callR = m.faction.id === 'bugs' ? C.enemies.tactics.swarm.callRadius : A.callRadius;
+  const r2 = callR * callR;
   for (const o of m.groups) {
     if (o === g || o.state === 'hunt') continue;
     const dx = o.cx - g.cx, dy = o.cy - g.cy;
@@ -51,18 +54,30 @@ export function updateAllies(m, dt) {
     const mechOn = a.mech && a.mech.hp > 0 && (a.mech.gat > 0 || a.mech.rkt > 0);
     const H = a.type === 'H';
 
-    // Rifle: a burst every half second or so at the nearest enemy in range. Support weapons and the exosuit replace it.
+    // Rifle (the Liberator for a Helldiver): a burst every half second or so at the nearest enemy in range that has a clear lane;
+    // a friendly in the way means the trigger is held (and now and then it is not, and the friendly pays for it). The exosuit
+    // replaces it; a Helldiver with a support weapon keeps it, but fires it less often.
     // Helldivers hold fire while the squad is setting up on an enemy that has not noticed them.
-    if (!a.sw && !mechOn) {
+    if (!mechOn) {
       a.atk -= dt;
       if (a.atk <= 0) {
         const range = H ? C.squad.engageRange : C.squad.engageRange - 4;
-        const e = m.eGrid.nearest(a.x, a.y, range);
+        const pick = pickClear(m, a, range, null);
+        const e = pick && pick.e;
         if (e && (!H || sq.free || e.g.state === 'hunt')) {
-          const pf = RIFLE[a.type];
-          a.atk += pf.burst;
-          const prof = a.dmgMul && a.dmgMul !== 1 ? { ...pf, dmg: pf.dmg * a.dmgMul } : pf;
-          fireShot(m, a, e, prof, 'squad', 'a', H ? 'rifle' : 'smg');
+          const pf = RIFLE[a.type], slow = a.sw ? 1.8 : 1;
+          if (pick.block && m.rng.next() >= C.hd.fire.collateral) {
+            a.atk += 0.3;                           // a friendly is in the way: hold, look again in a moment
+          } else {
+            a.atk += pf.burst * slow;
+            const prof = a.dmgMul && a.dmgMul !== 1 ? { ...pf, dmg: pf.dmg * a.dmgMul } : pf;
+            fireShot(m, a, e, prof, 'squad', 'a', H ? 'rifle' : 'smg');
+            // taking the shot anyway: some collateral is expected
+            if (pick.block) {
+              m.stats.collateral = (m.stats.collateral || 0) + 1;
+              hurtAlly(m, pick.block, prof.dmg * C.hd.fire.ffMul, 'squad', false, 'friendly');
+            }
+          }
         } else {
           // No enemy: shoot a point of interest or a breach that is close.
           const soft = !e && softNear(m, a.x, a.y, 30);
@@ -115,7 +130,10 @@ export function updateAllies(m, dt) {
   }
 }
 
+// Ground movement goes round deep water: NAV is the mission's terrain for this tick, and steer() picks the point to walk to.
+let NAV = null, NAVT = 0;
 function moveToward(o, tx, ty, speed, dt, size) {
+  if (NAV) { const w = steer(NAV, o, o.x, o.y, tx, ty, NAVT); tx = w.x; ty = w.y; }
   const dx = tx - o.x, dy = ty - o.y, d = Math.hypot(dx, dy);
   if (d <= 0.4) { o.vx = 0; o.vy = 0; return; }
   const s = Math.min(speed * dt, d);
@@ -153,10 +171,101 @@ function squidHeavy(m, e, p, t) {
   if (tgt) e.ch = { t0: t, dur: p.charge, tgt, tx: tgt.x, ty: tgt.y };
 }
 
+// ---------------------------------------------------------------- how each faction fights
+const TAU = Math.PI * 2;
+const wrap = (a) => { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TAU; return a; };
+
+// Bugs: a swarm. Every bug picks the closest ally it can sense and runs at it from its own angle, weaving as it goes, and a pack
+// that is still big enough (CONFIG.enemies.tactics.swarm.rushN) moves faster. Far from anyone they follow the pack.
+function swarmMove(m, g, e, tgt, dt, size, sightE) {
+  const S = C.enemies.tactics.swarm, t = m.t;
+  if (e.kind === 'H') {   // the charger sprints at whatever is nearest
+    if (tgt && Math.hypot(tgt.x - e.x, tgt.y - e.y) < 180) moveToward(e, tgt.x, tgt.y, e.speed, dt, size);
+    else moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size);
+    return;
+  }
+  if (e.tgt) { e.vx = 0; e.vy = 0; return; }   // in biting range
+  e.ptT -= dt;
+  if (e.ptT <= 0) { e.ptT = 0.25 + m.rng.next() * 0.15; e.pt = nearestTarget(m, e.x, e.y, sightE * 1.6); }
+  const p = e.pt && !e.pt.dead ? e.pt : null;
+  if (!p) { moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size); return; }
+  const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1;
+  // each bug keeps its own side of the approach (a wide arc either way of the pack's bearing) until it is almost on top of the target,
+  // so the pack spreads into a wide front and wraps round the squad instead of arriving as one column
+  const bear = Math.atan2(g.cy - p.y, g.cx - p.x) + wrap(e.ang) * (S.arc / Math.PI), off = Math.min(S.reach, d * S.fan);
+  const w = Math.sin(t * 3.1 + e.id) * S.weave * Math.min(1, d / 30);
+  const rush = g.members.length >= S.rushN ? S.rushMul : 1;
+  moveToward(e, p.x + Math.cos(bear) * off - (dy / d) * w, p.y + Math.sin(bear) * off + (dx / d) * w, e.speed * 1.2 * rush, dt, size);
+}
+
+// Bots: a firing line. The pack advances abreast, perpendicular to the way it faces; close in, every bot walks to its own spot on
+// a line across the approach, a standoff short of its weapon range (the tank hangs back behind the others), and stands there firing.
+function arrangeLine(g, L) {
+  const lights = g.members.filter((q) => !q.dead && q.kind !== 'H'), n = lights.length, nx = -g.uy, ny = g.ux;
+  g.members.forEach((q) => {
+    if (q.dead) return;
+    const i = q.kind === 'H' ? 0 : lights.indexOf(q), lane = q.kind === 'H' ? 0 : (i - (n - 1) / 2) * L.spacing;
+    q.lane = lane;
+    const back = q.kind === 'H' ? L.tankBack : q.kind === 'M' ? L.rank * 0.5 : 0;
+    q.ox = nx * lane - g.ux * back; q.oy = ny * lane - g.uy * back;
+  });
+}
+function lineMove(m, g, e, tgt, dt, size, atk) {
+  const L = C.enemies.tactics.line;
+  if (e.tgt) { e.vx = 0; e.vy = 0; return; }   // something is in range: stand and shoot
+  if (!tgt) { moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size); return; }
+  const range = atk[e.kind].range, d = Math.hypot(tgt.x - e.x, tgt.y - e.y);
+  if (d > L.arm + range) { moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size); return; }
+  const stand = range * L.standoff + (e.kind === 'H' ? L.tankBack : 0), nx = -g.uy, ny = g.ux;
+  moveToward(e, tgt.x - g.ux * stand + nx * (e.lane || 0), tgt.y - g.uy * stand + ny * (e.lane || 0), e.speed * 1.3, dt, size);
+}
+
+// Squids: encirclement. Everything hunting one target spreads evenly round it (assignRings, twice a second); each one walks the
+// ring toward its own slot while it closes to its firing distance, shooting as it goes, and stops once it is in place.
+function assignRings(m) {
+  const byT = new Map();
+  for (const g of m.groups) {
+    if (g.state !== 'hunt' || !g.target || g.target.dead) continue;
+    let l = byT.get(g.target);
+    if (!l) byT.set(g.target, (l = []));
+    for (const e of g.members) if (!e.dead && e.kind !== 'H') l.push(e);
+  }
+  for (const [tg, l] of byT) {
+    if (!l.length) continue;
+    for (const e of l) e.ra = Math.atan2(e.y - tg.y, e.x - tg.x);
+    l.sort((a, b) => a.ra - b.ra);
+    const base = l[0].ra;
+    l.forEach((e, i) => { e.slot = base + (i / l.length) * TAU; });
+  }
+}
+function ringMove(m, g, e, tgt, dt, size, atk, engaged) {
+  const R = C.enemies.tactics.ring;
+  if (!tgt || e.kind === 'H') {
+    if (e.tgt) { e.vx = 0; e.vy = 0; return; }
+    if (e.kind === 'H' && engaged && tgt) { moveToward(e, tgt.x, tgt.y, e.speed, dt, size); return; }
+    moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size);
+    return;
+  }
+  const range = atk[e.kind].range, Rr = range * R.radius, d = Math.hypot(tgt.x - e.x, tgt.y - e.y);
+  if (d > R.arm + Rr) {   // still on the way in: move with the pack
+    if (e.tgt) { e.vx = 0; e.vy = 0; return; }
+    moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size);
+    return;
+  }
+  const cur = Math.atan2(e.y - tgt.y, e.x - tgt.x), diff = e.slot === undefined ? 0 : wrap(e.slot - cur);
+  const inPlace = Math.abs(diff) < 0.3 && Math.abs(d - Rr) < R.slack;
+  if (inPlace) { e.vx = 0; e.vy = 0; return; }   // in position: stand and shoot (the attack step does the rest)
+  const sp = e.speed * 1.4, step = Math.min(Math.abs(diff), Math.max(2.5, sp * 0.35) / Math.max(8, Rr));   // aim a few metres ahead along the ring
+  const ang = cur + Math.sign(diff) * step;
+  moveToward(e, tgt.x + Math.cos(ang) * Rr, tgt.y + Math.sin(ang) * Rr, sp, dt, size);
+}
+
 export function updateEnemies(m, dt) {
-  const fac = m.faction, rng = m.rng, size = C.world.size, A = C.enemies.alert, t = m.t;
+  const fac = m.faction, rng = m.rng, size = C.world.size, A = C.enemies.alert, t = m.t, T = C.enemies.tactics;
   const sightE = fac.sight * m.biome.ping;
+  NAV = m.terrain; NAVT = m.t;
   const atk = C.combat.atk[fac.id];
+  if (fac.id === 'squids') { m.ringT = (m.ringT || 0) - dt; if (m.ringT <= 0) { m.ringT = 0.5; assignRings(m); } }
   for (const g of m.groups) {
     let n = 0, minSpeed = Infinity;
     for (const e of g.members) {
@@ -171,7 +280,7 @@ export function updateEnemies(m, dt) {
       g.senseT = 0.25;
       for (const e of g.members) {
         if (e.dead) continue;
-        if (nearestTarget(m, e.x, e.y, sightE)) {
+        if (nearestTarget(m, e.x, e.y, sightE * m.terrain.sightMul(e.x, e.y))) {
           if (g.state === 'patrol') alertGroup(m, g); else g.alertT = Math.max(g.alertT, A.loseSec);
           break;
         }
@@ -184,10 +293,11 @@ export function updateEnemies(m, dt) {
       if (g.patrolT <= 0 || !g.pt) {
         const [ox, oy] = rng.inDisc(C.enemies.patrolRadius);
         g.pt = { x: g.home.x + ox, y: g.home.y + oy }; g.patrolT = rng.range(6, 10);
+        if (m.terrain.blocked(g.pt.x, g.pt.y)) g.pt = m.terrain.nearestLand(g.pt.x, g.pt.y);
       }
-      const o = { x: g.cx, y: g.cy };
+      const o = { x: g.cx, y: g.cy, nv: g.nv };
       moveToward(o, g.pt.x, g.pt.y, minSpeed * C.enemies.patrolSpeedMul, dt, size);
-      g.cx = o.x; g.cy = o.y;
+      g.cx = o.x; g.cy = o.y; g.nv = o.nv;
       for (const e of g.members) {
         if (e.dead) continue;
         e.tgt = null;
@@ -241,18 +351,23 @@ export function updateEnemies(m, dt) {
 
     const tgt = g.target && !g.target.dead ? g.target : null;
     if (!engaged && g.tp) {
-      const o = { x: g.cx, y: g.cy };
+      const o = { x: g.cx, y: g.cy, nv: g.nv };
       moveToward(o, g.tp.x, g.tp.y, minSpeed, dt, size);
-      g.cx = o.x; g.cy = o.y;
+      g.cx = o.x; g.cy = o.y; g.nv = o.nv;
+    }
+    // Which way the group is facing the target and how its members line up across it (used by the firing line).
+    if (tgt && g.faceT <= t) {
+      g.faceT = t + 0.5;
+      const dx = tgt.x - g.cx, dy = tgt.y - g.cy, d = Math.hypot(dx, dy) || 1;
+      g.ux = dx / d; g.uy = dy / d;
+      if (fac.id === 'bots') arrangeLine(g, T.line);
     }
     for (const e of g.members) {
       if (e.dead) continue;
       if (e.stunUntil > t || e.ch) { e.vx = 0; e.vy = 0; continue; }
-      if (e.tgt) { e.vx = 0; e.vy = 0; continue; }
-      const charger = e.kind === 'H' && fac.id === 'bugs';
-      if (charger && tgt && Math.hypot(tgt.x - e.x, tgt.y - e.y) < 180) moveToward(e, tgt.x, tgt.y, e.speed, dt, size); // runs straight at allies
-      else if (engaged && tgt) moveToward(e, tgt.x, tgt.y, e.speed, dt, size);
-      else moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size);
+      if (fac.id === 'bugs') { swarmMove(m, g, e, tgt, dt, size, sightE); continue; }
+      if (fac.id === 'bots') { lineMove(m, g, e, tgt, dt, size, atk); continue; }
+      ringMove(m, g, e, tgt, dt, size, atk, engaged);
     }
   }
 
@@ -277,11 +392,12 @@ export function updateEnemies(m, dt) {
       const melee = fac.id === 'bugs' && e.kind !== 'M';
       m.emit('tracer', { x: e.x, y: e.y, tx, ty, s: 'e', f: fac.id, k: e.kind, hit, melee, snd: fac.id + e.kind });
       if (!hit) continue;
+      const hi = m.terrain.attackMul(e.x, e.y, a.x, a.y);     // shooting down from a rise hits harder
       if (p.splash) {
-        m.aGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * m.dmgMul, 'enemy', e.kind));
-        m.tGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * m.dmgMul, 'enemy', e.kind));
+        m.aGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * m.dmgMul * hi, 'enemy', e.kind));
+        m.tGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * m.dmgMul * hi, 'enemy', e.kind));
         m.emit('boom', { x: tx, y: ty, r: p.splash, dmg: p.dmg, by: 'enemy' });
-      } else hurtTarget(m, a, p.dmg * m.dmgMul, 'enemy', e.kind);
+      } else hurtTarget(m, a, p.dmg * m.dmgMul * hi, 'enemy', e.kind);
     }
   }
 }

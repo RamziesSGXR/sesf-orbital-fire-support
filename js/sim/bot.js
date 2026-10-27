@@ -10,9 +10,9 @@ export function makeBot(skill = {}) {
 }
 
 // What the bot buys, in order. It saves for the first available item rather than spending on the cheap ones.
-const PLAN = ['slot:4', 'own:orb_airburst', 'up:orb_120', 'uav', 'gun.ammo', 'up:orb_gatling', 'sup.lives', 'seaf.medic', 'own:orb_walk', 'seaf.hp', 'gun.dmg', 'up:orb_airburst',
+const PLAN = ['slot:4', 'up:orb_120', 'uav', 'gun.ammo', 'up:orb_airburst', 'sup.lives', 'seaf.medic', 'own:orb_walk', 'seaf.hp', 'gun.dmg', 'up:orb_airburst',
   'seaf.drop', 'seaf.spot', 'gun.regen', 'up:orb_precision', 'slot:5', 'own:orb_380', 'up:orb_120', 'sup.zone', 'uav', 'up:orb_walk', 'seaf.rocket', 'up:orb_380', 'seaf.gren',
-  'seaf.cap', 'gun.spread', 'own:orb_napalm', 'up:orb_gatling', 'sup.lives', 'own:orb_rail', 'up:orb_airburst', 'uav', 'up:orb_walk', 'up:orb_380', 'seaf.hp',
+  'seaf.cap', 'gun.spread', 'own:orb_napalm', 'up:orb_airburst', 'sup.lives', 'own:orb_rail', 'up:orb_airburst', 'uav', 'up:orb_walk', 'up:orb_380', 'seaf.hp',
   'up:orb_precision', 'own:orb_laser', 'sup.zone', 'up:orb_napalm', 'up:orb_rail', 'seaf.drop', 'sup.lives', 'up:orb_120'];
 
 // Spend the wallet between missions. Returns the list of what was bought.
@@ -30,11 +30,11 @@ export function botShop(kit, wallet) {
     const r = buy(kit, wallet, pick.id, false);
     if (!r.ok) break;
     bought.push(pick.id);
-    // A new orbital with no free slot replaces the Gatling (the weakest), so the purchase is actually used.
+    // A new orbital with no free slot replaces the Airburst (the weakest), so the purchase is actually used.
     if (pick.id.startsWith('own:')) {
       const id = pick.id.slice(4), ld = kit.loadout;
       if (!ld.slice(0, kit.slots).includes(id)) {
-        let i = ld.slice(0, kit.slots).indexOf('orb_gatling');
+        let i = ld.slice(0, kit.slots).indexOf('orb_airburst');
         if (i < 0) i = 0;
         ld[i] = id;
       }
@@ -86,8 +86,8 @@ function assaultResponse(m, bot) {
   if (!bot.splitDone && m.seafAlive.length >= 6 && !as) { bot.splitDone = true; m.selectSquad(0); m.splitSeaf(); m.selectSquad(-1); }
 }
 
-// The ship gatling: free fire on whatever is close to the squad while no orbital is ready.
-function gatlingStep(m, bot) {
+// The ship gun: free fire on whatever is close to the squad while no orbital is ready.
+function gunStep(m, bot) {
   const p = m.player, t = m.t, g = p.gun;
   if (!g) return false;
   let best = null, bn = 0;
@@ -176,7 +176,7 @@ export function botStep(m, bot) {
     if (best && p.slots[p.weapon].type === 'orb') m.setAim(best.x, best.y);
   }
 
-  const gunning = gatlingStep(m, bot);
+  const gunning = gunStep(m, bot);
   if (t < bot.next) return;
   bot.next = t + bot.react;
   if (!m.alive.length) return;

@@ -17,15 +17,18 @@ export function spawnGroup(m, x, y, state = 'patrol', opts = {}) {
   const g = {
     id: m.nextId++, cx: x, cy: y, state, members: [], target: null, targetT: 0, tp: null, fuzzT: 0,
     alertT: opts.alertT ?? (state === 'hunt' ? C.enemies.alert.loseSec : 0), senseT: rng.next() * 0.25,
-    home: { x, y }, pt: null, patrolT: 0, base: opts.base || null, garrison: !!opts.base, engaged: false,
+    home: { x, y }, pt: null, patrolT: 0, base: opts.base || null, garrison: !!opts.base, engaged: false, faceT: 0, ux: 1, uy: 0,
   };
-  for (let i = 0; i < C.enemies.groupSize; i++) {
+  for (let i = 0; i < m.groupSize; i++) {
     const kind = m.drawToken(), st = SUBTYPES[kind];
     const [ox, oy] = rng.inDisc(fac.spread);
+    let px = Math.max(0, Math.min(SIZE, x + ox)), py = Math.max(0, Math.min(SIZE, y + oy));
+    if (m.terrain.blocked(px, py)) { const l = m.terrain.nearestLand(px, py); px = l.x; py = l.y; }   // never in deep water
     const e = {
-      id: m.nextId++, kind, hp: Math.round(st.hp * m.hpMul), maxHp: Math.round(st.hp * m.hpMul), x: Math.max(0, Math.min(SIZE, x + ox)), y: Math.max(0, Math.min(SIZE, y + oy)),
+      id: m.nextId++, kind, hp: Math.round(st.hp * m.hpMul), maxHp: Math.round(st.hp * m.hpMul), x: px, y: py,
       ox, oy, vx: 0, vy: 0, g, lasedUntil: 0, lasedBy: null, vis: 0, atk: rng.next(), tgt: null, dead: false,
       speed: st.speed * fac.speed * m.biome.speed, r: st.r, hurtAt: -9, stunUntil: 0, ch: null,
+      ang: rng.angle(), lane: 0, slot: undefined, ra: 0, pt: null, ptT: rng.next() * 0.25,
     };
     // Heavies have their own pace: the charger sprints, the tank rolls, the harvester stalks.
     if (kind === 'H') e.speed = attackProfile(fac.id, 'H').speed * m.biome.speed;
@@ -36,34 +39,62 @@ export function spawnGroup(m, x, y, state = 'patrol', opts = {}) {
   return g;
 }
 
+// True when no one can see a group arriving at (x, y): the group's whole spread (its members stand up to `spread` metres from its
+// centre) has to be outside every ally's vision (what the player sees too) and outside every UAV circle.
+export function unseenSpot(m, x, y, spread, pad = 4) {
+  if (!m.terrain.isLand(x, y)) return false;   // nothing appears in the water
+  for (const b of m.alive) {
+    const r = b.vision + spread + pad;
+    if ((b.x - x) ** 2 + (b.y - y) ** 2 < r * r) return false;
+  }
+  for (const u of m.uavs) if ((u.x - x) ** 2 + (u.y - y) ** 2 < (u.r + spread + pad) ** 2) return false;
+  return true;
+}
+
+// A spot near (x, y), between rmin and rmax metres from it, that nobody can see; the search widens outward when the place itself is
+// in view. Groups for a base, a point of interest or the VIP appear here and then walk in, instead of popping up in front of the squad.
+export function hiddenSpot(m, x, y, rmin, rmax, spread = m.faction.spread) {
+  const rng = m.rng;
+  for (let i = 0; i < 40; i++) {
+    const d = i < 12 ? rng.range(rmin, rmax) : rmax + ((i - 11) / 28) * 220 * rng.next();
+    const a = rng.angle();
+    const px = Math.max(30, Math.min(SIZE - 30, x + Math.cos(a) * d)), py = Math.max(30, Math.min(SIZE - 30, y + Math.sin(a) * d));
+    if (unseenSpot(m, px, py, spread)) return { x: px, y: py };
+  }
+  return null;
+}
+
+// A group that belongs to a place: out of sight, then it makes its way to the place and holds it. null when every spot is in view.
+export function spawnNear(m, x, y, rmin, rmax, state = 'patrol', opts = {}) {
+  const sp = hiddenSpot(m, x, y, rmin, rmax);
+  if (!sp) return null;
+  const g = spawnGroup(m, sp.x, sp.y, state, opts);
+  g.home = { x, y }; g.garrison = true;      // a garrison holds its place (it is not cleaned up for being far away) until it is alerted
+  return g;
+}
+
 // A point just outside what the squad (and the player) can see, mostly in the direction the Helldivers are heading.
-export function pickSpawn(m) {
-  const rng = m.rng, al = m.alive, hds = m.hdAlive;
+export function pickSpawn(m, extra = 0) {
+  const rng = m.rng, al = m.alive, hds = m.hdAlive, sp = Math.max(m.faction.spread, extra);
   if (!al.length) return null;
-  for (let tries = 0; tries < 14; tries++) {
+  for (let tries = 0; tries < 18; tries++) {
     const a = hds.length && rng.next() < 0.75 ? hds[rng.int(hds.length)] : al[rng.int(al.length)];
     const ahead = a.type === 'H' && rng.next() < 0.65;
     const dir = ahead ? m.squad.dir + rng.range(-1, 1) : rng.angle();
-    const d = a.sight + rng.range(C.sight.spawnMin, C.sight.spawnMax);
+    const d = a.vision + sp + rng.range(C.sight.spawnMin, C.sight.spawnMax);
     const x = a.x + Math.cos(dir) * d, y = a.y + Math.sin(dir) * d;
     if (x < 30 || y < 30 || x > SIZE - 30 || y > SIZE - 30) continue;
-    let ok = true;
-    for (const b of al) {
-      const r = b.vision + 4;
-      if ((b.x - x) ** 2 + (b.y - y) ** 2 < r * r) { ok = false; break; }
-    }
-    if (ok) for (const u of m.uavs) if ((u.x - x) ** 2 + (u.y - y) ** 2 < (u.r + 4) ** 2) { ok = false; break; }
-    if (ok) return { x, y };
+    if (unseenSpot(m, x, y, sp)) return { x, y };
   }
   return null;
 }
 
 // The first groups, placed around the landing zone before anyone has landed.
 export function startGroups(m) {
-  const rng = m.rng, sight = C.sight.helldiver * m.biome.ping;
+  const rng = m.rng, vision = (C.sight.helldiver + C.sight.playerBonus) * m.biome.ping;
   for (let i = 0; i < C.enemies.startGroups; i++) {
     const ang = (i / C.enemies.startGroups) * Math.PI * 2 + rng.range(-0.4, 0.4);
-    const d = sight + rng.range(C.sight.spawnMin, C.sight.spawnMax);
+    const d = vision + m.faction.spread + rng.range(C.sight.spawnMin, C.sight.spawnMax) + 10;
     const x = Math.max(40, Math.min(SIZE - 40, m.lz.x + Math.cos(ang) * d)), y = Math.max(40, Math.min(SIZE - 40, m.lz.y + Math.sin(ang) * d));
     spawnGroup(m, x, y, 'patrol');
   }
@@ -87,7 +118,9 @@ function garrisonCount(m, b) { let n = 0; for (const e of m.enemies) if (!e.dead
 // to scan, set a SEAF line and ready strikes. Breaking it pays credits.
 function assaultSize(m) {
   const A = C.assault;
-  return Math.max(2, Math.min(A.maxGroups, Math.round(A.groups + m.S * A.perSessionMin + m.assault.n * 0.5)));
+  // counted in groups of the standard five, so a force of bugs (big groups) is no bigger than a force of bots or squids
+  const groups = (A.groups + m.S * A.perSessionMin + m.assault.n * 0.5) * (C.enemies.groupSize / m.groupSize);
+  return Math.max(2, Math.min(A.maxGroups, Math.round(groups)));
 }
 
 function pickAssaultPoint(m) {
@@ -101,9 +134,8 @@ function pickAssaultPoint(m) {
     const d = sight + A.ahead + rng.range(-20, 40);
     const x = cx + Math.cos(dir) * d, y = cy + Math.sin(dir) * d;
     if (x < 80 || y < 80 || x > SIZE - 80 || y > SIZE - 80) continue;
-    let ok = true;
-    for (const b of m.alive) { const r = b.vision + 8; if ((b.x - x) ** 2 + (b.y - y) ** 2 < r * r) { ok = false; break; } }
-    if (ok) return { x, y, dir };
+    // The whole line of groups, not just its middle, has to start where nobody can see it.
+    if (unseenSpot(m, x, y, A.spacing * (assaultSize(m) - 1) / 2 + m.faction.spread, 8)) return { x, y, dir };
   }
   return null;
 }
@@ -120,7 +152,7 @@ function updateAssault(m, dt) {
   const cur = st.cur;
   if (!cur) {
     if (m.phase === 'extract' || t < st.nextAt) return;
-    if (m.enemies.length > C.enemies.hardCap - assaultSize(m) * C.enemies.groupSize) { st.nextAt = t + 10; return; }
+    if (m.enemies.length > C.enemies.hardCap - assaultSize(m) * m.groupSize) { st.nextAt = t + 10; return; }
     const p = pickAssaultPoint(m);
     if (!p) { st.nextAt = t + 6; return; }
     const n = assaultSize(m), dirName = compass(p.x - m.hx, p.y - m.hy);
@@ -149,7 +181,7 @@ function updateAssault(m, dt) {
   }
   // It is broken when nearly all of it is gone. A force that has been left alone for a long time stops counting.
   const left = assaultAlive(cur);
-  const broken = left <= Math.max(A.minLeft, cur.n * C.enemies.groupSize * 0.12);
+  const broken = left <= Math.max(A.minLeft, cur.n * m.groupSize * 0.12);
   if (broken || t > cur.at + A.giveUpSec) {
     if (broken && cur.hit) {
       m.stats.assaults++; m.sc.assaults += A.score;
@@ -191,7 +223,7 @@ export function updateDirector(m, dt) {
       const need = sp.near < floor && t - sp.lastSpawn >= C.enemies.spawn.minGapSec;
       if (sp.spawnT <= 0 || need) {
         const p = pickSpawn(m);
-        if (p) { spawnGroup(m, p.x, p.y, 'patrol'); sp.lastSpawn = t; sp.spawnT = C.enemies.spawn.sec / m.pressure; sp.near += C.enemies.groupSize; }
+        if (p) { spawnGroup(m, p.x, p.y, 'patrol'); sp.lastSpawn = t; sp.spawnT = C.enemies.spawn.sec / m.pressure; sp.near += m.groupSize; }
         else sp.spawnT = 1;
       }
     }
@@ -205,16 +237,13 @@ export function updateDirector(m, dt) {
       if (!near) continue;
       const cfg = b.fortress ? C.fortress : C.bases;
       if (!b.garrisoned) {
-        b.garrisoned = true; b.nextSpawn = t + cfg.spawnSec / m.pressure;
-        for (let i = 0; i < cfg.garrisonGroups; i++) {
-          if (m.enemies.length < C.enemies.hardCap) spawnGroup(m, b.x + rng.range(-10, 10), b.y + rng.range(-10, 10), 'patrol', { base: b });
-        }
+        b.garrisoned = true; b.nextSpawn = t + cfg.spawnSec / m.pressure; b.owed = cfg.garrisonGroups;
       } else if (t >= b.nextSpawn) {
         b.nextSpawn = t + cfg.spawnSec / m.pressure;
-        if (m.enemies.length < C.enemies.liveCap && garrisonCount(m, b) < cfg.garrisonCap) {
-          spawnGroup(m, b.x + rng.range(-10, 10), b.y + rng.range(-10, 10), 'patrol', { base: b });
-        }
+        if (m.enemies.length < C.enemies.liveCap && garrisonCount(m, b) + (b.owed || 0) * m.groupSize < cfg.garrisonCap) b.owed = (b.owed || 0) + 1;
       }
+      // groups owed to the base come out of sight and walk in (one a tick at most; a spot that is in view waits)
+      if (b.owed > 0 && m.enemies.length < C.enemies.hardCap && spawnNear(m, b.x, b.y, 0, 14, 'patrol', { base: b })) b.owed--;
     }
   }
 
@@ -256,7 +285,7 @@ export function updateDirector(m, dt) {
         for (let k = 0; k < 20; k++) {
           const ang = rng.angle(), d = rng.range(C.extract.waveMin, C.extract.waveMax);
           x = ex.x + Math.cos(ang) * d; y = ex.y + Math.sin(ang) * d;
-          if (x > 40 && x < SIZE - 40 && y > 40 && y < SIZE - 40) break;
+          if (x > 40 && x < SIZE - 40 && y > 40 && y < SIZE - 40 && m.terrain.isLand(x, y)) break;
         }
         x = Math.max(40, Math.min(SIZE - 40, x)); y = Math.max(40, Math.min(SIZE - 40, y));
         spawnGroup(m, x, y, 'hunt', { alertT: 90 });

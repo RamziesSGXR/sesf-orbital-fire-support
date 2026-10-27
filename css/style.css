@@ -286,7 +286,7 @@ body.lefty #orders { left: auto; right: 10px; } body.lefty #radio { left: 10px; 
 .btn.buy:disabled:not(.poor) small { display: none; }
 .it-btns .btn { touch-action: manipulation; }
 /* armory colours: one per kind of upgrade, plus a tag on every item so colour is never the only cue */
-.sec-loadout { --sec: #ffe600; } .sec-orbitals { --sec: #ff7a3d; } .sec-ship-gatling { --sec: #ffc247; } .sec-uav-scan { --sec: #6dffa0; }
+.sec-loadout { --sec: #ffe600; } .sec-orbitals { --sec: #ff7a3d; } .sec-ship-gun { --sec: #ffc247; } .sec-uav-scan { --sec: #6dffa0; }
 .sec-seaf-troops { --sec: #4db3ff; } .sec-seaf-specialists { --sec: #c58bff; } .sec-squad-support { --sec: #3fe0c4; }
 .shop-h[class*="sec-"] { display: flex; align-items: center; gap: 8px; color: var(--sec); letter-spacing: 0.24em; border-bottom: 1px solid color-mix(in srgb, var(--sec) 35%, transparent); padding-bottom: 4px; }
 .shop-h .dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: var(--sec); box-shadow: 0 0 8px color-mix(in srgb, var(--sec) 70%, transparent); }

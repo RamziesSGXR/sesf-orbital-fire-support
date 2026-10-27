@@ -17,6 +17,9 @@ import { initStrat, updateStrat, destroyAsset, mechDown } from './strat.js';
 import { setupObjectives, updateObjectives, completeObjective } from './objectives.js';
 import { setupPois, updatePois, damagePoi, damageBreach } from './pois.js';
 import { updateChatter } from './chatter.js';
+import { initKit, updateHelldivers } from './helldiver.js';
+import { buildDanger, updateEvade } from './safety.js';
+import { getTerrain } from './terrain.js';
 
 const SIZE = C.world.size;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -29,7 +32,7 @@ const KIND_NAME = {
   squids: { L: 'DRONE', M: 'WARRIOR', H: 'HARVESTER' },
 };
 
-function placePoints(rng, n, minSpacing, avoids, margin) {
+function placePoints(rng, n, minSpacing, avoids, margin, ok) {
   const pts = [];
   let spacing = minSpacing;
   for (let i = 0; i < n; i++) {
@@ -37,6 +40,7 @@ function placePoints(rng, n, minSpacing, avoids, margin) {
     for (let tries = 1; tries <= 900 && !placed; tries++) {
       if (tries % 150 === 0) spacing *= 0.88; // relax if the map is crowded
       const x = rng.range(margin, SIZE - margin), y = rng.range(margin, SIZE - margin);
+      if (ok && !ok(x, y)) continue;
       if (avoids.every((a) => Math.hypot(x - a.x, y - a.y) >= a.r) &&
           pts.every((p) => Math.hypot(x - p.x, y - p.y) >= spacing)) {
         pts.push({ x, y }); placed = true;
@@ -53,7 +57,9 @@ export class Mission {
     this.rng = new RNG(this.seed);
     this.crng = new RNG((this.seed ^ 0x5bd1e995) >>> 0);   // cosmetic randomness (names, chatter), never touches the sim
     this.faction = FACTIONS[opts.faction];
+    this.groupSize = C.enemies.group[opts.faction] || C.enemies.groupSize;
     this.biome = BIOMES[opts.biome];
+    this.terrain = getTerrain(opts.biome, this.seed);   // the ground: height, water depth, soft going (see terrain.js)
     this.S = opts.sessionMinutes || 0; // session minutes played before this mission
     this.emitOn = opts.events !== false;
     this.events = [];
@@ -95,6 +101,7 @@ export class Mission {
     this.dmgMul = Math.min(C.ramp.dmgCap, 1 + C.ramp.dmg * this.S);
     this.bag = [];
     this.hd = { lives: maxLives(this.kit), max: maxLives(this.kit) };
+    this.recallAt = null;   // when the next free recall arrives, while the squad is under strength with no lives left
     this.wiped = false;
     this.seaf = initSeaf();
     this.support = { enemyReadyAt: 0, spawnT: 0, lastSpawn: -99, scanT: 0, near: 0 };
@@ -110,15 +117,23 @@ export class Mission {
   _setup(opts) {
     const rng = this.rng;
     // Landing zone near a random map edge.
-    const side = rng.int(4), along = rng.range(300, SIZE - 300), inset = 140;
-    this.lz = side === 0 ? { x: along, y: inset } : side === 1 ? { x: SIZE - inset, y: along }
-      : side === 2 ? { x: along, y: SIZE - inset } : { x: inset, y: along };
+    const tr = this.terrain, land = (x, y) => tr.isLand(x, y);
+    let lz = null, lastTry = null;
+    for (let k = 0; k < 80 && !lz; k++) {
+      const side = rng.int(4), along = rng.range(300, SIZE - 300), inset = 140;
+      const c = side === 0 ? { x: along, y: inset } : side === 1 ? { x: SIZE - inset, y: along }
+        : side === 2 ? { x: along, y: SIZE - inset } : { x: inset, y: along };
+      lastTry = c;
+      // the landing zone is on dry, firm mainland, with room round it
+      if (land(c.x, c.y) && tr.speedAt(c.x, c.y) === 1 && land(c.x + 30, c.y) && land(c.x - 30, c.y) && land(c.x, c.y + 30) && land(c.x, c.y - 30)) lz = c;
+    }
+    this.lz = lz || tr.nearestLand(lastTry.x, lastTry.y);
     this.cx = this.hx = this.lz.x; this.cy = this.hy = this.lz.y;
 
     // Bases: 3 + floor(S / 4) up to 20, fixed for the whole mission. All of them are visible from orbit.
     const nBases = Math.min(C.bases.max, C.bases.min + Math.floor(this.S / C.bases.minutesPerExtra));
     const lzAvoid = { x: this.lz.x, y: this.lz.y, r: C.bases.lzClearance };
-    this.bases = placePoints(rng, nBases, C.bases.spacing, [lzAvoid], 100).map((p) => ({
+    this.bases = placePoints(rng, nBases, C.bases.spacing, [lzAvoid], 100, land).map((p) => ({
       id: this.nextId++, x: p.x, y: p.y, hp: C.bases.hp, maxHp: C.bases.hp, destroyed: false, r: C.bases.radius,
       garrisoned: false, nextSpawn: 0, lastHit: -99,
     }));
@@ -130,7 +145,7 @@ export class Mission {
 
     // Hidden extraction point.
     const exAvoid = [{ x: this.lz.x, y: this.lz.y, r: C.extract.minFromLz }, ...this.bases.map((b) => ({ x: b.x, y: b.y, r: C.extract.minFromBase }))];
-    const ex = placePoints(rng, 1, 0, exAvoid, 100)[0];
+    const ex = placePoints(rng, 1, 0, exAvoid, 100, land)[0];
     this.extraction = { x: ex.x, y: ex.y, revealed: false, holdT: 0, nextWave: Infinity };
 
     // Points of interest SEAF can take out for credits.
@@ -324,8 +339,10 @@ export class Mission {
   addAlly(type, x, y, o = {}) {
     const rng = this.rng, [ox, oy] = rng.inDisc(C.squad.clusterRadius), [jx, jy] = rng.inDisc(6), [fx, fy] = rng.inDisc(C.seaf.followSpread);
     const base = ALLY[type];
+    let ax = x + jx, ay = y + jy;
+    if (this.terrain.blocked(ax, ay)) { const l = this.terrain.nearestLand(ax, ay); ax = l.x; ay = l.y; }   // never lands in deep water
     const a = {
-      id: this.nextId++, type, x: x + jx, y: y + jy, ox, oy, fx, fy, hp: base.hp, maxHp: base.hp, dead: false, atk: rng.next(),
+      id: this.nextId++, type, x: ax, y: ay, ox, oy, fx, fy, hp: base.hp, maxHp: base.hp, dead: false, atk: rng.next(),
       r: base.r, sight: 0, vision: 0, zone: 0, home: { x, y }, wx: x, wy: y, wT: 0,
       hurtAt: -9, mounted: null, sw: null, mech: null,
       team: -1, sq: -1, code: '', name: '', role: o.role || 'rifle', spT: 2 + rng.next() * 3, engaged: false,
@@ -338,12 +355,14 @@ export class Mission {
       const tm = this.teams[ti];
       tm.n++; tm.hd = a; tm.pod = false;
       a.team = ti; a.code = `${tm.letter}${tm.n}`; a.name = this.names.hd[ti] || '';
+      initKit(this, a);
     } else {
       const st = seafStats(this.kit);
       a.hp = a.maxHp = Math.round(base.hp * st.hpMul); a.dmgMul = st.dmgMul;
       a.name = seafName(this.crng, a.role);
     }
-    a.sight = base.sight * this.biome.ping; a.vision = a.sight + C.sight.playerBonus;
+    a.sight0 = base.sight * this.biome.ping;   // flat-ground sight; a rise adds to it (see _refreshAlive)
+    a.sight = a.sight0 * this.terrain.sightMul(a.x, a.y); a.vision = a.sight + C.sight.playerBonus;
     a.zone = a.vision + C.sight.strikeBonus + zoneExtra(this.kit);
     this.allies.push(a);
     return a;
@@ -357,14 +376,22 @@ export class Mission {
       for (let i = 0; i < nh; i++) this.bag.push('H');
       this.rng.shuffle(this.bag);
     }
-    return this.bag.pop();
+    const k = this.bag.pop();
+    if (k === 'L') return k;
+    // Keep the field mostly light: past the cap for live mediums and heavies, the draw comes out light instead.
+    const cap = C.enemies.liveCap, max = k === 'M' ? Math.min(cap.maxM, cap.M + cap.perMinM * this.S) : Math.min(cap.maxH, cap.H + cap.perMinH * this.S);
+    let n = 0;
+    for (const e of this.enemies) if (!e.dead && e.kind === k) n++;
+    return n >= max ? 'L' : k;
   }
   _refreshAlive() {
     this.alive.length = 0; this.hdAlive.length = 0; this.seafAlive.length = 0;
     let sx = 0, sy = 0, hx = 0, hy = 0;
     const zx = C.sight.strikeBonus + zoneExtra(this.kit);
+    const tr = this.terrain;
     for (const a of this.allies) {
       if (a.dead) continue;
+      a.sight = a.sight0 * tr.sightMul(a.x, a.y); a.vision = a.sight + C.sight.playerBonus;   // high ground sees farther
       a.zone = a.vision + zx;
       this.alive.push(a); sx += a.x; sy += a.y;
       if (a.type === 'H') { this.hdAlive.push(a); hx += a.x; hy += a.y; } else this.seafAlive.push(a);
@@ -512,8 +539,23 @@ export class Mission {
     const s = tm.lastDeath || this.lz;
     return { x: clamp(s.x, 30, SIZE - 30), y: clamp(s.y, 30, SIZE - 30) };
   }
+  // With fewer than four Helldivers and no recalls left, one recall arrives after two minutes, so a squad that has been ground
+  // down still has a chance to come back.
+  _recall() {
+    const t = this.t, hd = this.hd, H = C.helldivers;
+    const strength = this.hdAlive.length + this.pendingPods('H');
+    if (hd.lives > 0 || strength >= H.max) { this.recallAt = null; return; }
+    if (this.recallAt === null) { this.recallAt = t + H.recallSec; return; }
+    if (t < this.recallAt) return;
+    this.recallAt = null; hd.lives++;
+    this.stats.recalls = (this.stats.recalls || 0) + 1;
+    this.notice('RECALL GRANTED  ONE HELLDIVER IS COMING BACK', 'good');
+    this.radio(COMMS.recall, 'recall', 0);
+    this.emit('recall', {});
+  }
   _reinforce() {
     if (this.over) return;
+    this._recall();
     const t = this.t, hd = this.hd, H = C.helldivers;
     if (!this.hdAlive.length) {
       if (!this.wiped && !this.pods.some((p) => p.type === 'H' && p.start)) {
@@ -576,18 +618,63 @@ export class Mission {
     };
   }
 
+  // ----- ground: speed and deep water -----
+  // Every mover (units, the squad's anchor, enemy group centres, SEAF route anchors) is stepped by the AI as if the ground were flat.
+  // _snap() remembers where each one stood at the start of the tick; _walk() then scales the step by the going (shallows, mud, snow,
+  // sand and dust slow everyone) and keeps everything out of deep water, sliding along the shore where it can.
+  _snap() {
+    for (const e of this.enemies) { e.px = e.x; e.py = e.y; }
+    for (const a of this.alive) { a.px = a.x; a.py = a.y; }
+    for (const g of this.groups) { g.pcx = g.cx; g.pcy = g.cy; }
+    const sq = this.squad; sq.pax = sq.ax; sq.pay = sq.ay;
+    for (const q of this.seaf.squads) { q.pax = q.ax; q.pay = q.ay; }
+  }
+  _walk() {
+    const tr = this.terrain, jump = this.t < this.buff.jumpUntil;
+    const go = (o, kx, ky, pkx, pky, soft) => {      // soft: how much of the slow going applies (0 = none, 1 = all of it)
+      const x0 = o[pkx], y0 = o[pky];
+      if (x0 === undefined) return;
+      const x1 = o[kx], y1 = o[ky], dx = x1 - x0, dy = y1 - y0, d2 = dx * dx + dy * dy;
+      if (tr.blocked(x0, y0)) {                      // somehow in deep water already: back to dry ground
+        const l = tr.nearestLand(x1, y1); o[kx] = l.x; o[ky] = l.y;
+        return;
+      }
+      if (d2 > 900) {                                // a landing or a leap: only make sure it does not end in deep water
+        if (tr.blocked(x1, y1)) { const l = tr.nearestLand(x1, y1); o[kx] = l.x; o[ky] = l.y; }
+        return;
+      }
+      if (d2 === 0 && !tr.blocked(x1, y1)) return;
+      const to = tr.slide(x0, y0, x1, y1);
+      const s0 = tr.speedAt(x0, y0), s1 = tr.speedAt(to.x, to.y);
+      let f = ((s0 || 1) + (s1 || 1)) * 0.5;
+      f = 1 - (1 - f) * soft;
+      o[kx] = x0 + (to.x - x0) * f; o[ky] = y0 + (to.y - y0) * f;
+      if (tr.blocked(o[kx], o[ky])) { o[kx] = x0; o[ky] = y0; }
+    };
+    for (const e of this.enemies) if (!e.dead) go(e, 'x', 'y', 'px', 'py', 1);
+    for (const a of this.alive) if (!a.mounted) go(a, 'x', 'y', 'px', 'py', a.type === 'H' && jump ? 0 : 1);
+    for (const g of this.groups) go(g, 'cx', 'cy', 'pcx', 'pcy', 1);
+    const sq = this.squad;
+    go(sq, 'ax', 'ay', 'pax', 'pay', jump ? 0 : sq.mounted ? 0.5 : 1);
+    for (const q of this.seaf.squads) go(q, 'ax', 'ay', 'pax', 'pay', 1);
+  }
+
   // ----- one fixed step -----
   step(dt) {
     if (this.over) return;
     this.t += dt;
+    this._snap();
     this._refreshAlive();
     this.eGrid.clear(); this.aGrid.clear(); this.tGrid.clear();
     for (const e of this.enemies) if (!e.dead) { this.eGrid.insert(e); e.vis = this.visLevel(e.x, e.y); }
     for (const a of this.alive) if (!a.mounted) this.aGrid.insert(a);
     for (const s of this.assets) if (!s.dead && s.kind !== 'mines') this.tGrid.insert(s);
 
+    buildDanger(this);
     updatePlayer(this, dt);
     updateSquad(this, dt);
+    updateHelldivers(this, dt);
+    updateEvade(this, dt);
     updateAllies(this, dt);
     updateEnemies(this, dt);
     updateStrat(this, dt);
@@ -596,6 +683,7 @@ export class Mission {
     updateDirector(this, dt);
     updateChatter(this, dt);
     this._reinforce();
+    this._walk();
 
     if (this.dirtyE) {
       this.enemies = this.enemies.filter((e) => !e.dead);
@@ -608,7 +696,9 @@ export class Mission {
     // The mission only ends by failure (or by being banked and extracted): the clock runs out, or the squad is gone for good.
     if (!this.over) {
       const hdAlive = this.allies.some((a) => !a.dead && a.type === 'H');
-      if (!hdAlive && this.pendingPods('H') === 0 && this.hd.lives <= 0) this.finish(this.objDone ? 'victory' : 'defeat');
+      // The squad is only finished when nobody is left to wait for the free recall: no Helldivers, no pods, no lives, no SEAF.
+      const anyone = this.allies.some((a) => !a.dead) || this.pendingPods('S') > 0;
+      if (!hdAlive && this.pendingPods('H') === 0 && this.hd.lives <= 0 && !anyone) this.finish(this.objDone ? 'victory' : 'defeat');
       else if (this.t >= this.limitSec) this.finish(this.objDone ? 'victory' : 'timeout');
     }
   }

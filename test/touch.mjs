@@ -53,7 +53,7 @@ await tap('#orders .ord[data-o=escort]'); await page.waitForTimeout(300);
 check('SEAF escort order', await page.evaluate(() => window.__game.mission.seaf.squads[0].order.kind) === 'escort');
 await tap('#orders .ord[data-o=auto]'); await page.waitForTimeout(300);
 check('SEAF auto order', await page.evaluate(() => window.__game.mission.seaf.squads[0].order.kind) === 'auto');
-// squads: pick S1, split, draw mode on and off, gatling slot
+// squads: pick S1, split, draw mode on and off, ship gun slot
 await tap('#squads .sqb[data-sq="0"]'); await page.waitForTimeout(200);
 check('squad 1 selected', await page.evaluate(() => window.__game.mission.seaf.sel) === 0);
 await tap('#squads .sqa[data-a=split]'); await page.waitForTimeout(300);
@@ -94,7 +94,7 @@ await tap('#dk-sq'); await page.waitForTimeout(250);
 await tap('#squads .sqb[data-sq="-1"]'); await page.waitForTimeout(200);
 await page.screenshot({ path: path.join(root, `test/shots/t4-${vp}-tray.png`) });
 await tap('#weapons .wbtn:nth-child(8)'); await page.waitForTimeout(200);
-check('gatling selected by tap', await page.evaluate(() => window.__game.mission.player.weapon) === 7);
+check('ship gun selected by tap', await page.evaluate(() => window.__game.mission.player.weapon) === 7);
 // pinch / drag the map by touch is exercised with synthetic touch events
 const v0 = await page.evaluate(() => window.__game.cam.view);
 await page.evaluate(() => { const c = document.getElementById('view'); const mk = (id, x, y) => new PointerEvent('pointerdown', { pointerId: id, pointerType: 'touch', clientX: x, clientY: y, bubbles: true }); c.dispatchEvent(mk(11, 150, 400)); c.dispatchEvent(mk(12, 250, 400)); const mv = (id, x, y) => new PointerEvent('pointermove', { pointerId: id, pointerType: 'touch', clientX: x, clientY: y, bubbles: true }); c.dispatchEvent(mv(11, 100, 400)); c.dispatchEvent(mv(12, 300, 400)); const up = (id) => new PointerEvent('pointerup', { pointerId: id, pointerType: 'touch', bubbles: true }); c.dispatchEvent(up(11)); c.dispatchEvent(up(12)); });

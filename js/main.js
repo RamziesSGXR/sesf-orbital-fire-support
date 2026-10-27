@@ -75,7 +75,7 @@ const input = new Input(canvas, $('minimap'), cam, {
   },
   fire: (b) => {
     if (b && live()) { audio.unlock(); firePending = true; }
-    if (mission && !bot) mission.setFiring(b && live());   // the gatling fires for as long as the trigger is held
+    if (mission && !bot) mission.setFiring(b && live());   // the ship gun fires for as long as the trigger is held
   },
   order: (kind, viaKey) => order(kind, viaKey),
   placing: () => !!placing && live(),
@@ -108,7 +108,7 @@ const DENY = {
   nocoverage: 'NO COVERAGE THERE. STAY INSIDE THE STRIKE ZONE', cooldown: 'RECHARGING', full: 'SEAF ALREADY AT MAXIMUM',
   noseaf: 'NO SEAF ON THE GROUND', nohd: 'NO HELLDIVERS TO ESCORT', noallies: 'NO ALLIES ON THE GROUND', nomark: 'THE NUKE IS NOT ARMED',
   funds: 'NOT ENOUGH CREDITS', between: 'BUY THAT BETWEEN MISSIONS', maxed: 'ALREADY AT MAXIMUM', locked: 'LOCKED',
-  novisual: 'NO VISUAL. THE GATLING NEEDS SIGHT OF THE TARGET', gundry: 'GATLING MAGAZINE EMPTY',
+  novisual: 'NO VISUAL. THE SHIP GUN NEEDS SIGHT OF THE TARGET', gundry: 'SHIP GUN MAGAZINE EMPTY',
   short: 'DRAG A LONGER STROKE', splitsmall: 'A SQUAD NEEDS AT LEAST 2 TROOPERS TO SPLIT', splitnosquad: 'ALL FOUR SQUADS ARE IN USE',
   splitunknown: 'NO SUCH SQUAD', mergesel: 'PICK A SQUAD TO MERGE', mergesmall: 'THAT SQUAD IS EMPTY', mergenosquad: 'NO OTHER SQUAD TO MERGE INTO',
   assignsel: 'PICK A SQUAD FIRST', assignnone: 'NO TROOPERS THERE TO ASSIGN',
@@ -452,6 +452,9 @@ function onEvent(ev, now) {
     case 'beam': audio.beam(); break;
     case 'gun': audio.snd('shipgat', loudness(ev.x, ev.y)); break;
     case 'heal': audio.snd('heal', loudness(ev.x, ev.y)); break;
+    case 'stim': audio.snd('stim', loudness(ev.x, ev.y)); break;
+    case 'dodge': audio.snd('dodge', loudness(ev.x, ev.y)); break;
+    case 'recall': audio.win(); hud.message('RECALL GRANTED', 2000); break;
     case 'pelican_arrive': audio.rotor(); break;
     case 'pelican_drop': audio.snd('thud', loudness(ev.x, ev.y)); break;
     case 'assault_warn': audio.siren(); hud.message('LARGE ENEMY ASSAULT FORMING', 2400); break;

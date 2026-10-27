@@ -8,6 +8,8 @@ import { fireShot } from './combat.js';
 import { nearestObjective } from './pois.js';
 import { strikeAt } from './strat.js';
 import { bark } from './chatter.js';
+import { canStep } from './safety.js';
+import { steer } from './terrain.js';
 
 const SIZE = C.world.size;
 const S = C.seaf;
@@ -22,6 +24,18 @@ function step(o, tx, ty, speed, dt) {
   if (d < 0.05) return 0;
   const s = Math.min(speed * dt, d);
   o.x += (dx / d) * s; o.y += (dy / d) * s;
+  return s;
+}
+
+// A trooper's step: like step(), but never into the footprint of an incoming strike.
+function walk(m, a, tx, ty, speed, dt) {
+  const w = steer(m.terrain, a, a.x, a.y, tx, ty, m.t);     // round the water, if there is any in the way
+  tx = w.x; ty = w.y;
+  const dx = tx - a.x, dy = ty - a.y, d = Math.hypot(dx, dy);
+  if (d < 0.05) return 0;
+  const s = Math.min(speed * dt, d), nx = a.x + (dx / d) * s, ny = a.y + (dy / d) * s;
+  if (!canStep(m, a, nx, ny)) return 0;
+  a.x = nx; a.y = ny;
   return s;
 }
 
@@ -406,11 +420,11 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
       tx = sq.ax + a.fx * 1.6; ty = sq.ay + a.fy * 1.6; spd = speed;
     }
     const d = Math.hypot(tx - a.x, ty - a.y);
-    if (d > (wander ? S.patrolRadius : 3)) { step(a, tx, ty, spd, dt); a.wT = 0; }
+    if (d > (wander ? S.patrolRadius : 3)) { walk(m, a, tx, ty, spd, dt); a.wT = 0; }
     else if (wander) {
       a.wT -= dt;
       if (a.wT <= 0) { const [ox, oy] = m.rng.inDisc(S.patrolRadius * 0.6); a.wx = tx + ox; a.wy = ty + oy; a.wT = m.rng.range(4, 8); }
-      step(a, a.wx, a.wy, S.patrolSpeed * bm, dt);
+      walk(m, a, a.wx, a.wy, S.patrolSpeed * bm, dt);
     }
     a.x = clamp(a.x, 0, SIZE); a.y = clamp(a.y, 0, SIZE);
   }
@@ -452,7 +466,7 @@ function stepFormations(m, by, dt, bm) {
       a.engaged = !!en;
       if (en) return;
       const s = slots[k], d = Math.hypot(s.x - a.x, s.y - a.y);
-      if (d > 1.6) { step(a, s.x, s.y, d > 18 ? chase : chase * 0.7, dt); a.x = clamp(a.x, 0, SIZE); a.y = clamp(a.y, 0, SIZE); }
+      if (d > 1.6) { walk(m, a, s.x, s.y, d > 18 ? chase : chase * 0.7, dt); a.x = clamp(a.x, 0, SIZE); a.y = clamp(a.y, 0, SIZE); }
     });
   }
 }

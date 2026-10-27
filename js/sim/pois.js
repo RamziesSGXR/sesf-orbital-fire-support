@@ -2,7 +2,7 @@
 // the enemy opens when it calls for support). Both are soft targets that anyone can shoot and any real explosion hurts.
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
-import { spawnGroup, pickSpawn } from './director.js';
+import { spawnGroup, spawnNear, pickSpawn } from './director.js';
 import { compass } from './enemies.js';
 
 const SIZE = C.world.size;
@@ -24,8 +24,10 @@ export function setupPois(m) {
     for (let tries = 1; tries <= 400; tries++) {
       if (tries % 100 === 0) k *= 0.8;
       x = rng.range(90, SIZE - 90); y = rng.range(90, SIZE - 90);
+      if (!m.terrain.isLand(x, y)) continue;
       if (avoid.every((a) => Math.hypot(x - a.x, y - a.y) >= a.r * k) && m.pois.every((p) => Math.hypot(x - p.x, y - p.y) >= P.spacing * k)) break;
     }
+    if (!m.terrain.isLand(x, y)) { const l = m.terrain.nearestLand(x, y); x = l.x; y = l.y; }
     const kind = kinds[rng.int(kinds.length)], def = P.kinds[kind];
     m.pois.push({ id: m.nextId++, isPoi: true, kind, name: POI_NAMES[m.faction.id][kind], x, y, r: P.r, hp: def.hp, maxHp: def.hp, reward: def.reward, guards: def.guards, woke: false, done: false, hurtAt: -9, by: null });
   }
@@ -40,8 +42,10 @@ export function updatePois(m, dt) {
     let near = false;
     for (const a of m.alive) if ((a.x - p.x) ** 2 + (a.y - p.y) ** 2 <= P.guardR * P.guardR) { near = true; break; }
     if (!near) continue;
-    p.woke = true;
-    for (let i = 0; i < p.guards && m.enemies.length < C.enemies.hardCap; i++) spawnGroup(m, p.x + rng.range(-14, 14), p.y + rng.range(-14, 14), 'patrol');
+    // the guards come out of sight and walk in; a spot that is in view waits for the next tick
+    if (p.owed === undefined) p.owed = p.guards;
+    if (p.owed > 0 && m.enemies.length < C.enemies.hardCap && spawnNear(m, p.x, p.y, 4, 16, 'patrol')) p.owed--;
+    if (p.owed <= 0) p.woke = true;
   }
   for (let i = m.breaches.length - 1; i >= 0; i--) {
     const b = m.breaches[i];
@@ -59,7 +63,7 @@ export function updatePois(m, dt) {
 
 // The enemy called for support: a breach opens just outside the squad's view. Everyone can see it and everyone can shoot it.
 export function openBreach(m) {
-  const p = pickSpawn(m);
+  const p = pickSpawn(m, C.breach.r);
   if (!p) return false;
   const B = C.breach, id = m.nextId++;
   m.breaches.push({ id, x: p.x, y: p.y, r: B.r, hp: B.hp, maxHp: B.hp, born: m.t, until: m.t + B.lifeSec, next: m.t + 3, left: B.groups, dead: false, hurtAt: -9, reward: B.reward });

@@ -52,7 +52,7 @@ export function slotStats(m, i) {
   if (s.type === 'orb') return orbStats(s.id, s.level);
   if (s.type === 'uav') { const u = uavStats(m.kit.uav); return { name: 'UAV SCAN', g: 'UAV', cd: u.cd, r: u.r, sec: u.sec, delay: 0 }; }
   if (s.type === 'nuke') return { name: 'NUCLEAR STRIKE', g: 'NUKE', cd: 0, delay: 8 };
-  if (s.type === 'gun') return { name: 'SHIP GATLING', g: 'GAT', cd: 0, delay: 0 };
+  if (s.type === 'gun') return { name: 'SHIP GUN', g: 'GUN', cd: 0, delay: 0 };
   return null;
 }
 
@@ -202,7 +202,7 @@ export function updatePlayer(m, dt) {
   for (let i = m.markers.length - 1; i >= 0; i--) if (t >= m.markers[i].end) m.markers.splice(i, 1);
 }
 
-// The Ship Gatling: hold the trigger and rounds scatter around the aim point; the spread blooms while it fires and settles when
+// The Ship Gun: hold the trigger and rounds scatter around the aim point; the spread blooms while it fires and settles when
 // it stops. The magazine is the player's own: it refills by itself a moment after the trigger is released.
 function updateGun(m, dt, pressed) {
   const p = m.player, g = p.gun, G = C.gun, gs = gunStats(m.kit), t = m.t;

@@ -1,4 +1,4 @@
-// Revision 5 browser check: pelican drop, squads (split / select / draw), the ship gatling, eagle strike markers, assault warning,
+// Revision 5 browser check: pelican drop, squads (split / select / draw), the ship gun, eagle strike markers, assault warning,
 // colour-coded armory. Takes screenshots and fails loudly on page errors.
 // Usage: node test/r5.mjs [desktop|portrait|landscape] [faction] [biome]
 import { createRequire } from 'node:module';
@@ -111,7 +111,7 @@ check('Esc leaves draw mode', !(await ev(() => window.__game.drawing)));
 // ship gatling: free fire anywhere in sight
 await ev(() => { window.__game.selectSquad(-1); });
 await page.keyboard.press('Digit8'); await page.waitForTimeout(250);
-check('gatling selected', (await ev(() => window.__game.mission.player.weapon)) === 7);
+check('ship gun selected', (await ev(() => window.__game.mission.player.weapon)) === 7);
 const ammo0 = await ev(() => window.__game.mission.player.gun.ammo);
 if (touch) {
   const bb = await ev(() => { const r = document.getElementById('fire-btn').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
@@ -127,10 +127,10 @@ if (touch) {
   await page.mouse.up();
 }
 const ammo1 = await ev(() => window.__game.mission.player.gun.ammo);
-check('the gatling used ammo', ammo1 < ammo0 - 5, `${ammo0.toFixed(0)} -> ${ammo1.toFixed(0)}`);
+check('the ship gun used ammo', ammo1 < ammo0 - 5, `${ammo0.toFixed(0)} -> ${ammo1.toFixed(0)}`);
 await page.waitForTimeout(2500);
 const ammo2 = await ev(() => window.__game.mission.player.gun.ammo);
-check('the gatling refills by itself', ammo2 > ammo1, `${ammo1.toFixed(0)} -> ${ammo2.toFixed(0)}`);
+check('the ship gun refills by itself', ammo2 > ammo1, `${ammo1.toFixed(0)} -> ${ammo2.toFixed(0)}`);
 
 // eagle strike direction marker
 await ev(() => {

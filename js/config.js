@@ -8,7 +8,20 @@ export const CONFIG = {
   mission:  { bonusSec: 210, secondObjectiveAtMin: 40 },
 
   // Four Helldivers, one per stratagem group. When one dies a replacement pod is called in by itself and costs one life.
-  helldivers: { start: 4, max: 4, lives: 14, reinforceSec: 8, dropDelaySec: 5, initialDropSec: 3, podRadius: 10, podDmg: 500 },
+  helldivers: { start: 4, max: 4, lives: 14, reinforceSec: 8, dropDelaySec: 5, initialDropSec: 3, podRadius: 10, podDmg: 500,
+              // With fewer than four Helldivers and no recalls left, one recall is granted after this long, so a squad that has
+              // been ground down always has a chance to come back.
+              recallSec: 120 },
+  // The Helldiver kit. Primary: the Liberator (CONFIG.combat.helldiver). Secondary: the Ultimatum, a slow-loading, short-range,
+  // heavy-penetration pistol that hits very hard. Four stims (heal over a few seconds and a burst of speed), three
+  // heavy-penetration grenades (six to kill a medium), and a dodge that comes round every so often. A resupply restocks all of it.
+  hd:       { stims: 4, stimHeal: 0.55, stimSec: 3.5, stimBoostSec: 8, stimSpeed: 1.4, stimCool: 3.5, stimAt: 0.5, stimRunAt: 0.8,
+              grenades: 3, gren: { dmg: 34, splash: 4.5, range: 36, minRange: 10, every: 3.2, acc: 0.85, flight: 0.9, mult: { L: 1, M: 1, H: 0.9, B: 0.3 } },
+              ult: { dmg: 520, splash: 3.4, range: 30, every: 9, acc: 0.92, flight: 0.2, mult: { L: 1, M: 1, H: 0.9, B: 0.25 } },
+              dodge: { cool: 10, chance: 0.65, minHit: 9, dist: 3.6, sec: 0.35 },
+              retreat: { at: 0.36, resume: 0.7, speed: 1.3, enemyR: 46, calmSec: 3, minSec: 2.5 },
+              // trigger discipline: a shot is held when a friendly stands in the line of fire; now and then it is taken anyway
+              fire: { lane: 1.9, collateral: 0.1, ffMul: 0.5 } },
   // SEAF arrive when the player calls a pod. By default they go and clear the nearest objective on their own.
   seaf:     { max: 12, dropSize: 5, dropCooldownSec: 28, dropDelaySec: 6, patrolRadius: 30, patrolSpeed: 2.5,
               followSec: 45, followSpread: 28, protectR: 36, protectLeash: 80, clearR: 55, clearMaxSec: 70, clearQuietSec: 5,
@@ -26,14 +39,21 @@ export const CONFIG = {
   // can: rifle fire counts for a fraction of its normal damage, and anything the squad calls hits structures harder (stratMul).
   structure: { range: 48, standOff: 26, push: 14, rifleH: 0.55, rifleS: 0.2, stratMul: 2.2, weaponTry: 0.4 },
 
+  // Terrain: a height map, a water depth map and a surface map on an 8 m grid, different for every mission. Deep water cannot be
+  // crossed on foot; shallows, mud and soft ground (snow, sand, dust) slow everyone. A rise gives whoever stands on it more sight and
+  // harder hits on whoever is below.
+  terrain:  { on: false, cell: 8, navCell: 16, relief: 70, deep: 0.5, wet: 0.03,
+              speed: { shallow: 0.5, mud: 0.62, soft: 0.74 },
+              hill: 0.5, sight: 0.32, attack: 0.25, top: 0.08, minLandShare: 0.55 },
+
   // Sight in meters. Multiplied by the biome visibility. The player sees a little farther than each ally (playerBonus).
   // The strike zone is the ring in which strikes and drops can be called: it extends strikeBonus past what the player sees.
-  sight:    { helldiver: 75, seaf: 48, playerBonus: 25, strikeBonus: 70, despawnMargin: 35, spawnMin: 30, spawnMax: 55 },
+  sight:    { helldiver: 92, seaf: 60, playerBonus: 26, strikeBonus: 76, despawnMargin: 35, spawnMin: 6, spawnMax: 34 },
 
   // Damage model. Allies have hit points. Enemies hurt them by their own attack profile, so light
   // enemies do light damage and heavies do heavy damage. armor scales incoming damage.
   combat: {
-    helldiver: { hp: 300, armor: 0.6, dps: 24, burst: 0.5, acc: 0.85, mult: { L: 1, M: 0.7, H: 0.35 } },
+    helldiver: { hp: 420, armor: 0.55, dps: 36, burst: 0.4, acc: 0.88, mult: { L: 1, M: 0.6, H: 0.3 } },   // the Liberator
     seaf:      { hp: 100, armor: 1.0, dps: 12, burst: 0.6, acc: 0.7,  mult: { L: 1, M: 0.5, H: 0.15 } },
     // SEAF specialists. Grenades lob, rockets are the answer to heavies. Both also hurt POIs and breaches.
     grenadier: { dmg: 55, splash: 4.2, every: 4.2, range: 46, flight: 0.85, acc: 0.8 },
@@ -52,8 +72,19 @@ export const CONFIG = {
     },
   },
 
-  enemies:  { liveCap: 120, hardCap: 150, startGroups: 3, groupSize: 5,
-              bag: { light: 10, medium: 1, heavy: 1 },
+  // Mostly light enemies: the bag is 36 light, 3 medium and 1 heavy per forty, so a heavy is an event and not a habit.
+  // Each faction has a way of fighting. Bugs swarm in big loose packs that rush the squad from every side. Bots stop at a standoff
+  // distance and form a firing line across the approach. Squids spread out and surround whoever they hunt.
+  enemies:  { liveCap: 130, hardCap: 160, startGroups: 3, groupSize: 5, group: { bugs: 9, bots: 6, squids: 6 },
+              bag: { light: 36, medium: 3, heavy: 1 },
+              // Mediums and heavies die slowly, so they pile up in the field while the lights melt away. This keeps them in proportion:
+              // only so many of each can be alive at once (more as the session goes on); the rest of the draws come out light.
+              liveCap: { M: 8, H: 2, perMinM: 0.1, perMinH: 0.04, maxM: 40, maxH: 14 },
+              tactics: {
+                swarm: { callRadius: 130, rushMul: 1.25, rushN: 8, weave: 3.5, fan: 0.55, arc: 1.7, reach: 48 },
+                line:  { standoff: 0.78, spacing: 4.4, rank: 4.5, tankBack: 10, arm: 70 },
+                ring:  { radius: 0.8, arm: 95, slack: 5 },
+              },
               hp: { light: 30, medium: 200, heavy: 1000 },
               speed: { light: 4.0, medium: 3.2, heavy: 2.4 },
               // Enemies notice allies at their own (shorter) sight. Fire, noise or a neighbor's call alerts a group.
@@ -64,9 +95,9 @@ export const CONFIG = {
               garrisonRadius: 260, garrisonGroups: 2, garrisonCap: 15, spawnSec: 30 },
   // The big base for the destroy-the-citadel objective.
   fortress: { hp: 14000, radius: 28, garrisonGroups: 3, garrisonCap: 30, spawnSec: 16, minFromLz: 650 },
-  pressure: { start: 1, perSessionMin: 0.015, perMissionMin: 0.06, onBaseKill: 0.5, floor: 0.5 },
+  pressure: { start: 1, perSessionMin: 0.04, perMissionMin: 0.06, onBaseKill: 0.5, floor: 0.5 },
   // The war escalates with every minute of the session, so the run only ends in failure: tougher, harder-hitting enemies and more heavies.
-  ramp:     { hp: 0.004, dmg: 0.003, mediumEvery: 40, heavyEvery: 60, hpCap: 4, dmgCap: 3 },
+  ramp:     { hp: 0.020, dmg: 0.018, mediumEvery: 25, heavyEvery: 45, hpCap: 7, dmgCap: 5 },
   // Large enemy assaults: a big force that comes straight for the squad from one direction. The warning gives the player time to
   // scan, set a SEAF line and get strikes ready. Later in the session they get bigger.
   assault:  { firstSec: 210, everySec: 165, jitterSec: 35, warnSec: 18, groups: 4, perSessionMin: 0.06, maxGroups: 12, hunt: 80, ahead: 150, spacing: 26, reward: 140, score: 400, minLeft: 3, giveUpSec: 140 },
@@ -79,7 +110,7 @@ export const CONFIG = {
   extract:  { minFromLz: 600, minFromBase: 150, radius: 25, holdSec: 10,
               waveSec: 25, waveMin: 150, waveMax: 250 },
   weapons:  { swapSec: 0.3, warmupSec: 8 },
-  // The destroyer's free-fire Ship Gatling. It fires wherever the player can see, so it is not tied to the strike zone, and it is the
+  // The destroyer's free-fire Ship Gun (its one gatling). It fires wherever the player can see, so it is not tied to the strike zone, and it is the
   // only thing that uses the player's ammo. Rounds scatter around the aim point and the spread blooms while the trigger is held.
   gun:      { ammo: 600, regen: 9, regenDelay: 1.3, rps: 22, dmg: 12, splash: 1.9, spread: 4.5, bloom: 7, bloomUp: 2.4, bloomDown: 5, struct: 0.04,
               upAmmo: 150, upDmg: 0.2, upRegen: 0.25, upSpread: 0.1, maxLevel: 5 },
@@ -89,7 +120,7 @@ export const CONFIG = {
   // UAV scan: a big circle of sight the whole squad can use for a while. Indexed by level 1..5.
   uav:      { r: [95, 120, 145, 175, 205], sec: [24, 28, 32, 36, 40], cd: [42, 38, 34, 30, 26] },
   kit:      { slotsStart: 3, slotsMax: 5, seafCap: 3, seafDropEvery: 2, seafHp: 0.18, seafDmg: 0.12, seafGren: 0.06, seafRocket: 0.07, seafMedic: 0.14, medicRate: 0.25, seafSpot: 0.15, spotCool: 0.12, spotDmg: 0.18,
-              livesPer: 2, zonePer: 18, startLoadout: ['orb_gatling', 'orb_120', 'orb_precision'] },
+              livesPer: 2, zonePer: 18, startLoadout: ['orb_airburst', 'orb_120', 'orb_precision'] },
   // Credits: earned from kills, bases, POIs, breaches and the objective, with a bonus at extraction. Spent in the armory.
   credits:  { start: 1200, kill: { L: 2, M: 10, H: 60 }, base: 150, objective: 500, extraction: 800, perMission: 0 },
 

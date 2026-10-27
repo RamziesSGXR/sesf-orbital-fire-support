@@ -6,6 +6,9 @@ import { onSpot } from './director.js';
 import { objectiveGoal } from './objectives.js';
 import { bark } from './chatter.js';
 import { updateSeaf } from './seaf.js';
+import { speedMul } from './helldiver.js';
+import { canStep } from './safety.js';
+import { steer } from './terrain.js';
 
 function nearestBase(m, x, y) {
   let best = null, bd = Infinity;
@@ -126,7 +129,8 @@ export function updateSquad(m, dt) {
     // Move unless we are fighting or setting up.
     const hold = engaged || sq.state === 'setup';
     if (!hold && goal !== 'none') {
-      const dx = gx - sq.ax, dy = gy - sq.ay, d = Math.hypot(dx, dy);
+      const w = steer(m.terrain, sq, sq.ax, sq.ay, gx, gy, t);     // round the water, if there is any in the way
+      const dx = w.x - sq.ax, dy = w.y - sq.ay, d = Math.hypot(dx, dy);
       if (d > 0.05) { const s = Math.min(speed * dt, d); sq.ax += (dx / d) * s; sq.ay += (dy / d) * s; }
     }
   }
@@ -135,12 +139,14 @@ export function updateSquad(m, dt) {
   if (hds.length) {
     const chase = C.squad.chaseSpeed * bm * dt * Math.max(1, mod);
     for (const a of hds) {
-      if (a.mounted) continue;
+      if (a.mounted || a.retreat) continue;   // a Helldiver who is falling back is not drifting to his slot
       const selfEngaged = eg.nearest(a.x, a.y, C.squad.engageRange);
       const tx = sq.ax + a.ox, ty = sq.ay + a.oy;
-      const dx = tx - a.x, dy = ty - a.y, d = Math.hypot(dx, dy);
+      const sw = steer(m.terrain, a, a.x, a.y, tx, ty, t);
+      const dx = sw.x - a.x, dy = sw.y - a.y, d = Math.hypot(dx, dy);
       if (d > 0.8 && !selfEngaged && (!sq.engaged || d > 25) && sq.state !== 'setup') {
-        const s = Math.min(chase, d); a.x += (dx / d) * s; a.y += (dy / d) * s;
+        const s = Math.min(chase * speedMul(m, a), d), nx = a.x + (dx / d) * s, ny = a.y + (dy / d) * s;
+        if (canStep(m, a, nx, ny)) { a.x = nx; a.y = ny; }
       }
     }
   }

@@ -7,8 +7,8 @@ const MAXL = C.orbital.maxLevel;
 
 // Unlock price per orbital. The first three are free and in the starting loadout.
 export const ORB_PRICE = {
-  orb_gatling: 0, orb_120: 0, orb_precision: 0,
-  orb_airburst: 450, orb_ems: 600, orb_gas: 650, orb_walk: 800, orb_napalm: 900, orb_380: 1300, orb_rail: 1600, orb_laser: 2100,
+  orb_airburst: 0, orb_120: 0, orb_precision: 0,
+  orb_ems: 600, orb_gas: 650, orb_walk: 800, orb_napalm: 900, orb_380: 1300, orb_rail: 1600, orb_laser: 2100,
 };
 export const ORB_LIST = ORB_IDS.slice().sort((a, b) => ORB_PRICE[a] - ORB_PRICE[b]);
 
@@ -24,8 +24,16 @@ export function fixKit(k) {
   const base = newKit();
   if (!k || typeof k !== 'object') return base;
   const out = { ...base, ...k, seaf: { ...base.seaf, ...(k.seaf || {}) }, sup: { ...base.sup, ...(k.sup || {}) }, gun: { ...base.gun, ...(k.gun || {}) }, owned: { ...base.owned, ...(k.owned || {}) } };
+  // Anything the catalog no longer has (the old Orbital Gatling Barrage) is dropped from a save rather than carried around.
+  for (const id of Object.keys(out.owned)) if (!STRATS[id]) delete out.owned[id];
   out.loadout = Array.from({ length: C.kit.slotsMax }, (_, i) => (k.loadout && out.owned[k.loadout[i]] ? k.loadout[i] : ''));
   out.slots = Math.max(C.kit.slotsStart, Math.min(C.kit.slotsMax, out.slots | 0));
+  // A loadout the cleanup left with an empty slot is topped up from the free starting orbitals.
+  for (let i = 0; i < out.slots; i++) {
+    if (out.loadout[i]) continue;
+    const id = C.kit.startLoadout.find((x) => out.owned[x] && !out.loadout.includes(x));
+    if (id) out.loadout[i] = id;
+  }
   return out;
 }
 export const newWallet = (bal = C.credits.start) => ({ bal, earned: 0, spent: 0 });
@@ -59,7 +67,7 @@ export function seafStats(kit) {
     spotN: C.spotter.n + Math.floor(s.spot / 2), spotDmg: 1 + K.spotDmg * s.spot,
   };
 }
-// The Ship Gatling: damage, magazine, ammo regeneration and how tight the rounds group, from the kit's gun upgrades.
+// The Ship Gun (the one gatling the destroyer has): damage, magazine, ammo regeneration and how tight the rounds group.
 export function gunStats(kit) {
   const g = kit.gun || {}, G = C.gun;
   return {
@@ -82,10 +90,10 @@ const SEAF_UP = {
   spot:   { name: 'Forward Observers', blurb: 'More drops bring a spotter who calls Eagle fire missions. Bigger, faster fire missions.', max: 4, price: 400 },
 };
 const GUN_UP = {
-  dmg:    { name: 'Gatling Barrels', blurb: 'Every round hits harder.', max: 5, price: 300 },
-  ammo:   { name: 'Gatling Ammo Bay', blurb: `+${C.gun.upAmmo} rounds in the magazine.`, max: 5, price: 250 },
+  dmg:    { name: 'Gun Barrels', blurb: 'Every round hits harder.', max: 5, price: 300 },
+  ammo:   { name: 'Gun Ammo Bay', blurb: `+${C.gun.upAmmo} rounds in the magazine.`, max: 5, price: 250 },
   regen:  { name: 'Ammo Synthesizer', blurb: 'The magazine refills faster.', max: 5, price: 250 },
-  spread: { name: 'Gatling Stabilizers', blurb: 'Rounds land in a tighter group.', max: 5, price: 300 },
+  spread: { name: 'Gun Stabilizers', blurb: 'Rounds land in a tighter group.', max: 5, price: 300 },
 };
 const SUP_UP = {
   lives: { name: 'Reinforcement Budget', blurb: `+${C.kit.livesPer} Helldiver lives per level.`, max: 5, price: 300 },
@@ -109,10 +117,10 @@ export function shopItems(kit) {
     if (!lvl) items.push({ id: `own:${id}`, section: 'ORBITALS', name: d.name, blurb: d.blurb, level: 0, max: MAXL, cost: ORB_PRICE[id], orb: id, live: false });
     else items.push({ id: `up:${id}`, section: 'ORBITALS', name: d.name, blurb: d.blurb, level: lvl, max: MAXL, cost: lvl >= MAXL ? null : orbUpCost(id, lvl), orb: id, owned: true, live: true });
   }
-  // Ship Gatling
+  // Ship Gun
   for (const [k, u] of Object.entries(GUN_UP)) {
     const lvl = kit.gun[k];
-    items.push({ id: `gun.${k}`, section: 'SHIP GATLING', name: u.name, blurb: u.blurb, level: lvl, max: u.max, cost: lvl >= u.max ? null : u.price * (lvl + 1), live: true });
+    items.push({ id: `gun.${k}`, section: 'SHIP GUN', name: u.name, blurb: u.blurb, level: lvl, max: u.max, cost: lvl >= u.max ? null : u.price * (lvl + 1), live: true });
   }
   // UAV
   items.push({ id: 'uav', section: 'UAV SCAN', name: 'UAV Scan', blurb: 'A bigger, longer, faster-recharging circle of sight for the whole squad.', level: kit.uav, max: C.uav.r.length, cost: kit.uav >= C.uav.r.length ? null : 350 * kit.uav, live: true });

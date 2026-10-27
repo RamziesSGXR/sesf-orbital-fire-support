@@ -1,6 +1,6 @@
 {
   "name": "orbital-fire-support",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Orbital Fire Support - a Super Destroyer targeting minigame (unofficial fan project)",
   "main": "js/main.js",
   "scripts": {
@@ -9,6 +9,7 @@
     "session": "node test/headless.mjs 14 0 - - session",
     "play": "node test/play.mjs desktop",
     "touch": "node test/touch.mjs portrait",
+    "r6": "node test/r6.mjs",
     "bundle": "node tools/bundle.mjs",
     "package": "python3 tools/package.py"
   },

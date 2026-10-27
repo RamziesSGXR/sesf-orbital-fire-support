@@ -261,6 +261,25 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
       ctx.beginPath(); ctx.arc(a.x, a.y, r * 2.1, -Math.PI / 2, -Math.PI / 2 + TAU * Math.max(0.02, f)); ctx.stroke();
     }
     if (a.hp < a.maxHp) hpBar(ctx, a.x, a.y - r * 2.4, r * 2.6, px(2.4), a.hp / a.maxHp, a.hp > a.maxHp * 0.35 ? '#7dff9b' : '#ff4a4a');
+    // a stim: a green pulse while the speed boost lasts, and a rising plus while it heals
+    if (t < a.stimUntil) {
+      const f = (a.stimUntil - t) / C.hd.stimBoostSec;
+      ctx.strokeStyle = `rgba(125,255,155,${0.3 + 0.5 * f})`; ctx.lineWidth = px(1.4);
+      ring(ctx, a.x, a.y, r * (2.5 + 0.35 * Math.sin(now * 8))); ctx.stroke();
+      if (a.heal > 0.5) {
+        const k = (now * 1.6) % 1, hy = a.y - r * (1.6 + 1.6 * k);
+        ctx.strokeStyle = `rgba(150,255,175,${1 - k})`; ctx.lineWidth = px(1.6);
+        ctx.beginPath(); ctx.moveTo(a.x - r * 0.6, hy); ctx.lineTo(a.x + r * 0.6, hy); ctx.moveTo(a.x, hy - r * 0.6); ctx.lineTo(a.x, hy + r * 0.6); ctx.stroke();
+      }
+    }
+    // a dodge: speed lines behind the dive
+    if (a.dv && t - a.diveAt < 0.4) {
+      const sp = Math.hypot(a.dv.vx, a.dv.vy) || 1, ux = a.dv.vx / sp, uy = a.dv.vy / sp;
+      ctx.strokeStyle = 'rgba(235,245,255,0.8)'; ctx.lineWidth = px(1.2); ctx.beginPath();
+      for (let k = -1; k <= 1; k++) { const ox = -uy * k * r * 0.7, oy = ux * k * r * 0.7; ctx.moveTo(a.x + ox, a.y + oy); ctx.lineTo(a.x + ox - ux * r * 3.2, a.y + oy - uy * r * 3.2); }
+      ctx.stroke();
+    }
+    if (a.retreat) labels.push({ x: a.x, y: a.y, dy: -r * scale * 3.2 - 8, text: 'FALLING BACK', col: '#ffb020', pri: 1 });
   }
 }
 
@@ -275,6 +294,16 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal) {
       ring(ctx, e.x, e.y, r + px(1)); ctx.stroke();
     }
     if (e.stunUntil > t) { ctx.strokeStyle = 'rgba(190,225,255,0.9)'; ctx.lineWidth = px(1); ring(ctx, e.x, e.y, Math.max(e.r, px(5)) + px(3)); ctx.stroke(); }
+    // a lock-on (Spear, Expendable Anti-Tank): brackets that close in as the missile acquires, a hard white square once locked
+    if (e.lockedUntil > t) {
+      const f = e.lockFrac || 0, lr = Math.max(e.r, px(e.kind === 'H' ? 9 : 5.5)) * (2.4 - 1.3 * f), locked = f >= 1;
+      ctx.strokeStyle = locked ? '#ffffff' : '#ffb020'; ctx.lineWidth = px(locked ? 2 : 1.4);
+      const c = lr * 0.45;
+      for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+        const cx = e.x + sx * lr, cy = e.y + sy * lr;
+        ctx.beginPath(); ctx.moveTo(cx, cy - sy * c); ctx.lineTo(cx, cy); ctx.lineTo(cx - sx * c, cy); ctx.stroke();
+      }
+    }
     if (e.kind !== 'H') continue;
     const r = Math.max(e.r, px(9));
     // speed streaks behind a running charger

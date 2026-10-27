@@ -2,7 +2,7 @@
 // Everything else on the map (the ordinary bases) is bonus points once the objective is done.
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
-import { spawnGroup } from './director.js';
+import { spawnGroup, spawnNear } from './director.js';
 
 const SIZE = C.world.size, O = C.objective;
 const TYPES = ['nuke', 'vip', 'fortress'];
@@ -17,9 +17,10 @@ function findSpot(m, avoids, margin = 130) {
   for (let i = 1; i <= 600; i++) {
     if (i % 120 === 0) k *= 0.85;
     const x = rng.range(margin, SIZE - margin), y = rng.range(margin, SIZE - margin);
+    if (!m.terrain.isLand(x, y)) continue;
     if (avoids.every((a) => Math.hypot(x - a.x, y - a.y) >= a.r * k)) return { x, y };
   }
-  return { x: rng.range(margin, SIZE - margin), y: rng.range(margin, SIZE - margin) };
+  return m.terrain.nearestLand(rng.range(margin, SIZE - margin), rng.range(margin, SIZE - margin));
 }
 
 export function setupObjectives(m, forced) {
@@ -79,7 +80,7 @@ function wave(m, cx, cy, rmin, rmax, n = 1) {
       const a = rng.angle(), d = rng.range(rmin, rmax);
       x = cx + Math.cos(a) * d; y = cy + Math.sin(a) * d;
       // Out of everyone's view, so they walk in rather than pop in.
-      if (x > 40 && x < SIZE - 40 && y > 40 && y < SIZE - 40 && m.beyondRange(x, y, 0)) break;
+      if (x > 40 && x < SIZE - 40 && y > 40 && y < SIZE - 40 && m.beyondRange(x, y, 0) && m.terrain.isLand(x, y)) break;
     }
     x = Math.max(40, Math.min(SIZE - 40, x)); y = Math.max(40, Math.min(SIZE - 40, y));
     spawnGroup(m, x, y, 'hunt', { alertT: 60 });
@@ -146,11 +147,11 @@ function updateNuke(m, o, dt) {
 function updateVip(m, o, dt) {
   const t = m.t, v = o.vip, V = O.vip;
   if (!o.garrisoned && squadAt(m, o.x, o.y, 330)) {
-    o.garrisoned = true;
-    for (let i = 0; i < 2; i++) {
-      const a = m.rng.angle(), d = m.rng.range(60, V.garrisonR * 0.6);
-      spawnGroup(m, o.x + Math.cos(a) * d, o.y + Math.sin(a) * d, 'patrol');
-    }
+    // two groups hold the VIP's compound; they appear out of sight and walk in
+    if (o.owed === undefined) o.owed = 2;
+    const d = m.rng.range(60, V.garrisonR * 0.6);
+    if (o.owed > 0 && spawnNear(m, o.x, o.y, d, d + 20, 'patrol')) o.owed--;
+    if (o.owed <= 0) o.garrisoned = true;
   }
   if (v.carrier) {
     if (v.carrier.dead) {
