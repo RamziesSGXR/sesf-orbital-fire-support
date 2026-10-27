@@ -410,3 +410,141 @@ tr.sum td { color: #fff; border-top: 1px solid var(--line); font-weight: 700; }
   .dr .sh { display: none; }
 }
 @media (max-width: 700px) { .b-cols { grid-template-columns: 1fr; gap: 6px; } .b-left .btns { justify-content: center; } }
+
+/* ---------- fading: panels step back until they are touched or have news ---------- */
+.fadeable { transition: opacity 0.3s; opacity: 0.84; }
+.fadeable:hover, .fadeable.hot { opacity: 1; }
+#tray { display: contents; }
+#dock, #tl-cr { display: none; }
+.dkb {
+  appearance: none; position: relative; min-width: 0; height: 40px; padding: 3px 8px; text-align: left; cursor: pointer; pointer-events: auto; touch-action: none;
+  font: inherit; color: var(--g); background: rgba(8, 30, 16, 0.88); border: 1px solid var(--line); border-radius: 6px;
+}
+.dkb .n { display: block; font-size: 8px; letter-spacing: 0.06em; color: var(--g-dim); white-space: nowrap; }
+.dkb .s { display: block; margin-top: 2px; font-size: 11px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dkb.open { border-color: var(--yellow); }
+.dkb.active { border-color: var(--yellow); background: rgba(70, 60, 0, 0.78); } .dkb.active .s { color: var(--yellow); }
+.dkb.drop.ready .s { color: #7dff9b; } .dkb.drop.cd .s { color: var(--amber); } .dkb.drop.off { opacity: 0.5; } .dkb.drop.active .s { color: var(--yellow); }
+#btn-follow.dkb { display: flex; align-items: center; justify-content: center; padding: 0 8px; }
+#btn-follow.dkb .n { font-size: 10px; color: var(--g); letter-spacing: 0.04em; }
+
+/* ---------- phones and tablets (touch): the compact HUD ----------
+   Top row: a slim status chip (left), the objective (middle), the minimap with MENU and pause buttons (right).
+   Bottom: the weapon bar, a dock (SEAF squads, SEAF drop, re-center once the camera has moved) and CALL.
+   The stratagem grid, squad status, armory and camera live in the MENU. News is one short feed of two lines at most.
+   Everything steps back after a few seconds without a touch on it, and the map stays readable. */
+.nt.radio { --nc: var(--yellow); }
+.mn {
+  appearance: none; display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 38px; padding: 6px 10px; text-align: left; cursor: pointer;
+  font: inherit; font-size: 11px; letter-spacing: 0.05em; color: var(--g); background: rgba(8, 30, 16, 0.85); border: 1px solid var(--line); border-radius: 5px;
+}
+.mn b { color: var(--yellow); font-weight: 400; }
+#btn-menu { display: none; }
+body.touch #btn-menu { display: block; }
+body.touch #btn-shop { display: none; }
+body.touch #radio, body.touch #flavor { display: none !important; }
+body.touch .fadeable { opacity: 0.7; }
+body.touch .fadeable.hot, body.touch .hud-tl.open { opacity: 1; }
+
+/* top row */
+body.touch .hud-l { width: 150px; top: max(8px, env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left)); gap: 3px; }
+body.touch .hud-tl { padding: 3px 7px 4px; pointer-events: auto; position: relative; background: rgba(2, 14, 7, 0.5); border-color: transparent; }
+body.touch .tl-top { align-items: center; }
+body.touch #timer { font-size: 16px; }
+body.touch #opname { display: none; }
+body.touch #tl-cr { display: block; font-size: 10px; color: #ffe27a; white-space: nowrap; } body.touch #tl-cr b { color: #ffe27a; }
+body.touch #supply { margin-top: 2px; padding-top: 2px; font-size: 9px; }
+body.touch #roster { display: none; }
+body.touch .hud-tl.open #roster {
+  display: flex; position: absolute; left: -1px; top: 100%; width: min(236px, 64vw); margin: 0; padding: 6px 7px; z-index: 4;
+  background: rgba(2, 14, 7, 0.95); border: 1px solid var(--line); border-radius: 0 0 6px 6px;
+}
+body.touch .rr { grid-template-columns: 12px minmax(0, 1fr) 30px 48px; }
+body.touch #notices { position: static; width: max-content; max-width: min(62vw, 260px); gap: 2px; }
+body.touch #notices .nt { font-size: 10px; padding: 2px 6px; background: rgba(2, 14, 7, 0.55); }
+body.touch #notices .nt:nth-last-child(n+3) { display: none; }
+body.touch.drawing #notices { display: none; }
+
+body.touch .hud-tc {
+  top: max(8px, env(safe-area-inset-top)); left: calc(max(8px, env(safe-area-inset-left)) + 156px); right: calc(max(8px, env(safe-area-inset-right)) + 76px);
+  transform: none; width: auto; max-width: 340px; margin: 0 auto; gap: 3px; align-items: stretch;
+}
+body.touch #objective { padding: 3px 6px; font-size: 10px; line-height: 1.25; border-radius: 5px; border-color: transparent; background: rgba(2, 14, 7, 0.5); }
+body.touch #obj-sub { display: none; } body.touch #obj-bar { margin-top: 3px; height: 3px; }
+body.touch #place-hint { position: fixed; left: max(8px, env(safe-area-inset-left)); transform: none; top: calc(max(8px, env(safe-area-inset-top)) + 56px); width: max-content; max-width: calc(100vw - 150px); text-align: left; font-size: 10px; padding: 3px 8px; background: rgba(2, 14, 7, 0.8); }
+
+body.touch .hud-tr { display: contents; }
+body.touch #minimap { position: absolute; top: max(8px, env(safe-area-inset-top)); right: max(8px, env(safe-area-inset-right)); width: 66px; height: 66px; }
+body.touch .tr-btns { position: absolute; top: calc(max(8px, env(safe-area-inset-top)) + 70px); right: max(8px, env(safe-area-inset-right)); gap: 4px; }
+body.touch .tr-btns .btn { min-height: 30px; padding: 2px 8px; font-size: 10px; }
+body.touch .scorebox { position: absolute; top: calc(max(8px, env(safe-area-inset-top)) + 106px); right: max(8px, env(safe-area-inset-right)); padding: 1px 6px; font-size: 9px; }
+body.touch .scorebox > div:not(.combo) { display: none; }
+body.touch .scorebox:has(.combo:empty) { display: none; }
+body.touch #menu {
+  display: flex; flex-direction: column; gap: 4px; position: absolute; z-index: 6; width: 176px; padding: 5px; pointer-events: auto; background: rgba(2, 14, 7, 0.95);
+  top: calc(max(8px, env(safe-area-inset-top)) + 104px); right: max(8px, env(safe-area-inset-right));
+}
+
+/* the stratagem drawer: information only, so it is closed until asked for */
+body.touch #strats { display: none; }
+body.touch #hud.strats-open #strats {
+  display: grid; position: fixed; z-index: 6; left: max(8px, env(safe-area-inset-left)); right: max(8px, env(safe-area-inset-right)); top: calc(max(8px, env(safe-area-inset-top)) + 112px);
+  width: auto; max-width: 440px; margin: 0 auto; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; padding: 6px; background: rgba(2, 14, 7, 0.94);
+}
+body.touch #hud.strats-open #strats, body.touch #hud.idle.strats-open #strats { opacity: 1; }
+body.touch #hud.strats-open .sg { display: block; padding: 3px; }
+body.touch #hud.strats-open .sh { margin: 0 0 3px; font-size: 9px; } body.touch #hud.strats-open .sh span { display: inline; }
+body.touch #hud.strats-open .sc { aspect-ratio: auto; height: 24px; } body.touch #hud.strats-open .sc .g { font-size: 9px; }
+
+/* bottom: weapons, dock, CALL */
+body.touch #weapons { left: 6px; right: 6px; bottom: max(8px, env(safe-area-inset-bottom)); gap: 3px; transform: none; }
+body.touch .wbtn { height: 44px; padding: 3px 4px; }
+body.touch .wbtn .n { font-size: 8.5px; padding-right: 8px; } body.touch .wbtn .sub { font-size: 9.5px; margin-top: 2px; } body.touch .wbtn .bar { height: 4px; }
+body.touch #dock { display: flex; position: absolute; left: max(6px, env(safe-area-inset-left)); gap: 4px; pointer-events: none; bottom: calc(max(8px, env(safe-area-inset-bottom)) + 52px); }
+body.touch .dkb { height: 36px; }
+body.touch #dk-sq { width: 104px; } body.touch #dk-drop { width: 74px; }
+body.touch #btn-follow { position: relative; left: auto; right: auto; bottom: auto; width: 84px; min-height: 0; }
+body.touch #btn-follow:not(.free) { display: none; }
+body.touch #fire-btn { width: 78px; height: 78px; font-size: 14px; right: max(10px, env(safe-area-inset-right)); bottom: calc(max(8px, env(safe-area-inset-bottom)) + 52px); }
+/* the tray: squads and orders, opened from the dock */
+body.touch #tray {
+  display: none; position: absolute; flex-direction: column; gap: 4px; left: max(6px, env(safe-area-inset-left)); right: 100px;
+  bottom: calc(max(8px, env(safe-area-inset-bottom)) + 94px);
+}
+body.touch #hud.tray-open #tray { display: flex; }
+body.touch.drawing #tray { display: none !important; }
+body.touch #tray #squads, body.touch #tray #orders { position: static; left: auto; right: auto; bottom: auto; width: auto; gap: 3px; padding: 3px; grid-template-columns: repeat(5, minmax(0, 1fr)); background: rgba(2, 14, 7, 0.9); }
+body.touch #tray .sqb, body.touch #tray .sqa { height: 34px; }
+body.touch #tray .ord { height: 38px; } body.touch #tray .ord[data-o="seaf"] { display: none; }
+body.touch #tray .ord .n { font-size: 8px; letter-spacing: 0; padding-right: 0; margin-top: 3px; } body.touch #tray .ord .s { font-size: 10px; margin-top: 3px; }
+body.touch #tray .sqa .n { margin-top: 7px; }
+body.touch #center-msg { top: 34%; font-size: clamp(15px, 4vw, 26px); }
+
+/* idle: the HUD steps back until it is touched */
+body.touch .hud-tl, body.touch #minimap, body.touch .tr-btns, body.touch .dkb, body.touch .wbtn, body.touch #fire-btn { transition: opacity 0.6s; }
+body.touch #hud.idle .fadeable:not(#strats) { opacity: 0.4; }
+body.touch #hud.idle .tr-btns { opacity: 0.45; }
+body.touch #hud.idle #minimap { opacity: 0.55; }
+body.touch #hud.idle .dkb { opacity: 0.5; }
+body.touch #hud.idle .wbtn:not(.sel) { opacity: 0.55; }
+body.touch #hud.idle #fire-btn { opacity: 0.75; }
+body.touch #hud.idle .fadeable.hot, body.touch #hud.idle .hud-tl.open { opacity: 1; }
+
+/* phones in landscape */
+@media (max-height: 520px) and (orientation: landscape) {
+  body.touch .hud-tc { top: max(6px, env(safe-area-inset-top)); }
+  body.touch #hud.strats-open #strats { top: calc(max(6px, env(safe-area-inset-top)) + 44px); }
+  body.touch #weapons { left: max(8px, env(safe-area-inset-left)); right: 100px; bottom: 8px; }
+  body.touch #fire-btn { bottom: 10px; width: 76px; height: 76px; }
+  body.touch #dock { bottom: 58px; }
+  body.touch #tray { right: auto; width: 330px; bottom: 100px; }
+  body.touch #center-msg { top: 30%; }
+}
+/* left-handed: everything on the bottom mirrors */
+body.touch.lefty #dock { left: auto; right: max(6px, env(safe-area-inset-right)); flex-direction: row-reverse; }
+body.touch.lefty #tray { left: 100px; right: max(6px, env(safe-area-inset-right)); }
+body.touch.lefty #fire-btn { right: auto; left: max(10px, env(safe-area-inset-left)); }
+@media (max-height: 520px) and (orientation: landscape) {
+  body.touch.lefty #weapons { left: 100px; right: max(8px, env(safe-area-inset-right)); }
+  body.touch.lefty #tray { left: auto; right: max(6px, env(safe-area-inset-right)); }
+}

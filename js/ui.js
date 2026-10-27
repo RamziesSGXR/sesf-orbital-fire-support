@@ -55,26 +55,92 @@ export class Hud {
       e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); this.onOrder && this.onOrder(kind); });
       this.ord[kind] = { el: e, sub: e.querySelector('.s'), key: '' };
     });
+    // Compact (touch) HUD: the dock under the weapon bar, the squad and orders tray it opens, and the idle fade.
+    this.dkSq = $('dk-sq'); this.dkDrop = $('dk-drop');
+    this.dkSq.addEventListener('pointerdown', (e) => { e.preventDefault(); if (this.drawing) this.onSquadAct && this.onSquadAct('draw'); else this.trayToggle(); });
+    this.dkDrop.addEventListener('pointerdown', (e) => { e.preventDefault(); this.onOrder && this.onOrder('seaf'); });
+    $('tray').addEventListener('pointerdown', () => this.trayBump());
+    const chip = document.querySelector('.hud-tl');
+    chip.addEventListener('pointerdown', () => {
+      if (!document.body.classList.contains('touch')) return;
+      const on = !chip.classList.contains('open'); chip.classList.toggle('open', on);
+      clearTimeout(this._rt); if (on) this._rt = setTimeout(() => chip.classList.remove('open'), 6000);
+    });
+    document.querySelectorAll('.fadeable').forEach((n) => n.addEventListener('pointerdown', () => this.hot(n, 3000)));
+    // The menu (touch): armory, the stratagem drawer, squad status and the camera. It closes itself.
+    this.menu = $('menu');
+    $('btn-menu').addEventListener('click', () => this.menuToggle());
+    this.menu.querySelectorAll('.mn').forEach((b) => b.addEventListener('click', () => this.menuAct(b.dataset.mn)));
+    $('strats').addEventListener('pointerdown', () => this.stratsToggle(true));
+    // Idle fade (touch): the HUD steps back a few seconds after the last touch on it, so the map stays readable.
+    $('hud').addEventListener('pointerdown', () => this.wake(), true);
+    this.wake(5000);
   }
+
+  // Bring the HUD to full strength; it fades again after ms of no HUD touches.
+  wake(ms = 3200) {
+    const h = $('hud'); h.classList.remove('idle');
+    clearTimeout(this._wt); this._wt = setTimeout(() => h.classList.add('idle'), ms);
+  }
+  menuToggle(force) {
+    const on = force === undefined ? this.menu.classList.contains('hidden') : force;
+    this.menu.classList.toggle('hidden', !on);
+    clearTimeout(this._mnt); if (on) { this.trayToggle(false); this._mnt = setTimeout(() => this.menu.classList.add('hidden'), 7000); }
+  }
+  menuAct(kind) {
+    if (kind === 'armory') { this.menuToggle(false); $('btn-shop').click(); }
+    else if (kind === 'strats') { this.menuToggle(false); this.stratsToggle(); }
+    else if (kind === 'roster') { this.menuToggle(false); const c = document.querySelector('.hud-tl'); c.classList.add('open'); clearTimeout(this._rt); this._rt = setTimeout(() => c.classList.remove('open'), 7000); }
+    else if (kind === 'cam') { $('btn-follow').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })); this.menuToggle(false); }
+  }
+  // The stratagem grid is information only (the Helldivers call them), so on a phone it lives in a drawer.
+  stratsToggle(force) {
+    const h = $('hud'), on = force === undefined ? !h.classList.contains('strats-open') : force;
+    h.classList.toggle('strats-open', on);
+    clearTimeout(this._st); if (on) this._st = setTimeout(() => h.classList.remove('strats-open'), 8000);
+  }
+
+  // A faded panel comes up to full strength for a moment when it is touched or has news.
+  hot(node, ms = 2600) {
+    if (!node) return;
+    node.classList.add('hot'); clearTimeout(node._ht); node._ht = setTimeout(() => node.classList.remove('hot'), ms);
+  }
+  // The squad and orders tray (touch): opens from the dock, closes itself after a few idle seconds.
+  trayToggle(force) {
+    const h = $('hud'), on = force === undefined ? !h.classList.contains('tray-open') : force;
+    h.classList.toggle('tray-open', on);
+    if (on) { this.menu.classList.add('hidden'); h.classList.remove('strats-open'); this.wake(); }
+    clearTimeout(this._tt); if (on) this._tt = setTimeout(() => h.classList.remove('tray-open'), 9000);
+  }
+  trayBump() { if ($('hud').classList.contains('tray-open')) this.trayToggle(true); }
 
   _set(key, node, val, prop = 'textContent') {
     if (this.last[key] === val) return;
     this.last[key] = val; node[prop] = val;
+    return true;
   }
 
-  radio(text) {
+  radio(text, key = '') {
+    // Phones: one short feed. Radio lines join the notices, and acknowledgements of your own button presses are dropped.
+    if (document.body.classList.contains('touch')) {
+      if (!/^(seaf|deny|uav|gundry|landed|nomark|assault)/.test(key)) this.notice(text, 'radio');
+      return;
+    }
     const box = $('radio'), d = el('div', 'line'); d.textContent = text; box.appendChild(d);
     while (box.children.length > 3) box.removeChild(box.firstChild);
-    setTimeout(() => d.classList.add('old'), 5200);
-    setTimeout(() => d.remove(), 6400);
+    const k = document.body.classList.contains('touch') ? 0.65 : 1;
+    setTimeout(() => d.classList.add('old'), 5200 * k);
+    setTimeout(() => d.remove(), 6400 * k);
   }
   clearRadio() { $('radio').innerHTML = ''; }
 
   // The notice feed: Helldiver deployments and deaths, breaches, points of interest, purchases.
   notice(text, tone = 'info') {
+    const touch = document.body.classList.contains('touch');
+    if (touch && tone === 'dim') return;   // phones: only news worth a glance
     const box = $('notices'), d = el('div', 'nt ' + tone); d.textContent = text; box.appendChild(d);
-    while (box.children.length > 6) box.removeChild(box.firstChild);
-    const life = tone === 'bad' ? 11000 : tone === 'dim' ? 5000 : 8000;
+    while (box.children.length > (touch ? 2 : 6)) box.removeChild(box.firstChild);
+    const life = touch ? (tone === 'bad' || tone === 'warn' ? 5600 : 3800) : (tone === 'bad' ? 11000 : tone === 'dim' ? 5000 : 8000);
     setTimeout(() => d.classList.add('old'), life);
     setTimeout(() => d.remove(), life + 1200);
   }
@@ -90,6 +156,8 @@ export class Hud {
     this.last = {}; this.clearRadio(); this.clearNotices(); $('center-msg').classList.remove('show'); this.setPlacing(null);
     for (const o of Object.values(this.ord)) o.key = '';
     this.setDrawing(false); for (const b of this.sqb) b.key = ''; for (const a of Object.values(this.sqa)) a.key = '';
+    this.trayToggle(false); this.menu.classList.add('hidden'); $('hud').classList.remove('strats-open'); document.querySelector('.hud-tl').classList.remove('open'); this.dkKey = '';
+    this.wake(5000);
   }
   // Placement mode (desktop): the next click on the map drops or sends.
   setPlacing(kind) {
@@ -104,7 +172,11 @@ export class Hud {
   setDrawing(on, label = '') {
     this.drawing = !!on;
     const e = $('place-hint');
-    if (on) { e.classList.remove('hidden'); e.textContent = `DRAW MODE ${label}: DRAG A ROUTE, LINE OR RING. ESC EXITS`; }
+    if (on) {
+      e.classList.remove('hidden');
+      e.textContent = document.body.classList.contains('touch') ? `DRAW ${label}: DRAG A ROUTE, LINE OR RING` : `DRAW MODE ${label}: DRAG A ROUTE, LINE OR RING. ESC EXITS`;
+      this.trayToggle(false);
+    }
     else e.classList.toggle('hidden', !this.placing);
     document.body.classList.toggle('drawing', !!on);
     for (const a of Object.values(this.sqa)) a.key = '';
@@ -150,7 +222,10 @@ export class Hud {
       obj = ex.holdT > 0 ? `EXTRACTING ${Math.ceil(C.extract.holdSec - ex.holdT)}S` : 'OBJECTIVE DONE. REACH EXTRACTION';
       prog = ex.holdT > 0 ? ex.holdT / C.extract.holdSec : null;
     } else obj = 'MISSION OVER';
-    this._set('obj', $('obj-main'), obj);
+    if (this._set('obj', $('obj-main'), obj)) {
+      const stage = obj.replace(/[0-9.,]+/g, '#');
+      if (stage !== this.last.stage) { this.last.stage = stage; this.hot($('objective'), 4500); }
+    }
     this._set('objsub', $('obj-sub'), squadStatus(m));
     const ob = $('obj-bar');
     ob.classList.toggle('hidden', prog === null);
@@ -161,6 +236,7 @@ export class Hud {
     this._set('sm', $('sc-mission'), fmtNum(live));
     this._set('ss', $('sc-session'), fmtNum(session.score + live));
     this._set('cr', $('sc-credits'), fmtNum(m.wallet.bal));
+    this._set('cr2', $('tl-cr').lastElementChild, fmtNum(m.wallet.bal));
     const cb = m.combo.mult > 1.05 && m.t - m.combo.last < C.score.comboResetSec ? `COMBO x${m.combo.mult.toFixed(1)}` : '';
     this._set('combo', $('combo'), cb);
 
@@ -168,7 +244,10 @@ export class Hud {
 
     const f = FACTIONS[m.faction.id];
     this._set('flavor', $('flavor'), `${f.name} / ${m.biome.name.toUpperCase()}\nPRESSURE ${m.pressure.toFixed(2)}\nVIEW ${Math.round(cam.view)}M ${cam.follow ? 'CAMERA LOCKED' : 'FREE CAMERA'}`);
-    this._set('follow', $('btn-follow'), cam.follow ? 'CAM LOCK' : 'CAM FREE');
+    const touch = document.body.classList.contains('touch');
+    this._set('follow', $('btn-follow').firstElementChild, touch ? 'RE-CENTER' : cam.follow ? 'CAM LOCK' : 'CAM FREE');
+    $('btn-follow').classList.toggle('free', !cam.follow);   // phones: the button only shows once the camera has been moved off the squad
+    this._set('mncam', $('mn-cam'), cam.follow ? 'LOCKED' : 'FREE');
   }
 
   // One row per group: letter, who is on the ground, health, and what is coming when nobody is.
@@ -201,6 +280,8 @@ export class Hud {
     const sf = m.countAlly('S'), pods = m.pendingPods('S'), st = seafStats(m.kit), lives = m.hd.lives;
     const key = `${lives}|${m.hd.max}|${sf}|${pods}|${st.max}`;
     if (this.last.supply === key) return;
+    if (this.last.lives !== undefined && this.last.lives !== lives) this.hot(document.querySelector('.hud-tl'), 3500);
+    this.last.lives = lives;
     this.last.supply = key;
     $('supply').innerHTML = `<span>LIVES <b class="lives${lives <= 3 ? ' low' : ''}">${lives}</b></span><span>SEAF <b>${sf}</b>/${st.max}${pods ? ` <i>+${pods}</i>` : ''}</span>`;
   }
@@ -229,6 +310,7 @@ export class Hud {
       const o = this.ord[kind], key = `${sub}|${cls}`;
       if (o.key === key) return;
       o.key = key; o.sub.textContent = sub; o.el.className = 'ord ' + cls;
+      if (kind === 'seaf') { this.dkDrop.className = 'dkb drop ' + cls; this.dkDrop.lastElementChild.textContent = sub; }
     };
     const act = (kind, sub, cls) => set(kind, placing === kind ? 'PLACE' : sub, placing === kind ? 'active' : cls);
     const st = seafStats(m.kit), room = st.max - m.countAlly('S') - m.pendingPods('S');
@@ -264,12 +346,29 @@ export class Hud {
       b.key = key; b.s.textContent = sub; b.el.className = 'sqb' + (sel ? ' sel' : '') + (n ? '' : ' empty');
     }
     const selN = sf.sel >= 0 ? sf.squads[sf.sel].n : 0;
+    this._dock(sf, total);
     const set = (kind, cls) => { const a = this.sqa[kind], key = cls; if (a.key === key) return; a.key = key; a.el.className = 'sqa ' + cls; };
     set('draw', !total ? 'off' : this.drawing ? 'active' : 'ready');
     const biggest = sf.sel >= 0 ? selN : Math.max(0, ...sf.squads.map((q) => q.n));
     set('split', biggest >= 2 && free ? 'ready' : 'off');
     set('merge', sf.sel >= 0 && selN > 0 && sf.squads.some((q) => q.i !== sf.sel && q.n) ? 'ready' : 'off');
     set('assign', sf.sel < 0 || !total ? 'off' : this.placing === 'assign' ? 'active' : 'ready');
+  }
+
+  // The dock chip shows which squad is selected and what it is doing, so the tray can stay closed.
+  _dock(sf, total) {
+    const NAME = { auto: 'AUTO', move: 'MOVE', protect: 'HOLD', attack: 'ATTACK', escort: 'ESCORT', path: 'ROUTE', line: 'LINE', ring: 'RING' };
+    const tq = (sf.sel >= 0 ? [sf.squads[sf.sel]] : sf.squads).filter((q) => q.n > 0);
+    const kinds = new Set(tq.map((q) => q.order.kind));
+    const who = sf.sel >= 0 ? `S${sf.sel + 1}` : 'ALL';
+    const what = !total ? 'NO SEAF' : !tq.length ? 'EMPTY' : kinds.size === 1 ? NAME[tq[0].order.kind] || '' : 'MIXED';
+    const open = $('hud').classList.contains('tray-open');
+    const n1 = this.drawing ? 'DRAWING' : 'SQUADS', n2 = this.drawing ? 'TAP TO FINISH' : `${who} ${total ? tq.reduce((a, q) => a + q.n, 0) : ''} ${what}`.replace(/\s+/g, ' ');
+    const key = `${n1}|${n2}|${this.drawing}|${open}`;
+    if (this.dkKey === key) return;
+    this.dkKey = key;
+    this.dkSq.firstElementChild.textContent = n1; this.dkSq.lastElementChild.textContent = n2;
+    this.dkSq.className = 'dkb' + (this.drawing ? ' active' : open ? ' open' : '');
   }
 
   // UAV, the orbital slots and the nuke.

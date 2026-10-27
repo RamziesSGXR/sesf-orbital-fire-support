@@ -8,6 +8,7 @@ import { drawSquadOrders, drawSeafMark, drawStroke, drawPelicans, drawAssault, d
 import { slotStats } from '../sim/player.js';
 
 const SIZE = C.world.size;
+const OBJ_ARROWS = new Set(['LAUNCH', 'VIP', 'PICKUP', 'CITADEL', 'EXTRACT']);
 const TAU = Math.PI * 2;
 const slotCd = (m, i) => { const st = slotStats(m, i); return st ? st.cd : 0; };
 
@@ -228,7 +229,7 @@ export class Renderer {
       ctx.setLineDash([px(8), px(6)]); ctx.beginPath(); ctx.arc(ex.x, ex.y, C.extract.radius, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
       ctx.fillStyle = '#ffe600'; this._diamond(ctx, ex.x, ex.y, Math.max(px(7), 4));
       if (ex.holdT > 0) { ctx.strokeStyle = '#7dff9b'; ctx.lineWidth = px(4); ctx.beginPath(); ctx.arc(ex.x, ex.y, C.extract.radius + px(6), -Math.PI / 2, -Math.PI / 2 + TAU * (ex.holdT / C.extract.holdSec)); ctx.stroke(); }
-      labels.push({ x: ex.x, y: ex.y, dy: -16, text: 'EXTRACTION', col: '#ffe600' });
+      labels.push({ x: ex.x, y: ex.y, dy: -16, text: 'EXTRACTION', col: '#ffe600' , pri: 2 });
     }
 
     // Bases: always known from orbit.
@@ -331,7 +332,7 @@ export class Renderer {
       ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.arc(p.x, p.y, 8 + 34 * f, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
       ctx.lineWidth = px(2.5); ctx.beginPath(); ctx.moveTo(p.x, p.y - 160 * f); ctx.lineTo(p.x, p.y - 8); ctx.stroke();
       const tm = p.type === 'H' ? m.teams[p.team] : null;
-      labels.push({ x: p.x, y: p.y, dy: 42, text: `${p.type === 'H' ? (tm ? m.slotTag(tm) : 'HELLDIVER') : `SEAF x${p.n}`} ${Math.ceil(left)}S`, col: tm ? tm.color : col });
+      labels.push({ x: p.x, y: p.y, dy: 42, text: `${p.type === 'H' ? (tm ? m.slotTag(tm) : 'HELLDIVER') : `SEAF x${p.n}`} ${Math.ceil(left)}S`, col: tm ? tm.color : col , pri: 1 });
     }
 
     drawPelicans(ctx, m, now, px, labels, scale, pal);
@@ -347,7 +348,7 @@ export class Renderer {
       ctx.strokeStyle = col; ctx.lineWidth = px(2); ctx.setLineDash([px(6), px(5)]); ctx.lineDashOffset = -now * px(12);
       ctx.beginPath(); ctx.arc(ax, ay, R, 0, TAU); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
       ctx.fillStyle = col; this._diamond(ctx, ax, ay, Math.max(px(6), 3.5));
-      labels.push({ x: ax, y: ay, dy: 38, text: !covered ? 'NO COVERAGE' : k === 'move' ? 'SEAF MOVE HERE' : k === 'protect' ? 'SEAF PROTECT HERE' : k === 'attack' ? 'SEAF ATTACK HERE' : k === 'assign' ? `ASSIGN TO SQUAD ${m.seaf.sel + 1}` : 'SEAF DROP', col });
+      labels.push({ x: ax, y: ay, dy: 38, text: !covered ? 'NO COVERAGE' : k === 'move' ? 'SEAF MOVE HERE' : k === 'protect' ? 'SEAF PROTECT HERE' : k === 'attack' ? 'SEAF ATTACK HERE' : k === 'assign' ? `ASSIGN TO SQUAD ${m.seaf.sel + 1}` : 'SEAF DROP', col , pri: 3 });
     }
 
     // Effects
@@ -400,10 +401,29 @@ export class Renderer {
     const d = this.dpr;
     ctx.font = `${Math.round(10 * d)}px ui-monospace, Menlo, Consolas, monospace`;
     ctx.textAlign = 'center';
-    for (const l of this.labels) {
-      const x = w2sx(l.x), y = w2sy(l.y) + l.dy * d;
+    const small = document.body.classList.contains('touch');
+    let list = this.labels.map((l) => ({ l, x: w2sx(l.x), y: w2sy(l.y) + l.dy * d }));
+    if (small) {
+      // Phones: strategic labels first, then whatever is nearest the middle of the screen. Local detail (turret and heavy names,
+      // ally intents) only close to the middle, never two labels on top of each other, and no more than six in all.
+      const cx = this.W / 2, cy = this.H / 2, near = 0.34 * Math.min(this.W, this.H);
+      for (const o of list) o.k = Math.hypot(o.x - cx, o.y - cy);
+      list = list.filter((o) => (o.l.pri ?? 1) >= 2 || o.k < (o.l.pri === 0 ? near : near * 2.2))
+        .sort((a, b) => (b.l.pri ?? 1) - (a.l.pri ?? 1) || a.k - b.k);
+      const placed = []; let n = 0; const out = [];
+      for (const o of list) {
+        const w = ctx.measureText(o.l.text).width + 8 * d, r = { l: o.x - w / 2, r: o.x + w / 2, t: o.y - 10 * d, b: o.y + 4 * d };
+        if ((o.l.pri ?? 1) < 3 && (n >= 6 || placed.some((q) => r.l < q.r && r.r > q.l && r.t < q.b && r.b > q.t))) continue;
+        placed.push(r); n++; out.push(o);
+      }
+      list = out;
+    }
+    for (const o of list) {
+      const { l, y } = o; let x = o.x;
       if (x < -60 || y < -20 || x > this.W + 60 || y > this.H + 20) continue;
-      ctx.fillStyle = 'rgba(0,0,0,0.55)'; const w = ctx.measureText(l.text).width + 8 * d;
+      const w = ctx.measureText(l.text).width + 8 * d;
+      if (small && (l.pri ?? 1) >= 2) x = Math.max(w / 2 + 4 * d, Math.min(this.W - w / 2 - 4 * d, x));   // phones: keep the important ones readable at the screen edge
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(x - w / 2, y - 10 * d, w, 14 * d);
       ctx.fillStyle = l.col; ctx.fillText(l.text, x, y);
     }
@@ -434,7 +454,7 @@ export class Renderer {
       ctx.fillStyle = 'rgba(0,0,0,0.62)'; ctx.fillRect(r.l, r.t, w, r.b - r.t);
       ctx.fillStyle = tm ? tm.color : '#ffe600'; ctx.fillText(text, x, ty + off);
     }
-    if (scale / d >= 1.35) {
+    if (scale / d >= 1.35 && !document.body.classList.contains('touch')) {   // phones: squad labels stand in for the individual SEAF name tags
       ctx.font = mono(8.5);
       for (const a of m.seafAlive) {
         const { x, y } = spot(a);
@@ -452,13 +472,14 @@ export class Renderer {
       const list = [];
       for (const a of m.alive) if (a.say && t < a.say.until) list.push(a);
       list.sort((p, q) => (p.type === 'H' ? 0 : 1) - (q.type === 'H' ? 0 : 1));
-      let seafShown = 0;
+      let seafShown = 0, shown = 0;
+      const small = document.body.classList.contains('touch');   // phones: fewer, smaller bubbles so the action stays visible
       for (const a of list) {
         const H_ = a.type === 'H';
-        if (!H_ && ++seafShown > 4) continue;
+        if (small) { if (!H_ || ++shown > 1) continue; } else if (!H_ && ++seafShown > 4) continue;   // phones: one Helldiver at a time
         const { x, y } = spot(a);
         if (x < -80 || y < -40 || x > W + 80 || y > H + 40) continue;
-        const fs = H_ ? 11.5 : 8.5, maxW = (H_ ? 190 : 120) * d, pad = (H_ ? 6 : 4) * d, lh = (fs + 3) * d;
+        const fs = small ? (H_ ? 9.5 : 7.5) : (H_ ? 11.5 : 8.5), maxW = (small ? (H_ ? 140 : 100) : (H_ ? 190 : 120)) * d, pad = (H_ ? 6 : 4) * d, lh = (fs + 3) * d;
         ctx.font = mono(fs);
         // word wrap
         const words = a.say.text.split(' '), lines = []; let cur = '';
@@ -675,7 +696,7 @@ export class Renderer {
       ctx.beginPath(); ctx.moveTo(10 * d, 0); ctx.lineTo(-6 * d, -7 * d); ctx.lineTo(-6 * d, 7 * d); ctx.closePath(); ctx.fill();
       ctx.restore();
       const dist = Math.round(Math.hypot(it.x - ui.cam.x, it.y - ui.cam.y));
-      const text = `${it.label} ${dist}M`;
+      const text = document.body.classList.contains('touch') && !OBJ_ARROWS.has(it.label) ? it.label : `${it.label} ${dist}M`;   // phones: a distance only for the objective
       ctx.globalAlpha = 0.9; ctx.fillStyle = it.col;
       ctx.textAlign = ax > W / 2 ? 'right' : 'left';
       const tx2 = ax + (ax > W / 2 ? -14 * d : 14 * d), ty2 = Math.max(14 * d, Math.min(H - 8 * d, ay + 4 * d));
@@ -732,11 +753,16 @@ export class Renderer {
         const cd = (slotCd(m, p.weapon) || 30), f = 1 - (s.readyAt - t) / cd;
         ctx.strokeStyle = '#ffb020'; ctx.lineWidth = 3 * d; ctx.beginPath(); ctx.arc(0, 0, 26 * d, -Math.PI / 2, -Math.PI / 2 + TAU * Math.max(0, Math.min(1, f))); ctx.stroke();
       }
-      ctx.font = `${Math.round(11 * d)}px ui-monospace, Menlo, Consolas, monospace`;
+      const small = document.body.classList.contains('touch');   // phones: the weapon bar already names the weapon, so only say what is wrong
+      ctx.font = `${Math.round((small ? 9.5 : 11) * d)}px ui-monospace, Menlo, Consolas, monospace`;
       ctx.textAlign = 'center'; ctx.fillStyle = col;
-      ctx.fillText(info.name, 0, gap + len + 16 * d);
-      if (status) ctx.fillText(status, 0, gap + len + 30 * d);
-      if (info.delay > 0) { ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(157,255,184,0.8)'; ctx.fillText(`IMPACT ${info.delay.toFixed(1)}S`, gap + len + 8 * d, 4 * d); }
+      if (small) { if (status && (bad || danger)) ctx.fillText(status, 0, gap + len + 13 * d); }
+      else { ctx.fillText(info.name, 0, gap + len + 16 * d); if (status) ctx.fillText(status, 0, gap + len + 30 * d); }
+      if (info.delay > 0) {
+        ctx.fillStyle = 'rgba(157,255,184,0.8)';
+        if (small) ctx.fillText(`${info.delay.toFixed(1)}S`, 0, -(gap + len + 6 * d));
+        else { ctx.textAlign = 'left'; ctx.fillText(`IMPACT ${info.delay.toFixed(1)}S`, gap + len + 8 * d, 4 * d); }
+      }
     }
     ctx.textAlign = 'left';
     ctx.restore();

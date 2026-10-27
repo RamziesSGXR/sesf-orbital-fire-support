@@ -302,7 +302,7 @@ export class Mission {
   radio(text, key = text, minGap = 4) {
     if (!text || this.t - (this.radioAt[key] ?? -99) < minGap) return;
     this.radioAt[key] = this.t;
-    this.emit('radio', { text });
+    this.emit('radio', { text, key });
   }
   // A line on the notice feed: tone is 'good', 'warn', 'bad' or 'info'.
   notice(text, tone = 'info') { this.emit('notice', { text, tone }); }

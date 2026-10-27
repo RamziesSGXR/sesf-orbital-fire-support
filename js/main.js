@@ -471,7 +471,7 @@ function onEvent(ev, now) {
     case 'asset_new': case 'mount': audio.ready(); break;
     case 'asset_down': if (ev.why === 'killed') audio.allyDown(); break;
     case 'deny': audio.deny(); if (DENY[ev.reason]) hud.message(DENY[ev.reason], 1500); break;
-    case 'radio': audio.chirp(); hud.radio(ev.text); break;
+    case 'radio': audio.chirp(); hud.radio(ev.text, ev.key); break;
     case 'notice': hud.notice(ev.text, ev.tone); break;
     case 'credit': audio.coin(); break;
     case 'pod_call': case 'seaf_order': audio.chirp(); break;

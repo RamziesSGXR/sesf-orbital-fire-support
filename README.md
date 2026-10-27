@@ -61,7 +61,7 @@ To add a one-tap "copy and open the channel" button, set `share.channelUrl` in `
 | SEAF orders | `X` auto, `V` move, `Z` protect, `N` attack, `C` escort | Order buttons |
 | Draw a play | `R`, then drag on the map: a loop is a ring, a straight stroke is a line, anything else is a route | DRAW, then drag one finger (two fingers still pan and zoom) |
 | Send SEAF at a target | Click a breach or point of interest | Tap it with an order |
-| Armory (upgrades) | `B` | ARMORY button |
+| Armory (upgrades) | `B` | MENU, then ARMORY. The menu also opens the stratagem list, squad status and the camera |
 | Camera | `WASD`, right-drag, wheel or `+` / `-` zoom, `Space` locks on the squad | Drag, pinch, tap the minimap |
 | Other | `T` white-hot / black-hot, `Esc` or `P` pause and rename squads | Pause button |
 

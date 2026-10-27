@@ -15,32 +15,40 @@
   <!-- In-mission HUD -->
   <div id="hud" class="hidden">
     <div class="hud-l">
-      <div class="hud-tl panel">
-        <div class="tl-top"><div id="timer">30:00</div><div id="opname">OPERATION</div></div>
+      <div class="hud-tl panel fadeable">
+        <div class="tl-top"><div id="timer">30:00</div><div id="opname">OPERATION</div><div id="tl-cr">CR <b>0</b></div></div>
         <div id="roster"></div>
         <div id="supply"></div>
       </div>
       <div id="notices"></div>
     </div>
     <div class="hud-tc">
-      <div id="objective" class="panel"><div id="obj-main">OBJECTIVE</div><div id="obj-bar" class="hidden"><i></i></div><div id="obj-sub">SQUAD ADVANCING</div></div>
-      <div id="strats" class="panel"></div>
+      <div id="objective" class="panel fadeable"><div id="obj-main">OBJECTIVE</div><div id="obj-bar" class="hidden"><i></i></div><div id="obj-sub">SQUAD ADVANCING</div></div>
+      <div id="strats" class="panel fadeable"></div>
       <div id="place-hint" class="panel hidden"></div>
     </div>
     <div class="hud-tr">
-      <div class="panel scorebox">
+      <div class="panel scorebox fadeable">
         <div>MISSION <b id="sc-mission">0</b></div>
         <div>SESSION <b id="sc-session">0</b></div>
         <div>CREDITS <b id="sc-credits" class="cr">0</b></div>
         <div id="combo" class="combo"></div>
       </div>
-      <canvas id="minimap" width="240" height="240"></canvas>
+      <canvas id="minimap" class="fadeable" width="240" height="240"></canvas>
       <div class="tr-btns">
         <button id="btn-shop" class="btn icon" aria-label="Armory">ARMORY</button>
+        <button id="btn-menu" class="btn icon" aria-label="Menu">MENU</button>
         <button id="btn-pause" class="btn icon" aria-label="Pause">II</button>
+      </div>
+      <div id="menu" class="panel hidden">
+        <button class="mn" data-mn="armory">ARMORY</button>
+        <button class="mn" data-mn="strats">STRATAGEMS</button>
+        <button class="mn" data-mn="roster">SQUAD STATUS</button>
+        <button class="mn" data-mn="cam">CAMERA <b id="mn-cam">LOCKED</b></button>
       </div>
     </div>
     <div id="radio"></div>
+    <div id="tray">
     <div id="squads" class="panel">
       <button class="sqb" data-sq="-1"><span class="n">ALL</span><span class="s">0</span></button>
       <button class="sqb" data-sq="0" style="--sc:#5fa8ff"><span class="n">S1</span><span class="s">--</span></button>
@@ -60,10 +68,15 @@
       <button class="ord" data-o="attack"><span class="k">N</span><span class="n">ATTACK</span><span class="s">--</span></button>
       <button class="ord" data-o="escort"><span class="k">C</span><span class="n">ESCORT</span><span class="s">--</span></button>
     </div>
-    <div id="flavor"></div>
+    </div>
+    <div id="dock">
+      <button id="dk-sq" class="dkb"><span class="n">SQUADS</span><span class="s">--</span></button>
+      <button id="dk-drop" class="dkb"><span class="n">SEAF DROP</span><span class="s">--</span></button>
+      <button id="btn-follow" class="dkb"><span class="n">CAM LOCK</span></button>
+    </div>
+    <div id="flavor" class="fadeable"></div>
     <div id="weapons"></div>
     <div id="touch-ctl">
-      <button id="btn-follow" class="btn small">CAM LOCK</button>
       <button id="fire-btn" class="btn fire">CALL</button>
     </div>
     <div id="center-msg"></div>

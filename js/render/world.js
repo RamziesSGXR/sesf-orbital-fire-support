@@ -124,21 +124,21 @@ export function drawMarkers(ctx, m, now, px, labels, scale) {
       }
       if (mk.fly && mk.ux !== undefined) drawApproach(ctx, mk, mx, my, now, px, col, corridor ? mk.len / 2 + mk.rad : Math.max(mk.r, px(8)), left > 0);
       ctx.fillStyle = `rgba(${col},0.95)`; ctx.beginPath(); ctx.moveTo(mx, my - px(5)); ctx.lineTo(mx + px(4), my + px(3)); ctx.lineTo(mx - px(4), my + px(3)); ctx.closePath(); ctx.fill();
-      labels.push({ x: mx, y: my, dy: -Math.max(mk.r * scale, 8) - 6, text: left > 0 ? `${mk.id.toUpperCase()} ${left.toFixed(0)}S` : mk.id.toUpperCase(), col: '#ffe600' });
+      labels.push({ x: mx, y: my, dy: -Math.max(mk.r * scale, 8) - 6, text: left > 0 ? `${mk.id.toUpperCase()} ${left.toFixed(0)}S` : mk.id.toUpperCase(), col: '#ffe600' , pri: 2 });
     } else if (mk.type === 'pod') {
       const total = mk.end - mk.start, f = Math.max(0, Math.min(1, (mk.end - t) / total));
       ctx.strokeStyle = '#ffe600'; ctx.lineWidth = px(2); ctx.setLineDash([px(4), px(4)]);
       ring(ctx, mx, my, mk.r + 3); ctx.stroke(); ctx.setLineDash([]);
       ctx.lineWidth = px(2.5); ctx.beginPath(); ctx.moveTo(mx, my - 120 * f); ctx.lineTo(mx, my - 4); ctx.stroke();
       ctx.fillStyle = '#ffe600'; ctx.fillRect(mx - px(3), my - 120 * f - px(3), px(6), px(6));
-      labels.push({ x: mx, y: my, dy: 22, text: (STRATS[mk.id]?.name || 'SUPPLY DROP').toUpperCase(), col: '#ffe600' });
+      labels.push({ x: mx, y: my, dy: 22, text: (STRATS[mk.id]?.name || 'SUPPLY DROP').toUpperCase(), col: '#ffe600' , pri: 1 });
     } else if (mk.type === 'nuke') {
       const left = Math.max(0, mk.end - t);
       ctx.strokeStyle = `rgba(255,60,40,${0.55 + pulse * 0.45})`; ctx.lineWidth = px(2.5); ctx.setLineDash([px(10), px(7)]); ctx.lineDashOffset = -now * px(16);
       ring(ctx, mx, my, mk.r); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
       ctx.fillStyle = `rgba(255,60,40,${0.05 + 0.05 * pulse})`; ring(ctx, mx, my, mk.r); ctx.fill();
       ctx.strokeStyle = `rgba(255,255,255,${0.7})`; ctx.lineWidth = px(1.5); ring(ctx, mx, my, mk.r * (0.15 + 0.85 * (1 - left / (mk.end - mk.start)))); ctx.stroke();
-      labels.push({ x: mx, y: my, dy: -8, text: `NUCLEAR STRIKE ${left.toFixed(0)}S`, col: '#ff6a4a' });
+      labels.push({ x: mx, y: my, dy: -8, text: `NUCLEAR STRIKE ${left.toFixed(0)}S`, col: '#ff6a4a' , pri: 3 });
     } else {
       ctx.strokeStyle = `rgba(255,70,70,${0.55 + pulse * 0.4})`; ctx.lineWidth = px(2);
       ctx.setLineDash([px(6), px(5)]);
@@ -172,7 +172,7 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
         ctx.beginPath(); ctx.arc(o.x, o.y, r + px(6), -Math.PI / 2, -Math.PI / 2 + TAU * f); ctx.stroke();
       }
       const txt = o.done ? 'LAUNCHED' : o.state === 'armed' ? `ARMED ${Math.max(0, Math.ceil(o.armedAt + O.nuke.armedSec - m.t))}S` : o.state === 'inbound' ? 'INBOUND' : o.state === 'hold' ? `HOLD ${Math.max(0, Math.ceil(O.nuke.holdSec - o.holdT))}S` : 'LAUNCH SITE';
-      labels.push({ x: o.x, y: o.y, dy: -Math.max(r * scale, 12) - 6, text: txt, col: o.state === 'armed' ? '#ff6a4a' : o.done ? '#7dff9b' : '#ffe600' });
+      labels.push({ x: o.x, y: o.y, dy: -Math.max(r * scale, 12) - 6, text: txt, col: o.state === 'armed' ? '#ff6a4a' : o.done ? '#7dff9b' : '#ffe600' , pri: 2 });
     } else if (o.type === 'vip') {
       const v = o.vip;
       if (!o.done) {
@@ -185,15 +185,15 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
         ctx.strokeStyle = dcol; ctx.lineWidth = px(1.8); ctx.setLineDash([px(8), px(6)]); ctx.lineDashOffset = -now * px(6); ring(ctx, o.dx, o.dy, O.vip.dropR); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
         ctx.fillStyle = dcol; ctx.beginPath(); ctx.moveTo(o.dx - px(7), o.dy + px(5)); ctx.lineTo(o.dx + px(7), o.dy + px(5)); ctx.lineTo(o.dx, o.dy - px(7)); ctx.closePath(); ctx.fill();
         if (o.state === 'deliver') { ctx.strokeStyle = '#7dff9b'; ctx.lineWidth = px(4); ctx.beginPath(); ctx.arc(o.dx, o.dy, O.vip.dropR + px(6), -Math.PI / 2, -Math.PI / 2 + TAU * (o.delT / O.vip.deliverSec)); ctx.stroke(); }
-        labels.push({ x: o.dx, y: o.dy, dy: -Math.max(O.vip.dropR * scale, 12) - 6, text: o.state === 'deliver' ? `SHUTTLE ${Math.max(0, Math.ceil(O.vip.deliverSec - o.delT))}S` : 'PICKUP POINT', col: dcol });
+        labels.push({ x: o.dx, y: o.dy, dy: -Math.max(O.vip.dropR * scale, 12) - 6, text: o.state === 'deliver' ? `SHUTTLE ${Math.max(0, Math.ceil(O.vip.deliverSec - o.delT))}S` : 'PICKUP POINT', col: dcol , pri: 2 });
       }
       // The VIP
       const vr = Math.max(3.4, px(5));
       ctx.fillStyle = v.state === 'safe' ? '#7dff9b' : '#fff'; ctx.strokeStyle = '#ffe600'; ctx.lineWidth = px(1.6);
       ctx.beginPath(); ctx.moveTo(v.x, v.y - vr * 1.4); ctx.lineTo(v.x + vr, v.y); ctx.lineTo(v.x, v.y + vr * 1.4); ctx.lineTo(v.x - vr, v.y); ctx.closePath(); ctx.fill(); ctx.stroke();
-      if (!o.done) labels.push({ x: v.x, y: v.y, dy: v.state === 'carried' ? -16 : -Math.max(O.vip.pickR * scale, 12) - 6, text: v.state === 'carried' ? 'VIP' : v.state === 'down' && o.state !== 'travel' ? 'VIP' : 'VIP CRASH SITE', col: '#ffe600' });
+      if (!o.done) labels.push({ x: v.x, y: v.y, dy: v.state === 'carried' ? -16 : -Math.max(O.vip.pickR * scale, 12) - 6, text: v.state === 'carried' ? 'VIP' : v.state === 'down' && o.state !== 'travel' ? 'VIP' : 'VIP CRASH SITE', col: '#ffe600' , pri: 2 });
     } else if (o.type === 'fortress' && !o.done) {
-      labels.push({ x: o.x, y: o.y, dy: -o.base.r * scale - 20, text: `${(m.faction.baseName + ' CITADEL').toUpperCase()}`, col: pal.enemy });
+      labels.push({ x: o.x, y: o.y, dy: -o.base.r * scale - 20, text: `${(m.faction.baseName + ' CITADEL').toUpperCase()}`, col: pal.enemy , pri: 2 });
     }
   }
 }
@@ -212,7 +212,7 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
       const f = s.hp / s.maxHp;
       if (f < 0.999) hpBar(ctx, s.x, s.y + r + px(3), r * 3, px(3), f, f > 0.35 ? '#7dff9b' : '#ff4a4a');
       hpBar(ctx, s.x, s.y + r + px(7.5), r * 3, px(2), s.ammo / s.maxAmmo, '#ffb020');
-      labels.push({ x: s.x, y: s.y, dy: -r * scale - 8, text: (s.name || 'TURRET').toUpperCase().replace(' SENTRY', '').replace(' TOWER', ''), col: ac });
+      labels.push({ x: s.x, y: s.y, dy: -r * scale - 8, text: (s.name || 'TURRET').toUpperCase().replace(' SENTRY', '').replace(' TOWER', ''), col: ac , pri: 0 });
     } else if (s.kind === 'mines') {
       ctx.strokeStyle = 'rgba(61,169,255,0.55)'; ctx.lineWidth = px(1);
       for (const mn of s.mines) {
@@ -237,7 +237,7 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
       ctx.strokeStyle = '#e8f6ff'; ctx.lineWidth = px(2); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(L * 0.7, 0); ctx.stroke();
       ctx.restore(); void c; void n;
       hpBar(ctx, s.x, s.y + 6, 10, px(3), s.hp / s.maxHp, s.hp > s.maxHp * 0.3 ? '#7dff9b' : '#ff4a4a');
-      labels.push({ x: s.x, y: s.y, dy: -L * 0.5 * scale - 12, text: s.wreck ? 'BURNING' : `RECON VEHICLE x${s.seats.length}`, col: ac });
+      labels.push({ x: s.x, y: s.y, dy: -L * 0.5 * scale - 12, text: s.wreck ? 'BURNING' : `RECON VEHICLE x${s.seats.length}`, col: ac , pri: 0 });
     }
   }
   // Support weapons and exosuits on the Helldivers
@@ -252,7 +252,7 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
       hpBar(ctx, a.x, a.y + R + px(2), R * 2.4, px(3), mc.hp / mc.maxHp, '#7dff9b');
       hpBar(ctx, a.x, a.y + R + px(6), R * 2.4, px(2), mc.gat / c.gatAmmo, '#ffe600');
       hpBar(ctx, a.x, a.y + R + px(9), R * 2.4, px(2), mc.rkt / c.rktAmmo, '#ff7a4a');
-      labels.push({ x: a.x, y: a.y, dy: -R * scale - 6, text: 'EXOSUIT', col: '#ffb020' });
+      labels.push({ x: a.x, y: a.y, dy: -R * scale - 6, text: 'EXOSUIT', col: '#ffb020' , pri: 0 });
     } else if (a.sw) {
       ctx.strokeStyle = '#ffe600'; ctx.lineWidth = px(1.4);
       ctx.beginPath(); ctx.moveTo(a.x - r * 0.3, a.y + r * 0.4); ctx.lineTo(a.x + r * 2.2, a.y - r * 0.8); ctx.stroke();
@@ -303,7 +303,7 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal) {
     ctx.strokeStyle = rgba(col, 0.9); ctx.lineWidth = px(1.2); ring(ctx, e.x, e.y, r * 1.35); ctx.stroke();
     if (e.vis >= 2) {
       if (e.hp < e.maxHp) hpBar(ctx, e.x, e.y - r * 1.9, r * 2.6, px(3), e.hp / e.maxHp, col);
-      labels.push({ x: e.x, y: e.y, dy: -r * scale * 1.5 - 8, text: fac.heavy, col });
+      labels.push({ x: e.x, y: e.y, dy: -r * scale * 1.5 - 8, text: fac.heavy, col , pri: 0 });
     }
   }
 }
@@ -329,7 +329,7 @@ export function drawPois(ctx, m, now, px, labels, scale, pal) {
     ctx.fillStyle = 'rgba(255,176,32,0.07)'; ring(ctx, p.x, p.y, R); ctx.fill();
     if (tgs.has(p)) bracket(ctx, p.x, p.y, R * 1.5, px(1.8), pal.ally);
     if (p.hp < p.maxHp) hpBar(ctx, p.x, p.y + R * 1.15, R * 2, px(4), p.hp / p.maxHp, '#ffb020');
-    labels.push({ x: p.x, y: p.y, dy: -R * scale - 6, text: `${p.name}  +${p.reward}`, col: '#ffb020' });
+    labels.push({ x: p.x, y: p.y, dy: -R * scale - 6, text: `${p.name}  +${p.reward}`, col: '#ffb020' , pri: 1 });
   }
 }
 
@@ -359,7 +359,7 @@ export function drawBreaches(ctx, m, now, px, labels, scale, pal) {
     ctx.beginPath(); ctx.arc(b.x, b.y, R + px(5), -Math.PI / 2, -Math.PI / 2 + TAU * f); ctx.stroke();
     if (tgs.has(b)) bracket(ctx, b.x, b.y, R * 1.7, px(1.8), pal.ally);
     hpBar(ctx, b.x, b.y + R * 1.25, R * 2, px(4), b.hp / b.maxHp, col);
-    labels.push({ x: b.x, y: b.y, dy: -R * scale - 8, text: `BREACH ${Math.ceil(left)}S  +${b.reward}`, col });
+    labels.push({ x: b.x, y: b.y, dy: -R * scale - 8, text: `BREACH ${Math.ceil(left)}S  +${b.reward}`, col , pri: 2 });
   }
 }
 
@@ -379,7 +379,7 @@ export function drawUavs(ctx, m, now, px, labels, scale) {
     ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(u.x, u.y); ctx.arc(u.x, u.y, r, ang - 0.7, ang); ctx.closePath(); ctx.fill();
     ctx.strokeStyle = `rgba(200,255,215,${0.7 * a})`; ctx.lineWidth = px(1.2);
     ctx.beginPath(); ctx.moveTo(u.x, u.y); ctx.lineTo(u.x + Math.cos(ang) * r, u.y + Math.sin(ang) * r); ctx.stroke();
-    labels.push({ x: u.x, y: u.y, dy: -r * scale - 6, text: `UAV ${Math.ceil(left)}S`, col: '#9dffb8' });
+    labels.push({ x: u.x, y: u.y, dy: -r * scale - 6, text: `UAV ${Math.ceil(left)}S`, col: '#9dffb8' , pri: 1 });
   }
 }
 
@@ -405,6 +405,6 @@ export function drawPings(ctx, m, now, px, labels, scale) {
       ctx.globalAlpha = 0.35; ctx.lineWidth = px(1); ctx.setLineDash([px(2), px(5)]);
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(pg.x, pg.y); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
     }
-    labels.push({ x: pg.x, y: pg.y, dy: pg.kind === 'go' ? -r * scale * 1.6 - 5 : r * scale * 2 + 12, text: `${tag}${pg.kind === 'fight' ? ' ENGAGING' : pg.kind === 'breach' ? ' BREACH' : ''}`, col });
+    labels.push({ x: pg.x, y: pg.y, dy: pg.kind === 'go' ? -r * scale * 1.6 - 5 : r * scale * 2 + 12, text: `${tag}${pg.kind === 'fight' ? ' ENGAGING' : pg.kind === 'breach' ? ' BREACH' : ''}`, col , pri: 0 });
   }
 }
