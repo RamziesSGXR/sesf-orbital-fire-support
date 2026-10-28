@@ -74,6 +74,17 @@ export const STRATS = {
                    beam: { dps: 260, width: 6, dur: 20, follow: 15, leash: 60 },
                    blurb: 'A beam you steer across the field for twenty seconds.' },
 
+  // ---------- Ship utilities: help for the squad rather than firepower (the player's, bought and equipped like orbitals) ----------
+  util_med:      { name: 'Medical Drop', cat: 'ORBITAL', util: 'med', g: 'MED', cd: 80, k: 'util', delay: 2.5, r: 18, heal: 0.6, splash: 18,
+                   blurb: 'A burst of medical nanites. Every ally inside the circle heals most of the way.' },
+  util_smoke:    { name: 'Orbital Smoke Screen', cat: 'ORBITAL', util: 'smoke', g: 'SCR', cd: 70, k: 'util', delay: 2.5, zone: { kind: 'smoke', r: 22, sec: 25 },
+                   blurb: 'A wall of smoke. Enemy fire into it mostly misses, so the squad can move or regroup.' },
+  util_shield:   { name: 'Orbital Shield Dome', cat: 'ORBITAL', util: 'shield', g: 'DOM', cd: 110, k: 'util', delay: 3, r: 16, shield: 1200, life: 40, splash: 16,
+                   blurb: 'Drops a shield dome. It soaks up enemy fire aimed at anyone inside until it breaks or runs out.' },
+  util_sentry:   { name: 'Sentry Drop', cat: 'ORBITAL', util: 'sentry', g: 'SEN', cd: 120, k: 'util', delay: 3.5, splash: 4,
+                   t: { hp: 420, ammo: 60, range: 64, every: 0.9, dmg: 90, acc: 0.85, splash: 3, style: 'shell', prefer: 'MH', flight: 0.25 },
+                   blurb: 'Drops an autocannon sentry where you aim. It fights for the squad until it runs dry or is destroyed.' },
+
   // ---------- Sentries and defenses: placed assets with health ----------
   mg_sentry:     { name: 'Machine Gun Sentry', cat: 'DEFENSE', g: 'MGS', cd: 80, k: 'turret', use: 'defense', threat: 5,
                    t: { hp: 260, ammo: 420, range: 46, every: 0.13, dmg: 8, acc: 0.8, splash: 0, style: 'bullet' },

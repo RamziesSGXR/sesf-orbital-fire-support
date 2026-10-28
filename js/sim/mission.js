@@ -25,6 +25,7 @@ import { initReinf, updateReinf, damageDrop } from './reinforce.js';
 import { updateExtract } from './extract.js';
 import { hurtCiv, updateCivs } from './civilians.js';
 import { initSupply, updateSupply } from './supply.js';
+import { initBoss, updateBoss } from './boss.js';
 
 const SIZE = C.world.size;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -60,6 +61,8 @@ function placePoints(rng, n, minSpacing, avoids, margin, ok) {
 function compact(arr, gone) { let j = 0; for (let i = 0; i < arr.length; i++) { const x = arr[i]; if (!gone(x)) arr[j++] = x; } arr.length = j; }
 const deadE = (e) => e.dead, emptyG = (g) => !g.members.length;
 
+const SLIDE = [0.5, -0.5, 1.0, -1.0, 1.5, -1.5];   // how far (radians) a blocked step may be turned to slide along a shore
+
 export class Mission {
   constructor(opts) {
     this.seed = opts.seed >>> 0;
@@ -91,9 +94,9 @@ export class Mission {
       hdCalls: 0, seafCalls: 0, despawned: 0, pois: 0, breaches: 0, assaults: 0, assaultsHit: 0,
       dmg: { player: 0, squad: 0, strat: 0, enemy: 0 }, stratCalls: 0, stratBy: {}, mechs: 0, frvs: 0, wipes: 0, objectives: 0, podKills: 0,
     };
-    this.sc = { kills: 0, allyKills: 0, bases: 0, pois: 0, breaches: 0, assaults: 0, objective: 0, timeBonus: 0, extraction: 0, lives: 0, survivor: 0, ff: 0, deaths: 0, wipes: 0, drops: 0, civ: 0 };
+    this.sc = { kills: 0, allyKills: 0, bases: 0, pois: 0, breaches: 0, assaults: 0, objective: 0, timeBonus: 0, extraction: 0, lives: 0, survivor: 0, ff: 0, deaths: 0, wipes: 0, drops: 0, civ: 0, boss: 0 };
     // Credits earned this mission. They go straight into the wallet so the armory can spend them mid-mission.
-    this.cr = { kills: 0, bases: 0, pois: 0, breaches: 0, assaults: 0, objective: 0, extraction: 0, drops: 0, civ: 0, total: 0, start: this.wallet.bal, spent0: this.wallet.spent };
+    this.cr = { kills: 0, bases: 0, pois: 0, breaches: 0, assaults: 0, objective: 0, extraction: 0, drops: 0, civ: 0, boss: 0, total: 0, start: this.wallet.bal, spent0: this.wallet.spent };
     this.combo = { mult: 1, last: -99 };
     this.deaths = [];     // the death report: every Helldiver and SEAF who fell, in order
 
@@ -103,6 +106,7 @@ export class Mission {
     this.pois = []; this.breaches = [];
     initReinf(this);
     initSupply(this);
+    initBoss(this, opts);
     this.eGrid = new Grid(SIZE, 40); this.aGrid = new Grid(SIZE, 40); this.tGrid = new Grid(SIZE, 40);
     this.cx = 0; this.cy = 0; // centroid of the Helldivers (or of everyone if none are alive)
     this.hx = 0; this.hy = 0;
@@ -388,8 +392,10 @@ export class Mission {
       a.name = seafName(this.crng, a.role);
     }
     a.sight0 = base.sight * this.biome.ping;   // flat-ground sight; a rise adds to it (see _refreshAlive)
-    a.sight = a.sight0 * this.terrain.sightMul(a.x, a.y); a.vision = a.sight + C.sight.playerBonus;
-    a.zone = a.vision + C.sight.strikeBonus + zoneExtra(this.kit);
+    a.zone0 = (C.sight.zoneBase[type === 'H' ? 'helldiver' : 'seaf'] || base.sight) * this.biome.ping;   // the strike zone does not grow with sight
+    const sm = this.terrain.sightMul(a.x, a.y);
+    a.sight = a.sight0 * sm; a.vision = a.sight + C.sight.playerBonus;
+    a.zone = a.zone0 * sm + C.sight.playerBonus + C.sight.strikeBonus + zoneExtra(this.kit);
     this.allies.push(a);
     return a;
   }
@@ -405,7 +411,8 @@ export class Mission {
     const k = this.bag.pop();
     if (k === 'L') return k;
     // Keep the field mostly light: past the cap for live mediums and heavies, the draw comes out light instead.
-    const cap = C.enemies.kindCap, max = k === 'M' ? Math.min(cap.maxM, cap.M + cap.perMinM * this.S) : Math.min(cap.maxH, cap.H + cap.perMinH * this.S);
+    const cap = C.enemies.kindCap, mm = this.t / 60;   // more mediums and heavies allowed as the session and the mission go on
+    const max = k === 'M' ? Math.min(cap.maxM, cap.M + cap.perMinM * this.S + cap.perMissionMinM * mm) : Math.min(cap.maxH, cap.H + cap.perMinH * this.S + cap.perMissionMinH * mm);
     let n = 0;
     for (const e of this.enemies) if (!e.dead && e.kind === k) n++;
     return n >= max ? 'L' : k;
@@ -417,8 +424,9 @@ export class Mission {
     const tr = this.terrain;
     for (const a of this.allies) {
       if (a.dead) continue;
-      a.sight = a.sight0 * tr.sightMul(a.x, a.y); a.vision = a.sight + C.sight.playerBonus;   // high ground sees farther
-      a.zone = a.vision + zx;
+      const sm = tr.sightMul(a.x, a.y);
+      a.sight = a.sight0 * sm; a.vision = a.sight + C.sight.playerBonus;   // high ground sees farther
+      a.zone = (a.zone0 ?? a.sight0) * sm + C.sight.playerBonus + zx;
       this.alive.push(a); sx += a.x; sy += a.y;
       if (a.type === 'H') { this.hdAlive.push(a); hx += a.x; hy += a.y; } else this.seafAlive.push(a);
     }
@@ -623,25 +631,25 @@ export class Mission {
   // The running score for the HUD (cheap: no copies).
   liveScore() {
     const sc = this.sc;
-    return Math.max(0, Math.round(sc.kills + sc.allyKills + sc.bases + sc.pois + sc.breaches + sc.assaults + sc.objective + sc.timeBonus + sc.extraction + sc.lives + sc.survivor + sc.ff + sc.deaths + sc.wipes + sc.drops + sc.civ));
+    return Math.max(0, Math.round(sc.kills + sc.allyKills + sc.bases + sc.pois + sc.breaches + sc.assaults + sc.objective + sc.timeBonus + sc.extraction + sc.lives + sc.survivor + sc.ff + sc.deaths + sc.wipes + sc.drops + sc.civ + sc.boss));
   }
 
   result() {
     const sc = this.sc;
-    const raw = sc.kills + sc.allyKills + sc.bases + sc.pois + sc.breaches + sc.assaults + sc.objective + sc.timeBonus + sc.extraction + sc.lives + sc.survivor + sc.ff + sc.deaths + sc.wipes + sc.drops + sc.civ;
+    const raw = sc.kills + sc.allyKills + sc.bases + sc.pois + sc.breaches + sc.assaults + sc.objective + sc.timeBonus + sc.extraction + sc.lives + sc.survivor + sc.ff + sc.deaths + sc.wipes + sc.drops + sc.civ + sc.boss;
     const d = this.stats.dmg, tot = d.player + d.squad + d.strat || 1;
     const cr = this.cr;
     return {
       outcome: this.outcome, t: this.t, minutes: this.t / 60,
       score: Math.max(0, Math.round(raw)), raw: Math.round(raw), breakdown: { ...sc },
-      kills: this.stats.killsPlayer + this.stats.killsAlly, stats: { ...this.stats },
+      kills: this.stats.killsPlayer + this.stats.killsAlly, stats: { ...this.stats }, bossName: this.boss ? this.boss.name : null,
       bases: this.stats.bases, baseTotal: this.baseTotal, pois: this.stats.pois, poiTotal: this.pois.length, breaches: this.stats.breaches, assaults: this.stats.assaults, assaultsHit: this.stats.assaultsHit,
       livesLeft: this.hd.lives, survivorsH: this.countAlly('H') + (this.extraction.boardedH || 0), survivorsS: this.countAlly('S') + (this.extraction.boardedS || 0),
       civSaved: this.stats.civSaved || 0, civLost: this.stats.civLost || 0,
       objectives: this.objectives.map((o) => ({ type: o.type, done: o.done })), objDone: this.objDone, extracted: this.extracted,
       share: { player: d.player / tot, squad: d.squad / tot, strat: d.strat / tot },
       loadout: this.loadout.slice(), orbitals: loadoutIds(this.kit),
-      credits: { kills: cr.kills, bases: cr.bases, pois: cr.pois, breaches: cr.breaches, assaults: cr.assaults, objective: cr.objective, extraction: cr.extraction, drops: cr.drops, civ: cr.civ,
+      credits: { kills: cr.kills, bases: cr.bases, pois: cr.pois, breaches: cr.breaches, assaults: cr.assaults, objective: cr.objective, extraction: cr.extraction, drops: cr.drops, civ: cr.civ, boss: cr.boss,
         total: cr.total, spent: this.wallet.spent - cr.spent0, start: cr.start, balance: this.wallet.bal },
       deaths: this.deaths.map((x) => ({ ...x })),
       teams: this.teams.map((tm) => ({ letter: tm.letter, ship: tm.ship, deaths: tm.deaths, ids: tm.ids.slice() })),
@@ -683,12 +691,26 @@ export class Mission {
       if (d2 > 900) { if (tr.blocked(x1, y1)) { const l = tr.nearestLand(x1, y1); R.x = l.x; R.y = l.y; } return R; }   // a landing or a leap
       if (d2 === 0) return R;
       let tx = x1, ty = y1;                          // slide along the shore rather than step into deep water
-      if (tr.blocked(x1, y1)) { if (!tr.blocked(x1, y0)) ty = y0; else if (!tr.blocked(x0, y1)) tx = x0; else { tx = x0; ty = y0; } }
+      if (tr.blocked(x1, y1)) {
+        if (!tr.blocked(x1, y0)) ty = y0; else if (!tr.blocked(x0, y1)) tx = x0;
+        else {
+          // a pocket in the shoreline: try the step turned a little either way before giving up on it
+          tx = x0; ty = y0;
+          for (const a of SLIDE) {
+            const c = Math.cos(a), s = Math.sin(a), rx = x0 + dx * c - dy * s, ry = y0 + dx * s + dy * c;
+            if (!tr.blocked(rx, ry)) { tx = rx; ty = ry; break; }
+          }
+        }
+      }
       const s0 = tr.speedAt(x0, y0), s1 = tr.speedAt(tx, ty);
       let f = ((s0 || 1) + (s1 || 1)) * 0.5;
       f = 1 - (1 - f) * soft;
       let nx = x0 + (tx - x0) * f, ny = y0 + (ty - y0) * f;
-      if (tr.blocked(nx, ny)) { nx = x0; ny = y0; }
+      if (tr.blocked(nx, ny)) {
+        // the shortened step clips the corner of a water cell: take the part of it along one axis instead of standing still
+        const ax = nx, ay = ny;
+        if (!tr.blocked(ax, y0)) { nx = ax; ny = y0; } else if (!tr.blocked(x0, ay)) { nx = x0; ny = ay; } else { nx = x0; ny = y0; }
+      }
       R.x = nx; R.y = ny; return R;
     };
     for (const e of this.enemies) if (!e.dead) { go(e.px, e.py, e.x, e.y, 1); e.x = R.x; e.y = R.y; }
@@ -722,6 +744,7 @@ export class Mission {
     updateEnemies(this, dt);
     updateStrat(this, dt);
     updateSupply(this, dt);
+    updateBoss(this, dt);
     updatePois(this, dt);
     updateObjectives(this, dt);
     updateDirector(this, dt);

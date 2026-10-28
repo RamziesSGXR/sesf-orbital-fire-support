@@ -46,6 +46,9 @@ function applySettings() {
   renderer.quality = settings.quality === 'low' ? 'low' : 'high';
   audio.set(settings.volume, settings.muted);
   document.body.classList.toggle('lefty', !!settings.lefty);
+  document.body.classList.toggle('cards-top', settings.cards === 'top');
+  document.body.classList.toggle('cards-off', settings.cards === 'off');
+  if (settings.cards === 'off') $('infocard').classList.add('hidden');
   input.sens = settings.touchSens;
   S.save('settings', settings);
 }
@@ -124,6 +127,7 @@ function supplyCall(k) {
   if (k === 'accept') { if (acceptSupply(mission)) { hud.wake(); setPlacing(null); setDrawing(false); mission.setFiring(false); } else lookLatest(); }
   else if (k === 'decline') declineSupply(mission);
   else if (k === 'look-ffz' && mission.ffz) lookAt(mission.ffz.x, mission.ffz.y, 4, 1, () => mission.ffz);
+  else if (k === 'look-boss' && mission.boss && !mission.boss.dead) lookAt(mission.boss.x, mission.boss.y, 4, 1, () => (mission.boss && !mission.boss.dead ? mission.boss : null));
   else if (k === 'look-sup') { const d = S && (S.drop || S.last); if (d) lookAt(d.x, d.y, 3.5); }
 }
 // J: look at whatever was called most recently (a falling or fresh supply pod, else the free-fire zone).
@@ -169,12 +173,12 @@ function squadAct(kind, viaKey) {
   if (!live()) return;
   audio.unlock();
   if (kind === 'draw') {
-    if (!drawing && !mission.seafAlive.length) { audio.deny(); hud.message(DENY.noseaf, 1500); return; }
+    if (!drawing && !mission.seafAlive.length) { audio.deny(); hud.toast(DENY.noseaf); return; }
     setDrawing(!drawing);
   } else if (kind === 'split') { setDrawing(false); const r = mission.splitSeaf(); if (r && r.ok) audio.ready(); }
   else if (kind === 'merge') { setDrawing(false); const r = mission.mergeSeaf(); if (r && r.ok) audio.ready(); }
   else if (kind === 'assign') {
-    if (mission.seaf.sel < 0) { audio.deny(); hud.message(DENY.assignsel, 1500); return; }
+    if (mission.seaf.sel < 0) { audio.deny(); hud.toast(DENY.assignsel); return; }
     if (!input.touch && !viaKey) { setPlacing(placing === 'assign' ? null : 'assign'); return; }
     const w = aimWorld(); if (w) runOrder('assign', w.x, w.y);
   }
@@ -195,9 +199,9 @@ function strokeMove(sx, sy) {
 function strokeEnd() {
   const st = stroke; stroke = null;
   if (!st || !live()) return;
-  if (st.pts.length < 2) { audio.deny(); hud.message(DENY.short, 1200); return; }
+  if (st.pts.length < 2) { audio.deny(); hud.toast(DENY.short, 1200); return; }
   const r = mission.seafDraw(st.pts);
-  if (r && r.ok) { audio.chirp(); hud.message(`PLAY CALLED: ${r.kind === 'path' ? 'ROUTE' : r.kind.toUpperCase()}`, 1100); }
+  if (r && r.ok) { audio.chirp(); hud.toast(`PLAY CALLED: ${r.kind === 'path' ? 'ROUTE' : r.kind.toUpperCase()}`, 1100); }
 }
 function aimWorld() { const sa = input.screenAim(), w = renderer.screenToWorld(sa.x, sa.y, canvas); return w; }
 // Clicking on a breach or a point of interest sends SEAF straight at it.
@@ -576,23 +580,32 @@ function onEvent(ev, now) {
     case 'beam': audio.beam(); break;
     case 'gun': audio.snd('shipgat', L, P); break;
     case 'heal': audio.snd('heal', L, P); break;
+    case 'util_call': audio.stratCall(); break;
+    case 'util_land': if (ev.util === 'med') audio.supFull(2); else audio.podLand(); break;
     case 'stim': audio.snd('stim', L, P); break;
     case 'dodge': audio.snd('dodge', L, P); break;
     case 'crit': if (ev.by === 'player' || (ev.f & 1)) audio.crit(ev.f & 1, L, P); break;
     case 'flare': audio.flare(L, P); break;
     case 'flare_out': audio.ready(); break;
-    case 'reinf': audio.reinf(mission.faction.id, Math.max(0.5, L), P); hud.message(`${mission.faction.id === 'bugs' ? 'BUG BREACH' : mission.faction.id === 'bots' ? 'DROPSHIP' : 'WARP SHIP'} INBOUND`, 1600); break;
+    case 'reinf': audio.reinf(mission.faction.id, Math.max(0.5, L), P); break;
     case 'reinf_spawn': audio.arrive(ev.src === 'hole' ? 'bugs' : ev.src, L, P); break;
-    case 'drop_down': audio.dropDown(Math.max(0.6, L), P); hud.message(ev.kind === 'ship' ? 'DROPSHIP SHOT DOWN' : 'WARP SHIP SHOT DOWN', 1800); break;
+    case 'drop_down': audio.dropDown(Math.max(0.6, L), P); break;
     case 'ffz':
-      audio.ffz(); hud.message('FREE-FIRE ZONE CALLED: SATURATE IT', 2600);
+      audio.ffz();
       // frame the squad and the zone together (unless the player is already being shown something, like a supply drop)
       if (cam.follow && !(camPan && mission.t < camPan.untilT && camPan.w >= 1)) lookAt(ev.x, ev.y, C.ffz.sec, C.ffz.camPull, () => mission.ffz);
       break;
+    case 'boss':
+      audio.siren(); hud.message(`SUPER HEAVY: ${ev.name}`, 3200);
+      if (cam.follow && !(camPan && mission.t < camPan.untilT && camPan.w >= 1)) lookAt(ev.x, ev.y, 3.5, 0.6);
+      break;
+    case 'boss_down': audio.baseDown(); audio.objective(); hud.message(`${ev.name} DESTROYED`, 3000); break;
+    case 'boss_block': audio.deny(); break;
+    case 'boss_leave': audio.ready(); hud.message(`${ev.name} WITHDREW`, 2600); break;
     case 'supply_ask': audio.supAsk(); hud.wake(6000); break;
     case 'supply_fill': audio.slowIn(); break;
     case 'supply_tap': audio.supTap(ev.i); if (ev.full) audio.supFull(ev.i); break;
-    case 'supply_launch': audio.slowOut(); audio.supLaunch(ev.fast); hud.message(ev.fast ? 'FAST LOAD! SUPPLY POD AWAY' : 'SUPPLY POD AWAY', 1600); lookAt(ev.x, ev.y, C.supply.dropSec + 2.5); break;
+    case 'supply_launch': audio.slowOut(); audio.supLaunch(ev.fast); lookAt(ev.x, ev.y, C.supply.dropSec + 2.5); break;
     case 'supply_down': audio.supDown(L, P); break;
     case 'supply_no': audio.deny(); break;
     case 'ffz_end': audio.ready(); break;
@@ -608,8 +621,8 @@ function onEvent(ev, now) {
     case 'assault_warn': audio.siren(); hud.message('LARGE ENEMY ASSAULT FORMING', 2400); break;
     case 'assault_go': audio.alarm(); break;
     case 'strat_call': audio.stratCall(); break;
-    case 'strike_call': audio.strikeCall(ev.id); hud.message(`${ev.name.toUpperCase()} INBOUND`, 1400); break;
-    case 'uav': audio.uav(); hud.message('UAV SCAN ONLINE', 1400); break;
+    case 'strike_call': audio.strikeCall(ev.id); break;
+    case 'uav': audio.uav(); break;
     case 'nuke_call': audio.siren(); hud.message('NUCLEAR STRIKE INBOUND', 2400); break;
     case 'obj_state':
       if (ev.type === 'nuke' && ev.state === 'armed') {
@@ -621,7 +634,7 @@ function onEvent(ev, now) {
     case 'extract_live': audio.alarm(); hud.message('EXTRACTION IS LIVE', 2600); break;
     case 'asset_new': case 'mount': audio.ready(); break;
     case 'asset_down': if (ev.why === 'killed') audio.allyDown(); break;
-    case 'deny': audio.deny(); if (DENY[ev.reason]) hud.message(DENY[ev.reason], 1500); break;
+    case 'deny': audio.deny(); if (DENY[ev.reason]) hud.toast(DENY[ev.reason], 1600); break;
     case 'radio': audio.chirp(); hud.radio(ev.text, ev.key); break;
     case 'notice': hud.notice(ev.text, ev.tone); break;
     case 'credit': audio.coin(); break;
@@ -633,7 +646,7 @@ function onEvent(ev, now) {
     case 'ally_down': audio.allyDown(); break;
     case 'base_down':
       audio.baseDown();
-      hud.message(ev.fortress ? 'CITADEL DESTROYED' : mission.phase === 'objective' ? 'BASE DESTROYED' : 'BONUS BASE DESTROYED', 2400);
+      if (ev.fortress) hud.message('CITADEL DESTROYED', 2400); else hud.notice(mission.phase === 'objective' ? 'ENEMY BASE DESTROYED' : 'BONUS BASE DESTROYED', 'good');
       break;
     case 'end':
       if (ev.outcome === 'victory') audio.win(); else audio.lose();
@@ -727,4 +740,5 @@ requestAnimationFrame((t) => { lastT = t / 1000; frame(t); });
 window.__game = {
   get state() { return state; }, get mission() { return mission; }, get session() { return session; }, get info() { return info; },
   cam, input, renderer, settings, order, get placing() { return placing; }, get drawing() { return drawing; }, squadAct, selectSquad, strokeBegin, strokeMove, strokeEnd, goShop, openArmory, closeArmory,
+  setSetting: (k, v) => { settings[k] = v; onSettingChange(k); },
 };

@@ -286,6 +286,9 @@ export class Terrain {
   }
   lineClear(x1, y1, x2, y2, step = 4) {
     const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy), n = Math.ceil(L / step);
+    // the first stride too, a metre at a time: a mover on the very edge of the water must not be told the way is open when its
+    // next step is into it
+    if (L > 0) for (let k = 1; k <= 3; k++) { const u = Math.min(1, k / L); if (this.spd[this._i(x1 + dx * u, y1 + dy * u)] === 0) return false; }
     for (let i = 1; i < n; i++) { const u = i / n; if (this.spd[this._i(x1 + dx * u, y1 + dy * u)] === 0) return false; }
     return this.spd[this._i(x2, y2)] !== 0 || L < 1;
   }
@@ -427,6 +430,13 @@ export class Terrain {
 // o remembers its route (o.nv); it is replanned when the goal has moved on or the route is old.
 const PATH_BUDGET = 6;                // new route searches per tick, shared by everyone
 const OUT = { x: 0, y: 0 };          // steer() hands back this scratch point (callers read it at once) or a route corner
+// The length of a route from (x, y) through pts[i..].
+function routeLen(x, y, pts, i) {
+  let L = 0, px = x, py = y;
+  for (let k = i; k < pts.length; k++) { L += Math.hypot(pts[k].x - px, pts[k].y - py); px = pts[k].x; py = pts[k].y; }
+  return L;
+}
+
 export function steer(tr, o, x, y, gx, gy, t) {
   if (!tr) { OUT.x = gx; OUT.y = gy; return OUT; }
   if (tr.budgetT !== t) { tr.budgetT = t; tr.budget = PATH_BUDGET; }
@@ -438,7 +448,13 @@ export function steer(tr, o, x, y, gx, gy, t) {
   let nv = o.nv;
   if (!nv || Math.hypot(nv.gx - gx, nv.gy - gy) > 40 || t - nv.at > 5 || t < nv.at) {
     const pts = tr.path(x, y, gx, gy);
-    if (pts !== undefined) nv = o.nv = { gx, gy, at: t, pts, i: 0 };
+    // A routine re-plan that only swaps one way round the water for the other, about as long, keeps the old route: otherwise a
+    // mover halfway between two equal routes turns back and forth for ever.
+    const end = nv && nv.pts && nv.pts.length ? nv.pts[nv.pts.length - 1] : null;
+    if (pts && end && t >= nv.at && nv.i < nv.pts.length - 1 && Math.hypot(end.x - gx, end.y - gy) < 8 && pts.length
+        && routeLen(x, y, pts, 0) > routeLen(x, y, nv.pts, nv.i) * 0.85) {
+      nv.at = t; nv.gx = gx; nv.gy = gy;
+    } else if (pts !== undefined) nv = o.nv = { gx, gy, at: t, pts, i: 0 };
     else if (!nv) { OUT.x = gx; OUT.y = gy; return OUT; }      // no search left this tick: try again next tick
   }
   if (!nv.pts || !nv.pts.length) { OUT.x = gx; OUT.y = gy; return OUT; }

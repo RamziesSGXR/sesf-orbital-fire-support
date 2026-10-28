@@ -5,6 +5,7 @@
 //   landing   the pelican comes down on the pad
 //   boarding  every Helldiver runs for the ramp and boards; SEAF squads get pelicans of their own wherever they are bunched up
 //   away      the pelican climbs out; the mission ends
+import { bossAlive } from './boss.js';
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
 import { callReinforcements } from './reinforce.js';
@@ -57,6 +58,11 @@ export function updateExtract(m, dt) {
   if (ex.state === 'open') {
     for (const a of m.hdAlive) {
       if (a.mounted || (a.x - ex.x) ** 2 + (a.y - ex.y) ** 2 > X.radius * X.radius) continue;
+      if (bossAlive(m)) {               // a super heavy on the field: the pelican will not come in until it is dead
+        if (ex.blockedSince === undefined) ex.blockedSince = t;
+        if (t >= (ex.blockSaid || 0)) { ex.blockSaid = t + 15; m.radio(COMMS.bossBlock(m.boss.name), 'bossblock', 0); m.emit('boss_block', {}); }
+        break;
+      }
       const wait = Math.round(Math.min(X.callSec, X.callMin + X.callPerMin * m.S));   // longer waits later in the session
       ex.state = 'called'; ex.landAt = t + wait; ex.waveAt = t + 6; ex.wait = wait;
       m.radio(COMMS.extractCalled(wait), 'excall', 0);

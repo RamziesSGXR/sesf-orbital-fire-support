@@ -71,9 +71,10 @@ export function callReinforcements(m, x, y, why = 'flare', opts = {}) {
 }
 
 // The groups that come out of a reinforcement go straight for the squad.
-function release(m, x, y, src) {
+function release(m, x, y, src, ship = null) {
   const g = spawnGroup(m, x, y, 'hunt', { alertT: 45, emerge: true });
   g.reinf = true; g.called = true;
+  if (ship) for (const e of g.members) e.cover = ship;     // under the ship until it pulls away (combat.js covered())
   m.emit('reinf_spawn', { x, y, kind: m.faction.id, src });
   return g;
 }
@@ -140,7 +141,7 @@ export function updateReinf(m, dt) {
       if (d.left > 0 && d.dropT <= 0) {
         d.dropT = D.every; d.left--;
         const [ox, oy] = m.rng.inDisc(7);
-        release(m, clamp(d.x + ox, 10, SIZE - 10), clamp(d.y + oy, 10, SIZE - 10), d.kind);
+        release(m, clamp(d.x + ox, 10, SIZE - 10), clamp(d.y + oy, 10, SIZE - 10), d.kind, d);
       }
       if (d.left <= 0 && d.hoverT <= 0) { d.state = 'out'; d.outT = 0; }
     } else {

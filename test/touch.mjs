@@ -26,7 +26,9 @@ await page.waitForFunction(() => !document.getElementById('b-continue').disabled
 await tap('#b-continue'); await page.waitForTimeout(1200);
 check('mission starts', await page.evaluate(() => window.__game.state) === 'play');
 check('touch mode on', await page.evaluate(() => document.body.classList.contains('touch')));
-await page.waitForTimeout(9000);   // the UAV and orbitals arm after a few seconds
+await page.waitForTimeout(9000);
+// everything but the ship gun starts on a cooldown: skip past the opening
+await page.evaluate(() => { const m = window.__game.mission; for (const s of m.player.slots) if (s.readyAt !== undefined) s.readyAt = 0; m.seaf.readyAt = 0; });
 // UAV: tap its button, then CALL
 await tap('#weapons .wbtn:nth-child(1)'); await page.waitForTimeout(200);
 check('UAV selected', await page.evaluate(() => window.__game.mission.player.weapon) === 0);

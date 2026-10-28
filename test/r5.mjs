@@ -48,7 +48,7 @@ const strats = await ev(() => document.querySelectorAll('#strats .sc').length);
 check('16 stratagem cells in the HUD', strats === 16, String(strats));
 
 // make the squad advance a bit, then call a SEAF drop right next to it
-await ev(() => { const m = window.__game.mission; m.player.slots[0].readyAt = 0; });
+await ev(() => { const m = window.__game.mission; m.player.slots[0].readyAt = 0; m.seaf.readyAt = 0; });   // past the opening cooldowns
 await page.waitForTimeout(6000);
 const call = await ev(() => { const m = window.__game.mission; return m.callSeaf(m.hx + 28, m.hy + 22); });
 check('SEAF drop accepted', call && call.ok, JSON.stringify(call));

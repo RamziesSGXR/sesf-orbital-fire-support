@@ -53,7 +53,7 @@ export function updateSquad(m, dt) {
     const engR = mounted ? 14 : C.squad.engageRange;   // a vehicle drives through anything that is not right on top of it
     for (const a of hds) {
       if (!engaged && eg.nearest(a.x, a.y, engR)) engaged = true;
-      eg.near(a.x, a.y, a.sight, (e, d2) => {
+      eg.near(a.x, a.y, Math.min(a.sight, C.squad.spotRange), (e, d2) => {
         if (e.g.state === 'hunt') threat = true; else if (!spot) spot = e;
         if (d2 < nd) { nd = d2; near = e; }
       });
@@ -114,7 +114,10 @@ export function updateSquad(m, dt) {
       const dx = sq.ax - b.x, dy = sq.ay - b.y, d = Math.hypot(dx, dy) || 1;
       sq.dir = Math.atan2(b.y - sq.ay, b.x - sq.ax);
       sq.goalDist = Math.max(0, d - hold);
-      if (d > hold + 0.5) { gx = b.x - (dx / d) * hold; gy = b.y - (dy / d) * hold; goal = 'base'; }
+      // from far off, head for the base itself (a fixed point, so the route round any water stays the same); the stand-off
+      // point on the near side only once close
+      if (d > hold + 60) { gx = b.x; gy = b.y; goal = 'base'; }
+      else if (d > hold + 0.5) { gx = b.x - (dx / d) * hold; gy = b.y - (dy / d) * hold; goal = 'base'; }
       else {
         if (sq.state === 'advance') sq.state = 'hold';
         sq.holdT += dt;
@@ -124,15 +127,18 @@ export function updateSquad(m, dt) {
     }
     if (sq.state === 'hold' && goal === 'base') sq.state = 'advance';
     // Close on anything that is already hunting us, or on a group we just set up on. Don't wander far from a point objective.
+    // (on the way to a base or the citadel it only turns on what is close: with a stream of enemies hunting the squad, chasing each
+    // one would pull it away from the target for good)
     if (near && !engaged && (sq.state === 'attack' || threat)) {
-      const lim = pointGoal ? 55 : 1e9;
+      const lim = pointGoal ? 55 : baseGoal ? 60 : 1e9;
       if (Math.hypot(near.x - sq.ax, near.y - sq.ay) <= lim) { gx = near.x; gy = near.y; goal = 'attack'; }
     }
 
     // Move unless we are fighting or setting up. A squad pinned down for a while on its way to the objective or the pad fights
     // its way forward at a walk instead of standing in an endless stream of enemies.
     sq.engT = engaged ? (sq.engT || 0) + dt : Math.max(0, (sq.engT || 0) - dt * 2);
-    const fightOn = engaged && pointGoal && (goal === 'point' || goal === 'extract') && sq.engT >= C.squad.fightOnSec;
+    // (a base or the citadel counts too, until the squad is in rifle range of it)
+    const fightOn = engaged && (pointGoal || goal === 'base') && (goal === 'point' || goal === 'extract' || goal === 'base') && sq.engT >= C.squad.fightOnSec;
     if (fightOn && !sq.fightOn) m.radio(COMMS.fightOn, 'fighton', 40);
     sq.fightOn = fightOn;
     const hold = (engaged && !fightOn) || sq.state === 'setup';

@@ -16,7 +16,7 @@ export function drop(key) { try { localStorage.removeItem(K[key]); } catch { /* 
 
 export const DEFAULT_SETTINGS = {
   polarity: 'white', relief: false, quality: 'auto', reduceFlash: false, colorblind: false,
-  volume: 0.6, muted: false, lefty: false, touchSens: 1, bubbles: true,
+  volume: 0.6, muted: false, lefty: false, touchSens: 1, bubbles: true, cards: 'side',
 };
 export const getSettings = () => ({ ...DEFAULT_SETTINGS, ...load('settings', {}) });
 
@@ -67,6 +67,7 @@ export function recordMission(s, info, result) {
     outcome: result.outcome, score: result.score, seconds: Math.round(result.t),
     bases: result.bases, baseTotal: result.baseTotal, pois: result.pois, kills: result.kills,
     lostH: result.stats.lostH, lostS: result.stats.lostS, earned: c.total, spent: c.spent,
+    boss: result.stats.bosses ? { name: result.bossName || '', killed: !!result.stats.bossKills } : null,
   });
   s.score += result.score;
   s.seconds += result.t;
@@ -111,7 +112,8 @@ export function scoreBlock(s, fin) {
   lines.push(`KILLS ${fmtNum(t.kills)} | HELLDIVERS LOST ${t.lostH} | SEAF LOST ${t.lostS}`);
   lines.push('---');
   s.missions.forEach((m, i) => {
-    lines.push(`${i + 1}. ${m.op} | ${FACTIONS[m.faction].name} ${BIOMES[m.biome].name} | ${OUT[m.outcome]} | ${fmtNum(m.score)}`);
+    const boss = m.boss ? ` | ${m.boss.name || 'SUPER HEAVY'} ${m.boss.killed ? 'KILLED' : 'ESCAPED'}` : '';
+    lines.push(`${i + 1}. ${m.op} | ${FACTIONS[m.faction].name} ${BIOMES[m.biome].name} | ${OUT[m.outcome]} | ${fmtNum(m.score)} | ${fmtNum(m.kills || 0)} KILLS${boss}`);
   });
   return lines.join('\n');
 }

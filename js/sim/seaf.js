@@ -45,7 +45,7 @@ export function newOrder(kind = 'auto', x = 0, y = 0, until = 0) {
 }
 export function initSeaf() {
   return {
-    readyAt: 0, sel: -1, spotAt: 0, fid: 0,
+    readyAt: C.seaf.firstDropSec, sel: -1, spotAt: 0, fid: 0,      // the first troop drop is a little way into the mission
     squads: Array.from({ length: S.squads }, (_, i) => ({ i, order: newOrder(), tgt: null, tgtT: 0, clearT: 0, skip: new Map(), stand: null, ax: 0, ay: 0, n: 0, cx: 0, cy: 0 })),
   };
 }

@@ -6,7 +6,7 @@ import { drawZones, drawMarkers, drawObjectives, drawAssets, drawEnemyExtras, dr
 import { drawSquadOrders, drawSeafMark, drawStroke, drawPelicans, drawAssault, drawMiniSeaf, seafTargets, squadsInUse } from './squads.js';
 
 import { slotStats } from '../sim/player.js';
-import { drawAllyBody, drawEnemyBody, enemyR } from './units.js';
+import { drawAllyBody, drawEnemyBody, enemyR, drawBossBody, bossR } from './units.js';
 import { drawFlares, drawHoles, drawDrops, drawFfz, drawEvac, drawExtraction, critText, drawSupply } from './reinf.js';
 import { drawBaseArt, drawBaseRuin } from './sites.js';
 import { todAt, skyTint, destroyerShadows, drawDestroyerShadow } from './sky.js';
@@ -111,7 +111,8 @@ export class Renderer {
     const flash = this.settings.reduceFlash ? 0.5 : 1;
     switch (ev.type) {
       case 'boom': {
-        const black = this.settings.polarity === 'black', ecol = ev.by === 'enemy' ? this.enemyColor(m) : ev.pod ? '#ffe600' : undefined;
+        const black = this.settings.polarity === 'black', ecol = ev.acid ? '#b8ff6a' : ev.by === 'enemy' ? this.enemyColor(m) : ev.pod ? '#ffe600' : undefined;
+        if (ev.stomp) this.shake = Math.min(8, this.shake + 3);
         if (ev.nuke) {
           fx.push({ k: 'nuke', x: ev.x, y: ev.y, r: ev.r, t0: now, life: 2.6, a: flash });
           this.shake = Math.min(26, this.shake + 22);
@@ -162,6 +163,12 @@ export class Renderer {
           fx.push({ k: 'trc', kind: 'streak', x: gx + (Math.random() - 0.5) * 6, y: gy - 70 - Math.random() * 40, x2: gx, y2: gy, t0: now, fl: 0.06, life: 0.2, col: '#ffe9a8', w: 1.5, len: 26, hit: true, big: false, side: 'p', imp: false, d: 90 });
           if (Math.random() < 0.18) this._mark(gx, gy, 0.5, black);
         }
+        break;
+      }
+      case 'util_land': {
+        const col = ev.util === 'med' ? '#7dff9b' : ev.util === 'smoke' ? '#c8d2cc' : '#7fd8ff';
+        fx.push({ k: 'ring', x: ev.x, y: ev.y, r: Math.max(8, ev.r || 8), t0: now, life: 0.9, a: 1, col });
+        fx.push({ k: 'flash', x: ev.x, y: ev.y, r: 6, t0: now, life: 0.3, a: flash, col });
         break;
       }
       case 'heal': fx.push({ k: 'line', x: ev.x, y: ev.y, x2: ev.tx, y2: ev.ty, t0: now, life: 0.28, col: '#7dff9b' }); fx.push({ k: 'ring', x: ev.tx, y: ev.ty, r: 8, t0: now, life: 0.5, a: 0.9, col: '#7dff9b' }); break;
@@ -314,9 +321,9 @@ export class Renderer {
     const fid = m.faction.id;
     for (const e of m.enemies) {
       if (e.dead || e.vis <= 0) continue;
-      const r = enemyR(e, SUBTYPES[e.kind], px);
       ctx.globalAlpha = e.vis >= 2 ? 1 : 0.6;
-      drawEnemyBody(ctx, e, fid, r, pal.enemy, now, px, t - e.hurtAt < 0.06);
+      if (e.boss) drawBossBody(ctx, e, fid, bossR(e, px), pal.enemy, now, px, t - e.hurtAt < 0.06, t);
+      else drawEnemyBody(ctx, e, fid, enemyR(e, SUBTYPES[e.kind], px), pal.enemy, now, px, t - e.hurtAt < 0.06);
       ctx.globalAlpha = 1;
     }
     drawEnemyExtras(ctx, m, now, px, labels, scale, pal);
@@ -535,12 +542,13 @@ export class Renderer {
     if (this.settings.bubbles !== false) {
       const list = [];
       for (const a of m.alive) if (a.say && t < a.say.until) list.push(a);
-      list.sort((p, q) => (p.type === 'H' ? 0 : 1) - (q.type === 'H' ? 0 : 1));
+      list.sort((p, q) => (p.type === 'H' ? 0 : 1) - (q.type === 'H' ? 0 : 1) || q.say.until - p.say.until);   // the newest first
       let seafShown = 0, shown = 0;
       const small = document.body.classList.contains('touch');   // phones: fewer, smaller bubbles so the action stays visible
       for (const a of list) {
         const H_ = a.type === 'H';
-        if (small) { if (!H_ || ++shown > 1) continue; } else if (!H_ && ++seafShown > 4) continue;   // phones: one Helldiver at a time
+        // at most two Helldivers and two SEAF talking at once (phones: one Helldiver), so the fighting stays in view
+        if (small) { if (!H_ || ++shown > 1) continue; } else if (H_ ? ++shown > 2 : ++seafShown > 2) continue;
         const { x, y } = spot(a);
         if (x < -80 || y < -40 || x > W + 80 || y > H + 40) continue;
         const fs = small ? (H_ ? 9.5 : 7.5) : (H_ ? 11.5 : 8.5), maxW = (small ? (H_ ? 140 : 100) : (H_ ? 190 : 120)) * d, pad = (H_ ? 6 : 4) * d, lh = (fs + 3) * d;
@@ -740,6 +748,7 @@ export class Renderer {
     for (const b of m.breaches) if (!b.dead && b.kind === 'hole') items.push({ x: b.x, y: b.y, col: this.enemyColor(m), label: 'BUG HOLE' });
     for (const dr of m.drops || []) if (dr.state === 'hover' || dr.state === 'in') items.push({ x: dr.tx ?? dr.x, y: dr.ty ?? dr.y, col: this.enemyColor(m), label: dr.kind === 'ship' ? 'DROPSHIP' : 'WARP SHIP' });
     if (m.ffz) items.push({ x: m.ffz.x, y: m.ffz.y, col: '#ff7a2a', label: 'FREE FIRE' });
+    if (m.boss && !m.boss.dead) items.push({ x: m.boss.x, y: m.boss.y, col: '#ff6a4a', label: m.boss.name, far: true });
     const SU = m.supply;
     if (SU && SU.state === 'inbound' && SU.drop) items.push({ x: SU.drop.x, y: SU.drop.y, col: '#9dffb8', label: 'SUPPLY' });
     if (SU && SU.state === 'ask') { const a = m.allies.find((x) => x.id === SU.ask.by && !x.dead); if (a) items.push({ x: a.x, y: a.y, col: '#9dffb8', label: `${SU.ask.tag} NEEDS SUPPLY` }); }
@@ -769,7 +778,7 @@ export class Renderer {
       ctx.beginPath(); ctx.moveTo(10 * d, 0); ctx.lineTo(-6 * d, -7 * d); ctx.lineTo(-6 * d, 7 * d); ctx.closePath(); ctx.fill();
       ctx.restore();
       const dist = Math.round(Math.hypot(it.x - ui.cam.x, it.y - ui.cam.y));
-      const text = document.body.classList.contains('touch') && !OBJ_ARROWS.has(it.label) ? it.label : `${it.label} ${dist}M`;   // phones: a distance only for the objective
+      const text = document.body.classList.contains('touch') && !OBJ_ARROWS.has(it.label) && !it.far ? it.label : `${it.label} ${dist}M`;   // phones: a distance only for the objective
       ctx.globalAlpha = 0.9; ctx.fillStyle = it.col;
       ctx.textAlign = ax > W / 2 ? 'right' : 'left';
       const tx2 = ax + (ax > W / 2 ? -14 * d : 14 * d), ty2 = Math.max(14 * d, Math.min(H - 8 * d, ay + 4 * d));
@@ -1023,9 +1032,18 @@ export class Renderer {
     // Placed assets
     c.fillStyle = ac;
     for (const s of m.assets) if (!s.dead && (s.kind === 'turret' || s.kind === 'vehicle')) c.fillRect(s.x * k - 1.5, s.y * k - 1.5, 3, 3);
-    // Enemies in view
+    // Enemies in view, and a super heavy wherever it is (the radio called it in)
     c.fillStyle = ec;
     for (const e of m.enemies) if (!e.dead && e.vis > 0) c.fillRect(e.x * k - 1, e.y * k - 1, 2, 2);
+    const B = m.boss && !m.boss.dead ? m.boss : null;
+    if (B) {
+      const bx = B.x * k, by = B.y * k, s = big ? 9 : 6;
+      c.strokeStyle = '#ff6a4a'; c.lineWidth = 2;
+      c.beginPath(); c.arc(bx, by, s, 0, TAU); c.stroke();
+      c.beginPath(); c.moveTo(bx - s * 0.6, by - s * 0.6); c.lineTo(bx + s * 0.6, by + s * 0.6); c.moveTo(bx + s * 0.6, by - s * 0.6); c.lineTo(bx - s * 0.6, by + s * 0.6); c.stroke();
+      c.globalAlpha = 0.5 + 0.5 * Math.sin(t * 5); c.beginPath(); c.arc(bx, by, s + 5, 0, TAU); c.stroke(); c.globalAlpha = 1;
+      if (big) { c.fillStyle = '#ff8a6a'; c.font = 'bold 13px ui-monospace, Menlo, Consolas, monospace'; c.textAlign = 'center'; c.fillText(B.name, bx, by - s - 9); }
+    }
     // Helldiver pods, SEAF squads with their orders, pelicans and the assault warning
     for (const p of m.pods) { c.strokeStyle = p.type === 'H' ? '#ffe600' : ac; c.lineWidth = 1.5; c.beginPath(); c.arc(p.x * k, p.y * k, 4, 0, TAU); c.stroke(); }
     drawMiniSeaf(c, m, k, ac, ec);

@@ -189,11 +189,19 @@ function updateAssault(m, dt) {
   }
 }
 
+// How many enemies may be alive right now: fewer at the drop, more as the mission (and the session) goes on.
+export function liveCap(m) {
+  const E = C.enemies;
+  return Math.min(E.maxLive, E.liveCap + E.capPerMissionMin * (m.t / 60) + E.capPerSessionMin * m.S);
+}
+
 export function updateDirector(m, dt) {
   const t = m.t, rng = m.rng, sp = m.support;
 
   // Pressure rises with mission time (and is halved when a base falls).
   m.pressure = Math.max(C.pressure.floor, m.pressure + (C.pressure.perMissionMin / 60) * dt);
+  // enemy damage climbs with the session and, a little, with every minute of the mission
+  m.dmgMul = Math.min(C.ramp.dmgCap, 1 + C.ramp.dmg * m.S + C.ramp.missionDmg * (m.t / 60));
 
   if (m.alive.length && m.phase !== 'over') {
     // Despawn groups that are well outside what the player can see, and count the ones nearby.
@@ -212,7 +220,7 @@ export function updateDirector(m, dt) {
 
     // Enemies spawn all the time, just outside the squad's sight. Faster with Pressure, and fast to refill an empty field.
     sp.spawnT -= dt;
-    if (m.enemies.length < C.enemies.liveCap) {
+    if (m.enemies.length < liveCap(m)) {
       // Right after the drop the field fills more slowly, so a late-session squad gets a minute or two to find its feet.
       const G = C.pressure.dropGrace, P = m.pressure * Math.min(1, G.min + (1 - G.min) * (t / G.sec));
       const floor = Math.round(C.enemies.spawn.minLive * P);
@@ -236,7 +244,7 @@ export function updateDirector(m, dt) {
         b.garrisoned = true; b.nextSpawn = t + cfg.spawnSec / m.pressure; b.owed = cfg.garrisonGroups;
       } else if (t >= b.nextSpawn) {
         b.nextSpawn = t + cfg.spawnSec / m.pressure;
-        if (m.enemies.length < C.enemies.liveCap && garrisonCount(m, b) + (b.owed || 0) * m.groupSize < cfg.garrisonCap) b.owed = (b.owed || 0) + 1;
+        if (m.enemies.length < liveCap(m) && garrisonCount(m, b) + (b.owed || 0) * m.groupSize < cfg.garrisonCap) b.owed = (b.owed || 0) + 1;
       }
       // groups owed to the base come out of sight and walk in (one a tick at most; a spot that is in view waits)
       if (b.owed > 0 && m.enemies.length < C.enemies.hardCap && spawnNear(m, b.x, b.y, 0, 14, 'patrol', { base: b })) b.owed--;
@@ -255,7 +263,7 @@ export function updateDirector(m, dt) {
       const a = m.addAlly('H', p.x, p.y, { team: p.team });
       m.emit('pod_land', { type: 'H', x: p.x, y: p.y, n: 1, r: C.helldivers.podRadius });
       m.emit('boom', { x: p.x, y: p.y, r: C.helldivers.podRadius, dmg: C.helldivers.podDmg, by: 'squad', pod: true });
-      m.notice(`${m.tag(a)} DEPLOYED  ${m.shipOf(a.team)}`, 'good');
+      if (t > 20) m.notice(`${m.tag(a)} DEPLOYED  ${m.shipOf(a.team)}`, 'good');   // the first drop needs no list
       bark(m, a, 'land', '', true);
       m.radio(COMMS.landed, 'landed', 6);
     }

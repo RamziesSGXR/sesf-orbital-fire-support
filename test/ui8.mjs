@@ -54,10 +54,10 @@ check('accepting opens the loading game', await page.isVisible('#supgame'));
 // load it, and measure how fast game time ran meanwhile
 const s0 = await ev(() => window.__game.mission.t), w0 = Date.now();
 let s1 = s0, w1 = w0;
-for (const sl of ['stims', 'gren', 'ammo']) for (let i = 0; i < 4; i++) {
-  if (!(await page.isVisible('#supgame'))) break;
-  s1 = await ev(() => window.__game.mission.t); w1 = Date.now();
-  await tap(`#supgame .sg-slot.${sl}`);
+const taps = []; for (const sl of ['stims', 'gren', 'ammo']) for (let i = 0; i < 4; i++) taps.push(sl);
+for (let k = 0; k < taps.length; k++) {
+  if (k === taps.length - 1) { s1 = await ev(() => window.__game.mission.t); w1 = Date.now(); }   // just before the last tap
+  await tap(`#supgame .sg-slot.${taps[k]}`);
 }
 const rate = (s1 - s0) / Math.max(0.001, (w1 - w0) / 1000);
 check('time slows while the pod is loaded', rate > 0.1 && rate < 0.45, `${rate.toFixed(2)} game seconds a second`);

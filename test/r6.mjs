@@ -135,7 +135,7 @@ const nearHd = (m, a, d, ang = 0) => ({ x: a.x + Math.cos(ang) * d, y: a.y + Mat
   m.aGrid.clear(); for (const q of m.alive) m.aGrid.insert(q);
   let shots = 0;
   for (let i = 0; i < 20 * 30; i++) {
-    m.events.length = 0; a.atk = Math.min(a.atk, 0.35); m.step(dt);
+    m.events.length = 0; a.atk = Math.min(a.atk, 0.35); a.x = 600; a.y = 600; m.step(dt);   // the shooter stays put
     for (const ev of m.events) if (ev.type === 'tracer' && Math.abs(ev.x - a.x) < 0.01 && Math.abs(ev.y - a.y) < 0.01) shots++;
     for (const e of g.members) { e.dead = false; e.hp = e.maxHp; }
   }
@@ -147,7 +147,7 @@ const nearHd = (m, a, d, ang = 0) => ({ x: a.x + Math.cos(ang) * d, y: a.y + Mat
   for (const e of g2.members) { e.x = 630; e.y = 600; }
   let shots2 = 0;
   for (let i = 0; i < 20 * 30; i++) {
-    m2.events.length = 0; a2.atk = Math.min(a2.atk, 0.35); m2.step(dt);
+    m2.events.length = 0; a2.atk = Math.min(a2.atk, 0.35); a2.x = 600; a2.y = 600; m2.step(dt);
     for (const ev of m2.events) if (ev.type === 'tracer' && Math.abs(ev.x - a2.x) < 0.01 && Math.abs(ev.y - a2.y) < 0.01) shots2++;
     for (const e of g2.members) { e.dead = false; e.hp = e.maxHp; }
   }
@@ -209,7 +209,7 @@ const nearHd = (m, a, d, ang = 0) => ({ x: a.x + Math.cos(ang) * d, y: a.y + Mat
   m.enemies = [];
   for (let i = 0; i < 8000; i++) n[m.drawToken()]++;
   check('draws come out overwhelmingly light', n.L / 8000 > 0.88, `L ${(100 * n.L / 8000).toFixed(1)}%  M ${(100 * n.M / 8000).toFixed(1)}%  H ${(100 * n.H / 8000).toFixed(1)}%`);
-  m.enemies = [{ kind: 'H', dead: false }, { kind: 'H', dead: false }];
+  m.enemies = Array.from({ length: C.enemies.kindCap.H }, () => ({ kind: 'H', dead: false }));
   let h = 0; for (let i = 0; i < 4000; i++) if (m.drawToken() === 'H') h++;
   check('with the live cap of heavies reached, no more are drawn', h === 0, `${C.enemies.kindCap.H} allowed at once at the start`);
   m.enemies = [];

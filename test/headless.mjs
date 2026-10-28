@@ -45,6 +45,7 @@ for (let i = 0; i < N; i++) {
     bases: `${r.bases}/${r.baseTotal}`, pois: `${r.pois}/${r.poiTotal}`, br: r.breaches, score: r.score, kills: r.kills,
     lostH: r.stats.lostH, lostS: r.stats.lostS, wipes: r.stats.wipes, lives: r.livesLeft, ff: r.stats.ff,
     as: `${r.assaults || 0}/${r.assaultsHit || 0}`, gun: m.stats.gunRounds || 0, spot: m.stats.spotCalls || 0, cr: r.credits.total, bal: r.credits.balance, plr: Math.round(r.share.player * 100), sqd: Math.round(r.share.squad * 100), str: Math.round(r.share.strat * 100), peak,
+    boss: m.boss ? `${m.boss.dead ? 'K' : 'A'}${Math.round((m.boss.born || 0) / 60)}` : '-',
   });
   if (session && r.outcome !== 'victory') { console.log(`session ended at mission ${i + 1}: ${r.outcome}`); break; }
 }

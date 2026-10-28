@@ -143,6 +143,14 @@ export function drawMarkers(ctx, m, now, px, labels, scale) {
     } else if (mk.type === 'pod') {
       const total = mk.end - mk.start, f = Math.max(0, Math.min(1, (mk.end - t) / total));
       if (mk.team >= 0) beacon(ctx, mx, my, now, px, hexRgb(TEAM_COLOR[mk.team]));
+      if (mk.util) {      // a ship utility on its way down: a blue ring the size of what it will cover
+        ctx.strokeStyle = 'rgba(127,216,255,0.9)'; ctx.fillStyle = 'rgba(127,216,255,0.08)'; ctx.lineWidth = px(2); ctx.setLineDash([px(6), px(5)]); ctx.lineDashOffset = -now * px(10);
+        ring(ctx, mx, my, mk.r); ctx.fill(); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+        ctx.lineWidth = px(2.5); ctx.beginPath(); ctx.moveTo(mx, my - 120 * f); ctx.lineTo(mx, my - 4); ctx.stroke();
+        ctx.fillStyle = '#7fd8ff'; ctx.fillRect(mx - px(3), my - 120 * f - px(3), px(6), px(6));
+        labels.push({ x: mx, y: my, dy: mk.r * scale + 14, text: `${(STRATS[mk.id]?.name || 'UTILITY').toUpperCase()} ${Math.max(0, mk.end - t).toFixed(1)}S`, col: '#7fd8ff', pri: 2 });
+        continue;
+      }
       ctx.strokeStyle = '#ffe600'; ctx.lineWidth = px(2); ctx.setLineDash([px(4), px(4)]);
       ring(ctx, mx, my, mk.r + 3); ctx.stroke(); ctx.setLineDash([]);
       ctx.lineWidth = px(2.5); ctx.beginPath(); ctx.moveTo(mx, my - 120 * f); ctx.lineTo(mx, my - 4); ctx.stroke();
@@ -323,6 +331,12 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal) {
         ctx.beginPath(); ctx.moveTo(cx, cy - sy * c); ctx.lineTo(cx, cy); ctx.lineTo(cx - sx * c, cy); ctx.stroke();
       }
     }
+    // troops still under the ship that brought them can't be hit yet: a faint dashed ring until it pulls away
+    if (e.cover && underShip(e)) {
+      ctx.strokeStyle = 'rgba(200,230,255,0.55)'; ctx.lineWidth = px(1); ctx.setLineDash([px(2), px(2.5)]);
+      ring(ctx, e.x, e.y, Math.max(e.r, px(4)) + px(2.5)); ctx.stroke(); ctx.setLineDash([]);
+    }
+    if (e.boss) { drawBossExtras(ctx, m, e, now, px, labels, scale, col); continue; }
     if (e.kind !== 'H') continue;
     const r = Math.max(e.r, px(9));
     // speed streaks behind a running charger
@@ -354,6 +368,36 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal) {
       labels.push({ x: e.x, y: e.y, dy: -r * scale * 1.5 - 8, text: fac.heavy, col , pri: 0 });
     }
   }
+}
+
+// The same test as combat.js covered(), without touching the unit.
+function underShip(e) {
+  const d = e.cover;
+  return !!d && !d.dead && d.state !== 'down' && !(d.state === 'out' && d.outT > 1.2) && (e.x - d.x) ** 2 + (e.y - d.y) ** 2 <= (d.r + 5) ** 2;
+}
+
+// A super heavy: a slow warning ring, its beam charging (the colossus), its shield bubble, a wide health bar and its name.
+function drawBossExtras(ctx, m, e, now, px, labels, scale, col) {
+  const t = m.t, D = C.boss[e.boss], r = Math.max(e.r * 1.5, px(20));
+  const p = 0.5 + 0.5 * Math.sin(now * 2.5);
+  ctx.strokeStyle = `rgba(255,70,50,${0.45 + 0.35 * p})`; ctx.lineWidth = px(1.6);
+  ctx.setLineDash([px(8), px(5)]); ring(ctx, e.x, e.y, r * (1.75 + 0.08 * p)); ctx.stroke(); ctx.setLineDash([]);
+  if (e.ch && D.beam) {
+    const c = e.ch, f = Math.max(0, Math.min(1, (t - c.t0) / c.dur)), B = D.beam;
+    const dx = c.tx - e.x, dy = c.ty - e.y, d = Math.hypot(dx, dy) || 1, L = Math.max(B.range, d), locked = t >= c.t0 + c.dur - B.lock;
+    ctx.strokeStyle = locked ? 'rgba(255,255,255,0.95)' : rgba(col, 0.35 + 0.5 * f); ctx.lineWidth = locked ? Math.max(B.width * 0.5, px(2.5)) : px(1.2 + 2 * f);
+    ctx.setLineDash(locked ? [] : [px(6), px(4)]);
+    ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x + (dx / d) * L, e.y + (dy / d) * L); ctx.stroke(); ctx.setLineDash([]);
+  }
+  if (e.maxShield && e.shield > 0) {
+    const f = e.shield / e.maxShield, hit = t - (e.shieldAt || -9) < 0.15;
+    ctx.fillStyle = `rgba(150,200,255,${(hit ? 0.22 : 0.08) + 0.08 * f})`; ring(ctx, e.x, e.y, r * 1.45); ctx.fill();
+    ctx.strokeStyle = `rgba(190,225,255,${hit ? 0.95 : 0.35 + 0.4 * f})`; ctx.lineWidth = px(hit ? 2.2 : 1.4); ring(ctx, e.x, e.y, r * 1.45); ctx.stroke();
+  }
+  const w = Math.max(r * 3, px(70)), y = e.y - r * 2.1 - px(10);
+  hpBar(ctx, e.x, y, w, px(4.5), e.hp / e.maxHp, '#ff4a4a');
+  if (e.maxShield) hpBar(ctx, e.x, y - px(4), w, px(2.5), e.shield / e.maxShield, '#8fd0ff');
+  labels.push({ x: e.x, y: e.y, dy: -(r * 2.1) * scale - 26, text: e.name, col: '#ff8a6a', pri: 3 });
 }
 
 // ---------- points of interest: random targets worth credits ----------

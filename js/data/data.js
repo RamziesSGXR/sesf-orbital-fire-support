@@ -4,9 +4,9 @@ import { CONFIG as C } from '../config.js';
 // sight = how far they notice allies (always shorter than ally sight). Attack ranges and damage live in
 // CONFIG.combat.atk, per faction and per size.
 export const FACTIONS = {
-  bugs:   { id: 'bugs',   name: 'BUGS',   full: 'Terminids',  color: '#FF7A1A', speed: 1.4, sight: 32, spread: 15, baseName: 'Hive Nest', heavy: 'CHARGER' },
-  bots:   { id: 'bots',   name: 'BOTS',   full: 'Automatons', color: '#FF3B3B', speed: 0.8, sight: 42, spread: 4,  baseName: 'Fabricator', heavy: 'TANK' },
-  squids: { id: 'squids', name: 'SQUIDS', full: 'Illuminate', color: '#B05CFF', speed: 1.0, sight: 37, spread: 8,  baseName: 'Warp Gate', heavy: 'HARVESTER' },
+  bugs:   { id: 'bugs',   name: 'BUGS',   full: 'Terminids',  color: '#FF7A1A', speed: 1.4, sight: 55, spread: 15, baseName: 'Hive Nest', heavy: 'CHARGER' },
+  bots:   { id: 'bots',   name: 'BOTS',   full: 'Automatons', color: '#FF3B3B', speed: 0.8, sight: 75, spread: 4,  baseName: 'Fabricator', heavy: 'TANK' },
+  squids: { id: 'squids', name: 'SQUIDS', full: 'Illuminate', color: '#B05CFF', speed: 1.0, sight: 65, spread: 8,  baseName: 'Warp Gate', heavy: 'HARVESTER' },
 };
 
 // Enemy sub-types. Damage comes from the attack profile for the faction (see attackProfile).
@@ -22,7 +22,7 @@ export const ALLY = {
   H: { id: 'H', name: 'Helldiver', hp: C.combat.helldiver.hp, armor: C.combat.helldiver.armor, sight: C.sight.helldiver, r: 4,   ...pick(C.combat.helldiver) },
   S: { id: 'S', name: 'SEAF',      hp: C.combat.seaf.hp,      armor: C.combat.seaf.armor,      sight: C.sight.seaf,      r: 2.6, ...pick(C.combat.seaf) },
 };
-function pick(o) { return { dps: o.dps, burst: o.burst, acc: o.acc, mult: o.mult }; }
+function pick(o) { return { dps: o.dps, burst: o.burst, acc: o.acc, mult: o.mult, range: o.range }; }
 
 // Biomes. speed applies to every unit, ping is the visibility multiplier for sight, splash is the player's weapon splash.
 export const BIOMES = {
@@ -123,6 +123,12 @@ export const COMMS = {
   civFriendly: 'Civilians hit by our own fire. Check your strikes, gunner.',
   ffzAsk: (who, dir) => `${who} requests a free-fire zone ${dir}. Allies are clearing out. Saturate it, gunner.`,
   ffzEnd: 'Free-fire zone closed. Allies moving back in.',
+  utilCall: (name) => `${name} on its way down.`,
+  noWater: 'Negative. That would land in the water.',
+  bossIn: (name, dir, d) => `Super heavy on the field: ${name}, ${dir}, ${d} metres. It has to die before the pelican can land.`,
+  bossDown: (name) => `${name} is down! Outstanding work, gunner.`,
+  bossBlock: (name) => `Pelican will not land with the ${name} on the field. Kill it.`,
+  bossLeave: (name) => `The ${name} is pulling back. Pelican is cleared to land. No bounty on that one.`,
   supplyAsk: (who) => `${who}: Gunner, we're running dry. Requesting a supply drop.`,
   supplyDeclined: 'Supply request denied. The squad makes do.',
   supplyIgnored: 'No answer on the supply request. The squad makes do.',

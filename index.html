@@ -27,6 +27,7 @@
       <div id="strats" class="panel fadeable"></div>
       <div id="place-hint" class="panel hidden"></div>
       <div id="callouts">
+        <div id="co-boss" class="callout boss hidden"><span class="co-i">☠</span><span class="co-t"></span><button class="co-b" data-co="look-boss">LOOK</button><i class="co-hp"><u></u><s></s></i></div>
         <div id="co-ffz" class="callout ffz hidden"><span class="co-i">◎</span><span class="co-t"></span><button class="co-b" data-co="look-ffz">LOOK <kbd>J</kbd></button></div>
         <div id="co-sup" class="callout sup hidden"><span class="co-i">⬢</span><span class="co-t"></span><button class="co-b primary" data-co="accept">LOAD POD <kbd>U</kbd></button><button class="co-b" data-co="look-sup">LOOK <kbd>J</kbd></button><button class="co-b x" data-co="decline" aria-label="Turn down the supply request">✕</button><i class="co-bar"></i></div>
       </div>
@@ -98,6 +99,7 @@
       <button id="fire-btn" class="btn fire">CALL</button>
     </div>
     <div id="center-msg"></div>
+    <div id="toast"></div>
   </div>
 
   <!-- Screens -->
@@ -292,7 +294,7 @@
       <button class="x-close" data-close="s-map" aria-label="Close the map">✕</button>
       <div class="eyebrow">Tactical map</div>
       <div class="mapwrap"><canvas id="bigmap" width="900" height="900" aria-label="Tactical map. Tap a spot to look there."></canvas></div>
-      <div class="map-key"><span class="k-hd">● ALLIES</span><span class="k-en">■ ENEMIES IN SIGHT</span><span class="k-obj">◆ OBJECTIVE, EXTRACT</span><span class="k-base">○ ENEMY BASE</span><span class="k-poi">□ TARGET</span><span class="k-ffz">◌ FREE FIRE</span></div>
+      <div class="map-key"><span class="k-hd">● ALLIES</span><span class="k-en">■ ENEMIES IN SIGHT</span><span class="k-obj">◆ OBJECTIVE, EXTRACT</span><span class="k-base">○ ENEMY BASE</span><span class="k-poi">□ TARGET</span><span class="k-ffz">◌ FREE FIRE</span><span class="k-boss">⊗ SUPER HEAVY</span></div>
       <p class="fine">Tap the map to look there. The game is paused while the map is open.</p>
       <div class="btns"><button id="map-follow" class="btn">FOLLOW SQUAD</button><button id="map-close" class="btn primary">BACK</button></div>
     </div>
@@ -307,7 +309,7 @@
         <p>A free, fan-made minigame for the <b>Super Earth Special Forces</b> community. You are the gunner on a Super Destroyer: you scan the ground, call orbital strikes, fire the ship gun and drop SEAF troops, while four Helldivers fight their way through the mission below you.</p>
         <p>It is an <b>unofficial fan project</b>, not affiliated with or endorsed by Arrowhead Game Studios or Sony Interactive Entertainment. Everything in it (art, sound, text, numbers) is made from scratch for this project; there are no game assets in it.</p>
         <p>It runs in the browser on a phone or a computer, with nothing to install. Your progress and best scores stay on your own device.</p>
-        <p><b>How a session works:</b> missions follow one another until one fails. The first few are quick; later ones are bigger and harder, and the war escalates every minute. Credits buy and upgrade your orbitals, the ship gun, the UAV scan, SEAF and squad support.</p>
+        <p><b>How a session works:</b> missions follow one another until one fails. The first few are quick; later ones are bigger and harder, each mission gets harder the longer it runs, and now and then a super heavy has to be brought down before the squad can leave. Credits buy and upgrade your orbitals, ship utilities, the ship gun, the UAV scan, SEAF and squad support.</p>
         <p><b>Feedback is how it gets better.</b> GIVE FEEDBACK opens a short form on the project's GitHub page in a new tab (a free GitHub account is needed). Say what device you played on, what happened, and what you would change.</p>
         <p class="fine" id="about-ver"></p>
       </div>

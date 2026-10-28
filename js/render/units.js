@@ -162,3 +162,68 @@ export function drawEnemyBody(ctx, e, fac, r, col, now, px, hot) {
 export function enemyR(e, st, px) {
   return Math.max(st.r * (e.kind === 'L' ? 1.15 : 1), px(e.kind === 'L' ? 4.2 : e.kind === 'M' ? 6.5 : 10));
 }
+
+// ---------------------------------------------------------------- super heavies
+// Drawn bigger than anything else on the map, each with its own silhouette. Like the heavies, the front carries the eyes or guns
+// and the back a glowing weak spot. shield: 0..1, the colossus's shield (drawn as a bubble).
+export function bossR(e, px) { return Math.max(e.r * 1.5, px(20)); }
+export function drawBossBody(ctx, e, fac, r, col, now, px, hot, t) {
+  ctx.save(); ctx.translate(e.x, e.y);
+  const lw = (n) => Math.max(px(n), 0.05), dark = 'rgba(0,0,0,0.65)', body = hot ? '#ffffff' : col;
+  const pulse = 0.5 + 0.5 * Math.sin(now * 3.2 + e.id);
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  // a warning glow under it, so it reads as something else at any zoom
+  const g = ctx.createRadialGradient(0, 0, r * 0.4, 0, 0, r * 1.9);
+  g.addColorStop(0, 'rgba(0,0,0,0.6)'); g.addColorStop(0.6, 'rgba(255,60,40,0.16)'); g.addColorStop(1, 'rgba(255,60,40,0)');
+  ctx.fillStyle = g; circ(ctx, 0, 0, r * 1.9); ctx.fill();
+  ctx.rotate(e.face || 0);
+  if (fac === 'bugs') {
+    // the brood titan: six legs, a long armoured abdomen in plates, a wide head with mandibles; the acid sac on its back glows
+    ctx.strokeStyle = rgba(col, 0.95); ctx.lineWidth = lw(3);
+    for (let i = 0; i < 3; i++) for (const s of [-1, 1]) {
+      const ph = Math.sin(now * 3 + i * 2.1 + (s > 0 ? Math.PI : 0)) * 0.12, bx = (0.35 - i * 0.38) * r;
+      ctx.beginPath(); ctx.moveTo(bx, s * 0.35 * r);
+      ctx.lineTo(bx + (0.25 - i * 0.12 + ph) * r, s * 0.95 * r); ctx.lineTo(bx + (0.45 - i * 0.3 + ph) * r, s * 1.35 * r); ctx.stroke();
+    }
+    ctx.fillStyle = body; ell(ctx, -0.45 * r, 0, 0.75 * r, 0.55 * r); ctx.fill(); ctx.strokeStyle = dark; ctx.lineWidth = lw(1.4); ctx.stroke();
+    ctx.lineWidth = lw(1);
+    for (let i = 1; i <= 3; i++) { const x = -0.45 * r + (i - 2) * 0.32 * r; ctx.beginPath(); ctx.ellipse(x, 0, 0.12 * r, 0.5 * r, 0, -1.3, 1.3); ctx.stroke(); }
+    ctx.fillStyle = `rgba(190,255,120,${0.5 + 0.45 * pulse})`; ell(ctx, -0.8 * r, 0, 0.26 * r, 0.22 * r); ctx.fill();
+    ctx.fillStyle = body; ell(ctx, 0.3 * r, 0, 0.42 * r, 0.48 * r); ctx.fill(); ctx.strokeStyle = dark; ctx.lineWidth = lw(1.2); ctx.stroke();
+    ctx.fillStyle = body; ell(ctx, 0.78 * r, 0, 0.3 * r, 0.36 * r); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#fff3d0'; ctx.lineWidth = lw(2);
+    for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(0.95 * r, s * 0.2 * r); ctx.quadraticCurveTo(1.35 * r, s * 0.42 * r, 1.4 * r, s * 0.05 * r); ctx.stroke(); }
+    ctx.fillStyle = '#ffffff'; for (const s of [-1, 1]) { circ(ctx, 0.9 * r, s * 0.17 * r, Math.max(0.06 * r, px(1.3))); ctx.fill(); }
+  } else if (fac === 'bots') {
+    // the siege walker: four stomping legs, a square hull, twin cannons at the front, a red reactor glowing at the back
+    ctx.strokeStyle = rgba(col, 0.95); ctx.lineWidth = lw(3.2);
+    for (const [fx, fy] of [[0.55, -1], [0.55, 1], [-0.55, -1], [-0.55, 1]]) {
+      const st = Math.sin(now * 2.4 + (fx * fy > 0 ? 0 : Math.PI)) * 0.15;
+      ctx.beginPath(); ctx.moveTo(fx * 0.5 * r, fy * 0.45 * r); ctx.lineTo((fx + st) * 0.9 * r, fy * 0.95 * r); ctx.lineTo((fx + st) * 1.05 * r, fy * 1.25 * r); ctx.stroke();
+      ctx.fillStyle = rgba(col, 1); circ(ctx, (fx + st) * 1.05 * r, fy * 1.25 * r, 0.12 * r); ctx.fill();
+    }
+    ctx.fillStyle = body; rect(ctx, -0.7 * r, -0.6 * r, 0.6 * r, 0.6 * r); ctx.fill(); ctx.strokeStyle = dark; ctx.lineWidth = lw(1.5); ctx.stroke();
+    ctx.lineWidth = lw(1); rect(ctx, -0.45 * r, -0.38 * r, 0.35 * r, 0.38 * r); ctx.stroke();
+    ctx.fillStyle = `rgba(255,90,60,${0.55 + 0.4 * pulse})`; rect(ctx, -0.82 * r, -0.3 * r, -0.62 * r, 0.3 * r); ctx.fill();
+    const aim = t < (e.aimUntil || 0) ? (e.aimA || 0) - (e.face || 0) : 0;
+    ctx.save(); ctx.rotate(aim);
+    ctx.strokeStyle = '#ffd0c0'; ctx.lineWidth = lw(3); ctx.lineCap = 'butt';
+    for (const s of [-1, 1]) line(ctx, 0.3 * r, s * 0.3 * r, 1.55 * r, s * 0.3 * r);
+    ctx.fillStyle = hot ? '#fff' : rgba(col, 1); circ(ctx, 0.1 * r, 0, 0.32 * r); ctx.fill(); ctx.strokeStyle = dark; ctx.stroke();
+    ctx.fillStyle = '#ffffff'; circ(ctx, 0.3 * r, 0, Math.max(0.08 * r, px(1.4))); ctx.fill();
+    ctx.restore();
+  } else {
+    // the warp colossus: a tripod of very long legs, a wide disc, the emitter at the front and a core burning at the back
+    ctx.strokeStyle = rgba(col, 0.95); ctx.lineWidth = lw(2.4);
+    for (const a of [Math.PI * 0.62, Math.PI, Math.PI * 1.38, Math.PI * 0.22, -Math.PI * 0.22]) {
+      const sw = Math.sin(now * 1.6 + a * 3 + e.id) * 0.07;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a + sw) * 0.95 * r, Math.sin(a + sw) * 0.95 * r); ctx.lineTo(Math.cos(a + sw) * 1.45 * r, Math.sin(a + sw) * 1.45 * r); ctx.stroke();
+    }
+    ctx.fillStyle = `rgba(230,200,255,${0.5 + 0.45 * pulse})`; circ(ctx, -0.55 * r, 0, 0.24 * r); ctx.fill();
+    ctx.fillStyle = body; circ(ctx, 0, 0, 0.62 * r); ctx.fill(); ctx.strokeStyle = dark; ctx.lineWidth = lw(1.4); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = lw(1); ctx.beginPath(); ctx.arc(0, 0, 0.42 * r, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, 0.24 * r, -0.8, 0.8); ctx.stroke();
+    ctx.fillStyle = '#ffffff'; circ(ctx, 0.55 * r, 0, Math.max(0.14 * r, px(2))); ctx.fill();
+  }
+  ctx.restore();
+}

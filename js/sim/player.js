@@ -6,7 +6,7 @@ import { COMMS } from '../data/data.js';
 import { orbStats, uavStats, gunStats } from '../data/kit.js';
 import { noise } from './enemies.js';
 import { damageArea } from './combat.js';
-import { strikeAt, queueZone } from './strat.js';
+import { strikeAt, queueZone, destroyAsset } from './strat.js';
 
 export const SLOT_UAV = 0, SLOT_NUKE = 6, SLOT_GUN = 7, ORB_SLOTS = 5;
 export const UAV_REACH = 70;       // a UAV can be dropped this far beyond the strike zone of the allies
@@ -16,18 +16,21 @@ const GUN_MULT = { L: 1, M: 0.8, H: 0.2, B: C.gun.struct };
 export function initPlayer(m) {
   const p = {
     weapon: 1, aimX: m.lz.x, aimY: m.lz.y + 60, firing: false, prevFiring: false, swapUntil: 0,
-    slots: [{ type: 'uav', readyAt: 2 }, { type: 'empty' }, { type: 'empty' }, { type: 'empty' }, { type: 'empty' }, { type: 'empty' }, { type: 'nuke', uses: 1, readyAt: 0 }, { type: 'gun' }],
+    slots: [{ type: 'uav', readyAt: startCd(uavStats(m.kit.uav).cd) }, { type: 'empty' }, { type: 'empty' }, { type: 'empty' }, { type: 'empty' }, { type: 'empty' }, { type: 'nuke', uses: 1, readyAt: 0 }, { type: 'gun' }],
     gun: { ammo: gunStats(m.kit).ammo, max: gunStats(m.kit).ammo, bloom: 0, idle: 9, acc: 0, dry: false, firing: false },
     aim: { ok: true, inZone: true, danger: false, dangerR: 0, ready: false, splash: 0, spread: 0, delay: 0, name: '' },
   };
   m.player = p;
-  syncSlots(m);
-  p.weapon = p.slots.findIndex((s, i) => i >= 1 && i <= ORB_SLOTS && s.type === 'orb');
-  if (p.weapon < 0) p.weapon = 0;
+  m.utilQ = [];
+  syncSlots(m, true);
+  p.weapon = GUN_SLOT;      // the ship gun is the first thing the gunner can use; everything else is still cooling down
 }
+const GUN_SLOT = 7;
+// Where a weapon's cooldown stands at the start of a mission: part-way through, never less than a few seconds.
+const startCd = (cd) => Math.max(C.weapons.startCdMin, cd * C.weapons.startCdFrac);
 
 // Make the five orbital slots match the kit's loadout. Slots that keep the same orbital keep their cooldown.
-export function syncSlots(m) {
+export function syncSlots(m, start = false) {
   const p = m.player, kit = m.kit;
   for (let i = 1; i <= ORB_SLOTS; i++) {
     const id = i - 1 < kit.slots ? kit.loadout[i - 1] : '';
@@ -35,7 +38,7 @@ export function syncSlots(m) {
     if (!id) { p.slots[i] = { type: 'empty' }; continue; }
     const level = kit.owned[id] || 1;
     if (cur.type === 'orb' && cur.id === id) { cur.level = level; continue; }
-    p.slots[i] = { type: 'orb', id, level, readyAt: m.t + C.weapons.warmupSec, uses: id === 'orb_laser' ? C.orbital.laserUses : Infinity };
+    p.slots[i] = { type: 'orb', id, level, readyAt: m.t + (start ? startCd(orbStats(id, level).cd) : C.weapons.warmupSec), uses: id === 'orb_laser' ? C.orbital.laserUses : Infinity };
   }
   // gun upgrades bought mid-mission: a bigger magazine arrives full of the extra rounds
   const gs = gunStats(kit);
@@ -91,6 +94,7 @@ function fireOrbital(m, idx) {
   const st = orbStats(s.id, s.level);
   if (t < s.readyAt || s.uses <= 0) return deny(m, 'cooldown');
   if (!m.inZone(p.aimX, p.aimY)) return deny(m, 'nocoverage', COMMS.noCoverage);
+  if (st.k === 'util') return callUtil(m, s, st);
   // into a free-fire zone the Helldivers asked for: the destroyer recharges faster, so the gunner can saturate it
   const inFfz = m.ffz && Math.hypot(p.aimX - m.ffz.x, p.aimY - m.ffz.y) <= m.ffz.r;
   s.readyAt = t + st.cd * (inFfz ? C.ffz.cdMul : 1);
@@ -115,6 +119,51 @@ function fireOrbital(m, idx) {
   return true;
 }
 
+// ---------------------------------------------------------------- ship utilities
+// Help for the squad instead of firepower: a pod (or a canister of smoke, or medical nanites) comes down where the player aims.
+function callUtil(m, s, st) {
+  const p = m.player, t = m.t, x = p.aimX, y = p.aimY;
+  if ((st.util === 'sentry' || st.util === 'shield') && !m.terrain.isLand(x, y)) return deny(m, 'water', COMMS.noWater);
+  s.readyAt = t + st.cd;
+  m.utilQ.push({ at: t + st.delay, st, x, y, id: s.id });
+  m.markers.push({ type: 'pod', x, y, r: st.r || (st.zone ? st.zone.r : 6), start: t, end: t + st.delay, id: s.id, util: st.util });
+  m.stats.utils = (m.stats.utils || 0) + 1; m.stats.shots++;
+  m.stats.stratBy[s.id] = (m.stats.stratBy[s.id] || 0) + 1;
+  m.emit('util_call', { id: s.id, util: st.util, name: st.name, x, y, delay: st.delay });
+  m.radio(COMMS.utilCall(st.name), 'util', 2);
+  return true;
+}
+function landUtil(m, u) {
+  const t = m.t, st = u.st;
+  if (st.util === 'med') {
+    let n = 0;
+    for (const a of m.alive) {
+      if (a.dead || (a.x - u.x) ** 2 + (a.y - u.y) ** 2 > st.r * st.r) continue;
+      if (a.type === 'H') a.heal = (a.heal || 0) + a.maxHp * st.heal;       // Helldivers heal over a few seconds, like a stim
+      else a.hp = Math.min(a.maxHp, a.hp + a.maxHp * st.heal);
+      n++;
+      m.emit('heal', { x: u.x, y: u.y, tx: a.x, ty: a.y, id: a.id });
+    }
+    m.emit('util_land', { util: 'med', x: u.x, y: u.y, r: st.r, n });
+    return;
+  }
+  if (st.util === 'smoke') {
+    m.zones.push({ kind: 'smoke', x: u.x, y: u.y, r: st.zone.r, until: t + st.zone.sec, dps: 0, tick: 0, born: t, by: 'player' });
+    m.emit('zone', { kind: 'smoke', x: u.x, y: u.y, r: st.zone.r });
+    m.emit('util_land', { util: 'smoke', x: u.x, y: u.y, r: st.zone.r });
+    return;
+  }
+  // a shield dome or a sentry: one of each at a time from the ship, the new one replaces the old
+  for (const a of m.assets) if (!a.dead && a.sid === u.id) destroyAsset(m, a, 'replaced');
+  const base = { id: m.nextId++, sid: u.id, x: u.x, y: u.y, born: t, dead: false, hurtAt: -9, name: st.name, ship: true };
+  const a = st.util === 'shield'
+    ? { ...base, kind: 'shield', hp: 60, maxHp: 60, shield: st.shield, maxShield: st.shield, r: st.r, until: t + st.life, life: st.life }
+    : { ...base, kind: 'turret', hp: st.t.hp, maxHp: st.t.hp, ammo: st.t.ammo, maxAmmo: st.t.ammo, p: st.t, cool: 0.6, scan: 0, tgt: null, face: m.squad.dir || 0, focus: null, r: 3.5, snd: 'ac' };
+  m.assets.push(a);
+  m.emit('asset_new', { kind: a.kind, sid: u.id, x: u.x, y: u.y });
+  m.emit('util_land', { util: st.util, x: u.x, y: u.y, r: st.r || 4 });
+}
+
 export function fireSlot(m, idx) {
   const p = m.player, s = p.slots[idx];
   if (!s || s.type === 'empty') return false;
@@ -128,6 +177,7 @@ export function fireSlot(m, idx) {
 }
 
 export function updatePlayer(m, dt) {
+  for (let i = m.utilQ.length - 1; i >= 0; i--) if (m.t >= m.utilQ[i].at) landUtil(m, m.utilQ.splice(i, 1)[0]);
   const p = m.player, t = m.t, info = p.aim;
   // The nuke slot is only usable while the launch site is armed; fall back to the first orbital when it is spent.
   if (p.slots[p.weapon].type === 'nuke' && !m.nukeReady()) {
@@ -159,7 +209,8 @@ export function updatePlayer(m, dt) {
     info.gun = { ammo: g.ammo, max: g.max, dry: g.dry };
   } else { info.inZone = false; info.ready = false; }
   info.ok = info.ready;
-  info.dangerR = s.type === 'uav' || s.type === 'gun' ? 0 : info.splash + info.spread + 5;
+  info.util = s.type === 'orb' && st.k === 'util' ? st.util : null;      // help for the squad: no danger-close warning
+  info.dangerR = s.type === 'uav' || s.type === 'gun' || info.util ? 0 : info.splash + info.spread + 5;
   info.danger = false;
   if (info.dangerR > 0) {
     for (const a of m.alive) if (!a.dead && Math.hypot(a.x - p.aimX, a.y - p.aimY) <= info.dangerR) { info.danger = true; break; }

@@ -7,6 +7,7 @@ import { LETTERS, TEAM_COLOR } from './data/names.js';
 import { shopItems, orbStats, uavStats, seafStats, gunStats, maxLives, zoneExtra } from './data/kit.js';
 import { stratReady, stratOnline } from './sim/strat.js';
 import { slotStats } from './sim/player.js';
+import { compass } from './sim/enemies.js';
 import { objectiveStatus, OBJ_NAME } from './sim/objectives.js';
 import { todAt, todName, todClock } from './render/sky.js';
 import { situation, tipsFor } from './data/tips.js';
@@ -97,6 +98,17 @@ export class Hud {
   // ---- callouts under the objective: a free-fire zone to saturate, and supply requests
   _callouts(m) {
     const t = m.t, z = m.ffz, ff = $('co-ffz');
+    // a super heavy on the field: where it is, how hurt, and that the pelican won't come until it's dead
+    const B = m.boss && !m.boss.dead ? m.boss : null, cb = $('co-boss');
+    cb.classList.toggle('hidden', !B);
+    if (B) {
+      const blocked = m.phase === 'extract';
+      const dir = compass(B.x - m.cx, B.y - m.cy).toUpperCase(), dist = Math.round(Math.hypot(B.x - m.cx, B.y - m.cy) / 10) * 10;
+      this._set('coboss', cb.querySelector('.co-t'), `${B.name} · ${dir} ${dist}M · ${blocked ? 'EXTRACTION BLOCKED' : 'MUST DIE BEFORE EXTRACTION'}`);
+      cb.classList.toggle('block', blocked);
+      cb.querySelector('.co-hp u').style.width = `${Math.max(0, B.hp / B.maxHp) * 100}%`;
+      cb.querySelector('.co-hp s').style.width = B.maxShield ? `${Math.max(0, B.shield / B.maxShield) * 100}%` : '0';
+    }
     if (z) {
       const txt = `FREE FIRE · ${z.dir ? z.dir.toUpperCase() : ''} ${z.dist || ''}M · ${Math.ceil(Math.max(0, z.until - t))}S · STRIKES RECHARGE 2X`;
       this._set('coffz', ff.querySelector('.co-t'), txt);
@@ -145,11 +157,27 @@ export class Hud {
   }
 
   // ---- info cards
+  // They sit in a fixed spot that covers no controls (Settings > Info cards): down the right side on a computer (left with the
+  // left-handed layout), or across the top under the callouts. Off hides them.
   showCard(html, ms = 4200) {
-    if (!html) return;
+    const b = document.body;
+    if (!html || b.classList.contains('cards-off')) return;
     const c = this.card;
     c.innerHTML = html; c.classList.remove('hidden');
+    this.placeCard(true);
     clearTimeout(this._ct); this._ct = setTimeout(() => c.classList.add('hidden'), ms);
+  }
+  placeCard(now = false) {
+    const c = this.card, b = document.body, msg = $('center-msg');
+    const t = performance.now();
+    if (!now && t - (this._pcT || 0) < 250) return;
+    this._pcT = t;
+    if (msg.classList.contains('show')) msg.style.top = `${Math.round(topBelow() + 10)}px`;   // callouts come and go under it
+    if (c.classList.contains('hidden')) return;
+    const top = b.classList.contains('touch') || b.classList.contains('cards-top');
+    c.classList.toggle('dock-top', top); c.classList.toggle('dock-side', !top);
+    if (!top) { c.style.top = ''; return; }
+    c.style.top = `${Math.round(topBelow(msg.classList.contains('show') ? msg : null) + 6)}px`;
   }
   hideCard(ms = 0) { clearTimeout(this._ct); this._ct = setTimeout(() => this.card.classList.add('hidden'), ms); }
 
@@ -216,24 +244,34 @@ export class Hud {
     const touch = document.body.classList.contains('touch');
     if (touch && tone === 'dim') return;   // phones: only news worth a glance
     const box = $('notices'), d = el('div', 'nt ' + tone); d.textContent = text; box.appendChild(d);
-    while (box.children.length > (touch ? 2 : 6)) box.removeChild(box.firstChild);
-    const life = touch ? (tone === 'bad' || tone === 'warn' ? 5600 : 3800) : (tone === 'bad' ? 11000 : tone === 'dim' ? 5000 : 8000);
+    while (box.children.length > (touch ? 2 : 4)) box.removeChild(box.firstChild);
+    const life = touch ? (tone === 'bad' || tone === 'warn' ? 5600 : 3800) : (tone === 'bad' ? 8000 : tone === 'dim' ? 3800 : 5600);
     setTimeout(() => d.classList.add('old'), life);
     setTimeout(() => d.remove(), life + 1200);
   }
   clearNotices() { $('notices').innerHTML = ''; }
 
+  // The big message: only for turns in the mission (objective done, extraction, a super heavy, a nuke). It sits high, under the
+  // callouts, clear of the fighting in the middle of the screen.
   message(text, ms = 2200) {
     const e = $('center-msg');
     e.textContent = text; e.classList.add('show');
+    e.style.top = `${Math.round(topBelow() + 10)}px`;
+    this.placeCard(true);
     clearTimeout(this._mt); this._mt = setTimeout(() => e.classList.remove('show'), ms);
+  }
+  // A small line just above the weapon bar: why a call was refused.
+  toast(text, ms = 1500) {
+    const e = $('toast');
+    e.textContent = text; e.classList.add('show');
+    clearTimeout(this._tst); this._tst = setTimeout(() => e.classList.remove('show'), ms);
   }
 
   reset() {
-    this.last = {}; this.clearRadio(); this.clearNotices(); $('center-msg').classList.remove('show'); this.setPlacing(null);
+    this.last = {}; this.clearRadio(); this.clearNotices(); $('center-msg').classList.remove('show'); $('toast').classList.remove('show'); this.setPlacing(null);
     if (this.card) this.card.classList.add('hidden');
     if (this.sg) { this.sg.el.classList.add('hidden'); for (const q of this.sg.slots) q.key = ''; }
-    document.body.classList.remove('slowmo'); $('co-ffz').classList.add('hidden'); $('co-sup').classList.add('hidden');
+    document.body.classList.remove('slowmo'); $('co-ffz').classList.add('hidden'); $('co-sup').classList.add('hidden'); $('co-boss').classList.add('hidden');
     for (const o of Object.values(this.ord)) o.key = '';
     this.setDrawing(false); for (const b of this.sqb) b.key = ''; for (const a of Object.values(this.sqa)) a.key = '';
     this.trayToggle(false); this.menu.classList.add('hidden'); $('hud').classList.remove('strats-open'); document.querySelector('.hud-tl').classList.remove('open'); this.dkKey = '';
@@ -306,6 +344,7 @@ export class Hud {
       else if (ex.state === 'landing') { obj = 'EXTRACTION: PELICAN LANDING'; prog = 1; }
       else if (ex.state === 'boarding') { obj = `EXTRACTION: EVERYONE ABOARD  ${ex.boardedH || 0} ON  ${Math.max(0, Math.ceil(ex.leaveBy - t))}S`; prog = 1; urgent = true; }
       else if (ex.state === 'away') obj = 'PELICAN AWAY';
+      else if (m.boss && !m.boss.dead) { obj = `KILL THE ${m.boss.name}: NO PELICAN UNTIL IT IS DEAD`; urgent = true; prog = 1 - m.boss.hp / m.boss.maxHp; }
       else obj = 'OBJECTIVE DONE. REACH EXTRACTION AND CALL THE PELICAN';
     } else obj = 'MISSION OVER';
     if (this._set('obj', $('obj-main'), obj)) {
@@ -327,6 +366,7 @@ export class Hud {
     this._set('combo', $('combo'), cb);
 
     this._roster(m); this._supply(m); this._strats(m); this._orders(m); this._squads(m); this._weapons(m); this._callouts(m); this._supgame(m);
+    this.placeCard();
     // a new weapon or squad selected: say what it is
     if (this.last.selW !== m.player.weapon) { if (this.last.selW !== undefined) this.showCard(weaponInfo(m, m.player.weapon)); this.last.selW = m.player.weapon; }
     if (this.last.selS !== m.seaf.sel) { if (this.last.selS !== undefined) this.showCard(squadInfo(m, m.seaf.sel)); this.last.selS = m.seaf.sel; }
@@ -606,7 +646,7 @@ export function runBriefing({ info, mission, touch, onContinue, onEnd, canEnd, o
 }
 
 // ---------------- the armory ----------------
-const SEC_TAG = { LOADOUT: 'SLOT', ORBITALS: 'ORBITAL', 'SHIP GUN': 'GUN', 'UAV SCAN': 'UAV', 'SEAF TROOPS': 'SEAF', 'SEAF SPECIALISTS': 'SPECIALIST', 'SQUAD SUPPORT': 'SUPPORT' };
+const SEC_TAG = { LOADOUT: 'SLOT', ORBITALS: 'ORBITAL', UTILITIES: 'UTILITY', 'SHIP GUN': 'GUN', 'UAV SCAN': 'UAV', 'SEAF TROOPS': 'SEAF', 'SEAF SPECIALISTS': 'SPECIALIST', 'SQUAD SUPPORT': 'SUPPORT' };
 const pips = (lv, max) => { let s = ''; for (let i = 0; i < max; i++) s += i < lv ? '●' : '○'; return s; };
 
 // One line of numbers under an item's name.
@@ -614,6 +654,11 @@ function statLine(it, kit) {
   const id = it.id;
   if (it.orb) {
     const o = orbStats(it.orb, kit.owned[it.orb] || 1);
+    if (o.k === 'util') {
+      const what = o.util === 'med' ? `HEALS ${Math.round(o.heal * 100)}% IN ${o.r.toFixed(0)}M` : o.util === 'smoke' ? `${o.zone.r.toFixed(0)}M SMOKE FOR ${o.zone.sec.toFixed(0)}S`
+        : o.util === 'shield' ? `${o.r.toFixed(0)}M DOME · SOAKS ${fmtNum(o.shield)}` : `${o.t.hp} HP SENTRY · ${Math.round(o.t.dmg)} DMG SHELLS`;
+      return `${what} · ${Math.round(o.cd)}S RECHARGE · EQUIPS IN AN ORBITAL SLOT`;
+    }
     if (o.k === 'beam') return `${Math.round(o.beam.dps)} DPS · ${o.beam.dur.toFixed(0)}S BEAM · ${Math.round(o.cd)}S RECHARGE`;
     if (o.k === 'zone') return `${o.zone.r.toFixed(0)}M FIELD · ${o.zone.sec.toFixed(0)}S · ${Math.round(o.cd)}S RECHARGE`;
     return `${Math.round(o.dmg)} DMG x${o.n} · ${o.splash.toFixed(0)}M BLAST · ${Math.round(o.cd)}S RECHARGE`;
@@ -664,7 +709,7 @@ export function renderShop(root, opts) {
   const sections = [];
   for (const it of items) { let s = sections.find((x) => x.name === it.section); if (!s) sections.push(s = { name: it.section, list: [] }); s.list.push(it); }
   for (const sec of sections) {
-    if (sec.name === 'ORBITALS') sec.list.sort((a, b) => (b.owned ? 1 : 0) - (a.owned ? 1 : 0));
+    if (sec.name === 'ORBITALS' || sec.name === 'UTILITIES') sec.list.sort((a, b) => (b.owned ? 1 : 0) - (a.owned ? 1 : 0));
     const slug = sec.name.toLowerCase().replace(/[^a-z]+/g, '-');
     const hd = el('h3', 'shop-h sec-' + slug, `<i class="dot"></i>${esc(sec.name)}`);
     body.appendChild(hd);
@@ -750,6 +795,7 @@ export function fillDebrief(info, res, session) {
     [`Enemy ships shot down (${s.dropsDown || 0})`, b.drops || 0],
     [`Civilians (${res.civSaved} saved, ${res.civLost} lost)`, b.civ || 0],
     [`Assault waves broken (${res.assaults || 0} of ${s.assaultsHit || 0})`, b.assaults || 0],
+    [`Super heavy destroyed (${s.bossKills || 0} of ${s.bosses || 0})`, b.boss || 0],
     ['Extraction', b.extraction],
     [`Helldiver lives left (${res.livesLeft})`, b.lives],
     [`Survivors (${res.survivorsH} Helldivers, ${res.survivorsS} SEAF)`, b.survivor],
@@ -762,7 +808,7 @@ export function fillDebrief(info, res, session) {
   $('d-table').innerHTML = tbl(rows);
   const c = res.credits;
   $('d-credits').innerHTML = tbl([
-    ['Kills', c.kills], ['Bases', c.bases], ['Points of interest', c.pois], ['Bug holes', c.breaches], ['Ships shot down', c.drops || 0], ['Civilians saved', c.civ || 0], ['Assaults broken', c.assaults], ['Objective', c.objective], ['Extraction bonus', c.extraction],
+    ['Kills', c.kills], ['Bases', c.bases], ['Points of interest', c.pois], ['Bug holes', c.breaches], ['Ships shot down', c.drops || 0], ['Civilians saved', c.civ || 0], ['Assaults broken', c.assaults], ['Super heavy', c.boss || 0], ['Objective', c.objective], ['Extraction bonus', c.extraction],
     ['Earned this mission', c.total, 'sum'], ['Spent this mission', -c.spent], ['Balance', c.balance, 'sum'],
   ].filter(([k, v]) => v !== 0 || k === 'Balance'));
   $('d-deaths').innerHTML = deathList(res);
@@ -785,7 +831,7 @@ export function fillFinal(session, fin, block) {
   $('f-local').textContent = fin.isBest ? 'NEW PERSONAL BEST' : fin.bestBefore ? `Personal best on this device: ${fmtNum(Math.max(fin.bestBefore, session.score))}` : '';
   $('f-totals').textContent = `Credits earned ${fmtNum(t.earned)}, spent ${fmtNum(t.spent)}. Kills ${fmtNum(t.kills)}. Helldivers lost ${t.lostH}. SEAF lost ${t.lostS}.`;
   $('f-table').innerHTML = session.missions.map((m, i) =>
-    `<tr><td>${i + 1}. ${m.op}<br><small style="color:var(--g-dim)">${FACTIONS[m.faction].name} / ${BIOMES[m.biome].name} / ${OUT[m.outcome]}</small></td><td>${fmtNum(m.score)}</td></tr>`).join('') || '<tr><td>No missions flown</td><td>0</td></tr>';
+    `<tr><td>${i + 1}. ${m.op}<br><small style="color:var(--g-dim)">${FACTIONS[m.faction].name} / ${BIOMES[m.biome].name} / ${OUT[m.outcome]} / ${fmtNum(m.kills || 0)} kills${m.boss ? ` / ${esc(m.boss.name)} ${m.boss.killed ? 'killed' : 'escaped'}` : ''}</small></td><td>${fmtNum(m.score)}</td></tr>`).join('') || '<tr><td>No missions flown</td><td>0</td></tr>';
   $('f-text').value = block; $('f-text').rows = Math.min(14, block.split('\n').length + 1);
   $('f-msg').textContent = '';
   $('btn-share').classList.toggle('hidden', !navigator.share);
@@ -797,6 +843,18 @@ export function setupBest() {
   let best = 0;
   try { best = (JSON.parse(localStorage.getItem('ofs.history') || '[]')[0] || {}).score || 0; } catch { best = 0; }
   $('best').textContent = best ? `Best session on this device: ${fmtNum(best)}` : '';
+}
+
+// How far down the screen the things across the top reach: the objective and the callouts, and on a phone the button row
+// and the squad panel. Info cards and the big message go just under it.
+function topBelow(extra = null) {
+  let y = 0;
+  const under = (e) => { if (e) { const r = e.getBoundingClientRect(); if (r.height > 0 && r.width > 0) y = Math.max(y, r.bottom); } };   // hidden: a zero box
+  for (const e of $('callouts').children) if (!e.classList.contains('hidden')) under(e);
+  if (document.body.classList.contains('touch')) { under(document.querySelector('.tr-btns')); under(document.querySelector('.hud-tl')); }
+  else under(document.querySelector('.hud-tc'));
+  under(extra);
+  return y;
 }
 
 // ---------------- settings ----------------
@@ -830,6 +888,7 @@ export function buildSettings(settings, onChange) {
   row('Reduce flashing', 'Slower strobes and softer explosions', toggle('reduceFlash'));
   row('Color-safe palette', 'Yellow enemies, bright blue allies', toggle('colorblind'));
   row('Left-handed layout', 'Moves touch buttons to the left', toggle('lefty'));
+  row('Info cards', 'Where weapon, squad and stratagem details show. They never cover your controls', select('cards', [['side', 'At the side'], ['top', 'At the top'], ['off', 'Off']]));
   row('Touch drag speed', '', range('touchSens', 0.5, 2, 0.1));
   row('Graphics', 'Auto lowers detail if the game stutters', select('quality', [['auto', 'Auto'], ['high', 'High'], ['low', 'Low']]));
 }
@@ -862,6 +921,14 @@ export function weaponInfo(m, i) {
   }
   const st = orbStats(s.id, s.level), cd = Math.round(st.cd);
   let h = `<div class="ic-h">${esc(shortName(st.name)).toUpperCase()} <i>LEVEL ${s.level}/${C.orbital.maxLevel}</i></div>`;
+  if (st.k === 'util') {             // a utility: what it does for the squad
+    if (st.util === 'med') h += row('HEALS', `${Math.round(st.heal * 100)}% OF HEALTH`) + row('AREA', `${st.r.toFixed(0)} M`);
+    else if (st.util === 'smoke') h += row('SMOKE', `${st.zone.r.toFixed(0)} M FOR ${st.zone.sec.toFixed(0)} S`) + row('ENEMY FIRE INTO IT', 'MOSTLY MISSES');
+    else if (st.util === 'shield') h += row('DOME', `${st.r.toFixed(0)} M`) + row('SOAKS', `${fmtNum(st.shield)} DAMAGE`) + row('LASTS', `${st.life.toFixed(0)} S`);
+    else if (st.util === 'sentry') h += row('SENTRY', `${st.t.hp} HP · ${st.t.ammo} SHELLS`) + row('DAMAGE', `${Math.round(st.t.dmg)} A SHELL · ${st.t.range} M`);
+    h += row('ARRIVES', `${st.delay} S`) + row('RECHARGE', `${cd} S`);
+    return h + `<div class="ic-b">${esc(st.blurb)} Safe to drop on allies.</div>`;
+  }
   if (st.k === 'beam') h += row('BEAM', `${Math.round(st.beam.dps)} DAMAGE A SECOND FOR ${st.beam.dur.toFixed(0)} S`) + row('STEER', `FOLLOWS YOUR AIM, ${st.beam.leash} M LEASH`);
   else if (st.k === 'zone') h += row('FIELD', `${st.zone.r.toFixed(0)} M FOR ${st.zone.sec.toFixed(0)} S`);
   else {
@@ -944,6 +1011,10 @@ export function fillMissionInfo(m, info) {
     + `<li class="${ex.state === 'boarding' ? 'now' : ex.state === 'away' ? 'done' : ''}">The Helldivers run for the ramp and board. SEAF squads get pelicans of their own.</li></ol>`);
   parts.push(`<h3>THE ENEMY: ${f.name}</h3><p>${esc(FAC_NOTES[m.faction.id])}</p>`);
   parts.push(`<h3>HITS</h3><p>Every unit has a front and a back. Hits from behind do ${C.combat.back.mul}x, and ${C.combat.back.heavy}x on a heavy. Every hit can be critical (x${C.combat.crit.mul}): your strikes ${pctS(C.combat.crit.player)} of the time, the ship gun ${pctS(C.combat.crit.gun)}, the squad ${pctS(C.combat.crit.ally)}, the enemy ${pctS(C.combat.crit.enemy)}.</p>`);
+  const BD = C.combat.bands;
+  parts.push(`<h3>RANGE</h3><p>Everyone sees farther than they can shoot well. Every gun has a reach: up close (the first ${pctS(BD.short)} of it) shots land and hit hardest (${pctS(BD.dmg[0])}); at medium range they hit ${pctS(BD.acc[1])} as often for ${pctS(BD.dmg[1])} of the damage; at long range ${pctS(BD.acc[2])} as often for ${pctS(BD.dmg[2])}. That goes for the enemy too, so a squad that closes in hits harder, and one that keeps its distance takes less.</p>`);
+  const B = C.boss[m.faction.id], Bm = m.boss;
+  parts.push(`<h3>SUPER HEAVIES</h3><p>${Bm && !Bm.dead ? `<b>A ${esc(Bm.name)} is on the field.</b> ` : Bm ? `The ${esc(Bm.name)} is dead. ` : ''}Now and then the enemy sends in a giant: for the ${f.name.toLowerCase()} it is the ${esc(B.name)}. It hunts the Helldivers, it takes a lot of killing, and the pelican will not come until it is dead. Hit it with your heaviest strikes, from behind if you can. It pays ${fmtNum(C.boss.reward)} credits.${m.faction.id === 'squids' ? ' Its shield takes the first hits and comes back if it is left alone for a few seconds, so keep hitting it.' : m.faction.id === 'bots' ? ' It drops a squad of bots every half minute while it lives.' : ' It spits acid over the squad and stamps on anyone close.'}</p>`);
   parts.push(`<h3>FREE-FIRE ZONES</h3><p>When the Helldivers see the enemy massing ahead they call a free-fire zone on it (the orange hatched circle; it follows the pack). Every ally keeps out of it, and your orbitals called into it recharge in half the time. Saturate it. LOOK (or J) brings it into view.</p>`);
   parts.push(`<h3>SUPPLY REQUESTS</h3><p>When the Helldivers run low on stims or grenades they ask you for a supply drop. Press LOAD POD (or U) and time slows while you load the pod: tap each compartment until it is full. What you load is what they get, and a pod filled within ${C.supply.fastSec} seconds gives the squad a boost for ${C.supply.boostSec} seconds. Turn it down (or let it pass) and they make do; they can ask again after a minute.</p>`);
   parts.push(`<h3>FAILING</h3><p>A mission fails if the ${Math.round(m.limitSec / 60)}-minute clock runs out with the objective undone, or if every Helldiver and SEAF trooper is gone with no lives left. A failed mission ends the session.</p>`);

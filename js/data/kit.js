@@ -13,6 +13,7 @@ export const price = (x) => Math.max(0, Math.round((x * C.econ.priceMul) / 25) *
 const ORB_BASE = {
   orb_airburst: 0, orb_120: 0, orb_precision: 0,
   orb_ems: 600, orb_gas: 650, orb_walk: 800, orb_napalm: 900, orb_380: 1300, orb_rail: 1600, orb_laser: 2100,
+  util_smoke: 550, util_med: 700, util_shield: 1000, util_sentry: 1200,
 };
 export const ORB_PRICE = Object.fromEntries(Object.entries(ORB_BASE).map(([k, v]) => [k, price(v)]));
 export const ORB_LIST = ORB_IDS.slice().sort((a, b) => ORB_PRICE[a] - ORB_PRICE[b]);
@@ -52,6 +53,13 @@ export function orbStats(id, level = 1) {
   if (d.dmg) { o.dmg = d.dmg * dm; o.splash = d.splash * sz; if (d.n > 1) o.n = Math.round(d.n * nn); }
   if (d.zone) o.zone = { ...d.zone, r: d.zone.r * sz, sec: d.zone.sec * (1 + 0.06 * k), dps: (d.zone.dps || 0) * dm };
   if (d.beam) o.beam = { ...d.beam, dps: d.beam.dps * dm, width: d.beam.width * sz, dur: d.beam.dur * (1 + 0.06 * k) };
+  if (d.util) {                       // utilities: each level a bigger, longer, stronger effect
+    if (d.r) o.r = d.r * sz;
+    if (d.shield) { o.shield = Math.round(d.shield * (1 + 0.15 * k)); o.life = d.life * (1 + 0.08 * k); }
+    if (d.heal) o.heal = Math.min(1, d.heal * (1 + 0.1 * k));
+    if (d.t) o.t = { ...d.t, hp: Math.round(d.t.hp * (1 + 0.12 * k)), ammo: Math.round(d.t.ammo * (1 + 0.15 * k)), dmg: d.t.dmg * (1 + 0.1 * k) };
+    if (d.splash) o.splash = (d.r || d.splash) * sz;
+  }
   return o;
 }
 export const uavStats = (lvl = 1) => {
@@ -119,8 +127,9 @@ export function shopItems(kit) {
   // Orbitals
   for (const id of ORB_LIST) {
     const d = STRATS[id], lvl = kit.owned[id] || 0;
-    if (!lvl) items.push({ id: `own:${id}`, section: 'ORBITALS', name: d.name, blurb: d.blurb, level: 0, max: MAXL, cost: ORB_PRICE[id], orb: id, live: false });
-    else items.push({ id: `up:${id}`, section: 'ORBITALS', name: d.name, blurb: d.blurb, level: lvl, max: MAXL, cost: lvl >= MAXL ? null : orbUpCost(id, lvl), orb: id, owned: true, live: true });
+    const sec = d.util ? 'UTILITIES' : 'ORBITALS';    // ship utilities equip in the same slots, but are listed on their own
+    if (!lvl) items.push({ id: `own:${id}`, section: sec, name: d.name, blurb: d.blurb, level: 0, max: MAXL, cost: ORB_PRICE[id], orb: id, live: false });
+    else items.push({ id: `up:${id}`, section: sec, name: d.name, blurb: d.blurb, level: lvl, max: MAXL, cost: lvl >= MAXL ? null : orbUpCost(id, lvl), orb: id, owned: true, live: true });
   }
   // Ship Gun
   for (const [k, u] of Object.entries(GUN_UP)) {

@@ -22,14 +22,31 @@ export function hitMul(m, tgt, fx, fy, cs) {
 // ---------- enemies ----------
 // by: 'player' (the destroyer), 'squad' (rifles) or 'strat' (stratagems, turrets, vehicles, support weapons).
 // (fx, fy): where the hit comes from, for the back bonus. cs: whose crit chance (defaults to the attacker's side; '' for none).
+// Troops still under the dropship or warp ship that brought them cannot be hurt until it has pulled away (or they have walked out
+// from under it): the ship covers them.
+export function covered(e) {
+  const d = e.cover;
+  if (!d) return false;
+  if (d.dead || d.state === 'down' || (d.state === 'out' && d.outT > 1.2) || (e.x - d.x) ** 2 + (e.y - d.y) ** 2 > (d.r + 5) ** 2) { e.cover = null; return false; }
+  return true;
+}
+
 export function hurtEnemy(m, e, dmg, by, fx, fy, cs) {
   if (e.dead || !(dmg > 0)) return 0;
+  if (e.cover && covered(e)) return 0;
   const k = hitMul(m, e, fx, fy, cs === undefined ? (by === 'player' ? 'player' : 'ally') : cs);
   dmg *= k;
+  if (e.shield > 0) {                    // a shield (the Warp Colossus) soaks up damage first
+    const soak = Math.min(e.shield, dmg);
+    e.shield -= soak; e.shieldAt = m.t; dmg -= soak;
+    const bd = m.stats.bossDmg || (m.stats.bossDmg = {}); bd.shield = (bd.shield || 0) + soak;
+    if (dmg <= 0) { e.hurtAt = m.t; return 0; }
+  }
   if (m.hitFlags && (by === 'player' || dmg >= 60)) m.emit('crit', { x: e.x, y: e.y, f: m.hitFlags, by });
   const dealt = Math.min(dmg, e.hp);
   e.hp -= dmg; e.hurtAt = m.t;
   m.stats.dmg[by] += dealt;
+  if (e.boss) { const bd = m.stats.bossDmg || (m.stats.bossDmg = {}); bd[by] = (bd[by] || 0) + dealt; }
   if (m.hitFlags & 1) m.stats.backHits = (m.stats.backHits || 0) + 1;
   if (m.hitFlags & 2) m.stats.crits = (m.stats.crits || 0) + 1;
   if (e.hp <= 0) m.killEnemy(e, by);
@@ -162,6 +179,7 @@ export function pickClear(m, a, range, accept) {
   let best = null, bd = Infinity, blk = null, bb = Infinity, who = null;
   m.eGrid.near(a.x, a.y, range, (e, d2) => {
     if (d2 >= bd && d2 >= bb) return;
+    if (e.cover && covered(e)) return;          // still under its ship: not worth a bullet yet
     if (accept && !accept(e)) return;
     const b = blocker(m, a, e.x, e.y);
     if (!b) { if (d2 < bd) { bd = d2; best = e; } }
@@ -174,9 +192,19 @@ export function pickClear(m, a, range, accept) {
 // ---------- shots ----------
 // A shot from src at enemy e. prof: { dmg, acc, splash, mult, flight } where flight > 0 makes it a slow shell.
 // Misses fly wide. Every shot sends a tracer event so the renderer can draw it and leave an impact mark.
+// Effective range: which band a shot at distance d falls in for a weapon that reaches R (0 short, 1 medium, 2 long), and what that
+// band does to accuracy and damage. A weapon with no reach given always counts as short range.
+const BANDS = C.combat.bands;
+export function bandOf(d, R) { if (!R) return 0; const f = d / R; return f <= BANDS.short ? 0 : f <= BANDS.medium ? 1 : 2; }
+export const bandAcc = (b) => BANDS.acc[b], bandDmg = (b) => BANDS.dmg[b];
+
 export function fireShot(m, src, e, prof, by, side = 'a', snd = '') {
   const hi = m.terrain.attackMul(src.x, src.y, e.x, e.y);   // from a rise the same shot hits harder
   if (hi > 1.001) prof = { ...prof, dmg: prof.dmg * hi };
+  if (prof.range) {                                         // farther out, a shot is less likely to hit and hits softer
+    const b = bandOf(Math.hypot(e.x - src.x, e.y - src.y), prof.range);
+    if (b) prof = { ...prof, acc: prof.acc * BANDS.acc[b], dmg: prof.dmg * BANDS.dmg[b] };
+  }
   if (src.face !== undefined && !src.kind) { src.aimA = Math.atan2(e.y - src.y, e.x - src.x); src.aimUntil = m.t + 0.7; }   // turn to the target
   const rng = m.rng, hit = rng.next() < prof.acc;
   let tx = e.x, ty = e.y;

@@ -2,7 +2,7 @@
 // Enemy damage depends on size and faction (CONFIG.combat.atk): light enemies nibble, mediums hurt, heavies are special.
 import { CONFIG as C } from '../config.js';
 import { ALLY, COMMS } from '../data/data.js';
-import { fireShot, hurtTarget, hurtAlly, nearestTarget, inZoneKind, pickClear } from './combat.js';
+import { fireShot, hurtTarget, hurtAlly, nearestTarget, inZoneKind, pickClear, bandOf, bandAcc, bandDmg } from './combat.js';
 import { steer } from './terrain.js';
 import { softNear, baseNear } from './pois.js';
 import { bark } from './chatter.js';
@@ -42,11 +42,11 @@ export function noise(m, x, y, r) {
 
 // Rifle profile per ally type: damage per burst is dps x burst seconds.
 const RIFLE = {};
-for (const k of ['H', 'S']) { const d = ALLY[k]; RIFLE[k] = { dmg: d.dps * d.burst, acc: d.acc, splash: 0, mult: { ...d.mult, B: 0.04 }, burst: d.burst }; }
+for (const k of ['H', 'S']) { const d = ALLY[k]; RIFLE[k] = { dmg: d.dps * d.burst, acc: d.acc, splash: 0, mult: { ...d.mult, B: 0.04 }, burst: d.burst, range: d.range }; }
 
 // SEAF specialists. A grenadier lobs frags at groups; a rocket trooper hunts mediums and heavies.
-const GRENADE = { dmg: C.combat.grenadier.dmg, acc: C.combat.grenadier.acc, splash: C.combat.grenadier.splash, flight: C.combat.grenadier.flight, mult: { L: 1, M: 0.9, H: 0.3, B: 0.25 } };
-const ROCKET = { dmg: C.combat.rocketeer.dmg, acc: C.combat.rocketeer.acc, splash: C.combat.rocketeer.splash, flight: C.combat.rocketeer.flight, mult: { L: 1, M: 1, H: 0.8, B: 0.3 } };
+const GRENADE = { dmg: C.combat.grenadier.dmg, acc: C.combat.grenadier.acc, splash: C.combat.grenadier.splash, flight: C.combat.grenadier.flight, range: C.combat.grenadier.range, mult: { L: 1, M: 0.9, H: 0.3, B: 0.25 } };
+const ROCKET = { dmg: C.combat.rocketeer.dmg, acc: C.combat.rocketeer.acc, splash: C.combat.rocketeer.splash, flight: C.combat.rocketeer.flight, range: C.combat.rocketeer.range, mult: { L: 1, M: 1, H: 0.8, B: 0.3 } };
 
 export function updateAllies(m, dt) {
   const sq = m.squad, P = C.poi;
@@ -62,7 +62,7 @@ export function updateAllies(m, dt) {
     if (!mechOn) {
       a.atk -= dt;
       if (a.atk <= 0) {
-        const range = H ? C.squad.engageRange : C.squad.engageRange - 4;
+        const range = RIFLE[a.type].range;          // the rifle's reach; long shots are weaker (see fireShot)
         const pick = pickClear(m, a, range, null);
         const e = pick && pick.e;
         if (e && (!H || sq.free || e.g.state === 'hunt')) {
@@ -155,7 +155,7 @@ function segDist(px, py, x1, y1, x2, y2) {
 function squidHeavy(m, e, p, t) {
   if (e.ch) {
     const c = e.ch;
-    if (!c.tgt || c.tgt.dead) c.tgt = nearestTarget(m, e.x, e.y, p.range);
+    if (!c.tgt || c.tgt.dead) c.tgt = nearestTarget(m, e.x, e.y, Math.min(p.range, m.faction.sight * m.biome.ping));
     if (!c.tgt) { e.ch = null; return; }
     if (t < c.t0 + c.dur - p.lock) { c.tx = c.tgt.x; c.ty = c.tgt.y; }   // tracks until the last moment, then locks
     e.aimA = Math.atan2(c.ty - e.y, c.tx - e.x); e.aimUntil = t + 0.5;
@@ -171,10 +171,72 @@ function squidHeavy(m, e, p, t) {
     return;
   }
   if (e.atk > 0) return;
-  const tgt = nearestTarget(m, e.x, e.y, p.range);
+  const tgt = nearestTarget(m, e.x, e.y, Math.min(p.range, m.faction.sight * m.biome.ping));   // the beam reaches no farther than it sees
   if (tgt) e.ch = { t0: t, dur: p.charge, tgt, tx: tgt.x, ty: tgt.y };
 }
 // (while charging, the harvester turns to its target: see the charge branch above, which keeps aimA fresh)
+
+// ---------------------------------------------------------------- super heavies (sim/boss.js spawns them)
+// It walks at the nearest ally until it is at its own fighting distance (the titan wants to be on top of you, the walker and the
+// colossus stand off and shoot), turning slowly, round water like everyone else.
+function bossMove(m, e, dt, size) {
+  const D = C.boss[e.boss];
+  let best = null, bd = Infinity;     // it hunts the Helldivers (anyone else only once they are gone)
+  for (const a of (m.hdAlive.length ? m.hdAlive : m.alive)) { if (a.dead || a.mounted) continue; const d2 = (a.x - e.x) ** 2 + (a.y - e.y) ** 2; if (d2 < bd) { bd = d2; best = a; } }
+  const gx = best ? best.x : m.hx, gy = best ? best.y : m.hy, d = Math.sqrt(bd);
+  if (best && d <= D.stop) { e.vx = 0; e.vy = 0; e.aimA = Math.atan2(gy - e.y, gx - e.x); e.aimUntil = m.t + 0.5; return; }
+  moveToward(e, gx, gy, e.speed * (d > 260 ? 1.6 : 1), dt, size);    // far off it closes faster, so it always gets to the fight
+  e.g.cx = e.x; e.g.cy = e.y;
+}
+function bossAttack(m, e, dt, t) {
+  const D = C.boss[e.boss], see = m.faction.sight * m.biome.ping * 1.3, dm = m.dmgMul;
+  if (e.boss === 'squids') { e.atk -= dt; squidHeavy(m, e, { ...D.beam, range: Math.min(D.beam.range, see) }, t); return; }
+  e.atk -= dt; e.atk2 -= dt;
+  if (e.boss === 'bugs') {
+    // stomp whatever is underfoot; spit acid at anyone farther off
+    if (e.atk <= 0) {
+      const tg = nearestTarget(m, e.x, e.y, D.stomp.range);
+      if (tg) {
+        e.atk = D.stomp.every;
+        e.aimA = Math.atan2(tg.y - e.y, tg.x - e.x); e.aimUntil = t + 0.6;
+        m.aGrid.near(tg.x, tg.y, D.stomp.splash, (o) => hurtTarget(m, o, D.stomp.dmg * dm, 'enemy', 'H', e.x, e.y));
+        m.tGrid.near(tg.x, tg.y, D.stomp.splash, (o) => hurtTarget(m, o, D.stomp.dmg * dm, 'enemy', 'H'));
+        m.emit('boom', { x: tg.x, y: tg.y, r: D.stomp.splash, dmg: D.stomp.dmg, by: 'enemy', stomp: true });
+      } else e.atk = 0.3;
+    }
+    if (e.atk2 <= 0) {
+      const tg = nearestTarget(m, e.x, e.y, Math.min(D.spit.range, see));
+      if (tg && Math.hypot(tg.x - e.x, tg.y - e.y) > D.stomp.range) {
+        e.atk2 = D.spit.every;
+        const hit = m.rng.next() < D.spit.acc * bandAcc(bandOf(Math.hypot(tg.x - e.x, tg.y - e.y), D.spit.range));
+        let tx = tg.x + (tg.vx || 0) * D.spit.flight * 0.5, ty = tg.y + (tg.vy || 0) * D.spit.flight * 0.5;
+        if (!hit) { const [ox, oy] = m.rng.inDisc(7); tx += ox; ty += oy; }
+        e.aimA = Math.atan2(ty - e.y, tx - e.x); e.aimUntil = t + 0.8;
+        m.bossShells.push({ x: tx, y: ty, at: t + D.spit.flight, dmg: D.spit.dmg * dm, splash: D.spit.splash, fx: e.x, fy: e.y });
+        m.emit('tracer', { x: e.x, y: e.y, tx, ty, s: 'e', f: 'bugs', k: 'B', hit, big: true, fl: D.spit.flight, snd: 'bugsB' });
+      } else e.atk2 = 0.4;
+    }
+    return;
+  }
+  // the walker: twin cannons at whatever is nearest in reach
+  if (e.atk > 0) return;
+  const P = D.cannon, tg = nearestTarget(m, e.x, e.y, Math.min(P.range, see));
+  if (!tg) { e.atk = 0.3; return; }
+  e.atk = P.every;
+  const d = Math.hypot(tg.x - e.x, tg.y - e.y), b = bandOf(d, P.range);
+  e.aimA = Math.atan2(tg.y - e.y, tg.x - e.x); e.aimUntil = t + 0.8;
+  for (const side of [-1, 1]) {
+    const hit = m.rng.next() < P.acc * bandAcc(b);
+    let tx = tg.x, ty = tg.y;
+    if (!hit) { const [ox, oy] = m.rng.inDisc(6); tx += ox; ty += oy; }
+    const nx = -Math.sin(e.face) * side * e.r * 0.5, ny = Math.cos(e.face) * side * e.r * 0.5;
+    m.emit('tracer', { x: e.x + nx, y: e.y + ny, tx, ty, s: 'e', f: 'bots', k: 'B', hit, big: true, snd: 'botsH' });
+    m.aGrid.near(tx, ty, P.splash, (o) => hurtTarget(m, o, P.dmg * dm * bandDmg(b), 'enemy', 'H', e.x, e.y));
+    m.tGrid.near(tx, ty, P.splash, (o) => hurtTarget(m, o, P.dmg * dm * bandDmg(b), 'enemy', 'H'));
+    for (const cv of m.civs) if (!cv.dead && !cv.safe && (cv.x - tx) ** 2 + (cv.y - ty) ** 2 <= P.splash * P.splash) m.hurtCiv(cv, P.dmg * dm, 'enemy');
+    m.emit('boom', { x: tx, y: ty, r: P.splash, dmg: P.dmg, by: 'enemy' });
+  }
+}
 
 // ---------------------------------------------------------------- how each faction fights
 const TAU = Math.PI * 2;
@@ -353,7 +415,7 @@ export function updateEnemies(m, dt) {
     let engaged = false;
     for (const e of g.members) {
       if (e.dead) continue;
-      e.tgt = nearestTarget(m, e.x, e.y, atk[e.kind].range);
+      e.tgt = nearestTarget(m, e.x, e.y, Math.min(atk[e.kind].range, sightE * m.terrain.sightMul(e.x, e.y)));   // nothing shoots farther than it sees
       if (e.tgt && e.kind !== 'H') engaged = true;
     }
     g.engaged = engaged;
@@ -374,6 +436,7 @@ export function updateEnemies(m, dt) {
     }
     for (const e of g.members) {
       if (e.dead) continue;
+      if (e.boss) { bossMove(m, e, dt, size); continue; }
       if (e.stunUntil > t || e.ch) { e.vx = 0; e.vy = 0; continue; }
       if (fac.id === 'bugs') { swarmMove(m, g, e, tgt, dt, size, sightE); continue; }
       if (fac.id === 'bots') { lineMove(m, g, e, tgt, dt, size, atk); continue; }
@@ -388,6 +451,7 @@ export function updateEnemies(m, dt) {
       if (e.dead) continue;
       if (e.stunUntil > t) { e.ch = null; continue; }
       const p = atk[e.kind];
+      if (e.boss) { bossAttack(m, e, dt, t); continue; }
       if (e.kind === 'H' && fac.id === 'squids') { e.atk -= dt; squidHeavy(m, e, p, t); continue; }
       if (!e.tgt) continue;
       e.atk -= dt;
@@ -397,13 +461,14 @@ export function updateEnemies(m, dt) {
       if (a.dead) continue;
       e.aimA = Math.atan2(a.y - e.y, a.x - e.x); e.aimUntil = t + 0.9;    // turn to face what it is shooting
       const smoke = inZoneKind(m, a.x, a.y, 'smoke') ? 0.35 : 1;
-      const hit = rng.next() < p.acc * smoke;
+      const band = p.range > 8 ? bandOf(Math.hypot(a.x - e.x, a.y - e.y), p.range) : 0;   // short, medium or long range
+      const hit = rng.next() < p.acc * smoke * bandAcc(band);
       let tx = a.x, ty = a.y;
       if (!hit) { const [ox, oy] = rng.inDisc(3.5); tx += ox; ty += oy; }
       const melee = fac.id === 'bugs' && e.kind !== 'M';
       m.emit('tracer', { x: e.x, y: e.y, tx, ty, s: 'e', f: fac.id, k: e.kind, hit, melee, snd: fac.id + e.kind });
       if (!hit) continue;
-      const hi = m.terrain.attackMul(e.x, e.y, a.x, a.y);     // shooting down from a rise hits harder
+      const hi = m.terrain.attackMul(e.x, e.y, a.x, a.y) * bandDmg(band);     // shooting down from a rise hits harder; far shots softer
       if (p.splash) {
         m.aGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * m.dmgMul * hi, 'enemy', e.kind, e.x, e.y));
         m.tGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * m.dmgMul * hi, 'enemy', e.kind));

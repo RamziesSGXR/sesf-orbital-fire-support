@@ -158,6 +158,7 @@ for (const fac of ['bugs', 'bots', 'squids']) {
   for (const o of m.objectives) completeObjective(m, o);
   for (const b of m.bases) b.destroyed = true;
   startExtract(m);
+  m.seaf.readyAt = 0;
   m.callSeaf(m.hx, m.hy);
   run(m, 20);
   const ex = m.extraction;

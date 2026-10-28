@@ -247,8 +247,14 @@ body.touch #touch-ctl { display: block; }
 #btn-follow { position: absolute; right: max(14px, env(safe-area-inset-right)); bottom: 208px; width: 100px; }
 body.lefty #fire-btn, body.lefty #btn-follow { right: auto; left: max(14px, env(safe-area-inset-left)); }
 body.lefty #orders { left: auto; right: 10px; } body.lefty #radio { left: 10px; bottom: auto; top: 250px; } body.lefty #flavor { right: auto; left: 12px; text-align: left; }
-#center-msg { position: absolute; left: 0; right: 0; top: 26%; text-align: center; font-size: clamp(18px, 4.2vw, 34px); letter-spacing: 0.18em; padding: 0 12px; color: #fff; text-shadow: 0 0 24px rgba(0, 0, 0, 0.9); opacity: 0; transition: opacity 0.5s; }
+/* The big message sits just under the objective and callouts (ui.js sets its top), clear of the fighting mid-screen */
+#center-msg { position: absolute; left: 0; right: 0; top: 22%; text-align: center; font-size: clamp(15px, 2.2vw, 24px); letter-spacing: 0.16em; padding: 0 12px; color: #fff; text-shadow: 0 0 18px rgba(0, 0, 0, 0.95), 0 0 4px rgba(0, 0, 0, 0.9); opacity: 0; transition: opacity 0.5s; }
 #center-msg.show { opacity: 1; }
+/* Small acknowledgements and refusals, just above the weapon bar */
+#toast { position: absolute; left: 50%; bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px); transform: translateX(-50%); max-width: 92vw; padding: 3px 10px; font-size: 11px; letter-spacing: 0.08em;
+  color: #ffe6b0; background: rgba(2, 14, 7, 0.82); border: 1px solid rgba(255, 176, 32, 0.45); border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transition: opacity 0.3s; }
+#toast.show { opacity: 1; }
+body.touch #toast { bottom: calc(max(8px, env(safe-area-inset-bottom)) + 66px); font-size: 10.5px; }
 #rotate-hint { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); padding: 6px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; font-size: 11px; z-index: 40; pointer-events: none; }
 #debug { position: absolute; left: 8px; bottom: 4px; z-index: 50; font-size: 11px; color: #0f0; white-space: pre; pointer-events: none; background: rgba(0, 0, 0, 0.6); padding: 4px 6px; }
 
@@ -287,7 +293,7 @@ body.lefty #orders { left: auto; right: 10px; } body.lefty #radio { left: 10px; 
 .btn.buy:disabled:not(.poor) small { display: none; }
 .it-btns .btn { touch-action: manipulation; }
 /* armory colours: one per kind of upgrade, plus a tag on every item so colour is never the only cue */
-.sec-loadout { --sec: #ffe600; } .sec-orbitals { --sec: #ff7a3d; } .sec-ship-gun { --sec: #ffc247; } .sec-uav-scan { --sec: #6dffa0; }
+.sec-loadout { --sec: #ffe600; } .sec-orbitals { --sec: #ff7a3d; } .sec-utilities { --sec: #7fd8ff; } .sec-ship-gun { --sec: #ffc247; } .sec-uav-scan { --sec: #6dffa0; }
 .sec-seaf-troops { --sec: #4db3ff; } .sec-seaf-specialists { --sec: #c58bff; } .sec-squad-support { --sec: #3fe0c4; }
 .shop-h[class*="sec-"] { display: flex; align-items: center; gap: 8px; color: var(--sec); letter-spacing: 0.24em; border-bottom: 1px solid color-mix(in srgb, var(--sec) 35%, transparent); padding-bottom: 4px; }
 .shop-h .dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: var(--sec); box-shadow: 0 0 8px color-mix(in srgb, var(--sec) 70%, transparent); }
@@ -393,7 +399,7 @@ tr.sum td { color: #fff; border-top: 1px solid var(--line); font-weight: 700; }
   .hud-l { width: min(172px, 46vw); }
   .hud-tc { left: max(10px, env(safe-area-inset-left)); right: max(10px, env(safe-area-inset-right)); transform: none; width: auto; top: calc(max(10px, env(safe-area-inset-top)) + 190px); align-items: stretch; }
   #notices { position: fixed; left: max(10px, env(safe-area-inset-left)); top: calc(max(10px, env(safe-area-inset-top)) + 330px); width: min(270px, 66vw); }
-  #center-msg { top: 38%; } #notices .nt:nth-last-child(n+3) { display: none; }
+  #notices .nt:nth-last-child(n+3) { display: none; }
   #minimap { width: 80px; height: 80px; }
   #orders { left: 6px; right: 6px; width: auto; bottom: 68px; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; padding: 3px; }
   #squads { left: 6px; right: 6px; width: auto; bottom: 118px; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px; padding: 3px; }
@@ -519,7 +525,7 @@ body.touch #tray .sqb, body.touch #tray .sqa { height: 34px; }
 body.touch #tray .ord { height: 38px; } body.touch #tray .ord[data-o="seaf"] { display: none; }
 body.touch #tray .ord .n { font-size: 8px; letter-spacing: 0; padding-right: 0; margin-top: 3px; } body.touch #tray .ord .s { font-size: 10px; margin-top: 3px; }
 body.touch #tray .sqa .n { margin-top: 7px; }
-body.touch #center-msg { top: 34%; font-size: clamp(15px, 4vw, 26px); }
+body.touch #center-msg { font-size: clamp(13px, 3.6vw, 20px); }
 
 /* idle: the HUD steps back until it is touched */
 body.touch .hud-tl, body.touch #minimap, body.touch .tr-btns, body.touch .dkb, body.touch .wbtn, body.touch #fire-btn { transition: opacity 0.6s; }
@@ -539,7 +545,6 @@ body.touch #hud.idle .fadeable.hot, body.touch #hud.idle .hud-tl.open { opacity:
   body.touch #fire-btn { bottom: 10px; width: 76px; height: 76px; }
   body.touch #dock { bottom: 58px; }
   body.touch #tray { right: auto; width: 330px; bottom: 100px; }
-  body.touch #center-msg { top: 30%; }
 }
 /* left-handed: everything on the bottom mirrors */
 body.touch.lefty #dock { left: auto; right: max(6px, env(safe-area-inset-right)); flex-direction: row-reverse; }
@@ -560,17 +565,22 @@ body.touch.lefty #fire-btn { right: auto; left: max(10px, env(safe-area-inset-le
 #menu { position: relative; }
 #menu .x-close { top: 4px; right: 4px; width: 28px; height: 28px; font-size: 13px; }
 #menu .mn:first-of-type { margin-top: 24px; }
+/* Info cards dock where they cover no controls (ui.js placeCard): down the right side above the readout on a computer (left with the
+   left-handed layout), or across the top under the callouts (phones, or Settings > Info cards: At the top). */
 #infocard {
-  position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); width: min(440px, 92vw); z-index: 6;
+  position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: 150px; width: min(340px, 30vw); z-index: 6;
   font-size: 11px; line-height: 1.45; pointer-events: none; text-align: left; padding: 8px 12px; background: rgba(2, 14, 7, 0.88);
 }
+body.lefty #infocard.dock-side { right: auto; left: max(12px, env(safe-area-inset-left)); bottom: 96px; }
+#infocard.dock-top { left: 50%; right: auto; bottom: auto; transform: translateX(-50%); width: min(420px, 92vw); }
 #infocard .ic-h { color: var(--yellow); font-weight: 700; margin-bottom: 4px; letter-spacing: 0.08em; }
 #infocard .ic-h i { font-style: normal; color: var(--g-dim); font-weight: 400; margin-left: 6px; }
 #infocard .ic-row { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px dotted rgba(157, 255, 184, 0.15); padding: 1px 0; }
 #infocard .ic-row span { color: var(--g-dim); }
 #infocard .ic-row b { text-align: right; font-weight: 600; }
 #infocard .ic-b { margin-top: 5px; color: var(--g); opacity: 0.9; }
-body.touch #infocard { bottom: 132px; font-size: 10.5px; }
+body.touch #infocard { font-size: 10.5px; padding: 6px 10px; }
+body.touch #infocard .ic-b { margin-top: 3px; }
 #info-body { text-align: left; font-size: 12.5px; line-height: 1.55; max-height: 62vh; overflow-y: auto; padding-right: 4px; touch-action: pan-y; }
 #info-body h3 { margin: 14px 0 6px; font-size: 13px; color: var(--yellow); letter-spacing: 0.1em; }
 #info-body h3 .ok { color: #7dff9b; font-size: 11px; margin-left: 6px; }
@@ -621,7 +631,7 @@ body.touch #info-body { max-height: 56vh; }
 .mapwrap { display: flex; justify-content: center; margin: 6px 0 8px; }
 #bigmap { width: min(88vw, 64vh, 640px); height: auto; aspect-ratio: 1; border: 1px solid var(--line); border-radius: 4px; cursor: crosshair; touch-action: none; background: #020a05; }
 .map-key { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; font-size: 11px; color: var(--g-dim); letter-spacing: 0.06em; }
-.map-key .k-hd { color: #3da9ff; } .map-key .k-en { color: #ff7a5a; } .map-key .k-ffz { color: #ff9a4a; } .map-key .k-obj { color: var(--yellow); } .map-key .k-base { color: #c8d2cc; } .map-key .k-poi { color: #ffb020; }
+.map-key .k-hd { color: #3da9ff; } .map-key .k-en { color: #ff7a5a; } .map-key .k-ffz { color: #ff9a4a; } .map-key .k-obj { color: var(--yellow); } .map-key .k-base { color: #c8d2cc; } .map-key .k-poi { color: #ffb020; } .map-key .k-boss { color: #ff8a6a; }
 #minimap { cursor: pointer; }
 @media (max-height: 520px) { #bigmap { width: min(70vh, 88vw); } .mapcard { padding: 8px 12px; } .mapcard .fine, .map-key { display: none; } }
 
@@ -637,6 +647,12 @@ body.touch #info-body { max-height: 56vh; }
 .callout .co-b.x { padding: 3px 6px; }
 .callout .co-bar { position: absolute; left: 0; bottom: 0; height: 2px; background: currentColor; opacity: 0.7; }
 .callout.ffz { color: #ffae6a; border-color: rgba(255, 122, 42, 0.7); animation: copulse 1.2s ease-in-out infinite; }
+.callout.boss { color: #ff8a6a; border-color: rgba(255, 90, 60, 0.75); padding-bottom: 8px; }
+.callout.boss.block { animation: bosspulse 1.1s ease-in-out infinite; }
+.callout .co-hp { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(255, 90, 60, 0.18); }
+.callout .co-hp u { position: absolute; inset: 0 auto 0 0; background: #ff4a4a; }
+.callout .co-hp s { position: absolute; inset: 0 auto auto 0; height: 2px; background: #8fd0ff; }
+@keyframes bosspulse { 50% { box-shadow: 0 0 16px rgba(255, 80, 50, 0.55); } }
 .callout.sup { color: #9dffb8; border-color: rgba(125, 255, 155, 0.6); }
 .callout.sup.ask { animation: copulse 0.9s ease-in-out infinite; }
 @keyframes copulse { 50% { box-shadow: 0 0 14px rgba(255, 160, 80, 0.45); } }
