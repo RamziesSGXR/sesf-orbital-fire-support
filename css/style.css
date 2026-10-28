@@ -589,3 +589,28 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 .card > .x-close ~ .eyebrow { padding: 0 38px; }
 #about-body { max-height: 58vh; overflow-y: auto; padding-right: 4px; touch-action: pan-y; }
 body.touch #info-body { max-height: 56vh; }
+
+/* Loading screen: what is going on, and a tip */
+.b-story { text-align: left; }
+.b-story p { margin: 4px 0 8px; font-size: 12.5px; line-height: 1.55; color: var(--g); }
+.b-tip {
+  display: flex; gap: 10px; align-items: flex-start; width: 100%; margin: 6px 0 14px; padding: 9px 11px; text-align: left; cursor: pointer;
+  font: inherit; font-size: 12.5px; line-height: 1.5; color: var(--g); background: rgba(255, 230, 0, 0.06); border: 1px solid rgba(255, 230, 0, 0.35); border-radius: 6px;
+  min-height: 4.4em;
+}
+.b-tip:hover { border-color: var(--yellow); }
+.b-tip .tip-tag { flex: none; color: var(--yellow); font-weight: 700; letter-spacing: 0.12em; }
+.b-tip #b-tip { flex: 1; }
+.b-tip .tip-next { flex: none; align-self: flex-end; font-size: 10px; letter-spacing: 0.08em; color: var(--g-dim); }
+@media (max-width: 700px), (max-height: 500px) { .b-story p { font-size: 11.5px; line-height: 1.45; } .b-tip { font-size: 11.5px; } }
+/* Phones held upright: one column, with what is going on and the tip right under the mission header, and the controls last */
+@media (max-width: 700px) {
+  .b-cols { display: flex; flex-direction: column; gap: 4px; }
+  .b-left, .b-right { display: contents; }
+  .b-left > * { order: 1; }
+  .b-right > * { order: 4; }
+  .b-right > h2:first-child, #b-story, #b-tipbox { order: 2; }
+  #b-strats, #b-strat-note { order: 3; }
+  .b-left .progress, #b-status, .b-left .btns { order: 5; }
+  .b-right > h2:first-child { margin-top: 8px; }
+}

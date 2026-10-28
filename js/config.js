@@ -182,11 +182,11 @@ export const CONFIG = {
               ffHelldiver: -200, ffSeaf: -50,
               comboStep: 0.1, comboMax: 3.0, comboWindowSec: 2, comboResetSec: 3 },
   // Loading screens always last at least this long, then wait for a click.
-  ui:       { minLoadSec: 5 },
+  ui:       { minLoadSec: 5, tipSec: 8 },
   // Optional: set channelUrl to your community's score channel (Discord channel link, forum thread, form).
   // When set, the final screen shows a button that copies the score block and opens that link.
   share:    { channelUrl: '', channelLabel: 'COPY AND OPEN CHANNEL',
               // Where the FEEDBACK buttons go: a short form on the project's GitHub page (a free GitHub account is needed to post).
               feedbackUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support/issues/new?template=feedback.yml',
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.7.0' },
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.7.1' },
 };

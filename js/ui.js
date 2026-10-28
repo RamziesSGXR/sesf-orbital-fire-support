@@ -9,6 +9,7 @@ import { stratReady, stratOnline } from './sim/strat.js';
 import { slotStats } from './sim/player.js';
 import { objectiveStatus, OBJ_NAME } from './sim/objectives.js';
 import { todAt, todName, todClock } from './render/sky.js';
+import { situation, tipsFor } from './data/tips.js';
 
 const $ = (id) => document.getElementById(id);
 const SCREENS = ['s-title', 's-shop', 's-brief', 's-debrief', 's-final'];
@@ -270,7 +271,7 @@ export class Hud {
 
     const f = FACTIONS[m.faction.id];
     const h = todAt(m);
-    this._set('flavor', $('flavor'), `${f.name} / ${m.biome.name.toUpperCase()}\n${todName(h)} ${todClock(h)}  PRESSURE ${m.pressure.toFixed(2)}\nVIEW ${Math.round(cam.view)}M ${cam.follow ? 'CAMERA LOCKED' : 'FREE CAMERA'}`);
+    this._set('flavor', $('flavor'), `${f.name} / ${m.biome.name.toUpperCase()}\n${todName(h)} ${todClock(h)}\nVIEW ${Math.round(cam.view)}M ${cam.follow ? 'CAMERA LOCKED' : 'FREE CAMERA'}`);
     const touch = document.body.classList.contains('touch');
     this._set('follow', $('btn-follow').firstElementChild, touch ? 'RE-CENTER' : cam.follow ? 'CAM LOCK' : 'CAM FREE');
     $('btn-follow').classList.toggle('free', !cam.follow);   // phones: the button only shows once the camera has been moved off the squad
@@ -497,14 +498,22 @@ export function runBriefing({ info, mission, touch, onContinue, onEnd, canEnd, o
     grp.style.setProperty('--tc', tm.color);
     const holder = grp.querySelector('.chips');
     for (const id of tm.ids) {
-      const d = STRATS[id], c = el('div', 'chip', `<span class="g">${d.g}</span><span class="nm">${d.name}</span>${d.shared ? '<span class="x">ALL</span>' : ''}`);
+      const d = STRATS[id], c = el('div', 'chip', `<span class="g">${d.g}</span><span class="nm">${d.name}</span>`);
       c.style.setProperty('--c', CAT_COLOR[d.cat]); c.title = d.blurb;
       holder.appendChild(c); chips.push(c);
     }
     box.appendChild(grp);
   }
-  $('b-strat-note').textContent = `${chips.length} STRATAGEMS IN 4 GROUPS. EACH HELLDIVER CALLS ONLY ITS OWN GROUP. ALL = ANY HELLDIVER CAN CALL IT.`;
+  $('b-strat-note').textContent = 'THE SQUAD\'S STRATAGEMS. EACH HELLDIVER CALLS THEIR OWN.';
   let chipShown = 0;
+
+  // What is going on, and a tip that changes every few seconds (or on a click) until the drop.
+  $('b-story').innerHTML = situation(info, pre.objectives).map((p) => `<p>${esc(p)}</p>`).join('');
+  const tips = tipsFor(info, pre.objectives, mission), tipEl = $('b-tip');
+  let tipI = 0, tipT = 0;
+  const showTip = () => { tipEl.textContent = tips[tipI % tips.length]; tipI++; clearTimeout(tipT); tipT = setTimeout(showTip, C.ui.tipSec * 1000); };
+  showTip();
+  $('b-tipbox').onclick = showTip;
 
   const dur = C.ui.minLoadSec * 1000, t0 = performance.now();
   let raf = 0, terrainReady = false, cancelled = false, finished = false, shown = 0;
@@ -526,11 +535,11 @@ export function runBriefing({ info, mission, touch, onContinue, onEnd, canEnd, o
     raf = requestAnimationFrame(tick);
   };
   raf = requestAnimationFrame(tick);
-  cont.onclick = () => { if (!finished) return; cancelled = true; onContinue(); };
-  $('btn-end').onclick = () => { cancelled = true; cancelAnimationFrame(raf); onEnd(); };
+  cont.onclick = () => { if (!finished) return; cancelled = true; clearTimeout(tipT); onContinue(); };
+  $('btn-end').onclick = () => { cancelled = true; clearTimeout(tipT); cancelAnimationFrame(raf); onEnd(); };
   return {
     terrainReady() { terrainReady = true; },
-    cancel() { cancelled = true; cancelAnimationFrame(raf); },
+    cancel() { cancelled = true; clearTimeout(tipT); cancelAnimationFrame(raf); },
   };
 }
 
@@ -675,7 +684,9 @@ export function fillDebrief(info, res, session) {
     ['Time bonus (minutes left)', b.timeBonus],
     [`Bases destroyed (${res.bases}/${res.baseTotal})`, b.bases],
     [`Points of interest (${res.pois}/${res.poiTotal})`, b.pois],
-    [`Enemy breaches closed (${res.breaches})`, b.breaches],
+    [`Bug holes closed (${res.breaches})`, b.breaches],
+    [`Enemy ships shot down (${s.dropsDown || 0})`, b.drops || 0],
+    [`Civilians (${res.civSaved} saved, ${res.civLost} lost)`, b.civ || 0],
     [`Assault waves broken (${res.assaults || 0} of ${s.assaultsHit || 0})`, b.assaults || 0],
     ['Extraction', b.extraction],
     [`Helldiver lives left (${res.livesLeft})`, b.lives],
@@ -689,7 +700,7 @@ export function fillDebrief(info, res, session) {
   $('d-table').innerHTML = tbl(rows);
   const c = res.credits;
   $('d-credits').innerHTML = tbl([
-    ['Kills', c.kills], ['Bases', c.bases], ['Points of interest', c.pois], ['Breaches', c.breaches], ['Assaults broken', c.assaults], ['Objective', c.objective], ['Extraction bonus', c.extraction],
+    ['Kills', c.kills], ['Bases', c.bases], ['Points of interest', c.pois], ['Bug holes', c.breaches], ['Ships shot down', c.drops || 0], ['Civilians saved', c.civ || 0], ['Assaults broken', c.assaults], ['Objective', c.objective], ['Extraction bonus', c.extraction],
     ['Earned this mission', c.total, 'sum'], ['Spent this mission', -c.spent], ['Balance', c.balance, 'sum'],
   ].filter(([k, v]) => v !== 0 || k === 'Balance'));
   $('d-deaths').innerHTML = deathList(res);
