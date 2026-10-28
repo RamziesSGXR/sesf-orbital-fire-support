@@ -1,6 +1,7 @@
 // World-space drawing for Revision 7: enemy reinforcements (flares, bug holes, dropships, warp ships), the free-fire zone, the
 // evacuation site and its civilians, and the extraction pad with its pelican. Every function draws in metres; px(n) is n screen
 // pixels in metres at the current zoom.
+import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { pelicanBody } from './squads.js';
 import { drawCivBody } from './units.js';
@@ -33,7 +34,7 @@ export function drawFlares(ctx, m, now, px, labels, scale, pal) {
     ctx.fillStyle = gr; ring(ctx, e.x + 4, e.y - h, Math.max(5, px(14))); ctx.fill();
     ctx.strokeStyle = `rgba(255,90,60,${0.6 + 0.4 * Math.sin(now * 10)})`; ctx.lineWidth = px(2);
     ring(ctx, e.x, e.y, Math.max(e.r * 2, px(12))); ctx.stroke();
-    labels.push({ x: e.x, y: e.y, dy: -Math.max(e.r * 2 * scale, 12) - 8, text: `FLARE ${Math.max(0, Math.ceil(f.at - t))}S  KILL THE CALLER`, col: '#ff6a4a', pri: 3 });
+    labels.push({ x: e.x, y: e.y, dy: -Math.max(e.r * 2 * scale, 12) - 8, text: tr('lab.flare', { n: Math.max(0, Math.ceil(f.at - t)) }), col: '#ff6a4a', pri: 3 });
   }
 }
 
@@ -52,7 +53,7 @@ export function drawHoles(ctx, m, now, px, labels, scale, pal) {
         ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x + Math.cos(a) * L * 0.55, b.y + Math.sin(a) * L * 0.55 + Math.sin(i) * 1.2); ctx.lineTo(b.x + Math.cos(a + 0.2) * L, b.y + Math.sin(a + 0.2) * L); ctx.stroke();
       }
       ring(ctx, b.x, b.y, R * (0.6 + 0.6 * p)); ctx.stroke();
-      labels.push({ x: b.x, y: b.y, dy: -R * scale - 8, text: `BREACH ${Math.ceil(b.warnUntil - t)}S`, col, pri: 3 });
+      labels.push({ x: b.x, y: b.y, dy: -R * scale - 8, text: tr('lab.breachIn', { n: Math.ceil(b.warnUntil - t) }), col, pri: 3 });
       continue;
     }
     // the open hole: a dirt rim, a dark pit, and something moving in it
@@ -67,7 +68,7 @@ export function drawHoles(ctx, m, now, px, labels, scale, pal) {
       for (let i = 0; i < 5; i++) { const a = now * 2.5 + i * 1.25; ring(ctx, b.x + Math.cos(a) * R * 0.3, b.y + Math.sin(a) * R * 0.3, R * 0.12); ctx.stroke(); }
     }
     hpBar(ctx, b.x, b.y + R * 1.2, R * 2, px(4), b.hp / b.maxHp, col);
-    labels.push({ x: b.x, y: b.y, dy: -R * scale - 8, text: b.left > 0 ? `BUG BREACH  ${b.left} MORE  +${b.reward}` : 'BREACH CLOSING', col, pri: 2 });
+    labels.push({ x: b.x, y: b.y, dy: -R * scale - 8, text: b.left > 0 ? tr('lab.breachMore', { n: b.left, cr: b.reward }) : tr('lab.breachClosing'), col, pri: 2 });
   }
 }
 
@@ -115,7 +116,7 @@ export function drawDrops(ctx, m, now, px, labels, scale, pal) {
     ctx.restore();
     if (d.state === 'down') {
       ctx.fillStyle = `rgba(255,170,80,${0.6})`; ring(ctx, d.x, d.y, s * 0.4 * (1 + d.fallT)); ctx.fill();
-      labels.push({ x: d.x, y: d.y, dy: -s * scale - 8, text: d.kind === 'ship' ? 'DROPSHIP DOWN' : 'WARP SHIP DOWN', col: '#7dff9b', pri: 2 });
+      labels.push({ x: d.x, y: d.y, dy: -s * scale - 8, text: tr(d.kind === 'ship' ? 'lab.dropshipDown' : 'lab.warpDown'), col: '#7dff9b', pri: 2 });
       continue;
     }
     // the drop: troops jumping off, or a teleport beam
@@ -135,8 +136,8 @@ export function drawDrops(ctx, m, now, px, labels, scale, pal) {
       ring(ctx, d.x, d.y, s * 1.3); ctx.stroke(); ctx.setLineDash([]);
     }
     if (d.hp < d.maxHp) hpBar(ctx, d.x, d.y + s * 1.15, s * 2, px(4), d.hp / d.maxHp, col);
-    const what = d.kind === 'ship' ? 'DROPSHIP' : 'WARP SHIP';
-    labels.push({ x: d.x, y: d.y, dy: -s * scale - 8, text: d.low ? `${what} x${d.left}  SHOOT IT DOWN` : `${what} INBOUND`, col, pri: 2 });
+    const what = tr(d.kind === 'ship' ? 'n.dropship' : 'n.warpship');
+    labels.push({ x: d.x, y: d.y, dy: -s * scale - 8, text: tr(d.low ? 'lab.shipLow' : 'lab.shipIn', { what, n: d.left }), col, pri: 2 });
   }
 }
 
@@ -166,7 +167,7 @@ export function drawFfz(ctx, m, now, px, labels, scale) {
   }
   ctx.stroke();
   if (lock < 1) { ctx.globalAlpha = 1 - lock; ctx.strokeStyle = '#ffb070'; ctx.lineWidth = px(2); ring(ctx, z.x, z.y, z.r * (1 + 3 * lock)); ctx.stroke(); ctx.globalAlpha = 1; }
-  labels.push({ x: z.x, y: z.y, dy: -R * scale - 10, text: `FREE FIRE ${Math.ceil(left)}S · RECHARGE 2X`, col: '#ffb070', pri: 3 });
+  labels.push({ x: z.x, y: z.y, dy: -R * scale - 10, text: tr('lab.ffzTime', { n: Math.ceil(left) }), col: '#ffb070', pri: 3 });
 }
 
 // ---------------------------------------------------------------- resupply
@@ -183,7 +184,7 @@ export function drawSupply(ctx, m, now, px, labels, scale, teamColor) {
       ctx.beginPath(); for (let i = 0; i <= 6; i++) { const an = (i / 6) * TAU + Math.PI / 6; const x = a.x + Math.cos(an) * r * 0.6, yy = y + Math.sin(an) * r * 0.6; if (i) ctx.lineTo(x, yy); else ctx.moveTo(x, yy); } ctx.stroke();
       ctx.fillStyle = '#7dff9b'; ctx.fillRect(a.x - r * 0.08, y - r * 0.32, r * 0.16, r * 0.64); ctx.fillRect(a.x - r * 0.32, y - r * 0.08, r * 0.64, r * 0.16);
       ctx.globalAlpha = 1;
-      if (S.state === 'ask') labels.push({ x: a.x, y: y, dy: -r * scale - 6, text: `${S.ask.tag} NEEDS SUPPLIES`, col: '#9dffb8', pri: 3 });
+      if (S.state === 'ask') labels.push({ x: a.x, y: y, dy: -r * scale - 6, text: tr('hud.co.supAsk', { who: S.ask.tag }), col: '#9dffb8', pri: 3 });
     }
   }
   if (S.state === 'inbound' && S.drop) {
@@ -193,7 +194,7 @@ export function drawSupply(ctx, m, now, px, labels, scale, teamColor) {
     ctx.globalAlpha = 0.7; ring(ctx, d.x, d.y, 4 + 24 * f); ctx.stroke(); ctx.globalAlpha = 1;
     ctx.strokeStyle = '#9dffb8'; ctx.lineWidth = px(3); ctx.beginPath(); ctx.moveTo(d.x, d.y - 150 * f - 6); ctx.lineTo(d.x, d.y - 6); ctx.stroke();
     ctx.fillStyle = '#9dffb8'; ctx.fillRect(d.x - 2.2, d.y - 150 * f - 9, 4.4, 6);
-    labels.push({ x: d.x, y: d.y, dy: 26, text: `SUPPLY POD ${left.toFixed(1)}S`, col: '#9dffb8', pri: 3 });
+    labels.push({ x: d.x, y: d.y, dy: 26, text: tr('lab.supplyPod', { n: left.toFixed(1) }), col: '#9dffb8', pri: 3 });
   }
   if (t < S.boostUntil) {
     ctx.strokeStyle = 'rgba(125,255,155,0.55)'; ctx.lineWidth = px(1.6);
@@ -240,8 +241,8 @@ export function drawEvac(ctx, m, now, px, labels, scale) {
   for (const c of m.civs) if (!c.dead && !c.safe) drawCivBody(ctx, c, now, px);
   for (const c of m.civs) if (c.dead) { ctx.strokeStyle = 'rgba(255,90,90,0.55)'; ctx.lineWidth = px(1.2); const r = Math.max(1, px(3)); ctx.beginPath(); ctx.moveTo(c.x - r, c.y - r); ctx.lineTo(c.x + r, c.y + r); ctx.moveTo(c.x + r, c.y - r); ctx.lineTo(c.x - r, c.y + r); ctx.stroke(); }
   if (!o.done) {
-    labels.push({ x: o.sx, y: o.sy, dy: -26, text: o.state === 'run' ? (o.open ? 'SHELTER  DOORS OPEN' : 'SHELTER  DOORS SHUT') : 'SHELTER', col, pri: 2 });
-    labels.push({ x: o.hx + ux * 12, y: o.hy + uy * 12, dy: -26, text: `HANGAR  ${o.saved}/${E.need} OUT${o.lost ? `  ${o.lost} LOST` : ''}`, col, pri: 2 });
+    labels.push({ x: o.sx, y: o.sy, dy: -26, text: tr(o.state === 'run' ? (o.open ? 'lab.shelterOpen' : 'lab.shelterShut') : 'lab.shelter'), col, pri: 2 });
+    labels.push({ x: o.hx + ux * 12, y: o.hy + uy * 12, dy: -26, text: tr(o.lost ? 'lab.hangarLost' : 'lab.hangar', { saved: o.saved, need: E.need, lost: o.lost }), col, pri: 2 });
   }
 }
 
@@ -261,11 +262,11 @@ export function drawExtraction(ctx, m, now, px, labels, scale) {
   }
   ctx.strokeStyle = `rgba(255,230,0,${0.45 + pulse * 0.4})`; ctx.lineWidth = px(2);
   ctx.setLineDash([px(8), px(6)]); ring(ctx, ex.x, ex.y, R); ctx.stroke(); ctx.setLineDash([]);
-  let text = 'EXTRACTION';
+  let text = tr('lab.extraction');
   if (ex.state === 'called') {
     const left = Math.max(0, ex.landAt - t), f = 1 - left / Math.max(1, ex.wait || C.extract.callSec);
     ctx.strokeStyle = '#7dff9b'; ctx.lineWidth = px(4); ctx.beginPath(); ctx.arc(ex.x, ex.y, R + px(6), -Math.PI / 2, -Math.PI / 2 + TAU * f); ctx.stroke();
-    text = `PELICAN ${Math.ceil(left)}S  HOLD THE ZONE`;
+    text = tr('lab.pelicanIn', { n: Math.ceil(left) });
   }
   // the pelican: coming down, waiting on the pad with its ramp open, then climbing away
   if (ex.state === 'landing' || ex.state === 'boarding' || ex.state === 'away') {
@@ -284,12 +285,12 @@ export function drawExtraction(ctx, m, now, px, labels, scale) {
     ctx.strokeStyle = '#ffe600'; ctx.lineWidth = px(1.8); ctx.stroke();
     if (ex.state === 'boarding') {
       const hds = m.hdAlive.length;
-      text = `BOARDING  ${ex.boardedH || 0} ABOARD${hds ? `  ${hds} TO GO` : ''}  ${Math.max(0, Math.ceil(ex.leaveBy - t))}S`;
-    } else if (ex.state === 'landing') text = 'PELICAN LANDING';
-    else text = `PELICAN AWAY  ${ex.boardedH || 0} HELLDIVERS`;
+      text = tr(hds ? 'lab.boardingLeft' : 'lab.boarding', { on: ex.boardedH || 0, left: hds, n: Math.max(0, Math.ceil(ex.leaveBy - t)) });
+    } else if (ex.state === 'landing') text = tr('lab.pelicanLanding');
+    else text = tr('lab.pelicanAway', { n: ex.boardedH || 0 });
   }
   labels.push({ x: ex.x, y: ex.y, dy: -R * scale - 10, text, col: '#ffe600', pri: 3 });
 }
 
 // Pings of hits that matter: critical hits from the destroyer and hits on a heavy's back.
-export function critText(f) { return f & 1 ? (f & 2 ? 'REAR CRIT' : 'REAR HIT') : 'CRIT'; }
+export function critText(f) { return tr(f & 1 ? (f & 2 ? 'lab.rearCrit' : 'lab.rearHit') : 'lab.crit'); }

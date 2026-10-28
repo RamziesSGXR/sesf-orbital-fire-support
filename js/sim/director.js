@@ -1,15 +1,16 @@
 // The director: continuous enemy spawning just outside the squad's sight, despawning, bases, support calls,
 // pods, last stand and extraction.
+import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { SUBTYPES, COMMS, attackProfile } from '../data/data.js';
 import { compass } from './enemies.js';
 import { damageArea } from './combat.js';
 import { seafStats } from '../data/kit.js';
 import { bark } from './chatter.js';
+import { aoX, aoY, inAO } from './ao.js';
 
 const POD_MULT = { L: 1, M: 1, H: 1, B: 0.2 };
 
-const SIZE = C.world.size;
 
 export function spawnGroup(m, x, y, state = 'patrol', opts = {}) {
   const fac = m.faction, rng = m.rng;
@@ -21,7 +22,7 @@ export function spawnGroup(m, x, y, state = 'patrol', opts = {}) {
   for (let i = 0; i < m.groupSize; i++) {
     const kind = m.drawToken(), st = SUBTYPES[kind];
     const [ox, oy] = rng.inDisc(opts.emerge ? Math.min(4, fac.spread) : fac.spread);   // out of a hole or off a ship: bunched up
-    let px = Math.max(0, Math.min(SIZE, x + ox)), py = Math.max(0, Math.min(SIZE, y + oy));
+    let px = aoX(m, x + ox, 3), py = aoY(m, y + oy, 3);
     if (m.terrain.blocked(px, py)) { const l = m.terrain.nearestLand(px, py); px = l.x; py = l.y; }   // never in deep water
     const e = {
       id: m.nextId++, kind, hp: Math.round(st.hp * m.hpMul), maxHp: Math.round(st.hp * m.hpMul), x: px, y: py,
@@ -58,7 +59,7 @@ export function hiddenSpot(m, x, y, rmin, rmax, spread = m.faction.spread) {
   for (let i = 0; i < 40; i++) {
     const d = i < 12 ? rng.range(rmin, rmax) : rmax + ((i - 11) / 28) * 220 * rng.next();
     const a = rng.angle();
-    const px = Math.max(30, Math.min(SIZE - 30, x + Math.cos(a) * d)), py = Math.max(30, Math.min(SIZE - 30, y + Math.sin(a) * d));
+    const px = aoX(m, x + Math.cos(a) * d, 20), py = aoY(m, y + Math.sin(a) * d, 20);
     if (unseenSpot(m, px, py, spread)) return { x: px, y: py };
   }
   return null;
@@ -83,21 +84,10 @@ export function pickSpawn(m, extra = 0) {
     const dir = ahead ? m.squad.dir + rng.range(-1, 1) : rng.angle();
     const d = a.vision + sp + rng.range(C.sight.spawnMin, C.sight.spawnMax);
     const x = a.x + Math.cos(dir) * d, y = a.y + Math.sin(dir) * d;
-    if (x < 30 || y < 30 || x > SIZE - 30 || y > SIZE - 30) continue;
+    if (!inAO(m, x, y, 20)) continue;
     if (unseenSpot(m, x, y, sp)) return { x, y };
   }
   return null;
-}
-
-// The first groups, placed around the landing zone before anyone has landed.
-export function startGroups(m) {
-  const rng = m.rng, vision = (C.sight.helldiver + C.sight.playerBonus) * m.biome.ping;
-  for (let i = 0; i < C.enemies.startGroups; i++) {
-    const ang = (i / C.enemies.startGroups) * Math.PI * 2 + rng.range(-0.4, 0.4);
-    const d = vision + m.faction.spread + rng.range(C.sight.spawnMin, C.sight.spawnMax) + 10;
-    const x = Math.max(40, Math.min(SIZE - 40, m.lz.x + Math.cos(ang) * d)), y = Math.max(40, Math.min(SIZE - 40, m.lz.y + Math.sin(ang) * d));
-    spawnGroup(m, x, y, 'patrol');
-  }
 }
 
 // The squad spotted a group that has not noticed them. (Whether the enemy calls for help is up to the group itself once it is alerted
@@ -105,89 +95,6 @@ export function startGroups(m) {
 export function onSpot(m, g) { void m; void g; }
 
 function garrisonCount(m, b) { let n = 0; for (const e of m.enemies) if (!e.dead && e.g.base === b && e.g.garrison) n++; return n; }
-
-// ---------------------------------------------------------------- large assaults
-// Every few minutes a big force forms up well outside the squad's sight on one side, and the radio says which. It holds there for
-// a few seconds (a UAV scan or a strike zone out that way shows it), then marches straight for the Helldivers. The gunner has
-// to scan, set a SEAF line and ready strikes. Breaking it pays credits.
-function assaultSize(m) {
-  const A = C.assault;
-  // counted in groups of the standard five, so a force of bugs (big groups) is no bigger than a force of bots or squids
-  const groups = (A.groups + m.S * A.perSessionMin + m.assault.n * 0.5) * (C.enemies.groupSize / m.groupSize);
-  return Math.max(2, Math.min(A.maxGroups, Math.round(groups)));
-}
-
-function pickAssaultPoint(m) {
-  const rng = m.rng, hds = m.hdAlive;
-  const sight = C.sight.helldiver * m.biome.ping, A = C.assault;
-  const cx = m.hx, cy = m.hy;
-  const base = hds.length ? m.squad.dir : rng.angle();
-  for (let tries = 0; tries < 24; tries++) {
-    // Mostly from the way the squad is heading, sometimes from the flank or behind.
-    const dir = tries < 12 ? base + rng.range(-1.1, 1.1) : rng.angle();
-    const d = sight + A.ahead + rng.range(-20, 40);
-    const x = cx + Math.cos(dir) * d, y = cy + Math.sin(dir) * d;
-    if (x < 80 || y < 80 || x > SIZE - 80 || y > SIZE - 80) continue;
-    // The whole line of groups, not just its middle, has to start where nobody can see it.
-    if (unseenSpot(m, x, y, A.spacing * (assaultSize(m) - 1) / 2 + m.faction.spread, 8)) return { x, y, dir };
-  }
-  return null;
-}
-
-function assaultAlive(a) {
-  let n = 0;
-  for (const g of a.groups) for (const e of g.members) if (!e.dead) n++;
-  return n;
-}
-
-function updateAssault(m, dt) {
-  const A = C.assault, st = m.assault, t = m.t, rng = m.rng;
-  if (m.phase === 'over' || !m.hdAlive.length) return;
-  const cur = st.cur;
-  if (!cur) {
-    if (m.phase === 'extract' || t < st.nextAt) return;
-    if (m.enemies.length > C.enemies.hardCap - assaultSize(m) * m.groupSize) { st.nextAt = t + 10; return; }
-    const p = pickAssaultPoint(m);
-    if (!p) { st.nextAt = t + 6; return; }
-    const n = assaultSize(m), dirName = compass(p.x - m.hx, p.y - m.hy);
-    const hold = t + A.warnSec, nx = -Math.sin(p.dir), ny = Math.cos(p.dir);
-    const groups = [];
-    for (let i = 0; i < n; i++) {
-      const o = (i - (n - 1) / 2) * A.spacing, back = (i % 2) * 10;
-      const x = Math.max(40, Math.min(SIZE - 40, p.x + nx * o + Math.cos(p.dir) * back)), y = Math.max(40, Math.min(SIZE - 40, p.y + ny * o + Math.sin(p.dir) * back));
-      const g = spawnGroup(m, x, y, 'hunt', { alertT: A.warnSec + A.hunt });
-      g.hold = hold; g.assault = true; groups.push(g);
-    }
-    st.cur = { x: p.x, y: p.y, dir: p.dir, at: hold, start: t, groups, n, dirName, hit: false, name: `ASSAULT ${st.n + 1}` };
-    m.stats.assaultsHit++;
-    m.markers.push({ type: 'assault', x: p.x, y: p.y, dir: p.dir, start: t, end: hold + A.giveUpSec, at: hold, n, id: st.cur.name });
-    m.radio(COMMS.assaultWarn(dirName, A.warnSec), 'assault', 0);
-    m.notice(`LARGE ENEMY FORCE ${dirName.toUpperCase()}  ${A.warnSec}s`, 'warn');
-    m.emit('assault_warn', { x: p.x, y: p.y, dir: p.dir, n, sec: A.warnSec });
-    return;
-  }
-  // The force marches; once it has left its holding point it counts as "hitting".
-  if (!cur.hit && t >= cur.at) {
-    cur.hit = true;
-    m.radio(COMMS.assaultNow(cur.dirName), 'assaultnow', 0);
-    m.notice('ASSAULT WAVE INBOUND', 'bad');
-    m.emit('assault_go', { x: cur.x, y: cur.y, dir: cur.dir });
-  }
-  // It is broken when nearly all of it is gone. A force that has been left alone for a long time stops counting.
-  const left = assaultAlive(cur);
-  const broken = left <= Math.max(A.minLeft, cur.n * m.groupSize * 0.12);
-  if (broken || t > cur.at + A.giveUpSec) {
-    if (broken && cur.hit) {
-      m.stats.assaults++; m.sc.assaults += A.score;
-      m.earn('assaults', A.reward, m.cx, m.cy);
-      m.radio(COMMS.assaultBroken, 'assaultbroken', 0);
-      m.notice(`ASSAULT BROKEN  +${A.reward}`, 'good');
-    }
-    for (const mk of m.markers) if (mk.type === 'assault' && mk.id === cur.name) mk.end = t;
-    st.cur = null; st.n++;
-    st.nextAt = t + A.everySec + rng.range(-A.jitterSec, A.jitterSec);
-  }
-}
 
 // How many enemies may be alive right now: fewer at the drop, more as the mission (and the session) goes on.
 export function liveCap(m) {
@@ -201,34 +108,23 @@ export function updateDirector(m, dt) {
   // Pressure rises with mission time (and is halved when a base falls).
   m.pressure = Math.max(C.pressure.floor, m.pressure + (C.pressure.perMissionMin / 60) * dt);
   // enemy damage climbs with the session and, a little, with every minute of the mission
-  m.dmgMul = Math.min(C.ramp.dmgCap, 1 + C.ramp.dmg * m.S + C.ramp.missionDmg * (m.t / 60));
+  const base = C.ramp.base * (C.ramp.fac[m.faction.id] || 1);
+  m.dmgMul = Math.min(C.ramp.dmgCap * base, base * (1 + C.ramp.dmg * m.S + C.ramp.missionDmg * (m.t / 60)));
 
   if (m.alive.length && m.phase !== 'over') {
-    // Despawn groups that are well outside what the player can see, and count the ones nearby.
+    // Reinforcements that have lost the squad and wandered off for good are taken off the map once nobody can see them. (Patrols
+    // from bases and garrisons stay: they are the map.)
     sp.scanT -= dt;
     if (sp.scanT <= 0) {
-      sp.scanT = 0.5; sp.near = 0;
+      sp.scanT = 1;
       for (const g of m.groups) {
-        let any = false;
-        for (const e of g.members) if (!e.dead && !m.beyondRange(e.x, e.y)) { any = true; break; }
-        if (any) { sp.near += g.members.length; continue; }
-        if (g.state === 'hunt' || g.garrison) continue;
+        if (g.state === 'hunt' || g.garrison || g.from || g.intercept) continue;
+        let far = true;
+        for (const e of g.members) if (!e.dead && !m.beyondRange(e.x, e.y, 120)) { far = false; break; }
+        g.lostT = far ? (g.lostT || 0) + 1 : 0;
+        if (g.lostT < 40) continue;
         for (const e of g.members) if (!e.dead) { e.dead = true; m.stats.despawned++; }
         m.dirtyE = true;
-      }
-    }
-
-    // Enemies spawn all the time, just outside the squad's sight. Faster with Pressure, and fast to refill an empty field.
-    sp.spawnT -= dt;
-    if (m.enemies.length < liveCap(m)) {
-      // Right after the drop the field fills more slowly, so a late-session squad gets a minute or two to find its feet.
-      const G = C.pressure.dropGrace, P = m.pressure * Math.min(1, G.min + (1 - G.min) * (t / G.sec));
-      const floor = Math.round(C.enemies.spawn.minLive * P);
-      const need = sp.near < floor && t - sp.lastSpawn >= C.enemies.spawn.minGapSec;
-      if (sp.spawnT <= 0 || need) {
-        const p = pickSpawn(m);
-        if (p) { spawnGroup(m, p.x, p.y, 'patrol'); sp.lastSpawn = t; sp.spawnT = C.enemies.spawn.sec / Math.max(0.3, P); sp.near += m.groupSize; }
-        else sp.spawnT = 1;
       }
     }
 
@@ -251,8 +147,6 @@ export function updateDirector(m, dt) {
     }
   }
 
-  updateAssault(m, dt);
-
   // Pods land: each Helldiver pod brings back the Helldiver of one group; SEAF where the player called them.
   for (let i = m.pods.length - 1; i >= 0; i--) {
     const p = m.pods[i];
@@ -263,7 +157,7 @@ export function updateDirector(m, dt) {
       const a = m.addAlly('H', p.x, p.y, { team: p.team });
       m.emit('pod_land', { type: 'H', x: p.x, y: p.y, n: 1, r: C.helldivers.podRadius });
       m.emit('boom', { x: p.x, y: p.y, r: C.helldivers.podRadius, dmg: C.helldivers.podDmg, by: 'squad', pod: true });
-      if (t > 20) m.notice(`${m.tag(a)} DEPLOYED  ${m.shipOf(a.team)}`, 'good');   // the first drop needs no list
+      if (m.t > 20) m.notice(tr('n.deployed', { who: m.tag(a), ship: m.shipOf(a.team) }), 'good');   // the first drop needs no list
       bark(m, a, 'land', '', true);
       m.radio(COMMS.landed, 'landed', 6);
     }

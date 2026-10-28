@@ -6,6 +6,8 @@ A Super Destroyer targeting minigame for the **Super Earth Special Forces** comm
 
 It runs in your browser on a computer, phone or tablet. There is nothing to install. Turn the sound on. Your progress and best scores stay on your own device.
 
+**Languages:** English, Français and Español. Pick one on the title screen or in **Settings**. Operation names, callsigns, ship names and the score block you post stay as they are, so posts read the same in the channel whoever wrote them.
+
 > Unofficial fan project. Not affiliated with or endorsed by Arrowhead Game Studios or Sony Interactive Entertainment. It uses no game assets, text or audio: all art is drawn in code and all sound is synthesised.
 
 ## Quick start
@@ -18,11 +20,16 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 ## Your job
 
+The Helldivers can't win this alone. Left to themselves they take the objective, then run out of lives and the run ends. What you do from orbit decides whether they get out. Every minute you spend covering them is a minute you're not hitting something else, and that choice is the game.
+
 - **You run the sky.** You aim the UAV scan and the orbital strikes. Strikes can only land inside the **strike zone** around your allies or inside a UAV scan circle. Your strikes hurt friendlies, so watch where the squad is.
 - **The ship gun** (slot 8) fires anywhere you can see, needs no strike zone and never hurts allies. Hold to fire. It has its own ammo that refills by itself. It is the one weapon ready the moment a mission starts.
 - **Utilities** help the squad instead of hurting the enemy. Buy them in the armory and put them in an orbital slot: a **med pod** that heals every ally where it lands, **smoke** the enemy can't shoot through, a **shield dome**, and a **sentry**. They are safe to drop right on top of your allies.
 - **SEAF troops** are yours to command. Call a drop, split them into squads, give orders, or draw a play on the map: a route to run, a line to hold or a ring to defend.
-- **The Helldivers** play on their own. They pick their targets, call their own stratagems and drop back in when one dies, as long as the squad has lives left. You never steer them, but they talk to you: they say what they are about to do, ping where they are going, and ask you for help.
+- **The Helldivers** play on their own. They go for the main objective and pick up side missions that are on the way. They call their own stratagems and drop back in when one dies, as long as the squad has lives left. You never steer them, but they talk to you: they say what they are about to do, ping where they are going, and ask you for help.
+- **Radar.** Your UAV sweeps the whole map every few seconds and marks every enemy as a blip, even far out of sight. The blips stay where the enemy was until the next sweep, like real radar. A better UAV sweeps faster.
+- **Shooters give themselves away.** An enemy that fires on your allies is marked on the map. Once it has been marked for three seconds it is **locked**, and your strikes and the ship gun can hit it even outside the strike zone.
+- **SEAF drop beacons.** For the first five minutes a few beacons on the map let you drop SEAF anywhere near them, far from the squad. Then they go dark. A radio tower the Helldivers switch on lights up the beacons around it again.
 - **Super heavies.** Now and then the enemy sends a giant into the mission: a **Brood Titan** (bugs), a **Siege Walker** (bots) or a **Warp Colossus** (squids). The radio calls it in, a red callout tracks it, and the pelican won't land until it is dead. It is rare early in a session and more likely later.
 - **Supply drops.** When the Helldivers run low on stims or grenades, one of them asks you for supplies. Press **LOAD POD** (or `U`) and time slows down while you load the pod: tap each compartment (stims, grenades, ammo) until it's full. What you load is what they get, and a pod filled within five seconds gives the squad a short boost. Then the camera swings to where it lands. Ignore the request and they make do; they can ask again after a minute.
 
@@ -58,16 +65,23 @@ Each mission has a random operation name, enemy (Bugs, Bots or Squids), terrain 
 - **Nuclear Launch.** Hold the launch site until it is armed, then fire the nuke anywhere. It flattens everything within 230 m after a ten-second countdown, so give your allies time to clear.
 - **VIP Rescue.** Find the VIP and get them to the pickup point.
 - **Destroy the Citadel.** Take down the enemy fortress.
-- **Evacuate Civilians.** Hold a site while forty civilians walk from the shelter to the hangar and fly out. Your strikes can kill them too.
+- **Evacuate Civilians.** Hold a site while forty-four civilians walk from the shelter to the hangar and fly out. Your strikes can kill them too.
 
-Once the objective is done, the squad clears enemy bases for extra credits for a while. Then the **extraction point** opens. A Helldiver calls the pelican and the squad holds the pad while the enemy throws reinforcements at it. You don't have to kill everything. When the pelican lands, everyone runs for the ramp, and SEAF squads get pelicans of their own.
+**Side missions** sit around the map, more on bigger maps. The Helldivers take the ones close to their way:
 
-Each mission gets harder the longer it runs: more enemies on the field, more heavies, and harder hits. The first few missions are quick, about five to ten minutes and a few hundred kills. Later ones have two objectives, take fifteen to twenty-five minutes, and usually run to two thousand kills or more. Each mission has a 30-minute limit.
+- **Radio tower.** A Helldiver stands by it while it powers up. Then it lights up the SEAF drop beacons around it again.
+- **Propaganda tower.** While it stands it sends the patrols around it after the squad. Destroy it.
+- **SEAF under fire.** A SEAF squad is dug in and pinned down. When the Helldivers get close the enemy closes in on it. Clear them off and the survivors join your SEAF, under your orders.
+
+Once the objective is done, the Helldivers decide what's next. With **more than four lives left** and the time for it, they go for a **full clear**: every base and side mission on the map, for a big bonus. If lives run down to four, they break it off. With fewer lives they head straight for the **extraction point**. A Helldiver calls the pelican and the squad holds the pad while the enemy throws reinforcements at it. When the pelican lands, everyone runs for the ramp, and SEAF squads get pelicans of their own. **A mission is only won by extracting.** If the squad runs out of lives with no Helldiver left standing, the mission is lost, SEAF or not.
+
+**Maps grow with every mission.** The first is a 760 m square, small enough for a full clear with your help. Each mission adds about 110 m, up to 1.5 km. Missions take ten to fifteen minutes. After about forty minutes of a session each mission has two objectives. Each mission has a 30-minute limit, and each gets harder the longer it runs: more enemies on the field and harder hits.
 
 ## Tips
 
 - **Hit them from behind.** Every unit shows which way it faces: Helldivers have a visor at the front and a cape and blinking backpack at the back; enemies have eyes or sensors at the front, and the bigger ones have a glowing weak spot on the back. Hits from behind do 1.5× damage, and 2.2× on heavies.
 - **Critical hits** do double damage. Your orbital strikes crit most often (14%), then the ship gun (10%).
+- **Everything can be destroyed.** Bases, the citadel, points of interest, propaganda towers, bug holes and dropships all go down to enough fire.
 - **Watch for flares.** A patrol that spots the squad or gets shot may fire a flare. Kill the one holding it within about four seconds and no reinforcements come. If you're too late, **bugs** dig up out of a hole (blow it up to close it), and **bots** and **squids** arrive by ship. You can shoot ships down while they hover low, and the troops inside go down with them, for credits. Troops the ship has just let down are shielded by it (a dashed ring) until it pulls away.
 - **Range matters.** Everyone sees farther than they can shoot well. Shots at long range miss more and hit softer, and that goes for the enemy too.
 - **Kill the super heavy.** Hit it with your heaviest strikes, from behind if you can. The Colossus's shield comes back if you leave it alone, and the Walker keeps dropping bots while it stands.
@@ -76,15 +90,16 @@ Each mission gets harder the longer it runs: more enemies on the field, more hea
 - **Use the map.** The tactical map has compass points and a lettered grid, so when the radio says "dropship inbound west" you know where to look.
 - **Know your enemy.** Bugs swarm in from every side. Bots form a firing line and stand there shooting. Squids spread out and surround you.
 - **Mind the ground.** Deep water can't be crossed on foot, and mud, snow and sand slow everyone down. High ground helps whoever holds it: units on a rise see farther and hit harder. Press `H` to see it.
-- **Break the big assaults.** The game warns you before a large enemy assault (direction, size and time). Breaking one pays well.
+- **Patrols come from the bases.** Each base sends patrols out on a route of its own: bugs roam round their nest, bots march out and back, squids sweep a wide circle. They come over when they hear fighting. Destroy a base and it stops replacing its patrols.
+- **Backup never stops at a mission site.** While the squad works an objective, a side mission or the extraction, the enemy keeps calling in more. Clearing the map doesn't stop it, but it only comes so fast. Keep the site clear from orbit.
 
 ## How a session works
 
 Missions follow one another until one fails: the clock runs out with the objective undone, or the whole squad is gone with no lives left. You can also retire from the pause menu.
 
-Between missions the **armory** opens. Credits from kills, bases, targets, super heavies, the objective and extraction buy new orbital strikes and utilities, more loadout slots and upgrades for your orbitals, the ship gun, the UAV scan, SEAF and the squad. A session that lasts about three hours earns enough to max out everything.
+Between missions the **armory** opens. Credits from kills, bases, targets, super heavies, the objective and extraction buy new orbital strikes and utilities, more loadout slots and upgrades for your orbitals, the ship gun, the UAV scan, SEAF and the squad. A very long session earns enough to max out everything.
 
-The war gets worse every minute: tougher enemies, harder hits and more heavies, on top of each mission's own climb. The first hour is a warm-up; after that the Helldivers start dying, and every run ends eventually. Most sessions last between an hour and a half and three hours.
+The war gets worse every minute: tougher enemies, harder hits and more heavies, on top of each mission's own climb. Every run ends eventually. A good gunner gets the squad through five to ten missions, an hour or two.
 
 ## Share your score
 

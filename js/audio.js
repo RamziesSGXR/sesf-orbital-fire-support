@@ -145,6 +145,13 @@ export class Audio {
     this._tone(1900, 1900, 0.05, 0.08, 'square', 0.75); this._tone(1900, 1900, 0.05, 0.08, 'square', 0.9);
   }
 
+  // The radar's sweep: one soft ping, quieter than the UAV scan.
+  ping() { if (!this._ok('ping', 2)) return; this._tone(1320, 1320, 0.09, 0.035, 'sine'); this._tone(1320, 1250, 0.25, 0.015, 'sine', 0.1); }
+  // A side mission: done (a short rising pair), lost (a falling pair); beacons relit (three bright blips).
+  sideDone() { if (!this.ctx) return; [587, 880, 1175].forEach((f, i) => this._tone(f, f, 0.16, 0.09, 'triangle', i * 0.09)); }
+  sideLost() { if (!this.ctx) return; this._tone(440, 300, 0.35, 0.1, 'sawtooth'); this._tone(330, 220, 0.4, 0.08, 'sawtooth', 0.25); }
+  beacons() { if (!this.ctx) return; [1568, 1760, 2093].forEach((f, i) => this._tone(f, f, 0.07, 0.06, 'square', i * 0.12)); }
+
   // A troop pelican arriving: rotor wash.
   rotor() { if (!this._ok('rotor', 0.5)) return; this._noise(1.4, 500, 140, 0.22, 'bandpass', 0.8); this._tone(70, 50, 1.0, 0.16, 'sawtooth'); }
 

@@ -28,7 +28,7 @@ await page.screenshot({ path: out('1-start') });
 await page.waitForTimeout(9000);
 await page.evaluate(() => { const m = window.__game.mission; m.callSeaf(m.hx + 28, m.hy + 22); });
 await page.waitForTimeout(9000);
-await page.evaluate(() => { const m = window.__game.mission; m.splitSeaf(); m.assault.nextAt = m.t + 0.5; });
+await page.evaluate(() => { const m = window.__game.mission; m.splitSeaf(); });
 await page.waitForTimeout(3500);
 await page.screenshot({ path: out('2-busy-awake') });
 await page.waitForTimeout(3600);

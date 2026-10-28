@@ -1,6 +1,7 @@
 // The player's destroyer kit: a UAV scan, up to five orbital stratagems from the armory, and the nuclear strike once the
 // launch site is armed. Strikes land inside the strike zone: the ring around the Helldivers and SEAF, plus any UAV circle.
 // The player never steers the Helldivers. Friendly fire from the player's own strikes is real.
+import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
 import { orbStats, uavStats, gunStats } from '../data/kit.js';
@@ -53,9 +54,9 @@ export function syncSlots(m, start = false) {
 export function slotStats(m, i) {
   const s = m.player.slots[i];
   if (s.type === 'orb') return orbStats(s.id, s.level);
-  if (s.type === 'uav') { const u = uavStats(m.kit.uav); return { name: 'UAV SCAN', g: 'UAV', cd: u.cd, r: u.r, sec: u.sec, delay: 0 }; }
-  if (s.type === 'nuke') return { name: 'NUCLEAR STRIKE', g: 'NUKE', cd: 0, delay: C.objective.nuke.delaySec, splash: C.objective.nuke.blastR, dmg: C.objective.nuke.blastDmg };
-  if (s.type === 'gun') return { name: 'SHIP GUN', g: 'GUN', cd: 0, delay: 0 };
+  if (s.type === 'uav') { const u = uavStats(m.kit.uav); return { name: tr('hud.w.uav'), g: 'UAV', cd: u.cd, r: u.r, sec: u.sec, delay: 0 }; }
+  if (s.type === 'nuke') return { name: tr('card.nuke.h'), g: 'NUKE', cd: 0, delay: C.objective.nuke.delaySec, splash: C.objective.nuke.blastR, dmg: C.objective.nuke.blastDmg };
+  if (s.type === 'gun') return { name: tr('hud.w.gun'), g: 'GUN', cd: 0, delay: 0 };
   return null;
 }
 
@@ -70,7 +71,7 @@ export function aimGeom(m, st) {
 function explode(m, sh) {
   const by = sh.by || 'player', friendly = sh.friendly !== false;
   damageArea(m, sh.x, sh.y, sh.splash, sh.dmg, sh.mult, by, friendly, sh.cs, sh.fx ?? sh.x, sh.fy ?? sh.y);
-  if (sh.splash >= 6) noise(m, sh.x, sh.y, C.enemies.alert.noiseRadius);
+  if (sh.splash >= 4) noise(m, sh.x, sh.y, C.noise.strike);
   m.emit('boom', { x: sh.x, y: sh.y, r: sh.splash, dmg: sh.dmg, by, big: !!sh.big, nuke: !!sh.nuke });
 }
 
@@ -93,7 +94,7 @@ function fireOrbital(m, idx) {
   const p = m.player, s = p.slots[idx], t = m.t;
   const st = orbStats(s.id, s.level);
   if (t < s.readyAt || s.uses <= 0) return deny(m, 'cooldown');
-  if (!m.inZone(p.aimX, p.aimY)) return deny(m, 'nocoverage', COMMS.noCoverage);
+  if (!m.inZone(p.aimX, p.aimY) && !(st.k !== 'util' && m.nearLock(p.aimX, p.aimY))) return deny(m, 'nocoverage', COMMS.noCoverage);   // a locked enemy can be hit anywhere
   if (st.k === 'util') return callUtil(m, s, st);
   // into a free-fire zone the Helldivers asked for: the destroyer recharges faster, so the gunner can saturate it
   const inFfz = m.ffz && Math.hypot(p.aimX - m.ffz.x, p.aimY - m.ffz.y) <= m.ffz.r;
@@ -103,7 +104,7 @@ function fireOrbital(m, idx) {
   let tgt = { x: p.aimX, y: p.aimY };
   if (st.lock) {      // the railcannon picks the biggest enemy near the aim point
     let best = null, bd = Infinity;
-    m.eGrid.near(p.aimX, p.aimY, 26, (e, d2) => { if (e.vis > 0 && (e.kind === 'H' || !best) && d2 < bd) { bd = d2; best = e; } });
+    m.eGrid.near(p.aimX, p.aimY, 26, (e, d2) => { if ((e.vis > 0 || m.locked.includes(e)) && (e.kind === 'H' || !best) && d2 < bd) { bd = d2; best = e; } });
     if (best) tgt = { x: best.x, y: best.y, e: best };
   }
   if (st.k === 'strike') strikeAt(m, st, tgt, { ox: m.hx, oy: m.hy, by: 'player', friendly: true, dmgMul: 1 });
@@ -190,10 +191,11 @@ export function updatePlayer(m, dt) {
   const st = slotStats(m, p.weapon) || {};
   info.name = st.name || '';
   info.delay = st.delay || 0;
-  info.splash = 0; info.spread = 0;
+  info.splash = 0; info.spread = 0; info.lock = false;
   if (s.type === 'orb') {
     const g = aimGeom(m, st);
-    info.inZone = m.inZone(p.aimX, p.aimY);
+    info.lock = st.k !== 'util' && !m.inZone(p.aimX, p.aimY) ? !!m.nearLock(p.aimX, p.aimY) : false;
+    info.inZone = m.inZone(p.aimX, p.aimY) || info.lock;
     info.splash = g.splash; info.spread = g.spread;
     info.ready = info.inZone && t >= s.readyAt && s.uses > 0;
   } else if (s.type === 'uav') {
@@ -204,7 +206,8 @@ export function updatePlayer(m, dt) {
   } else if (s.type === 'gun') {
     // free fire: anywhere the player can see, no strike zone needed
     const gs = gunStats(m.kit), g = p.gun;
-    info.inZone = m.visLevel(p.aimX, p.aimY) > 0;
+    info.lock = m.visLevel(p.aimX, p.aimY) <= 0 && !!m.nearLock(p.aimX, p.aimY);
+    info.inZone = m.visLevel(p.aimX, p.aimY) > 0 || info.lock;
     info.splash = gs.spread + gs.bloom * g.bloom; info.ready = info.inZone && g.ammo >= 1 && !g.dry;
     info.gun = { ammo: g.ammo, max: g.max, dry: g.dry };
   } else { info.inZone = false; info.ready = false; }
@@ -261,7 +264,7 @@ export function updatePlayer(m, dt) {
 function updateGun(m, dt, pressed) {
   const p = m.player, g = p.gun, G = C.gun, gs = gunStats(m.kit), t = m.t;
   const holding = p.slots[p.weapon].type === 'gun' && p.firing && t >= p.swapUntil;
-  const seen = holding && m.visLevel(p.aimX, p.aimY) > 0;
+  const seen = holding && (m.visLevel(p.aimX, p.aimY) > 0 || !!m.nearLock(p.aimX, p.aimY));   // a locked enemy can be shot unseen
   if (g.dry && g.ammo >= 45) g.dry = false;
   if (holding && pressed) {
     if (!seen) deny(m, 'novisual', COMMS.noVisual);
@@ -280,7 +283,7 @@ function updateGun(m, dt, pressed) {
       m.stats.gunRounds = (m.stats.gunRounds || 0) + 1;
     }
     if (g.ammo < 1) { g.ammo = 0; g.dry = true; g.firing = false; m.radio(COMMS.gunDry, 'gundry', 4); }
-    if (pts.length) { m.emit('gun', { x: p.aimX, y: p.aimY, pts }); noise(m, p.aimX, p.aimY, 35); }
+    if (pts.length) { m.emit('gun', { x: p.aimX, y: p.aimY, pts }); noise(m, p.aimX, p.aimY, C.noise.gun); }
     m.stats.shots++;
   } else {
     g.firing = false; g.idle += dt; g.acc = 0;

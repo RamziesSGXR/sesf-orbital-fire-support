@@ -155,6 +155,8 @@ function ready(biome, seed, faction = 'bugs') { return new Mission({ seed, facti
     const patch = (kk0, test) => { const i = kk0 % t.N, j = (kk0 / t.N) | 0; for (let di = -2; di <= 2; di++) for (let dj = -2; dj <= 2; dj++) { const kk = (j + dj) * t.N + i + di; if (kk < 0 || kk >= t.d.length || !test(kk)) return false; } return true; };
     for (let k = 0; k < t.d.length; k++) {
       const at = () => ({ x: ((k % t.N) + 0.5) * t.cell, y: (((k / t.N) | 0) + 0.5) * t.cell });
+      const c = at(), A = m.ao;
+      if (c.x < A.x0 + 12 || c.x > A.x1 - 12 || c.y < A.y0 + 12 || c.y > A.y1 - 12) continue;     // inside the area of operations
       if (!mud && t.kind[k] === MUD && t.d[k] <= K.wet && patch(k, (kk) => t.kind[kk] === MUD && t.d[kk] <= K.wet)) mud = at();
       if (!shallow && t.d[k] > K.wet && t.d[k] < K.deep && patch(k, (kk) => t.d[kk] > K.wet && t.d[kk] < K.deep)) shallow = at();
       if (!firm && t.comp[k] === 1 && t.kind[k] === FIRM && t.d[k] <= K.wet && patch(k, (kk) => t.kind[kk] === FIRM && t.d[kk] <= K.wet)) firm = at();

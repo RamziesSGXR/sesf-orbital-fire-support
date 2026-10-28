@@ -24,7 +24,7 @@ for (let i = 0; i < N; i++) {
   if (!session) { kit = newKit(); wallet = newWallet(); sessMin = S0; }
   else botShop(kit, wallet);
   const m = new Mission({
-    seed: 1000 + SEED0 + i * 7919, sessionMinutes: sessMin, kit, wallet,
+    seed: 1000 + SEED0 + i * 7919, sessionMinutes: sessMin, kit, wallet, missionN: session ? i + 1 : 1,
     faction: process.argv[4] && process.argv[4] !== '-' ? process.argv[4] : factions[i % 3],
     biome: process.argv[5] && process.argv[5] !== '-' ? process.argv[5] : biomes[i % 5], events: false,
   });
@@ -46,6 +46,7 @@ for (let i = 0; i < N; i++) {
     lostH: r.stats.lostH, lostS: r.stats.lostS, wipes: r.stats.wipes, lives: r.livesLeft, ff: r.stats.ff,
     as: `${r.assaults || 0}/${r.assaultsHit || 0}`, gun: m.stats.gunRounds || 0, spot: m.stats.spotCalls || 0, cr: r.credits.total, bal: r.credits.balance, plr: Math.round(r.share.player * 100), sqd: Math.round(r.share.squad * 100), str: Math.round(r.share.strat * 100), peak,
     boss: m.boss ? `${m.boss.dead ? 'K' : 'A'}${Math.round((m.boss.born || 0) / 60)}` : '-',
+    ao: m.ao.size, clear: `${m.bases.filter((b) => b.destroyed).length}/${m.bases.length} ${m.sides.filter((q) => q.done).length}/${m.sides.length}`, full: m.plan && m.plan.full ? 'y' : 'n',
   });
   if (session && r.outcome !== 'victory') { console.log(`session ended at mission ${i + 1}: ${r.outcome}`); break; }
 }

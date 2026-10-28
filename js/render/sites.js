@@ -92,7 +92,15 @@ export function drawPoiArt(ctx, p, fac, col, seen, now, px) {
   const lit = seen ? 0.95 : 0.65, edge = '#ffb020';
   ctx.save(); ctx.translate(p.x, p.y);
   ctx.fillStyle = 'rgba(0,0,0,0.45)'; circ(ctx, 0, 0, r * 1.2); ctx.fill();
-  if (p.kind === 'relay') {
+  if (p.kind === 'propaganda') {
+    // a broadcast tower: a mast with loudspeaker horns, sending out rings in the enemy's colour
+    ctx.fillStyle = `rgba(120,115,110,${lit})`; ctx.fillRect(-r * 0.2, -r * 0.2, r * 0.4, r * 0.4);
+    ctx.strokeStyle = `rgba(200,195,185,${lit})`; ctx.lineWidth = px(1.4);
+    for (let i = 0; i < 4; i++) { const a = a0 + i * 1.571; ctx.beginPath(); ctx.moveTo(Math.cos(a) * r * 0.2, Math.sin(a) * r * 0.2); ctx.lineTo(Math.cos(a) * r * 0.7, Math.sin(a) * r * 0.7); ctx.lineTo(Math.cos(a + 0.35) * r * 0.85, Math.sin(a + 0.35) * r * 0.85); ctx.moveTo(Math.cos(a) * r * 0.7, Math.sin(a) * r * 0.7); ctx.lineTo(Math.cos(a - 0.35) * r * 0.85, Math.sin(a - 0.35) * r * 0.85); ctx.stroke(); }
+    const ph = (now * 0.7 + (id % 7) * 0.13) % 1;
+    ctx.strokeStyle = rgba(col, 0.55 * (1 - ph)); ctx.lineWidth = px(1.6); circ(ctx, 0, 0, r * (0.9 + ph * 2.2)); ctx.stroke();
+    ctx.fillStyle = Math.floor(now * 3 + id) % 2 ? col : 'rgba(255,255,255,0.3)'; circ(ctx, 0, 0, Math.max(px(1.6), r * 0.12)); ctx.fill();
+  } else if (p.kind === 'relay') {
     // a mast with a dish and a blinking light
     ctx.fillStyle = `rgba(150,150,145,${lit})`; ctx.fillRect(-r * 0.35, -r * 0.35, r * 0.7, r * 0.7);
     ctx.strokeStyle = `rgba(200,200,195,${lit})`; ctx.lineWidth = px(1.2);

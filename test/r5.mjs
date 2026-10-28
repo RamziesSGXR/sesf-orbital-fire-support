@@ -1,4 +1,4 @@
-// Revision 5 browser check: pelican drop, squads (split / select / draw), the ship gun, eagle strike markers, assault warning,
+// Revision 5 browser check: pelican drop, squads (split / select / draw), the ship gun, eagle strike markers, the radar sweep,
 // colour-coded armory. Takes screenshots and fails loudly on page errors.
 // Usage: node test/r5.mjs [desktop|portrait|landscape] [faction] [biome]
 import { createRequire } from 'node:module';
@@ -141,12 +141,12 @@ await ev(() => {
 await page.waitForTimeout(500);
 await page.screenshot({ path: out('12-eagle-markers') });
 
-// assault warning
-await ev(() => { const m = window.__game.mission; m.assault.nextAt = m.t + 0.5; });
-await page.waitForTimeout(2500);
-await page.screenshot({ path: out('13-assault-warning') });
-const cur = await ev(() => { const c = window.__game.mission.assault.cur; return c ? `${c.name} ${c.dirName} n=${c.n}` : ''; });
-check('an assault was announced', cur.length > 0, cur);
+// the UAV radar sweep (Revision 10 replaced the timed assaults with reinforcement calls)
+await ev(() => { const m = window.__game.mission; m.radar.nextAt = m.t + 0.2; });
+await page.waitForTimeout(1500);
+await page.screenshot({ path: out('13-radar-sweep') });
+const sweep = await ev(() => { const r = window.__game.mission.radar; return { n: r.n, blips: r.blips.length, en: window.__game.mission.enemies.filter((e) => !e.dead).length }; });
+check('a radar sweep marks every enemy on the map', sweep.n >= 1 && sweep.blips > 0 && sweep.blips >= sweep.en * 0.8, JSON.stringify(sweep));
 
 // pause/armory layout
 await page.keyboard.press('KeyB'); await page.waitForTimeout(400);

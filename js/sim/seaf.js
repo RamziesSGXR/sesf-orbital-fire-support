@@ -1,7 +1,9 @@
 // SEAF: the troops the player directs. A troop pelican flies each drop in; the troops join a numbered squad (1 to 4).
 // A squad carries out one standing order: auto (clear the nearest objective), move, protect, attack, escort, a drawn route
 // (path), or a drawn formation (line, ring). Medics patch up anyone nearby; spotters radio in Eagle fire missions.
+import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
+import { aoX, aoY } from './ao.js';
 import { COMMS } from '../data/data.js';
 import { seafStats } from '../data/kit.js';
 import { fireShot } from './combat.js';
@@ -81,7 +83,7 @@ export function setSquadOrder(m, q, kind, x = 0, y = 0, extra = null) {
   q.order = o; q.tgt = null; q.clearT = 0; q.tgtT = 0; q.stand = null;
   if (kind === 'path' || kind === 'line' || kind === 'ring') { q.ax = q.cx; q.ay = q.cy; }
   const list = squadMembers(m, q.i), s = list[Math.floor(m.crng.next() * list.length)];
-  if (s) bark(m, s, kind === 'auto' ? 'clear' : kind === 'path' || kind === 'line' || kind === 'ring' ? 'move' : kind, kind === 'auto' ? 'the nearest objective' : '', true);
+  if (s) bark(m, s, kind === 'auto' ? 'clear' : kind === 'path' || kind === 'line' || kind === 'ring' ? 'move' : kind, kind === 'auto' ? tr('place.nearest') : '', true);
 }
 
 // ---- drawn plays ----
@@ -244,8 +246,8 @@ export function updatePelicans(m, dt) {
         p.state = 'out'; p.outT = 0;
         m._refreshAlive();
         const n = p.roles.length, c = (r) => p.roles.filter((q) => q === r).length;
-        const extra = [c('rocket') ? '+ ROCKET' : '', c('gren') ? `+ ${c('gren')} GRENADIER${c('gren') > 1 ? 'S' : ''}` : '', c('medic') ? '+ MEDIC' : '', c('spotter') ? '+ SPOTTER' : ''].filter(Boolean).join(' ');
-        m.notice(`SEAF PELICAN DOWN  ${n} TROOPERS${extra ? ' ' + extra : ''}  SQUAD ${p.squad + 1}`, 'info');
+        const extra = [c('rocket') ? tr('n.pRocket') : '', c('gren') ? tr('n.pGren', { n: c('gren') }) : '', c('medic') ? tr('n.pMedic') : '', c('spotter') ? tr('n.pSpotter') : ''].filter(Boolean).join(' ');
+        m.notice(tr('n.seafDown', { n, extra: extra ? ' ' + extra : '', sq: p.squad + 1 }), 'info');
         m.radio(COMMS.seafLanded, 'land', 0);
         const s = m.seafAlive.filter((a) => a.sq === p.squad).pop();
         if (s) bark(m, s, 'land', '');
@@ -264,7 +266,7 @@ export function updatePelicans(m, dt) {
 // ---------------------------------------------------------------- medics and spotters
 const SPOT = () => {
   const K = C.spotter;
-  return { name: 'Eagle Fire Mission', cat: 'EAGLE', pat: 'scatter', n: K.n, len: K.len, span: K.span, delay: K.delay, dmg: K.dmg, splash: K.splash, mult: M4(1, 1, 0.6, 0.3), fly: true };
+  return { name: tr('strat.fireMission'), cat: 'EAGLE', pat: 'scatter', n: K.n, len: K.len, span: K.span, delay: K.delay, dmg: K.dmg, splash: K.splash, mult: M4(1, 1, 0.6, 0.3), fly: true };
 };
 export function spotterBlast(m) { return SPOT(); }
 
@@ -313,7 +315,7 @@ function updateSpecialists(m, dt) {
         strikeAt(m, d, { x: best.x, y: best.y }, { ox: a.x, oy: a.y, by: 'squad', friendly: false, dmgMul: 1 });
         m.stats.spotCalls = (m.stats.spotCalls || 0) + 1;
         m.emit('strat_call', { id: 'spot', x: best.x, y: best.y, delay: K.delay, team: -1 });
-        m.notice('SEAF SPOTTER CALLED AN EAGLE FIRE MISSION', 'info');
+        m.notice(tr('n.spotter'), 'info');
         bark(m, a, 'spot', '', true);
         void g;
       }
@@ -439,7 +441,7 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
       if (a.wT <= 0) { const [ox, oy] = m.rng.inDisc(S.patrolRadius * 0.6); a.wx = tx + ox; a.wy = ty + oy; a.wT = m.rng.range(4, 8); }
       walk(m, a, a.wx, a.wy, S.patrolSpeed * bm, dt);
     }
-    a.x = clamp(a.x, 0, SIZE); a.y = clamp(a.y, 0, SIZE);
+    a.x = aoX(m, a.x, 4); a.y = aoY(m, a.y, 4);
   }
   // The end of a route: hold the last point.
   if (o.kind === 'path' && o.pi >= o.path.length) {
@@ -479,7 +481,7 @@ function stepFormations(m, by, dt, bm) {
       a.engaged = !!en;
       if (en) return;
       const s = slots[k], d = Math.hypot(s.x - a.x, s.y - a.y);
-      if (d > 1.6) { walk(m, a, s.x, s.y, d > 18 ? chase : chase * 0.7, dt); a.x = clamp(a.x, 0, SIZE); a.y = clamp(a.y, 0, SIZE); }
+      if (d > 1.6) { walk(m, a, s.x, s.y, d > 18 ? chase : chase * 0.7, dt); a.x = aoX(m, a.x, 4); a.y = aoY(m, a.y, 4); }
     });
   }
 }

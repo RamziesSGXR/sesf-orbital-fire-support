@@ -2,7 +2,9 @@
 // Ultimatum (a slow-loading, short-range hand cannon that hits very hard), a dodge that comes round every so often (see
 // combat.js), and the sense to pull back when badly hurt. A Helldiver who is running calls stratagems as he goes (see strat.js).
 // Every number is in CONFIG.hd.
+import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
+import { aoX, aoY } from './ao.js';
 import { fireShot, blocker } from './combat.js';
 import { bark } from './chatter.js';
 
@@ -84,7 +86,7 @@ export function updateHelldivers(m, dt) {
     }
     // the sidestep of a dodge
     if (a.dv) {
-      if (t < a.dv.until) { a.x = clamp(a.x + a.dv.vx * dt, 0, SIZE); a.y = clamp(a.y + a.dv.vy * dt, 0, SIZE); } else a.dv = null;
+      if (t < a.dv.until) { const nx = aoX(m, a.x + a.dv.vx * dt, 4), ny = aoY(m, a.y + a.dv.vy * dt, 4); if (!m.terrain.blocked(nx, ny)) { a.x = nx; a.y = ny; } } else a.dv = null;
     }
     if (a.mounted || (a.mech && a.mech.hp > 0) || (m.phase === 'extract' && m.extraction.state === 'boarding')) { a.retreat = false; continue; }
 
@@ -104,15 +106,16 @@ export function updateHelldivers(m, dt) {
 
     // pull back when badly hurt, come back once healed or once it is quiet
     if (!a.retreat) {
-      if (thr && frac < R.at) {
+      if (thr && frac < R.at && t >= (a.noRetreatUntil || 0)) {
         a.retreat = true; a.retreatT = t; a.calmT = 0;
         m.stats.retreats = (m.stats.retreats || 0) + 1;
         bark(m, a, 'retreat', '', true);
-        m.radio(`${m.tag(a)} is falling back.`, 'retreat' + a.id, 12);
+        m.radio(tr('c.fallingBack', { who: m.tag(a) }), 'retreat' + a.id, 12);
       }
     } else {
       a.calmT = thr ? 0 : a.calmT + dt;
-      if (frac >= R.resume || (a.calmT >= R.calmSec && t - a.retreatT >= R.minSec)) a.retreat = false;
+      // back to the fight once healed or once it is quiet; and never for long: a Helldiver who has run out of room turns and fights
+      if (frac >= R.resume || (a.calmT >= R.calmSec && t - a.retreatT >= R.minSec) || t - a.retreatT >= R.maxSec) { a.retreat = false; a.noRetreatUntil = t + R.cool; }
     }
     if (a.retreat) {
       let dx = rx, dy = ry, L = Math.hypot(dx, dy);
@@ -127,7 +130,11 @@ export function updateHelldivers(m, dt) {
       }
       if (L > 1e-6) {
         const sp = C.squad.chaseSpeed * bm * R.speed * speedMul(m, a) * dt;
-        a.x = clamp(a.x + (dx / L) * sp, 0, SIZE); a.y = clamp(a.y + (dy / L) * sp, 0, SIZE);
+        // inside the area of operations and on dry ground (slide along water rather than wade into it)
+        const nx = aoX(m, a.x + (dx / L) * sp, 8), ny = aoY(m, a.y + (dy / L) * sp, 8), tr0 = m.terrain;
+        if (!tr0.blocked(nx, ny)) { a.x = nx; a.y = ny; }
+        else if (!tr0.blocked(nx, a.y)) a.x = nx;
+        else if (!tr0.blocked(a.x, ny)) a.y = ny;
       }
     }
 

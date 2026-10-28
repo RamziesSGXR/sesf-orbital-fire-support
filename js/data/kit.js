@@ -2,6 +2,7 @@
 // The player controls three things: the UAV scan, orbital stratagems, and SEAF. Credits buy more and better of each.
 import { CONFIG as C } from '../config.js';
 import { STRATS, ORB_IDS } from './strat.js';
+import { t } from '../i18n.js';
 
 const MAXL = C.orbital.maxLevel;
 
@@ -93,25 +94,14 @@ export const zoneExtra = (kit) => C.kit.zonePer * kit.sup.zone;
 
 // ---------- the shop ----------
 // Every item has: id, section, name, blurb, level, max, cost (null when maxed), and live (true when it can be bought mid-mission).
-const SEAF_UP = {
-  cap:    { name: 'SEAF Barracks', blurb: `+${C.kit.seafCap} SEAF allowed on the ground per level.`, max: 4, price: 300 },
-  drop:   { name: 'Pelican Hangar', blurb: 'Bigger SEAF drops and a faster pelican turnaround.', max: 3, price: 400 },
-  hp:     { name: 'SEAF Armor and Rifles', blurb: 'SEAF take less damage and hit harder.', max: 4, price: 350 },
-  gren:   { name: 'Grenadier Training', blurb: 'More pelican drops include a grenadier.', max: 4, price: 300 },
-  rocket: { name: 'Rocket Troopers', blurb: 'More pelican drops include a rocket trooper for heavies.', max: 4, price: 350 },
-  medic:  { name: 'Field Medics', blurb: 'More drops bring a medic, and medics heal faster.', max: 4, price: 300 },
-  spot:   { name: 'Forward Observers', blurb: 'More drops bring a spotter who calls Eagle fire missions. Bigger, faster fire missions.', max: 4, price: 400 },
-};
-const GUN_UP = {
-  dmg:    { name: 'Gun Barrels', blurb: 'Every round hits harder.', max: 5, price: 300 },
-  ammo:   { name: 'Gun Ammo Bay', blurb: `+${C.gun.upAmmo} rounds in the magazine.`, max: 5, price: 250 },
-  regen:  { name: 'Ammo Synthesizer', blurb: 'The magazine refills faster.', max: 5, price: 250 },
-  spread: { name: 'Gun Stabilizers', blurb: 'Rounds land in a tighter group.', max: 5, price: 300 },
-};
-const SUP_UP = {
-  lives: { name: 'Reinforcement Budget', blurb: `+${C.kit.livesPer} Helldiver lives per level.`, max: 5, price: 300 },
-  zone:  { name: 'Strike Zone Range', blurb: `Strikes and drops reach ${C.kit.zonePer} m farther from the squad per level.`, max: 4, price: 450 },
-};
+// Names and blurbs come from the language tables (kit.<group>.<key> and kit.<group>.<key>.b).
+const SEAF_UP = { cap: { max: 4, price: 300 }, drop: { max: 3, price: 400 }, hp: { max: 4, price: 350 }, gren: { max: 4, price: 300 },
+  rocket: { max: 4, price: 350 }, medic: { max: 4, price: 300 }, spot: { max: 4, price: 400 } };
+const GUN_UP = { dmg: { max: 5, price: 300 }, ammo: { max: 5, price: 250 }, regen: { max: 5, price: 250 }, spread: { max: 5, price: 300 } };
+const SUP_UP = { lives: { max: 5, price: 300 }, zone: { max: 4, price: 450 } };
+// the number a blurb quotes, if it has one
+const BLURB_N = { 'seaf.cap': () => C.kit.seafCap, 'gun.ammo': () => C.gun.upAmmo, 'sup.lives': () => C.kit.livesPer, 'sup.zone': () => C.kit.zonePer };
+const named = (key) => ({ get name() { return t(`kit.${key}`); }, get blurb() { return t(`kit.${key}.b`, { n: BLURB_N[key] ? BLURB_N[key]() : '' }); } });
 const ORB_UP_BASE = 400;       // upgrade price scale: level L to L+1 costs this (or the unlock price) x 0.5 x L
 
 export function orbUpCost(id, level) { return price(Math.max(ORB_UP_BASE, ORB_BASE[id]) * 0.5 * level); }
@@ -122,29 +112,29 @@ export function shopItems(kit) {
   // Slots
   for (const n of [4, 5]) {
     if (kit.slots >= n) continue;
-    items.push({ id: `slot:${n}`, section: 'LOADOUT', name: `Orbital Slot ${n}`, blurb: 'One more orbital stratagem in the mission loadout.', level: 0, max: 1, cost: kit.slots === n - 1 ? slotCost(n) : null, locked: kit.slots !== n - 1, live: false });
+    items.push({ id: `slot:${n}`, section: 'loadout', name: t('kit.slot', { n }), blurb: t('kit.slot.b'), level: 0, max: 1, cost: kit.slots === n - 1 ? slotCost(n) : null, locked: kit.slots !== n - 1, live: false });
   }
   // Orbitals
   for (const id of ORB_LIST) {
     const d = STRATS[id], lvl = kit.owned[id] || 0;
-    const sec = d.util ? 'UTILITIES' : 'ORBITALS';    // ship utilities equip in the same slots, but are listed on their own
+    const sec = d.util ? 'utilities' : 'orbitals';    // ship utilities equip in the same slots, but are listed on their own
     if (!lvl) items.push({ id: `own:${id}`, section: sec, name: d.name, blurb: d.blurb, level: 0, max: MAXL, cost: ORB_PRICE[id], orb: id, live: false });
     else items.push({ id: `up:${id}`, section: sec, name: d.name, blurb: d.blurb, level: lvl, max: MAXL, cost: lvl >= MAXL ? null : orbUpCost(id, lvl), orb: id, owned: true, live: true });
   }
   // Ship Gun
   for (const [k, u] of Object.entries(GUN_UP)) {
     const lvl = kit.gun[k];
-    items.push({ id: `gun.${k}`, section: 'SHIP GUN', name: u.name, blurb: u.blurb, level: lvl, max: u.max, cost: lvl >= u.max ? null : price(u.price * (lvl + 1)), live: true });
+    items.push({ id: `gun.${k}`, section: 'gun', ...named(`gun.${k}`), level: lvl, max: u.max, cost: lvl >= u.max ? null : price(u.price * (lvl + 1)), live: true });
   }
   // UAV
-  items.push({ id: 'uav', section: 'UAV SCAN', name: 'UAV Scan', blurb: 'A bigger, longer, faster-recharging circle of sight for the whole squad.', level: kit.uav, max: C.uav.r.length, cost: kit.uav >= C.uav.r.length ? null : price(350 * kit.uav), live: true });
+  items.push({ id: 'uav', section: 'uav', name: t('kit.uav'), blurb: t('kit.uav.b'), level: kit.uav, max: C.uav.r.length, cost: kit.uav >= C.uav.r.length ? null : price(350 * kit.uav), live: true });
   for (const [k, u] of Object.entries(SEAF_UP)) {
     const lvl = kit.seaf[k];
-    items.push({ id: `seaf.${k}`, section: k === 'medic' || k === 'spot' || k === 'gren' || k === 'rocket' ? 'SEAF SPECIALISTS' : 'SEAF TROOPS', name: u.name, blurb: u.blurb, level: lvl, max: u.max, cost: lvl >= u.max ? null : price(u.price * (lvl + 1)), live: true });
+    items.push({ id: `seaf.${k}`, section: k === 'medic' || k === 'spot' || k === 'gren' || k === 'rocket' ? 'specialists' : 'seaf', ...named(`seaf.${k}`), level: lvl, max: u.max, cost: lvl >= u.max ? null : price(u.price * (lvl + 1)), live: true });
   }
   for (const [k, u] of Object.entries(SUP_UP)) {
     const lvl = kit.sup[k];
-    items.push({ id: `sup.${k}`, section: 'SQUAD SUPPORT', name: u.name, blurb: u.blurb, level: lvl, max: u.max, cost: lvl >= u.max ? null : price(u.price * (lvl + 1)), live: true });
+    items.push({ id: `sup.${k}`, section: 'support', ...named(`sup.${k}`), level: lvl, max: u.max, cost: lvl >= u.max ? null : price(u.price * (lvl + 1)), live: true });
   }
   return items;
 }

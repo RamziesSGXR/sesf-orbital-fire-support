@@ -2,6 +2,7 @@
 // they put on the map (strikes, zones, sentries, mines, shields, support weapons, the recon vehicle, the exosuit, a guard dog).
 // A Helldiver only calls the stratagems in its own group, from where it stands. Squad-wide items (the recon vehicle, jump
 // packs, resupply) can be called by whichever Helldiver is alive. The player's orbital strikes reuse strikeAt() below.
+import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { STRATS, dealGroups } from '../data/strat.js';
 import { LETTERS, TEAM_COLOR, shipNames } from '../data/names.js';
@@ -344,7 +345,7 @@ function land(m, it) {
     if (best) {
       best.sw = { id: it.sid, ...d.sw, left: d.sw.ammo, t: 0.8, snd: SND[it.sid] || 'ac', lockE: null, lockT: 0 };
       m.emit('asset_new', { kind: 'weapon', sid: it.sid, x: best.x, y: best.y });
-      m.notice(`${m.tag(best)} PICKED UP THE ${d.name.toUpperCase()}`, 'info');
+      m.notice(tr('n.pickedUp', { who: m.tag(best), name: d.name.toUpperCase() }), 'info');
     }
   } else if (it.type === 'mech') {
     const owner = m.teams[it.team] && m.teams[it.team].hd;
@@ -375,7 +376,7 @@ function land(m, it) {
       if (a.mech) {
         a.mech = null;
         m.emit('asset_down', { kind: 'mech', sid: 'mech', x: a.x, y: a.y, why: 'abandoned' });
-        m.notice(`${m.tag(a)} ABANDONS THE EXOSUIT FOR THE VEHICLE`, 'info');
+        m.notice(tr('n.exoToFrv', { who: m.tag(a) }), 'info');
       }
       a.mounted = v; v.seats.push(a);
     }
@@ -640,7 +641,7 @@ function updateWeapons(m, dt) {
 function mechOut(m, a, why) {
   if (!a.mech) return;
   a.mech = null;
-  m.radio(why === 'empty' ? 'Exosuit is out of ammo. Pilot is on foot.' : COMMS.mechDown, 'mechout', 3);
+  m.radio(why === 'empty' ? tr('c.mechEmpty') : COMMS.mechDown, 'mechout', 3);
   m.emit('asset_down', { kind: 'mech', sid: 'mech', x: a.x, y: a.y, why });
 }
 export function mechDown(m, a) {
@@ -721,7 +722,7 @@ function updateFfz(m, dt) {
       m.ffzAt = t + F.cooldownSec;
       m.stats.ffz = (m.stats.ffz || 0) + 1;
       m.radio(COMMS.ffzAsk(m.tag(a), dir), 'ffz', 0);
-      m.notice(`FREE-FIRE ZONE ${dir.toUpperCase()}  ALLIES CLEAR OUT  STRIKES IN IT RECHARGE 2X`, 'warn');
+      m.notice(tr('n.ffz', { dir: dir.toUpperCase() }), 'warn');
       m.emit('ffz', { x: best.x, y: best.y, r: F.r, team: a.team });
       bark(m, a, 'ffz', '', true);
       return;

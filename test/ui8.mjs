@@ -33,8 +33,10 @@ const box = await page.locator('#bigmap').boundingBox();
 const tx = box.x + box.width * 0.25, ty = box.y + box.height * 0.75;
 if (touch) await page.touchscreen.tap(tx, ty); else await page.mouse.click(tx, ty);
 await page.waitForTimeout(300);
-const cam = await ev(() => ({ x: window.__game.cam.x, y: window.__game.cam.y }));
-check('tapping a spot on it looks there and closes it', !(await page.isVisible('#s-map')) && Math.abs(cam.x - 400) < 30 && Math.abs(cam.y - 1200) < 30, `camera at ${Math.round(cam.x)}, ${Math.round(cam.y)}`);
+const cam = await ev(() => ({ x: window.__game.cam.x, y: window.__game.cam.y, ao: window.__game.mission.ao }));
+// (the map shows the mission's area of operations, so a quarter across it is a quarter across that square)
+const want = { x: cam.ao.x0 + cam.ao.size * 0.25, y: cam.ao.y0 + cam.ao.size * 0.75 };
+check('tapping a spot on it looks there and closes it', !(await page.isVisible('#s-map')) && Math.abs(cam.x - want.x) < 30 && Math.abs(cam.y - want.y) < 30, `camera at ${Math.round(cam.x)}, ${Math.round(cam.y)}, aimed at ${Math.round(want.x)}, ${Math.round(want.y)}`);
 if (!touch) {
   await page.keyboard.press('KeyL'); await page.waitForTimeout(200);
   const open = await page.isVisible('#s-map');

@@ -24,6 +24,15 @@ export function hitMul(m, tgt, fx, fy, cs) {
 // (fx, fy): where the hit comes from, for the back bonus. cs: whose crit chance (defaults to the attacker's side; '' for none).
 // Troops still under the dropship or warp ship that brought them cannot be hurt until it has pulled away (or they have walked out
 // from under it): the ship covers them.
+// An enemy that shoots at an ally shows itself (see CONFIG.reveal). Locked: shown long enough to be targeted from orbit.
+export function reveal(m, e) {
+  const t = m.t;
+  if (!(e.revealUntil > t)) e.revealFrom = t;
+  e.revealUntil = t + C.reveal.sec;
+}
+export const revealed = (m, e) => e.revealUntil > m.t;
+export const locked = (m, e) => e.revealUntil > m.t && m.t - e.revealFrom >= C.reveal.lockSec;
+
 export function covered(e) {
   const d = e.cover;
   if (!d) return false;
@@ -121,8 +130,9 @@ export function hurtAlly(m, a, rawDmg, by, raw = false, src = null, fx, fy) {
     if (a.mech.hp <= 0) m.mechDown(a);
     return;
   }
-  const dmg = absorb(m, a.x, a.y, rawDmg * (raw ? 1 : ALLY[a.type].armor * (a.armorMul || 1)));
+  let dmg = absorb(m, a.x, a.y, rawDmg * (raw ? 1 : ALLY[a.type].armor * (a.armorMul || 1)));
   if (dmg <= 0) return;
+  if (a.type === 'H' && by === 'enemy' && !raw) dmg = Math.min(dmg, a.maxHp * C.hd.maxHit);     // nothing kills a healthy Helldiver in one hit
   a.hp -= dmg;
   if (a.hp <= 0) m.killAlly(a, by === 'player' ? 'player' : 'enemy', a.lastSrc);
 }
@@ -221,7 +231,7 @@ export function fireShot(m, src, e, prof, by, side = 'a', snd = '') {
   if (e.drop) { m.damageDrop(e, prof.dmg * (mult.H ?? 1), by); return true; }      // a dropship or a warp ship
   if (prof.splash > 0) {
     damageArea(m, tx, ty, prof.splash, prof.dmg, mult, by, false, undefined, src.x, src.y);
-    if (prof.splash >= 3) { m.emit('boom', { x: tx, y: ty, r: prof.splash, dmg: prof.dmg, by }); if (prof.splash >= 6) noise(m, tx, ty, C.enemies.alert.noiseRadius); }
+    if (prof.splash >= 3) { m.emit('boom', { x: tx, y: ty, r: prof.splash, dmg: prof.dmg, by }); if (prof.splash >= 6) noise(m, tx, ty, C.noise.blast); }
   } else hurtEnemy(m, e, prof.dmg * mult[e.kind], by, src.x, src.y);
   return true;
 }

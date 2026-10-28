@@ -16,87 +16,87 @@
   <div id="hud" class="hidden">
     <div class="hud-l">
       <div class="hud-tl panel fadeable">
-        <div class="tl-top"><div id="timer">30:00</div><div id="opname">OPERATION</div><div id="tl-cr">CR <b>0</b></div></div>
+        <div class="tl-top"><div id="timer">30:00</div><div id="opname"></div><div id="tl-cr"><span data-t="hud.cr">CR</span> <b>0</b></div></div>
         <div id="roster"></div>
         <div id="supply"></div>
       </div>
       <div id="notices"></div>
     </div>
     <div class="hud-tc">
-      <div id="objective" class="panel fadeable"><div id="obj-main">OBJECTIVE</div><div id="obj-bar" class="hidden"><i></i></div><div id="obj-sub">SQUAD ADVANCING</div></div>
+      <div id="objective" class="panel fadeable"><div id="obj-main"></div><div id="obj-bar" class="hidden"><i></i></div><div id="obj-sub"></div></div>
       <div id="strats" class="panel fadeable"></div>
       <div id="place-hint" class="panel hidden"></div>
       <div id="callouts">
-        <div id="co-boss" class="callout boss hidden"><span class="co-i">☠</span><span class="co-t"></span><button class="co-b" data-co="look-boss">LOOK</button><i class="co-hp"><u></u><s></s></i></div>
-        <div id="co-ffz" class="callout ffz hidden"><span class="co-i">◎</span><span class="co-t"></span><button class="co-b" data-co="look-ffz">LOOK <kbd>J</kbd></button></div>
-        <div id="co-sup" class="callout sup hidden"><span class="co-i">⬢</span><span class="co-t"></span><button class="co-b primary" data-co="accept">LOAD POD <kbd>U</kbd></button><button class="co-b" data-co="look-sup">LOOK <kbd>J</kbd></button><button class="co-b x" data-co="decline" aria-label="Turn down the supply request">✕</button><i class="co-bar"></i></div>
+        <div id="co-boss" class="callout boss hidden"><span class="co-i">☠</span><span class="co-t"></span><button class="co-b" data-co="look-boss" data-t="hud.look">LOOK</button><i class="co-hp"><u></u><s></s></i></div>
+        <div id="co-ffz" class="callout ffz hidden"><span class="co-i">◎</span><span class="co-t"></span><button class="co-b" data-co="look-ffz"><span data-t="hud.look">LOOK</span> <kbd>J</kbd></button></div>
+        <div id="co-sup" class="callout sup hidden"><span class="co-i">⬢</span><span class="co-t"></span><button class="co-b primary" data-co="accept"><span data-t="hud.loadPod">LOAD POD</span> <kbd>U</kbd></button><button class="co-b" data-co="look-sup"><span data-t="hud.look">LOOK</span> <kbd>J</kbd></button><button class="co-b x" data-co="decline" data-ta="hud.declineSup" aria-label="Turn down the supply request">✕</button><i class="co-bar"></i></div>
       </div>
     </div>
     <div class="hud-tr">
       <div class="panel scorebox fadeable">
-        <div>MISSION <b id="sc-mission">0</b></div>
-        <div>SESSION <b id="sc-session">0</b></div>
-        <div>CREDITS <b id="sc-credits" class="cr">0</b></div>
+        <div><span data-t="hud.mission">MISSION</span> <b id="sc-mission">0</b></div>
+        <div><span data-t="hud.session">SESSION</span> <b id="sc-session">0</b></div>
+        <div><span data-t="hud.credits">CREDITS</span> <b id="sc-credits" class="cr">0</b></div>
         <div id="combo" class="combo"></div>
       </div>
-      <canvas id="minimap" class="fadeable" width="240" height="240" title="Tap for the tactical map (L). Drag to move the camera."></canvas>
+      <canvas id="minimap" class="fadeable" width="240" height="240" data-tt="hud.miniTitle"></canvas>
       <div class="tr-btns">
-        <button id="btn-info" class="btn icon" aria-label="Mission info" title="What this mission is and how to finish it">INFO</button>
-        <button id="btn-shop" class="btn icon" aria-label="Armory">ARMORY</button>
-        <button id="btn-menu" class="btn icon" aria-label="Menu">MENU</button>
-        <button id="btn-pause" class="btn icon" aria-label="Pause">II</button>
+        <button id="btn-info" class="btn icon" data-ta="hud.infoAria" data-tt="hud.infoTitle" data-t="hud.info">INFO</button>
+        <button id="btn-shop" class="btn icon" data-ta="hud.armory" data-t="hud.armory">ARMORY</button>
+        <button id="btn-menu" class="btn icon" data-ta="hud.menu" data-t="hud.menu">MENU</button>
+        <button id="btn-pause" class="btn icon" data-ta="hud.pause">II</button>
       </div>
       <div id="menu" class="panel hidden">
-        <button class="x-close" data-close="menu" aria-label="Close menu">✕</button>
-        <button class="mn" data-mn="info">MISSION INFO</button>
-        <button class="mn" data-mn="armory">ARMORY</button>
-        <button class="mn" data-mn="strats">STRATAGEMS</button>
-        <button class="mn" data-mn="roster">SQUAD STATUS</button>
-        <button class="mn" data-mn="cam">CAMERA <b id="mn-cam">LOCKED</b></button>
+        <button class="x-close" data-close="menu" data-ta="hud.closeMenu">✕</button>
+        <button class="mn" data-mn="info" data-t="ui.missionInfo">MISSION INFO</button>
+        <button class="mn" data-mn="armory" data-t="hud.armory">ARMORY</button>
+        <button class="mn" data-mn="strats" data-t="hud.stratagems">STRATAGEMS</button>
+        <button class="mn" data-mn="roster" data-t="hud.roster">SQUAD STATUS</button>
+        <button class="mn" data-mn="cam"><span data-t="hud.camera">CAMERA</span> <b id="mn-cam"></b></button>
       </div>
     </div>
     <div id="radio"></div>
     <div id="tray">
     <div id="squads" class="panel">
-      <button class="sqb" data-sq="-1"><span class="n">ALL</span><span class="s">0</span></button>
+      <button class="sqb" data-sq="-1"><span class="n" data-t="hud.all">ALL</span><span class="s">0</span></button>
       <button class="sqb" data-sq="0" style="--sc:#5fa8ff"><span class="n">S1</span><span class="s">--</span></button>
       <button class="sqb" data-sq="1" style="--sc:#ff9d4a"><span class="n">S2</span><span class="s">--</span></button>
       <button class="sqb" data-sq="2" style="--sc:#c58bff"><span class="n">S3</span><span class="s">--</span></button>
       <button class="sqb" data-sq="3" style="--sc:#3fe0c4"><span class="n">S4</span><span class="s">--</span></button>
-      <button class="sqa" data-a="draw"><span class="k">R</span><span class="n">DRAW</span></button>
-      <button class="sqa" data-a="split"><span class="k">F</span><span class="n">SPLIT</span></button>
-      <button class="sqa" data-a="merge"><span class="k">M</span><span class="n">MERGE</span></button>
-      <button class="sqa" data-a="assign"><span class="k">Y</span><span class="n">ASSIGN</span></button>
+      <button class="sqa" data-a="draw"><span class="k">R</span><span class="n" data-t="hud.draw">DRAW</span></button>
+      <button class="sqa" data-a="split"><span class="k">F</span><span class="n" data-t="hud.split">SPLIT</span></button>
+      <button class="sqa" data-a="merge"><span class="k">M</span><span class="n" data-t="hud.merge">MERGE</span></button>
+      <button class="sqa" data-a="assign"><span class="k">Y</span><span class="n" data-t="hud.assign">ASSIGN</span></button>
     </div>
     <div id="orders" class="panel">
-      <button class="ord" data-o="seaf"><span class="k">G</span><span class="n">SEAF DROP</span><span class="s">--</span></button>
-      <button class="ord" data-o="auto"><span class="k">X</span><span class="n">AUTO</span><span class="s">--</span></button>
-      <button class="ord" data-o="move"><span class="k">V</span><span class="n">MOVE</span><span class="s">--</span></button>
-      <button class="ord" data-o="protect"><span class="k">Z</span><span class="n">PROTECT</span><span class="s">--</span></button>
-      <button class="ord" data-o="attack"><span class="k">N</span><span class="n">ATTACK</span><span class="s">--</span></button>
-      <button class="ord" data-o="escort"><span class="k">C</span><span class="n">ESCORT</span><span class="s">--</span></button>
+      <button class="ord" data-o="seaf"><span class="k">G</span><span class="n" data-t="hud.seafDrop">SEAF DROP</span><span class="s">--</span></button>
+      <button class="ord" data-o="auto"><span class="k">X</span><span class="n" data-t="hud.auto">AUTO</span><span class="s">--</span></button>
+      <button class="ord" data-o="move"><span class="k">V</span><span class="n" data-t="hud.move">MOVE</span><span class="s">--</span></button>
+      <button class="ord" data-o="protect"><span class="k">Z</span><span class="n" data-t="hud.protect">PROTECT</span><span class="s">--</span></button>
+      <button class="ord" data-o="attack"><span class="k">N</span><span class="n" data-t="hud.attack">ATTACK</span><span class="s">--</span></button>
+      <button class="ord" data-o="escort"><span class="k">C</span><span class="n" data-t="hud.escort">ESCORT</span><span class="s">--</span></button>
     </div>
     </div>
     <div id="dock">
-      <button id="dk-sq" class="dkb"><span class="n">SQUADS</span><span class="s">--</span></button>
-      <button id="dk-drop" class="dkb"><span class="n">SEAF DROP</span><span class="s">--</span></button>
-      <button id="btn-follow" class="dkb"><span class="n">CAM LOCK</span></button>
+      <button id="dk-sq" class="dkb"><span class="n"></span><span class="s">--</span></button>
+      <button id="dk-drop" class="dkb"><span class="n" data-t="hud.seafDrop">SEAF DROP</span><span class="s">--</span></button>
+      <button id="btn-follow" class="dkb"><span class="n"></span></button>
     </div>
     <div id="flavor" class="fadeable"></div>
     <div id="infocard" class="panel hidden" role="status"></div>
-    <div id="supgame" class="panel hidden" role="dialog" aria-label="Load the supply pod">
-      <div class="sg-h"><b>LOAD THE SUPPLY POD</b><span id="sg-for"></span></div>
-      <div class="sg-bars"><div class="sg-time"><i id="sg-time"></i></div><div class="sg-fast"><i id="sg-fast"></i><span id="sg-fast-t">FAST LOAD BONUS</span></div></div>
+    <div id="supgame" class="panel hidden" role="dialog" data-ta="sg.title">
+      <div class="sg-h"><b data-t="sg.title">LOAD THE SUPPLY POD</b><span id="sg-for"></span></div>
+      <div class="sg-bars"><div class="sg-time"><i id="sg-time"></i></div><div class="sg-fast"><i id="sg-fast"></i><span id="sg-fast-t"></span></div></div>
       <div class="sg-pod">
-        <button class="sg-slot stims" data-i="0" type="button"><span class="sg-k">1</span><span class="sg-cells"></span><span class="sg-n">STIMS</span></button>
-        <button class="sg-slot gren" data-i="1" type="button"><span class="sg-k">2</span><span class="sg-cells"></span><span class="sg-n">GRENADES</span></button>
-        <button class="sg-slot ammo" data-i="2" type="button"><span class="sg-k">3</span><span class="sg-cells"></span><span class="sg-n">AMMO</span></button>
+        <button class="sg-slot stims" data-i="0" type="button"><span class="sg-k">1</span><span class="sg-cells"></span><span class="sg-n" data-t="sg.stims">STIMS</span></button>
+        <button class="sg-slot gren" data-i="1" type="button"><span class="sg-k">2</span><span class="sg-cells"></span><span class="sg-n" data-t="sg.gren">GRENADES</span></button>
+        <button class="sg-slot ammo" data-i="2" type="button"><span class="sg-k">3</span><span class="sg-cells"></span><span class="sg-n" data-t="sg.ammo">AMMO</span></button>
       </div>
-      <div class="sg-foot"><span class="fine" id="sg-hint">Tap a compartment to load it. A full pod is a full refill; a fast one boosts the squad.</span><button id="sg-launch" class="btn primary" type="button">LAUNCH NOW</button></div>
+      <div class="sg-foot"><span class="fine" id="sg-hint" data-t="sg.hint"></span><button id="sg-launch" class="btn primary" type="button" data-t="sg.launch">LAUNCH NOW</button></div>
     </div>
     <div id="weapons"></div>
     <div id="touch-ctl">
-      <button id="fire-btn" class="btn fire">CALL</button>
+      <button id="fire-btn" class="btn fire" data-t="hud.call">CALL</button>
     </div>
     <div id="center-msg"></div>
     <div id="toast"></div>
@@ -105,42 +105,43 @@
   <!-- Screens -->
   <section id="s-title" class="screen">
     <div class="card">
-      <div class="eyebrow">Super Earth Special Forces</div>
+      <div class="eyebrow" data-t="title.eyebrow">Super Earth Special Forces</div>
       <h1>ORBITAL<br>FIRE SUPPORT</h1>
-      <p class="tag">Super Destroyer targeting simulator</p>
-      <label class="field">CALLSIGN <input id="callsign" maxlength="16" placeholder="Optional" autocomplete="off" spellcheck="false"></label>
+      <p class="tag" data-t="title.tag"></p>
+      <label class="field"><span data-t="title.callsign">CALLSIGN</span> <input id="callsign" maxlength="16" data-tp="title.optional" autocomplete="off" spellcheck="false"></label>
+      <div id="langs" class="langs" role="group" data-ta="set.lang"></div>
       <div class="btns">
-        <button id="btn-play" class="btn primary big">PRESS PLAY</button>
-        <button id="btn-resume" class="btn hidden">RESUME SESSION</button>
-        <button id="btn-names-t" class="btn">SQUAD NAMES</button>
-        <button id="btn-settings" class="btn">SETTINGS</button>
-        <button id="btn-about-t" class="btn">ABOUT THIS PROJECT</button>
-        <a id="lnk-fb-t" class="btn fb" target="_blank" rel="noopener">GIVE FEEDBACK</a>
+        <button id="btn-play" class="btn primary big" data-t="title.play">PLAY</button>
+        <button id="btn-resume" class="btn hidden"></button>
+        <button id="btn-names-t" class="btn" data-t="ui.names">SQUAD NAMES</button>
+        <button id="btn-settings" class="btn" data-t="ui.settings">SETTINGS</button>
+        <button id="btn-about-t" class="btn" data-t="ui.about">ABOUT</button>
+        <a id="lnk-fb-t" class="btn fb" target="_blank" rel="noopener" data-t="ui.feedback">FEEDBACK</a>
       </div>
-      <p class="fine fb-note">GIVE FEEDBACK opens a short form on the project's GitHub page in a new tab (a free GitHub account is needed). Tell us your device, what happened, and what you would change.</p>
+      <p class="fine fb-note" data-t="title.fbNote"></p>
       <p id="best" class="fine"></p>
-      <p class="fine">Unofficial fan project. Not affiliated with or endorsed by Arrowhead Game Studios or Sony Interactive Entertainment.</p>
+      <p class="fine" data-t="ui.disclaimer"></p>
     </div>
   </section>
 
   <section id="s-shop" class="screen">
     <div class="card wide3">
-      <div class="eyebrow" id="shop-eyebrow">Before mission 1</div>
-      <h2>ARMORY</h2>
+      <div class="eyebrow" id="shop-eyebrow"></div>
+      <h2 data-t="hud.armory">ARMORY</h2>
       <div id="shop-root"></div>
       <div class="btns shop-go">
-        <button id="shop-go" class="btn primary big">DEPLOY</button>
-        <button id="shop-names" class="btn">SQUAD NAMES</button>
+        <button id="shop-go" class="btn primary big"></button>
+        <button id="shop-names" class="btn" data-t="ui.names">SQUAD NAMES</button>
       </div>
     </div>
   </section>
 
   <section id="s-brief" class="screen">
-    <div class="brief-top"><span>MISSION <b id="b-num">1</b></span><span>SESSION SCORE <b id="b-score">0</b></span></div>
+    <div class="brief-top"><span><span data-t="hud.mission">MISSION</span> <b id="b-num">1</b></span><span><span data-t="brief.sessionScore">SESSION SCORE</span> <b id="b-score">0</b></span></div>
     <div id="b-card" class="card wide2">
       <div class="b-cols">
         <div class="b-left">
-          <div class="eyebrow">Mission <span id="r-n">1</span></div>
+          <div class="eyebrow"><span data-t="brief.mission">Mission</span> <span id="r-n">1</span></div>
           <div id="r-op" class="r-line big"></div>
           <div id="r-enemy" class="r-line"></div>
           <div id="r-biome" class="r-line"></div>
@@ -148,41 +149,19 @@
           <div id="b-strats"></div>
           <div id="b-strat-note" class="fine"></div>
           <div class="progress"><i id="b-prog"></i></div>
-          <div id="b-status" class="fine">LOADING MISSION</div>
+          <div id="b-status" class="fine"></div>
           <div class="btns">
-            <button id="b-continue" class="btn primary big" disabled>LOADING</button>
-            <button id="btn-end" class="btn">END SESSION</button>
+            <button id="b-continue" class="btn primary big" disabled></button>
+            <button id="btn-end" class="btn" data-t="ui.endSession">END SESSION</button>
           </div>
         </div>
         <div class="b-right">
-          <h2>THE SITUATION</h2>
+          <h2 data-t="brief.situation">THE SITUATION</h2>
           <div id="b-story" class="b-story"></div>
-          <button id="b-tipbox" class="b-tip" type="button" aria-live="polite" title="Next tip"><span class="tip-tag">TIP</span><span id="b-tip"></span><span class="tip-next">NEXT ›</span></button>
-          <h2>CONTROLS</h2>
-          <div id="controls-desktop" class="ctl">
-            <div><kbd>MOUSE</kbd> aim <kbd>CLICK</kbd> call the selected scan or strike</div>
-            <div><kbd>1</kbd> UAV <kbd>2</kbd>-<kbd>6</kbd> orbitals <kbd>Q</kbd><kbd>E</kbd> cycle</div>
-            <div><kbd>7</kbd> the nuke, once the launch site is armed</div>
-            <div><kbd>8</kbd> Ship Gun: hold <kbd>CLICK</kbd> to free-fire anywhere you can see. It has its own ammo.</div>
-            <div><kbd>G</kbd> SEAF pod drop <kbd>X</kbd> auto (clear the nearest target)</div>
-            <div><kbd>V</kbd> move <kbd>Z</kbd> protect <kbd>N</kbd> attack <kbd>C</kbd> escort</div>
-            <div class="sub">Drops and orders land at the cursor. You can also click an order button, then click the map. Click a bug hole or a point of interest to send SEAF straight at it.</div>
-            <div><kbd>TAB</kbd> next squad <kbd>`</kbd> all squads <kbd>R</kbd> draw a play <kbd>F</kbd> split <kbd>M</kbd> merge <kbd>Y</kbd> assign</div>
-            <div class="sub">Draw mode: drag on the map. A loop is a ring, a straight stroke is a line, anything else is a route the squad runs.</div>
-            <div><kbd>B</kbd> armory (upgrades) <kbd>ESC</kbd> pause, rename squads</div>
-            <div><kbd>WASD</kbd> or right-drag pan <kbd>WHEEL</kbd> zoom <kbd>SPACE</kbd> camera lock <kbd>T</kbd> thermal polarity <kbd>H</kbd> relief map <kbd>I</kbd> mission info</div>
-            <div><kbd>L</kbd> or click the minimap: tactical map <kbd>U</kbd> answer a supply request <kbd>J</kbd> look at the latest callout</div>
-          </div>
-          <div id="controls-touch" class="ctl">
-            <div><kbd>DRAG</kbd> slide the map under the crosshair</div>
-            <div><kbd>PINCH</kbd> zoom <kbd>TAP MINIMAP</kbd> tactical map</div>
-            <div><kbd>LOAD POD</kbd> answer a supply request <kbd>LOOK</kbd> see a callout</div>
-            <div><kbd>CALL</kbd> fire the selected scan or strike at the crosshair</div>
-            <div><kbd>BAR</kbd> pick UAV, orbital or nuke</div>
-            <div><kbd>ORDERS</kbd> SEAF drop, auto, move, protect, attack, escort</div>
-            <div><kbd>S1-S4</kbd> pick a squad, <kbd>DRAW</kbd> then drag one finger to draw a route, line or ring. Two fingers still pan and zoom.</div>
-            <div class="sub">Drops and orders land at the crosshair. Pick the Ship Gun on the bar and hold CALL to free-fire. Tap ARMORY to upgrade mid-mission.</div>
-          </div>
+          <button id="b-tipbox" class="b-tip" type="button" aria-live="polite" data-tt="brief.nextTip"><span class="tip-tag" data-t="brief.tip">TIP</span><span id="b-tip"></span><span class="tip-next" data-t="brief.next">NEXT ›</span></button>
+          <h2 data-t="brief.controls">CONTROLS</h2>
+          <div id="controls-desktop" class="ctl" data-th="ctl.desktop"></div>
+          <div id="controls-touch" class="ctl" data-th="ctl.touch"></div>
         </div>
       </div>
     </div>
@@ -190,147 +169,143 @@
 
   <section id="s-debrief" class="screen">
     <div class="card wide">
-      <div class="eyebrow" id="d-op">Operation</div>
-      <h2 id="d-outcome">VICTORY</h2>
+      <div class="eyebrow" id="d-op"></div>
+      <h2 id="d-outcome"></h2>
       <div id="d-why" class="fine"></div>
       <table id="d-table"></table>
-      <h3>CREDITS</h3>
+      <h3 data-t="hud.credits">CREDITS</h3>
       <table id="d-credits"></table>
-      <h3>DEATH REPORT</h3>
+      <h3 data-t="deb.deaths">DEATH REPORT</h3>
       <div id="d-deaths" class="deaths"></div>
       <div id="d-extra" class="fine"></div>
-      <div class="d-total">MISSION SCORE <b id="d-mscore">0</b></div>
-      <div class="d-total">SESSION TOTAL <b id="d-sscore">0</b></div>
-      <div class="btns"><button id="btn-continue" class="btn primary big">NEXT MISSION</button><button id="btn-end-d" class="btn">END SESSION</button></div>
+      <div class="d-total"><span data-t="deb.mscore">MISSION SCORE</span> <b id="d-mscore">0</b></div>
+      <div class="d-total"><span data-t="deb.sscore">SESSION TOTAL</span> <b id="d-sscore">0</b></div>
+      <div class="btns"><button id="btn-continue" class="btn primary big"></button><button id="btn-end-d" class="btn" data-t="ui.endSession">END SESSION</button></div>
     </div>
   </section>
 
   <section id="s-final" class="screen">
     <div class="card wide">
-      <div class="eyebrow">Session complete</div>
-      <h2>FINAL SCORE <b id="f-score">0</b></h2>
-      <div class="f-id">SESSION ID <b id="f-id"></b></div>
+      <div class="eyebrow" data-t="fin.eyebrow">Session complete</div>
+      <h2><span data-t="fin.score">FINAL SCORE</span> <b id="f-score">0</b></h2>
+      <div class="f-id"><span data-t="fin.id">SESSION ID</span> <b id="f-id"></b></div>
       <div class="f-local" id="f-local"></div>
       <div id="f-totals" class="fine"></div>
       <table id="f-table"></table>
       <textarea id="f-text" readonly rows="8" spellcheck="false"></textarea>
       <div class="btns">
-        <button id="btn-copy" class="btn primary">COPY</button>
+        <button id="btn-copy" class="btn primary" data-t="fin.copy">COPY</button>
         <button id="btn-post" class="btn hidden">POST</button>
-        <button id="btn-share" class="btn hidden">SHARE</button>
-        <button id="btn-again" class="btn">PLAY AGAIN</button>
-        <a id="lnk-fb-f" class="btn fb" target="_blank" rel="noopener">GIVE FEEDBACK</a>
+        <button id="btn-share" class="btn hidden" data-t="fin.share">SHARE</button>
+        <button id="btn-again" class="btn" data-t="fin.again">PLAY AGAIN</button>
+        <a id="lnk-fb-f" class="btn fb" target="_blank" rel="noopener" data-t="ui.feedback">FEEDBACK</a>
       </div>
       <p id="f-msg" class="fine"></p>
-      <p class="fine fb-note">How did it go? GIVE FEEDBACK opens a short form on the project's GitHub page in a new tab (a free GitHub account is needed). Paste your score block in it if you like.</p>
+      <p class="fine fb-note" data-t="fin.fbNote"></p>
     </div>
   </section>
 
   <!-- Overlays -->
   <section id="s-pause" class="screen overlay">
     <div class="card">
-      <button class="x-close" data-close="s-pause" aria-label="Close and resume">✕</button>
-      <h2>PAUSED</h2>
+      <button class="x-close" data-close="s-pause" data-ta="pause.close">✕</button>
+      <h2 data-t="pause.title">PAUSED</h2>
       <div class="btns col">
-        <button id="btn-resume-m" class="btn primary big">RESUME</button>
-        <button id="btn-info-m" class="btn">MISSION INFO</button>
-        <button id="btn-armory-m" class="btn">ARMORY</button>
-        <button id="btn-names-m" class="btn">SQUAD NAMES</button>
-        <button id="btn-settings-m" class="btn">SETTINGS</button>
-        <button id="btn-about-m" class="btn">ABOUT THIS PROJECT</button>
-        <a id="lnk-fb-m" class="btn fb" target="_blank" rel="noopener">GIVE FEEDBACK</a>
-        <button id="btn-abort" class="btn danger">RETIRE FROM MISSION</button>
+        <button id="btn-resume-m" class="btn primary big" data-t="pause.resume">RESUME</button>
+        <button id="btn-info-m" class="btn" data-t="ui.missionInfo">MISSION INFO</button>
+        <button id="btn-armory-m" class="btn" data-t="hud.armory">ARMORY</button>
+        <button id="btn-names-m" class="btn" data-t="ui.names">SQUAD NAMES</button>
+        <button id="btn-settings-m" class="btn" data-t="ui.settings">SETTINGS</button>
+        <button id="btn-about-m" class="btn" data-t="ui.about">ABOUT</button>
+        <a id="lnk-fb-m" class="btn fb" target="_blank" rel="noopener" data-t="ui.feedback">FEEDBACK</a>
+        <button id="btn-abort" class="btn danger" data-t="pause.retire">RETIRE FROM MISSION</button>
       </div>
-      <p class="fine fb-note">GIVE FEEDBACK opens the project's GitHub page in a new tab. The game stays paused here.</p>
-      <p id="abort-confirm" class="fine hidden">Retiring ends the session unless the objective is already done. Tap again to confirm.</p>
+      <p class="fine fb-note" data-t="pause.fbNote"></p>
+      <p id="abort-confirm" class="fine hidden" data-t="pause.confirm"></p>
     </div>
   </section>
 
   <section id="s-armory" class="screen overlay">
     <div class="card wide3">
-      <button class="x-close" data-close="s-armory" aria-label="Close the armory">✕</button>
-      <h2>ARMORY</h2>
-      <p class="fine">Mid-mission you can upgrade what you own. New orbitals and extra slots are bought between missions.</p>
+      <button class="x-close" data-close="s-armory" data-ta="arm.close">✕</button>
+      <h2 data-t="hud.armory">ARMORY</h2>
+      <p class="fine" data-t="arm.note"></p>
       <div id="arm-root"></div>
-      <div class="btns"><button id="arm-close" class="btn primary big">BACK TO THE MISSION</button></div>
+      <div class="btns"><button id="arm-close" class="btn primary big" data-t="ui.back">BACK TO THE MISSION</button></div>
     </div>
   </section>
 
   <section id="s-names" class="screen overlay">
     <div class="card">
-      <button class="x-close" data-close="s-names" aria-label="Close without saving">✕</button>
-      <h2>SQUAD NAMES</h2>
-      <p class="fine">Four groups, one Helldiver each. A blank ship gets a random Super Destroyer name every mission. A blank Helldiver uses its code, like B4.</p>
+      <button class="x-close" data-close="s-names" data-ta="names.close">✕</button>
+      <h2 data-t="ui.names">SQUAD NAMES</h2>
+      <p class="fine" data-t="names.note"></p>
       <div id="names-body"></div>
       <div class="btns">
-        <button id="names-clear" class="btn">CLEAR ALL</button>
-        <button id="names-save" class="btn primary">SAVE</button>
-        <button id="names-cancel" class="btn">CANCEL</button>
+        <button id="names-clear" class="btn" data-t="names.clear">CLEAR ALL</button>
+        <button id="names-save" class="btn primary" data-t="names.save">SAVE</button>
+        <button id="names-cancel" class="btn" data-t="names.cancel">CANCEL</button>
       </div>
     </div>
   </section>
 
   <section id="s-settings" class="screen overlay">
     <div class="card">
-      <button class="x-close" data-close="s-settings" aria-label="Close settings">✕</button>
-      <h2>SETTINGS</h2>
+      <button class="x-close" data-close="s-settings" data-ta="set.close">✕</button>
+      <h2 data-t="ui.settings">SETTINGS</h2>
       <div id="settings-body"></div>
-      <div class="btns"><button id="btn-settings-close" class="btn primary">DONE</button></div>
+      <div class="btns"><button id="btn-settings-close" class="btn primary" data-t="set.done">DONE</button></div>
     </div>
   </section>
 
   <section id="s-info" class="screen overlay">
     <div class="card wide">
-      <button class="x-close" data-close="s-info" aria-label="Close mission info">✕</button>
-      <div class="eyebrow" id="info-eyebrow">Mission info</div>
-      <h2 id="info-title">THE MISSION</h2>
+      <button class="x-close" data-close="s-info" data-ta="info.close">✕</button>
+      <div class="eyebrow" id="info-eyebrow"></div>
+      <h2 id="info-title"></h2>
       <div id="info-body"></div>
-      <div class="btns"><button id="info-close" class="btn primary big">BACK TO THE MISSION</button></div>
+      <div class="btns"><button id="info-close" class="btn primary big" data-t="ui.back">BACK TO THE MISSION</button></div>
     </div>
   </section>
 
   <section id="s-map" class="screen overlay">
     <div class="card mapcard">
-      <button class="x-close" data-close="s-map" aria-label="Close the map">✕</button>
-      <div class="eyebrow">Tactical map</div>
-      <div class="mapwrap"><canvas id="bigmap" width="900" height="900" aria-label="Tactical map. Tap a spot to look there."></canvas></div>
-      <div class="map-key"><span class="k-hd">● ALLIES</span><span class="k-en">■ ENEMIES IN SIGHT</span><span class="k-obj">◆ OBJECTIVE, EXTRACT</span><span class="k-base">○ ENEMY BASE</span><span class="k-poi">□ TARGET</span><span class="k-ffz">◌ FREE FIRE</span><span class="k-boss">⊗ SUPER HEAVY</span></div>
-      <p class="fine">Tap the map to look there. The game is paused while the map is open.</p>
-      <div class="btns"><button id="map-follow" class="btn">FOLLOW SQUAD</button><button id="map-close" class="btn primary">BACK</button></div>
+      <button class="x-close" data-close="s-map" data-ta="map.close">✕</button>
+      <div class="eyebrow" data-t="map.title">Tactical map</div>
+      <div class="mapwrap"><canvas id="bigmap" width="900" height="900" data-ta="map.aria"></canvas></div>
+      <div class="map-key"><span class="k-hd">● <span data-t="map.k.allies">ALLIES</span></span><span class="k-en">■ <span data-t="map.k.enemies">ENEMIES</span></span><span class="k-rad">▪ <span data-t="map.k.radar">RADAR</span></span><span class="k-obj">◆ <span data-t="map.k.obj">OBJECTIVE</span></span><span class="k-base">○ <span data-t="map.k.base">ENEMY BASE</span></span><span class="k-poi">□ <span data-t="map.k.poi">TARGET</span></span><span class="k-side">◇ <span data-t="map.k.side">SIDE OBJECTIVE</span></span><span class="k-bcn">⊥ <span data-t="map.k.beacon">SEAF DROP</span></span><span class="k-ffz">◌ <span data-t="map.k.ffz">FREE FIRE</span></span><span class="k-boss">⊗ <span data-t="map.k.boss">SUPER HEAVY</span></span></div>
+      <p class="fine" data-t="map.note"></p>
+      <div class="btns"><button id="map-follow" class="btn" data-t="map.follow">FOLLOW SQUAD</button><button id="map-close" class="btn primary" data-t="map.back">BACK</button></div>
     </div>
   </section>
 
   <section id="s-about" class="screen overlay">
     <div class="card wide">
-      <button class="x-close" data-close="s-about" aria-label="Close">✕</button>
-      <div class="eyebrow">About this project</div>
+      <button class="x-close" data-close="s-about" data-ta="ui.close">✕</button>
+      <div class="eyebrow" data-t="about.eyebrow">About this project</div>
       <h2>ORBITAL FIRE SUPPORT</h2>
       <div id="about-body" class="about">
-        <p>A free, fan-made minigame for the <b>Super Earth Special Forces</b> community. You are the gunner on a Super Destroyer: you scan the ground, call orbital strikes, fire the ship gun and drop SEAF troops, while four Helldivers fight their way through the mission below you.</p>
-        <p>It is an <b>unofficial fan project</b>, not affiliated with or endorsed by Arrowhead Game Studios or Sony Interactive Entertainment. Everything in it (art, sound, text, numbers) is made from scratch for this project; there are no game assets in it.</p>
-        <p>It runs in the browser on a phone or a computer, with nothing to install. Your progress and best scores stay on your own device.</p>
-        <p><b>How a session works:</b> missions follow one another until one fails. The first few are quick; later ones are bigger and harder, each mission gets harder the longer it runs, and now and then a super heavy has to be brought down before the squad can leave. Credits buy and upgrade your orbitals, ship utilities, the ship gun, the UAV scan, SEAF and squad support.</p>
-        <p><b>Feedback is how it gets better.</b> GIVE FEEDBACK opens a short form on the project's GitHub page in a new tab (a free GitHub account is needed). Say what device you played on, what happened, and what you would change.</p>
+        <div data-th="about.body"></div>
         <p class="fine" id="about-ver"></p>
       </div>
       <div class="btns">
-        <a id="lnk-fb-a" class="btn primary fb" target="_blank" rel="noopener">GIVE FEEDBACK</a>
-        <a id="lnk-proj" class="btn" target="_blank" rel="noopener">PROJECT PAGE</a>
-        <button id="about-close" class="btn">CLOSE</button>
+        <a id="lnk-fb-a" class="btn primary fb" target="_blank" rel="noopener" data-t="ui.feedback">FEEDBACK</a>
+        <a id="lnk-proj" class="btn" target="_blank" rel="noopener" data-t="about.project">PROJECT PAGE</a>
+        <button id="about-close" class="btn" data-t="ui.closeBtn">CLOSE</button>
       </div>
     </div>
   </section>
 
   <section id="s-notice" class="screen overlay">
     <div class="card">
-      <button class="x-close" data-close="s-notice" aria-label="Understood">✕</button>
-      <h2>FLASHING LIGHTS</h2>
-      <p>This game uses blinking infrared strobes and bright explosion flashes. Turn on Reduce flashing in Settings if that bothers you.</p>
-      <div class="btns"><button id="btn-notice" class="btn primary big">UNDERSTOOD</button><button id="btn-notice-set" class="btn">SETTINGS</button></div>
+      <button class="x-close" data-close="s-notice" data-ta="flash.ok">✕</button>
+      <h2 data-t="flash.title">FLASHING LIGHTS</h2>
+      <p data-t="flash.text"></p>
+      <div class="btns"><button id="btn-notice" class="btn primary big" data-t="flash.ok">UNDERSTOOD</button><button id="btn-notice-set" class="btn" data-t="ui.settings">SETTINGS</button></div>
     </div>
   </section>
 
-  <div id="rotate-hint" class="hidden">Landscape gives you a wider view.</div>
+  <div id="rotate-hint" class="hidden" data-t="ui.rotate"></div>
   <div id="debug" class="hidden"></div>
 </div>
 <script type="module" src="js/main.js"></script>

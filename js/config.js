@@ -4,16 +4,17 @@ export const CONFIG = {
   // missionSec is the clock for the whole mission. The objective has to be done before it runs out.
   // The session has no win screen: it carries on mission after mission until one fails.
   world:    { size: 1600, tickHz: 30, missionSec: 1800, extraSecPerBase: 0, viewWidth: 400, zoomMin: 200, zoomMax: 800 },
+  // The area of operations: each mission is fought in a square of the map, start metres across on the first mission and perMission
+  // more on each one after, up to max. The first maps are small enough to clear completely.
+  ao:       { start: 760, perMission: 110, max: 1500, margin: 40, tries: 14 },
   // After the objective is done the squad has bonusSec to clear bases for extra points, then pulls out.
   // The bonus time (and the wait for the extraction pelican) grow with the session, so the first missions are quick and later ones
   // take longer as the war gets harder and the player has more to do: bonusSec = bonusMin + bonusPerMin x session minutes, capped.
   mission:  { bonusSec: 210, bonusMin: 60, bonusPerMin: 1.6, secondObjectiveAtMin: 40 },
 
   // Four Helldivers, one per stratagem group. When one dies a replacement pod is called in by itself and costs one life.
-  helldivers: { start: 4, max: 4, lives: 14, reinforceSec: 8, dropDelaySec: 5, initialDropSec: 3, podRadius: 10, podDmg: 500,
-              // With fewer than four Helldivers and no recalls left, one recall is granted after this long, so a squad that has
-              // been ground down always has a chance to come back.
-              recallSec: 120 },
+  // When the last one falls with no lives left the mission is lost: there is no free recall.
+  helldivers: { start: 4, max: 4, lives: 12, reinforceSec: 8, dropDelaySec: 5, initialDropSec: 3, podRadius: 10, podDmg: 500 },
   // The Helldiver kit. Primary: the Liberator (CONFIG.combat.helldiver). Secondary: the Ultimatum, a slow-loading, short-range,
   // heavy-penetration pistol that hits very hard. Four stims (heal over a few seconds and a burst of speed), three
   // heavy-penetration grenades (six to kill a medium), and a dodge that comes round every so often. A resupply restocks all of it.
@@ -21,7 +22,9 @@ export const CONFIG = {
               grenades: 3, gren: { dmg: 34, splash: 4.5, range: 36, minRange: 10, every: 3.2, acc: 0.85, flight: 0.9, mult: { L: 1, M: 1, H: 0.9, B: 0.3 } },
               ult: { dmg: 520, splash: 3.4, range: 30, every: 9, acc: 0.92, flight: 0.2, mult: { L: 1, M: 1, H: 0.9, B: 0.25 } },
               dodge: { cool: 10, chance: 0.65, minHit: 9, dist: 3.6, sec: 0.35 },
-              retreat: { at: 0.36, resume: 0.7, speed: 1.3, enemyR: 46, calmSec: 3, minSec: 2.5 },
+              // no single enemy hit takes more than maxHit of a Helldiver's health: however late in the war, it takes two
+              maxHit: 0.7,
+              retreat: { at: 0.36, resume: 0.7, speed: 1.3, enemyR: 46, calmSec: 3, minSec: 2.5, maxSec: 10, cool: 8 },
               // trigger discipline: a shot is held when a friendly stands in the line of fire; now and then it is taken anyway
               fire: { lane: 1.9, collateral: 0.1, ffMul: 0.5 } },
   // SEAF arrive when the player calls a pod. By default they go and clear the nearest objective on their own.
@@ -56,7 +59,7 @@ export const CONFIG = {
   // Damage model. Allies have hit points. Enemies hurt them by their own attack profile, so light
   // enemies do light damage and heavies do heavy damage. armor scales incoming damage.
   combat: {
-    helldiver: { hp: 420, armor: 0.55, dps: 36, burst: 0.4, acc: 0.88, range: 56, mult: { L: 1, M: 0.6, H: 0.3 } },   // the Liberator
+    helldiver: { hp: 420, armor: 0.55, dps: 36, burst: 0.4, acc: 0.88, range: 56, mult: { L: 1, M: 0.45, H: 0.12 } },   // the Liberator
     seaf:      { hp: 100, armor: 1.0, dps: 12, burst: 0.6, acc: 0.7,  range: 46, mult: { L: 1, M: 0.5, H: 0.15 } },
     // Effective range. Every direct-fire weapon, ally or enemy, has a reach: inside the first `short` of it a shot is at full accuracy
     // and a little extra damage, out to `medium` it is a little worse, and at long range (out to the reach) it is clearly worse.
@@ -80,7 +83,7 @@ export const CONFIG = {
                 H: { range: 58, dmg: 50, every: 1.6, acc: 0.75, speed: 3.2, splash: 3.5 } },   // medium range cannon
       squids: { L: { range: 30, dmg: 6,  every: 0.9, acc: 0.7 },
                 M: { range: 34, dmg: 18, every: 1.3, acc: 0.75 },
-                H: { range: 62, dmg: 150, every: 7, acc: 1, speed: 2.4, charge: 2.6, lock: 0.7, width: 3.2 } }, // the longest reach of any enemy: a charged beam
+                H: { range: 62, dmg: 120, every: 7, acc: 1, speed: 2.4, charge: 2.6, lock: 0.7, width: 3.2 } }, // the longest reach of any enemy: a charged beam
     },
   },
 
@@ -89,14 +92,14 @@ export const CONFIG = {
   // Mostly light enemies: the bag is 36 light, 3 medium and 1 heavy per forty, so a heavy is an event and not a habit.
   // Each faction has a way of fighting. Bugs swarm in big loose packs that rush the squad from every side. Bots stop at a standoff
   // distance and form a firing line across the approach. Squids spread out and surround whoever they hunt.
-  enemies:  { liveCap: 90, capPerMissionMin: 5, capPerSessionMin: 0.6, maxLive: 190, hardCap: 230, startGroups: 4, groupSize: 7, group: { bugs: 10, bots: 8, squids: 8 },
-              bag: { light: 36, medium: 3, heavy: 1 },
+  enemies:  { liveCap: 90, capPerMissionMin: 5, capPerSessionMin: 0.6, maxLive: 190, hardCap: 230, startGroups: 4, groupSize: 7, group: { bugs: 14, bots: 10, squids: 10 },
+              bag: { light: 32, medium: 6, heavy: 2 },
               // Mediums and heavies die slowly, so they pile up in the field while the lights melt away. This keeps them in proportion:
               // only so many of each can be alive at once (more as the session goes on); the rest of the draws come out light.
               // perMissionMinM/H: more of them allowed the longer a mission runs.
-              kindCap: { M: 10, H: 4, perMinM: 0.08, perMinH: 0.035, perMissionMinM: 0.6, perMissionMinH: 0.25, maxM: 44, maxH: 16 },
+              kindCap: { M: 14, H: 4, perMinM: 0.08, perMinH: 0.03, perMissionMinM: 0.6, perMissionMinH: 0.15, maxM: 44, maxH: 12 },
               tactics: {
-                swarm: { callRadius: 130, rushMul: 1.25, rushN: 8, weave: 3.5, fan: 0.55, arc: 1.7, reach: 48 },
+                swarm: { callRadius: 130, rushMul: 1.25, rushN: 8, weave: 3.5, fan: 0.6, arc: 2.0, reach: 48 },
                 line:  { standoff: 0.62, spacing: 4.4, rank: 4.5, tankBack: 10, arm: 70 },
                 ring:  { radius: 0.66, arm: 95, slack: 5 },
               },
@@ -106,25 +109,56 @@ export const CONFIG = {
               alert: { callRadius: 70, fuzz: 15, loseSec: 12, noiseRadius: 60 },
               patrolRadius: 25, patrolSpeedMul: 0.4,
               spawn: { sec: 10, minLive: 14, minGapSec: 2.5 } },
-  bases:    { min: 3, max: 20, minutesPerExtra: 4, hp: 4000, spacing: 250, lzClearance: 400, radius: 15,
+  // Patrols: every base keeps perBase (more later in the session and the mission, up to maxPerBase) out on a route of its own, radius
+  // metres out, replacing a lost one every `every` seconds while it stands; atStart are out at the drop. An intercept is a patrol
+  // already waiting out of sight where the squad is heading (interceptLead seconds ahead), every interceptSec; forgotten once the
+  // squad has been far from it for interceptForget seconds. Patrols walk at speed x their own pace.
+  patrols:  { perBase: 2, fortressExtra: 2, maxPerBase: 5, perSessionMin: 40, perMissionMin: 8, atStart: 2, every: 55, radius: [90, 230],
+              interceptFirst: 40, interceptSec: 55, interceptLead: 22, interceptForget: 50, speed: 0.6, investigateSec: 35 },
+  // Noise: how far the enemy hears a fight. A patrol that hears it closer than near x the radius comes hunting; farther off it walks
+  // over to see. Rifles make noise at most every rifleEvery seconds; an objective being worked makes it every siteEvery seconds.
+  noise:    { rifle: 95, rifleEvery: 1.5, blast: 170, strike: 230, gun: 70, site: 240, siteEvery: 9, near: 0.45 },
+  // Side missions for the Helldivers: min on the first maps, one more per perAoM metres of area, up to max.
+  //   radio: stand within holdR for holdSec; then it relights the SEAF drop beacons within relightR.
+  //   propaganda: a structure (hp); while it stands, every `every` seconds it sends the patrols within reach onto a squad nearby.
+  //   rescue: n SEAF dug in (armor multiplies what they take); the enemy closes in (groups, more later) once a Helldiver is within
+  //   wakeR (or after wakeSec anyway); a Helldiver within reachR with nothing within clearR for holdSec frees them.
+  sides:    { min: 2, perAoM: 250, max: 5, callMul: 1.1,
+              radio: { holdR: 16, holdSec: 25, relightR: 520, reward: 220 },
+              propaganda: { hp: 1400, reward: 200, guards: 1, every: 22, reach: 320 },
+              rescue: { n: 5, armor: 0.35, wakeR: 300, wakeSec: 600, groups: 2, perSessionMin: 45, reachR: 30, clearR: 45, holdSec: 4, reward: 200 } },
+  // The Helldivers' plan (planner.js): side tasks within `detour` extra metres of the way to the main objective, if there is time to
+  // spare (reserve seconds) for them, the objective and extraction. After the objective a full clear only with more than clearLives
+  // lives left and the time for it. Time is estimated at pace x squad speed plus `work` seconds per task. Re-planned every `every` s.
+  plan:     { detour: 260, reserve: 150, clearLives: 4, every: 6, keepR: 70, pace: 0.5, extractPad: 30,
+              work: { base: 70, radio: 45, propaganda: 35, rescue: 60, nuke: 150, vip: 100, evac: 220, fortress: 200 } },
+  // An enemy that fires on an ally gives itself away: it shows for `sec` seconds after each shot, and once it has shown for lockSec
+  // without a break it is locked: orbitals and the ship gun can hit it (within lockR of it) even outside the strike zone.
+  reveal:   { sec: 5, lockSec: 3, lockR: 12 },
+  // The UAV's radar: every `every` seconds (by UAV level) a sweep shows where every enemy on the map was at that moment.
+  radar:    { every: [14, 12, 10, 8.5, 7] },
+  // SEAF drop beacons: places a SEAF drop can be sent without a strike zone (within r metres of one). Dark after darkSec.
+  beacons:  { min: 3, perAoM: 300, max: 5, r: 40, darkSec: 300 },
+  bases:    { min: 2, perAoM: 200, max: 14, minutesPerExtra: 14, hp: 4000, spacing: 250, lzClearance: 400, radius: 15,
               garrisonRadius: 260, garrisonGroups: 2, garrisonCap: 15, spawnSec: 30 },
   // The big base for the destroy-the-citadel objective.
+  // Objective sites under siege (objectives.js siege): while the squad works an objective the enemy calls backup every `every`
+  // seconds, down to `minEvery`, with up to `extra` more groups, over rampSec seconds at the site. A call waits (capWait s) while
+  // cap enemies are already within capR metres of the site.
+  siege:    { first: 10, every: 18, minEvery: 10, rampSec: 150, extra: 3, fortressR: 120, cap: 60, capR: 200, capWait: 4 },
   fortress: { hp: 14000, radius: 28, garrisonGroups: 3, garrisonCap: 30, spawnSec: 16, minFromLz: 650 },
   // Pressure drives how fast the field fills: it climbs through the session and, faster, through each mission.
   pressure: { start: 1, perSessionMin: 0.035, perMissionMin: 0.12, onBaseKill: 0.6, floor: 0.5, dropGrace: { sec: 150, min: 0.35 } },
   // The war escalates with every minute of the session, so the run only ends in failure: tougher, harder-hitting enemies and more heavies.
   // missionDmg: enemy damage also climbs a little with every minute of the mission itself.
-  ramp:     { hp: 0.015, dmg: 0.045, missionDmg: 0.06, mediumEvery: 25, heavyEvery: 45, hpCap: 7, dmgCap: 6 },
-  // Large enemy assaults: a big force that comes straight for the squad from one direction. The warning gives the player time to
-  // scan, set a SEAF line and get strikes ready. Later in the session they get bigger.
-  assault:  { firstSec: 210, everySec: 165, jitterSec: 35, warnSec: 18, groups: 4, perSessionMin: 0.06, maxGroups: 12, hunt: 80, ahead: 150, spacing: 26, reward: 140, score: 400, minLeft: 3, giveUpSec: 140 },
+  ramp:     { base: 4.0, fac: { bugs: 1.5, bots: 0.5, squids: 0.75 }, hp: 0.02, dmg: 0.015, missionDmg: 0.06, mediumEvery: 25, heavyEvery: 45, hpCap: 7, dmgCap: 6 },
   // Enemy reinforcements. A patrol that finds the squad, or is shot at, may fire a flare (callChance, once per group); if the one
   // holding it is still alive when it has burned (flareSec), reinforcements arrive near it. They also come in waves at objective
   // sites (siteEvery) and at the extraction point once extraction is called (extractEvery). Each faction has its own way in:
   //   bugs dig up out of one hole (it can be shot closed), bots come down from a dropship (it can be shot down while it is low),
   //   squids are teleported down from a warp ship (tougher, but it can be shot down too).
   // These are the only enemies that appear where someone can see them.
-  reinf:    { callChance: 0.4, cooldownSec: 26, flareSec: 4, maxActive: 2, groups: 2, perPressure: 0.5, maxGroups: 4,
+  reinf:    { callChance: 0.55, cooldownSec: 20, flareSec: 4, maxActive: 3, groups: 3, perPressure: 0.5, maxGroups: 4,
               dist: [28, 60], minAlly: 26, siteEvery: 30, extractEvery: 24, siteDist: [70, 120],
               bugs:   { warnSec: 2.5, every: 1.5, hp: 900, r: 8, lingerSec: 5, reward: 70, rifle: 0.35 },
               bots:   { speed: 75, approach: 460, hover: 1.2, every: 0.9, hp: 1100, r: 9, lowR: 110, reward: 160, crash: 380 },
@@ -153,17 +187,17 @@ export const CONFIG = {
   // One multiplier on every armory price. Bot sessions earn about 520 credits a minute, so three hours earns roughly what the whole
   // armory costs at 0.9 (about 97,000 credits). test/r7.mjs checks the two stay together.
   econ:     { priceMul: 0.9, earnPerMin: 640, maxAtMin: 180 },
-  credits:  { start: 1200, kill: { L: 2, M: 8, H: 45 }, base: 150, objective: 500, extraction: 800, perMission: 0, civ: 8 },
+  credits:  { start: 1200, kill: { L: 2, M: 8, H: 45 }, base: 150, objective: 500, extraction: 800, perMission: 0, civ: 8, fullClear: 400 },
 
   // Mission objectives. The squad does these before anything else.
   objective: {
     minFromLz: 450,
     reach: { start: 720, perMin: 13 },   // the farthest an objective may be from the landing zone: 720 m at first, the whole map after an hour or so
-    nuke: { r: 45, holdSec: 80, waveSec: 22, armedSec: 150, blastR: 230, blastDmg: 9000, delaySec: 10, minFromBase: 160 },
-    vip:  { pickR: 22, pickSec: 6, dropR: 28, deliverSec: 8, waveSec: 22, gap: 500, garrisonR: 220 },
+    nuke: { r: 45, holdSec: 150, armedSec: 150, blastR: 230, blastDmg: 9000, delaySec: 10, minFromBase: 160 },
+    vip:  { pickR: 22, pickSec: 30, regrabSec: 4, dropR: 28, deliverSec: 75, gap: 500, garrisonR: 220 },
     // Evacuation: one big site with a shelter and a hangar. While a Helldiver holds the site the shelter sends civilians out a few
     // at a time; they walk to the hangar and board shuttles (one leaves for every `shuttle` aboard). Done when `need` are out.
-    evac: { r: 95, gap: 84, need: 40, batch: 4, every: 7, maxOut: 14, speed: 3.6, hp: 45, shuttle: 10, hdR: 75, door: 4 },
+    evac: { r: 95, gap: 84, need: 44, batch: 4, every: 11, maxOut: 14, speed: 3.6, hp: 45, shuttle: 10, hdR: 75, door: 4 },
   },
 
   // Stratagems. Sixteen distinct picks, dealt into four groups of four. Each group belongs to one Helldiver.
@@ -171,7 +205,7 @@ export const CONFIG = {
   strat: {
     // callSec: every call takes this long on top of the stratagem's own delay (the beacon is thrown and the ship lines up), so the
     // marked ground shows for longer; the Helldivers aim where the enemy will be by then, and only inside their own strike zone.
-    slots: 16, groups: 4, perGroup: 4, dmgMul: 0.8, callGapSec: 1.2, startDelaySec: [8, 30], callSec: 2.2, leadMax: 45,
+    slots: 16, groups: 4, perGroup: 4, dmgMul: 0.4, callGapSec: 1.2, startDelaySec: [8, 30], callSec: 2.2, leadMax: 45,
     frv:   { hp: 800, speed: 14, life: 160, seats: 4, gunRange: 70, gunDmg: 62, gunEvery: 0.42, ejectAt: 0.25, dropSec: 4 },
     mech:  { hp: 850, armor: 0.5, gatAmmo: 500, rktAmmo: 12, dropSec: 5 },
     dog:   { hp: 140, life: 150, range: 38, every: 0.45, dmg: 9 },
@@ -183,11 +217,11 @@ export const CONFIG = {
   // land. hp grows with half the session's health ramp, damage with the damage ramp. Back hits do the heavy multiplier.
   // giveUpSec: once the squad has waited this long at the extraction point with it still alive, it withdraws (no bounty).
   boss: { chance: 0.12, perSessionMin: 0.003, maxChance: 0.5, window: [170, 450], dist: [190, 240], reward: 700, score: 3000, giveUpSec: 210,
-          bugs:   { name: 'BROOD TITAN', hp: 4500, r: 10, speed: 2.3, stop: 7,
+          bugs:   { hp: 4500, r: 10, speed: 2.3, stop: 7,
                     spit: { range: 50, dmg: 38, splash: 6, every: 3.8, flight: 1.1, acc: 0.8 }, stomp: { range: 10, dmg: 85, every: 1.8, splash: 5.5 } },
-          bots:   { name: 'SIEGE WALKER', hp: 5500, r: 11, speed: 1.7, stop: 40,
+          bots:   { hp: 5500, r: 11, speed: 1.7, stop: 40,
                     cannon: { range: 62, dmg: 26, splash: 4, every: 1.6, acc: 0.7 }, deploy: { every: 30 } },
-          squids: { name: 'WARP COLOSSUS', hp: 3800, shield: 2000, regen: 120, regenDelay: 7, r: 12, speed: 1.9, stop: 48,
+          squids: { hp: 3800, shield: 2000, regen: 120, regenDelay: 7, r: 12, speed: 1.9, stop: 48,
                     beam: { range: 78, dmg: 120, charge: 2.6, every: 7.5, width: 4.5, lock: 0.7 } } },
   // Free-fire zone: a Helldiver facing a big pack well ahead asks for one. Every ally keeps out of it while it lasts, and orbital
   // strikes the player lands inside it recharge faster (cdMul), so the gunner can saturate it.
@@ -202,7 +236,7 @@ export const CONFIG = {
 
   score:    { light: 10, medium: 50, heavy: 200, allyKillShare: 0.2, base: 1000,
               objective: 2500, perMinuteLeft: 100, extraction: 1500, perLifeLeft: 25, survivorHelldiver: 100, survivorSeaf: 25,
-              poi: 250, breach: 150, dropDown: 300, civSaved: 40, civLost: -30, ffCiv: -60,
+              poi: 250, breach: 150, dropDown: 300, side: 600, fullClear: 1500, civSaved: 40, civLost: -30, ffCiv: -60,
               hdDeath: -75, wipe: -250,
               ffHelldiver: -200, ffSeaf: -50,
               comboStep: 0.1, comboMax: 3.0, comboWindowSec: 2, comboResetSec: 3 },
@@ -210,8 +244,8 @@ export const CONFIG = {
   ui:       { minLoadSec: 5, tipSec: 8 },
   // Optional: set channelUrl to your community's score channel (Discord channel link, forum thread, form).
   // When set, the final screen shows a button that copies the score block and opens that link.
-  share:    { channelUrl: '', channelLabel: 'COPY AND OPEN CHANNEL',
+  share:    { channelUrl: '',
               // Where the FEEDBACK buttons go: a short form on the project's GitHub page (a free GitHub account is needed to post).
               feedbackUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support/issues/new?template=feedback.yml',
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.9.0' },
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.10.0' },
 };

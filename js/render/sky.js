@@ -2,15 +2,16 @@
 // runs on through the mission, faster than real time. The hour sets where the light comes from (the terrain is lit from there when
 // it is built) and how the ground is tinted: warm at dawn and dusk, dark blue at night. By day the shadows of the squad's four
 // destroyers drift slowly across the map, high above the fight. Cosmetic only: none of it touches the simulation.
+import { t } from '../i18n.js';
 const TAU = Math.PI * 2;
 export const TOD_RATE = 6;      // hours of the day that pass per hour of play (a fifteen-minute mission spans an hour and a half)
 
 export function todAt(m) { return (((m.tod0 ?? 12) + (m.t / 3600) * TOD_RATE) % 24 + 24) % 24; }
 export function todName(h) {
-  if (h >= 5 && h < 7.5) return 'DAWN';
-  if (h >= 7.5 && h < 17) return 'DAY';
-  if (h >= 17 && h < 19.5) return 'DUSK';
-  return 'NIGHT';
+  if (h >= 5 && h < 7.5) return t('tod.dawn');
+  if (h >= 7.5 && h < 17) return t('tod.day');
+  if (h >= 17 && h < 19.5) return t('tod.dusk');
+  return t('tod.night');
 }
 export const todClock = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.floor((h % 1) * 60)).padStart(2, '0')}`;
 

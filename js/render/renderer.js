@@ -3,17 +3,21 @@ import { CONFIG as C } from '../config.js';
 import { SUBTYPES } from '../data/data.js';
 import { scorch, makeDecals, mark } from './terrain.js';
 import { drawZones, drawMarkers, drawObjectives, drawAssets, drawEnemyExtras, drawPois, drawUavs, drawPings } from './world.js';
-import { drawSquadOrders, drawSeafMark, drawStroke, drawPelicans, drawAssault, drawMiniSeaf, seafTargets, squadsInUse } from './squads.js';
+import { drawSquadOrders, drawSeafMark, drawStroke, drawPelicans, drawMiniSeaf, seafTargets, squadsInUse } from './squads.js';
 
 import { slotStats } from '../sim/player.js';
 import { drawAllyBody, drawEnemyBody, enemyR, drawBossBody, bossR } from './units.js';
+import { drawAoEdge, drawSides, drawBeacons, drawRevealed, drawRadar } from './ops.js';
+import { OPS } from '../data/data.js';
+import { t as tr } from '../i18n.js';
+import { beaconAt } from '../sim/sides.js';
 import { drawFlares, drawHoles, drawDrops, drawFfz, drawEvac, drawExtraction, critText, drawSupply } from './reinf.js';
 import { drawBaseArt, drawBaseRuin } from './sites.js';
 import { todAt, skyTint, destroyerShadows, drawDestroyerShadow } from './sky.js';
 
 const SIZE = C.world.size;
-const OBJ_ARROWS = new Set(['LAUNCH', 'VIP', 'PICKUP', 'CITADEL', 'EXTRACT', 'EVAC SITE', 'FREE FIRE', 'SUPPLY']);
 const TAU = Math.PI * 2;
+const TASK_LABEL = { base: 'lab.base', radio: 'lab.radio', propaganda: 'lab.prop', rescue: 'lab.rescue' };
 const slotCd = (m, i) => { const st = slotStats(m, i); return st ? st.cd : 0; };
 
 export class Renderer {
@@ -174,7 +178,6 @@ export class Renderer {
       case 'heal': fx.push({ k: 'line', x: ev.x, y: ev.y, x2: ev.tx, y2: ev.ty, t0: now, life: 0.28, col: '#7dff9b' }); fx.push({ k: 'ring', x: ev.tx, y: ev.ty, r: 8, t0: now, life: 0.5, a: 0.9, col: '#7dff9b' }); break;
       case 'pelican_arrive': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 40, t0: now, life: 0.9, a: 0.8, col: this.allyColor() }); fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 24, t0: now, life: 0.6, a: 0.7, col: '#cfe9ff' }); break;
       case 'pelican_drop': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 10, t0: now, life: 0.5, a: 0.9, col: ev.role === 'medic' ? '#7dff9b' : ev.role === 'spotter' ? '#ffd24a' : '#cfe9ff' }); break;
-      case 'assault_warn': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 90, t0: now, life: 1.4, a: 1, col: this.enemyColor(m) }); fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 50, t0: now, life: 1.0, a: 1, col: this.enemyColor(m) }); this.shake = Math.min(12, this.shake + 3); break;
       case 'breach_open':
         fx.push({ k: 'flash', x: ev.x, y: ev.y, r: 28, t0: now, life: 0.7, a: flash, col: this.enemyColor(m) }); fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 60, t0: now, life: 1.2, a: 1, col: this.enemyColor(m) });
         this.shake = Math.min(12, this.shake + 4); break;
@@ -191,10 +194,10 @@ export class Renderer {
         if (now - (this._critAt || 0) > 0.12 && (ev.by === 'player' || (ev.f & 1))) { this._critAt = now; fx.push({ k: 'text', x: ev.x + (Math.random() - 0.5) * 3, y: ev.y - 2, text: critText(ev.f), col: ev.f & 1 ? '#ff9a4a' : '#fff3a0', t0: now, life: 0.8, small: true }); }
         break;
       case 'flare': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 22, t0: now, life: 0.7, a: 1, col: '#ff5a3a' }); break;
-      case 'flare_out': fx.push({ k: 'text', x: ev.x, y: ev.y - 4, text: 'FLARE STOPPED', col: '#7dff9b', t0: now, life: 1.4 }); break;
+      case 'flare_out': fx.push({ k: 'text', x: ev.x, y: ev.y - 4, text: tr('lab.flareStopped'), col: '#7dff9b', t0: now, life: 1.4 }); break;
       case 'reinf': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 40, t0: now, life: 1.0, a: 1, col: this.enemyColor(m) }); break;
       case 'reinf_spawn': fx.push({ k: 'flash', x: ev.x, y: ev.y, r: 8, t0: now, life: 0.4, a: flash * 0.8, col: this.enemyColor(m) }); if (ev.src === 'warp') fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 14, t0: now, life: 0.5, a: 1, col: '#e6c8ff' }); break;
-      case 'drop_down': fx.push({ k: 'flash', x: ev.x, y: ev.y, r: 24, t0: now, life: 0.6, a: flash }); fx.push({ k: 'text', x: ev.x, y: ev.y - 8, text: ev.kind === 'ship' ? 'DROPSHIP DOWN' : 'WARP SHIP DOWN', col: '#7dff9b', t0: now, life: 1.8 }); this.shake = Math.min(14, this.shake + 6); break;
+      case 'drop_down': fx.push({ k: 'flash', x: ev.x, y: ev.y, r: 24, t0: now, life: 0.6, a: flash }); fx.push({ k: 'text', x: ev.x, y: ev.y - 8, text: tr(ev.kind === 'ship' ? 'lab.dropshipDown' : 'lab.warpDown'), col: '#7dff9b', t0: now, life: 1.8 }); this.shake = Math.min(14, this.shake + 6); break;
       case 'ffz': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: ev.r * 1.4, t0: now, life: 1.2, a: 1, col: '#ff9a4a' }); break;
       case 'board': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 7, t0: now, life: 0.5, a: 1, col: '#7dff9b' }); break;
       case 'civ_down': fx.push({ k: 'x', x: ev.x, y: ev.y, r: 3, t0: now, life: 1.2, col: '#ff8080' }); break;
@@ -268,6 +271,7 @@ export class Renderer {
 
     const px = (n) => n / scale; // pixels -> meters
     const pal = { ally: this.allyColor(), enemy: this.enemyColor(m) };
+    drawAoEdge(ctx, m, px, -tx / scale, -ty / scale, (W - tx) / scale, (H - ty) / scale);
     const labels = this.labels; labels.length = 0;
     const aim = ui.aim;
     ctx.lineJoin = 'round';
@@ -288,7 +292,7 @@ export class Renderer {
       drawBaseArt(ctx, b, m.faction.id, pal.enemy, inZ, now, px);
       if (t - (b.lastHit ?? -99) < 0.12) { ctx.strokeStyle = '#fff'; ctx.lineWidth = px(2); ctx.beginPath(); ctx.arc(b.x, b.y, r * 1.1, 0, TAU); ctx.stroke(); }
       if (tgBs.has(b)) this._bracket(ctx, b.x, b.y, r * 1.5, px(1.8), pal.ally);
-      if (b === sqBase && !b.fortress) labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 4, text: m.phase === 'bonus' ? 'BONUS' : 'BASE', col: 'rgba(215,230,220,0.9)' });
+      if (b === sqBase && !b.fortress) labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 4, text: tr('lab.base'), col: 'rgba(215,230,220,0.9)' });
       if (b.hp < b.maxHp || b.fortress) {
         const bw = r * 2.2, f = b.hp / b.maxHp;
         ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(b.x - bw / 2, b.y + r * 1.25, bw, px(4));
@@ -297,12 +301,13 @@ export class Renderer {
     }
 
     drawPois(ctx, m, now, px, labels, scale, pal);
+    drawSides(ctx, m, now, px, labels, scale);
+    drawBeacons(ctx, m, now, px, labels, scale, ui.placing === 'seaf');
     drawHoles(ctx, m, now, px, labels, scale, pal);
     drawObjectives(ctx, m, now, px, labels, scale, pal);
     drawEvac(ctx, m, now, px, labels, scale);
     drawFfz(ctx, m, now, px, labels, scale);
     drawSquadOrders(ctx, m, now, px, labels, scale, pal);
-    drawAssault(ctx, m, now, px, labels, scale, pal);
 
     // Inbound strikes, drops and warnings, and laser beams
     drawMarkers(ctx, m, now, px, labels, scale);
@@ -319,6 +324,7 @@ export class Renderer {
     // Enemies: what the squad can see (full) or the player can see a little beyond that (fainter). A dark halo keeps
     // them readable on any biome.
     const fid = m.faction.id;
+    drawRadar(ctx, m, now, px, pal.enemy);
     for (const e of m.enemies) {
       if (e.dead || e.vis <= 0) continue;
       ctx.globalAlpha = e.vis >= 2 ? 1 : 0.6;
@@ -327,6 +333,7 @@ export class Renderer {
       ctx.globalAlpha = 1;
     }
     drawEnemyExtras(ctx, m, now, px, labels, scale, pal);
+    drawRevealed(ctx, m, now, px, pal.enemy);
     drawFlares(ctx, m, now, px, labels, scale, pal);
 
     // Allies: blue infrared strobes. Helldivers wear a ring in their group's color; SEAF wear their squad's color and a role mark.
@@ -361,7 +368,7 @@ export class Renderer {
       ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.arc(p.x, p.y, 8 + 34 * f, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
       ctx.lineWidth = px(2.5); ctx.beginPath(); ctx.moveTo(p.x, p.y - 160 * f); ctx.lineTo(p.x, p.y - 8); ctx.stroke();
       const tm = p.type === 'H' ? m.teams[p.team] : null;
-      labels.push({ x: p.x, y: p.y, dy: 42, text: `${p.type === 'H' ? (tm ? m.slotTag(tm) : 'HELLDIVER') : `SEAF x${p.n}`} ${Math.ceil(left)}S`, col: tm ? tm.color : col , pri: 1 });
+      labels.push({ x: p.x, y: p.y, dy: 42, text: `${p.type === 'H' ? (tm ? m.slotTag(tm) : tr('lab.helldiver')) : `SEAF x${p.n}`} ${Math.ceil(left)}S`, col: tm ? tm.color : col , pri: 1 });
     }
 
     drawPelicans(ctx, m, now, px, labels, scale, pal);
@@ -372,14 +379,15 @@ export class Renderer {
     // Placement ghost for SEAF drops and orders
     if (ui.placing && ui.aim) {
       const k = ui.placing;
-      const sp = ui.snap && k !== 'seaf' ? ui.snap(ui.aim.x, ui.aim.y) : ui.aim, ax = sp.x, ay = sp.y;
-      const covered = k === 'seaf' ? m.inZone(ax, ay, -5) : true;
+      const bc = k === 'seaf' ? beaconAt(m, ui.aim.x, ui.aim.y) : null;     // over a lit drop beacon: it snaps there
+      const sp = bc || (ui.snap && k !== 'seaf' ? ui.snap(ui.aim.x, ui.aim.y) : ui.aim), ax = sp.x, ay = sp.y;
+      const covered = k === 'seaf' ? !!bc || m.inZone(ax, ay, -5) : true;
       const col = !covered ? '#ff4a4a' : pal.ally;
       const R = k === 'protect' ? C.seaf.protectR : k === 'move' ? C.seaf.patrolRadius : k === 'attack' ? 24 : k === 'assign' ? C.seaf.assignR : 22;
       ctx.strokeStyle = col; ctx.lineWidth = px(2); ctx.setLineDash([px(6), px(5)]); ctx.lineDashOffset = -now * px(12);
       ctx.beginPath(); ctx.arc(ax, ay, R, 0, TAU); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
       ctx.fillStyle = col; this._diamond(ctx, ax, ay, Math.max(px(6), 3.5));
-      labels.push({ x: ax, y: ay, dy: 38, text: !covered ? 'NO COVERAGE' : k === 'move' ? 'SEAF MOVE HERE' : k === 'protect' ? 'SEAF PROTECT HERE' : k === 'attack' ? 'SEAF ATTACK HERE' : k === 'assign' ? `ASSIGN TO SQUAD ${m.seaf.sel + 1}` : 'SEAF DROP', col , pri: 3 });
+      labels.push({ x: ax, y: ay, dy: 38, text: !covered ? tr('ret.noCover') : k === 'assign' ? tr('lab.assign', { n: m.seaf.sel + 1 }) : k === 'seaf' ? tr(bc ? 'lab.dropBeacon' : 'lab.beacon') : tr('lab.place.' + k), col , pri: 3 });
     }
 
     // Effects
@@ -732,31 +740,26 @@ export class Renderer {
   _edgeArrows(ctx, m, w2sx, w2sy, scale, ui) {
     const W = this.W, H = this.H, pad = 34 * this.dpr, d = this.dpr;
     const items = [];
-    if (m.alive.length) items.push({ x: m.cx, y: m.cy, col: this.allyColor(), label: m.hdAlive.length ? 'SQUAD' : 'SEAF' });
-    const ao = m.objectives.find((o) => !o.done);
+    if (m.alive.length) items.push({ x: m.cx, y: m.cy, col: this.allyColor(), label: m.hdAlive.length ? tr('lab.squad') : 'SEAF' });
+    const ao = m.objectives.find((o) => !o.done), task = m.plan && m.plan.task;
+    if (task && task.kind !== 'main') items.push({ x: task.x, y: task.y, col: task.kind === 'base' ? '#c8d2cc' : '#7fd8ff', label: tr(TASK_LABEL[task.kind] || 'lab.base') });
     if (m.phase === 'objective' && ao) {
       const g = ao.type === 'vip' ? (ao.state === 'carry' || ao.state === 'deliver' ? { x: ao.dx, y: ao.dy } : { x: ao.vip.x, y: ao.vip.y }) : { x: ao.x, y: ao.y };
-      items.push({ x: g.x, y: g.y, col: '#ffe600', label: ao.type === 'nuke' ? 'LAUNCH' : ao.type === 'vip' ? (ao.state === 'carry' || ao.state === 'deliver' ? 'PICKUP' : 'VIP') : ao.type === 'evac' ? 'EVAC SITE' : 'CITADEL' });
-    } else {
-      let nb = m.squad.base && !m.squad.base.destroyed ? m.squad.base : null;
-      if (!nb) { let nd = Infinity; for (const b of m.bases) { if (b.destroyed || b.fortress) continue; const dd = Math.hypot(b.x - m.cx, b.y - m.cy); if (dd < nd) { nd = dd; nb = b; } } }
-      if (nb) items.push({ x: nb.x, y: nb.y, col: '#c8d2cc', label: 'BASE' });
+      items.push({ x: g.x, y: g.y, col: '#ffe600', obj: true, label: tr(ao.type === 'nuke' ? 'lab.launch' : ao.type === 'vip' ? (ao.state === 'carry' || ao.state === 'deliver' ? 'lab.pickup' : 'lab.vip') : ao.type === 'evac' ? 'lab.evac' : 'lab.citadel') });
     }
-    if (m.extraction.revealed) items.push({ x: m.extraction.x, y: m.extraction.y, col: '#ffe600', label: 'EXTRACT' });
-    for (const p of m.pods) if (p.type === 'H' && !p.start) items.push({ x: p.x, y: p.y, col: '#ffe600', label: 'DROP' });
-    for (const b of m.breaches) if (!b.dead && !b.kind) items.push({ x: b.x, y: b.y, col: this.enemyColor(m), label: 'BREACH' });
-    for (const b of m.breaches) if (!b.dead && b.kind === 'hole') items.push({ x: b.x, y: b.y, col: this.enemyColor(m), label: 'BUG HOLE' });
-    for (const dr of m.drops || []) if (dr.state === 'hover' || dr.state === 'in') items.push({ x: dr.tx ?? dr.x, y: dr.ty ?? dr.y, col: this.enemyColor(m), label: dr.kind === 'ship' ? 'DROPSHIP' : 'WARP SHIP' });
-    if (m.ffz) items.push({ x: m.ffz.x, y: m.ffz.y, col: '#ff7a2a', label: 'FREE FIRE' });
+    if (m.extraction.revealed) items.push({ x: m.extraction.x, y: m.extraction.y, col: '#ffe600', obj: true, label: tr('lab.extract') });
+    for (const p of m.pods) if (p.type === 'H' && !p.start) items.push({ x: p.x, y: p.y, col: '#ffe600', label: tr('lab.drop') });
+    for (const b of m.breaches) if (!b.dead && !b.kind) items.push({ x: b.x, y: b.y, col: this.enemyColor(m), label: tr('lab.breach') });
+    for (const b of m.breaches) if (!b.dead && b.kind === 'hole') items.push({ x: b.x, y: b.y, col: this.enemyColor(m), label: tr('lab.bugHole') });
+    for (const dr of m.drops || []) if (dr.state === 'hover' || dr.state === 'in') items.push({ x: dr.tx ?? dr.x, y: dr.ty ?? dr.y, col: this.enemyColor(m), label: tr(dr.kind === 'ship' ? 'n.dropship' : 'n.warpship') });
+    if (m.ffz) items.push({ x: m.ffz.x, y: m.ffz.y, col: '#ff7a2a', obj: true, label: tr('lab.ffz') });
     if (m.boss && !m.boss.dead) items.push({ x: m.boss.x, y: m.boss.y, col: '#ff6a4a', label: m.boss.name, far: true });
     const SU = m.supply;
-    if (SU && SU.state === 'inbound' && SU.drop) items.push({ x: SU.drop.x, y: SU.drop.y, col: '#9dffb8', label: 'SUPPLY' });
-    if (SU && SU.state === 'ask') { const a = m.allies.find((x) => x.id === SU.ask.by && !x.dead); if (a) items.push({ x: a.x, y: a.y, col: '#9dffb8', label: `${SU.ask.tag} NEEDS SUPPLY` }); }
-    for (const p of m.pelicans) if (p.state !== 'out') items.push({ x: p.x, y: p.y, col: this.allyColor(), label: p.evac ? 'EVAC' : 'PELICAN' });
-    const as = m.assault && m.assault.cur;
-    if (as && m.t < as.at + 6) items.push({ x: as.x, y: as.y, col: this.enemyColor(m), label: 'ASSAULT' });
+    if (SU && SU.state === 'inbound' && SU.drop) items.push({ x: SU.drop.x, y: SU.drop.y, col: '#9dffb8', obj: true, label: tr('lab.supply') });
+    if (SU && SU.state === 'ask') { const a = m.allies.find((x) => x.id === SU.ask.by && !x.dead); if (a) items.push({ x: a.x, y: a.y, col: '#9dffb8', label: tr('hud.co.supAsk', { who: SU.ask.tag }) }); }
+    for (const p of m.pelicans) if (p.state !== 'out') items.push({ x: p.x, y: p.y, col: this.allyColor(), label: tr(p.evac ? 'lab.evacShip' : 'lab.pelican') });
     ctx.font = `${Math.round(10 * d)}px ui-monospace, Menlo, Consolas, monospace`;
-    const obs = this._hudRects();
+    const obs = this._hudRects(), placed = [];
     for (const it of items) {
       const sx = w2sx(it.x), sy = w2sy(it.y);
       if (sx > pad && sx < W - pad && sy > pad && sy < H - pad) continue;
@@ -772,13 +775,21 @@ export class Renderer {
           }
         }
       }
+      // and away from the arrows already placed, so labels pointing the same way stack instead of overprinting
+      for (let pass = 0; pass < 8; pass++) {
+        let hit = null;
+        for (const q of placed) if (Math.abs(ax - q.x) < 150 * d && Math.abs(ay - q.y) < 15 * d) { hit = q; break; }
+        if (!hit) break;
+        ay = hit.y + (ay > H / 2 ? -16 * d : 16 * d);
+      }
       ay = Math.max(pad * 0.6, Math.min(H - pad * 0.6, ay));
+      placed.push({ x: ax, y: ay });
       ctx.save(); ctx.translate(ax, ay); ctx.rotate(ang);
       ctx.fillStyle = it.col; ctx.globalAlpha = 0.9;
       ctx.beginPath(); ctx.moveTo(10 * d, 0); ctx.lineTo(-6 * d, -7 * d); ctx.lineTo(-6 * d, 7 * d); ctx.closePath(); ctx.fill();
       ctx.restore();
       const dist = Math.round(Math.hypot(it.x - ui.cam.x, it.y - ui.cam.y));
-      const text = document.body.classList.contains('touch') && !OBJ_ARROWS.has(it.label) && !it.far ? it.label : `${it.label} ${dist}M`;   // phones: a distance only for the objective
+      const text = document.body.classList.contains('touch') && !it.obj && !it.far ? it.label : `${it.label} ${dist}M`;   // phones: a distance only for the objective
       ctx.globalAlpha = 0.9; ctx.fillStyle = it.col;
       ctx.textAlign = ax > W / 2 ? 'right' : 'left';
       const tx2 = ax + (ax > W / 2 ? -14 * d : 14 * d), ty2 = Math.max(14 * d, Math.min(H - 8 * d, ay + 4 * d));
@@ -793,18 +804,18 @@ export class Renderer {
     let status = '', bad = false;
     if (isGun) {
       const g = info.gun || { ammo: 0, max: 1, dry: true };
-      if (!info.inZone) { status = 'NO VISUAL. FREE FIRE NEEDS SIGHT'; bad = true; }
-      else if (g.dry) { status = 'MAGAZINE EMPTY. RELOADING'; bad = true; }
-      else status = p.gun && p.gun.firing ? 'FIRING' : 'FREE FIRE';
-    } else if (isNuke) { if (!info.ready) { status = s.uses <= 0 ? 'LAUNCHED' : 'SITE NOT ARMED'; bad = true; } else status = 'ARMED. FIRE ANYWHERE'; }
-    else if (s.type === 'empty') { status = 'EMPTY SLOT'; bad = true; }
-    else if (t < s.readyAt) { status = `COOLDOWN ${Math.ceil(s.readyAt - t)}S`; bad = true; }
-    else if (s.uses <= 0) { status = 'NO USES LEFT'; bad = true; }
-    else if (!info.inZone) { status = 'NO COVERAGE'; bad = true; }
-    else status = isUav ? 'SCAN READY' : 'READY';
+      if (!info.inZone) { status = tr('ret.gunNoVis'); bad = true; }
+      else if (g.dry) { status = tr('ret.gunDry'); bad = true; }
+      else status = tr(info.lock ? 'ret.locked' : p.gun && p.gun.firing ? 'ret.firing' : 'ret.freeFire');
+    } else if (isNuke) { if (!info.ready) { status = tr(s.uses <= 0 ? 'hud.w.launched' : 'ret.notArmed'); bad = true; } else status = tr('ret.armed'); }
+    else if (s.type === 'empty') { status = tr('ret.empty'); bad = true; }
+    else if (t < s.readyAt) { status = tr('ret.cooldown', { n: Math.ceil(s.readyAt - t) }); bad = true; }
+    else if (s.uses <= 0) { status = tr('ret.noUses'); bad = true; }
+    else if (!info.inZone) { status = tr('ret.noCover'); bad = true; }
+    else status = tr(isUav ? 'ret.scanReady' : info.lock ? 'ret.locked' : 'ret.ready');
     const danger = info.danger && !isUav && !isGun;
-    if (danger && !bad) status = 'DANGER CLOSE';
-    else if (!bad && !isUav && !isGun && !isNuke && m.ffz && Math.hypot(aim.x - m.ffz.x, aim.y - m.ffz.y) <= m.ffz.r) status = 'FREE FIRE: RECHARGES 2X';
+    if (danger && !bad) status = tr('ret.danger');
+    else if (!bad && !isUav && !isGun && !isNuke && m.ffz && Math.hypot(aim.x - m.ffz.x, aim.y - m.ffz.y) <= m.ffz.r) status = tr('ret.ffz');
     const col = danger ? '#ff4040' : bad ? '#ffb020' : isUav ? '#9dffb8' : '#7dff9b';
     ctx.save();
     ctx.translate(x, y);
@@ -844,7 +855,7 @@ export class Renderer {
       if (info.delay > 0) {
         ctx.fillStyle = 'rgba(157,255,184,0.8)';
         if (small) ctx.fillText(`${info.delay.toFixed(1)}S`, 0, -(gap + len + 6 * d));
-        else { ctx.textAlign = 'left'; ctx.fillText(`IMPACT ${info.delay.toFixed(1)}S`, gap + len + 8 * d, 4 * d); }
+        else { ctx.textAlign = 'left'; ctx.fillText(tr('ret.impact', { n: info.delay.toFixed(1) }), gap + len + 8 * d, 4 * d); }
       }
     }
     ctx.textAlign = 'left';
@@ -882,14 +893,19 @@ export class Renderer {
   // ---------- minimap ----------
   // ---------- minimap and the tactical map ----------
   // The map picture for a map canvas of size S, scaled down from the terrain once.
-  _mapBg(S, key) {
+  // Only the mission's area of operations (ao) is shown.
+  _mapBg(S, key, ao) {
     const cache = this._mapBgs || (this._mapBgs = {});
     let b = cache[key];
-    if (!b || b.width !== S || b._t !== this.terrain) {
-      b = cache[key] = document.createElement('canvas'); b.width = b.height = S; b._t = this.terrain;
+    if (!b || b.width !== S || b._t !== this.terrain || b._ao !== ao) {
+      b = cache[key] = document.createElement('canvas'); b.width = b.height = S; b._t = this.terrain; b._ao = ao;
       const bc = b.getContext('2d');
       bc.fillStyle = '#020a05'; bc.fillRect(0, 0, S, S);
-      if (this.terrain) { bc.globalAlpha = 0.45; bc.imageSmoothingQuality = 'high'; bc.drawImage(this.terrain, 0, 0, S, S); bc.globalAlpha = 1; }
+      if (this.terrain) {
+        const k = this.terrain.width / SIZE;
+        bc.globalAlpha = 0.45; bc.imageSmoothingQuality = 'high';
+        bc.drawImage(this.terrain, ao.x0 * k, ao.y0 * k, ao.size * k, ao.size * k, 0, 0, S, S); bc.globalAlpha = 1;
+      }
     }
     return b;
   }
@@ -898,21 +914,24 @@ export class Renderer {
     c.font = `bold ${Math.round(fs)}px ui-monospace, Menlo, Consolas, monospace`;
     c.textAlign = 'center'; c.textBaseline = 'middle';
     const pad = fs * 0.75;
-    for (const [L, x, y] of [['N', S / 2, pad], ['S', S / 2, S - pad], ['W', pad, S / 2], ['E', S - pad, S / 2]]) {
+    for (const [k, x, y] of [['n', S / 2, pad], ['s', S / 2, S - pad], ['w', pad, S / 2], ['e', S - pad, S / 2]]) {
+      const L = tr('rose.' + k);
       c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(x - fs * 0.55, y - fs * 0.6, fs * 1.1, fs * 1.2);
-      c.fillStyle = L === 'N' ? '#ffe600' : 'rgba(215,255,228,0.9)'; c.fillText(L, x, y + fs * 0.05);
+      c.fillStyle = k === 'n' ? '#ffe600' : 'rgba(215,255,228,0.9)'; c.fillText(L, x, y + fs * 0.05);
     }
     c.textAlign = 'left'; c.textBaseline = 'alphabetic';
   }
   drawMinimap(cv, m, cam) {
-    const c = cv.getContext('2d'), S = cv.width, k = S / SIZE, t = m.t, ac = this.allyColor(), ec = this.enemyColor(m);
+    const a = m.ao, c = cv.getContext('2d'), S = cv.width, k = S / a.size, t = m.t, ac = this.allyColor(), ec = this.enemyColor(m);
     c.setTransform(1, 0, 0, 1, 0, 0);
-    c.drawImage(this._mapBg(S, 'mini'), 0, 0);
+    c.drawImage(this._mapBg(S, 'mini', a), 0, 0);
+    c.setTransform(1, 0, 0, 1, -a.x0 * k, -a.y0 * k);
     this._mapMarks(c, m, k, t, ac, ec);
     // Camera view rectangle
     const vw = cam.view, vh = cam.view * (this.H / this.W);
     c.strokeStyle = 'rgba(255,255,255,0.8)'; c.lineWidth = 1.5;
     c.strokeRect((cam.x - vw / 2) * k, (cam.y - vh / 2) * k, vw * k, vh * k);
+    c.setTransform(1, 0, 0, 1, 0, 0);
     // N E S W, about eight screen pixels tall whatever size the minimap is shown at
     const shown = cv.clientWidth || S;
     this._compass(c, S, Math.max(9, Math.min(S * 0.16, 8.5 * (S / shown))));
@@ -920,44 +939,46 @@ export class Renderer {
   }
   // The tactical map: the minimap's picture, big, with a grid, labels and a compass rose.
   drawBigMap(cv, m, cam) {
-    const c = cv.getContext('2d'), S = cv.width, t = m.t, ac = this.allyColor(), ec = this.enemyColor(m);
+    const a = m.ao, c = cv.getContext('2d'), S = cv.width, t = m.t, ac = this.allyColor(), ec = this.enemyColor(m);
     c.setTransform(1, 0, 0, 1, 0, 0);
-    c.drawImage(this._mapBg(S, 'big'), 0, 0);
-    // a 200 m grid with sector letters (columns) and numbers (rows)
-    const cells = Math.round(SIZE / 200), cw = S / cells, fs = Math.max(12, S / 44);
+    c.drawImage(this._mapBg(S, 'big', a), 0, 0);
+    // a 100 m grid with sector letters (columns) and numbers (rows)
+    const cells = Math.max(4, Math.round(a.size / 100)), cw = S / cells, fs = Math.max(12, S / 44);
     c.strokeStyle = 'rgba(157,255,184,0.16)'; c.lineWidth = 1; c.beginPath();
     for (let i = 1; i < cells; i++) { c.moveTo(i * cw, 0); c.lineTo(i * cw, S); c.moveTo(0, i * cw); c.lineTo(S, i * cw); }
     c.stroke();
     c.font = `${Math.round(fs * 0.8)}px ui-monospace, Menlo, Consolas, monospace`; c.fillStyle = 'rgba(157,255,184,0.45)';
     for (let i = 0; i < cells; i++) { c.fillText(String.fromCharCode(65 + i), i * cw + 5, fs * 1.9); c.fillText(String(i + 1), 5, i * cw + fs * 3.1); }
     // the same marks as the minimap, drawn larger
-    const u = S / 300;
-    c.setTransform(u, 0, 0, u, 0, 0);
-    this._mapMarks(c, m, (S / u) / SIZE, t, ac, ec, true);
+    const u = S / 300, kk = (S / u) / a.size;
+    c.setTransform(u, 0, 0, u, -a.x0 * kk * u, -a.y0 * kk * u);
+    this._mapMarks(c, m, kk, t, ac, ec, true);
     c.setTransform(1, 0, 0, 1, 0, 0);
-    const k = S / SIZE;
+    const k = S / a.size;
     // labels for what matters
     const lab = (x, y, text, col, dy = -1.6) => {
       c.font = `bold ${Math.round(fs)}px ui-monospace, Menlo, Consolas, monospace`; c.textAlign = 'center';
-      const w = c.measureText(text).width + 8, X = Math.max(w / 2 + 2, Math.min(S - w / 2 - 2, x * k)), Y = y * k + dy * fs;
+      const w = c.measureText(text).width + 8, X = Math.max(w / 2 + 2, Math.min(S - w / 2 - 2, (x - a.x0) * k)), Y = (y - a.y0) * k + dy * fs;
       c.fillStyle = 'rgba(0,0,0,0.65)'; c.fillRect(X - w / 2, Y - fs * 0.85, w, fs * 1.2);
       c.fillStyle = col; c.fillText(text, X, Y); c.textAlign = 'left';
     };
     for (const o of m.objectives) {
       if (o.done) continue;
-      if (o.type === 'vip') { lab(o.vip.x, o.vip.y, 'VIP', '#ffe600'); lab(o.dx, o.dy, 'PICKUP', '#ffe600'); }
-      else if (o.type === 'evac') lab(o.x, o.y, 'EVAC SITE', '#ffe600');
-      else if (o.type === 'nuke') lab(o.x, o.y, 'LAUNCH SITE', '#ffe600');
-      else lab(o.x, o.y, 'CITADEL', '#ffe600');
+      if (o.type === 'vip') { lab(o.vip.x, o.vip.y, tr('lab.vip'), '#ffe600'); lab(o.dx, o.dy, tr('lab.pickup'), '#ffe600'); }
+      else if (o.type === 'evac') lab(o.x, o.y, tr('lab.evac'), '#ffe600');
+      else if (o.type === 'nuke') lab(o.x, o.y, tr('lab.launchSite'), '#ffe600');
+      else lab(o.x, o.y, tr('lab.citadel'), '#ffe600');
     }
-    if (m.extraction.revealed) lab(m.extraction.x, m.extraction.y, m.extraction.state === 'open' ? 'EXTRACT' : 'EXTRACT (CALLED)', '#ffe600');
-    if (m.ffz) lab(m.ffz.x, m.ffz.y, 'FREE FIRE', '#ff9a4a');
-    if (m.supply && m.supply.drop) lab(m.supply.drop.x, m.supply.drop.y, 'SUPPLY', '#9dffb8');
-    if (m.hdAlive.length) lab(m.hx, m.hy, 'SQUAD', '#e8f6ff', 2.4);
+    if (m.extraction.revealed) lab(m.extraction.x, m.extraction.y, tr(m.extraction.state === 'open' ? 'lab.extract' : 'lab.extractCalled'), '#ffe600');
+    if (m.ffz) lab(m.ffz.x, m.ffz.y, tr('lab.ffz'), '#ff9a4a');
+    for (const q of m.sides || []) if (!q.done && !q.failed) lab(q.x, q.y, q.kind === 'radio' ? OPS.radio : q.kind === 'rescue' ? OPS.rescue : q.name, q.kind === 'propaganda' ? '#ffb020' : '#7fd8ff');
+    for (const bc of m.beacons || []) if (bc.relit || t < C.beacons.darkSec) lab(bc.x, bc.y, OPS.beacon, '#6fc0ff', 2.2);
+    if (m.supply && m.supply.drop) lab(m.supply.drop.x, m.supply.drop.y, tr('lab.supply'), '#9dffb8');
+    if (m.hdAlive.length) lab(m.hx, m.hy, tr('lab.squad'), '#e8f6ff', 2.4);
     // camera view and the rose
     const vw = cam.view, vh = cam.view * (this.H / this.W);
     c.strokeStyle = 'rgba(255,255,255,0.85)'; c.lineWidth = 2;
-    c.strokeRect((cam.x - vw / 2) * k, (cam.y - vh / 2) * k, vw * k, vh * k);
+    c.strokeRect((cam.x - vw / 2 - a.x0) * k, (cam.y - vh / 2 - a.y0) * k, vw * k, vh * k);
     this._compass(c, S, fs * 1.3);
     const rx = S - fs * 4.2, ry = fs * 5.2, rr = fs * 2.4;
     c.strokeStyle = 'rgba(215,255,228,0.7)'; c.lineWidth = 1.5;
@@ -1032,9 +1053,29 @@ export class Renderer {
     // Placed assets
     c.fillStyle = ac;
     for (const s of m.assets) if (!s.dead && (s.kind === 'turret' || s.kind === 'vehicle')) c.fillRect(s.x * k - 1.5, s.y * k - 1.5, 3, 3);
-    // Enemies in view, and a super heavy wherever it is (the radio called it in)
+    // Side missions: radio towers (a mast), SEAF under fire (a ring); and the SEAF drop beacons (blue while lit)
+    for (const q of m.sides || []) {
+      if (q.kind === 'propaganda' || q.failed) continue;
+      const x = q.x * k, y = q.y * k;
+      if (q.kind === 'radio') { c.strokeStyle = q.done ? 'rgba(127,216,255,0.6)' : '#7fd8ff'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x, y - 5); c.lineTo(x - 4, y + 4); c.moveTo(x, y - 5); c.lineTo(x + 4, y + 4); c.moveTo(x - 2.5, y + 1); c.lineTo(x + 2.5, y + 1); c.stroke(); }
+      else if (!q.done) { c.strokeStyle = q.state === 'siege' ? '#ff8a6a' : '#9dd0ff'; c.lineWidth = 2; c.beginPath(); c.arc(x, y, 5, 0, TAU); c.stroke(); c.beginPath(); c.arc(x, y, 1.6, 0, TAU); c.stroke(); }
+    }
+    for (const bc of m.beacons || []) {
+      const lit = bc.relit || t < C.beacons.darkSec;
+      c.strokeStyle = lit ? '#3da9ff' : 'rgba(140,150,150,0.5)'; c.lineWidth = 1.5;
+      c.beginPath(); c.moveTo(bc.x * k, bc.y * k - 5); c.lineTo(bc.x * k, bc.y * k + 4); c.moveTo(bc.x * k - 3.5, bc.y * k + 4); c.lineTo(bc.x * k + 3.5, bc.y * k + 4); c.stroke();
+    }
+    // The radar's last sweep (faint), enemies in view, enemies that gave themselves away, and a super heavy wherever it is
+    const RD = m.radar;
+    if (RD && RD.blips.length) {
+      const f = Math.max(0.2, 1 - (t - RD.at) / Math.max(1, RD.nextAt - RD.at));
+      c.fillStyle = ec; c.globalAlpha = 0.35 + 0.45 * f;
+      for (const b of RD.blips) { const r = b.k === 'H' || b.boss ? 1.6 : 1.1; c.fillRect(b.x * k - r, b.y * k - r, r * 2, r * 2); }
+      c.globalAlpha = 1;
+      if (t - RD.at < 1.2 && m.hdAlive.length) { c.strokeStyle = `rgba(157,255,184,${0.6 * (1 - (t - RD.at) / 1.2)})`; c.lineWidth = 1.5; c.beginPath(); c.arc(m.hx * k, m.hy * k, (40 + (t - RD.at) * 500) * k, 0, TAU); c.stroke(); }
+    }
     c.fillStyle = ec;
-    for (const e of m.enemies) if (!e.dead && e.vis > 0) c.fillRect(e.x * k - 1, e.y * k - 1, 2, 2);
+    for (const e of m.enemies) if (!e.dead && (e.vis > 0 || e.revealUntil > t)) c.fillRect(e.x * k - 1, e.y * k - 1, 2, 2);
     const B = m.boss && !m.boss.dead ? m.boss : null;
     if (B) {
       const bx = B.x * k, by = B.y * k, s = big ? 9 : 6;
@@ -1044,7 +1085,7 @@ export class Renderer {
       c.globalAlpha = 0.5 + 0.5 * Math.sin(t * 5); c.beginPath(); c.arc(bx, by, s + 5, 0, TAU); c.stroke(); c.globalAlpha = 1;
       if (big) { c.fillStyle = '#ff8a6a'; c.font = 'bold 13px ui-monospace, Menlo, Consolas, monospace'; c.textAlign = 'center'; c.fillText(B.name, bx, by - s - 9); }
     }
-    // Helldiver pods, SEAF squads with their orders, pelicans and the assault warning
+    // Helldiver pods, SEAF squads with their orders, and pelicans
     for (const p of m.pods) { c.strokeStyle = p.type === 'H' ? '#ffe600' : ac; c.lineWidth = 1.5; c.beginPath(); c.arc(p.x * k, p.y * k, 4, 0, TAU); c.stroke(); }
     drawMiniSeaf(c, m, k, ac, ec);
     // Helldivers, with each one's ping in its group color

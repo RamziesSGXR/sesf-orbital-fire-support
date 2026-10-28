@@ -21,7 +21,7 @@ function quiet(faction = 'bugs', seed = 77, events = true) {
   run(m, 7);
   for (const e of m.enemies) e.dead = true;
   m.enemies = []; m.groups = [];
-  m.support.spawnT = 1e9; m.support.scanT = 1e9; m.assault.nextAt = 1e9; m.strat.callAt = 1e9;
+  m.support.spawnT = 1e9; m.support.scanT = 1e9; m.strat.callAt = 1e9;
   C.enemies.spawn.minLive = 0;
   return m;
 }
@@ -52,9 +52,11 @@ const nearHd = (m, a, d, ang = 0) => ({ x: a.x + Math.cos(ang) * d, y: a.y + Mat
   check('no group holds two squad-wide items', shared === 0);
   const spear = STRATS.spear.sw, eat = STRATS.eat.sw, ac = STRATS.autocannon.sw;
   check('spear has a lock-on period and can one-shot a medium', spear.lock >= 1.5 && spear.dmg * C.strat.dmgMul * (1 - spear.vary) >= C.enemies.hp.medium, `lock ${spear.lock}s`);
-  check('spear sometimes one-shots a heavy', spear.dmg * C.strat.dmgMul * (1 + spear.vary) >= C.enemies.hp.heavy && spear.dmg * C.strat.dmgMul * (1 - spear.vary) < C.enemies.hp.heavy);
-  check('expendable anti-tank is one use and one-shots a heavy', eat.ammo === 1 && eat.dmg * C.strat.dmgMul * (1 - eat.vary) >= C.enemies.hp.heavy);
-  check('autocannon is fast, heavy-penetration and takes a few shots on a medium', ac.every <= 0.7 && ac.mult.H >= 0.75 && Math.ceil(C.enemies.hp.medium / (ac.dmg * C.strat.dmgMul)) >= 2 && Math.ceil(C.enemies.hp.medium / (ac.dmg * C.strat.dmgMul)) <= 4);
+  // (Revision 10 cut the Helldivers' stratagems to 40%: the heavy lifting is the gunner's job now)
+  const hits = (w, hp) => Math.ceil(hp / (w.dmg * C.strat.dmgMul));
+  check('spear takes two or three hits on a heavy', hits(spear, C.enemies.hp.heavy) >= 2 && hits(spear, C.enemies.hp.heavy) <= 3, `${hits(spear, C.enemies.hp.heavy)} hits`);
+  check('expendable anti-tank is one use and takes half a heavy or more', eat.ammo === 1 && eat.dmg * C.strat.dmgMul * (1 - eat.vary) >= C.enemies.hp.heavy * 0.5);
+  check('autocannon is fast, heavy-penetration and takes several shots on a medium', ac.every <= 0.7 && ac.mult.H >= 0.75 && hits(ac, C.enemies.hp.medium) >= 2 && hits(ac, C.enemies.hp.medium) <= 7, `${hits(ac, C.enemies.hp.medium)} shots`);
 }
 
 // ---------------------------------------------------------------- the Helldiver kit
@@ -122,32 +124,33 @@ const nearHd = (m, a, d, ang = 0) => ({ x: a.x + Math.cos(ang) * d, y: a.y + Mat
 // ---------------------------------------------------------------- trigger discipline
 {
   const m = quiet();
+  const X = Math.round(m.ao.cx), Y = Math.round(m.ao.cy);     // (everyone stays inside the area of operations)
   const a = m.hdAlive[0];
-  for (const x of m.hdAlive) { x.x = 600 + (x === a ? 0 : 200 + 30 * m.hdAlive.indexOf(x)); x.y = 600; x.ox = 0; x.oy = 0; x.atk = 1e9; x.gren = 0; x.ultAt = 1e9; }
-  a.atk = 0; a.x = 600; a.y = 600;
-  const seaf = m.addAlly('S', 612, 600); seaf.x = 612; seaf.y = 600; seaf.atk = 1e9; m._refreshAlive();
+  for (const x of m.hdAlive) { x.x = X + (x === a ? 0 : 200 + 30 * m.hdAlive.indexOf(x)); x.y = Y; x.ox = 0; x.oy = 0; x.atk = 1e9; x.gren = 0; x.ultAt = 1e9; }
+  a.atk = 0; a.x = X; a.y = Y;
+  const seaf = m.addAlly('S', X + 12, Y); seaf.x = X + 12; seaf.y = Y; seaf.atk = 1e9; m._refreshAlive();
   const enemy = nearHd(m, a, 30, 0), g = inert(spawnGroup(m, enemy.x, enemy.y, 'hunt'));
   for (const e of g.members) { e.x = enemy.x; e.y = enemy.y; }
   m.aGrid.clear(); for (const q of m.alive) m.aGrid.insert(q);
   check('a friendly in the line of fire is seen', blocker(m, a, enemy.x, enemy.y) === seaf);
-  check('a friendly behind the shooter is not in the way', blocker(m, a, 560, 600) === null);
-  check('a friendly off to the side is not in the way', (() => { seaf.y = 612; m.aGrid.clear(); for (const q of m.alive) m.aGrid.insert(q); const r = blocker(m, a, enemy.x, enemy.y); seaf.y = 600; return r === null; })());
+  check('a friendly behind the shooter is not in the way', blocker(m, a, X - 40, Y) === null);
+  check('a friendly off to the side is not in the way', (() => { seaf.y = Y + 12; m.aGrid.clear(); for (const q of m.alive) m.aGrid.insert(q); const r = blocker(m, a, enemy.x, enemy.y); seaf.y = Y; return r === null; })());
   m.aGrid.clear(); for (const q of m.alive) m.aGrid.insert(q);
   let shots = 0;
   for (let i = 0; i < 20 * 30; i++) {
-    m.events.length = 0; a.atk = Math.min(a.atk, 0.35); a.x = 600; a.y = 600; m.step(dt);   // the shooter stays put
+    m.events.length = 0; a.atk = Math.min(a.atk, 0.35); a.x = X; a.y = Y; m.step(dt);   // the shooter stays put
     for (const ev of m.events) if (ev.type === 'tracer' && Math.abs(ev.x - a.x) < 0.01 && Math.abs(ev.y - a.y) < 0.01) shots++;
     for (const e of g.members) { e.dead = false; e.hp = e.maxHp; }
   }
   // the same thing with nobody in the way
-  const m2 = quiet(); const a2 = m2.hdAlive[0];
-  for (const x of m2.hdAlive) { x.x = 600 + (x === a2 ? 0 : 200 + 30 * m2.hdAlive.indexOf(x)); x.y = 600; x.ox = 0; x.oy = 0; x.atk = 1e9; x.gren = 0; x.ultAt = 1e9; }
-  a2.atk = 0; a2.x = 600; a2.y = 600; m2._refreshAlive();
-  const g2 = inert(spawnGroup(m2, 630, 600, 'hunt'));
-  for (const e of g2.members) { e.x = 630; e.y = 600; }
+  const m2 = quiet(); const a2 = m2.hdAlive[0], X2 = Math.round(m2.ao.cx), Y2 = Math.round(m2.ao.cy);
+  for (const x of m2.hdAlive) { x.x = X2 + (x === a2 ? 0 : 200 + 30 * m2.hdAlive.indexOf(x)); x.y = Y2; x.ox = 0; x.oy = 0; x.atk = 1e9; x.gren = 0; x.ultAt = 1e9; }
+  a2.atk = 0; a2.x = X2; a2.y = Y2; m2._refreshAlive();
+  const g2 = inert(spawnGroup(m2, X2 + 30, Y2, 'hunt'));
+  for (const e of g2.members) { e.x = X2 + 30; e.y = Y2; }
   let shots2 = 0;
   for (let i = 0; i < 20 * 30; i++) {
-    m2.events.length = 0; a2.atk = Math.min(a2.atk, 0.35); a2.x = 600; a2.y = 600; m2.step(dt);
+    m2.events.length = 0; a2.atk = Math.min(a2.atk, 0.35); a2.x = X2; a2.y = Y2; m2.step(dt);
     for (const ev of m2.events) if (ev.type === 'tracer' && Math.abs(ev.x - a2.x) < 0.01 && Math.abs(ev.y - a2.y) < 0.01) shots2++;
     for (const e of g2.members) { e.dead = false; e.hp = e.maxHp; }
   }
@@ -174,32 +177,20 @@ const nearHd = (m, a, d, ang = 0) => ({ x: a.x + Math.cos(ang) * d, y: a.y + Mat
   check('and nobody is hurt by it', hurt === 0, `${hurt} hurt`);
 }
 
-// ---------------------------------------------------------------- the recall timer
+// ---------------------------------------------------------------- out of lives (Revision 10: no recall; the run ends)
 {
-  const m = quiet('bugs', 5);
-  m.hd.lives = 0;
-  for (const a of m.hdAlive.slice(0, 2)) m.killAlly(a, 'enemy', 'L');
-  m._refreshAlive();
-  run(m, 100);
-  check('no recall before two minutes', m.hd.lives === 0 && m.recallAt !== null, `timer at ${m.recallAt && (m.recallAt - m.t).toFixed(0)}s`);
-  run(m, 25);
-  check('a recall arrives after two minutes with fewer than four Helldivers', (m.stats.recalls || 0) >= 1, `recalls ${m.stats.recalls || 0}`);
-  check('the recalled Helldiver is dropped in', m.pendingPods('H') >= 1 || m.hdAlive.length >= 3, `alive ${m.hdAlive.length}, pods ${m.pendingPods('H')}`);
-  // a wiped squad with SEAF still alive keeps waiting for the recall instead of losing at once
   const w = quiet('bugs', 6, false);
   w.hd.lives = 0;
   const sf = w.addAlly('S', w.hx + 10, w.hy); sf.hp = sf.maxHp = 1e9;
   for (const a of w.hdAlive.slice()) w.killAlly(a, 'enemy', 'L');
   w._refreshAlive();
-  run(w, 5);
-  check('a squad with SEAF left is not defeated while the recall is coming', !w.over);
-  run(w, 130);
-  check('and the recall brings a Helldiver back', !w.over && (w.hdAlive.length >= 1 || w.pendingPods('H') >= 1), `alive ${w.hdAlive.length}, pods ${w.pendingPods('H')}`);
+  run(w, 3);
+  check('with no lives and no Helldiver left the mission is lost, even with SEAF standing', w.over && w.outcome === 'defeat');
   const z = quiet('bugs', 7);
-  z.hd.lives = 0;
-  for (const a of z.allies.slice()) z.killAlly(a, 'enemy', 'L');
-  z._refreshAlive(); run(z, 2);
-  check('with nobody left at all the squad is defeated', z.over && z.outcome === 'defeat');
+  z.hd.lives = 2;
+  for (const a of z.hdAlive.slice()) z.killAlly(a, 'enemy', 'L');
+  z._refreshAlive(); run(z, C.helldivers.reinforceSec + 4);
+  check('with lives left a wiped squad is reinforced, not defeated', !z.over && (z.hdAlive.length >= 1 || z.pendingPods('H') >= 1));
 }
 
 // ---------------------------------------------------------------- the enemy mix
@@ -208,7 +199,7 @@ const nearHd = (m, a, d, ang = 0) => ({ x: a.x + Math.cos(ang) * d, y: a.y + Mat
   const n = { L: 0, M: 0, H: 0 };
   m.enemies = [];
   for (let i = 0; i < 8000; i++) n[m.drawToken()]++;
-  check('draws come out overwhelmingly light', n.L / 8000 > 0.88, `L ${(100 * n.L / 8000).toFixed(1)}%  M ${(100 * n.M / 8000).toFixed(1)}%  H ${(100 * n.H / 8000).toFixed(1)}%`);
+  check('draws come out mostly light', n.L / 8000 > 0.75 && n.H / 8000 < 0.08, `L ${(100 * n.L / 8000).toFixed(1)}%  M ${(100 * n.M / 8000).toFixed(1)}%  H ${(100 * n.H / 8000).toFixed(1)}%`);
   m.enemies = Array.from({ length: C.enemies.kindCap.H }, () => ({ kind: 'H', dead: false }));
   let h = 0; for (let i = 0; i < 4000; i++) if (m.drawToken() === 'H') h++;
   check('with the live cap of heavies reached, no more are drawn', h === 0, `${C.enemies.kindCap.H} allowed at once at the start`);
@@ -228,7 +219,7 @@ const nearHd = (m, a, d, ang = 0) => ({ x: a.x + Math.cos(ang) * d, y: a.y + Mat
         if (e.id <= maxId || marked.has(e.id)) continue;
         marked.add(e.id);
         const g = e.g;
-        if (g.base || g.assault || g.state !== 'patrol') continue;   // base garrisons and assaults are other rules
+        if (g.base || g.from || g.reinf || g.state !== 'patrol') continue;   // garrisons and patrols walk out of their base; backup is called in
         total++;
         if (m.visLevel(e.x, e.y) > 0) seen++;
       }

@@ -5,13 +5,15 @@
 //   bots   a dropship flies in, hovers low while the troops jump out, and climbs away. It can be shot down while it is low.
 //   squids a warp ship slides over the spot and teleports its troops down. Tougher, but it can be shot down too.
 // Every number is in CONFIG.reinf.
+import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
+import { aoX, aoY } from './ao.js';
 import { COMMS } from '../data/data.js';
 import { spawnGroup } from './director.js';
 import { compass } from './enemies.js';
 import { damageArea } from './combat.js';
 
-const R = C.reinf, SIZE = C.world.size;
+const R = C.reinf;
 const ALL = { L: 1, M: 1, H: 0.6, B: 0.2 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -32,7 +34,7 @@ function dropSpot(m, x, y, dmin, dmax) {
   const rng = m.rng, tr = m.terrain;
   for (let i = 0; i < 40; i++) {
     const a = rng.angle(), d = rng.range(dmin, dmax + i * 2);
-    const px = clamp(x + Math.cos(a) * d, 40, SIZE - 40), py = clamp(y + Math.sin(a) * d, 40, SIZE - 40);
+    const px = aoX(m, x + Math.cos(a) * d, 20), py = aoY(m, y + Math.sin(a) * d, 20);
     if (!tr.isLand(px, py)) continue;
     let ok = true;
     for (const b of m.alive) if ((b.x - px) ** 2 + (b.y - py) ** 2 < R.minAlly * R.minAlly) { ok = false; break; }
@@ -63,9 +65,8 @@ export function callReinforcements(m, x, y, why = 'flare', opts = {}) {
     m.drops.push({ id, drop: true, kind: fac === 'bots' ? 'ship' : 'warp', x: sx, y: sy, tx: p.x, ty: p.y, dx: Math.cos(a), dy: Math.sin(a), state: 'in',
       alt: 1, hp: D.hp, maxHp: D.hp, r: D.r, left: n, total: n, dropT: 0, hoverT: 0, outT: 0, low: false, dead: false, hurtAt: -9, born: t, why, vis: 0, face: a });
   }
-  const name = fac === 'bugs' ? 'BUG BREACH' : fac === 'bots' ? 'BOT DROPSHIP' : 'WARP SHIP';
   m.radio(COMMS.reinforcements(dir), 'reinf', 6);
-  m.notice(`${name} INBOUND ${dir.toUpperCase()}  ${n} GROUPS`, 'warn');
+  m.notice(tr('n.reinf.' + fac, { dir: dir.toUpperCase(), n }), 'warn');
   m.emit('reinf', { x: p.x, y: p.y, kind: fac, n, why });
   return true;
 }
@@ -87,7 +88,7 @@ export function updateReinf(m, dt) {
   // A group that has just found the squad, or has just been shot at, may fire a flare (once).
   if (m.phase !== 'over') {
     for (const g of m.groups) {
-      if (g.called || g.reinf || g.assault) continue;
+      if (g.called || g.reinf) continue;
       if (g.state !== 'hunt' && !(g.hitAt > t - 0.5)) continue;
       g.called = true;
       if (t < st.readyAt || st.active >= R.maxActive || m.rng.next() >= R.callChance * Math.min(1.6, m.pressure)) continue;
@@ -98,7 +99,7 @@ export function updateReinf(m, dt) {
       caller.flare = true;
       st.readyAt = t + R.cooldownSec / Math.max(0.6, m.pressure);
       m.emit('flare', { x: caller.x, y: caller.y });
-      m.notice('ENEMY FLARE. KILL THE CALLER TO STOP REINFORCEMENTS', 'warn');
+      m.notice(tr('n.flare'), 'warn');
     }
     for (const g of m.groups) {
       const f = g.flare;
@@ -106,7 +107,7 @@ export function updateReinf(m, dt) {
       if (f.caller.dead) {
         g.flare = null;
         m.stats.flaresStopped = (m.stats.flaresStopped || 0) + 1;
-        m.notice('FLARE CUT SHORT. NO REINFORCEMENTS', 'good');
+        m.notice(tr('n.flareCut'), 'good');
         m.emit('flare_out', { x: f.caller.x, y: f.caller.y });
         continue;
       }
@@ -141,7 +142,7 @@ export function updateReinf(m, dt) {
       if (d.left > 0 && d.dropT <= 0) {
         d.dropT = D.every; d.left--;
         const [ox, oy] = m.rng.inDisc(7);
-        release(m, clamp(d.x + ox, 10, SIZE - 10), clamp(d.y + oy, 10, SIZE - 10), d.kind, d);
+        release(m, aoX(m, d.x + ox, 6), aoY(m, d.y + oy, 6), d.kind, d);
       }
       if (d.left <= 0 && d.hoverT <= 0) { d.state = 'out'; d.outT = 0; }
     } else {
@@ -166,7 +167,7 @@ export function damageDrop(m, d, dmg, by) {
   m.stats.dropsDown = (m.stats.dropsDown || 0) + 1;
   m.sc.drops = (m.sc.drops || 0) + C.score.dropDown;
   m.earn('drops', D.reward, d.x, d.y);
-  m.notice(`${d.kind === 'ship' ? 'DROPSHIP' : 'WARP SHIP'} SHOT DOWN${d.left ? `  ${d.left} GROUPS WITH IT` : ''}  +${D.reward} CR`, 'good');
+  m.notice(tr(d.left ? 'n.shipDownN' : 'n.shipDown', { what: tr(d.kind === 'ship' ? 'n.dropship' : 'n.warpship'), n: d.left, cr: D.reward }), 'good');
   m.radio(d.kind === 'ship' ? COMMS.dropshipDown : COMMS.warpDown, 'dropdown', 2);
   m.emit('drop_down', { x: d.x, y: d.y, kind: d.kind, by });
   d.left = 0;

@@ -3,23 +3,14 @@ import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
 import { compass } from './enemies.js';
 import { onSpot } from './director.js';
-import { objectiveGoal } from './objectives.js';
+import { planGoal } from './planner.js';
 import { bark } from './chatter.js';
 import { updateSeaf } from './seaf.js';
 import { speedMul } from './helldiver.js';
 import { canStep } from './safety.js';
 import { steer } from './terrain.js';
 import { boardingNow } from './extract.js';
-
-function nearestBase(m, x, y) {
-  let best = null, bd = Infinity;
-  for (const b of m.bases) {
-    if (b.destroyed || b.fortress) continue;
-    const d = Math.hypot(b.x - x, b.y - y);
-    if (d < bd) { bd = d; best = b; }
-  }
-  return best;
-}
+import { aoX, aoY } from './ao.js';
 
 function step(o, tx, ty, speed, dt) {
   const dx = tx - o.x, dy = ty - o.y, d = Math.hypot(dx, dy);
@@ -83,8 +74,9 @@ export function updateSquad(m, dt) {
     // Where the anchor wants to go. The objective always comes first; bases are bonus points once it is done.
     let gx = sq.ax, gy = sq.ay, goal = 'none', pointGoal = false;
     let baseGoal = null;
-    if (m.phase === 'objective') {
-      const og = objectiveGoal(m);
+    if (m.phase === 'objective' || m.phase === 'clear') {
+      // the plan (planner.js): a side task on the way, the main objective, or the next task of a full clear
+      const og = planGoal(m);
       if (og && og.base) baseGoal = og.base;
       else if (og) {
         pointGoal = true;
@@ -94,10 +86,7 @@ export function updateSquad(m, dt) {
         if (d > og.stop) { gx = og.x; gy = og.y; goal = 'point'; }
         sq.base = null;
         if (sq.state === 'hold') sq.state = 'advance';
-      }
-    } else if (m.phase === 'bonus') {
-      if (!sq.base || sq.base.destroyed || sq.base.fortress) { sq.base = nearestBase(m, sq.ax, sq.ay); sq.holdT = 0; sq.pushed = false; if (sq.base) sq.hpAt = sq.base.hp; }
-      baseGoal = sq.base;
+      } else sq.base = null;
     } else if (m.phase === 'extract') {
       // To the extraction point, then hold it until the pelican is down (the anchor stays on the pad).
       const ex = m.extraction;
@@ -144,7 +133,8 @@ export function updateSquad(m, dt) {
     const hold = (engaged && !fightOn) || sq.state === 'setup';
     if (!hold && goal !== 'none') {
       const w = steer(m.terrain, sq, sq.ax, sq.ay, gx, gy, t);     // round the water, if there is any in the way
-      const dx = w.x - sq.ax, dy = w.y - sq.ay, d = Math.hypot(dx, dy);
+      const wx = aoX(m, w.x, 3), wy = aoY(m, w.y, 3);                // (a corner of the route may lie just past the map's edge)
+      const dx = wx - sq.ax, dy = wy - sq.ay, d = Math.hypot(dx, dy);
       const v = speed * (fightOn ? C.squad.fightOnSpeed : 1);
       if (d > 0.05) { const s = Math.min(v * dt, d); sq.ax += (dx / d) * s; sq.ay += (dy / d) * s; }
     }

@@ -6,44 +6,81 @@ import { slotStats, aimGeom, UAV_REACH, ORB_SLOTS } from './player.js';
 import { pickNukeTarget } from './objectives.js';
 import { acceptSupply, fillSupply } from './supply.js';
 import { covered } from './combat.js';
+import { beaconLit } from './sides.js';
 
 export function makeBot(skill = {}) {
   return { next: 0, orderT: 0, nukeT: null, rot: 0, aimNoise: skill.aimNoise ?? 3, react: skill.react ?? 0.3, gunT: 0, gunOn: false, lineFor: 0, splitDone: false, commit: null };
 }
 
-// What the bot buys, in order. It saves for the first available item rather than spending on the cheap ones.
-const PLAN = ['slot:4', 'up:orb_120', 'uav', 'gun.ammo', 'up:orb_airburst', 'sup.lives', 'seaf.medic', 'own:orb_walk', 'seaf.hp', 'gun.dmg', 'up:orb_airburst',
-  'seaf.drop', 'seaf.spot', 'gun.regen', 'up:orb_precision', 'slot:5', 'own:orb_380', 'up:orb_120', 'sup.zone', 'uav', 'up:orb_walk', 'seaf.rocket', 'up:orb_380', 'seaf.gren',
-  'seaf.cap', 'gun.spread', 'own:orb_napalm', 'up:orb_airburst', 'sup.lives', 'own:orb_rail', 'up:orb_airburst', 'uav', 'up:orb_walk', 'up:orb_380', 'seaf.hp',
-  'up:orb_precision', 'own:orb_laser', 'sup.zone', 'up:orb_napalm', 'up:orb_rail', 'seaf.drop', 'sup.lives', 'up:orb_120',
-  'own:util_med', 'up:util_med', 'up:util_med', 'up:orb_rail', 'up:orb_laser'];
+// What the bot buys, in order: each entry is one purchase (the third 'up:orb_120' means level 4), so the list reads as a build that
+// carries on from mission to mission. It saves for the next entry rather than spending on cheaper ones further down; an entry it
+// cannot buy at all (maxed, not owned yet) is skipped. The order is what a sensible gunner does: anti-heavy and the medic before
+// the luxuries.
+const PLAN = [
+  'up:orb_120', 'up:orb_precision', 'up:orb_airburst', 'up:orb_120',
+  'slot:4', 'own:util_med', 'uav', 'gun.ammo', 'up:orb_precision', 'sup.lives', 'seaf.medic', 'gun.dmg', 'up:orb_120', 'seaf.hp',
+  'gun.ammo', 'uav', 'up:orb_airburst', 'sup.lives', 'seaf.drop', 'gun.regen',
+  'own:orb_rail', 'up:orb_precision', 'seaf.spot', 'gun.dmg', 'up:util_med', 'up:orb_120', 'sup.lives', 'seaf.hp', 'gun.ammo', 'uav', 'sup.zone',
+  'slot:5', 'own:orb_380', 'up:orb_rail', 'seaf.rocket', 'gun.spread', 'up:orb_380', 'seaf.medic', 'gun.regen', 'sup.lives', 'up:orb_precision',
+  'seaf.gren', 'seaf.cap', 'up:orb_rail', 'up:orb_380', 'gun.dmg', 'uav', 'seaf.hp', 'up:util_med', 'seaf.drop', 'sup.zone', 'gun.ammo',
+  'own:orb_laser', 'up:orb_laser', 'up:orb_rail', 'seaf.spot', 'seaf.medic', 'gun.spread', 'up:orb_380', 'up:orb_laser', 'sup.lives', 'seaf.rocket',
+  'gun.regen', 'seaf.cap', 'up:orb_laser', 'up:util_med', 'seaf.gren', 'sup.zone', 'gun.dmg', 'gun.spread', 'seaf.hp', 'seaf.drop',
+];
+// What a new orbital pushes out of a full loadout, first found first.
+const BENCH = ['orb_airburst', 'orb_120', 'orb_walk', 'orb_gas', 'orb_ems', 'orb_napalm'];
+
+// Is PLAN entry i (the occ-th time this id appears) already bought?
+function planDone(kit, items, id, occ) {
+  if (id.startsWith('slot:')) return kit.slots >= Number(id.slice(5));
+  if (id.startsWith('own:')) return (kit.owned[id.slice(4)] || 0) >= 1;
+  if (id.startsWith('up:')) return (kit.owned[id.slice(3)] || 0) >= 1 + occ;
+  if (id === 'uav') return kit.uav >= 1 + occ;
+  const it = items.find((x) => x.id === id);
+  return !it || it.level >= occ;
+}
 
 // Spend the wallet between missions. Returns the list of what was bought.
 export function botShop(kit, wallet) {
   const bought = [];
-  for (let guard = 0; guard < 80; guard++) {
-    const items = shopItems(kit);
+  for (let guard = 0; guard < 120; guard++) {
+    const items = shopItems(kit), seen = {};
     let pick = null;
     for (const id of PLAN) {
+      const occ = seen[id] = (seen[id] || 0) + 1;
+      if (planDone(kit, items, id, occ)) continue;
       const it = items.find((x) => x.id === id);
       if (!it || it.cost === null || it.locked) continue;
       pick = it; break;
+    }
+    // Past the end of the list: the cheapest upgrade to something it uses.
+    if (!pick) {
+      const on = kit.loadout.slice(0, kit.slots);
+      pick = items.filter((x) => x.cost !== null && !x.locked && x.live && (!x.orb || on.includes(x.orb))).sort((a, b) => a.cost - b.cost)[0] || null;
     }
     if (!pick || wallet.bal < pick.cost) break;
     const r = buy(kit, wallet, pick.id, false);
     if (!r.ok) break;
     bought.push(pick.id);
-    // A new orbital with no free slot replaces the Airburst (the weakest), so the purchase is actually used.
-    if (pick.id.startsWith('own:')) {
-      const id = pick.id.slice(4), ld = kit.loadout;
-      if (!ld.slice(0, kit.slots).includes(id)) {
-        let i = ld.slice(0, kit.slots).indexOf('orb_airburst');
-        if (i < 0) i = 0;
-        ld[i] = id;
-      }
-    }
+    equip(kit);
   }
   return bought;
+}
+
+// Put what the bot owns to use: empty slots first take the best unequipped orbital, then a newer orbital pushes out a bench one.
+const RANK = ['orb_rail', 'orb_laser', 'orb_380', 'util_med', 'orb_precision', 'orb_120', 'orb_napalm', 'orb_walk', 'orb_airburst', 'orb_gas', 'orb_ems',
+  'util_shield', 'util_smoke', 'util_sentry'];
+function equip(kit) {
+  const ld = kit.loadout, on = () => ld.slice(0, kit.slots);
+  for (const id of RANK) {
+    if (!kit.owned[id] || on().includes(id)) continue;
+    let i = on().indexOf('');
+    if (i < 0) {
+      const out = BENCH.find((b) => on().includes(b) && RANK.indexOf(b) > RANK.indexOf(id));
+      if (!out) continue;
+      i = on().indexOf(out);
+    }
+    ld[i] = id;
+  }
 }
 
 const lead = (e, delay) => ({ x: e.x + (e.vx || 0) * delay, y: e.y + (e.vy || 0) * delay });
@@ -55,39 +92,38 @@ function clearOfAllies(m, x, y, r) {
   return true;
 }
 
-// SEAF pods when there is room, and a UAV whenever it is ready.
+// SEAF pods when there is room (at a lit drop beacon near where the squad is going, if there is one), and a UAV whenever it is ready.
 function orders(m, bot) {
   const t = m.t, dir = m.squad.dir, p = m.player;
   if (!m.alive.length) return;
   const st = seafStats(m.kit);
   if (m.countAlly('S') + m.pendingPods('S') <= st.max - st.drop && t >= m.seaf.readyAt) {
-    m.callSeaf(m.hx + Math.cos(dir) * 25, m.hy + Math.sin(dir) * 25);
+    const bc = beaconAhead(m);
+    if (bc) m.callSeaf(bc.x, bc.y);
+    else m.callSeaf(m.hx + Math.cos(dir) * 25, m.hy + Math.sin(dir) * 25);
   }
-  assaultResponse(m, bot);
+  // keep a pair of squads when there are enough troopers
+  if (!bot.splitDone && m.seafAlive.length >= 6) { bot.splitDone = true; m.selectSquad(0); m.splitSeaf(); m.selectSquad(-1); }
   const u = p.slots[0];
   if (u.type === 'uav' && t >= u.readyAt && m.hdAlive.length) {
-    const reach = Math.min(120, m.hdAlive[0].zone + UAV_REACH - 20), as = m.assault.cur;
-    let ang = dir;
-    if (as && m.t < as.at + 10) ang = Math.atan2(as.y - m.hy, as.x - m.hx);   // scan toward the force that was announced
-    const x = m.hx + Math.cos(ang) * reach, y = m.hy + Math.sin(ang) * reach;
+    const reach = Math.min(120, m.hdAlive[0].zone + UAV_REACH - 20);
+    const x = m.hx + Math.cos(dir) * reach, y = m.hy + Math.sin(dir) * reach;
     if (m.inAllyZone(x, y, UAV_REACH) && !bot.commit) bot.commit = { idx: 0, x, y, until: t + 1.2 };
   }
 }
 
-// A large assault was announced: pull the SEAF into a line across its path (a drawn play), and go back to auto when it is broken.
-function assaultResponse(m, bot) {
-  const as = m.assault.cur, sf = m.seaf;
-  if (as && as.name !== bot.lineFor && m.seafAlive.length >= 3) {
-    bot.lineFor = as.name;
-    const ang = Math.atan2(as.y - m.hy, as.x - m.hx), cx = m.hx + Math.cos(ang) * 34, cy = m.hy + Math.sin(ang) * 34, nx = -Math.sin(ang), ny = Math.cos(ang), h = 24;
-    m.selectSquad(-1);
-    m.seafDraw([{ x: cx - nx * h, y: cy - ny * h }, { x: cx, y: cy }, { x: cx + nx * h, y: cy + ny * h }]);
-  } else if (!as && bot.lineFor) {
-    bot.lineFor = 0;
-    m.selectSquad(-1); m.seafOrder('auto');
+// A lit beacon close to the squad's next task and well ahead of the squad: the drop lands there and holds it.
+function beaconAhead(m) {
+  const k = m.plan && m.plan.task, g = k || (m.phase === 'extract' ? m.extraction : null);
+  if (!g || !m.beacons) return null;
+  if (Math.hypot(g.x - m.hx, g.y - m.hy) < 140) return null;
+  let best = null, bd = 130;
+  for (const b of m.beacons) {
+    if (!beaconLit(m, b)) continue;
+    const d = Math.hypot(b.x - g.x, b.y - g.y);
+    if (d < bd) { bd = d; best = b; }
   }
-  // keep a pair of squads when there are enough troopers: one stays on the line, one keeps clearing
-  if (!bot.splitDone && m.seafAlive.length >= 6 && !as) { bot.splitDone = true; m.selectSquad(0); m.splitSeaf(); m.selectSquad(-1); }
+  return best;
 }
 
 // A call the bot has decided on: switch to that weapon, keep the aim on the target, and fire once the swap is done. Nothing else
@@ -128,17 +164,19 @@ function gunStep(m, bot) {
 
 // Densest group of visible enemies inside the strike zone that is clear of allies by danger metres.
 function bestCluster(m, danger, minN) {
-  const list = m.enemies.filter((e) => !e.dead && e.vis > 0 && !(e.cover && covered(e)));
+  const list = m.enemies.filter((e) => !e.dead && (e.vis > 0 || m.locked.includes(e)) && !(e.cover && covered(e)));
   if (!list.length) return null;
   const stride = Math.max(1, Math.floor(list.length / 60));
   let best = null, bn = 0;
   for (let i = 0; i < list.length; i += stride) {
     const e = list[i];
-    if (!m.inZone(e.x, e.y, -6)) continue;
+    const out = !m.inZone(e.x, e.y, -6);
+    if (out && !m.locked.includes(e)) continue;
     let n = 0, sx = 0, sy = 0;
     m.eGrid.near(e.x, e.y, 12, (o) => { n++; sx += o.x; sy += o.y; });
     if (n < minN || n <= bn) continue;
-    const x = sx / n, y = sy / n;
+    // outside the zone a strike has to land on the locked enemy itself
+    const x = out ? e.x : sx / n, y = out ? e.y : sy / n;
     if (!clearOfAllies(m, x, y, danger + 3)) continue;
     bn = n; best = { x, y, n };
   }
@@ -175,9 +213,9 @@ function targetFor(m, st, bot) {
   const heavy = () => {
     let best = null, bd = Infinity;
     for (const e of m.enemies) {
-      if (e.dead || e.kind !== 'H' || e.vis < 1) continue;
+      if (e.dead || e.kind !== 'H' || (e.vis < 1 && !m.locked.includes(e))) continue;
       const pt = lead(e, st.delay || 0);
-      if (!m.inZone(pt.x, pt.y, -6) || !clearOfAllies(m, pt.x, pt.y, danger + 3)) continue;
+      if (!(m.inZone(pt.x, pt.y, -6) || m.nearLock(pt.x, pt.y)) || !clearOfAllies(m, pt.x, pt.y, danger + 3)) continue;
       const d = Math.hypot(e.x - m.hx, e.y - m.hy) - (e.boss ? 1000 : 0);   // a super heavy comes first
       if (d < bd) { bd = d; best = pt; }
     }

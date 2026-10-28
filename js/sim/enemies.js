@@ -1,18 +1,19 @@
 // Ally rifles, SEAF grenadiers and rocket troopers, and enemy awareness, movement and attacks.
 // Enemy damage depends on size and faction (CONFIG.combat.atk): light enemies nibble, mediums hurt, heavies are special.
+import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { ALLY, COMMS } from '../data/data.js';
-import { fireShot, hurtTarget, hurtAlly, nearestTarget, inZoneKind, pickClear, bandOf, bandAcc, bandDmg } from './combat.js';
+import { fireShot, hurtTarget, hurtAlly, nearestTarget, inZoneKind, pickClear, bandOf, bandAcc, bandDmg, reveal } from './combat.js';
 import { steer } from './terrain.js';
 import { softNear, baseNear } from './pois.js';
 import { bark } from './chatter.js';
 import { dropNear } from './reinforce.js';
 
-const DIRS = ['east', 'northeast', 'north', 'northwest', 'west', 'southwest', 'south', 'southeast'];
+const DIRS = ['e', 'ne', 'n', 'nw', 'w', 'sw', 's', 'se'];
 // Compass word for a vector on the map (north is up, so -y).
 export function compass(dx, dy) {
   const a = Math.atan2(-dy, dx);
-  return DIRS[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8];
+  return tr('dir.' + DIRS[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8]);
 }
 
 // A group learns roughly where the allies are. Neighbors nearby hear about it once.
@@ -30,13 +31,17 @@ export function alertGroup(m, g) {
     if (dx * dx + dy * dy <= r2) { o.state = 'hunt'; o.alertT = A.loseSec; o.garrison = false; o.targetT = 0; o.fuzzT = 0; }
   }
 }
-// Loud explosions wake groups nearby.
+// A fight makes noise. A patrol that hears it close comes hunting; one farther off walks over to see what it was (and finds the
+// squad, if the squad is still there). Garrisons hold their base unless it is right on top of them.
 export function noise(m, x, y, r) {
-  const r2 = r * r;
+  const r2 = r * r, near2 = r2 * C.noise.near * C.noise.near, t = m.t;
   for (const g of m.groups) {
     if (g.state === 'hunt') continue;
-    const dx = g.cx - x, dy = g.cy - y;
-    if (dx * dx + dy * dy <= r2) alertGroup(m, g);
+    const dx = g.cx - x, dy = g.cy - y, d2 = dx * dx + dy * dy;
+    if (d2 > r2) continue;
+    if (d2 <= near2) { alertGroup(m, g); continue; }
+    if (g.garrison) continue;
+    if (!g.inv || t > g.invUntil - C.patrols.investigateSec * 0.5) { g.inv = { x: x + m.rng.range(-12, 12), y: y + m.rng.range(-12, 12) }; g.invUntil = t + C.patrols.investigateSec; }
   }
 }
 
@@ -73,6 +78,7 @@ export function updateAllies(m, dt) {
             a.atk += pf.burst * slow;
             const prof = a.dmgMul && a.dmgMul !== 1 ? { ...pf, dmg: pf.dmg * a.dmgMul } : pf;
             fireShot(m, a, e, prof, 'squad', 'a', H ? 'rifle' : 'smg');
+            if (m.t >= (a.noiseAt || 0)) { a.noiseAt = m.t + C.noise.rifleEvery; noise(m, a.x, a.y, C.noise.rifle); }
             // taking the shot anyway: some collateral is expected
             if (pick.block) {
               m.stats.collateral = (m.stats.collateral || 0) + 1;
@@ -172,7 +178,7 @@ function squidHeavy(m, e, p, t) {
   }
   if (e.atk > 0) return;
   const tgt = nearestTarget(m, e.x, e.y, Math.min(p.range, m.faction.sight * m.biome.ping));   // the beam reaches no farther than it sees
-  if (tgt) e.ch = { t0: t, dur: p.charge, tgt, tx: tgt.x, ty: tgt.y };
+  if (tgt) { e.ch = { t0: t, dur: p.charge, tgt, tx: tgt.x, ty: tgt.y }; reveal(m, e); }
 }
 // (while charging, the harvester turns to its target: see the charge branch above, which keeps aimA fresh)
 
@@ -190,6 +196,7 @@ function bossMove(m, e, dt, size) {
 }
 function bossAttack(m, e, dt, t) {
   const D = C.boss[e.boss], see = m.faction.sight * m.biome.ping * 1.3, dm = m.dmgMul;
+  if (e.aimUntil > t) reveal(m, e);
   if (e.boss === 'squids') { e.atk -= dt; squidHeavy(m, e, { ...D.beam, range: Math.min(D.beam.range, see) }, t); return; }
   e.atk -= dt; e.atk2 -= dt;
   if (e.boss === 'bugs') {
@@ -355,15 +362,33 @@ export function updateEnemies(m, dt) {
     }
 
     if (g.state === 'patrol') {
-      // Wander around home. Garrison groups stay at their base.
-      g.patrolT -= dt;
-      if (g.patrolT <= 0 || !g.pt) {
-        const [ox, oy] = rng.inDisc(C.enemies.patrolRadius);
-        g.pt = { x: g.home.x + ox, y: g.home.y + oy }; g.patrolT = rng.range(6, 10);
-        if (m.terrain.blocked(g.pt.x, g.pt.y)) g.pt = m.terrain.nearestLand(g.pt.x, g.pt.y);
+      // Investigating a noise: walk over at a good pace, look round, then go back to the route.
+      // Walking a route: on to the next waypoint once this one is reached (round and round, or there and back).
+      // Otherwise wander round home (garrisons stay at their base).
+      let goal = null, pace = C.enemies.patrolSpeedMul;
+      if (g.inv) {
+        if (t > g.invUntil || (g.cx - g.inv.x) ** 2 + (g.cy - g.inv.y) ** 2 < 144) { g.inv = null; if (!g.route) { g.home = { x: g.cx, y: g.cy }; g.pt = null; } }
+        else { goal = g.inv; pace = 0.95; }
+      }
+      if (!goal && g.route) {
+        const R = g.route, w = R.pts[g.ri];
+        if ((g.cx - w.x) ** 2 + (g.cy - w.y) ** 2 < 100) {
+          if (R.loop) g.ri = (g.ri + 1) % R.pts.length;
+          else { if (g.ri + g.rdir < 0 || g.ri + g.rdir >= R.pts.length) g.rdir = -g.rdir; g.ri += g.rdir; }
+        }
+        goal = R.pts[g.ri]; pace = C.patrols.speed;
+      }
+      if (!goal) {
+        g.patrolT -= dt;
+        if (g.patrolT <= 0 || !g.pt) {
+          const [ox, oy] = rng.inDisc(C.enemies.patrolRadius);
+          g.pt = { x: g.home.x + ox, y: g.home.y + oy }; g.patrolT = rng.range(6, 10);
+          if (m.terrain.blocked(g.pt.x, g.pt.y)) g.pt = m.terrain.nearestLand(g.pt.x, g.pt.y);
+        }
+        goal = g.pt;
       }
       const o = g.mv || (g.mv = { x: 0, y: 0, nv: null, nvc: null }); o.x = g.cx; o.y = g.cy; o.nv = g.nv;
-      moveToward(o, g.pt.x, g.pt.y, minSpeed * C.enemies.patrolSpeedMul, dt, size);
+      moveToward(o, goal.x, goal.y, minSpeed * pace, dt, size);
       g.cx = o.x; g.cy = o.y; g.nv = o.nv;
       for (const e of g.members) {
         if (e.dead) continue;
@@ -374,7 +399,7 @@ export function updateEnemies(m, dt) {
       continue;
     }
 
-    // A force forming up for an assault stands still until its hold time is over.
+    // A group told to hold (g.hold) stands still until its hold time is over.
     if (g.hold > t) {
       for (const e of g.members) { if (!e.dead) { e.vx = 0; e.vy = 0; e.tgt = null; } }
       continue;
@@ -409,7 +434,12 @@ export function updateEnemies(m, dt) {
         g.tp = { x: best.x + fx, y: best.y + fy };
       } else if (best && Math.sqrt(bd) <= sightE * 1.2) g.tp = { x: best.x, y: best.y };
     }
-    if (g.alertT <= 0) { g.state = 'patrol'; g.home = { x: g.cx, y: g.cy }; g.patrolT = 0; g.pt = null; continue; }
+    if (g.alertT <= 0) {
+      // lost the squad: back to its route (from the nearest waypoint), or to wandering where it is
+      g.state = 'patrol'; g.home = { x: g.cx, y: g.cy }; g.patrolT = 0; g.pt = null; g.inv = null;
+      if (g.route) { let bi = 0, bd = Infinity; g.route.pts.forEach((p, i) => { const d = (p.x - g.cx) ** 2 + (p.y - g.cy) ** 2; if (d < bd) { bd = d; bi = i; } }); g.ri = bi; }
+      continue;
+    }
 
     // Light and medium enemies decide whether the group stops to fight. Heavies fight on their own terms.
     let engaged = false;
@@ -460,6 +490,7 @@ export function updateEnemies(m, dt) {
       const a = e.tgt;
       if (a.dead) continue;
       e.aimA = Math.atan2(a.y - e.y, a.x - e.x); e.aimUntil = t + 0.9;    // turn to face what it is shooting
+      reveal(m, e);                                                      // and gives its position away
       const smoke = inZoneKind(m, a.x, a.y, 'smoke') ? 0.35 : 1;
       const band = p.range > 8 ? bandOf(Math.hypot(a.x - e.x, a.y - e.y), p.range) : 0;   // short, medium or long range
       const hit = rng.next() < p.acc * smoke * bandAcc(band);

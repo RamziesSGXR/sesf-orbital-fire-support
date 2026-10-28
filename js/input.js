@@ -36,9 +36,10 @@ export class Input {
     this.cam.x -= dxPx * k; this.cam.y -= dyPx * k; this.cam.follow = false;
     this._clamp();
   }
+  // The camera stays over the mission's area of operations (cam.ao), or the whole world when there is none.
   _clamp() {
-    const s = C.world.size;
-    this.cam.x = Math.max(0, Math.min(s, this.cam.x)); this.cam.y = Math.max(0, Math.min(s, this.cam.y));
+    const a = this.cam.ao || { x0: 0, y0: 0, x1: C.world.size, y1: C.world.size };
+    this.cam.x = Math.max(a.x0, Math.min(a.x1, this.cam.x)); this.cam.y = Math.max(a.y0, Math.min(a.y1, this.cam.y));
   }
   zoom(f) {
     this.cam.view = Math.max(C.world.zoomMin, Math.min(C.world.zoomMax, this.cam.view * f));
@@ -120,7 +121,8 @@ export class Input {
     // Minimap: a tap opens the tactical map; a drag moves the camera.
     const jump = (e) => {
       const r = this.mini.getBoundingClientRect();
-      this.cam.x = ((e.clientX - r.left) / r.width) * C.world.size; this.cam.y = ((e.clientY - r.top) / r.height) * C.world.size;
+      const a = this.cam.ao || { x0: 0, y0: 0, size: C.world.size };
+      this.cam.x = a.x0 + ((e.clientX - r.left) / r.width) * a.size; this.cam.y = a.y0 + ((e.clientY - r.top) / r.height) * a.size;
       this.cam.follow = false; this._clamp();
     };
     let press = null;

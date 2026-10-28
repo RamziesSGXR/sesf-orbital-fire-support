@@ -13,6 +13,7 @@ import * as S from './session.js';
 import * as UI from './ui.js';
 import { sunAt, todAt, todName, todClock } from './render/sky.js';
 import { acceptSupply, declineSupply, fillSupply, launchSupply, supplyFilling } from './sim/supply.js';
+import { t, setLang, getLang, applyDom, startLang } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const qs = new URLSearchParams(location.search);
@@ -28,6 +29,9 @@ const audio = new Audio();
 const hud = new UI.Hud();
 const cam = { x: C.world.size / 2, y: C.world.size / 2, view: C.world.viewWidth, follow: true };
 let settings = S.getSettings();
+settings.lang = startLang(settings.lang);
+setLang(settings.lang);
+applyDom(document);
 
 let state = 'title';          // title | shop | brief | play | debrief | final
 let paused = false;
@@ -39,6 +43,7 @@ let placing = null; // desktop placement mode for orders: 'seaf' | 'move' | 'pro
 let drawing = false, stroke = null; // draw mode: drag on the map to draw a route, line or ring for the selected squad(s)
 let ema = 16, slowFor = 0, fpsT = 0, fpsN = 0, fps = 0;
 let wantAbort = false;
+let lastFin = null;
 
 // ---------------- settings ----------------
 function applySettings() {
@@ -62,9 +67,28 @@ function buildFor(biome, seed, keepDecals = false) {
 
 function onSettingChange(key) {
   applySettings();
+  if (key === 'lang') relang();
   if ((key === 'polarity' || key === 'relief') && info) buildFor(info.biome, info.seed, true);
   if (key === 'quality') { renderer.perf.low = false; renderer.resize(); if (info) buildFor(info.biome, info.seed, true); }
 }
+
+// A new language: the static page, then whatever screen is up is drawn again in it.
+function relang() {
+  setLang(settings.lang);
+  applyDom(document);
+  hud.relang();
+  UI.buildLangs(getLang(), pickLang);
+  $('about-ver').textContent = t('about.ver', { v: C.share.version });
+  if (UI.isOn('s-settings')) UI.buildSettings(settings, onSettingChange);
+  if (state === 'title') toTitle();
+  else if (state === 'shop') { const n = session.missions.length + 1; $('shop-eyebrow').textContent = n === 1 ? t('arm.eyebrow1') : t('arm.eyebrowN', { n }); $('shop-go').textContent = t('arm.deploy', { n }); drawShop(); }
+  else if (state === 'debrief' && lastRes) UI.fillDebrief(info, lastRes, session);
+  else if (state === 'final' && lastFin) UI.fillFinal(session, lastFin.fin, lastFin.block);
+  if (UI.isOn('s-info') && mission) UI.fillMissionInfo(mission, info);
+  if (UI.isOn('s-armory') && mission) drawArmory();
+  if (UI.isOn('s-names')) UI.buildNames(session ? session.names : S.getNames());
+}
+function pickLang(l) { audio.unlock(); audio.click(); settings.lang = l; onSettingChange('lang'); }
 
 // ---------------- input hooks ----------------
 const input = new Input(canvas, $('minimap'), cam, {
@@ -92,7 +116,7 @@ const input = new Input(canvas, $('minimap'), cam, {
   pause: () => togglePause(),
   armory: () => openArmory(),
   polarity: () => { settings.polarity = settings.polarity === 'white' ? 'black' : 'white'; onSettingChange('polarity'); },
-  relief: () => { settings.relief = !settings.relief; onSettingChange('relief'); if (mission) hud.notice(settings.relief ? 'RELIEF MAP: BLUE WATER, HATCHED SLOW GROUND, ORANGE HIGH GROUND' : 'RELIEF MAP OFF', 'info'); },
+  relief: () => { settings.relief = !settings.relief; onSettingChange('relief'); if (mission) hud.notice(t(settings.relief ? 'set.reliefOn' : 'set.reliefOff'), 'info'); },
   info: () => openInfo(),
   map: () => openMap(),
   follow: () => { if (live() && supplyFilling(mission)) { supTap(-1); return; } cam.follow = !cam.follow; },
@@ -142,26 +166,21 @@ function lookLatest() {
 const live = () => state === 'play' && !paused && mission && !mission.over;
 
 // ---------------- orders: SEAF drop and SEAF orders ----------------
-const DENY = {
-  nocoverage: 'NO COVERAGE THERE. STAY INSIDE THE STRIKE ZONE', cooldown: 'RECHARGING', full: 'SEAF ALREADY AT MAXIMUM',
-  noseaf: 'NO SEAF ON THE GROUND', nohd: 'NO HELLDIVERS TO ESCORT', noallies: 'NO ALLIES ON THE GROUND', nomark: 'THE NUKE IS NOT ARMED',
-  funds: 'NOT ENOUGH CREDITS', between: 'BUY THAT BETWEEN MISSIONS', maxed: 'ALREADY AT MAXIMUM', locked: 'LOCKED',
-  novisual: 'NO VISUAL. THE SHIP GUN NEEDS SIGHT OF THE TARGET', gundry: 'SHIP GUN MAGAZINE EMPTY',
-  short: 'DRAG A LONGER STROKE', splitsmall: 'A SQUAD NEEDS AT LEAST 2 TROOPERS TO SPLIT', splitnosquad: 'ALL FOUR SQUADS ARE IN USE',
-  splitunknown: 'NO SUCH SQUAD', mergesel: 'PICK A SQUAD TO MERGE', mergesmall: 'THAT SQUAD IS EMPTY', mergenosquad: 'NO OTHER SQUAD TO MERGE INTO',
-  assignsel: 'PICK A SQUAD FIRST', assignnone: 'NO TROOPERS THERE TO ASSIGN',
-};
+// Why a call or a purchase was refused: deny.<reason> in the language tables.
+const DENY_KEYS = new Set(['nocoverage', 'cooldown', 'full', 'noseaf', 'nohd', 'noallies', 'nomark', 'funds', 'between', 'maxed', 'locked', 'novisual', 'gundry',
+  'short', 'splitsmall', 'splitnosquad', 'splitunknown', 'mergesel', 'mergesmall', 'mergenosquad', 'assignsel', 'assignnone', 'water']);
+const deny = (r) => (DENY_KEYS.has(r) ? t('deny.' + r) : '');
 function setPlacing(kind) { if (kind) setDrawing(false); placing = kind; hud.setPlacing(kind); }
 function setDrawing(on) {
   if (on && !live()) on = false;
   if (on) { placing = null; hud.setPlacing(null); }
   drawing = on; stroke = null;
-  hud.setDrawing(on, mission && mission.seaf.sel >= 0 ? `FOR SQUAD ${mission.seaf.sel + 1}` : 'FOR ALL SQUADS');
+  hud.setDrawing(on, mission && mission.seaf.sel >= 0 ? t('hud.p.forSquad', { n: mission.seaf.sel + 1 }) : t('hud.p.forAll'));
 }
 function selectSquad(i) {
   if (!live()) return;
   audio.click(); mission.selectSquad(i);
-  if (drawing) hud.setDrawing(true, i >= 0 ? `FOR SQUAD ${i + 1}` : 'FOR ALL SQUADS');
+  if (drawing) hud.setDrawing(true, i >= 0 ? t('hud.p.forSquad', { n: i + 1 }) : t('hud.p.forAll'));
 }
 function cycleSquad(d) {
   if (!live()) return;
@@ -173,12 +192,12 @@ function squadAct(kind, viaKey) {
   if (!live()) return;
   audio.unlock();
   if (kind === 'draw') {
-    if (!drawing && !mission.seafAlive.length) { audio.deny(); hud.toast(DENY.noseaf); return; }
+    if (!drawing && !mission.seafAlive.length) { audio.deny(); hud.toast(deny('noseaf')); return; }
     setDrawing(!drawing);
   } else if (kind === 'split') { setDrawing(false); const r = mission.splitSeaf(); if (r && r.ok) audio.ready(); }
   else if (kind === 'merge') { setDrawing(false); const r = mission.mergeSeaf(); if (r && r.ok) audio.ready(); }
   else if (kind === 'assign') {
-    if (mission.seaf.sel < 0) { audio.deny(); hud.toast(DENY.assignsel); return; }
+    if (mission.seaf.sel < 0) { audio.deny(); hud.toast(deny('assignsel')); return; }
     if (!input.touch && !viaKey) { setPlacing(placing === 'assign' ? null : 'assign'); return; }
     const w = aimWorld(); if (w) runOrder('assign', w.x, w.y);
   }
@@ -199,9 +218,9 @@ function strokeMove(sx, sy) {
 function strokeEnd() {
   const st = stroke; stroke = null;
   if (!st || !live()) return;
-  if (st.pts.length < 2) { audio.deny(); hud.toast(DENY.short, 1200); return; }
+  if (st.pts.length < 2) { audio.deny(); hud.toast(deny('short'), 1200); return; }
   const r = mission.seafDraw(st.pts);
-  if (r && r.ok) { audio.chirp(); hud.toast(`PLAY CALLED: ${r.kind === 'path' ? 'ROUTE' : r.kind.toUpperCase()}`, 1100); }
+  if (r && r.ok) { audio.chirp(); hud.toast(t('hud.p.played', { kind: t('hud.p.kind.' + r.kind) }), 1100); }
 }
 function aimWorld() { const sa = input.screenAim(), w = renderer.screenToWorld(sa.x, sa.y, canvas); return w; }
 // Clicking on a breach or a point of interest sends SEAF straight at it.
@@ -243,7 +262,8 @@ function toTitle() {
   const saved = S.load('session', null);
   const rb = $('btn-resume');
   rb.classList.toggle('hidden', !(saved && saved.missions && saved.missions.length));
-  if (saved && saved.missions) rb.textContent = `RESUME SESSION (${saved.missions.length} FLOWN, ${S.fmtNum(saved.score)})`;
+  if (saved && saved.missions) rb.textContent = t('title.resume', { n: saved.missions.length, score: S.fmtNum(saved.score) });
+  UI.buildLangs(getLang(), pickLang);
   if (!renderer.terrain) setTimeout(() => buildFor('ice', 4242), 30);
 }
 
@@ -263,8 +283,8 @@ function goShop() {
   state = 'shop'; mission = null; paused = false; audio.humStop(); hud.reset(); setPlacing(null);
   UI.hideOverlays(); UI.showScreen('s-shop');
   const n = session.missions.length + 1;
-  $('shop-eyebrow').textContent = n === 1 ? 'Your destroyer is ready. Mission 1 is next' : `Credits carry over. Mission ${n} is next`;
-  $('shop-go').textContent = `DEPLOY MISSION ${n}`;
+  $('shop-eyebrow').textContent = n === 1 ? t('arm.eyebrow1') : t('arm.eyebrowN', { n });
+  $('shop-go').textContent = t('arm.deploy', { n });
   if (BOT) botShop(session.kit, session.wallet);
   drawShop();
 }
@@ -274,9 +294,9 @@ function drawShop(note) {
     kit: session.kit, wallet: session.wallet, live: false, note,
     onBuy: (id) => {
       const r = buy(session.kit, session.wallet, id, false);
-      if (r.ok) { audio.ready(); persist(); drawShop(`${r.item.name.toUpperCase()} BOUGHT`); } else { audio.deny(); drawShop(DENY[r.reason] || ''); }
+      if (r.ok) { audio.ready(); persist(); drawShop(t('arm.bought', { name: r.item.name.toUpperCase() })); } else { audio.deny(); drawShop(deny(r.reason)); }
     },
-    onEquip: (id) => { if (equip(session.kit, id)) { audio.click(); persist(); drawShop(); } else { audio.deny(); drawShop('NO FREE SLOT. UNEQUIP ONE FIRST'); } },
+    onEquip: (id) => { if (equip(session.kit, id)) { audio.click(); persist(); drawShop(); } else { audio.deny(); drawShop(t('arm.noSlot')); } },
     onUnequip: (slot) => { unequip(session.kit, slot); audio.click(); persist(); drawShop(); },
   });
 }
@@ -296,7 +316,7 @@ function goBrief() {
   // ?loadout=id,id,... and ?objective=nuke|vip|fortress force a loadout or objective for testing.
   const ovLoad = (qs.get('loadout') || '').split(',').filter((id) => STRAT_IDS.includes(id)), ovObj = (qs.get('objective') || '').split(',').filter(Boolean);
   info.ovObj = ovObj;
-  const pre = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: false,
+  const pre = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: false, missionN: n,
     loadout: ovLoad.length ? ovLoad : undefined, objectives: ovObj, kit: session.kit, wallet: session.wallet, names: session.names });
   info.loadout = pre.loadout.slice();
   info.tod = qs.has('tod') ? ((Number(qs.get('tod')) % 24) + 24) % 24 : pre.tod0;   // ?tod=14 forces the hour (testing)
@@ -304,7 +324,7 @@ function goBrief() {
   if (briefCtl) briefCtl.cancel();
   const ctl = briefCtl = UI.runBriefing({
     info, mission: n, touch: input.touch, canEnd: session.missions.length > 0,
-    pre: { objectives: pre.objectives.map((o) => o.type), teams: pre.teams },
+    pre: { objectives: pre.objectives.map((o) => o.type), teams: pre.teams, ao: Math.round(pre.ao.size) },
     onReveal: () => audio.chirp(),
     onContinue: () => { briefCtl = null; audio.click(); deploy(); },
     onEnd: () => { briefCtl = null; endSession(); },
@@ -318,17 +338,17 @@ const BIOME_OK = (b) => ['ice', 'grass', 'desert', 'jungle', 'moon'].includes(b)
 function deploy() {
   audio.unlock();
   if (terrainKey !== `${info.biome}|${info.seed}`) buildFor(info.biome, info.seed);
-  mission = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: true,
+  mission = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: true, missionN: session.missions.length + 1,
     loadout: info.loadout, keepOrder: true, objectives: info.ovObj, kit: session.kit, wallet: session.wallet, names: session.names, tod: info.tod });
   bot = BOT ? makeBot() : null;
-  cam.x = mission.lz.x; cam.y = mission.lz.y; cam.follow = true;
+  cam.x = mission.lz.x; cam.y = mission.lz.y; cam.follow = true; cam.ao = mission.ao;
   cam.view = window.innerWidth >= window.innerHeight ? C.world.viewWidth : 280;
   firePending = false; acc = 0; endHandled = false; overAt = 0; wantAbort = false;
   drawing = false; stroke = null;
   hud.reset(); hud.setOp(info.op); hud.setMission(mission); UI.showScreen(null); UI.hideOverlays();
   state = 'play'; paused = false;
   audio.humStart();
-  hud.message(`${info.op.toUpperCase()}  ${todName(info.tod)} ${todClock(info.tod)}`, 2600);
+  hud.message(t('msg.start', { op: info.op.toUpperCase(), tod: todName(info.tod), clock: todClock(info.tod) }), 2600);
   hud.radio(COMMS.startDrop);
   if (input.touch && window.innerHeight > window.innerWidth) { const r = $('rotate-hint'); r.classList.remove('hidden'); setTimeout(() => r.classList.add('hidden'), 5000); }
 }
@@ -347,6 +367,7 @@ function endSession() {
   state = 'final'; audio.humStop();
   const fin = S.finalise(session);
   const block = S.scoreBlock(session, fin);
+  lastFin = { fin, block };
   UI.fillFinal(session, fin, block);
   S.drop('session');
   UI.showScreen('s-final');
@@ -394,7 +415,7 @@ function closeNames(saveIt) {
     S.saveNames(n);
     if (session) { session.names = n; if (state !== 'title') persist(); }
     if (mission) mission.setNames(n);
-    if (mission) hud.notice('SQUAD NAMES UPDATED', 'info');
+    if (mission) hud.notice(t('names.updated'), 'info');
   }
   UI.overlay('s-names', false);
   if (namesReturn === 'pause') UI.overlay('s-pause', true);
@@ -407,7 +428,7 @@ function drawArmory(note) {
     kit: session.kit, wallet: session.wallet, live: true, note,
     onBuy: (id) => {
       const r = mission.spend(id);
-      if (r.ok) { audio.ready(); persist(); drawArmory(`${r.item.name.toUpperCase()} BOUGHT`); } else { audio.deny(); drawArmory(DENY[r.reason] || ''); }
+      if (r.ok) { audio.ready(); persist(); drawArmory(t('arm.bought', { name: r.item.name.toUpperCase() })); } else { audio.deny(); drawArmory(deny(r.reason)); }
     },
     onEquip: () => {}, onUnequip: () => {},
   });
@@ -460,8 +481,9 @@ function closeMap() {
   bm.addEventListener('pointerdown', (e) => {
     if (!mission) return;
     const r = bm.getBoundingClientRect();
-    cam.x = Math.max(0, Math.min(C.world.size, ((e.clientX - r.left) / r.width) * C.world.size));
-    cam.y = Math.max(0, Math.min(C.world.size, ((e.clientY - r.top) / r.height) * C.world.size));
+    const a = mission.ao;
+    cam.x = Math.max(a.x0, Math.min(a.x1, a.x0 + ((e.clientX - r.left) / r.width) * a.size));
+    cam.y = Math.max(a.y0, Math.min(a.y1, a.y0 + ((e.clientY - r.top) / r.height) * a.size));
     cam.follow = false;
     closeMap();
   });
@@ -482,7 +504,7 @@ function closeAbout() {
 hud.onInfo = () => openInfo();
 for (const a of document.querySelectorAll('a.fb')) a.href = C.share.feedbackUrl;
 $('lnk-proj').href = C.share.projectUrl;
-$('about-ver').textContent = `Version ${C.share.version}. Made for the Super Earth Special Forces community.`;
+$('about-ver').textContent = t('about.ver', { v: C.share.version });
 $('btn-info').onclick = () => openInfo();
 $('btn-info-m').onclick = () => openInfo('pause');
 $('info-close').onclick = closeInfo;
@@ -516,7 +538,7 @@ $('names-cancel').onclick = () => closeNames(false);
 $('names-clear').onclick = () => UI.clearNames();
 $('shop-go').onclick = () => {
   audio.unlock();
-  if (!loadoutIds(session.kit).length) { audio.deny(); drawShop('EQUIP AT LEAST ONE ORBITAL'); return; }
+  if (!loadoutIds(session.kit).length) { audio.deny(); drawShop(t('arm.needOrb')); return; }
   audio.click(); persist(); goBrief();
 };
 $('btn-resume-m').onclick = () => togglePause(false);
@@ -532,12 +554,12 @@ $('btn-end-d').onclick = () => { audio.click(); endSession(); };
 $('btn-again').onclick = () => { audio.click(); session = null; toTitle(); };
 async function copyScore() {
   const text = $('f-text').value, msg = $('f-msg');
-  try { await navigator.clipboard.writeText(text); msg.textContent = 'Copied. Paste it into the community channel.'; }
+  try { await navigator.clipboard.writeText(text); msg.textContent = t('fin.copied'); }
   catch {
     const ta = $('f-text'); ta.removeAttribute('readonly'); ta.focus(); ta.select();
     let ok = false; try { ok = document.execCommand('copy'); } catch { ok = false; }
     ta.setAttribute('readonly', ''); window.getSelection()?.removeAllRanges();
-    msg.textContent = ok ? 'Copied. Paste it into the community channel.' : 'Select the text above and copy it by hand.';
+    msg.textContent = t(ok ? 'fin.copied' : 'fin.copyHand');
   }
 }
 $('btn-copy').onclick = copyScore;
@@ -596,12 +618,12 @@ function onEvent(ev, now) {
       if (cam.follow && !(camPan && mission.t < camPan.untilT && camPan.w >= 1)) lookAt(ev.x, ev.y, C.ffz.sec, C.ffz.camPull, () => mission.ffz);
       break;
     case 'boss':
-      audio.siren(); hud.message(`SUPER HEAVY: ${ev.name}`, 3200);
+      audio.siren(); hud.message(t('msg.boss', { name: ev.name }), 3200);
       if (cam.follow && !(camPan && mission.t < camPan.untilT && camPan.w >= 1)) lookAt(ev.x, ev.y, 3.5, 0.6);
       break;
-    case 'boss_down': audio.baseDown(); audio.objective(); hud.message(`${ev.name} DESTROYED`, 3000); break;
+    case 'boss_down': audio.baseDown(); audio.objective(); hud.message(t('msg.bossDown', { name: ev.name }), 3000); break;
     case 'boss_block': audio.deny(); break;
-    case 'boss_leave': audio.ready(); hud.message(`${ev.name} WITHDREW`, 2600); break;
+    case 'boss_leave': audio.ready(); hud.message(t('msg.bossLeft', { name: ev.name }), 2600); break;
     case 'supply_ask': audio.supAsk(); hud.wake(6000); break;
     case 'supply_fill': audio.slowIn(); break;
     case 'supply_tap': audio.supTap(ev.i); if (ev.full) audio.supFull(ev.i); break;
@@ -612,29 +634,34 @@ function onEvent(ev, now) {
     case 'board': audio.board(); break;
     case 'shuttle': audio.shuttle(Math.max(0.5, L), P); break;
     case 'civ_down': audio.civDown(L, P); break;
-    case 'extract_call': audio.alarm(); hud.message('EXTRACTION CALLED. HOLD THE ZONE', 2400); break;
+    case 'extract_call': audio.alarm(); hud.message(t('msg.exCall'), 2400); break;
     case 'extract_landing': audio.rotor(); break;
-    case 'extract_down': audio.chirp(); hud.message('PELICAN DOWN. EVERYONE ABOARD', 2200); break;
-    case 'recall': audio.win(); hud.message('RECALL GRANTED', 2000); break;
+    case 'extract_down': audio.chirp(); hud.message(t('msg.exDown'), 2200); break;
     case 'pelican_arrive': audio.rotor(); break;
     case 'pelican_drop': audio.snd('thud', L, P); break;
-    case 'assault_warn': audio.siren(); hud.message('LARGE ENEMY ASSAULT FORMING', 2400); break;
-    case 'assault_go': audio.alarm(); break;
+    case 'radar': audio.ping(); break;
+    case 'side_done': audio.sideDone(); break;
+    case 'side_failed': audio.sideLost(); break;
+    case 'side_state': if (ev.state === 'siege') audio.alarm(); else audio.ready(); break;
+    case 'beacons_lit': audio.beacons(); break;
+    case 'rally': if (mission.visLevel(ev.x, ev.y) > 0) audio.siren(); break;
+    case 'full_clear': audio.objective(); hud.message(t('msg.fullClear'), 2600); break;
+    case 'area_clear': audio.win(); hud.message(t('msg.areaClear'), 2600); break;
     case 'strat_call': audio.stratCall(); break;
     case 'strike_call': audio.strikeCall(ev.id); break;
     case 'uav': audio.uav(); break;
-    case 'nuke_call': audio.siren(); hud.message('NUCLEAR STRIKE INBOUND', 2400); break;
+    case 'nuke_call': audio.siren(); hud.message(t('msg.nukeCall'), 2400); break;
     case 'obj_state':
       if (ev.type === 'nuke' && ev.state === 'armed') {
-        audio.siren(); hud.message('NUKE ARMED. PICK A TARGET', 3200);
+        audio.siren(); hud.message(t('msg.nukeArmed'), 3200);
         if (live()) mission.selectWeapon(6);
       } else if (ev.type === 'vip' || ev.type === 'evac') audio.chirp();
       break;
-    case 'objective_done': audio.objective(); hud.message('OBJECTIVE COMPLETE', 3000); break;
-    case 'extract_live': audio.alarm(); hud.message('EXTRACTION IS LIVE', 2600); break;
+    case 'objective_done': audio.objective(); hud.message(t('msg.objDone'), 3000); break;
+    case 'extract_live': audio.alarm(); hud.message(t('msg.exLive'), 2600); break;
     case 'asset_new': case 'mount': audio.ready(); break;
     case 'asset_down': if (ev.why === 'killed') audio.allyDown(); break;
-    case 'deny': audio.deny(); if (DENY[ev.reason]) hud.toast(DENY[ev.reason], 1600); break;
+    case 'deny': audio.deny(); if (deny(ev.reason)) hud.toast(deny(ev.reason), 1600); break;
     case 'radio': audio.chirp(); hud.radio(ev.text, ev.key); break;
     case 'notice': hud.notice(ev.text, ev.tone); break;
     case 'credit': audio.coin(); break;
@@ -646,12 +673,11 @@ function onEvent(ev, now) {
     case 'ally_down': audio.allyDown(); break;
     case 'base_down':
       audio.baseDown();
-      if (ev.fortress) hud.message('CITADEL DESTROYED', 2400); else hud.notice(mission.phase === 'objective' ? 'ENEMY BASE DESTROYED' : 'BONUS BASE DESTROYED', 'good');
+      if (ev.fortress) hud.message(t('msg.citadel'), 2400); else hud.notice(t('msg.baseDown'), 'good');
       break;
     case 'end':
       if (ev.outcome === 'victory') audio.win(); else audio.lose();
-      hud.message(ev.outcome === 'victory' ? (mission.extracted ? 'EXTRACTED. MISSION COMPLETE' : 'MISSION COMPLETE')
-        : ev.outcome === 'defeat' ? 'NO HELLDIVER LIVES LEFT' : ev.outcome === 'retired' ? 'MISSION RETIRED' : 'TIME EXPIRED', 4000);
+      hud.message(t(ev.outcome === 'victory' ? (mission.extracted ? 'msg.end.extracted' : 'msg.end.victory') : 'msg.end.' + ev.outcome), 4000);
       break;
     default:
   }
@@ -692,7 +718,7 @@ function frame(ts) {
     renderer.draw(mission, cam, { now, aim: drawing ? null : { x: p.aimX, y: p.aimY }, placing, draw: stroke, snap: (x, y) => snap(x, y) });
     renderer.drawMinimap($('minimap'), mission, cam);
     if (UI.isOn('s-map')) renderer.drawBigMap($('bigmap'), mission, cam);
-    hud.update(mission, cam, session, now);
+    hud.update(mission, cam, session);
     if (mission.over && !endHandled) {
       if (!overAt) overAt = now;
       if (now - overAt > 3.2) finishMission();

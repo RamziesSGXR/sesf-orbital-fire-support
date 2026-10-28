@@ -1,7 +1,8 @@
 // Speech bubbles and map pings. Helldivers and SEAF say what they are about to do, on cooldowns, and
 // each Helldiver keeps one ping on the map: where it is going, or what it is fighting.
 import { CONFIG as C } from '../config.js';
-import { HD_LINES, SEAF_LINES, MOTTOS, SEAF_MOTTOS, pickLine, fill } from '../data/names.js';
+import { pickLine, fill } from '../data/names.js';
+import { t as tr, tl } from '../i18n.js';
 import { objectiveGoal } from './objectives.js';
 
 // One line over one ally's head. Returns true if it was said (cooldowns can swallow it).
@@ -12,11 +13,11 @@ export function bark(m, a, kind, n = '', force = false) {
     if (t < (a.sayAt || 0)) return false;
     if (t < (H ? g.hd : g.seaf)) return false;
   }
-  const lines = (H ? HD_LINES : SEAF_LINES)[kind];
-  if (!lines) return false;
+  const lines = tl((H ? 'hd.' : 'seaf.') + kind);
+  if (!lines.length) return false;
   let text = fill(pickLine(m.crng, lines), n);
-  if (H && kind !== 'hurt' && kind !== 'heavy' && m.crng.next() < 0.45) text += ' ' + pickLine(m.crng, MOTTOS);
-  else if (!H && (kind === 'engage' || kind === 'attack') && m.crng.next() < 0.3) text += ' ' + pickLine(m.crng, SEAF_MOTTOS);
+  if (H && kind !== 'hurt' && kind !== 'heavy' && m.crng.next() < 0.45) text += ' ' + pickLine(m.crng, tl('motto.hd'));
+  else if (!H && (kind === 'engage' || kind === 'attack') && m.crng.next() < 0.3) text += ' ' + pickLine(m.crng, tl('motto.seaf'));
   a.say = { text, until: t + (H ? CH.hdSec : CH.seafSec), small: !H };
   a.sayAt = t + (H ? CH.hdCool : CH.seafCool) * (0.8 + 0.4 * m.crng.next());
   if (H) g.hd = t + CH.hdGlobalGap; else g.seaf = t + CH.seafGlobalGap;
@@ -27,15 +28,16 @@ export function bark(m, a, kind, n = '', force = false) {
 // A short, readable name for where the squad is going right now.
 export function goalName(m) {
   const sq = m.squad;
-  if (m.phase === 'extract') return { x: m.extraction.x, y: m.extraction.y, name: 'extraction' };
-  if (m.phase === 'bonus') { const b = sq.base; return b ? { x: b.x, y: b.y, name: m.faction.baseName.toLowerCase() } : null; }
+  if (m.phase === 'extract') return { x: m.extraction.x, y: m.extraction.y, name: tr('place.extract') };
+  if (m.phase === 'clear') { const b = sq.base; return b ? { x: b.x, y: b.y, name: tr(`fac.${m.faction.id}.baseThe`) } : null; }
   const g = objectiveGoal(m);
   if (!g) return null;
   const o = g.o;
-  if (o.type === 'fortress') return { x: o.base.x, y: o.base.y, name: 'the citadel' };
-  if (o.type === 'nuke') return { x: o.x, y: o.y, name: 'the launch site' };
+  if (o.type === 'fortress') return { x: o.base.x, y: o.base.y, name: tr('place.citadel') };
+  if (o.type === 'nuke') return { x: o.x, y: o.y, name: tr('place.launch') };
+  if (o.type === 'evac') return { x: o.x, y: o.y, name: tr('place.evac') };
   const going = o.state === 'carry' || o.state === 'deliver';
-  return { x: g.x, y: g.y, name: going ? 'the pickup point' : 'the VIP' };
+  return { x: g.x, y: g.y, name: tr(going ? 'place.pickup' : 'place.vip') };
 }
 
 const ping = (a, x, y, kind, until) => { a.ping = { x, y, kind, until }; };

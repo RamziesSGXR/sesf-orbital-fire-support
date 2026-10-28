@@ -5,6 +5,7 @@
 //   landing   the pelican comes down on the pad
 //   boarding  every Helldiver runs for the ramp and boards; SEAF squads get pelicans of their own wherever they are bunched up
 //   away      the pelican climbs out; the mission ends
+import { t as tr } from '../i18n.js';
 import { bossAlive } from './boss.js';
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
@@ -29,7 +30,7 @@ function board(m, a) {
     const tm = m.teams[a.team];
     if (tm && tm.hd === a) { tm.hd = null; tm.boarded = true; }
     m.extracted = true;
-    m.notice(`${m.tag(a)} ABOARD  ${ex.boardedH} HELLDIVER${ex.boardedH > 1 ? 'S' : ''} ON THE PELICAN`, 'good');
+    m.notice(tr(ex.boardedH > 1 ? 'n.aboardN' : 'n.aboard1', { who: m.tag(a), n: ex.boardedH }), 'good');
   } else ex.boardedS++;
   m.emit('board', { x: a.x, y: a.y, type: a.type });
 }
@@ -66,7 +67,7 @@ export function updateExtract(m, dt) {
       const wait = Math.round(Math.min(X.callSec, X.callMin + X.callPerMin * m.S));   // longer waits later in the session
       ex.state = 'called'; ex.landAt = t + wait; ex.waveAt = t + 6; ex.wait = wait;
       m.radio(COMMS.extractCalled(wait), 'excall', 0);
-      m.notice(`EXTRACTION CALLED  PELICAN IN ${wait}S  HOLD THE ZONE`, 'warn');
+      m.notice(tr('n.exCalled', { n: wait }), 'warn');
       m.emit('extract_call', { x: ex.x, y: ex.y });
       bark(m, a, 'extract', '', true);
       break;
@@ -90,7 +91,7 @@ export function updateExtract(m, dt) {
       ex.state = 'boarding'; ex.leaveBy = t + X.boardSec;
       seafShips(m);
       m.radio(COMMS.board, 'exboard', 0);
-      m.notice('PELICAN DOWN. EVERYONE ABOARD', 'good');
+      m.notice(tr('msg.exDown'), 'good');
       m.emit('extract_down', { x: ex.x, y: ex.y });
     }
     return;
@@ -114,6 +115,7 @@ export function updateExtract(m, dt) {
   }
   if (ex.state === 'away') {
     const seafLeft = m.pelicans.some((p) => p.evac && p.state !== 'out');
-    if (t >= ex.awayAt + 2.5 && (!seafLeft || t >= ex.awayAt + X.seafBoardSec)) m.finish('victory');
+    // the mission is won only by getting Helldivers out: a pelican that leaves without one is a failed mission
+    if (t >= ex.awayAt + 2.5 && (!seafLeft || t >= ex.awayAt + X.seafBoardSec)) m.finish(ex.boardedH > 0 ? 'victory' : 'defeat');
   }
 }

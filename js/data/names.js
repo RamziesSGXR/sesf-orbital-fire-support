@@ -1,4 +1,5 @@
-// Names, mottos and the lines Helldivers and SEAF call out. All text here is original to this fan project.
+// Ship names, callsigns and the helpers for the lines Helldivers and SEAF call out. All text here is original to this fan project.
+// Ship names and callsigns are never translated.
 import { RNG } from '../util/rng.js';
 
 // Super Destroyer names, in the "SES <thing> of <ideal>" style.
@@ -29,64 +30,7 @@ export function seafName(rng, role) {
   return `${rank} ${surname(rng)}`;
 }
 
-// Super Earth mottos. Helldivers close a callout with one now and then.
-export const MOTTOS = [
-  'For Super Earth!', 'Liberty never retreats.', 'Democracy is non-negotiable.', 'Freedom has a blast radius.', 'Compliance is patriotism.',
-  'Civic duty, now with fire.', 'Vote early, vote loud.', 'The mandate is explosive.', 'Order, liberty, ordnance.', 'Super Earth provides.',
-  'Another day, another democracy.', 'Managed freedom, delivered.', 'Paid for by your taxes!', 'Sign here with a crater.', 'Long live the franchise!',
-];
-export const SEAF_MOTTOS = [
-  'For Super Earth!', 'Hooah!', 'Freedom!', 'Sir, yes sir!', 'Stay frosty!', 'Democracy!', 'Eyes up!', 'On it!', 'Boots on the ground!', 'For the flag!',
-];
-
-// What a Helldiver says right before doing something. {n} is filled in (a stratagem name, a place).
-export const HD_LINES = {
-  move:    ['Moving to {n}.', 'Heading for {n}.', 'On the way to {n}.', 'Squad is moving on {n}.'],
-  engage:  ['Contact! Engaging.', 'Hostiles ahead, engaging.', 'Weapons free!', 'They found us. Opening fire.'],
-  setup:   ['Hostiles spotted. Setting up.', 'Holding. Let them walk into it.', 'Quiet now, they have not seen us.'],
-  strat:   ['Calling {n}!', '{n} on the way!', 'Throwing {n}. Heads down!', 'Beacon out for {n}!'],
-  base:    ['Pushing the {n}.', 'Cracking that {n} open.', 'Going for the {n}.'],
-  hurt:    ['I am hit!', 'Taking fire, I need cover!', 'Armor is cooked!'],
-  heavy:   ['Heavy contact!', 'Big one coming in!', 'Heavy on the field, someone call something big!'],
-  kill:    ['That is one less.', 'Target down.', 'Clean shot.'],
-  weapon:  ['Support weapon is mine.', 'Picking up the heavy weapon.'],
-  mech:    ['Suiting up.', 'Exosuit online!'],
-  frv:     ['Everybody on, we are driving.', 'Mount up!'],
-  extract: ['Holding for extraction.', 'Pelican is on its way. Hold the line!'],
-  obj:     ['Objective is in reach.', 'Almost there. Stay sharp.'],
-  land:    ['Boots down.', 'On the ground!', 'Pod down, ready to work.'],
-  supask:  ['Need supplies, gunner!', 'Running dry here!', 'Send us a pod!'],
-  supdown: ['Supplies! Grab what you need.', 'Restocked. Back to it!', 'Good drop!'],
-  resupply:['Resupply incoming.', 'Restocking!'],
-  stim:    ['Stim in!', 'Stimmed up, moving!', 'Pumping a stim!'],
-  retreat: ['Falling back!', 'Pulling out, cover me!', 'I need a minute, backing off!'],
-  gren:    ['Grenade out!', 'Frag, get down!', 'Throwing a grenade!'],
-  ult:     ['Ultimatum, stand clear!', 'Hand cannon, one shot!', 'Ultimatum out!'],
-  dodge:   ['Not today!', 'Missed me!', 'Rolling clear!'],
-  flee:    ['Danger close, moving!', 'Clear the blast!', 'Get out of the zone!'],
-  recall:  ['Cleared to drop, thank you!', 'Boots going down again!'],
-  ffz:     ['Requesting a free-fire zone on that pack!', 'Gunner, light that area up! We are clear!', 'Free-fire zone, everybody out of there!'],
-  board:   ['Get on the ship!', 'Ramp is down, move!', 'Go go go, on board!'],
-};
-export const SEAF_LINES = {
-  move:    ['Moving up!', 'On the move!', 'Following orders.'],
-  engage:  ['Contact!', 'Firing!', 'Enemy front!', 'Taking shots!'],
-  clear:   ['Clearing {n}.', 'Heading for {n}.', 'Sweeping {n}.'],
-  protect: ['Holding this ground.', 'Nobody gets past us.', 'Guarding the area.'],
-  attack:  ['Attacking!', 'Charging in!', 'Going in hot!'],
-  escort:  ['Covering the Helldivers.', 'Right behind you!', 'Falling in.'],
-  gren:    ['Frag out!', 'Grenade!', 'Fire in the hole!'],
-  rocket:  ['Rocket away!', 'Heavy coming down!', 'Taking the shot!'],
-  hurt:    ['I am hit!', 'Need help!'],
-  land:    ['Off the pelican!', 'Boots on the ground!', 'Rope is clear!'],
-  medic:   ['Patching you up!', 'Hold still!', 'Medic, I got you!'],
-  spot:    ['Fire mission, danger close!', 'Calling Eagles on that group!', 'Requesting a strike, get down!'],
-  path:    ['Running the play!', 'Following the route!'],
-  line:    ['Forming the line!', 'Spread out, hold the line!'],
-  ring:    ['Ringing the area!', 'All around defense!'],
-  flee:    ['Run!', 'Incoming, move!', 'Get clear!'],
-};
-export const SEAF_NAMES_FOR_ORDERS = { auto: 'AUTO', move: 'MOVE', protect: 'PROTECT', attack: 'ATTACK', escort: 'ESCORT', path: 'ROUTE', line: 'LINE', ring: 'RING' };
+// The mottos and the lines Helldivers and SEAF call out live in the language tables (motto.hd, motto.seaf, hd.<kind>, seaf.<kind>).
 
 // Short, readable name for a stratagem call in a bark.
 export const pickLine = (rng, list) => list[rng.int(list.length)];

@@ -1,35 +1,42 @@
 // Mission objectives. The Helldivers do these first: launch the nuke, rescue the VIP, or take down the citadel.
 // Everything else on the map (the ordinary bases) is bonus points once the objective is done.
+import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
+import { openTasks } from './planner.js';
 import { COMMS } from '../data/data.js';
 import { spawnNear } from './director.js';
 import { callReinforcements } from './reinforce.js';
 import { updateEvac } from './civilians.js';
 import { openExtract } from './extract.js';
+import { aoX, aoY, aoScale } from './ao.js';
 
-const SIZE = C.world.size, O = C.objective;
+const O = C.objective;
 const TYPES = ['nuke', 'vip', 'fortress', 'evac'];
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
-export const OBJ_NAME = { nuke: 'NUCLEAR LAUNCH', vip: 'VIP RESCUE', fortress: 'DESTROY THE CITADEL', evac: 'EVACUATE CIVILIANS' };
+// The name of each objective type, in the current language (obj.name.<type>).
+export const OBJ_NAME = {};
+for (const k of ['nuke', 'vip', 'fortress', 'evac']) Object.defineProperty(OBJ_NAME, k, { get: () => tr('obj.name.' + k), enumerable: true });
 
 // A random point that keeps its distance from everything in avoids ({x, y, r}). Relaxes if the map is crowded.
 // near ({x, y, r}), when given, keeps the point within reach of the landing zone (early missions keep their objectives close).
-function findSpot(m, avoids, margin = 130, near = null) {
-  const rng = m.rng;
+export function findSpot(m, avoids, margin = 130, near = null) {
+  const rng = m.rng, A = m.ao;
+  margin = Math.min(margin, A.size * 0.12);
   let k = 1;
   for (let i = 1; i <= 600; i++) {
     if (i % 120 === 0) k *= 0.85;
-    const x = rng.range(margin, SIZE - margin), y = rng.range(margin, SIZE - margin);
+    const x = rng.range(A.x0 + margin, A.x1 - margin), y = rng.range(A.y0 + margin, A.y1 - margin);
     if (!m.terrain.isLand(x, y)) continue;
     if (near && Math.hypot(x - near.x, y - near.y) > near.r / k) continue;
     if (avoids.every((a) => Math.hypot(x - a.x, y - a.y) >= a.r * k)) return { x, y };
   }
-  return m.terrain.nearestLand(rng.range(margin, SIZE - margin), rng.range(margin, SIZE - margin));
+  const l = m.terrain.nearestLand(rng.range(A.x0 + margin, A.x1 - margin), rng.range(A.y0 + margin, A.y1 - margin));
+  return { x: aoX(m, l.x, 20), y: aoY(m, l.y, 20) };
 }
 
 export function setupObjectives(m, forced) {
-  const rng = m.rng, lz = { x: m.lz.x, y: m.lz.y, r: O.minFromLz };
+  const rng = m.rng, lz = { x: m.lz.x, y: m.lz.y, r: aoScale(m, O.minFromLz) };
   let types = rng.shuffle(TYPES.slice());
   if (forced && forced.length) types = [...forced.filter((t) => TYPES.includes(t)), ...types.filter((t) => !forced.includes(t))];   // test hook
   const count = m.S >= C.mission.secondObjectiveAtMin ? 2 : 1;
@@ -39,16 +46,16 @@ export function setupObjectives(m, forced) {
   const used = [];
   for (let i = 0; i < count; i++) {
     const type = types[i], baseAv = m.bases.map((b) => ({ x: b.x, y: b.y, r: O.nuke.minFromBase }));
-    const av = [lz, ...baseAv, ...used.map((u) => ({ x: u.x, y: u.y, r: 380 }))];
+    const av = [lz, ...baseAv, ...used.map((u) => ({ x: u.x, y: u.y, r: aoScale(m, 380) }))];
     let o;
     if (type === 'nuke') {
       const p = findSpot(m, av, 130, near);
-      o = { type, state: 'travel', x: p.x, y: p.y, r: O.nuke.r, holdT: 0, waveT: O.nuke.waveSec, armedAt: 0, target: null, text: COMMS.objNuke };
+      o = { type, state: 'travel', x: p.x, y: p.y, r: O.nuke.r, holdT: 0, armedAt: 0, target: null, get text() { return COMMS.objNuke; } };
     } else if (type === 'vip') {
       const p = findSpot(m, av, 130, near);
-      const q = findSpot(m, [...av, { x: p.x, y: p.y, r: O.vip.gap }], 130, near);
-      o = { type, state: 'travel', x: p.x, y: p.y, dx: q.x, dy: q.y, pickT: 0, delT: 0, waveT: O.vip.waveSec, garrisoned: false,
-            vip: { x: p.x, y: p.y, carrier: null, state: 'down' }, text: COMMS.objVip };
+      const q = findSpot(m, [...av, { x: p.x, y: p.y, r: aoScale(m, O.vip.gap) }], 130, near);
+      o = { type, state: 'travel', x: p.x, y: p.y, dx: q.x, dy: q.y, pickT: 0, delT: 0, garrisoned: false,
+            vip: { x: p.x, y: p.y, carrier: null, state: 'down' }, get text() { return COMMS.objVip; } };
     } else if (type === 'evac') {
       // A shelter and a hangar on one site, with dry ground between them.
       const E = O.evac, tr = m.terrain;
@@ -60,16 +67,16 @@ export function setupObjectives(m, forced) {
         else if (k === 59) site = { p, s: tr.nearestLand(s.x, s.y), h: tr.nearestLand(h.x, h.y) };
       }
       o = { type, state: 'travel', x: site.p.x, y: site.p.y, r: E.r, sx: site.s.x, sy: site.s.y, hx: site.h.x, hy: site.h.y,
-            released: 0, saved: 0, lost: 0, load: 0, shuttles: 0, batchT: 0, waveT: 0, open: false, text: COMMS.objEvac };
+            released: 0, saved: 0, lost: 0, load: 0, shuttles: 0, batchT: 0, open: false, get text() { return COMMS.objEvac; } };
     } else {
-      const p = findSpot(m, [lz, { x: m.lz.x, y: m.lz.y, r: C.fortress.minFromLz }, ...baseAv.map((b) => ({ ...b, r: C.bases.spacing })), ...used.map((u) => ({ x: u.x, y: u.y, r: 380 }))], 160,
-                         { ...near, r: Math.max(near.r, C.fortress.minFromLz + 200) });
+      const p = findSpot(m, [lz, { x: m.lz.x, y: m.lz.y, r: aoScale(m, C.fortress.minFromLz) }, ...baseAv.map((b) => ({ ...b, r: aoScale(m, C.bases.spacing) })), ...used.map((u) => ({ x: u.x, y: u.y, r: aoScale(m, 380) }))], 160,
+                         { ...near, r: Math.max(near.r, aoScale(m, C.fortress.minFromLz) + 200) });
       const b = {
         id: m.nextId++, x: p.x, y: p.y, hp: C.fortress.hp, maxHp: C.fortress.hp, destroyed: false, r: C.fortress.radius, fortress: true,
         lasedUntil: 0, lasedBy: null, garrisoned: false, nextSpawn: 0, lastHit: -99,
       };
       m.bases.push(b);
-      o = { type, state: 'travel', x: p.x, y: p.y, base: b, text: COMMS.objFortress };
+      o = { type, state: 'travel', x: p.x, y: p.y, base: b, get text() { return COMMS.objFortress; } };
     }
     o.done = false;
     used.push(o);
@@ -97,6 +104,26 @@ function wave(m, cx, cy, rmin, rmax, extra = 0) {
   callReinforcements(m, cx, cy, 'site', { dist: [Math.max(50, rmin * 0.55), Math.max(90, rmax * 0.55)], extra });
 }
 const waveSize = (m) => (m.pressure >= 1.7 ? 1 : 0);
+
+// The enemy closes in on an objective while it is being worked: its backup calls come faster and bigger the longer the squad
+// stays at it (CONFIG.siege). Four Helldivers alone are ground down by it; fire support from the gunner is what holds a site.
+export function siege(m, o, x, y, dt, mul = 1) {
+  const G = C.siege;
+  o.siegeT = (o.siegeT || 0) + dt;
+  siteNoise(m, o, x, y, dt);
+  o.waveT = (o.waveT ?? G.first) - dt;
+  if (o.waveT > 0) return;
+  // Backup cannot be stopped, but it does not pile up without end: while the site already holds cap enemies, the next call waits.
+  let near = 0;
+  for (const e of m.enemies) if (!e.dead && (e.x - x) ** 2 + (e.y - y) ** 2 < G.capR * G.capR) near++;
+  if (near >= G.cap) { o.waveT = G.capWait; return; }
+  const k = Math.min(1, o.siegeT / G.rampSec);
+  o.waveT = (G.every - (G.every - G.minEvery) * k) * mul;
+  wave(m, x, y, 140, 230, waveSize(m) + Math.floor(k * G.extra + 1e-6));
+}
+
+// Working an objective is loud: patrols for a long way round hear it.
+function siteNoise(m, o, x, y, dt) { o.noiseT = (o.noiseT || 0) - dt; if (o.noiseT <= 0) { o.noiseT = C.noise.siteEvery; m.siteNoise(x, y); } }
 
 function squadAt(m, x, y, r) {
   for (const a of m.hdAlive) if (!a.mounted && (a.x - x) ** 2 + (a.y - y) ** 2 <= r * r) return true;
@@ -126,7 +153,7 @@ export function pickNukeTarget(m) {
   const b = m.bases.filter((x) => !x.destroyed && far(x.x, x.y)).sort((a, c) => dist(a, m.squad) - dist(c, m.squad))[0];
   if (b) return { x: b.x, y: b.y };
   const d = safe + 20;
-  return { x: Math.max(40, Math.min(SIZE - 40, m.cx + Math.cos(m.squad.dir) * d)), y: Math.max(40, Math.min(SIZE - 40, m.cy + Math.sin(m.squad.dir) * d)) };
+  return { x: aoX(m, m.cx + Math.cos(m.squad.dir) * d, 20), y: aoY(m, m.cy + Math.sin(m.squad.dir) * d, 20) };
 }
 
 function updateNuke(m, o, dt) {
@@ -137,8 +164,7 @@ function updateNuke(m, o, dt) {
   }
   if (o.state === 'hold') {
     if (squadAt(m, o.x, o.y, o.r)) o.holdT += dt; else m.radio(COMMS.nukeLost, 'nukelost', 12);
-    o.waveT -= dt;
-    if (o.waveT <= 0) { o.waveT = C.reinf.siteEvery; wave(m, o.x, o.y, 140, 230, waveSize(m)); }
+    siege(m, o, o.x, o.y, dt);
     if (o.holdT >= O.nuke.holdSec) {
       o.state = 'armed'; o.armedAt = t;
       m.radio(COMMS.nukeArmed, 'nukearmed', 0);
@@ -147,8 +173,7 @@ function updateNuke(m, o, dt) {
     return;
   }
   if (o.state === 'armed') {
-    o.waveT -= dt;
-    if (o.waveT <= 0) { o.waveT = C.reinf.siteEvery * 1.4; wave(m, o.x, o.y, 140, 230, 0); }
+    siege(m, o, o.x, o.y, dt, 1.4);
     if (t >= o.armedAt + O.nuke.armedSec) {
       const p = pickNukeTarget(m);
       m.radio(COMMS.nukeAuto, 'nukeauto', 0);
@@ -179,25 +204,22 @@ function updateVip(m, o, dt) {
   }
   if (o.state === 'pick') {
     if (squadAt(m, v.x, v.y, V.pickR)) o.pickT += dt; else { o.state = 'travel'; return; }
-    o.waveT -= dt;
-    if (o.waveT <= 0) { o.waveT = C.reinf.siteEvery; wave(m, v.x, v.y, 130, 210, waveSize(m)); }
-    if (o.pickT >= V.pickSec) {
+    siege(m, o, v.x, v.y, dt);
+    if (o.pickT >= (o.picked ? V.regrabSec : V.pickSec)) {     // getting the VIP out takes time; picking them up again does not
       let best = null, bd = Infinity;
       for (const a of m.hdAlive) { if (a.mounted) continue; const d2 = (a.x - v.x) ** 2 + (a.y - v.y) ** 2; if (d2 < bd) { bd = d2; best = a; } }
-      if (best) { v.carrier = best; v.state = 'carried'; o.state = 'carry'; m.radio(COMMS.vipHeld, 'vipheld', 0); m.emit('obj_state', { type: 'vip', state: 'carried' }); }
+      if (best) { v.carrier = best; v.state = 'carried'; o.state = 'carry'; o.picked = true; m.radio(COMMS.vipHeld, 'vipheld', 0); m.emit('obj_state', { type: 'vip', state: 'carried' }); }
     }
     return;
   }
   if (o.state === 'carry') {
-    o.waveT -= dt;
-    if (o.waveT <= 0) { o.waveT = C.reinf.siteEvery * 1.5; wave(m, m.hx, m.hy, 130, 210, 0); }
+    siege(m, o, m.hx, m.hy, dt, 1.5);
     if (squadAt(m, o.dx, o.dy, V.dropR)) { o.state = 'deliver'; o.delT = 0; m.radio(COMMS.vipLanding, 'viplanding', 0); m.emit('obj_state', { type: 'vip', state: 'landing' }); }
     return;
   }
   if (o.state === 'deliver') {
     if (squadAt(m, o.dx, o.dy, V.dropR)) o.delT += dt; else { o.state = 'carry'; return; }
-    o.waveT -= dt;
-    if (o.waveT <= 0) { o.waveT = C.reinf.siteEvery; wave(m, o.dx, o.dy, 120, 190, waveSize(m)); }
+    siege(m, o, o.dx, o.dy, dt);
     if (o.delT >= V.deliverSec) {
       v.carrier = null; v.state = 'safe'; v.x = o.dx; v.y = o.dy;
       m.radio(COMMS.vipDone, 'vipdone', 0);
@@ -212,19 +234,19 @@ export function completeObjective(m, o) {
   m.sc.objective += C.score.objective;
   m.stats.objectives++;
   m.earn('objective', C.credits.objective, o.x, o.y);
-  m.notice(`OBJECTIVE COMPLETE  +${C.credits.objective} CR`, 'good');
+  m.notice(tr('n.objDone', { cr: C.credits.objective }), 'good');
   m.emit('objective_done', { type: o.type, x: o.x, y: o.y });
   if (o.type === 'nuke') m.radio(COMMS.nukeDone, 'nukedone', 0);
   if (o.type === 'fortress') m.radio(COMMS.fortressDone, 'fortressdone', 0);
   const next = activeObjective(m);
   if (next) { m.radio(next.text, 'objnext', 0); return; }
-  // All objectives done: the mission is banked. Bases are bonus points for a while, then the squad pulls out.
-  m.objDone = true; m.phase = 'bonus'; m.bonusEnd = m.t + Math.min(C.mission.bonusSec, C.mission.bonusMin + C.mission.bonusPerMin * m.S);
+  // All objectives done: the mission is banked. The squad clears the rest of the map if it can afford to (planner.js), then pulls out.
+  m.objDone = true; m.phase = 'clear';
   m.squad.base = null;
+  if (m.plan) { m.plan.task = null; m.plan.t = 0; }
   m.sc.timeBonus = C.score.perMinuteLeft * Math.floor(Math.max(0, m.limitSec - m.t) / 60);
   m.radio(COMMS.objDone, 'objdone', 0);
   m.emit('mission_banked', {});
-  if (!m.bases.some((b) => !b.destroyed && !b.fortress)) startExtract(m);
 }
 
 export function startExtract(m) {
@@ -243,35 +265,40 @@ export function updateObjectives(m, dt) {
     if (o.type === 'nuke') updateNuke(m, o, dt);
     else if (o.type === 'vip') updateVip(m, o, dt);
     else if (o.type === 'evac') updateEvac(m, o, dt);
-    else if (o.type === 'fortress' && o.base.destroyed) completeObjective(m, o);
-  } else if (m.phase === 'bonus') {
-    if (m.t >= m.bonusEnd || !m.bases.some((b) => !b.destroyed && !b.fortress)) startExtract(m);
+    else if (o.type === 'fortress') {
+      if (o.base.destroyed) completeObjective(m, o);
+      else if (squadAt(m, o.base.x, o.base.y, C.siege.fortressR)) siege(m, o, o.base.x, o.base.y, dt);   // the citadel calls for help while it is attacked
+    }
   }
 }
 
 // Short text for the HUD, plus a 0-1 progress value when the objective has one.
 export function objectiveStatus(m) {
-  if (m.phase === 'bonus') return { text: `BONUS: CLEAR BASES ${Math.max(0, Math.ceil(m.bonusEnd - m.t))}S`, p: null };
+  if (m.phase === 'clear') {
+    const left = openTasks(m).length, all = Math.max(left, m.plan && m.plan.clearN || left);
+    if (m.plan && !m.plan.clearN) m.plan.clearN = left;
+    return { text: tr('obj.clear', { n: left }), p: all ? 1 - left / all : 1 };
+  }
   if (m.phase === 'extract') return null;
   const o = activeObjective(m);
   if (!o) return null;
-  const n = m.objectives.length > 1 ? ` ${m.objectives.indexOf(o) + 1}/${m.objectives.length}` : '';
+  const of = m.objectives.length > 1 ? tr('obj.of', { i: m.objectives.indexOf(o) + 1, n: m.objectives.length }) : '';
   if (o.type === 'nuke') {
-    if (o.state === 'travel') return { text: `NUKE: REACH THE LAUNCH SITE${n}`, p: 0 };
-    if (o.state === 'hold') return { text: `NUKE: HOLD THE SITE${n}`, p: o.holdT / O.nuke.holdSec };
-    if (o.state === 'armed') return { text: `NUKE ARMED. FIRE IN ${Math.max(0, Math.ceil(o.armedAt + O.nuke.armedSec - m.t))}S`, p: 1, urgent: true };
-    return { text: 'NUKE INBOUND', p: 1, urgent: true };
+    if (o.state === 'travel') return { text: tr('obj.nuke.travel', { of }), p: 0 };
+    if (o.state === 'hold') return { text: tr('obj.nuke.hold', { of }), p: o.holdT / O.nuke.holdSec };
+    if (o.state === 'armed') return { text: tr('obj.nuke.armed', { n: Math.max(0, Math.ceil(o.armedAt + O.nuke.armedSec - m.t)) }), p: 1, urgent: true };
+    return { text: tr('obj.nuke.inbound'), p: 1, urgent: true };
   }
   if (o.type === 'evac') {
-    if (o.state === 'travel') return { text: `EVAC: REACH THE SHELTER${n}`, p: 0 };
-    return { text: `EVAC: ${o.saved}/${O.evac.need} CIVILIANS OUT${o.open ? '' : ' (DOORS SHUT)'}${n}`, p: o.saved / O.evac.need };
+    if (o.state === 'travel') return { text: tr('obj.evac.travel', { of }), p: 0 };
+    return { text: tr(o.open ? 'obj.evac.run' : 'obj.evac.shut', { saved: o.saved, need: O.evac.need, of }), p: o.saved / O.evac.need };
   }
   if (o.type === 'vip') {
-    if (o.state === 'travel') return { text: `VIP: REACH THE CRASH SITE${n}`, p: 0 };
-    if (o.state === 'pick') return { text: `VIP: SECURING${n}`, p: o.pickT / O.vip.pickSec };
-    if (o.state === 'carry') return { text: `VIP: TO THE PICKUP POINT${n}`, p: 0.5 };
-    return { text: `VIP: HOLD THE PICKUP POINT${n}`, p: o.delT / O.vip.deliverSec };
+    if (o.state === 'travel') return { text: tr('obj.vip.travel', { of }), p: 0 };
+    if (o.state === 'pick') return { text: tr('obj.vip.pick', { of }), p: o.pickT / (o.picked ? O.vip.regrabSec : O.vip.pickSec) };
+    if (o.state === 'carry') return { text: tr('obj.vip.carry', { of }), p: 0.5 };
+    return { text: tr('obj.vip.deliver', { of }), p: o.delT / O.vip.deliverSec };
   }
   const b = o.base;
-  return { text: `CITADEL ${Math.max(0, Math.ceil((b.hp / b.maxHp) * 100))}%${n}`, p: 1 - b.hp / b.maxHp };
+  return { text: tr('obj.fort', { n: Math.max(0, Math.ceil((b.hp / b.maxHp) * 100)), of }), p: 1 - b.hp / b.maxHp };
 }

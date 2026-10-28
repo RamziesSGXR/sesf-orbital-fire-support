@@ -245,7 +245,9 @@ export class Terrain {
   surfaceAt(x, y) { return this.kind[this._i(x, y)]; }
   blocked(x, y) { return this.spd[this._i(x, y)] === 0; }
   // Dry, firm-enough ground on the mainland: where things are placed and where groups appear.
-  isLand(x, y) { const k = this._i(x, y); return this.comp[k] === 1 && this.d[k] <= K.wet; }
+  // Inside a mission's area of operations (setBounds) the mainland is the biggest walkable region within it, so everything placed
+  // there can be walked to without leaving it.
+  isLand(x, y) { const k = this._i(x, y); return (this.ac ? this.ac[k] === 1 : this.comp[k] === 1) && this.d[k] <= K.wet; }
   // What is under a unit, for the HUD and the barks: 'deep' | 'shallows' | 'mud' | 'soft' | 'firm'.
   groundName(x, y) {
     const k = this._i(x, y);
@@ -269,7 +271,7 @@ export class Terrain {
         const i = ci + di, j = cj + dj;
         if (i < 0 || j < 0 || i >= N || j >= N) continue;
         const k = j * N + i;
-        if (this.comp[k] !== 1 || this.d[k] > K.wet) continue;
+        if ((this.ac ? this.ac[k] !== 1 : this.comp[k] !== 1) || this.d[k] > K.wet) continue;
         const dd = di * di + dj * dj;
         if (dd < bd) { bd = dd; best = { x: (i + 0.5) * CELL, y: (j + 0.5) * CELL }; }
       }
@@ -331,10 +333,49 @@ export class Terrain {
     return -1;
   }
   // A* on one of the grids. Returns the cells from start to goal, or null if there is no way.
+  // The area of operations (mission.js): routes stay inside it. A cell whose middle lies outside is not used, except as the end.
+  setBounds(b) {
+    if (this.bnd === b) return;
+    this.bnd = b;
+    if (this._pcC) { this._pcC.clear(); this._pcF.clear(); }
+    this.ac = b ? this._aoMain(b) : null;
+  }
+  // The biggest walkable region inside the box (1 there, 0 elsewhere). Kept for the last few boxes asked for.
+  _aoMain(b) {
+    const key = `${b.x0 | 0},${b.y0 | 0},${b.x1 | 0},${b.y1 | 0}`;
+    if (!this._acCache) this._acCache = new Map();
+    let ac = this._acCache.get(key);
+    if (ac) return ac;
+    const sp = this.spd, lab = new Int32Array(N * N), stack = new Int32Array(N * N);
+    const i0 = Math.max(0, Math.ceil(b.x0 / CELL - 0.5)), i1 = Math.min(N - 1, Math.floor(b.x1 / CELL - 0.5));
+    const j0 = Math.max(0, Math.ceil(b.y0 / CELL - 0.5)), j1 = Math.min(N - 1, Math.floor(b.y1 / CELL - 0.5));
+    let c = 0, best = 0, bestN = -1;
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const s0 = j * N + i;
+      if (!sp[s0] || lab[s0]) continue;
+      c++; let top = 0, cnt = 0; stack[top++] = s0; lab[s0] = c;
+      while (top) {
+        const k = stack[--top]; cnt++;
+        const ii = k % N, jj = (k / N) | 0;
+        if (ii > i0 && sp[k - 1] && !lab[k - 1]) { lab[k - 1] = c; stack[top++] = k - 1; }
+        if (ii < i1 && sp[k + 1] && !lab[k + 1]) { lab[k + 1] = c; stack[top++] = k + 1; }
+        if (jj > j0 && sp[k - N] && !lab[k - N]) { lab[k - N] = c; stack[top++] = k - N; }
+        if (jj < j1 && sp[k + N] && !lab[k + N]) { lab[k + N] = c; stack[top++] = k + N; }
+      }
+      if (cnt > bestN) { bestN = cnt; best = c; }
+    }
+    ac = new Uint8Array(N * N);
+    for (let k = 0; k < N * N; k++) if (lab[k] === best && best) ac[k] = 1;
+    this._acCache.set(key, ac);
+    if (this._acCache.size > 6) this._acCache.delete(this._acCache.keys().next().value);
+    return ac;
+  }
   _astar(G, x1, y1, x2, y2) {
     const s = this._openNear(G, x1, y1), g = this._openNear(G, x2, y2);
     if (s < 0 || g < 0) return null;
-    const { W, cost, g: Gc, from, stamp, closed, heap, hf } = G, run = ++G.run;
+    const { W, cost, g: Gc, from, stamp, closed, heap, hf } = G, run = ++G.run, B = this.bnd;
+    const i0 = B ? Math.max(0, Math.ceil(B.x0 / G.cs - 0.5)) : 0, i1 = B ? Math.min(W - 1, Math.floor(B.x1 / G.cs - 0.5)) : W - 1;
+    const j0 = B ? Math.max(0, Math.ceil(B.y0 / G.cs - 0.5)) : 0, j1 = B ? Math.min(W - 1, Math.floor(B.y1 / G.cs - 0.5)) : W - 1;
     let hn = 0;
     const push = (k, f) => {
       let i = hn++; heap[i] = k; hf[i] = f;
@@ -371,6 +412,7 @@ export class Terrain {
         if (ii < 0 || jj < 0 || ii >= W || jj >= W) continue;
         const nb = jj * W + ii;
         if (!cost[nb]) continue;
+        if ((ii < i0 || jj < j0 || ii > i1 || jj > j1) && nb !== g) continue;      // outside the area of operations
         if (di && dj && (!cost[j * W + ii] || !cost[jj * W + i])) continue;       // no cutting a corner of the water
         const ng = gk + (di && dj ? Math.SQRT2 : 1) * (cost[nb] + cost[k]) * 0.5;
         if (stamp[nb] === run && ng >= Gc[nb]) continue;
@@ -461,6 +503,11 @@ export function steer(tr, o, x, y, gx, gy, t) {
   const pts = nv.pts;
   // on to the next corner once this one is reached, or once the next one can be seen straight from here
   while (nv.i < pts.length - 1 && (Math.hypot(pts[nv.i].x - x, pts[nv.i].y - y) < 5 || tr.lineClear(x, y, pts[nv.i + 1].x, pts[nv.i + 1].y, 4))) nv.i++;
+  // a corner the mover is close to but cannot get any closer to (it lies past the edge of the map, or on a shore it is held off)
+  // counts as reached after a moment, so nobody stands next to it for ever
+  const dc = Math.hypot(pts[nv.i].x - x, pts[nv.i].y - y);
+  if (nv.bi !== nv.i || dc < nv.best - 0.5 || t < nv.bt) { nv.bi = nv.i; nv.best = dc; nv.bt = t; }
+  else if (dc < 14 && t - nv.bt > 1.5 && nv.i < pts.length - 1) { nv.i++; nv.bi = nv.i; nv.best = Math.hypot(pts[nv.i].x - x, pts[nv.i].y - y); nv.bt = t; }
   // the corner cannot be reached from here after all (the route was planned on a coarser grid): plan again from where we stand
   if (!tr.lineClear(x, y, pts[nv.i].x, pts[nv.i].y, 4) && t - nv.at > 0.4) {
     const p2 = tr.path(x, y, gx, gy);

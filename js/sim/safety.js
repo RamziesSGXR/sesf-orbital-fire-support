@@ -3,6 +3,7 @@
 // in one runs for the nearest edge, and nobody walks into one on purpose. Strikes the squad calls itself cannot hurt it, but
 // they are still explosions, so anyone caught inside the blast footprint steps out unless they are in the middle of a fight.
 import { CONFIG as C } from '../config.js';
+import { aoX, aoY } from './ao.js';
 import { bark } from './chatter.js';
 
 const SIZE = C.world.size;
@@ -79,7 +80,8 @@ export function updateEvade(m, dt) {
     let dx = a.x - worst.sp.px, dy = a.y - worst.sp.py, d = Math.hypot(dx, dy);
     if (d < 0.05) { const s = worst.s; dx = -(s.y2 - s.y1) || 1; dy = (s.x2 - s.x1) || 0; d = Math.hypot(dx, dy) || 1; }
     const H = a.type === 'H', speed = (H ? 10.5 : 8.5) * bm * (H && t < a.stimUntil ? 1.3 : 1) * dt;
-    a.x = clamp(a.x + (dx / d) * speed, 0, SIZE); a.y = clamp(a.y + (dy / d) * speed, 0, SIZE);
+    const nx = aoX(m, a.x + (dx / d) * speed, 4), ny = aoY(m, a.y + (dy / d) * speed, 4);
+    if (!m.terrain.blocked(nx, ny)) { a.x = nx; a.y = ny; } else if (!m.terrain.blocked(nx, a.y)) a.x = nx; else if (!m.terrain.blocked(a.x, ny)) a.y = ny;
     a.fleeAt = t;
     if (worst.s.hard && t - (a.sayFlee || -99) > 8) { a.sayFlee = t; bark(m, a, 'flee', ''); }
   }

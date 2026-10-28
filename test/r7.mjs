@@ -26,8 +26,10 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
   run(m, 7);
   for (const e of m.enemies) e.dead = true;
   m.enemies = []; m.groups = [];
-  m.support.spawnT = 1e9; m.support.scanT = 1e9; m.assault.nextAt = 1e9; m.strat.callAt = 1e9; m.reinf.readyAt = 1e9; m.ffzAt = 1e9;
-  for (const b of m.bases) b.garrisoned = true;
+  m.support.spawnT = 1e9; m.support.scanT = 1e9; m.strat.callAt = 1e9; m.reinf.readyAt = 1e9; m.ffzAt = 1e9;
+  for (const b of m.bases) { b.garrisoned = true; b.nextPatrol = 1e9; }      // no new patrols out of the bases
+  if (m.intercept) m.intercept.nextAt = 1e9;
+  m.sides = [];                                                                // no side missions calling the enemy in
   for (const p of m.pois) p.woke = true;
   C.enemies.spawn.minLive = 0;
   return m;
@@ -105,7 +107,7 @@ for (const fac of ['bugs', 'bots', 'squids']) {
   run(m2, 0.5);
   if (g2.flare) m2.killEnemy(g2.flare.caller, 'player');
   run(m2, C.reinf.flareSec + 1);
-  check(`${fac}: kill the one holding the flare and nobody comes`, m2.drops.length === 0 && !m2.breaches.some((b) => b.kind === 'hole'), `stopped ${m2.stats.flaresStopped || 0}`);
+  check(`${fac}: kill the one holding the flare and nobody comes`, m2.drops.length === 0 && !m2.breaches.some((b) => b.kind === 'hole'), `stopped ${m2.stats.flaresStopped || 0}; came anyway: ${[...m2.drops, ...m2.breaches.filter((b) => b.kind === 'hole')].map((d) => d.why).join(', ') || 'none'}; groups ${m2.groups.map((q) => (q === g2 ? 'TEST' : q.siege ? 'siege' : q.patrol ? 'patrol' : q.state)).join(',')}`);
   C.reinf.callChance = callP;
 }
 {
@@ -314,7 +316,7 @@ check('the nuke covers a much wider area', C.objective.nuke.blastR >= 200, `${C.
   }
   const earn = C.econ.earnPerMin * C.econ.maxAtMin;
   check('everything in the armory, maxed, costs about what three hours of play earns', Math.abs(total - earn) / earn < 0.1, `${total.toLocaleString()} cr to max everything, about ${earn.toLocaleString()} cr earned in ${C.econ.maxAtMin} min`);
-  check('the ship gun is part of that economy', by['SHIP GUN'] > total * 0.1 && by['SHIP GUN'] < total * 0.25, `${by['SHIP GUN'].toLocaleString()} cr, ${Math.round(by['SHIP GUN'] / total * 100)}%`);
+  check('the ship gun is part of that economy', by.gun > total * 0.1 && by.gun < total * 0.25, `${(by.gun || 0).toLocaleString()} cr, ${Math.round((by.gun || 0) / total * 100)}%`);
 }
 
 console.log(fails ? `\n${fails} FAILED` : '\nall passed');

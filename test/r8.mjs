@@ -18,7 +18,7 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
   run(m, 7);
   for (const e of m.enemies) e.dead = true;
   m.enemies = []; m.groups = [];
-  m.support.spawnT = 1e9; m.support.scanT = 1e9; m.assault.nextAt = 1e9; m.strat.callAt = 1e9; m.reinf.readyAt = 1e9;
+  m.support.spawnT = 1e9; m.support.scanT = 1e9; m.strat.callAt = 1e9; m.reinf.readyAt = 1e9;
   for (const b of m.bases) b.garrisoned = true;
   for (const p of m.pois) p.woke = true;
   C.enemies.spawn.minLive = 0;

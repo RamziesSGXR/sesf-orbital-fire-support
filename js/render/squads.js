@@ -1,5 +1,6 @@
 // SEAF on the map: squad colours and standing orders, drawn plays (routes, lines, rings), the troop pelican, the stroke the
-// player is drawing, and the warning for a large enemy assault. Every function draws in world space (meters).
+// player is drawing. Every function draws in world space (meters).
+import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { SQUAD_COLOR, classifyStroke } from '../sim/seaf.js';
 
@@ -70,7 +71,7 @@ export function drawSquadOrders(ctx, m, now, px, labels, scale, pal) {
         ctx.lineWidth = px(1.2); ctx.globalAlpha *= 0.7; ctx.setLineDash([px(3), px(5)]); ctx.lineDashOffset = -now * px(10);
         ctx.beginPath(); ctx.moveTo(q.cx, q.cy); ctx.lineTo(q.tgt.x, q.tgt.y); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
         ctx.globalAlpha = lit ? 1 : 0.5;
-        labels.push({ x: q.tgt.x, y: q.tgt.y, dy: 26 + Math.max(0, (q.tgt.obj.r || 14) * scale), text: `${nm} TARGET`, col , pri: 0 });
+        labels.push({ x: q.tgt.x, y: q.tgt.y, dy: 26 + Math.max(0, (q.tgt.obj.r || 14) * scale), text: tr('lab.sq.target', { nm }), col , pri: 0 });
       }
     } else if (o.kind === 'move' || o.kind === 'protect' || o.kind === 'attack') {
       const R = o.kind === 'protect' ? S.protectR : o.kind === 'move' ? S.patrolRadius : 24;
@@ -86,7 +87,7 @@ export function drawSquadOrders(ctx, m, now, px, labels, scale, pal) {
       }
       labels.push({ x: o.x, y: o.y, dy: -R * scale - 6, text: `${nm} ${o.kind.toUpperCase()}`, col , pri: 1 });
     } else if (o.kind === 'escort') {
-      labels.push({ x: q.cx, y: q.cy, dy: multi ? -36 : -26, text: `${nm} ESCORT`, col , pri: 1 });
+      labels.push({ x: q.cx, y: q.cy, dy: multi ? -36 : -26, text: tr('lab.sq.escort', { nm }), col , pri: 1 });
     } else if (o.kind === 'path' && o.path) {
       // the route: from where the anchor is now, through the waypoints still to run
       const pts = [{ x: q.ax, y: q.ay }, ...o.path.slice(o.pi)];
@@ -99,7 +100,7 @@ export function drawSquadOrders(ctx, m, now, px, labels, scale, pal) {
       for (let i = 1; i < pts.length - 1; i++) { ring(ctx, pts[i].x, pts[i].y, Math.max(px(2.6), 1.4)); ctx.fill(); }
       const e = pts[pts.length - 1], r = Math.max(px(6), 3.5);
       ctx.fillRect(e.x - r * 0.7, e.y - r * 0.7, r * 1.4, r * 1.4);
-      labels.push({ x: e.x, y: e.y, dy: -14, text: `${nm} ROUTE`, col , pri: 1 });
+      labels.push({ x: e.x, y: e.y, dy: -14, text: tr('lab.sq.route', { nm }), col , pri: 1 });
     } else if (o.kind === 'line' && o.p0 && !seen.has(o.fid)) {
       seen.add(o.fid);
       const dx = o.p1.x - o.p0.x, dy = o.p1.y - o.p0.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, tick = Math.max(px(7), 5);
@@ -110,13 +111,13 @@ export function drawSquadOrders(ctx, m, now, px, labels, scale, pal) {
       ctx.globalAlpha *= 0.55; ctx.lineWidth = px(1.2);
       for (let k = 0; k < 4; k++) { const f = (k + 0.5) / 4, x = o.p0.x + dx * f, y = o.p0.y + dy * f; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - uy * tick * 1.6, y + ux * tick * 1.6); ctx.stroke(); }
       ctx.globalAlpha = lit ? 1 : 0.5;
-      labels.push({ x: mx, y: my, dy: -tick * scale - 8, text: `${nm} LINE`, col , pri: 1 });
+      labels.push({ x: mx, y: my, dy: -tick * scale - 8, text: tr('lab.sq.line', { nm }), col , pri: 1 });
     } else if (o.kind === 'ring' && !seen.has(o.fid)) {
       seen.add(o.fid);
       ctx.lineWidth = px(2); ctx.setLineDash([px(6), px(4)]); ctx.lineDashOffset = now * px(8);
       ring(ctx, o.x, o.y, o.R); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
       ctx.globalAlpha *= 0.12; ring(ctx, o.x, o.y, o.R); ctx.fill(); ctx.globalAlpha = lit ? 1 : 0.5;
-      labels.push({ x: o.x, y: o.y, dy: -o.R * scale - 6, text: `${nm} RING`, col , pri: 1 });
+      labels.push({ x: o.x, y: o.y, dy: -o.R * scale - 6, text: tr('lab.sq.ring', { nm }), col , pri: 1 });
     }
     ctx.globalAlpha = 1;
   }
@@ -135,21 +136,21 @@ export function drawStroke(ctx, m, now, px, labels, scale, dr) {
   const last = pts[pts.length - 1];
   ctx.fillStyle = col; ring(ctx, last.x, last.y, Math.max(px(4), 2)); ctx.fill();
   const c = pts.length >= 2 ? classifyStroke(pts) : null;
-  if (!c) { labels.push({ x: last.x, y: last.y, dy: 22, text: 'DRAWING', col , pri: 3 }); return; }
+  if (!c) { labels.push({ x: last.x, y: last.y, dy: 22, text: tr('hud.d.drawing'), col , pri: 3 }); return; }
   ctx.fillStyle = col; ctx.strokeStyle = col;
   if (c.kind === 'ring') {
     ctx.lineWidth = px(2); ctx.setLineDash([px(6), px(4)]); ctx.lineDashOffset = now * px(8);
     ring(ctx, c.x, c.y, c.R); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
-    labels.push({ x: c.x, y: c.y, dy: -c.R * scale - 6, text: 'RING FORMATION', col , pri: 3 });
+    labels.push({ x: c.x, y: c.y, dy: -c.R * scale - 6, text: tr('lab.ringForm'), col , pri: 3 });
   } else if (c.kind === 'line') {
     const dx = c.p1.x - c.p0.x, dy = c.p1.y - c.p0.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, tick = Math.max(px(8), 5);
     ctx.lineWidth = px(2.2); ctx.beginPath(); ctx.moveTo(c.p0.x, c.p0.y); ctx.lineTo(c.p1.x, c.p1.y); ctx.stroke();
     ctx.beginPath(); for (const p of [c.p0, c.p1]) { ctx.moveTo(p.x - uy * tick, p.y + ux * tick); ctx.lineTo(p.x + uy * tick, p.y - ux * tick); } ctx.stroke();
-    labels.push({ x: (c.p0.x + c.p1.x) / 2, y: (c.p0.y + c.p1.y) / 2, dy: -tick * scale - 8, text: 'LINE FORMATION', col , pri: 3 });
+    labels.push({ x: (c.p0.x + c.p1.x) / 2, y: (c.p0.y + c.p1.y) / 2, dy: -tick * scale - 8, text: tr('lab.lineForm'), col , pri: 3 });
   } else {
     for (let i = 0; i < c.path.length; i++) { ring(ctx, c.path[i].x, c.path[i].y, Math.max(px(3.2), 1.6)); ctx.fill(); }
     const e = c.path[c.path.length - 1];
-    labels.push({ x: e.x, y: e.y, dy: 22, text: 'ROUTE', col , pri: 3 });
+    labels.push({ x: e.x, y: e.y, dy: 22, text: tr('hud.p.kind.path'), col , pri: 3 });
   }
 }
 
@@ -197,42 +198,12 @@ export function drawPelicans(ctx, m, now, px, labels, scale, pal) {
       ring(ctx, p.x, p.y, s * (1.3 + 0.25 * Math.sin(now * 9))); ctx.stroke();
     }
     const left = p.roles.length - p.dropped;
-    let text = 'PELICAN';
-    if (p.state === 'in') text = `PELICAN ${Math.max(1, Math.ceil(Math.hypot(p.tx - p.x, p.ty - p.y) / P.speed))}S`;
-    else if (p.state === 'hover') text = `DEPLOYING ${p.dropped}/${p.roles.length}`;
-    else if (left <= 0) text = 'PELICAN OUT';
+    let text = tr('lab.pelican');
+    if (p.state === 'in') text = tr('lab.pelicanSec', { n: Math.max(1, Math.ceil(Math.hypot(p.tx - p.x, p.ty - p.y) / P.speed)) });
+    else if (p.state === 'hover') text = tr('lab.deploying', { a: p.dropped, b: p.roles.length });
+    else if (left <= 0) text = tr('lab.pelicanOut');
     labels.push({ x: p.x, y: p.y, dy: -s * scale - 8, text: multi ? `${text}  S${p.squad + 1}` : text, col , pri: 1 });
   }
-}
-
-// ---------- a large enemy assault: the force forming up, and the way it will come ----------
-export function drawAssault(ctx, m, now, px, labels, scale, pal) {
-  const cur = m.assault && m.assault.cur;
-  if (!cur) return;
-  const t = m.t, col = pal.enemy, warm = t < cur.at, pulse = 0.5 + 0.5 * Math.sin(now * 8);
-  const nx = -Math.sin(cur.dir), ny = Math.cos(cur.dir), ux = Math.cos(cur.dir), uy = Math.sin(cur.dir);
-  // the live position of what is left of the force
-  let cx = 0, cy = 0, n = 0, seen = false;
-  for (const g of cur.groups) for (const e of g.members) if (!e.dead) { cx += e.x; cy += e.y; n++; if (e.vis > 0) seen = true; }
-  if (!n) return;
-  cx /= n; cy /= n;
-  if (!warm && !seen) return;   // once it moves, only what the squad or a scan can see is shown
-  const bx = warm ? cur.x : cx, by = warm ? cur.y : cy, W = Math.max(60, cur.n * C.assault.spacing * 0.5);
-  ctx.strokeStyle = col; ctx.fillStyle = col;
-  ctx.globalAlpha = 0.55 + 0.4 * pulse; ctx.lineWidth = px(2.4); ctx.setLineDash([px(8), px(5)]); ctx.lineDashOffset = -now * px(14);
-  ctx.beginPath(); ctx.moveTo(bx + nx * W, by + ny * W); ctx.lineTo(bx - nx * W, by - ny * W); ctx.stroke();
-  ctx.setLineDash([]); ctx.lineDashOffset = 0;
-  // the way it will come: arrowheads marching at the squad
-  const tx = m.hx - bx, ty = m.hy - by, d = Math.hypot(tx, ty) || 1, dx = tx / d, dy = ty / d;
-  const len = Math.min(d * 0.6, 110), ph = (now * 0.8) % 1;
-  for (let i = 0; i < 4; i++) {
-    const f = ((i + ph) / 4) * len;
-    ctx.globalAlpha = (0.25 + 0.65 * (1 - (i + ph) / 4)) * (0.6 + 0.4 * pulse);
-    arrowHead(ctx, bx + dx * f, by + dy * f, dx, dy, Math.max(px(9), 6));
-  }
-  ctx.globalAlpha = 1;
-  const compassTxt = cur.dirName ? cur.dirName.toUpperCase() : '';
-  labels.push({ x: bx, y: by, dy: -22, text: warm ? `ASSAULT ${compassTxt}  ${Math.max(0, Math.ceil(cur.at - t))}S` : 'ASSAULT WAVE', col , pri: 3 });
 }
 
 // ---------- minimap ----------
@@ -260,10 +231,5 @@ export function drawMiniSeaf(c, m, k, ac, ec) {
   }
   c.fillStyle = ac;
   for (const p of m.pelicans) { c.beginPath(); c.moveTo(p.x * k + 5, p.y * k); c.lineTo(p.x * k - 4, p.y * k - 3.5); c.lineTo(p.x * k - 4, p.y * k + 3.5); c.closePath(); c.fill(); }
-  const cur = m.assault && m.assault.cur;
-  if (cur && m.t < cur.at + 4) {
-    c.strokeStyle = ec; c.fillStyle = ec; c.lineWidth = 2;
-    c.beginPath(); c.moveTo(cur.x * k, cur.y * k); c.lineTo(m.hx * k, m.hy * k); c.globalAlpha = 0.5; c.setLineDash([3, 3]); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
-    c.beginPath(); c.moveTo(cur.x * k, cur.y * k - 6); c.lineTo(cur.x * k + 6, cur.y * k + 5); c.lineTo(cur.x * k - 6, cur.y * k + 5); c.closePath(); c.fill();
-  }
+
 }
