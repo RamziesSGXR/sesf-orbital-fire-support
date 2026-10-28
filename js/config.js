@@ -105,7 +105,7 @@ export const CONFIG = {
   fortress: { hp: 14000, radius: 28, garrisonGroups: 3, garrisonCap: 30, spawnSec: 16, minFromLz: 650 },
   pressure: { start: 1, perSessionMin: 0.05, perMissionMin: 0.06, onBaseKill: 0.5, floor: 0.5, dropGrace: { sec: 180, min: 0.35 } },
   // The war escalates with every minute of the session, so the run only ends in failure: tougher, harder-hitting enemies and more heavies.
-  ramp:     { hp: 0.016, dmg: 0.031, mediumEvery: 25, heavyEvery: 45, hpCap: 7, dmgCap: 5 },
+  ramp:     { hp: 0.016, dmg: 0.034, mediumEvery: 25, heavyEvery: 45, hpCap: 7, dmgCap: 5 },
   // Large enemy assaults: a big force that comes straight for the squad from one direction. The warning gives the player time to
   // scan, set a SEAF line and get strikes ready. Later in the session they get bigger.
   assault:  { firstSec: 210, everySec: 165, jitterSec: 35, warnSec: 18, groups: 4, perSessionMin: 0.06, maxGroups: 12, hunt: 80, ahead: 150, spacing: 26, reward: 140, score: 400, minLeft: 3, giveUpSec: 140 },
@@ -170,7 +170,11 @@ export const CONFIG = {
 
   // Free-fire zone: a Helldiver facing a big pack well ahead asks for one. Every ally keeps out of it while it lasts, and orbital
   // strikes the player lands inside it recharge faster (cdMul), so the gunner can saturate it.
-  ffz:      { r: 42, sec: 30, cooldownSec: 95, firstSec: 50, minN: 12, heavyN: 6, minDist: 52, maxDist: 150, cdMul: 0.5 },
+  // Resupply on request: the Helldivers ask, the player loads a pod in slow motion (cells per compartment, fillSec real seconds at
+  // the most), and a load finished within fastSec real seconds boosts the Helldivers' damage and pace for boostSec.
+  supply:   { firstSec: 60, need: 1.5, askSec: 14, cells: 4, fillSec: 10, slowmo: 0.25, fastSec: 5, dropSec: 3.5, cooldownSec: 75, declineCooldownSec: 60,
+              boostSec: 45, boostDmg: 0.15, boostSpeed: 1.1 },
+  ffz:      { r: 42, sec: 30, cooldownSec: 75, firstSec: 40, minN: 10, heavyN: 6, minDist: 52, maxDist: 150, cdMul: 0.5, follow: 5, camPull: 0.45 },
 
   // Chatter: speech bubbles over Helldivers and SEAF, on cooldowns so they stay readable.
   chatter:  { hdCool: 11, seafCool: 20, hdSec: 4.2, seafSec: 3.2, seafGlobalGap: 3.5, hdGlobalGap: 1.6 },
@@ -188,5 +192,5 @@ export const CONFIG = {
   share:    { channelUrl: '', channelLabel: 'COPY AND OPEN CHANNEL',
               // Where the FEEDBACK buttons go: a short form on the project's GitHub page (a free GitHub account is needed to post).
               feedbackUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support/issues/new?template=feedback.yml',
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.7.1' },
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.8.0' },
 };

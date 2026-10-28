@@ -26,6 +26,10 @@
       <div id="objective" class="panel fadeable"><div id="obj-main">OBJECTIVE</div><div id="obj-bar" class="hidden"><i></i></div><div id="obj-sub">SQUAD ADVANCING</div></div>
       <div id="strats" class="panel fadeable"></div>
       <div id="place-hint" class="panel hidden"></div>
+      <div id="callouts">
+        <div id="co-ffz" class="callout ffz hidden"><span class="co-i">◎</span><span class="co-t"></span><button class="co-b" data-co="look-ffz">LOOK <kbd>J</kbd></button></div>
+        <div id="co-sup" class="callout sup hidden"><span class="co-i">⬢</span><span class="co-t"></span><button class="co-b primary" data-co="accept">LOAD POD <kbd>U</kbd></button><button class="co-b" data-co="look-sup">LOOK <kbd>J</kbd></button><button class="co-b x" data-co="decline" aria-label="Turn down the supply request">✕</button><i class="co-bar"></i></div>
+      </div>
     </div>
     <div class="hud-tr">
       <div class="panel scorebox fadeable">
@@ -34,7 +38,7 @@
         <div>CREDITS <b id="sc-credits" class="cr">0</b></div>
         <div id="combo" class="combo"></div>
       </div>
-      <canvas id="minimap" class="fadeable" width="240" height="240"></canvas>
+      <canvas id="minimap" class="fadeable" width="240" height="240" title="Tap for the tactical map (L). Drag to move the camera."></canvas>
       <div class="tr-btns">
         <button id="btn-info" class="btn icon" aria-label="Mission info" title="What this mission is and how to finish it">INFO</button>
         <button id="btn-shop" class="btn icon" aria-label="Armory">ARMORY</button>
@@ -79,6 +83,16 @@
     </div>
     <div id="flavor" class="fadeable"></div>
     <div id="infocard" class="panel hidden" role="status"></div>
+    <div id="supgame" class="panel hidden" role="dialog" aria-label="Load the supply pod">
+      <div class="sg-h"><b>LOAD THE SUPPLY POD</b><span id="sg-for"></span></div>
+      <div class="sg-bars"><div class="sg-time"><i id="sg-time"></i></div><div class="sg-fast"><i id="sg-fast"></i><span id="sg-fast-t">FAST LOAD BONUS</span></div></div>
+      <div class="sg-pod">
+        <button class="sg-slot stims" data-i="0" type="button"><span class="sg-k">1</span><span class="sg-cells"></span><span class="sg-n">STIMS</span></button>
+        <button class="sg-slot gren" data-i="1" type="button"><span class="sg-k">2</span><span class="sg-cells"></span><span class="sg-n">GRENADES</span></button>
+        <button class="sg-slot ammo" data-i="2" type="button"><span class="sg-k">3</span><span class="sg-cells"></span><span class="sg-n">AMMO</span></button>
+      </div>
+      <div class="sg-foot"><span class="fine" id="sg-hint">Tap a compartment to load it. A full pod is a full refill; a fast one boosts the squad.</span><button id="sg-launch" class="btn primary" type="button">LAUNCH NOW</button></div>
+    </div>
     <div id="weapons"></div>
     <div id="touch-ctl">
       <button id="fire-btn" class="btn fire">CALL</button>
@@ -155,10 +169,12 @@
             <div class="sub">Draw mode: drag on the map. A loop is a ring, a straight stroke is a line, anything else is a route the squad runs.</div>
             <div><kbd>B</kbd> armory (upgrades) <kbd>ESC</kbd> pause, rename squads</div>
             <div><kbd>WASD</kbd> or right-drag pan <kbd>WHEEL</kbd> zoom <kbd>SPACE</kbd> camera lock <kbd>T</kbd> thermal polarity <kbd>H</kbd> relief map <kbd>I</kbd> mission info</div>
+            <div><kbd>L</kbd> or click the minimap: tactical map <kbd>U</kbd> answer a supply request <kbd>J</kbd> look at the latest callout</div>
           </div>
           <div id="controls-touch" class="ctl">
             <div><kbd>DRAG</kbd> slide the map under the crosshair</div>
-            <div><kbd>PINCH</kbd> zoom <kbd>TAP MINIMAP</kbd> jump</div>
+            <div><kbd>PINCH</kbd> zoom <kbd>TAP MINIMAP</kbd> tactical map</div>
+            <div><kbd>LOAD POD</kbd> answer a supply request <kbd>LOOK</kbd> see a callout</div>
             <div><kbd>CALL</kbd> fire the selected scan or strike at the crosshair</div>
             <div><kbd>BAR</kbd> pick UAV, orbital or nuke</div>
             <div><kbd>ORDERS</kbd> SEAF drop, auto, move, protect, attack, escort</div>
@@ -268,6 +284,17 @@
       <h2 id="info-title">THE MISSION</h2>
       <div id="info-body"></div>
       <div class="btns"><button id="info-close" class="btn primary big">BACK TO THE MISSION</button></div>
+    </div>
+  </section>
+
+  <section id="s-map" class="screen overlay">
+    <div class="card mapcard">
+      <button class="x-close" data-close="s-map" aria-label="Close the map">✕</button>
+      <div class="eyebrow">Tactical map</div>
+      <div class="mapwrap"><canvas id="bigmap" width="900" height="900" aria-label="Tactical map. Tap a spot to look there."></canvas></div>
+      <div class="map-key"><span class="k-hd">● ALLIES</span><span class="k-en">■ ENEMIES IN SIGHT</span><span class="k-obj">◆ OBJECTIVE, EXTRACT</span><span class="k-base">○ ENEMY BASE</span><span class="k-poi">□ TARGET</span><span class="k-ffz">◌ FREE FIRE</span></div>
+      <p class="fine">Tap the map to look there. The game is paused while the map is open.</p>
+      <div class="btns"><button id="map-follow" class="btn">FOLLOW SQUAD</button><button id="map-close" class="btn primary">BACK</button></div>
     </div>
   </section>
 

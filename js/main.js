@@ -12,12 +12,14 @@ import { Audio } from './audio.js';
 import * as S from './session.js';
 import * as UI from './ui.js';
 import { sunAt, todAt, todName, todClock } from './render/sky.js';
+import { acceptSupply, declineSupply, fillSupply, launchSupply, supplyFilling } from './sim/supply.js';
 
 const $ = (id) => document.getElementById(id);
 const qs = new URLSearchParams(location.search);
 const DEBUG = qs.has('debug');
 const FAST = Math.max(1, Math.min(20, Number(qs.get('fast')) || 1));
 const BOT = qs.has('bot');
+const SMIN = qs.has('smin') ? Math.max(0, Number(qs.get('smin')) || 0) : null;   // ?smin=80 starts as if 80 minutes into a session (testing)
 const STEP = 1 / C.world.tickHz;
 
 const canvas = $('view');
@@ -63,9 +65,9 @@ function onSettingChange(key) {
 
 // ---------------- input hooks ----------------
 const input = new Input(canvas, $('minimap'), cam, {
-  weapon: (i) => { if (live()) { setDrawing(false); mission.selectWeapon(i); } },
+  weapon: (i) => { if (!live()) return; if (supplyFilling(mission)) { supTap(i); return; } setDrawing(false); mission.selectWeapon(i); },
   cycle: (d) => {
-    if (!live()) return;
+    if (!live() || supplyFilling(mission)) return;
     const p = mission.player, n = p.slots.length;
     let i = p.weapon;
     for (let k = 0; k < n; k++) {
@@ -76,6 +78,7 @@ const input = new Input(canvas, $('minimap'), cam, {
     }
   },
   fire: (b) => {
+    if (mission && supplyFilling(mission)) { if (mission) mission.setFiring(false); return; }   // hands on the supply loader
     if (b && live()) { audio.unlock(); firePending = true; }
     if (mission && !bot) mission.setFiring(b && live());   // the ship gun fires for as long as the trigger is held
   },
@@ -88,7 +91,10 @@ const input = new Input(canvas, $('minimap'), cam, {
   polarity: () => { settings.polarity = settings.polarity === 'white' ? 'black' : 'white'; onSettingChange('polarity'); },
   relief: () => { settings.relief = !settings.relief; onSettingChange('relief'); if (mission) hud.notice(settings.relief ? 'RELIEF MAP: BLUE WATER, HATCHED SLOW GROUND, ORANGE HIGH GROUND' : 'RELIEF MAP OFF', 'info'); },
   info: () => openInfo(),
-  follow: () => { cam.follow = !cam.follow; },
+  map: () => openMap(),
+  follow: () => { if (live() && supplyFilling(mission)) { supTap(-1); return; } cam.follow = !cam.follow; },
+  supply: () => supplyCall('accept'),
+  look: () => lookLatest(),
   squad: (i) => selectSquad(i),
   squadCycle: (d) => cycleSquad(d),
   squadAct: (kind) => squadAct(kind, true),
@@ -104,6 +110,30 @@ hud.onWeapon = (i) => { audio.unlock(); if (live()) mission.selectWeapon(i); };
 hud.onOrder = (kind) => order(kind, false);
 hud.onSquad = (i) => { audio.unlock(); selectSquad(i); };
 hud.onSquadAct = (kind) => { audio.unlock(); squadAct(kind, false); };
+hud.onCallout = (k) => { audio.unlock(); supplyCall(k); };
+hud.onSupTap = (i) => { audio.unlock(); supTap(i); };
+hud.onSupLaunch = () => { if (live() && launchSupply(mission)) audio.click(); };
+
+// ---------------- supply requests, the loading game and pulling the camera to a callout ----------------
+let camPan = null;     // { x, y, w (how much of the way from the squad), untilT (mission time), track() (a moving target) }
+function lookAt(x, y, sec = 3.5, w = 1, track = null) { if (mission) camPan = { x, y, w, untilT: mission.t + sec, track }; }
+function supTap(i) { if (live() && fillSupply(mission, i)) { /* sounds come with the event */ } }
+function supplyCall(k) {
+  if (!mission || state !== 'play' || paused) return;
+  const S = mission.supply;
+  if (k === 'accept') { if (acceptSupply(mission)) { hud.wake(); setPlacing(null); setDrawing(false); mission.setFiring(false); } else lookLatest(); }
+  else if (k === 'decline') declineSupply(mission);
+  else if (k === 'look-ffz' && mission.ffz) lookAt(mission.ffz.x, mission.ffz.y, 4, 1, () => mission.ffz);
+  else if (k === 'look-sup') { const d = S && (S.drop || S.last); if (d) lookAt(d.x, d.y, 3.5); }
+}
+// J: look at whatever was called most recently (a falling or fresh supply pod, else the free-fire zone).
+function lookLatest() {
+  if (!mission || !live()) return;
+  const S = mission.supply, d = S && (S.drop || (S.last && mission.t - S.last.at < 10 ? S.last : null));
+  if (d) { lookAt(d.x, d.y, 3.5); return; }
+  if (mission.ffz) { lookAt(mission.ffz.x, mission.ffz.y, 4, 1, () => mission.ffz); return; }
+  if (S && S.state === 'ask') { const a = mission.allies.find((x) => x.id === S.ask.by && !x.dead); if (a) lookAt(a.x, a.y, 3); }
+}
 
 const live = () => state === 'play' && !paused && mission && !mission.over;
 
@@ -262,7 +292,7 @@ function goBrief() {
   // ?loadout=id,id,... and ?objective=nuke|vip|fortress force a loadout or objective for testing.
   const ovLoad = (qs.get('loadout') || '').split(',').filter((id) => STRAT_IDS.includes(id)), ovObj = (qs.get('objective') || '').split(',').filter(Boolean);
   info.ovObj = ovObj;
-  const pre = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: S.sessionMinutes(session), events: false,
+  const pre = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: false,
     loadout: ovLoad.length ? ovLoad : undefined, objectives: ovObj, kit: session.kit, wallet: session.wallet, names: session.names });
   info.loadout = pre.loadout.slice();
   info.tod = qs.has('tod') ? ((Number(qs.get('tod')) % 24) + 24) % 24 : pre.tod0;   // ?tod=14 forces the hour (testing)
@@ -284,7 +314,7 @@ const BIOME_OK = (b) => ['ice', 'grass', 'desert', 'jungle', 'moon'].includes(b)
 function deploy() {
   audio.unlock();
   if (terrainKey !== `${info.biome}|${info.seed}`) buildFor(info.biome, info.seed);
-  mission = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: S.sessionMinutes(session), events: true,
+  mission = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: true,
     loadout: info.loadout, keepOrder: true, objectives: info.ovObj, kit: session.kit, wallet: session.wallet, names: session.names, tod: info.tod });
   bot = BOT ? makeBot() : null;
   cam.x = mission.lz.x; cam.y = mission.lz.y; cam.follow = true;
@@ -319,6 +349,7 @@ function endSession() {
 }
 
 function togglePause(force) {
+  if (UI.isOn('s-map')) { closeMap(); return; }
   if (UI.isOn('s-info')) { closeInfo(); return; }
   if (UI.isOn('s-about')) { closeAbout(); return; }
   if (UI.isOn('s-armory')) { closeArmory(); return; }
@@ -405,6 +436,35 @@ function closeInfo() {
   if (infoFrom === 'pause') UI.overlay('s-pause', true); else { paused = false; audio.unlock(); }
   infoFrom = null;
 }
+// ---------------- the tactical map ----------------
+let mapFrom = null;
+function openMap() {
+  if (state !== 'play' || !mission || UI.isOn('s-map')) return;
+  mapFrom = paused ? 'pause' : 'play';
+  paused = true; firePending = false; setPlacing(null); setDrawing(false); mission.setFiring(false);
+  UI.overlay('s-pause', false); UI.overlay('s-map', true);
+  renderer.drawBigMap($('bigmap'), mission, cam);
+  audio.click();
+}
+function closeMap() {
+  UI.overlay('s-map', false);
+  if (mapFrom === 'pause') UI.overlay('s-pause', true); else { paused = false; audio.unlock(); }
+  mapFrom = null;
+}
+{
+  const bm = $('bigmap');
+  bm.addEventListener('pointerdown', (e) => {
+    if (!mission) return;
+    const r = bm.getBoundingClientRect();
+    cam.x = Math.max(0, Math.min(C.world.size, ((e.clientX - r.left) / r.width) * C.world.size));
+    cam.y = Math.max(0, Math.min(C.world.size, ((e.clientY - r.top) / r.height) * C.world.size));
+    cam.follow = false;
+    closeMap();
+  });
+  $('map-follow').onclick = () => { cam.follow = true; closeMap(); };
+  $('map-close').onclick = () => closeMap();
+}
+
 function openAbout(from) {
   aboutFrom = from;
   if (from === 'pause') UI.overlay('s-pause', false);
@@ -428,7 +488,7 @@ $('about-close').onclick = closeAbout;
 // Every panel's close (X) button does what that panel's own back button does.
 const CLOSE = {
   's-pause': () => togglePause(false), 's-armory': () => closeArmory(), 's-names': () => closeNames(false), 's-settings': () => closeSettings(),
-  's-notice': () => $('btn-notice').click(), 's-info': () => closeInfo(), 's-about': () => closeAbout(),
+  's-notice': () => $('btn-notice').click(), 's-info': () => closeInfo(), 's-about': () => closeAbout(), 's-map': () => closeMap(),
 };
 for (const b of document.querySelectorAll('.x-close[data-close]')) { const f = CLOSE[b.dataset.close]; if (f) b.addEventListener('click', f); }
 
@@ -524,7 +584,17 @@ function onEvent(ev, now) {
     case 'reinf': audio.reinf(mission.faction.id, Math.max(0.5, L), P); hud.message(`${mission.faction.id === 'bugs' ? 'BUG BREACH' : mission.faction.id === 'bots' ? 'DROPSHIP' : 'WARP SHIP'} INBOUND`, 1600); break;
     case 'reinf_spawn': audio.arrive(ev.src === 'hole' ? 'bugs' : ev.src, L, P); break;
     case 'drop_down': audio.dropDown(Math.max(0.6, L), P); hud.message(ev.kind === 'ship' ? 'DROPSHIP SHOT DOWN' : 'WARP SHIP SHOT DOWN', 1800); break;
-    case 'ffz': audio.ffz(); hud.message('FREE-FIRE ZONE: STRIKES INTO IT RECHARGE 2X', 2600); break;
+    case 'ffz':
+      audio.ffz(); hud.message('FREE-FIRE ZONE CALLED: SATURATE IT', 2600);
+      // frame the squad and the zone together (unless the player is already being shown something, like a supply drop)
+      if (cam.follow && !(camPan && mission.t < camPan.untilT && camPan.w >= 1)) lookAt(ev.x, ev.y, C.ffz.sec, C.ffz.camPull, () => mission.ffz);
+      break;
+    case 'supply_ask': audio.supAsk(); hud.wake(6000); break;
+    case 'supply_fill': audio.slowIn(); break;
+    case 'supply_tap': audio.supTap(ev.i); if (ev.full) audio.supFull(ev.i); break;
+    case 'supply_launch': audio.slowOut(); audio.supLaunch(ev.fast); hud.message(ev.fast ? 'FAST LOAD! SUPPLY POD AWAY' : 'SUPPLY POD AWAY', 1600); lookAt(ev.x, ev.y, C.supply.dropSec + 2.5); break;
+    case 'supply_down': audio.supDown(L, P); break;
+    case 'supply_no': audio.deny(); break;
     case 'ffz_end': audio.ready(); break;
     case 'board': audio.board(); break;
     case 'shuttle': audio.shuttle(Math.max(0.5, L), P); break;
@@ -592,14 +662,23 @@ function frame(ts) {
   if (state === 'play' && mission) {
     input.update(dt);
     if (!paused) { simulate(dt, now); ambient(mission, dt); }
-    if (cam.follow && mission.alive.length && !stroke) {   // the map holds still under a play being drawn
+    // The camera follows the squad (if locked), and is pulled toward a callout for a while: part of the way for a free-fire zone,
+    // all the way to a supply drop or when the player asks to look. The map holds still under a play being drawn.
+    let cp = camPan && mission.t < camPan.untilT ? camPan : null;
+    if (cp && cp.track) { const z = cp.track(); if (z) { cp.x = z.x; cp.y = z.y; } else { camPan = cp = null; } }
+    if (!cp) camPan = null;
+    const followNow = cam.follow && mission.alive.length;
+    if ((followNow || cp) && !stroke) {
+      let fx = followNow ? mission.cx : cam.x, fy = followNow ? mission.cy : cam.y;
+      if (cp) { fx += (cp.x - fx) * cp.w; fy += (cp.y - fy) * cp.w; }
       const k = 1 - Math.exp(-3 * dt);
-      cam.x += (mission.cx - cam.x) * k; cam.y += (mission.cy - cam.y) * k;
+      cam.x += (fx - cam.x) * k; cam.y += (fy - cam.y) * k;
     }
     renderer.updateView(cam, now);
     const p = mission.player;
     renderer.draw(mission, cam, { now, aim: drawing ? null : { x: p.aimX, y: p.aimY }, placing, draw: stroke, snap: (x, y) => snap(x, y) });
     renderer.drawMinimap($('minimap'), mission, cam);
+    if (UI.isOn('s-map')) renderer.drawBigMap($('bigmap'), mission, cam);
     hud.update(mission, cam, session, now);
     if (mission.over && !endHandled) {
       if (!overAt) overAt = now;
@@ -624,7 +703,7 @@ function simulate(dt, now) {
     if (w && !bot) m.setAim(w.x, w.y);
     if (!bot && firePending) { m.fire(); firePending = false; }
   }
-  acc += dt * FAST;
+  acc += dt * FAST * (supplyFilling(m) ? C.supply.slowmo : 1);   // slow motion while the supply pod is being loaded
   let n = 0;
   const cap = 6 * FAST + 2;
   while (acc >= STEP && n < cap) {

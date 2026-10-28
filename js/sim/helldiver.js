@@ -22,7 +22,7 @@ export function initKit(m, a) {
 }
 
 // How fast a Helldiver moves relative to normal: a stim is a burst of speed.
-export const speedMul = (m, a) => (m.t < a.stimUntil ? K.stimSpeed : 1);
+export const speedMul = (m, a) => (m.t < a.stimUntil ? K.stimSpeed : 1) * (m.supply && m.t < m.supply.boostUntil ? C.supply.boostSpeed : 1);
 
 export function useStim(m, a) {
   if (a.stims <= 0 || m.t < a.stimReady) return false;
@@ -35,12 +35,11 @@ export function useStim(m, a) {
   return true;
 }
 
-// A supply pod restocks every Helldiver: stims back up, grenades full, the Ultimatum loaded.
-export function restock(m) {
+// A supply pod restocks every Helldiver. stimFrac and grenFrac are how full those compartments were (1 = a full refill).
+export function restock(m, stimFrac = 1, grenFrac = 1) {
   for (const a of m.hdAlive) {
-    a.stims = Math.min(K.stims, a.stims + 2);
-    a.gren = K.grenades;
-    a.ultAt = Math.min(a.ultAt, m.t + 1);
+    a.stims = Math.min(K.stims, a.stims + Math.round(K.stims * stimFrac));
+    a.gren = Math.min(K.grenades, a.gren + Math.round(K.grenades * grenFrac));
   }
 }
 

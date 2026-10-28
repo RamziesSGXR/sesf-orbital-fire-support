@@ -13,7 +13,7 @@ import { situation, tipsFor } from './data/tips.js';
 
 const $ = (id) => document.getElementById(id);
 const SCREENS = ['s-title', 's-shop', 's-brief', 's-debrief', 's-final'];
-const OVERLAYS = ['s-pause', 's-armory', 's-names', 's-settings', 's-notice', 's-info', 's-about'];
+const OVERLAYS = ['s-pause', 's-armory', 's-names', 's-settings', 's-notice', 's-info', 's-about', 's-map'];
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // "Orbital 120mm HE Barrage" -> "120mm HE"
@@ -82,6 +82,66 @@ export class Hud {
     this.wb.forEach((w, i) => w.el.addEventListener('mouseenter', () => { if (this.m) this.showCard(weaponInfo(this.m, i), 3500); }));
     $('weapons').addEventListener('mouseleave', () => this.hideCard(600));
     document.querySelectorAll('.x-close[data-close="menu"]').forEach((b) => b.addEventListener('click', () => this.menuToggle(false)));
+    // Callouts (free-fire zone, supply requests) and the supply loading game.
+    document.querySelectorAll('#callouts .co-b').forEach((b) => b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); this.onCallout && this.onCallout(b.dataset.co); }));
+    this.sg = { el: $('supgame'), slots: [], key: '' };
+    document.querySelectorAll('#supgame .sg-slot').forEach((b) => {
+      const i = Number(b.dataset.i), cells = b.querySelector('.sg-cells');
+      cells.innerHTML = '<i></i>'.repeat(C.supply.cells);
+      b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); this.onSupTap && this.onSupTap(i); });
+      this.sg.slots.push({ el: b, cells: [...cells.children], key: '' });
+    });
+    $('sg-launch').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); this.onSupLaunch && this.onSupLaunch(); });
+  }
+
+  // ---- callouts under the objective: a free-fire zone to saturate, and supply requests
+  _callouts(m) {
+    const t = m.t, z = m.ffz, ff = $('co-ffz');
+    if (z) {
+      const txt = `FREE FIRE · ${z.dir ? z.dir.toUpperCase() : ''} ${z.dist || ''}M · ${Math.ceil(Math.max(0, z.until - t))}S · STRIKES RECHARGE 2X`;
+      this._set('coffz', ff.querySelector('.co-t'), txt);
+    }
+    ff.classList.toggle('hidden', !z);
+    const S = m.supply, su = $('co-sup');
+    let txt = '', st = '', bar = null;
+    if (S) {
+      if (S.state === 'ask') { txt = `${S.ask.tag} NEEDS SUPPLIES`; st = 'ask'; bar = Math.max(0, S.ask.until - t) / C.supply.askSec; }
+      else if (S.state === 'inbound') { txt = `SUPPLY POD INBOUND ${Math.ceil(Math.max(0, S.drop.landAt - t))}S`; st = 'inbound'; }
+      else if (S.last && t - S.last.at < 6) { txt = S.last.fast ? 'SUPPLIES DOWN · SQUAD BOOSTED' : 'SUPPLIES DOWN · SQUAD RESTOCKED'; st = 'down'; }
+      else if (t < S.boostUntil) { txt = `SUPPLY BOOST ${Math.ceil(S.boostUntil - t)}S: HELLDIVERS HIT HARDER, MOVE FASTER`; st = 'boost'; }
+    }
+    su.classList.toggle('hidden', !st || st === 'fill');
+    if (st) {
+      this._set('cosup', su.querySelector('.co-t'), txt);
+      if (this.last.supSt !== st) {
+        this.last.supSt = st; su.classList.toggle('ask', st === 'ask');
+        su.querySelector('[data-co="accept"]').classList.toggle('hidden', st !== 'ask');
+        su.querySelector('[data-co="decline"]').classList.toggle('hidden', st !== 'ask');
+        su.querySelector('[data-co="look-sup"]').classList.toggle('hidden', st !== 'inbound' && st !== 'down');
+      }
+      const b = su.querySelector('.co-bar'); b.style.width = bar === null ? '0' : `${bar * 100}%`;
+    } else this.last.supSt = '';
+  }
+  // ---- the supply loading game: compartments fill as they are tapped; two bars show the time left and the fast-load window
+  _supgame(m) {
+    const S = m.supply, on = !!(S && S.state === 'fill'), g = this.sg;
+    g.el.classList.toggle('hidden', !on);
+    document.body.classList.toggle('slowmo', on);
+    if (!on) return;
+    const f = S.fill, P = C.supply, real = f.t / P.slowmo;
+    $('sg-for').textContent = `FOR ${S.ask ? S.ask.tag : 'THE SQUAD'}`;
+    $('sg-time').style.width = `${Math.max(0, 1 - real / P.fillSec) * 100}%`;
+    const fastLeft = Math.max(0, 1 - real / P.fastSec);
+    $('sg-fast').style.width = `${fastLeft * 100}%`;
+    $('sg-fast').parentElement.classList.toggle('gone', fastLeft <= 0);
+    this._set('sgfast', $('sg-fast-t'), fastLeft > 0 ? `FAST LOAD BONUS ${(P.fastSec - real).toFixed(1)}S` : 'FAST LOAD BONUS MISSED');
+    f.slots.forEach((q, i) => {
+      const sl = g.slots[i], key = `${q.n}`;
+      if (sl.key === key) return;
+      sl.key = key;
+      sl.cells.forEach((c, k) => c.classList.toggle('on', k < q.n));
+      sl.el.classList.toggle('full', q.n >= q.max);
+    });
   }
 
   // ---- info cards
@@ -172,6 +232,8 @@ export class Hud {
   reset() {
     this.last = {}; this.clearRadio(); this.clearNotices(); $('center-msg').classList.remove('show'); this.setPlacing(null);
     if (this.card) this.card.classList.add('hidden');
+    if (this.sg) { this.sg.el.classList.add('hidden'); for (const q of this.sg.slots) q.key = ''; }
+    document.body.classList.remove('slowmo'); $('co-ffz').classList.add('hidden'); $('co-sup').classList.add('hidden');
     for (const o of Object.values(this.ord)) o.key = '';
     this.setDrawing(false); for (const b of this.sqb) b.key = ''; for (const a of Object.values(this.sqa)) a.key = '';
     this.trayToggle(false); this.menu.classList.add('hidden'); $('hud').classList.remove('strats-open'); document.querySelector('.hud-tl').classList.remove('open'); this.dkKey = '';
@@ -264,7 +326,7 @@ export class Hud {
     const cb = m.combo.mult > 1.05 && m.t - m.combo.last < C.score.comboResetSec ? `COMBO x${m.combo.mult.toFixed(1)}` : '';
     this._set('combo', $('combo'), cb);
 
-    this._roster(m); this._supply(m); this._strats(m); this._orders(m); this._squads(m); this._weapons(m);
+    this._roster(m); this._supply(m); this._strats(m); this._orders(m); this._squads(m); this._weapons(m); this._callouts(m); this._supgame(m);
     // a new weapon or squad selected: say what it is
     if (this.last.selW !== m.player.weapon) { if (this.last.selW !== undefined) this.showCard(weaponInfo(m, m.player.weapon)); this.last.selW = m.player.weapon; }
     if (this.last.selS !== m.seaf.sel) { if (this.last.selS !== undefined) this.showCard(squadInfo(m, m.seaf.sel)); this.last.selS = m.seaf.sel; }
@@ -882,7 +944,8 @@ export function fillMissionInfo(m, info) {
     + `<li class="${ex.state === 'boarding' ? 'now' : ex.state === 'away' ? 'done' : ''}">The Helldivers run for the ramp and board. SEAF squads get pelicans of their own.</li></ol>`);
   parts.push(`<h3>THE ENEMY: ${f.name}</h3><p>${esc(FAC_NOTES[m.faction.id])}</p>`);
   parts.push(`<h3>HITS</h3><p>Every unit has a front and a back. Hits from behind do ${C.combat.back.mul}x, and ${C.combat.back.heavy}x on a heavy. Every hit can be critical (x${C.combat.crit.mul}): your strikes ${pctS(C.combat.crit.player)} of the time, the ship gun ${pctS(C.combat.crit.gun)}, the squad ${pctS(C.combat.crit.ally)}, the enemy ${pctS(C.combat.crit.enemy)}.</p>`);
-  parts.push(`<h3>FREE-FIRE ZONES</h3><p>When the Helldivers see a big pack well ahead they ask for a free-fire zone (the orange hatched circle). Every ally keeps out of it, and your orbitals called into it recharge in half the time. Saturate it.</p>`);
+  parts.push(`<h3>FREE-FIRE ZONES</h3><p>When the Helldivers see the enemy massing ahead they call a free-fire zone on it (the orange hatched circle; it follows the pack). Every ally keeps out of it, and your orbitals called into it recharge in half the time. Saturate it. LOOK (or J) brings it into view.</p>`);
+  parts.push(`<h3>SUPPLY REQUESTS</h3><p>When the Helldivers run low on stims or grenades they ask you for a supply drop. Press LOAD POD (or U) and time slows while you load the pod: tap each compartment until it is full. What you load is what they get, and a pod filled within ${C.supply.fastSec} seconds gives the squad a boost for ${C.supply.boostSec} seconds. Turn it down (or let it pass) and they make do; they can ask again after a minute.</p>`);
   parts.push(`<h3>FAILING</h3><p>A mission fails if the ${Math.round(m.limitSec / 60)}-minute clock runs out with the objective undone, or if every Helldiver and SEAF trooper is gone with no lives left. A failed mission ends the session.</p>`);
   $('info-body').innerHTML = parts.join('');
 }

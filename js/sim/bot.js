@@ -4,6 +4,7 @@ import { CONFIG as C } from '../config.js';
 import { buy, shopItems, seafStats, ORB_PRICE } from '../data/kit.js';
 import { slotStats, aimGeom, UAV_REACH, ORB_SLOTS } from './player.js';
 import { pickNukeTarget } from './objectives.js';
+import { acceptSupply, fillSupply } from './supply.js';
 
 export function makeBot(skill = {}) {
   return { next: 0, orderT: 0, nukeT: null, rot: 0, aimNoise: skill.aimNoise ?? 3, react: skill.react ?? 0.3, gunT: 0, gunOn: false, lineFor: 0, splitDone: false };
@@ -164,6 +165,16 @@ export function botStep(m, bot) {
   if (m.over) return;
 
   if (t >= bot.orderT) { bot.orderT = t + 1; orders(m, bot); }
+
+  // Supply requests: take them after a moment, then load the pod at a steady tap rate (a little faster or slower each time).
+  const S = m.supply;
+  if (S && S.state === 'ask' && t - S.ask.at >= 1.5) acceptSupply(m);
+  if (S && S.state === 'fill') {
+    const f = S.fill;
+    if (f.tapEvery === undefined) f.tapEvery = C.supply.slowmo * (0.28 + ((S.n * 7 + m.seed) % 5) * 0.06);   // 3.6 down to 1.9 taps a second
+    if (f.t >= (f.nextTap || 0)) { fillSupply(m, -1); f.nextTap = f.t + f.tapEvery; }
+    return;    // the player's hands are on the loader
+  }
 
   // The launch site is armed: pick a clear spot with the most enemies after a moment, like a player would.
   if (m.nukeReady()) {

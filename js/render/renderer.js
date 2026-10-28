@@ -7,12 +7,12 @@ import { drawSquadOrders, drawSeafMark, drawStroke, drawPelicans, drawAssault, d
 
 import { slotStats } from '../sim/player.js';
 import { drawAllyBody, drawEnemyBody, enemyR } from './units.js';
-import { drawFlares, drawHoles, drawDrops, drawFfz, drawEvac, drawExtraction, critText } from './reinf.js';
+import { drawFlares, drawHoles, drawDrops, drawFfz, drawEvac, drawExtraction, critText, drawSupply } from './reinf.js';
 import { drawBaseArt, drawBaseRuin } from './sites.js';
 import { todAt, skyTint, destroyerShadows, drawDestroyerShadow } from './sky.js';
 
 const SIZE = C.world.size;
-const OBJ_ARROWS = new Set(['LAUNCH', 'VIP', 'PICKUP', 'CITADEL', 'EXTRACT', 'EVAC SITE']);
+const OBJ_ARROWS = new Set(['LAUNCH', 'VIP', 'PICKUP', 'CITADEL', 'EXTRACT', 'EVAC SITE', 'FREE FIRE', 'SUPPLY']);
 const TAU = Math.PI * 2;
 const slotCd = (m, i) => { const st = slotStats(m, i); return st ? st.cd : 0; };
 
@@ -24,8 +24,11 @@ export class Renderer {
     this.terrain = null; this.decal = null;
     this.fx = []; this.shake = 0;
     this.ov = document.createElement('canvas');
+    // The screen overlay (scanlines, grain, vignette, frame corners) never changes during play, so it is its own layer over the
+    // view, composited by the browser, instead of a full-screen draw every frame.
+    this.ov.className = 'ovfx';
+    if (canvas.parentNode) canvas.parentNode.insertBefore(this.ov, canvas.nextSibling);
     this.fog = document.createElement('canvas'); // half-resolution mask that dims the map outside what the squad can see
-    this.zn = document.createElement('canvas');  // half-resolution outline of the strike zone
     this.labels = [];
     this.noise = null; this.noisePat = null;
     this.quality = 'high';
@@ -40,26 +43,50 @@ export class Renderer {
     this.dpr = Math.min(window.devicePixelRatio || 1, low ? 1.25 : 2);
     const w = Math.max(320, Math.round(window.innerWidth * this.dpr)), h = Math.max(240, Math.round(window.innerHeight * this.dpr));
     this.cv.width = this.W = w; this.cv.height = this.H = h;
-    this._buildOverlay();
+    this._cr = null;
     if (!this.noise) {
       const n = document.createElement('canvas'); n.width = n.height = 128;
       const c = n.getContext('2d'), id = c.createImageData(128, 128);
       for (let i = 0; i < id.data.length; i += 4) { const v = Math.random() * 255; id.data[i] = v; id.data[i + 1] = v; id.data[i + 2] = v; id.data[i + 3] = 255; }
       c.putImageData(id, 0, 0);
-      this.noise = n; this.noisePat = this.ctx.createPattern(n, 'repeat');
+      this.noise = n;
     }
+    this._buildOverlay();
   }
+
+  // The ground as drawn: the terrain with the scorch marks on it and the hour's tint multiplied in. Kept as one canvas so a frame
+  // draws the ground once instead of three full-screen passes; rebuilt only when the terrain, the decals or the tint change.
+  _ground(tint) {
+    const T = this.terrain;
+    if (!T) return null;
+    const n = T.width;
+    if (!this.groundCv || this.groundCv.width !== n) { this.groundCv = document.createElement('canvas'); this.groundCv.width = this.groundCv.height = n; this.groundKey = null; }
+    const key = tint || '';
+    if (this.groundKey !== key || this.groundTerrain !== T || this.groundDecal !== this.decal) {
+      const g = this.groundCv.getContext('2d');
+      g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+      g.drawImage(T, 0, 0);
+      if (this.decal) g.drawImage(this.decal, 0, 0, n, n);
+      if (tint) { g.globalCompositeOperation = 'multiply'; g.fillStyle = tint; g.fillRect(0, 0, n, n); g.globalCompositeOperation = 'source-over'; }
+      this.groundKey = key; this.groundTerrain = T; this.groundDecal = this.decal;
+    }
+    return this.groundCv;
+  }
+  _scorch(x, y, r, black) { scorch(this.decal, x, y, r, black); if (this.groundCv && this.groundDecal === this.decal) scorch(this.groundCv, x, y, r, black); }
+  _mark(x, y, r, black) { mark(this.decal, x, y, r, black); if (this.groundCv && this.groundDecal === this.decal) mark(this.groundCv, x, y, r, black); }
 
   _buildOverlay() {
     const { W, H, dpr } = this, ov = this.ov;
     ov.width = W; ov.height = H;
-    this.fog.width = this.zn.width = Math.ceil(W / 2); this.fog.height = this.zn.height = Math.ceil(H / 2);
+    this.fog.width = Math.ceil(W / 4); this.fog.height = Math.ceil(H / 4);
     const c = ov.getContext('2d');
     c.clearRect(0, 0, W, H);
     // Scanlines
     c.fillStyle = 'rgba(0,0,0,0.20)';
     const gap = Math.max(3, Math.round(3 * dpr));
     for (let y = 0; y < H; y += gap) c.fillRect(0, y, W, Math.max(1, Math.round(dpr)));
+    // Film grain, baked in once (a moving grain was a full-screen blend every frame)
+    if (this.noise) { c.globalAlpha = 0.04; c.fillStyle = c.createPattern(this.noise, 'repeat'); c.fillRect(0, 0, W, H); c.globalAlpha = 1; }
     // Vignette
     const g = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.hypot(W, H) * 0.55);
     g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.72)');
@@ -88,12 +115,12 @@ export class Renderer {
         if (ev.nuke) {
           fx.push({ k: 'nuke', x: ev.x, y: ev.y, r: ev.r, t0: now, life: 2.6, a: flash });
           this.shake = Math.min(26, this.shake + 22);
-          scorch(this.decal, ev.x, ev.y, ev.r * 0.9, black); scorch(this.decal, ev.x, ev.y, ev.r * 0.5, black);
+          this._scorch(ev.x, ev.y, ev.r * 0.9, black); this._scorch(ev.x, ev.y, ev.r * 0.5, black);
           break;
         }
         if (ev.r >= 1.5) fx.push({ k: 'flash', x: ev.x, y: ev.y, r: Math.max(2, ev.r), t0: now, life: 0.22 + ev.r * 0.012, a: flash, col: ecol });
         if (ev.r >= 3.5) fx.push({ k: 'ring', x: ev.x, y: ev.y, r: ev.r * 1.4, t0: now, life: 0.55, a: flash, col: ecol });
-        if (ev.r >= 2.5) scorch(this.decal, ev.x, ev.y, ev.r * (ev.r >= 6 ? 1 : 0.7), black);
+        if (ev.r >= 2.5) this._scorch(ev.x, ev.y, ev.r * (ev.r >= 6 ? 1 : 0.7), black);
         if (ev.r >= 10) this.shake = Math.min(12, this.shake + ev.r * 0.35);
         break;
       }
@@ -101,7 +128,7 @@ export class Renderer {
       case 'beam': {
         fx.push({ k: 'beam', x: ev.x, y: ev.y, x2: ev.tx, y2: ev.ty, w: ev.w, t0: now, life: 0.45, col: this.enemyColor(m) });
         const dx = ev.tx - ev.x, dy = ev.ty - ev.y, L = Math.hypot(dx, dy) || 1, black = this.settings.polarity === 'black';
-        for (let d = 8; d < L; d += 9) scorch(this.decal, ev.x + (dx / L) * d, ev.y + (dy / L) * d, 1.6, black);
+        for (let d = 8; d < L; d += 9) this._scorch(ev.x + (dx / L) * d, ev.y + (dy / L) * d, 1.6, black);
         this.shake = Math.min(12, this.shake + 3);
         break;
       }
@@ -133,7 +160,7 @@ export class Renderer {
         const black = this.settings.polarity === 'black';
         for (const [gx, gy] of ev.pts) {
           fx.push({ k: 'trc', kind: 'streak', x: gx + (Math.random() - 0.5) * 6, y: gy - 70 - Math.random() * 40, x2: gx, y2: gy, t0: now, fl: 0.06, life: 0.2, col: '#ffe9a8', w: 1.5, len: 26, hit: true, big: false, side: 'p', imp: false, d: 90 });
-          if (Math.random() < 0.18) mark(this.decal, gx, gy, 0.5, black);
+          if (Math.random() < 0.18) this._mark(gx, gy, 0.5, black);
         }
         break;
       }
@@ -145,12 +172,12 @@ export class Renderer {
         fx.push({ k: 'flash', x: ev.x, y: ev.y, r: 28, t0: now, life: 0.7, a: flash, col: this.enemyColor(m) }); fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 60, t0: now, life: 1.2, a: 1, col: this.enemyColor(m) });
         this.shake = Math.min(12, this.shake + 4); break;
       case 'breach_close':
-        if (ev.destroyed) { fx.push({ k: 'flash', x: ev.x, y: ev.y, r: 26, t0: now, life: 0.7, a: flash }); fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 50, t0: now, life: 0.9, a: flash }); scorch(this.decal, ev.x, ev.y, 14, this.settings.polarity === 'black'); this.shake = Math.min(14, this.shake + 7); }
+        if (ev.destroyed) { fx.push({ k: 'flash', x: ev.x, y: ev.y, r: 26, t0: now, life: 0.7, a: flash }); fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 50, t0: now, life: 0.9, a: flash }); this._scorch(ev.x, ev.y, 14, this.settings.polarity === 'black'); this.shake = Math.min(14, this.shake + 7); }
         else fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 30, t0: now, life: 0.8, a: 0.6, col: this.enemyColor(m) });
         break;
       case 'poi_down':
         fx.push({ k: 'flash', x: ev.x, y: ev.y, r: 30, t0: now, life: 0.9, a: flash }); fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 55, t0: now, life: 1.0, a: flash, col: '#ffb020' });
-        this.shake = Math.min(14, this.shake + 9); scorch(this.decal, ev.x, ev.y, 18, this.settings.polarity === 'black'); break;
+        this.shake = Math.min(14, this.shake + 9); this._scorch(ev.x, ev.y, 18, this.settings.polarity === 'black'); break;
       case 'credit': fx.push({ k: 'text', x: ev.x, y: ev.y, text: `+${ev.amt}`, col: '#ffe27a', t0: now, life: 1.3 }); break;
       case 'crit':
         // the destroyer's critical hits, and any hit on a heavy's back; a few at a time, so a barrage does not bury the map in text
@@ -166,7 +193,7 @@ export class Renderer {
       case 'civ_down': fx.push({ k: 'x', x: ev.x, y: ev.y, r: 3, t0: now, life: 1.2, col: '#ff8080' }); break;
       case 'shuttle': fx.push({ k: 'shuttle', x: ev.x, y: ev.y, ang: ev.ang, t0: now, life: 4 }); break;
       case 'extract_landing': case 'extract_down': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 30, t0: now, life: 1, a: 1, col: '#ffe600' }); break;
-      case 'base_down': fx.push({ k: 'flash', x: ev.x, y: ev.y, r: 34, t0: now, life: 0.9, a: flash }); fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 60, t0: now, life: 1.1, a: flash }); this.shake = Math.min(16, this.shake + 14); scorch(this.decal, ev.x, ev.y, 30); break;
+      case 'base_down': fx.push({ k: 'flash', x: ev.x, y: ev.y, r: 34, t0: now, life: 0.9, a: flash }); fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 60, t0: now, life: 1.1, a: flash }); this.shake = Math.min(16, this.shake + 14); this._scorch(ev.x, ev.y, 30); break;
       default:
     }
   }
@@ -205,7 +232,9 @@ export class Renderer {
   }
   screenToWorld(cssX, cssY, cv) {
     const v = this.view; if (!v) return null;
-    const r = cv.getBoundingClientRect(), k = this.W / r.width;
+    const now = performance.now();   // the canvas does not move between resizes: read its box at most a few times a second
+    if (!this._cr || this._crCv !== cv || now - this._crT > 400) { this._cr = cv.getBoundingClientRect(); this._crCv = cv; this._crT = now; }
+    const r = this._cr, k = this.W / r.width;
     return { x: ((cssX - r.left) * k - v.tx) / v.scale, y: ((cssY - r.top) * k - v.ty) / v.scale };
   }
 
@@ -222,7 +251,7 @@ export class Renderer {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
     ctx.setTransform(scale, 0, 0, scale, tx, ty);
-    this._layers(ctx, scale, W, H, tx, ty);
+    this._layers(ctx, scale, W, H, tx, ty, skyTint(Math.round(todAt(m) * 4) / 4).col);   // the tint moves in quarter-hour steps
     this._sky(ctx, m, scale, W, H, tx, ty);
 
     // Everything the squad cannot see is dimmed, so what they can see reads as a bright pool around them.
@@ -330,6 +359,7 @@ export class Renderer {
 
     drawPelicans(ctx, m, now, px, labels, scale, pal);
     drawDrops(ctx, m, now, px, labels, scale, pal);
+    drawSupply(ctx, m, now, px, labels, scale, (team) => (m.teams[team] ? m.teams[team].color : '#9dffb8'));
     if (ui.draw) drawStroke(ctx, m, now, px, labels, scale, ui.draw);
 
     // Placement ghost for SEAF drops and orders
@@ -359,7 +389,8 @@ export class Renderer {
 
   // Dims the map outside what the squad (and any UAV) can see, and outlines the strike zone: the ring in which strikes can be called.
   _fog(ctx, m, scale, tx, ty) {
-    const fc = this.fog.getContext('2d'), fw = this.fog.width, fh = this.fog.height, h = 0.5;
+    // A quarter-size mask: soft by nature, so a small canvas scaled up looks the same and costs a sixteenth of the pixels.
+    const fc = this.fog.getContext('2d'), fw = this.fog.width, fh = this.fog.height, h = fw / this.W;
     fc.globalCompositeOperation = 'source-over';
     fc.clearRect(0, 0, fw, fh);
     fc.fillStyle = 'rgba(0,0,0,0.72)'; fc.fillRect(0, 0, fw, fh);
@@ -374,21 +405,45 @@ export class Renderer {
     for (const a of m.alive) hole(a.x, a.y, a.vision, 0.8);
     for (const u of m.uavs) hole(u.x, u.y, u.r, 0.9);
     fc.globalCompositeOperation = 'source-over';
+    ctx.imageSmoothingEnabled = true;
     ctx.drawImage(this.fog, 0, 0, this.W, this.H);
 
-    // The strike zone outline: every circle grown by a line width, then the circles themselves cut out of it.
-    const zc = this.zn.getContext('2d'), lw = Math.max(1.2, 1.5 * this.dpr * h);
-    zc.globalCompositeOperation = 'source-over';
-    zc.clearRect(0, 0, fw, fh);
-    const circles = [];
-    for (const a of m.alive) circles.push([a.x, a.y, a.zone]);
-    for (const u of m.uavs) circles.push([u.x, u.y, u.r]);
-    zc.fillStyle = 'rgba(157,255,184,0.55)';
-    for (const [wx, wy, wr] of circles) { const x = (wx * scale + tx) * h, y = (wy * scale + ty) * h, r = wr * scale * h; if (x + r < 0 || y + r < 0 || x - r > fw || y - r > fh) continue; zc.beginPath(); zc.arc(x, y, r + lw, 0, TAU); zc.fill(); }
-    zc.globalCompositeOperation = 'destination-out'; zc.fillStyle = '#000';
-    for (const [wx, wy, wr] of circles) { const x = (wx * scale + tx) * h, y = (wy * scale + ty) * h, r = wr * scale * h; if (x + r < 0 || y + r < 0 || x - r > fw || y - r > fh) continue; zc.beginPath(); zc.arc(x, y, r, 0, TAU); zc.fill(); }
-    zc.globalCompositeOperation = 'source-over';
-    ctx.drawImage(this.zn, 0, 0, this.W, this.H);
+    // The strike zone outline: the outer edge of the union of every ally's (and UAV's) circle, stroked as arcs. For each circle,
+    // the parts of its rim that lie inside another circle are left out.
+    const cs = this._zc || (this._zc = []); cs.length = 0;
+    for (const a of m.alive) cs.push(a.x * scale + tx, a.y * scale + ty, a.zone * scale);
+    for (const u of m.uavs) cs.push(u.x * scale + tx, u.y * scale + ty, u.r * scale);
+    const n = cs.length / 3, W = this.W, H = this.H, lw = Math.max(1.2, 1.5 * this.dpr);
+    ctx.strokeStyle = 'rgba(157,255,184,0.55)'; ctx.lineWidth = lw;
+    ctx.beginPath();
+    const iv = this._ziv || (this._ziv = []);
+    for (let i = 0; i < n; i++) {
+      const x = cs[i * 3], y = cs[i * 3 + 1], r = cs[i * 3 + 2];
+      if (x + r < 0 || y + r < 0 || x - r > W || y - r > H || r < 1) continue;
+      iv.length = 0; let inside = false;
+      for (let j = 0; j < n && !inside; j++) {
+        if (j === i) continue;
+        const xj = cs[j * 3], yj = cs[j * 3 + 1], rj = cs[j * 3 + 2], dx = xj - x, dy = yj - y, d = Math.hypot(dx, dy);
+        if (d + r <= rj + 0.01) { inside = j < i || d + r < rj - 0.01; continue; }   // wholly inside another (equal twins: keep one)
+        if (d >= r + rj || d + rj <= r) continue;                                  // apart, or the other is inside this one
+        const c = Math.acos(Math.max(-1, Math.min(1, (r * r + d * d - rj * rj) / (2 * r * d)))), mid = Math.atan2(dy, dx);
+        iv.push(mid - c, mid + c);
+      }
+      if (inside) continue;
+      const R = r + lw / 2;
+      if (!iv.length) { ctx.moveTo(x + R, y); ctx.arc(x, y, R, 0, TAU); continue; }
+      // merge the covered intervals (angles normalised to start at the first one's start), then stroke the gaps between them
+      const base = iv[0], segs = [];
+      for (let k = 0; k < iv.length; k += 2) { let s0 = iv[k] - base; s0 = ((s0 % TAU) + TAU) % TAU; segs.push([s0, s0 + (iv[k + 1] - iv[k])]); }
+      segs.sort((p, q) => p[0] - q[0]);
+      let cur = segs[0][1];
+      for (let k = 1; k < segs.length; k++) {
+        if (segs[k][0] > cur) { ctx.moveTo(x + R * Math.cos(base + cur), y + R * Math.sin(base + cur)); ctx.arc(x, y, R, base + cur, base + segs[k][0]); }
+        cur = Math.max(cur, segs[k][1]);
+      }
+      if (cur < TAU) { ctx.moveTo(x + R * Math.cos(base + cur), y + R * Math.sin(base + cur)); ctx.arc(x, y, R, base + cur, base + TAU); }
+    }
+    ctx.stroke();
   }
 
   // The hour of the day: a tint over the ground (warm at dawn and dusk, dark blue at night), and by day the shadows of the four
@@ -403,10 +458,7 @@ export class Renderer {
         drawDestroyerShadow(ctx, d, 0.3 * sk.shadow);
       }
     }
-    if (sk.col) {
-      ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = sk.col;
-      ctx.fillRect(x0, y0, x1 - x0, y1 - y0); ctx.restore();
-    }
+
   }
 
   _drawLabels(ctx, w2sx, w2sy) {
@@ -524,17 +576,13 @@ export class Renderer {
     ctx.textAlign = 'left';
   }
 
-  _layers(ctx, scale, W, H, tx, ty) {
+  _layers(ctx, scale, W, H, tx, ty, tint = null) {
     // Visible world rect, clipped to the map.
     const x0 = Math.max(0, -tx / scale), y0 = Math.max(0, -ty / scale);
     const x1 = Math.min(SIZE, (W - tx) / scale), y1 = Math.min(SIZE, (H - ty) / scale);
     if (x1 <= x0 || y1 <= y0) return;
-    for (const [img, alpha] of [[this.terrain, 1], [this.decal, 1]]) {
-      if (!img) continue;
-      const k = img.width / SIZE;
-      ctx.globalAlpha = alpha;
-      ctx.drawImage(img, x0 * k, y0 * k, (x1 - x0) * k, (y1 - y0) * k, x0, y0, x1 - x0, y1 - y0);
-    }
+    const img = this._ground(tint);
+    if (img) { const k = img.width / SIZE; ctx.globalAlpha = 1; ctx.drawImage(img, x0 * k, y0 * k, (x1 - x0) * k, (y1 - y0) * k, x0, y0, x1 - x0, y1 - y0); }
     ctx.globalAlpha = 1;
     // Map edge
     ctx.strokeStyle = 'rgba(255,60,60,0.5)'; ctx.lineWidth = 2 / scale; ctx.strokeRect(0, 0, SIZE, SIZE);
@@ -611,7 +659,7 @@ export class Renderer {
       f.imp = true;
       if (f.kind === 'zap') { /* the strike itself is shown by the line */ }
       else if (f.hit) this.fx.push({ k: 'spark', x: f.x2, y: f.y2, r: f.big ? 3 : 1.4, t0: now, life: 0.16, col: f.side === 'e' ? f.col : '#ffffff' });
-      else { this.fx.push({ k: 'puff', x: f.x2, y: f.y2, r: f.big ? 5 : 2.4, t0: now, life: 0.3 }); mark(this.decal, f.x2, f.y2, f.big ? 1.1 : 0.55, black); }
+      else { this.fx.push({ k: 'puff', x: f.x2, y: f.y2, r: f.big ? 5 : 2.4, t0: now, life: 0.3 }); this._mark(f.x2, f.y2, f.big ? 1.1 : 0.55, black); }
     }
     if (f.kind === 'slash') {
       const q = Math.min(1, tt / 0.2), r = Math.max(3, px(7));
@@ -692,6 +740,9 @@ export class Renderer {
     for (const b of m.breaches) if (!b.dead && b.kind === 'hole') items.push({ x: b.x, y: b.y, col: this.enemyColor(m), label: 'BUG HOLE' });
     for (const dr of m.drops || []) if (dr.state === 'hover' || dr.state === 'in') items.push({ x: dr.tx ?? dr.x, y: dr.ty ?? dr.y, col: this.enemyColor(m), label: dr.kind === 'ship' ? 'DROPSHIP' : 'WARP SHIP' });
     if (m.ffz) items.push({ x: m.ffz.x, y: m.ffz.y, col: '#ff7a2a', label: 'FREE FIRE' });
+    const SU = m.supply;
+    if (SU && SU.state === 'inbound' && SU.drop) items.push({ x: SU.drop.x, y: SU.drop.y, col: '#9dffb8', label: 'SUPPLY' });
+    if (SU && SU.state === 'ask') { const a = m.allies.find((x) => x.id === SU.ask.by && !x.dead); if (a) items.push({ x: a.x, y: a.y, col: '#9dffb8', label: `${SU.ask.tag} NEEDS SUPPLY` }); }
     for (const p of m.pelicans) if (p.state !== 'out') items.push({ x: p.x, y: p.y, col: this.allyColor(), label: p.evac ? 'EVAC' : 'PELICAN' });
     const as = m.assault && m.assault.cur;
     if (as && m.t < as.at + 6) items.push({ x: as.x, y: as.y, col: this.enemyColor(m), label: 'ASSAULT' });
@@ -744,6 +795,7 @@ export class Renderer {
     else status = isUav ? 'SCAN READY' : 'READY';
     const danger = info.danger && !isUav && !isGun;
     if (danger && !bad) status = 'DANGER CLOSE';
+    else if (!bad && !isUav && !isGun && !isNuke && m.ffz && Math.hypot(aim.x - m.ffz.x, aim.y - m.ffz.y) <= m.ffz.r) status = 'FREE FIRE: RECHARGES 2X';
     const col = danger ? '#ff4040' : bad ? '#ffb020' : isUav ? '#9dffb8' : '#7dff9b';
     ctx.save();
     ctx.translate(x, y);
@@ -792,14 +844,8 @@ export class Renderer {
 
   _post(ctx, now) {
     ctx.globalAlpha = 1;
-    ctx.drawImage(this.ov, 0, 0);
-    if (this.quality !== 'low' && !this.perf.low && this.noisePat) {
-      ctx.save();
-      ctx.globalAlpha = 0.05; ctx.globalCompositeOperation = 'overlay';
-      ctx.translate(Math.floor(Math.random() * 128), Math.floor(Math.random() * 128));
-      ctx.fillStyle = this.noisePat; ctx.fillRect(-128, -128, this.W + 256, this.H + 256);
-      ctx.restore();
-    }
+    if (!this.ov.parentNode) ctx.drawImage(this.ov, 0, 0);   // only when the overlay could not be layered over the view
+    void now;
   }
 
   // Slow-drifting terrain for the title and briefing screens.
@@ -825,11 +871,95 @@ export class Renderer {
   }
 
   // ---------- minimap ----------
+  // ---------- minimap and the tactical map ----------
+  // The map picture for a map canvas of size S, scaled down from the terrain once.
+  _mapBg(S, key) {
+    const cache = this._mapBgs || (this._mapBgs = {});
+    let b = cache[key];
+    if (!b || b.width !== S || b._t !== this.terrain) {
+      b = cache[key] = document.createElement('canvas'); b.width = b.height = S; b._t = this.terrain;
+      const bc = b.getContext('2d');
+      bc.fillStyle = '#020a05'; bc.fillRect(0, 0, S, S);
+      if (this.terrain) { bc.globalAlpha = 0.45; bc.imageSmoothingQuality = 'high'; bc.drawImage(this.terrain, 0, 0, S, S); bc.globalAlpha = 1; }
+    }
+    return b;
+  }
+  // Compass letters at the middle of each edge. fs is the letter size in canvas units.
+  _compass(c, S, fs) {
+    c.font = `bold ${Math.round(fs)}px ui-monospace, Menlo, Consolas, monospace`;
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    const pad = fs * 0.75;
+    for (const [L, x, y] of [['N', S / 2, pad], ['S', S / 2, S - pad], ['W', pad, S / 2], ['E', S - pad, S / 2]]) {
+      c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(x - fs * 0.55, y - fs * 0.6, fs * 1.1, fs * 1.2);
+      c.fillStyle = L === 'N' ? '#ffe600' : 'rgba(215,255,228,0.9)'; c.fillText(L, x, y + fs * 0.05);
+    }
+    c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+  }
   drawMinimap(cv, m, cam) {
     const c = cv.getContext('2d'), S = cv.width, k = S / SIZE, t = m.t, ac = this.allyColor(), ec = this.enemyColor(m);
     c.setTransform(1, 0, 0, 1, 0, 0);
-    c.fillStyle = '#020a05'; c.fillRect(0, 0, S, S);
-    if (this.terrain) { c.globalAlpha = 0.45; c.drawImage(this.terrain, 0, 0, S, S); c.globalAlpha = 1; }
+    c.drawImage(this._mapBg(S, 'mini'), 0, 0);
+    this._mapMarks(c, m, k, t, ac, ec);
+    // Camera view rectangle
+    const vw = cam.view, vh = cam.view * (this.H / this.W);
+    c.strokeStyle = 'rgba(255,255,255,0.8)'; c.lineWidth = 1.5;
+    c.strokeRect((cam.x - vw / 2) * k, (cam.y - vh / 2) * k, vw * k, vh * k);
+    // N E S W, about eight screen pixels tall whatever size the minimap is shown at
+    const shown = cv.clientWidth || S;
+    this._compass(c, S, Math.max(9, Math.min(S * 0.16, 8.5 * (S / shown))));
+    c.strokeStyle = 'rgba(157,255,184,0.4)'; c.lineWidth = 1; c.strokeRect(0.5, 0.5, S - 1, S - 1);
+  }
+  // The tactical map: the minimap's picture, big, with a grid, labels and a compass rose.
+  drawBigMap(cv, m, cam) {
+    const c = cv.getContext('2d'), S = cv.width, t = m.t, ac = this.allyColor(), ec = this.enemyColor(m);
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.drawImage(this._mapBg(S, 'big'), 0, 0);
+    // a 200 m grid with sector letters (columns) and numbers (rows)
+    const cells = Math.round(SIZE / 200), cw = S / cells, fs = Math.max(12, S / 44);
+    c.strokeStyle = 'rgba(157,255,184,0.16)'; c.lineWidth = 1; c.beginPath();
+    for (let i = 1; i < cells; i++) { c.moveTo(i * cw, 0); c.lineTo(i * cw, S); c.moveTo(0, i * cw); c.lineTo(S, i * cw); }
+    c.stroke();
+    c.font = `${Math.round(fs * 0.8)}px ui-monospace, Menlo, Consolas, monospace`; c.fillStyle = 'rgba(157,255,184,0.45)';
+    for (let i = 0; i < cells; i++) { c.fillText(String.fromCharCode(65 + i), i * cw + 5, fs * 1.9); c.fillText(String(i + 1), 5, i * cw + fs * 3.1); }
+    // the same marks as the minimap, drawn larger
+    const u = S / 300;
+    c.setTransform(u, 0, 0, u, 0, 0);
+    this._mapMarks(c, m, (S / u) / SIZE, t, ac, ec, true);
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    const k = S / SIZE;
+    // labels for what matters
+    const lab = (x, y, text, col, dy = -1.6) => {
+      c.font = `bold ${Math.round(fs)}px ui-monospace, Menlo, Consolas, monospace`; c.textAlign = 'center';
+      const w = c.measureText(text).width + 8, X = Math.max(w / 2 + 2, Math.min(S - w / 2 - 2, x * k)), Y = y * k + dy * fs;
+      c.fillStyle = 'rgba(0,0,0,0.65)'; c.fillRect(X - w / 2, Y - fs * 0.85, w, fs * 1.2);
+      c.fillStyle = col; c.fillText(text, X, Y); c.textAlign = 'left';
+    };
+    for (const o of m.objectives) {
+      if (o.done) continue;
+      if (o.type === 'vip') { lab(o.vip.x, o.vip.y, 'VIP', '#ffe600'); lab(o.dx, o.dy, 'PICKUP', '#ffe600'); }
+      else if (o.type === 'evac') lab(o.x, o.y, 'EVAC SITE', '#ffe600');
+      else if (o.type === 'nuke') lab(o.x, o.y, 'LAUNCH SITE', '#ffe600');
+      else lab(o.x, o.y, 'CITADEL', '#ffe600');
+    }
+    if (m.extraction.revealed) lab(m.extraction.x, m.extraction.y, m.extraction.state === 'open' ? 'EXTRACT' : 'EXTRACT (CALLED)', '#ffe600');
+    if (m.ffz) lab(m.ffz.x, m.ffz.y, 'FREE FIRE', '#ff9a4a');
+    if (m.supply && m.supply.drop) lab(m.supply.drop.x, m.supply.drop.y, 'SUPPLY', '#9dffb8');
+    if (m.hdAlive.length) lab(m.hx, m.hy, 'SQUAD', '#e8f6ff', 2.4);
+    // camera view and the rose
+    const vw = cam.view, vh = cam.view * (this.H / this.W);
+    c.strokeStyle = 'rgba(255,255,255,0.85)'; c.lineWidth = 2;
+    c.strokeRect((cam.x - vw / 2) * k, (cam.y - vh / 2) * k, vw * k, vh * k);
+    this._compass(c, S, fs * 1.3);
+    const rx = S - fs * 4.2, ry = fs * 5.2, rr = fs * 2.4;
+    c.strokeStyle = 'rgba(215,255,228,0.7)'; c.lineWidth = 1.5;
+    c.beginPath(); c.arc(rx, ry, rr, 0, TAU); c.stroke();
+    c.fillStyle = '#ffe600'; c.beginPath(); c.moveTo(rx, ry - rr * 1.15); c.lineTo(rx + rr * 0.28, ry); c.lineTo(rx - rr * 0.28, ry); c.closePath(); c.fill();
+    c.fillStyle = 'rgba(215,255,228,0.75)'; c.beginPath(); c.moveTo(rx, ry + rr * 1.15); c.lineTo(rx + rr * 0.28, ry); c.lineTo(rx - rr * 0.28, ry); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(rx - rr, ry); c.lineTo(rx + rr, ry); c.stroke();
+    c.strokeStyle = 'rgba(157,255,184,0.5)'; c.lineWidth = 1; c.strokeRect(0.5, 0.5, S - 1, S - 1);
+  }
+  // Everything both maps show, at k canvas units per metre.
+  _mapMarks(c, m, k, t, ac, ec, big = false) {
     // What the squad can see and where strikes can land
     c.fillStyle = 'rgba(125,255,155,0.13)';
     for (const a of m.alive) { c.beginPath(); c.arc(a.x * k, a.y * k, a.vision * k, 0, TAU); c.fill(); }
@@ -863,7 +993,12 @@ export class Renderer {
       if (on) { c.strokeStyle = '#ffe600'; c.lineWidth = 1.5; c.globalAlpha = 0.5 + 0.5 * Math.sin(t * 6); c.beginPath(); c.arc(ex.x * k, ex.y * k, 11, 0, TAU); c.stroke(); c.globalAlpha = 1; }
     }
     // The free-fire zone, enemy flares and the ships bringing reinforcements
-    if (m.ffz) { c.strokeStyle = '#ff7a2a'; c.fillStyle = 'rgba(255,122,42,0.18)'; c.lineWidth = 1.5; c.setLineDash([3, 2]); c.beginPath(); c.arc(m.ffz.x * k, m.ffz.y * k, Math.max(5, m.ffz.r * k), 0, TAU); c.fill(); c.stroke(); c.setLineDash([]); }
+    if (m.ffz) {
+      c.strokeStyle = '#ff7a2a'; c.fillStyle = 'rgba(255,122,42,0.25)'; c.lineWidth = 2; c.setLineDash([3, 2]); c.beginPath(); c.arc(m.ffz.x * k, m.ffz.y * k, Math.max(6, m.ffz.r * k), 0, TAU); c.fill(); c.stroke(); c.setLineDash([]);
+      c.globalAlpha = 0.5 + 0.5 * Math.sin(t * 6); c.beginPath(); c.arc(m.ffz.x * k, m.ffz.y * k, Math.max(10, m.ffz.r * k) + 4, 0, TAU); c.stroke(); c.globalAlpha = 1;
+    }
+    const SU = m.supply, sd = SU && SU.state === 'inbound' ? SU.drop : null;
+    if (sd) { c.fillStyle = '#9dffb8'; c.fillRect(sd.x * k - 3, sd.y * k - 3, 6, 6); c.strokeStyle = '#9dffb8'; c.lineWidth = 1.5; c.globalAlpha = 0.5 + 0.5 * Math.sin(t * 8); c.beginPath(); c.arc(sd.x * k, sd.y * k, 8, 0, TAU); c.stroke(); c.globalAlpha = 1; }
     for (const dr of m.drops || []) {
       if (dr.state === 'down' || dr.dead) continue;
       c.fillStyle = ec; c.save(); c.translate(dr.x * k, dr.y * k); c.rotate(Math.atan2(dr.dy || 0, dr.dx || 1));
@@ -902,11 +1037,6 @@ export class Renderer {
       c.fillStyle = ac; c.beginPath(); c.arc(a.x * k, a.y * k, 3.5, 0, TAU); c.fill();
       c.strokeStyle = col; c.lineWidth = 1.5; c.beginPath(); c.arc(a.x * k, a.y * k, 4.8, 0, TAU); c.stroke();
     }
-    // Camera view rectangle
-    const vw = cam.view, vh = cam.view * (this.H / this.W);
-    c.strokeStyle = 'rgba(255,255,255,0.8)'; c.lineWidth = 1.5;
-    c.strokeRect((cam.x - vw / 2) * k, (cam.y - vh / 2) * k, vw * k, vh * k);
-    c.strokeStyle = 'rgba(157,255,184,0.4)'; c.lineWidth = 1; c.strokeRect(0.5, 0.5, S - 1, S - 1);
   }
 
   // ---------- helpers ----------

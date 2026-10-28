@@ -123,4 +123,11 @@ export const COMMS = {
   civFriendly: 'Civilians hit by our own fire. Check your strikes, gunner.',
   ffzAsk: (who, dir) => `${who} requests a free-fire zone ${dir}. Allies are clearing out. Saturate it, gunner.`,
   ffzEnd: 'Free-fire zone closed. Allies moving back in.',
+  supplyAsk: (who) => `${who}: Gunner, we're running dry. Requesting a supply drop.`,
+  supplyDeclined: 'Supply request denied. The squad makes do.',
+  supplyIgnored: 'No answer on the supply request. The squad makes do.',
+  supplyLaunch: 'Supply pod away. Eyes on the drop.',
+  supplyFast: 'Fast load! Supply pod away. That will put a spring in their step.',
+  supplyDown: 'Supplies on the ground. Squad restocked.',
+  supplyBoost: 'Supplies on the ground. Squad restocked and fired up.',
 };

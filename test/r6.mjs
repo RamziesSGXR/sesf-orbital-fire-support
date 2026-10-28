@@ -42,12 +42,12 @@ const nearHd = (m, a, d, ang = 0) => ({ x: a.x + Math.cos(ang) * d, y: a.y + Mat
   for (let s = 1; s <= 600; s++) {
     const L = rollLoadout(s), g = dealGroups(L, s);
     if (new Set(L).size !== 16 || L.length !== 16) bad++;
-    if (!L.includes('resupply')) noRes++;
+    if (L.includes('resupply')) noRes++;
     if (g.some((t) => t.length !== 4 || !t.some(isAnti))) noAnti++;
     if (g.some((t) => t.filter((id) => STRATS[id].shared).length > 1)) shared++;
   }
   check('600 loadouts: 16 distinct picks', bad === 0);
-  check('resupply is always in the loadout', noRes === 0);
+  check('resupply no longer takes a Helldiver stratagem slot (the squad asks the gunner instead)', noRes === 0);
   check('every group of four has a heavy-killer', noAnti === 0, ANTI_IDS.join(' '));
   check('no group holds two squad-wide items', shared === 0);
   const spear = STRATS.spear.sw, eat = STRATS.eat.sw, ac = STRATS.autocannon.sw;
@@ -55,7 +55,6 @@ const nearHd = (m, a, d, ang = 0) => ({ x: a.x + Math.cos(ang) * d, y: a.y + Mat
   check('spear sometimes one-shots a heavy', spear.dmg * C.strat.dmgMul * (1 + spear.vary) >= C.enemies.hp.heavy && spear.dmg * C.strat.dmgMul * (1 - spear.vary) < C.enemies.hp.heavy);
   check('expendable anti-tank is one use and one-shots a heavy', eat.ammo === 1 && eat.dmg * C.strat.dmgMul * (1 - eat.vary) >= C.enemies.hp.heavy);
   check('autocannon is fast, heavy-penetration and takes a few shots on a medium', ac.every <= 0.7 && ac.mult.H >= 0.75 && Math.ceil(C.enemies.hp.medium / (ac.dmg * C.strat.dmgMul)) >= 2 && Math.ceil(C.enemies.hp.medium / (ac.dmg * C.strat.dmgMul)) <= 4);
-  check('resupply is infinite (no use limit) on a cooldown', STRATS.resupply.cd > 0 && STRATS.resupply.uses === undefined);
 }
 
 // ---------------------------------------------------------------- the Helldiver kit
@@ -243,12 +242,14 @@ const nearHd = (m, a, d, ang = 0) => ({ x: a.x + Math.cos(ang) * d, y: a.y + Mat
 function bearings(m, tgt, members) { return members.map((e) => Math.atan2(e.y - tgt.y, e.x - tgt.x)); }
 function resultant(angles) { let c = 0, s = 0; for (const a of angles) { c += Math.cos(a); s += Math.sin(a); } return Math.hypot(c, s) / angles.length; }
 function maxGap(angles) { const a = angles.slice().sort((x, y) => x - y); let g = 0; for (let i = 0; i < a.length; i++) { const nx = i + 1 < a.length ? a[i + 1] : a[0] + Math.PI * 2; g = Math.max(g, nx - a[i]); } return g; }
+let HX = 800, HY = 800;
 function stage(fac, seed) {
   const m = quiet(fac, seed);
   // one invulnerable Helldiver stands alone; the rest of the squad is far away and everyone's weapons are quiet
   const a = m.hdAlive[0];
   m.hdAlive.forEach((x, i) => { x.hp = x.maxHp = 1e9; x.atk = 1e9; x.gren = 0; x.ultAt = 1e9; x.dodgeAt = 1e9; if (x !== a) { x.x = 100 + 40 * i; x.y = 1450; x.ox = 0; x.oy = 0; } });
-  a.x = 800; a.y = 800; a.ox = 0; a.oy = 0; m.squad.ax = 800; m.squad.ay = 800;
+  const P = m.terrain.nearestLand(800, 800); HX = P.x; HY = P.y;   // stand on dry ground, not in a river
+  a.x = HX; a.y = HY; a.ox = 0; a.oy = 0; m.squad.ax = HX; m.squad.ay = HY;
   m._refreshAlive();
   return { m, a };
 }
@@ -258,7 +259,7 @@ function stage(fac, seed) {
   const mine = () => gs.flatMap((g) => g.members.filter((e) => !e.dead));
   let snap = null;
   for (let i = 0; i < 50 * 30 && !snap; i++) {
-    m.squad.ax = 800; m.squad.ay = 800; a.x = 800; a.y = 800;
+    m.squad.ax = HX; m.squad.ay = HY; a.x = HX; a.y = HY;
     m.step(dt);
     const all = mine(), close = all.filter((e) => Math.hypot(e.x - a.x, e.y - a.y) < 14);
     if (close.length >= all.length * 0.6 && close.length >= 8) snap = close;
@@ -272,7 +273,7 @@ function stage(fac, seed) {
   const g = spawnGroup(m, a.x - 140, a.y, 'hunt', { alertT: 99 });
   let snap = null;
   for (let i = 0; i < 60 * 30 && !snap; i++) {
-    m.squad.ax = 800; m.squad.ay = 800; a.x = 800; a.y = 800;
+    m.squad.ax = HX; m.squad.ay = HY; a.x = HX; a.y = HY;
     m.step(dt);
     const inR = g.members.filter((e) => !e.dead && e.tgt);
     if (inR.length >= Math.max(3, g.members.filter((e) => !e.dead).length - 1)) snap = g.members.filter((e) => !e.dead);
@@ -293,7 +294,7 @@ function stage(fac, seed) {
   const g = spawnGroup(m, a.x - 120, a.y, 'hunt', { alertT: 99 });
   let snap = null, t0 = 0;
   for (let i = 0; i < 90 * 30; i++) {
-    m.squad.ax = 800; m.squad.ay = 800; a.x = 800; a.y = 800;
+    m.squad.ax = HX; m.squad.ay = HY; a.x = HX; a.y = HY;
     m.step(dt);
     const L = g.members.filter((e) => !e.dead && e.kind !== 'H');
     if (L.length >= 4 && L.every((e) => Math.hypot(e.x - a.x, e.y - a.y) < 45) && !t0) t0 = m.t;

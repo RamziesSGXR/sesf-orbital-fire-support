@@ -300,7 +300,7 @@ export function updateEnemies(m, dt) {
         g.pt = { x: g.home.x + ox, y: g.home.y + oy }; g.patrolT = rng.range(6, 10);
         if (m.terrain.blocked(g.pt.x, g.pt.y)) g.pt = m.terrain.nearestLand(g.pt.x, g.pt.y);
       }
-      const o = { x: g.cx, y: g.cy, nv: g.nv };
+      const o = g.mv || (g.mv = { x: 0, y: 0, nv: null, nvc: null }); o.x = g.cx; o.y = g.cy; o.nv = g.nv;
       moveToward(o, g.pt.x, g.pt.y, minSpeed * C.enemies.patrolSpeedMul, dt, size);
       g.cx = o.x; g.cy = o.y; g.nv = o.nv;
       for (const e of g.members) {
@@ -361,7 +361,7 @@ export function updateEnemies(m, dt) {
 
     const tgt = g.target && !g.target.dead ? g.target : null;
     if (!engaged && g.tp) {
-      const o = { x: g.cx, y: g.cy, nv: g.nv };
+      const o = g.mv || (g.mv = { x: 0, y: 0, nv: null, nvc: null }); o.x = g.cx; o.y = g.cy; o.nv = g.nv;
       moveToward(o, g.tp.x, g.tp.y, minSpeed, dt, size);
       g.cx = o.x; g.cy = o.y; g.nv = o.nv;
     }

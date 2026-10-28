@@ -21,7 +21,8 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 - **You run the sky.** You aim the UAV scan and the orbital strikes. Strikes can only land inside the **strike zone** around your allies or inside a UAV scan circle. Your strikes hurt friendlies, so watch where the squad is.
 - **The ship gun** (slot 8) fires anywhere you can see, needs no strike zone and never hurts allies. Hold to fire. It has its own ammo that refills by itself.
 - **SEAF troops** are yours to command. Call a drop, split them into squads, give orders, or draw a play on the map: a route to run, a line to hold or a ring to defend.
-- **The Helldivers** play on their own. They pick their targets, call their own stratagems and drop back in when one dies, as long as the squad has lives left. You never steer them, but they talk to you: they say what they are about to do and ping where they are going.
+- **The Helldivers** play on their own. They pick their targets, call their own stratagems and drop back in when one dies, as long as the squad has lives left. You never steer them, but they talk to you: they say what they are about to do, ping where they are going, and ask you for help.
+- **Supply drops.** When the Helldivers run low on stims or grenades, one of them asks you for supplies. Press **LOAD POD** (or `U`) and time slows down while you load the pod: tap each compartment (stims, grenades, ammo) until it's full. What you load is what they get, and a pod filled within five seconds gives the squad a short boost. Then the camera swings to where it lands. Ignore the request and they make do; they can ask again after a minute.
 
 ## Controls
 
@@ -31,6 +32,9 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 | Fire or call | Click | **CALL** button |
 | Pick a weapon | `1` UAV scan, `2`-`6` orbitals, `7` the nuke (once armed), `8` ship gun (hold to fire). `Q` / `E` cycle | Weapon bar. Hold **FIRE** for the ship gun |
 | Mission info | `I` or the **INFO** button | **INFO** button |
+| Tactical map | `L` or click the minimap. Click a spot on it to look there | Tap the minimap, then tap a spot to look there |
+| Supply request | `U` (or **LOAD POD**), then `1`-`3` or click the compartments; `Space` loads the next one | **LOAD POD**, then tap the compartments |
+| Look at a callout | `J` or **LOOK**: the latest supply drop or free-fire zone | **LOOK** |
 | What does this do? | Hover or select a weapon, stratagem or squad to see its power, level and numbers | Select a weapon or squad, or tap a stratagem |
 | SEAF drop | `G` at the cursor, or click **SEAF DROP** then the map | **SEAF DROP** at the crosshair |
 | SEAF squads | `Tab` next squad, `` ` `` all squads, `Shift+1`-`4` pick one, `F` split, `M` merge, `Y` add nearby troops | S1-S4 buttons |
@@ -38,7 +42,7 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 | Draw a play | `R`, then drag: a loop is a ring, a straight stroke is a line, anything else is a route | **DRAW**, then drag one finger |
 | Send SEAF at a target | Click a bug hole or point of interest | Tap it with an order selected |
 | Armory (upgrades) | `B` | **MENU**, then **ARMORY** |
-| Camera | `WASD` or right-drag to move, wheel or `+` / `-` to zoom, `Space` to follow the squad | Drag, pinch, tap the minimap |
+| Camera | `WASD` or right-drag to move, wheel or `+` / `-` to zoom, `Space` to follow the squad, drag on the minimap | Drag, pinch |
 | Pause | `Esc` or `P` | Pause button |
 | Other | `T` white-hot / black-hot, `H` relief map (height, water and slow ground) | Relief map in Settings |
 
@@ -62,7 +66,9 @@ Each mission has a 30-minute limit. The first few are quick, about six to eight 
 - **Hit them from behind.** Every unit shows which way it faces: Helldivers have a visor at the front and a cape and blinking backpack at the back; enemies have eyes or sensors at the front, and the bigger ones have a glowing weak spot on the back. Hits from behind do 1.5× damage, and 2.2× on heavies.
 - **Critical hits** do double damage. Your orbital strikes crit most often (14%), then the ship gun (10%).
 - **Watch for flares.** A patrol that spots the squad or gets shot may fire a flare. Kill the one holding it within about four seconds and no reinforcements come. If you're too late, **bugs** dig up out of a hole (blow it up to close it), and **bots** and **squids** arrive by ship. You can shoot ships down while they hover low, and the troops inside go down with them, for credits.
-- **Free-fire zones.** A Helldiver facing a big pack may ask for a free-fire zone. Your allies stay out of it for thirty seconds and your strikes into it recharge twice as fast. Pour it on.
+- **Free-fire zones.** When the enemy masses ahead of the squad, a Helldiver calls a free-fire zone on it: an orange circle that follows the pack, with a callout and a **LOOK** button, and the camera eases over to show it. Your allies stay out of it for thirty seconds and your strikes into it recharge twice as fast. Pour it on.
+- **Load supplies fast.** A full pod refills every stim and grenade, and a fast one makes the Helldivers hit harder and move quicker for a while. A half-loaded pod only gives half.
+- **Use the map.** The tactical map has compass points and a lettered grid, so when the radio says "dropship inbound west" you know where to look.
 - **Know your enemy.** Bugs swarm in from every side. Bots form a firing line and stand there shooting. Squids spread out and surround you.
 - **Mind the ground.** Deep water can't be crossed on foot, and mud, snow and sand slow everyone down. High ground helps whoever holds it: units on a rise see farther and hit harder. Press `H` to see it.
 - **Break the big assaults.** The game warns you before a large enemy assault (direction, size and time). Breaking one pays well.

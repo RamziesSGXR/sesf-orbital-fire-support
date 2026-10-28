@@ -380,11 +380,35 @@ export class Terrain {
     cells.reverse();
     return cells;
   }
-  // Waypoints from near (x1, y1) to (x2, y2) that keep clear of deep water, or null if there is no way at all.
+  // Waypoints from near (x1, y1) to (x2, y2) that keep clear of deep water, or null if there is no way at all. Searches are cached
+  // by start and goal cell (the ground never changes), and only a few new searches run per tick: past that budget this returns
+  // undefined and the caller keeps its old route (or walks straight) until the next tick.
   path(x1, y1, x2, y2) {
-    let G = this._coarse, cells = this._astar(G, x1, y1, x2, y2);
-    if (!cells) { G = this._fine; cells = this._astar(G, x1, y1, x2, y2); }
-    if (!cells) return null;
+    const ci = (v, cs, W) => { const c = (v / cs) | 0; return c < 0 ? 0 : c >= W ? W - 1 : c; };
+    if (!this._pcC) { this._pcC = new Map(); this._pcF = new Map(); }
+    const kc = (ci(y1, NAVC, NV) * NV + ci(x1, NAVC, NV)) * NV * NV + ci(y2, NAVC, NV) * NV + ci(x2, NAVC, NV);
+    let c = this._pcC.get(kc), G = this._coarse, cells;
+    if (c === undefined) {
+      if (this.budget !== undefined && this.budget <= 0) return undefined;
+      if (this.budget !== undefined) this.budget--;
+      c = this._astar(G, x1, y1, x2, y2) || 0;
+      if (this._pcC.size > 800) this._pcC.clear();
+      this._pcC.set(kc, c);
+    }
+    if (c) cells = c;
+    else {
+      const kf = (ci(y1, CELL, N) * N + ci(x1, CELL, N)) * N * N + ci(y2, CELL, N) * N + ci(x2, CELL, N);
+      let f = this._pcF.get(kf);
+      if (f === undefined) {
+        if (this.budget !== undefined && this.budget <= 0) return undefined;
+        if (this.budget !== undefined) this.budget--;
+        f = this._astar(this._fine, x1, y1, x2, y2) || 0;
+        if (this._pcF.size > 400) this._pcF.clear();
+        this._pcF.set(kf, f);
+      }
+      if (!f) return null;
+      G = this._fine; cells = f;
+    }
     let pts = cells.map((k) => ({ x: ((k % G.W) + 0.5) * G.cs, y: (((k / G.W) | 0) + 0.5) * G.cs }));
     if (this.spd[this._i(x2, y2)] !== 0) pts[pts.length - 1] = { x: x2, y: y2 };
     // pull the string tight: keep only the corners that the water forces
@@ -401,20 +425,33 @@ export class Terrain {
 
 // Where to steer so a unit at (x, y) gets to (gx, gy): straight there if the way is dry, else along a planned route round the water.
 // o remembers its route (o.nv); it is replanned when the goal has moved on or the route is old.
+const PATH_BUDGET = 6;                // new route searches per tick, shared by everyone
+const OUT = { x: 0, y: 0 };          // steer() hands back this scratch point (callers read it at once) or a route corner
 export function steer(tr, o, x, y, gx, gy, t) {
-  if (!tr || tr.lineClear(x, y, gx, gy, 4)) { if (o.nv) o.nv = null; return { x: gx, y: gy }; }
+  if (!tr) { OUT.x = gx; OUT.y = gy; return OUT; }
+  if (tr.budgetT !== t) { tr.budgetT = t; tr.budget = PATH_BUDGET; }
+  // Is the straight way dry? Checked a few times a second, and again when the goal moves.
+  let c = o.nvc;
+  if (!c) c = o.nvc = { t: -1, gx: 0, gy: 0, clear: false };
+  if (t - c.t > 0.25 || t < c.t || Math.abs(c.gx - gx) + Math.abs(c.gy - gy) > 3) { c.clear = tr.lineClear(x, y, gx, gy, 4); c.t = t; c.gx = gx; c.gy = gy; }
+  if (c.clear) { if (o.nv) o.nv = null; OUT.x = gx; OUT.y = gy; return OUT; }
   let nv = o.nv;
-  if (!nv || Math.hypot(nv.gx - gx, nv.gy - gy) > 40 || t - nv.at > 5) {
-    nv = o.nv = { gx, gy, at: t, pts: tr.path(x, y, gx, gy), i: 0 };
+  if (!nv || Math.hypot(nv.gx - gx, nv.gy - gy) > 40 || t - nv.at > 5 || t < nv.at) {
+    const pts = tr.path(x, y, gx, gy);
+    if (pts !== undefined) nv = o.nv = { gx, gy, at: t, pts, i: 0 };
+    else if (!nv) { OUT.x = gx; OUT.y = gy; return OUT; }      // no search left this tick: try again next tick
   }
-  if (!nv.pts || !nv.pts.length) return { x: gx, y: gy };
+  if (!nv.pts || !nv.pts.length) { OUT.x = gx; OUT.y = gy; return OUT; }
   const pts = nv.pts;
   // on to the next corner once this one is reached, or once the next one can be seen straight from here
   while (nv.i < pts.length - 1 && (Math.hypot(pts[nv.i].x - x, pts[nv.i].y - y) < 5 || tr.lineClear(x, y, pts[nv.i + 1].x, pts[nv.i + 1].y, 4))) nv.i++;
   // the corner cannot be reached from here after all (the route was planned on a coarser grid): plan again from where we stand
   if (!tr.lineClear(x, y, pts[nv.i].x, pts[nv.i].y, 4) && t - nv.at > 0.4) {
-    nv = o.nv = { gx, gy, at: t, pts: tr.path(x, y, gx, gy), i: 0 };
-    if (!nv.pts || !nv.pts.length) return { x: gx, y: gy };
+    const p2 = tr.path(x, y, gx, gy);
+    if (p2 !== undefined) {
+      nv = o.nv = { gx, gy, at: t, pts: p2, i: 0 };
+      if (!nv.pts || !nv.pts.length) { OUT.x = gx; OUT.y = gy; return OUT; }
+    }
   }
   return nv.pts[nv.i];
 }

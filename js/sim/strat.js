@@ -676,6 +676,24 @@ function updateZones(m, dt) {
 function updateFfz(m, dt) {
   const F = C.ffz, t = m.t, z = m.ffz;
   if (z && t >= z.until) { m.ffz = null; m.radio(COMMS.ffzEnd, 'ffzend', 0); m.emit('ffz_end', { x: z.x, y: z.y }); }
+  // The zone stays on the pack: once a second it slides toward the middle of the enemies in and around it (never onto the squad).
+  if (m.ffz) {
+    z.trackT = (z.trackT || 0) - dt;
+    if (z.trackT <= 0) {
+      z.trackT = 1;
+      let n = 0, sx = 0, sy = 0;
+      m.eGrid.near(z.x, z.y, z.r * 1.3, (o) => { if (o.vis >= 1) { n++; sx += o.x; sy += o.y; } });
+      z.n = n;
+      if (n >= 3) {
+        const dx = sx / n - z.x, dy = sy / n - z.y, d = Math.hypot(dx, dy), s = Math.min(d, F.follow);
+        if (d > 0.5) {
+          const nx = z.x + (dx / d) * s, ny = z.y + (dy / d) * s;
+          if (!m.hdAlive.some((h) => Math.hypot(h.x - nx, h.y - ny) < F.minDist * 0.8)) { z.x = nx; z.y = ny; }
+        }
+      }
+      z.dir = compass(z.x - m.cx, z.y - m.cy); z.dist = Math.round(Math.hypot(z.x - m.cx, z.y - m.cy));
+    }
+  }
   if (m.ffz || t < (m.ffzAt ?? F.firstSec) || !m.hdAlive.length || m.phase === 'over' || (m.phase === 'extract' && m.extraction.state !== 'open' && m.extraction.state !== 'called')) return;
   m.ffzScan = (m.ffzScan || 0) - dt;
   if (m.ffzScan > 0) return;
@@ -698,10 +716,10 @@ function updateFfz(m, dt) {
       bn = n; best = { x, y };
     }
     if (best && bn >= F.minN) {
-      m.ffz = { x: best.x, y: best.y, r: F.r, start: t, until: t + F.sec, by: a.id, team: a.team, n: bn, strikes: 0 };
+      const dir = compass(best.x - m.cx, best.y - m.cy);
+      m.ffz = { x: best.x, y: best.y, r: F.r, start: t, until: t + F.sec, by: a.id, team: a.team, n: bn, strikes: 0, caller: m.tag(a), dir, dist: Math.round(Math.hypot(best.x - m.cx, best.y - m.cy)), trackT: 1 };
       m.ffzAt = t + F.cooldownSec;
       m.stats.ffz = (m.stats.ffz || 0) + 1;
-      const dir = compass(best.x - m.cx, best.y - m.cy);
       m.radio(COMMS.ffzAsk(m.tag(a), dir), 'ffz', 0);
       m.notice(`FREE-FIRE ZONE ${dir.toUpperCase()}  ALLIES CLEAR OUT  STRIKES IN IT RECHARGE 2X`, 'warn');
       m.emit('ffz', { x: best.x, y: best.y, r: F.r, team: a.team });

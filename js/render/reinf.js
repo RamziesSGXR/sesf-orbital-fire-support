@@ -144,18 +144,61 @@ export function drawDrops(ctx, m, now, px, labels, scale, pal) {
 export function drawFfz(ctx, m, now, px, labels, scale) {
   const z = m.ffz;
   if (!z) return;
-  const left = Math.max(0, z.until - m.t), fade = Math.min(1, left / 2, (m.t - z.start) / 0.6);
+  const left = Math.max(0, z.until - m.t), age = m.t - z.start, fade = Math.min(1, left / 2, age / 0.6);
+  // hatching that crawls across the zone
   ctx.save();
   ring(ctx, z.x, z.y, z.r); ctx.clip();
-  ctx.strokeStyle = `rgba(255,120,40,${0.22 * fade})`; ctx.lineWidth = px(2);
+  ctx.fillStyle = `rgba(255,110,30,${0.08 * fade})`; ctx.fillRect(z.x - z.r, z.y - z.r, z.r * 2, z.r * 2);
+  ctx.strokeStyle = `rgba(255,120,40,${0.28 * fade})`; ctx.lineWidth = px(2);
   const gap = Math.max(px(12), 5), off = (now * 6) % gap;
   ctx.beginPath();
   for (let k = -z.r * 2; k < z.r * 2; k += gap) { ctx.moveTo(z.x + k + off - z.r, z.y - z.r); ctx.lineTo(z.x + k + off + z.r, z.y + z.r); }
   ctx.stroke();
   ctx.restore();
-  ctx.strokeStyle = `rgba(255,120,40,${(0.65 + 0.3 * Math.sin(now * 6)) * fade})`; ctx.lineWidth = px(2.6); ctx.setLineDash([px(12), px(6)]); ctx.lineDashOffset = -now * px(10);
+  ctx.strokeStyle = `rgba(255,120,40,${(0.7 + 0.3 * Math.sin(now * 6)) * fade})`; ctx.lineWidth = px(3); ctx.setLineDash([px(12), px(6)]); ctx.lineDashOffset = -now * px(10);
   ring(ctx, z.x, z.y, z.r); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
-  labels.push({ x: z.x, y: z.y, dy: -z.r * scale - 8, text: `FREE-FIRE ZONE ${Math.ceil(left)}S  STRIKES RECHARGE 2X`, col: '#ff9a4a', pri: 3 });
+  // when it is called, target brackets close in on it from far out, so the eye goes there
+  const lock = Math.min(1, age / 1.2), R = z.r * (1.12 + 2.6 * (1 - lock) ** 2), L = R * 0.32;
+  ctx.strokeStyle = `rgba(255,160,80,${lock < 1 ? 1 : 0.55 + 0.35 * Math.sin(now * 4)})`; ctx.lineWidth = px(lock < 1 ? 4 : 2.6);
+  ctx.beginPath();
+  for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    ctx.moveTo(z.x + sx * R, z.y + sy * (R - L)); ctx.lineTo(z.x + sx * R, z.y + sy * R); ctx.lineTo(z.x + sx * (R - L), z.y + sy * R);
+  }
+  ctx.stroke();
+  if (lock < 1) { ctx.globalAlpha = 1 - lock; ctx.strokeStyle = '#ffb070'; ctx.lineWidth = px(2); ring(ctx, z.x, z.y, z.r * (1 + 3 * lock)); ctx.stroke(); ctx.globalAlpha = 1; }
+  labels.push({ x: z.x, y: z.y, dy: -R * scale - 10, text: `FREE FIRE ${Math.ceil(left)}S · RECHARGE 2X`, col: '#ffb070', pri: 3 });
+}
+
+// ---------------------------------------------------------------- resupply
+// The Helldiver asking for supplies, the pod on its way down, and the squad's boost after a fast load.
+export function drawSupply(ctx, m, now, px, labels, scale, teamColor) {
+  const S = m.supply;
+  if (!S) return;
+  const t = m.t;
+  if (S.state === 'ask' || S.state === 'fill') {
+    const a = m.allies.find((x) => x.id === S.ask?.by && !x.dead);
+    if (a) {
+      const col = teamColor(S.ask.team), r = Math.max(px(13), 5), y = a.y - Math.max(px(26), 9), pulse = 0.6 + 0.4 * Math.sin(now * 7);
+      ctx.strokeStyle = col; ctx.lineWidth = px(2); ctx.globalAlpha = pulse;
+      ctx.beginPath(); for (let i = 0; i <= 6; i++) { const an = (i / 6) * TAU + Math.PI / 6; const x = a.x + Math.cos(an) * r * 0.6, yy = y + Math.sin(an) * r * 0.6; if (i) ctx.lineTo(x, yy); else ctx.moveTo(x, yy); } ctx.stroke();
+      ctx.fillStyle = '#7dff9b'; ctx.fillRect(a.x - r * 0.08, y - r * 0.32, r * 0.16, r * 0.64); ctx.fillRect(a.x - r * 0.32, y - r * 0.08, r * 0.64, r * 0.16);
+      ctx.globalAlpha = 1;
+      if (S.state === 'ask') labels.push({ x: a.x, y: y, dy: -r * scale - 6, text: `${S.ask.tag} NEEDS SUPPLIES`, col: '#9dffb8', pri: 3 });
+    }
+  }
+  if (S.state === 'inbound' && S.drop) {
+    const d = S.drop, total = C.supply.dropSec, left = Math.max(0, d.landAt - t), f = Math.min(1, left / total), col = teamColor(d.team);
+    ctx.strokeStyle = col; ctx.lineWidth = px(2); ctx.setLineDash([px(5), px(4)]); ctx.lineDashOffset = -now * px(8);
+    ring(ctx, d.x, d.y, 9); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+    ctx.globalAlpha = 0.7; ring(ctx, d.x, d.y, 4 + 24 * f); ctx.stroke(); ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#9dffb8'; ctx.lineWidth = px(3); ctx.beginPath(); ctx.moveTo(d.x, d.y - 150 * f - 6); ctx.lineTo(d.x, d.y - 6); ctx.stroke();
+    ctx.fillStyle = '#9dffb8'; ctx.fillRect(d.x - 2.2, d.y - 150 * f - 9, 4.4, 6);
+    labels.push({ x: d.x, y: d.y, dy: 26, text: `SUPPLY POD ${left.toFixed(1)}S`, col: '#9dffb8', pri: 3 });
+  }
+  if (t < S.boostUntil) {
+    ctx.strokeStyle = 'rgba(125,255,155,0.55)'; ctx.lineWidth = px(1.6);
+    for (const a of m.hdAlive) { ring(ctx, a.x, a.y, Math.max(px(13), 4) + Math.sin(now * 5 + a.id) * px(1.5)); ctx.stroke(); }
+  }
 }
 
 // ---------------------------------------------------------------- the evacuation site

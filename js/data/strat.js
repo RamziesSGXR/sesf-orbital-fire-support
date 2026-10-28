@@ -7,7 +7,7 @@
 // use    when the squad calls it: cluster | heavy | smoke | defense | fight | travel | resupply
 // cd     seconds before it can be called again. A stratagem that is on the list twice recharges in half the time.
 // anti   true when it can take down a heavy. Every Helldiver's group of four holds at least one of these (see dealGroups), and
-//        Resupply (stims, grenades, ammo; callable again and again on its cooldown) is always somewhere in the sixteen.
+//        (Resupply is no longer drawn: the squad asks the gunner for a supply drop instead, see sim/supply.js.)
 // dmg    raw damage. CONFIG.strat.dmgMul scales every stratagem so the player's guns stay stronger.
 import { RNG } from '../util/rng.js';
 import { CONFIG as C } from '../config.js';
@@ -138,20 +138,20 @@ export const STRATS = {
 
 const ALL_IDS = Object.keys(STRATS);
 // Stratagems the Helldivers can draw, and the ones the player can buy.
-export const STRAT_IDS = ALL_IDS.filter((id) => STRATS[id].cat !== 'ORBITAL');
+// Resupply is not one of them any more: the squad asks the gunner for supplies instead (sim/supply.js).
+export const STRAT_IDS = ALL_IDS.filter((id) => STRATS[id].cat !== 'ORBITAL' && id !== 'resupply');
 export const ORB_IDS = ALL_IDS.filter((id) => STRATS[id].cat === 'ORBITAL');
 export const CAT_COLOR = { EAGLE: '#ffe600', ORBITAL: '#ffffff', DEFENSE: '#7dff9b', SUPPORT: '#ffb020', VEHICLE: '#7fd8ff', GEAR: '#c9b8ff' };
 
 export const ANTI_IDS = STRAT_IDS.filter((id) => STRATS[id].anti && !STRATS[id].shared);
 export const isAnti = (id) => !!(STRATS[id] && STRATS[id].anti);
 
-// Sixteen distinct picks for the Helldivers. Resupply is always one of them, and at least one pick per group can take down a
+// Sixteen distinct picks for the Helldivers. At least one pick per group can take down a
 // heavy (four in all). A list that is too short or has repeats is topped up from the same seed; a full forced list is used as given.
 export function rollLoadout(seed, forced = []) {
   const rng = new RNG((seed ^ 0x5bd1e995) >>> 0), out = [], N = C.strat.slots;
   for (const id of forced) if (STRAT_IDS.includes(id) && !out.includes(id) && out.length < N) out.push(id);
   if (out.length >= N) return out;
-  if (!out.includes('resupply')) out.push('resupply');
   let anti = out.filter(isAnti).length;
   for (const id of rng.shuffle(ANTI_IDS.slice())) {
     if (anti >= C.strat.groups || out.length >= N) break;

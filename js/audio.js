@@ -109,6 +109,14 @@ export class Audio {
   // a critical hit from the destroyer: a short metallic ping; a hit on a heavy's back: a heavier clank
   crit(rear, v = 1, pan = 0) { if (!this._ok('crit', 0.09)) return; this._pan = pan; if (rear) { this._tone(300, 180, 0.12, 0.09 * v, 'square'); this._tone(1200, 800, 0.08, 0.05 * v, 'triangle'); } else this._tone(2400, 1700, 0.09, 0.05 * v, 'triangle'); this._pan = 0; }
   ffz() { if (!this.ctx) return; for (let i = 0; i < 3; i++) { this._tone(620, 620, 0.14, 0.1, 'square', i * 0.3); this._tone(930, 930, 0.14, 0.1, 'square', i * 0.3 + 0.15); } }
+  // Resupply: the request, a tap loading the pod, a full compartment, the launch and the landing.
+  supAsk() { if (!this.ctx) return; [784, 988, 784, 1175].forEach((f, i) => this._tone(f, f, 0.11, 0.08, 'triangle', i * 0.13)); }
+  supTap(i = 0) { if (!this._ok('suptap', 0.03)) return; this._noise(0.07, 1400 - i * 250, 300, 0.12, 'bandpass', 2); this._tone(300 + i * 70, 160, 0.06, 0.08, 'square'); }
+  supFull(i = 0) { if (!this.ctx) return; this._tone(1046 + i * 196, 1046 + i * 196, 0.16, 0.07, 'triangle'); }
+  supLaunch(fast) { if (!this.ctx) return; this._noise(0.9, 300, 3000, 0.22, 'bandpass', 0.8); this._tone(220, 880, 0.6, 0.07, 'sawtooth'); if (fast) [1318, 1568, 2093].forEach((f, i) => this._tone(f, f, 0.12, 0.06, 'triangle', 0.3 + i * 0.09)); }
+  supDown(v = 1, pan = 0) { if (!this.ctx) return; this._pan = pan; this._noise(0.5, 700, 90, 0.4 * v); this._tone(110, 45, 0.35, 0.35 * v); this._tone(880, 1320, 0.15, 0.05 * v, 'triangle', 0.35); this._pan = 0; }
+  slowIn() { if (!this.ctx) return; this._tone(600, 140, 0.5, 0.08, 'sine'); }
+  slowOut() { if (!this.ctx) return; this._tone(140, 600, 0.35, 0.07, 'sine'); }
   board() { if (!this._ok('board', 0.12)) return; this._tone(660, 990, 0.12, 0.07, 'triangle'); }
   shuttle(v = 1, pan = 0) { if (!this.ctx) return; this._pan = pan; this._noise(2.2, 400, 2400, 0.16 * v, 'bandpass', 0.7); this._tone(110, 330, 2, 0.08 * v, 'sawtooth'); this._pan = 0; }
   civDown(v = 1, pan = 0) { if (!this._ok('civ', 0.6)) return; this._pan = pan; this._tone(700, 380, 0.3, 0.05 * v, 'triangle'); this._pan = 0; }

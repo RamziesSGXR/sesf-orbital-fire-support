@@ -24,6 +24,7 @@ import { boardingNow } from './extract.js';
 import { initReinf, updateReinf, damageDrop } from './reinforce.js';
 import { updateExtract } from './extract.js';
 import { hurtCiv, updateCivs } from './civilians.js';
+import { initSupply, updateSupply } from './supply.js';
 
 const SIZE = C.world.size;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -54,6 +55,10 @@ function placePoints(rng, n, minSpacing, avoids, margin, ok) {
   }
   return pts;
 }
+
+// Remove, in place and in order, every item for which gone(item) is true.
+function compact(arr, gone) { let j = 0; for (let i = 0; i < arr.length; i++) { const x = arr[i]; if (!gone(x)) arr[j++] = x; } arr.length = j; }
+const deadE = (e) => e.dead, emptyG = (g) => !g.members.length;
 
 export class Mission {
   constructor(opts) {
@@ -97,6 +102,7 @@ export class Mission {
     this.assets = []; this.zones = []; this.civs = []; this.ffz = null;
     this.pois = []; this.breaches = [];
     initReinf(this);
+    initSupply(this);
     this.eGrid = new Grid(SIZE, 40); this.aGrid = new Grid(SIZE, 40); this.tGrid = new Grid(SIZE, 40);
     this.cx = 0; this.cy = 0; // centroid of the Helldivers (or of everyone if none are alive)
     this.hx = 0; this.hy = 0;
@@ -666,33 +672,31 @@ export class Mission {
     o.face += Math.abs(d) <= s ? d : Math.sign(d) * s;
   }
   _walk(dt = 1 / C.world.tickHz) {
-    const tr = this.terrain, jump = this.t < this.buff.jumpUntil;
-    const go = (o, kx, ky, pkx, pky, soft) => {      // soft: how much of the slow going applies (0 = none, 1 = all of it)
-      const x0 = o[pkx], y0 = o[pky];
-      if (x0 === undefined) return;
-      const x1 = o[kx], y1 = o[ky], dx = x1 - x0, dy = y1 - y0, d2 = dx * dx + dy * dy;
-      if (tr.blocked(x0, y0)) {                      // somehow in deep water already: back to dry ground
-        const l = tr.nearestLand(x1, y1); o[kx] = l.x; o[ky] = l.y;
-        return;
-      }
-      if (d2 > 900) {                                // a landing or a leap: only make sure it does not end in deep water
-        if (tr.blocked(x1, y1)) { const l = tr.nearestLand(x1, y1); o[kx] = l.x; o[ky] = l.y; }
-        return;
-      }
-      if (d2 === 0 && !tr.blocked(x1, y1)) return;
-      const to = tr.slide(x0, y0, x1, y1);
-      const s0 = tr.speedAt(x0, y0), s1 = tr.speedAt(to.x, to.y);
+    const tr = this.terrain, jump = this.t < this.buff.jumpUntil, R = this._wr || (this._wr = { x: 0, y: 0 });
+    // One mover's step from (x0, y0) to (x1, y1), with the going and the water applied. The answer is left in R (no garbage).
+    // soft: how much of the slow going applies (0 = none, 1 = all of it).
+    const go = (x0, y0, x1, y1, soft) => {
+      R.x = x1; R.y = y1;
+      if (x0 === undefined) return R;
+      const dx = x1 - x0, dy = y1 - y0, d2 = dx * dx + dy * dy;
+      if (tr.blocked(x0, y0)) { const l = tr.nearestLand(x1, y1); R.x = l.x; R.y = l.y; return R; }   // somehow in deep water: back to dry ground
+      if (d2 > 900) { if (tr.blocked(x1, y1)) { const l = tr.nearestLand(x1, y1); R.x = l.x; R.y = l.y; } return R; }   // a landing or a leap
+      if (d2 === 0) return R;
+      let tx = x1, ty = y1;                          // slide along the shore rather than step into deep water
+      if (tr.blocked(x1, y1)) { if (!tr.blocked(x1, y0)) ty = y0; else if (!tr.blocked(x0, y1)) tx = x0; else { tx = x0; ty = y0; } }
+      const s0 = tr.speedAt(x0, y0), s1 = tr.speedAt(tx, ty);
       let f = ((s0 || 1) + (s1 || 1)) * 0.5;
       f = 1 - (1 - f) * soft;
-      o[kx] = x0 + (to.x - x0) * f; o[ky] = y0 + (to.y - y0) * f;
-      if (tr.blocked(o[kx], o[ky])) { o[kx] = x0; o[ky] = y0; }
+      let nx = x0 + (tx - x0) * f, ny = y0 + (ty - y0) * f;
+      if (tr.blocked(nx, ny)) { nx = x0; ny = y0; }
+      R.x = nx; R.y = ny; return R;
     };
-    for (const e of this.enemies) if (!e.dead) go(e, 'x', 'y', 'px', 'py', 1);
-    for (const a of this.alive) if (!a.mounted) go(a, 'x', 'y', 'px', 'py', a.type === 'H' && jump ? 0 : 1);
-    for (const g of this.groups) go(g, 'cx', 'cy', 'pcx', 'pcy', 1);
+    for (const e of this.enemies) if (!e.dead) { go(e.px, e.py, e.x, e.y, 1); e.x = R.x; e.y = R.y; }
+    for (const a of this.alive) if (!a.mounted) { go(a.px, a.py, a.x, a.y, a.type === 'H' && jump ? 0 : 1); a.x = R.x; a.y = R.y; }
+    for (const g of this.groups) { go(g.pcx, g.pcy, g.cx, g.cy, 1); g.cx = R.x; g.cy = R.y; }
     const sq = this.squad;
-    go(sq, 'ax', 'ay', 'pax', 'pay', jump ? 0 : sq.mounted ? 0.5 : 1);
-    for (const q of this.seaf.squads) go(q, 'ax', 'ay', 'pax', 'pay', 1);
+    go(sq.pax, sq.pay, sq.ax, sq.ay, jump ? 0 : sq.mounted ? 0.5 : 1); sq.ax = R.x; sq.ay = R.y;
+    for (const q of this.seaf.squads) { go(q.pax, q.pay, q.ax, q.ay, 1); q.ax = R.x; q.ay = R.y; }
     const T = C.combat.turn, hr = T.H[this.faction.id] || 2;
     for (const e of this.enemies) if (!e.dead) this._turn(e, e.kind === 'H' ? hr : T[e.kind], dt);
     for (const a of this.alive) if (!a.mounted) this._turn(a, T.ally, dt); else a.face = a.mounted.face;
@@ -717,6 +721,7 @@ export class Mission {
     updateAllies(this, dt);
     updateEnemies(this, dt);
     updateStrat(this, dt);
+    updateSupply(this, dt);
     updatePois(this, dt);
     updateObjectives(this, dt);
     updateDirector(this, dt);
@@ -727,13 +732,14 @@ export class Mission {
     this._reinforce();
     this._walk(dt);
 
+    // Drop the dead in place (no new arrays every tick).
     if (this.dirtyE) {
-      this.enemies = this.enemies.filter((e) => !e.dead);
-      for (const g of this.groups) g.members = g.members.filter((e) => !e.dead);
-      this.groups = this.groups.filter((g) => g.members.length);
+      compact(this.enemies, deadE);
+      for (const g of this.groups) compact(g.members, deadE);
+      compact(this.groups, emptyG);
       this.dirtyE = false;
     }
-    if (this.dirtyA) { this.allies = this.allies.filter((a) => !a.dead); this.dirtyA = false; }
+    if (this.dirtyA) { compact(this.allies, deadE); this.dirtyA = false; }
 
     // The mission only ends by failure (or by being banked and extracted): the clock runs out, or the squad is gone for good.
     if (!this.over) {

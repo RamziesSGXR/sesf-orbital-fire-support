@@ -117,17 +117,21 @@ export class Input {
     document.getElementById('btn-pause').addEventListener('click', () => this.h.pause());
     document.getElementById('btn-shop').addEventListener('click', () => this.h.armory());
 
-    // Minimap: tap or drag to jump the camera.
+    // Minimap: a tap opens the tactical map; a drag moves the camera.
     const jump = (e) => {
       const r = this.mini.getBoundingClientRect();
       this.cam.x = ((e.clientX - r.left) / r.width) * C.world.size; this.cam.y = ((e.clientY - r.top) / r.height) * C.world.size;
       this.cam.follow = false; this._clamp();
     };
-    let dragging = false;
-    this.mini.addEventListener('pointerdown', (e) => { dragging = true; this.mini.setPointerCapture(e.pointerId); jump(e); });
-    this.mini.addEventListener('pointermove', (e) => { if (dragging) jump(e); });
-    this.mini.addEventListener('pointerup', () => { dragging = false; });
-    this.mini.addEventListener('pointercancel', () => { dragging = false; });
+    let press = null;
+    this.mini.addEventListener('pointerdown', (e) => { press = { x: e.clientX, y: e.clientY, drag: false }; this.mini.setPointerCapture(e.pointerId); });
+    this.mini.addEventListener('pointermove', (e) => {
+      if (!press) return;
+      if (!press.drag && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 5) press.drag = true;
+      if (press.drag) jump(e);
+    });
+    this.mini.addEventListener('pointerup', () => { const p = press; press = null; if (p && !p.drag && this.active()) this.h.map(); });
+    this.mini.addEventListener('pointercancel', () => { press = null; });
 
     window.addEventListener('keydown', (e) => {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) return;
@@ -158,6 +162,9 @@ export class Input {
       else if (e.code === 'KeyT') this.h.polarity();
       else if (e.code === 'KeyH') this.h.relief();
       else if (e.code === 'KeyI') this.h.info();
+      else if (e.code === 'KeyL') this.h.map();
+      else if (e.code === 'KeyU') this.h.supply();
+      else if (e.code === 'KeyJ') this.h.look();
       else if (e.code === 'Space') { e.preventDefault(); this.h.follow(); }
       else if (e.code === 'Equal' || e.code === 'NumpadAdd') this.zoom(1 / 1.15);
       else if (e.code === 'Minus' || e.code === 'NumpadSubtract') this.zoom(1.15);

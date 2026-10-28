@@ -55,6 +55,8 @@ export const HD_LINES = {
   extract: ['Holding for extraction.', 'Pelican is on its way. Hold the line!'],
   obj:     ['Objective is in reach.', 'Almost there. Stay sharp.'],
   land:    ['Boots down.', 'On the ground!', 'Pod down, ready to work.'],
+  supask:  ['Need supplies, gunner!', 'Running dry here!', 'Send us a pod!'],
+  supdown: ['Supplies! Grab what you need.', 'Restocked. Back to it!', 'Good drop!'],
   resupply:['Resupply incoming.', 'Restocking!'],
   stim:    ['Stim in!', 'Stimmed up, moving!', 'Pumping a stim!'],
   retreat: ['Falling back!', 'Pulling out, cover me!', 'I need a minute, backing off!'],
