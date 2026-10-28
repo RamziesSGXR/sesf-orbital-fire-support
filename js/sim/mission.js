@@ -33,6 +33,7 @@ import { hurtCiv, updateCivs } from './civilians.js';
 import { initSupply, updateSupply } from './supply.js';
 import { initBoss, updateBoss } from './boss.js';
 import { pickAO, aoX, aoY, aoScale } from './ao.js';
+import { applyDifficulty, appliedLevel, clampLevel, reward, LEVELS } from '../difficulty.js';
 
 const SIZE = C.world.size;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -69,6 +70,11 @@ const SLIDE = [0.5, -0.5, 1.0, -1.0, 1.5, -1.5];   // how far (radians) a blocke
 
 export class Mission {
   constructor(opts) {
+    // The session's difficulty (difficulty.js): applied before anything reads the numbers it scales. 10 when not given.
+    this.difficulty = clampLevel(opts.difficulty ?? LEVELS);
+    applyDifficulty(this.difficulty);
+    this.reward = reward(this.difficulty);     // credits and score multiplier
+    this._crc = 0;                             // the fraction of a credit carried over between payouts
     this.seed = opts.seed >>> 0;
     this.rng = new RNG(this.seed);
     this.crng = new RNG((this.seed ^ 0x5bd1e995) >>> 0);   // cosmetic randomness (names, chatter), never touches the sim
@@ -370,6 +376,7 @@ export class Mission {
 
   earn(kind, amt, x, y) {
     if (!(amt > 0)) return;
+    if (this.reward !== 1) { const v = amt * this.reward + this._crc; amt = Math.floor(v); this._crc = v - amt; if (amt <= 0) return; }   // the difficulty's pay
     const cr = this.cr, w = this.wallet;
     cr[kind] = (cr[kind] || 0) + amt; cr.total += amt;
     w.bal += amt; w.earned += amt;
@@ -417,8 +424,10 @@ export class Mission {
   drawToken() {
     if (!this.bag.length) {
       const b = C.enemies.bag;
+      // (below level 10 the medium and heavy counts are fractional: the remainder is a chance of one more)
+      const whole = (x) => { const f = x - Math.floor(x); return Math.floor(x) + (f > 1e-9 && this.rng.next() < f ? 1 : 0); };
       for (let i = 0; i < b.light; i++) this.bag.push('L');
-      const nm = b.medium + Math.floor(this.S / C.ramp.mediumEvery), nh = b.heavy + Math.floor(this.S / C.ramp.heavyEvery);
+      const nm = whole(b.medium + Math.floor(this.S / C.ramp.mediumEvery)), nh = whole(b.heavy + Math.floor(this.S / C.ramp.heavyEvery));
       for (let i = 0; i < nm; i++) this.bag.push('M');
       for (let i = 0; i < nh; i++) this.bag.push('H');
       this.rng.shuffle(this.bag);
@@ -664,7 +673,9 @@ export class Mission {
   liveScore() {
     return Math.max(0, Math.round(this._rawScore()));
   }
-  _rawScore() {
+  // Everything the mission scored, times the difficulty's multiplier.
+  _rawScore() { return this._baseScore() * this.reward; }
+  _baseScore() {
     const sc = this.sc;
     return sc.kills + sc.allyKills + sc.bases + sc.pois + sc.breaches + sc.objective + sc.timeBonus + sc.extraction + sc.lives + sc.survivor + sc.ff + sc.deaths + sc.wipes + sc.drops + sc.civ + sc.boss + sc.sides + sc.clear;
   }
@@ -676,7 +687,7 @@ export class Mission {
     const cr = this.cr;
     return {
       outcome: this.outcome, t: this.t, minutes: this.t / 60,
-      score: Math.max(0, Math.round(raw)), raw: Math.round(raw), breakdown: { ...sc },
+      score: Math.max(0, Math.round(raw)), raw: Math.round(raw), breakdown: { ...sc }, base: Math.round(this._baseScore()), difficulty: this.difficulty, reward: this.reward,
       kills: this.stats.killsPlayer + this.stats.killsAlly, stats: { ...this.stats }, bossName: this.boss ? this.boss.name : null,
       bases: this.stats.bases, baseTotal: this.baseTotal, pois: this.stats.pois, poiTotal: this.pois.length, breaches: this.stats.breaches, sides: (this.sides || []).filter((q) => q.done).length, sideTotal: (this.sides || []).length, fullClear: !!(this.plan && this.plan.full),
       livesLeft: this.hd.lives, survivorsH: this.countAlly('H') + (this.extraction.boardedH || 0), survivorsS: this.countAlly('S') + (this.extraction.boardedS || 0),
@@ -766,6 +777,7 @@ export class Mission {
   step(dt) {
     if (this.over) return;
     this.terrain.setBounds(this.ao);      // (the ground is shared between missions on the same seed)
+    if (appliedLevel() !== this.difficulty) applyDifficulty(this.difficulty);   // (and the numbers, between missions of other levels)
     this.t += dt;
     this._snap();
     this._refreshAlive();

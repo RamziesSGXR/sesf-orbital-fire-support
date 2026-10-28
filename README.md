@@ -12,7 +12,7 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 ## Quick start
 
-1. Open the link above and press **PRESS PLAY**. Type a callsign first if you want one on your score.
+1. Open the link above. Type a callsign if you want one on your score, pick a **difficulty** (start at 3 if you're new), and press **PLAY**.
 2. The **armory** opens. You start with a UAV scan, three orbital strikes and the ship gun. Buy something or just press **DEPLOY**.
 3. Read the briefing while the mission loads, then press **CONTINUE**.
 4. The Helldivers drop in and head for the objective. The ship gun is ready at once; your UAV scan and orbital strikes are still charging for the first half minute or so. Aim, pick a weapon and call strikes on the enemy, not on your own squad.
@@ -20,7 +20,7 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 ## Your job
 
-The Helldivers can't win this alone. Left to themselves they take the objective, then run out of lives and the run ends. What you do from orbit decides whether they get out. Every minute you spend covering them is a minute you're not hitting something else, and that choice is the game.
+On the higher difficulty levels the Helldivers can't win this alone. Left to themselves they take the objective, then run out of lives and the run ends. What you do from orbit decides whether they get out. Every minute you spend covering them is a minute you're not hitting something else, and that choice is the game.
 
 - **You run the sky.** You aim the UAV scan and the orbital strikes. Strikes can only land inside the **strike zone** around your allies or inside a UAV scan circle. Your strikes hurt friendlies, so watch where the squad is.
 - **The ship gun** (slot 8) fires anywhere you can see, needs no strike zone and never hurts allies. Hold to fire. It has its own ammo that refills by itself. It is the one weapon ready the moment a mission starts.
@@ -92,6 +92,25 @@ Once the objective is done, the Helldivers decide what's next. With **more than 
 - **Mind the ground.** Deep water can't be crossed on foot, and mud, snow and sand slow everyone down. High ground helps whoever holds it: units on a rise see farther and hit harder. Press `H` to see it.
 - **Patrols come from the bases.** Each base sends patrols out on a route of its own: bugs roam round their nest, bots march out and back, squids sweep a wide circle. They come over when they hear fighting. Destroy a base and it stops replacing its patrols.
 - **Backup never stops at a mission site.** While the squad works an objective, a side mission or the extraction, the enemy keeps calling in more. Clearing the map doesn't stop it, but it only comes so fast. Keep the site clear from orbit.
+
+## Difficulty
+
+Pick a level from 1 to 10 on the title screen before you press **PLAY**. The level stays with the session: to change it, start a new one. **RESUME** carries on at the level the session was started at. Level 10 is the full war, as hard as the game gets. Every level below it sends fewer enemies, with fewer mediums and heavies among them and fewer super heavies. Higher levels pay more credits and more score, and your score block shows the level you played at.
+
+| Level | Name | Enemies | Mediums | Heavies | Super heavies | Credits and score |
+|---|---|---|---|---|---|---|
+| 1 | Trivial | 55% | 60% | 40% | 30% | ×0.75 |
+| 2 | Easy | 60% | 64% | 47% | 38% | ×0.80 |
+| 3 | Medium | 65% | 69% | 53% | 46% | ×0.85 |
+| 4 | Challenging | 70% | 73% | 60% | 53% | ×0.90 |
+| 5 | Hard | 75% | 78% | 67% | 61% | ×0.95 |
+| 6 | Extreme | 80% | 82% | 73% | 69% | ×1.00 |
+| 7 | Suicide Mission | 85% | 87% | 80% | 77% | ×1.05 |
+| 8 | Impossible | 90% | 91% | 87% | 84% | ×1.10 |
+| 9 | Helldive | 95% | 96% | 93% | 92% | ×1.15 |
+| 10 | Super Helldive | 100% | 100% | 100% | 100% | ×1.20 |
+
+The percentages compare each level with level 10. "Enemies" covers everything that brings them in: patrols, backup calls, group sizes and how many can be on the field at once. "Mediums" and "heavies" are how often they turn up among those enemies.
 
 ## How a session works
 

@@ -110,6 +110,11 @@
       <p class="tag" data-t="title.tag"></p>
       <label class="field"><span data-t="title.callsign">CALLSIGN</span> <input id="callsign" maxlength="16" data-tp="title.optional" autocomplete="off" spellcheck="false"></label>
       <div id="langs" class="langs" role="group" data-ta="set.lang"></div>
+      <div id="diff" class="diff">
+        <div class="diff-h"><span data-t="title.diff">DIFFICULTY</span> <b id="diff-name"></b></div>
+        <div id="diff-row" class="diff-row" role="group" data-ta="title.diff"></div>
+        <p id="diff-note" class="fine diff-note"></p>
+      </div>
       <div class="btns">
         <button id="btn-play" class="btn primary big" data-t="title.play">PLAY</button>
         <button id="btn-resume" class="btn hidden"></button>
@@ -146,6 +151,7 @@
           <div id="r-enemy" class="r-line"></div>
           <div id="r-biome" class="r-line"></div>
           <div id="r-obj" class="r-line"></div>
+          <div id="r-diff" class="r-line"></div>
           <div id="b-strats"></div>
           <div id="b-strat-note" class="fine"></div>
           <div class="progress"><i id="b-prog"></i></div>
@@ -190,6 +196,7 @@
       <h2><span data-t="fin.score">FINAL SCORE</span> <b id="f-score">0</b></h2>
       <div class="f-id"><span data-t="fin.id">SESSION ID</span> <b id="f-id"></b></div>
       <div class="f-local" id="f-local"></div>
+      <div id="f-diff" class="f-diff"></div>
       <div id="f-totals" class="fine"></div>
       <table id="f-table"></table>
       <textarea id="f-text" readonly rows="8" spellcheck="false"></textarea>

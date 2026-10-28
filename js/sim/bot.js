@@ -8,9 +8,14 @@ import { acceptSupply, fillSupply } from './supply.js';
 import { covered } from './combat.js';
 import { beaconLit } from './sides.js';
 
+// skill: aimNoise (metres of error on a strike), react (seconds between looks for an orbital to call), gun (the share of the time it
+// works the ship gun), orders (seconds between SEAF and UAV decisions), supply (seconds before it answers a supply request), split
+// (whether it splits its SEAF into two squads). The defaults are a sharp, tireless gunner; NOVICE is closer to a new player.
 export function makeBot(skill = {}) {
-  return { next: 0, orderT: 0, nukeT: null, rot: 0, aimNoise: skill.aimNoise ?? 3, react: skill.react ?? 0.3, gunT: 0, gunOn: false, lineFor: 0, splitDone: false, commit: null };
+  return { next: 0, orderT: 0, nukeT: null, rot: 0, aimNoise: skill.aimNoise ?? 3, react: skill.react ?? 0.3, gunT: 0, gunOn: false, lineFor: 0, splitDone: false, commit: null,
+    gun: skill.gun ?? 1, orders: skill.orders ?? 1, supply: skill.supply ?? 1.5, split: skill.split ?? true };
 }
+export const NOVICE = { aimNoise: 9, react: 2.5, gun: 0.5, orders: 6, supply: 6, split: false };
 
 // What the bot buys, in order: each entry is one purchase (the third 'up:orb_120' means level 4), so the list reads as a build that
 // carries on from mission to mission. It saves for the next entry rather than spending on cheaper ones further down; an entry it
@@ -103,7 +108,7 @@ function orders(m, bot) {
     else m.callSeaf(m.hx + Math.cos(dir) * 25, m.hy + Math.sin(dir) * 25);
   }
   // keep a pair of squads when there are enough troopers
-  if (!bot.splitDone && m.seafAlive.length >= 6) { bot.splitDone = true; m.selectSquad(0); m.splitSeaf(); m.selectSquad(-1); }
+  if (bot.split && !bot.splitDone && m.seafAlive.length >= 6) { bot.splitDone = true; m.selectSquad(0); m.splitSeaf(); m.selectSquad(-1); }
   const u = p.slots[0];
   if (u.type === 'uav' && t >= u.readyAt && m.hdAlive.length) {
     const reach = Math.min(120, m.hdAlive[0].zone + UAV_REACH - 20);
@@ -143,6 +148,8 @@ function doCommit(m, bot) {
 function gunStep(m, bot) {
   const p = m.player, t = m.t, g = p.gun;
   if (!g) return false;
+  // a gunner who only works the gun part of the time (in ten-second spells)
+  if (bot.gun < 1 && (t % 10) / 10 > bot.gun) { if (bot.gunOn) { m.setFiring(false); bot.gunOn = false; } return false; }
   let best = null, bn = 0;
   for (const e of m.enemies) {
     if (e.dead || e.vis < 1) continue;
@@ -242,11 +249,11 @@ export function botStep(m, bot) {
   const p = m.player, t = m.t;
   if (m.over) return;
 
-  if (t >= bot.orderT) { bot.orderT = t + 1; orders(m, bot); }
+  if (t >= bot.orderT) { bot.orderT = t + bot.orders; orders(m, bot); }
 
   // Supply requests: take them after a moment, then load the pod at a steady tap rate (a little faster or slower each time).
   const S = m.supply;
-  if (S && S.state === 'ask' && t - S.ask.at >= 1.5) acceptSupply(m);
+  if (S && S.state === 'ask' && t - S.ask.at >= bot.supply) acceptSupply(m);
   if (S && S.state === 'fill') {
     const f = S.fill;
     if (f.tapEvery === undefined) f.tapEvery = C.supply.slowmo * (0.28 + ((S.n * 7 + m.seed) % 5) * 0.06);   // 3.6 down to 1.9 taps a second

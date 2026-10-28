@@ -14,6 +14,7 @@ import * as UI from './ui.js';
 import { sunAt, todAt, todName, todClock } from './render/sky.js';
 import { acceptSupply, declineSupply, fillSupply, launchSupply, supplyFilling } from './sim/supply.js';
 import { t, setLang, getLang, applyDom, startLang } from './i18n.js';
+import { clampLevel, LEVELS } from './difficulty.js';
 
 const $ = (id) => document.getElementById(id);
 const qs = new URLSearchParams(location.search);
@@ -89,6 +90,13 @@ function relang() {
   if (UI.isOn('s-names')) UI.buildNames(session ? session.names : S.getNames());
 }
 function pickLang(l) { audio.unlock(); audio.click(); settings.lang = l; onSettingChange('lang'); }
+// The difficulty a new session starts at (a session keeps its own). ?difficulty=N sets it for one visit (testing).
+function chosenDiff() { return clampLevel(qs.has('difficulty') ? qs.get('difficulty') : settings.difficulty ?? C.difficulty.start); }
+function pickDiff(d) { audio.unlock(); audio.click(); settings.difficulty = clampLevel(d); qs.delete('difficulty'); S.save('settings', settings); drawDiff(); }
+function drawDiff() {
+  const saved = S.load('session', null), resumable = saved && saved.missions && saved.missions.length;
+  UI.buildDiff(chosenDiff(), resumable ? clampLevel(saved.difficulty ?? LEVELS) : null, pickDiff);
+}
 
 // ---------------- input hooks ----------------
 const input = new Input(canvas, $('minimap'), cam, {
@@ -262,8 +270,9 @@ function toTitle() {
   const saved = S.load('session', null);
   const rb = $('btn-resume');
   rb.classList.toggle('hidden', !(saved && saved.missions && saved.missions.length));
-  if (saved && saved.missions) rb.textContent = t('title.resume', { n: saved.missions.length, score: S.fmtNum(saved.score) });
+  if (saved && saved.missions) rb.textContent = t('title.resume', { n: saved.missions.length, score: S.fmtNum(saved.score), d: clampLevel(saved.difficulty ?? LEVELS) });
   UI.buildLangs(getLang(), pickLang);
+  drawDiff();
   if (!renderer.terrain) setTimeout(() => buildFor('ice', 4242), 30);
 }
 
@@ -273,7 +282,7 @@ function beginSession(resume) {
   if (!session || !resume) {
     const cs = $('callsign').value.trim().toUpperCase().replace(/[^\w \-.]/g, '').slice(0, 16);
     S.save('callsign', cs);
-    session = S.newSession(cs);
+    session = S.newSession(cs, chosenDiff());
   }
   goShop();
 }
@@ -316,7 +325,7 @@ function goBrief() {
   // ?loadout=id,id,... and ?objective=nuke|vip|fortress force a loadout or objective for testing.
   const ovLoad = (qs.get('loadout') || '').split(',').filter((id) => STRAT_IDS.includes(id)), ovObj = (qs.get('objective') || '').split(',').filter(Boolean);
   info.ovObj = ovObj;
-  const pre = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: false, missionN: n,
+  const pre = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: false, missionN: n, difficulty: session.difficulty,
     loadout: ovLoad.length ? ovLoad : undefined, objectives: ovObj, kit: session.kit, wallet: session.wallet, names: session.names });
   info.loadout = pre.loadout.slice();
   info.tod = qs.has('tod') ? ((Number(qs.get('tod')) % 24) + 24) % 24 : pre.tod0;   // ?tod=14 forces the hour (testing)
@@ -324,7 +333,7 @@ function goBrief() {
   if (briefCtl) briefCtl.cancel();
   const ctl = briefCtl = UI.runBriefing({
     info, mission: n, touch: input.touch, canEnd: session.missions.length > 0,
-    pre: { objectives: pre.objectives.map((o) => o.type), teams: pre.teams, ao: Math.round(pre.ao.size) },
+    pre: { objectives: pre.objectives.map((o) => o.type), teams: pre.teams, ao: Math.round(pre.ao.size), difficulty: session.difficulty },
     onReveal: () => audio.chirp(),
     onContinue: () => { briefCtl = null; audio.click(); deploy(); },
     onEnd: () => { briefCtl = null; endSession(); },
@@ -338,7 +347,7 @@ const BIOME_OK = (b) => ['ice', 'grass', 'desert', 'jungle', 'moon'].includes(b)
 function deploy() {
   audio.unlock();
   if (terrainKey !== `${info.biome}|${info.seed}`) buildFor(info.biome, info.seed);
-  mission = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: true, missionN: session.missions.length + 1,
+  mission = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: true, missionN: session.missions.length + 1, difficulty: session.difficulty,
     loadout: info.loadout, keepOrder: true, objectives: info.ovObj, kit: session.kit, wallet: session.wallet, names: session.names, tod: info.tod });
   bot = BOT ? makeBot() : null;
   cam.x = mission.lz.x; cam.y = mission.lz.y; cam.follow = true; cam.ao = mission.ao;

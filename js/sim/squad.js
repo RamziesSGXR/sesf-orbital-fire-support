@@ -106,7 +106,7 @@ export function updateSquad(m, dt) {
       // from far off, head for the base itself (a fixed point, so the route round any water stays the same); the stand-off
       // point on the near side only once close
       if (d > hold + 60) { gx = b.x; gy = b.y; goal = 'base'; }
-      else if (d > hold + 0.5) { gx = b.x - (dx / d) * hold; gy = b.y - (dy / d) * hold; goal = 'base'; }
+      else if (d > hold + 0.5) { gx = b.x + (dx / d) * hold; gy = b.y + (dy / d) * hold; goal = 'base'; }   // (dx, dy points from the base to the squad)
       else {
         if (sq.state === 'advance') sq.state = 'hold';
         sq.holdT += dt;

@@ -147,6 +147,12 @@ export const CONFIG = {
   // cap enemies are already within capR metres of the site.
   siege:    { first: 10, every: 18, minEvery: 10, rampSec: 150, extra: 3, fortressR: 120, cap: 60, capR: 200, capWait: 4 },
   fortress: { hp: 14000, radius: 28, garrisonGroups: 3, garrisonCap: 30, spawnSec: 16, minFromLz: 650 },
+  // Difficulty (difficulty.js): 1 to 10, picked when a session starts. 10 is the game exactly as tuned in this file. At level 1 the
+  // enemy is these fractions of that, rising to 1 at level 10 (in even steps with curve 1; above 1 the top levels are spread finer):
+  // spawn = how many come (patrols, backup, group sizes, the live cap), medium and heavy = how many of them are mediums and heavies,
+  // boss = how often a super heavy turns up. reward: the credits and score multiplier, from the first number at level 1 to the
+  // second at level 10. start: the level a new player gets.
+  difficulty: { start: 3, spawn: 0.55, medium: 0.6, heavy: 0.4, boss: 0.3, curve: 1, reward: [0.75, 1.2] },
   // Pressure drives how fast the field fills: it climbs through the session and, faster, through each mission.
   pressure: { start: 1, perSessionMin: 0.035, perMissionMin: 0.12, onBaseKill: 0.6, floor: 0.5, dropGrace: { sec: 150, min: 0.35 } },
   // The war escalates with every minute of the session, so the run only ends in failure: tougher, harder-hitting enemies and more heavies.
@@ -247,5 +253,5 @@ export const CONFIG = {
   share:    { channelUrl: '',
               // Where the FEEDBACK buttons go: a short form on the project's GitHub page (a free GitHub account is needed to post).
               feedbackUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support/issues/new?template=feedback.yml',
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.10.0' },
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.11.0' },
 };

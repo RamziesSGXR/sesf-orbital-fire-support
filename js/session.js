@@ -4,6 +4,8 @@
 import { ADJECTIVES, NOUNS, FACTIONS, BIOMES } from './data/data.js';
 import { tEn } from './i18n.js';
 import { newKit, newWallet, fixKit } from './data/kit.js';
+import { CONFIG as C } from './config.js';
+import { clampLevel, LEVELS } from './difficulty.js';
 
 const K = { settings: 'ofs.settings', session: 'ofs.session', history: 'ofs.history', callsign: 'ofs.callsign', notice: 'ofs.notice', names: 'ofs.names' };
 
@@ -18,6 +20,7 @@ export function drop(key) { try { localStorage.removeItem(K[key]); } catch { /* 
 export const DEFAULT_SETTINGS = {
   polarity: 'white', relief: false, quality: 'auto', reduceFlash: false, colorblind: false,
   volume: 0.6, muted: false, lefty: false, touchSens: 1, bubbles: true, cards: 'side', lang: 'en',
+  difficulty: C.difficulty.start,     // the level the next new session starts at (a session keeps its own)
 };
 export const getSettings = () => ({ ...DEFAULT_SETTINGS, ...load('settings', {}) });
 
@@ -47,8 +50,9 @@ export function rollMission(prev, rng = Math.random) {
 }
 
 // ---- session ----
-export function newSession(callsign) {
-  return { startedAt: Date.now(), callsign: callsign || '', missions: [], score: 0, seconds: 0, next: null, kit: newKit(), wallet: newWallet(), names: getNames() };
+// difficulty: 1 to 10 (difficulty.js), fixed for the whole session.
+export function newSession(callsign, difficulty = C.difficulty.start) {
+  return { startedAt: Date.now(), callsign: callsign || '', difficulty: clampLevel(difficulty), missions: [], score: 0, seconds: 0, next: null, kit: newKit(), wallet: newWallet(), names: getNames() };
 }
 // Old saves are repaired rather than thrown away.
 export function fixSession(s) {
@@ -57,6 +61,7 @@ export function fixSession(s) {
   s.wallet = { ...newWallet(), ...(s.wallet || {}) };
   s.names = getNames();
   s.missions = Array.isArray(s.missions) ? s.missions : [];
+  s.difficulty = clampLevel(s.difficulty ?? LEVELS);      // sessions saved before there were levels were played at the top one
   return s;
 }
 export function sessionMinutes(s) { return s.seconds / 60; }
@@ -86,7 +91,7 @@ export const fmtNum = (n) => Math.round(n).toLocaleString('en-US');
 export function finalise(s, endedAt = new Date()) {
   const id = sessionId(endedAt);
   const w = s.missions.filter((m) => m.outcome === 'victory').length;
-  const rec = { id, score: s.score, callsign: s.callsign || 'ANON', missions: s.missions.length, wins: w, seconds: Math.round(s.seconds), at: endedAt.toISOString() };
+  const rec = { id, score: s.score, callsign: s.callsign || 'ANON', missions: s.missions.length, wins: w, seconds: Math.round(s.seconds), at: endedAt.toISOString(), difficulty: s.difficulty || LEVELS };
   const hist = load('history', []);
   const best = hist.reduce((a, h) => Math.max(a, h.score), 0);
   hist.push(rec); hist.sort((a, b) => b.score - a.score);
@@ -106,6 +111,8 @@ export function scoreBlock(s, fin) {
   lines.push('ORBITAL FIRE SUPPORT | SUPER EARTH SPECIAL FORCES');
   lines.push(`SESSION ${fin.id}`);
   lines.push(`CALLSIGN ${fin.callsign}`);
+  const dl = s.difficulty || LEVELS;
+  lines.push(`DIFFICULTY ${dl} ${tEn('diff.' + dl).toUpperCase()}`);
   lines.push(`FINAL SCORE ${fmtNum(s.score)}`);
   lines.push(`MISSIONS ${s.missions.length} (${fin.wins} won) | TIME ${fmtTime(s.seconds)}`);
   lines.push(`CREDITS EARNED ${fmtNum(t.earned)} | SPENT ${fmtNum(t.spent)}`);

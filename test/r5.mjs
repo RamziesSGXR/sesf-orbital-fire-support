@@ -145,7 +145,8 @@ await page.screenshot({ path: out('12-eagle-markers') });
 await ev(() => { const m = window.__game.mission; m.radar.nextAt = m.t + 0.2; });
 await page.waitForTimeout(1500);
 await page.screenshot({ path: out('13-radar-sweep') });
-const sweep = await ev(() => { const r = window.__game.mission.radar; return { n: r.n, blips: r.blips.length, en: window.__game.mission.enemies.filter((e) => !e.dead).length }; });
+// (counted on the tick of a sweep: backup can land between a sweep and a later look)
+const sweep = await ev(() => { const m = window.__game.mission; m.radar.nextAt = m.t; m.step(1 / 30); const r = m.radar; return { n: r.n, blips: r.blips.length, en: m.enemies.filter((e) => !e.dead).length }; });
 check('a radar sweep marks every enemy on the map', sweep.n >= 1 && sweep.blips > 0 && sweep.blips >= sweep.en * 0.8, JSON.stringify(sweep));
 
 // pause/armory layout

@@ -12,6 +12,7 @@ import { objectiveStatus, OBJ_NAME } from './sim/objectives.js';
 import { todAt, todName, todClock } from './render/sky.js';
 import { situation, tipsFor } from './data/tips.js';
 import { t, getLang, LANGS } from './i18n.js';
+import { LEVELS, levelFactors, reward } from './difficulty.js';
 
 const $ = (id) => document.getElementById(id);
 const SCREENS = ['s-title', 's-shop', 's-brief', 's-debrief', 's-final'];
@@ -596,7 +597,7 @@ export function setBriefHeader(n, score) { $('b-num').textContent = n; $('b-scor
 export function runBriefing({ info, mission, touch, onContinue, onEnd, canEnd, onReveal, pre }) {
   $('controls-desktop').classList.toggle('hidden', touch);
   $('controls-touch').classList.toggle('hidden', !touch);
-  const lines = ['r-op', 'r-enemy', 'r-biome', 'r-obj'].map($);
+  const lines = ['r-op', 'r-enemy', 'r-biome', 'r-obj', 'r-diff'].map($);
   lines.forEach((l) => l.classList.remove('show'));
   $('r-n').textContent = mission;
   $('btn-end').classList.toggle('hidden', !canEnd);
@@ -608,6 +609,8 @@ export function runBriefing({ info, mission, touch, onContinue, onEnd, canEnd, o
   $('r-enemy').innerHTML = `${t('brief.enemy')} <b style="color:${f.color}">${f.name}</b> <span style="color:var(--g-dim)">(${f.full})</span>`;
   $('r-biome').innerHTML = `${t('brief.biome')} <b>${b.name.toUpperCase()}</b> <span style="color:var(--g-dim)">· ${t('brief.area')} ${t('brief.areaVal', { n: pre.ao })}</span>`;
   $('r-obj').innerHTML = `${t('brief.objective')} <b style="color:var(--yellow)">${pre.objectives.map((o) => OBJ_NAME[o]).join(' + ')}</b>`;
+  const dl = pre.difficulty || LEVELS;
+  $('r-diff').innerHTML = `${t('brief.diff')} <b>${dl} · ${esc(t('diff.' + dl).toUpperCase())}</b> <span style="color:var(--g-dim)">· ${esc(t('brief.pay', { x: reward(dl).toFixed(2) }))}</span>`;
 
   // The squad's twelve stratagems appear group by group while the mission loads.
   const box = $('b-strats'), chips = [];
@@ -815,6 +818,7 @@ export function fillDebrief(info, res, session) {
     [t('deb.r.lost', { n: s.lostH }), b.deaths],
     [t('deb.r.wipes', { n: s.wipes }), b.wipes],
     [t('deb.r.ff', { n: s.ff }), b.ff],
+    [t('deb.r.diff', { n: res.difficulty || LEVELS, name: t('diff.' + (res.difficulty || LEVELS)), x: (res.reward || 1).toFixed(2) }), (res.score || 0) - (res.base ?? res.score ?? 0)],
   ].filter(([, v]) => v !== 0);
   if (!rows.length) rows.push([t('deb.r.nothing'), 0]);
   const tbl = (r) => r.map(([k, v, cls]) => `<tr${cls ? ` class="${cls}"` : ''}><td>${esc(k)}</td><td class="${v < 0 ? 'neg' : ''}">${v < 0 ? '-' : ''}${fmtNum(Math.abs(v))}</td></tr>`).join('');
@@ -843,6 +847,8 @@ export function fillFinal(session, fin, block) {
   $('f-score').textContent = fmtNum(session.score);
   $('f-id').textContent = fin.id;
   $('f-local').textContent = fin.isBest ? t('fin.best') : fin.bestBefore ? t('fin.bestWas', { n: fmtNum(Math.max(fin.bestBefore, session.score)) }) : '';
+  const dl = session.difficulty || LEVELS;
+  $('f-diff').textContent = t('fin.diff', { n: dl, name: t('diff.' + dl).toUpperCase() });
   $('f-totals').textContent = t('fin.totals', { e: fmtNum(tt.earned), s: fmtNum(tt.spent), k: fmtNum(tt.kills), h: tt.lostH, f: tt.lostS });
   $('f-table').innerHTML = session.missions.map((m, i) => {
     const boss = m.boss ? t('fin.boss', { name: bossName(m.boss), fate: t(m.boss.killed ? 'fin.killed' : 'fin.escaped') }) : '';
@@ -911,6 +917,24 @@ export function buildSettings(settings, onChange) {
   row(t('set.touch'), '', range('touchSens', 0.5, 2, 0.1));
   row(t('set.gfx'), t('set.gfxHint'), select('quality', [['auto', t('set.auto')], ['high', t('set.high')], ['low', t('set.low')]]));
 }
+// The difficulty picker on the title screen: ten levels, the chosen one's name, and what it does. saved: the level of a session
+// that can be resumed (it keeps its own level; a new one starts at the chosen level).
+export function buildDiff(cur, saved, onPick) {
+  const box = $('diff-row'); box.innerHTML = '';
+  for (let d = 1; d <= LEVELS; d++) {
+    const b = el('button', 'btn dl' + (d === cur ? ' on' : '') + (d >= 9 ? ' hot' : ''), String(d));
+    b.type = 'button'; b.title = t('diff.' + d); b.setAttribute('aria-pressed', String(d === cur));
+    b.setAttribute('aria-label', `${d} ${t('diff.' + d)}`);
+    b.onclick = () => onPick(d);
+    box.appendChild(b);
+  }
+  $('diff-name').textContent = `${cur} · ${t('diff.' + cur).toUpperCase()}`;
+  const f = levelFactors(cur), pay = f.reward.toFixed(2);
+  let note = cur >= LEVELS ? t('title.diffMax', { pay }) : t('title.diffNote', { spawn: Math.round(f.spawn * 100), heavy: Math.round(f.heavy * 100), pay });
+  if (saved && saved !== cur) note += ' ' + t('title.diffNew', { n: saved });
+  $('diff-note').textContent = note;
+}
+
 // The language buttons on the title screen.
 export function buildLangs(cur, onPick) {
   const box = $('langs'); box.innerHTML = '';

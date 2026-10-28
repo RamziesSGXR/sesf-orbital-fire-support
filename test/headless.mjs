@@ -1,5 +1,5 @@
 // Headless balance test: run full missions with the bot across seeds and report outcomes.
-// Usage: node test/headless.mjs [missions] [sessionMinutes] [faction|-] [biome|-] [nobot|session] [seedShift]
+// Usage: node test/headless.mjs [missions] [sessionMinutes] [faction|-] [biome|-] [nobot|session] [seedShift] [difficulty 1-10]
 //   default: each mission starts with a fresh kit (what a new player has).
 //   session: one continuous session. The bot shops between missions and carries on until a mission fails.
 import { Mission } from '../js/sim/mission.js';
@@ -16,6 +16,7 @@ const mode = process.argv[6] || '';
 const useBot = mode !== 'nobot';
 const session = mode === 'session';
 const SEED0 = Number(process.argv[7] || 0);   // shifts every mission seed, to sample different sessions
+const DIFF = Number(process.argv[8] || 10);   // the difficulty level (10 = the game as tuned)
 
 const rows = [];
 const t0 = Date.now();
@@ -24,7 +25,7 @@ for (let i = 0; i < N; i++) {
   if (!session) { kit = newKit(); wallet = newWallet(); sessMin = S0; }
   else botShop(kit, wallet);
   const m = new Mission({
-    seed: 1000 + SEED0 + i * 7919, sessionMinutes: sessMin, kit, wallet, missionN: session ? i + 1 : 1,
+    seed: 1000 + SEED0 + i * 7919, sessionMinutes: sessMin, kit, wallet, missionN: session ? i + 1 : 1, difficulty: DIFF,
     faction: process.argv[4] && process.argv[4] !== '-' ? process.argv[4] : factions[i % 3],
     biome: process.argv[5] && process.argv[5] !== '-' ? process.argv[5] : biomes[i % 5], events: false,
   });
