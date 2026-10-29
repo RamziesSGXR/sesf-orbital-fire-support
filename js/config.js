@@ -22,6 +22,7 @@ export const CONFIG = {
               grenades: 3, gren: { dmg: 34, splash: 4.5, range: 36, minRange: 10, every: 3.2, acc: 0.85, flight: 0.9, mult: { L: 1, M: 1, H: 0.9, B: 0.3 } },
               ult: { dmg: 520, splash: 3.4, range: 30, every: 9, acc: 0.92, flight: 0.2, mult: { L: 1, M: 1, H: 0.9, B: 0.25 } },
               dodge: { cool: 10, chance: 0.65, minHit: 9, dist: 3.6, sec: 0.35 },
+              seafDodge: { cool: 14, chance: 0.12 },     // SEAF dodge too, far less often (a UAV overhead helps both)
               // no single enemy hit takes more than maxHit of a Helldiver's health: however late in the war, it takes two
               maxHit: 0.7,
               retreat: { at: 0.36, resume: 0.7, speed: 1.3, enemyR: 46, calmSec: 3, minSec: 2.5, maxSec: 10, cool: 8 },
@@ -42,7 +43,7 @@ export const CONFIG = {
               clusterRadius: 15, setupSec: 5, setupCooldownSec: 15, carrySlow: 0.85, fightOnSec: 12, fightOnSpeed: 0.5, spotRange: 95 },
   // Bases and the citadel. The Helldivers destroy them with rifles, support weapons and stratagems, exactly as the destroyer
   // can: rifle fire counts for a fraction of its normal damage, and anything the squad calls hits structures harder (stratMul).
-  structure: { range: 48, standOff: 26, push: 14, rifleH: 0.55, rifleS: 0.2, stratMul: 2.2, weaponTry: 0.4 },
+  structure: { range: 48, standOff: 26, push: 14, rifleH: 0.8, rifleS: 0.3, stratMul: 2.6, weaponTry: 0.4 },
 
   // Terrain: a height map, a water depth map and a surface map on an 8 m grid, different for every mission. Deep water cannot be
   // crossed on foot; shallows, mud and soft ground (snow, sand, dust) slow everyone. A rise gives whoever stands on it more sight and
@@ -54,6 +55,17 @@ export const CONFIG = {
   // Sight in meters. Multiplied by the biome visibility. The player sees a little farther than each ally (playerBonus).
   // Everyone sees farther than their weapons reach, so a fight is seen coming. The strike zone (where strikes and drops can be
   // called) is measured from zoneBase, not from sight, so seeing farther does not widen it: zoneBase + playerBonus + strikeBonus.
+  // SEAF can be ordered to build (seaf.js): they walk to the spot and build it there (sec seconds with two troopers working, faster
+  // with more, up to four); the credits are paid when it is done. A wall is a small ring of cover; an MG nest is a sentry gun; a
+  // drop beacon is a spawn point: SEAF drops can be sent to it from anywhere on the map. At most max of each standing at once.
+  build:    { r: 12, wall: { cost: 80, sec: 10, max: 6, n: 4, R: 9 }, mg: { cost: 250, sec: 16, max: 3, hp: 520, ammo: 900 },
+              beacon: { cost: 200, sec: 20, max: 2 } },
+  // Cover at the sites the squad holds (cover.js): n walls in a ring of the given radius; standing within r of one, an ally takes
+  // mul of what enemy fire would do.
+  cover:    { n: 7, nukeR: 30, vipR: 22, evacR: 26, padR: 20, r: 3.6, mul: 0.6 },
+  // Relays: a side mission the Helldivers or SEAF win (a radio tower powered, a pinned SEAF squad freed, a broadcast tower destroyed)
+  // keeps the ground around it in view for the rest of the mission, and strikes can be called there: r metres round it.
+  relay:    { r: 200 },
   sight:    { helldiver: 125, seaf: 90, zoneBase: { helldiver: 92, seaf: 60 }, playerBonus: 26, strikeBonus: 76, despawnMargin: 35, spawnMin: 6, spawnMax: 34 },
 
   // Damage model. Allies have hit points. Enemies hurt them by their own attack profile, so light
@@ -130,7 +142,10 @@ export const CONFIG = {
   // The Helldivers' plan (planner.js): side tasks within `detour` extra metres of the way to the main objective, if there is time to
   // spare (reserve seconds) for them, the objective and extraction. After the objective a full clear only with more than clearLives
   // lives left and the time for it. Time is estimated at pace x squad speed plus `work` seconds per task. Re-planned every `every` s.
-  plan:     { detour: 260, reserve: 150, clearLives: 4, every: 6, keepR: 70, pace: 0.5, extractPad: 30,
+  // ask: once the objective is done, a squad with lives to spare but too little time for a full clear asks the gunner for more
+  // (minutes rounded up, at most maxMin, costing perMin credits a minute; the player has askSec to answer; asks per mission).
+  plan:     { detour: 260, reserve: 150, clearLives: 3, every: 6, keepR: 70, pace: 0.5, extractPad: 30,
+              ask: { maxMin: 10, perMin: 40, askSec: 30, asks: 2 },
               work: { base: 70, radio: 45, propaganda: 35, rescue: 60, nuke: 150, vip: 100, evac: 220, fortress: 200 } },
   // An enemy that fires on an ally gives itself away: it shows for `sec` seconds after each shot, and once it has shown for lockSec
   // without a break it is locked: orbitals and the ship gun can hit it (within lockR of it) even outside the strike zone.
@@ -139,14 +154,18 @@ export const CONFIG = {
   radar:    { every: [14, 12, 10, 8.5, 7] },
   // SEAF drop beacons: places a SEAF drop can be sent without a strike zone (within r metres of one). Dark after darkSec.
   beacons:  { min: 3, perAoM: 300, max: 5, r: 40, darkSec: 300 },
-  bases:    { min: 2, perAoM: 200, max: 14, minutesPerExtra: 14, hp: 4000, spacing: 250, lzClearance: 400, radius: 15,
-              garrisonRadius: 260, garrisonGroups: 2, garrisonCap: 15, spawnSec: 30 },
+  // Bases within clusterR of each other work together: when the Helldivers come near one, the others turn out too, and each one
+  // sends its groups faster for every standing neighbour (spawn interval / (1 + clusterSpawn x neighbours)).
+  bases:    { min: 2, perAoM: 200, max: 14, minutesPerExtra: 14, hp: 2400, spacing: 250, lzClearance: 400, radius: 15,
+              garrisonRadius: 260, garrisonGroups: 2, garrisonCap: 15, spawnSec: 30, clusterR: 170, clusterSpawn: 0.4 },
   // The big base for the destroy-the-citadel objective.
   // Objective sites under siege (objectives.js siege): while the squad works an objective the enemy calls backup every `every`
   // seconds, down to `minEvery`, with up to `extra` more groups, over rampSec seconds at the site. A call waits (capWait s) while
   // cap enemies are already within capR metres of the site.
   siege:    { first: 10, every: 18, minEvery: 10, rampSec: 150, extra: 3, fortressR: 120, cap: 60, capR: 200, capWait: 4 },
-  fortress: { hp: 14000, radius: 28, garrisonGroups: 3, garrisonCap: 30, spawnSec: 16, minFromLz: 650 },
+  // The citadel: a cluster of bases round a central keep (parts bases partR metres out, partHp each), guarded by a super heavy that
+  // turns out when the squad arrives (its health x guardHp at level 1, rising to full at level 10). Every part has to come down.
+  fortress: { hp: 4500, radius: 24, parts: 3, partHp: 2000, partR: 62, guardHp: 0.55, garrisonGroups: 2, garrisonCap: 24, spawnSec: 22, minFromLz: 650 },
   // Difficulty (difficulty.js): 1 to 10, picked when a session starts. 10 is the game exactly as tuned in this file. At level 1 the
   // enemy is these fractions of that, rising to 1 at level 10 (in even steps with curve 1; above 1 the top levels are spread finer):
   // spawn = how many come (patrols, backup, group sizes, the live cap), medium and heavy = how many of them are mediums and heavies,
@@ -186,7 +205,10 @@ export const CONFIG = {
   // The player's kit. Orbital strikes level 1 to 5; every level adds damage, size and shell count and trims the recharge.
   orbital:  { boost: 1.4, maxLevel: 5, dmg: 0.2, size: 0.05, shells: 0.12, cd: 0.08, cdMul: 0.8, laserUses: 3 },
   // UAV scan: a big circle of sight the whole squad can use for a while. Indexed by level 1..5.
-  uav:      { r: [95, 120, 145, 175, 205], sec: [24, 28, 32, 36, 40], cd: [42, 38, 34, 30, 26] },
+  // The UAV: what it reveals (radius, seconds, cooldown by level), and the lift it gives allies under it. Two upgrade tracks:
+  // a target relay that speeds allies up (speed, by level 0-3) and threat warnings that help them dodge (dodge, added chance).
+  uav:      { r: [95, 120, 145, 175, 205], sec: [24, 28, 32, 36, 40], cd: [42, 38, 34, 30, 26],
+              speed: [0.05, 0.1, 0.15, 0.2], dodge: [0.05, 0.1, 0.15, 0.2], buffMax: 3, buffPrice: 300 },
   kit:      { slotsStart: 3, slotsMax: 5, seafCap: 3, seafDropEvery: 2, seafHp: 0.18, seafDmg: 0.12, seafGren: 0.06, seafRocket: 0.07, seafMedic: 0.14, medicRate: 0.25, seafSpot: 0.15, spotCool: 0.12, spotDmg: 0.18,
               livesPer: 2, zonePer: 18, startLoadout: ['orb_airburst', 'orb_120', 'orb_precision'] },
   // Credits: earned from kills, bases, POIs, breaches and the objective, with a bonus at extraction. Spent in the armory.
@@ -233,7 +255,7 @@ export const CONFIG = {
   // strikes the player lands inside it recharge faster (cdMul), so the gunner can saturate it.
   // Resupply on request: the Helldivers ask, the player loads a pod in slow motion (cells per compartment, fillSec real seconds at
   // the most), and a load finished within fastSec real seconds boosts the Helldivers' damage and pace for boostSec.
-  supply:   { firstSec: 60, need: 1.5, askSec: 14, cells: 4, fillSec: 10, slowmo: 0.25, fastSec: 5, dropSec: 3.5, cooldownSec: 75, declineCooldownSec: 60,
+  supply:   { firstSec: 60, need: 1.5, askSec: 30, cells: 4, fillSec: 13, slowmo: 0.25, fastSec: 5, dropSec: 3.5, cooldownSec: 75, declineCooldownSec: 60,
               boostSec: 45, boostDmg: 0.15, boostSpeed: 1.1 },
   ffz:      { r: 42, sec: 30, cooldownSec: 75, firstSec: 40, minN: 10, heavyN: 6, minDist: 52, maxDist: 150, cdMul: 0.5, follow: 5, camPull: 0.45 },
 
@@ -253,5 +275,5 @@ export const CONFIG = {
   share:    { channelUrl: '',
               // Where the FEEDBACK buttons go: a short form on the project's GitHub page (a free GitHub account is needed to post).
               feedbackUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support/issues/new?template=feedback.yml',
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.11.0' },
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.12.0' },
 };

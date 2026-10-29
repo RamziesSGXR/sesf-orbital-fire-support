@@ -455,21 +455,23 @@ export function drawBreaches(ctx, m, now, px, labels, scale, pal) {
 
 // ---------- UAV circles ----------
 export function drawUavs(ctx, m, now, px, labels, scale) {
+  // Kept faint so it does not cover the battlefield: a thin dashed edge, a slow pale sweep, and a small tag. Allies under it get a
+  // soft green tick at their feet (they are faster and dodge more while it is up).
   const t = m.t;
   for (const u of m.uavs) {
     const left = Math.max(0, u.until - t), age = Math.min(1, (t - u.born) / 0.8), fade = Math.min(1, left / 2);
     const r = u.r * (0.2 + 0.8 * age), a = fade;
-    ctx.fillStyle = `rgba(125,255,155,${0.05 * a})`; ring(ctx, u.x, u.y, r); ctx.fill();
-    ctx.strokeStyle = `rgba(157,255,184,${0.8 * a})`; ctx.lineWidth = px(1.8);
-    ctx.setLineDash([px(8), px(6)]); ctx.lineDashOffset = -now * px(10); ring(ctx, u.x, u.y, r); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
-    // a radar sweep
-    const ang = now * 2.2;
+    ctx.strokeStyle = `rgba(157,255,184,${0.28 * a})`; ctx.lineWidth = px(1);
+    ctx.setLineDash([px(3), px(9)]); ctx.lineDashOffset = -now * px(6); ring(ctx, u.x, u.y, r); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+    const ang = now * 1.4;
     const g = ctx.createRadialGradient(u.x, u.y, 0, u.x, u.y, r);
-    g.addColorStop(0, 'rgba(157,255,184,0)'); g.addColorStop(1, `rgba(157,255,184,${0.22 * a})`);
-    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(u.x, u.y); ctx.arc(u.x, u.y, r, ang - 0.7, ang); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = `rgba(200,255,215,${0.7 * a})`; ctx.lineWidth = px(1.2);
-    ctx.beginPath(); ctx.moveTo(u.x, u.y); ctx.lineTo(u.x + Math.cos(ang) * r, u.y + Math.sin(ang) * r); ctx.stroke();
-    labels.push({ x: u.x, y: u.y, dy: -r * scale - 6, text: `UAV ${Math.ceil(left)}S`, col: '#9dffb8' , pri: 1 });
+    g.addColorStop(0, 'rgba(157,255,184,0)'); g.addColorStop(1, `rgba(157,255,184,${0.07 * a})`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(u.x, u.y); ctx.arc(u.x, u.y, r, ang - 0.5, ang); ctx.closePath(); ctx.fill();
+    labels.push({ x: u.x, y: u.y, dy: -r * scale - 6, text: `UAV ${Math.ceil(left)}S`, col: 'rgba(157,255,184,0.7)', pri: 0 });
+  }
+  if (m.uavs.length) {
+    ctx.strokeStyle = 'rgba(157,255,184,0.55)'; ctx.lineWidth = px(1.2);
+    for (const a of m.alive) if (a.uavAt !== undefined && t - a.uavAt < 0.25) { ctx.beginPath(); ctx.arc(a.x, a.y, Math.max(px(9), 2.6), 0.2, Math.PI - 0.2); ctx.stroke(); }
   }
 }
 

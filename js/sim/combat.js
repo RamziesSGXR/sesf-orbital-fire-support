@@ -1,6 +1,8 @@
 // Damage rules shared by every side: hurting enemies, allies and placed assets, shields, smoke, and shots with tracers.
 import { CONFIG as C } from '../config.js';
 import { ALLY } from '../data/data.js';
+import { uavBuff } from '../data/kit.js';
+import { inCover } from './cover.js';
 import { alertGroup, noise } from './enemies.js';
 
 // ---------- hits from behind and critical hits ----------
@@ -103,14 +105,16 @@ function absorb(m, x, y, dmg) {
 
 // A Helldiver dodges an incoming enemy attack now and then: a quick dive sideways, and that hit does nothing. It has to be a real
 // hit (not a nibble), and the dodge has to have come round again. Friendly fire and falling pods cannot be dodged.
+// SEAF troopers dodge too, far less often. A UAV overhead adds to either chance (its threat-warning upgrade adds more).
 function tryDodge(m, a, dmg) {
-  const D = C.hd.dodge, t = m.t;
-  if (a.mounted || (a.mech && a.mech.hp > 0) || t < a.dodgeAt || dmg < D.minHit) return false;
-  if (m.rng.next() >= D.chance) return false;
-  a.dodgeAt = t + D.cool * (0.8 + 0.4 * m.rng.next());
+  const H = a.type === 'H', D = C.hd.dodge, SD = C.hd.seafDodge, t = m.t;
+  if (a.mounted || (a.mech && a.mech.hp > 0) || t < (a.dodgeAt || 0) || dmg < D.minHit) return false;
+  const uav = a.uavAt !== undefined && t - a.uavAt < 0.25 ? uavBuff(m.kit).dodge : 0;
+  if (m.rng.next() >= (H ? D.chance : SD.chance) + uav) return false;
+  a.dodgeAt = t + (H ? D.cool : SD.cool) * (0.8 + 0.4 * m.rng.next());
   const e = m.eGrid.nearest(a.x, a.y, 60);
   const ang = (e ? Math.atan2(e.y - a.y, e.x - a.x) : m.rng.angle()) + (m.rng.next() < 0.5 ? 1 : -1) * Math.PI / 2;
-  a.dv = { vx: Math.cos(ang) * D.dist / D.sec, vy: Math.sin(ang) * D.dist / D.sec, until: t + D.sec };
+  if (H) a.dv = { vx: Math.cos(ang) * D.dist / D.sec, vy: Math.sin(ang) * D.dist / D.sec, until: t + D.sec };   // a Helldiver dives aside
   a.diveAt = t;
   m.stats.dodges = (m.stats.dodges || 0) + 1;
   m.emit('dodge', { id: a.id, x: a.x, y: a.y, ang });
@@ -121,8 +125,8 @@ function tryDodge(m, a, dmg) {
 // shot in the back hurts more; enemy hits can crit too.
 export function hurtAlly(m, a, rawDmg, by, raw = false, src = null, fx, fy) {
   if (a.dead || !(rawDmg > 0)) return;
-  if (a.type === 'H' && !raw && by === 'enemy' && tryDodge(m, a, rawDmg)) return;
-  if (by === 'enemy' && !raw) rawDmg *= hitMul(m, a, fx, fy, 'enemy');
+  if ((a.type === 'H' || a.type === 'S') && !raw && by === 'enemy' && tryDodge(m, a, rawDmg)) return;
+  if (by === 'enemy' && !raw) rawDmg *= hitMul(m, a, fx, fy, 'enemy') * (inCover(m, a.x, a.y) ? C.cover.mul : 1);   // behind a wall: less
   a.hurtAt = m.t;
   a.lastSrc = src || (by === 'player' ? 'friendly' : 'enemy');
   if (a.mech && a.mech.hp > 0) {

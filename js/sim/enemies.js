@@ -139,15 +139,50 @@ export function updateAllies(m, dt) {
 }
 
 // Ground movement goes round deep water: NAV is the mission's terrain for this tick, and steer() picks the point to walk to.
-let NAV = null, NAVT = 0;
+// AOB is the mission's area of operations: every goal is pulled inside it, and nobody walks out of it (a route can only be found
+// inside it). A goal on blocked ground (deep water, rock) is moved to the nearest dry ground, so a slot in a formation that falls
+// in the water does not leave its enemy standing at the shore. And anyone who has made no headway for a while takes a short step
+// sideways and plans again, so nothing stays wedged in a corner.
+let NAV = null, NAVT = 0, AOB = null, FB = null;   // FB: the group being moved (its members fall back toward its centre)
+// The dry ground nearest a blocked spot on the mover's own side of it (walking back from the spot toward the mover), so the stand-in
+// does not flip from one shore to the other as the spot moves. Falls back to the nearest dry ground anywhere.
+export function shoreToward(tr, tx, ty, x, y) {
+  const dx = x - tx, dy = y - ty, d = Math.hypot(dx, dy);
+  for (let k = 3; k < d; k += 3) { const px = tx + (dx / d) * k, py = ty + (dy / d) * k; if (!tr.blocked(px, py)) return { x: px, y: py }; }
+  return tr.nearestLand(tx, ty);
+}
 function moveToward(o, tx, ty, speed, dt, size) {
-  if (NAV) { const w = steer(NAV, o, o.x, o.y, tx, ty, NAVT); tx = w.x; ty = w.y; }
+  if (AOB) { tx = Math.max(AOB.x0 + 3, Math.min(AOB.x1 - 3, tx)); ty = Math.max(AOB.y0 + 3, Math.min(AOB.y1 - 3, ty)); }
+  if (NAV && NAV.blocked(tx, ty)) {
+    const c = o.nlc;
+    if (c && Math.abs(c.tx - tx) + Math.abs(c.ty - ty) < 3) { tx = c.x; ty = c.y; }
+    else {
+      const an = FB && o !== FB.mv && !NAV.blocked(FB.cx, FB.cy) ? { x: FB.cx, y: FB.cy } : o;   // a member: the shore on its group's side
+      const l = shoreToward(NAV, tx, ty, an.x, an.y); o.nlc = { tx, ty, x: l.x, y: l.y }; tx = l.x; ty = l.y;
+    }
+  }
+  const far = Math.hypot(tx - o.x, ty - o.y);
+  if (o.dtr && NAVT < o.dtr.until) { tx = o.dtr.x; ty = o.dtr.y; }
+  else if (NAV) { o.dtr = null; const w = steer(NAV, o, o.x, o.y, tx, ty, NAVT); tx = w.x; ty = w.y; }
   const dx = tx - o.x, dy = ty - o.y, d = Math.hypot(dx, dy);
+  // headway check, every two seconds
+  const sk = o.sk || (o.sk = { t: NAVT, x: o.x, y: o.y });
+  if (NAVT - sk.t >= 2 || NAVT < sk.t) {
+    if (far > 6 && speed > 0.5 && Math.hypot(o.x - sk.x, o.y - sk.y) < 0.6 && !o.dtr && NAV) {
+      const ang = Math.atan2(dy || 1e-6, dx || 1e-6) + (((o.id || 0) + Math.floor(NAVT)) % 2 ? 1 : -1) * Math.PI / 2;
+      let px = o.x + Math.cos(ang) * 6, py = o.y + Math.sin(ang) * 6;
+      if (NAV.blocked(px, py)) { px = o.x - Math.cos(ang) * 6; py = o.y - Math.sin(ang) * 6; }
+      if (!NAV.blocked(px, py)) o.dtr = { x: px, y: py, until: NAVT + 1.2 };
+      o.nv = null;
+    }
+    sk.t = NAVT; sk.x = o.x; sk.y = o.y;
+  }
   if (d <= 0.4) { o.vx = 0; o.vy = 0; return; }
   const s = Math.min(speed * dt, d);
   o.vx = (dx / d) * (s / dt); o.vy = (dy / d) * (s / dt);
-  o.x = Math.max(0, Math.min(size, o.x + (dx / d) * s));
-  o.y = Math.max(0, Math.min(size, o.y + (dy / d) * s));
+  const lo = AOB ? AOB.x0 + 1 : 0, hi = AOB ? AOB.x1 - 1 : size, lo2 = AOB ? AOB.y0 + 1 : 0, hi2 = AOB ? AOB.y1 - 1 : size;
+  o.x = Math.max(lo, Math.min(hi, o.x + (dx / d) * s));
+  o.y = Math.max(lo2, Math.min(hi2, o.y + (dy / d) * s));
 }
 
 // Distance from point (px, py) to the segment (x1, y1)-(x2, y2).
@@ -337,10 +372,11 @@ function ringMove(m, g, e, tgt, dt, size, atk, engaged) {
 export function updateEnemies(m, dt) {
   const fac = m.faction, rng = m.rng, size = C.world.size, A = C.enemies.alert, t = m.t, T = C.enemies.tactics;
   const sightE = fac.sight * m.biome.ping;
-  NAV = m.terrain; NAVT = m.t;
+  NAV = m.terrain; NAVT = m.t; AOB = m.ao;
   const atk = C.combat.atk[fac.id];
   if (fac.id === 'squids') { m.ringT = (m.ringT || 0) - dt; if (m.ringT <= 0) { m.ringT = 0.5; assignRings(m); } }
   for (const g of m.groups) {
+    FB = g;
     let n = 0, minSpeed = Infinity;
     for (const e of g.members) {
       if (e.dead) continue;

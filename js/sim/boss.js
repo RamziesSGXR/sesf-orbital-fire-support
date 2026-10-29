@@ -11,6 +11,7 @@ import { COMMS } from '../data/data.js';
 import { spawnGroup, hiddenSpot, pickSpawn } from './director.js';
 import { compass } from './enemies.js';
 import { hurtTarget } from './combat.js';
+import { levelFactors } from '../difficulty.js';
 
 export function initBoss(m, opts = {}) {
   const B = C.boss;
@@ -24,18 +25,22 @@ export function initBoss(m, opts = {}) {
 export const bossAlive = (m) => !!(m.boss && !m.boss.dead);
 export const bossDef = (m) => C.boss[m.faction.id];
 
-export function spawnBoss(m) {
+// opts.at: a citadel's guardian, standing at the keep (opts.guard) rather than coming in out of sight; it is weaker on the lower
+// difficulty levels.
+export function spawnBoss(m, opts = {}) {
   const B = C.boss, D = bossDef(m), t = m.t;
-  const sp = hiddenSpot(m, m.hx, m.hy, B.dist[0], B.dist[1], 16) || pickSpawn(m, 16);
+  const sp = opts.at ? { x: opts.at.x + (opts.at.r || 20) + 10, y: opts.at.y } : hiddenSpot(m, m.hx, m.hy, B.dist[0], B.dist[1], 16) || pickSpawn(m, 16);
   if (!sp) return null;
+  if (opts.at && m.terrain.blocked(sp.x, sp.y)) { const l = m.terrain.nearestLand(sp.x, sp.y); sp.x = l.x; sp.y = l.y; }
   const g = spawnGroup(m, sp.x, sp.y, 'hunt', { alertT: 1e9 });    // an escort comes with it
   g.alertT = 1e9; g.bossGroup = true;
-  const hp = Math.round(D.hp * (1 + (m.hpMul - 1) * 0.5));     // tougher later in the session, but only half as fast as the rest
+  let hp = Math.round(D.hp * (1 + (m.hpMul - 1) * 0.5));     // tougher later in the session, but only half as fast as the rest
+  if (opts.guard) { const f = levelFactors(m.difficulty ?? 10).spawn, lo = C.fortress.guardHp; hp = Math.round(hp * (lo + (1 - lo) * Math.max(0, Math.min(1, (f - C.difficulty.spawn) / (1 - C.difficulty.spawn))))); }
   const e = {
     id: m.nextId++, kind: 'H', boss: m.faction.id, get name() { return tr('boss.' + this.boss); }, hp, maxHp: hp, x: sp.x, y: sp.y,
     ox: 0, oy: 0, vx: 0, vy: 0, g, lasedUntil: 0, lasedBy: null, vis: 0, atk: 2, atk2: 1, tgt: null, dead: false,
     speed: D.speed * m.biome.speed, r: D.r, hurtAt: -9, stunUntil: 0, ch: null, ang: 0, lane: 0, slot: undefined, ra: 0, pt: null, ptT: 0,
-    face: Math.atan2(m.hy - sp.y, m.hx - sp.x), aimA: 0, aimUntil: 0,
+    face: Math.atan2(m.hy - sp.y, m.hx - sp.x), aimA: 0, aimUntil: 0, guard: !!opts.guard,
     shield: D.shield || 0, maxShield: D.shield || 0, shieldAt: -99, deployAt: t + (D.deploy ? D.deploy.every : 1e9), born: t,
   };
   g.members.push(e); m.enemies.push(e);

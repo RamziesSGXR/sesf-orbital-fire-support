@@ -145,7 +145,7 @@ function quiet(faction = 'bots', seed = 77, opts = {}) {
   const mov = () => { for (const h of m.hdAlive) { h.x = s.x + 4; h.y = s.y + 4; h.hp = h.maxHp; } };
   run(m, C.sides.radio.holdSec + 3, mov);
   check('a radio tower held long enough is done', s.done, `state ${s.state}, held ${s.holdT.toFixed(0)} s`);
-  check('and it relights SEAF drop beacons after they went dark', m.beacons.some((b) => b.relit) && m.beacons.some((b) => beaconAt(m, b.x, b.y)), `${m.beacons.filter((b) => b.relit).length} relit`);
+  check('and the ground round it stays in view afterwards (a relay)', m.relays.length > 0 && m.visLevel(s.x + C.relay.r * 0.8, s.y) > 0, `${m.relays.length} relays`);
   void a;
 
   // propaganda tower: destroyed by fire, and it rallies patrols while it stands
@@ -173,19 +173,17 @@ function quiet(faction = 'bots', seed = 77, opts = {}) {
   check('and the survivors join the player\'s SEAF', freed.length > 0 && freed.every((t) => !t.pinned && t.sq !== undefined && rm.seaf.squads[t.sq]), `${freed.length} joined squad ${freed[0] && freed[0].sq + 1}`);
 }
 
-// ---------------------------------------------------------------- SEAF drop beacons
+// ---------------------------------------------------------------- SEAF drop beacons (built by SEAF since revision 12)
 {
   const m = quiet('bots', 7000);
-  const far = m.beacons.find((b) => !m.inZone(b.x, b.y, 10));
-  check('the map has drop beacons', m.beacons.length >= C.beacons.min, `${m.beacons.length}`);
-  if (far) {
-    m.seaf.readyAt = 0;
-    const r1 = m.callSeaf(far.x + 5, far.y + 5);
-    check('a SEAF drop can go to a lit beacon far outside the strike zone', r1.ok, JSON.stringify(r1));
-    m.t = C.beacons.darkSec + 1; m.seaf.readyAt = 0;
-    const r2 = m.callSeaf(far.x + 5, far.y + 5);
-    check(`beacons go dark after ${C.beacons.darkSec / 60} minutes`, !r2.ok && r2.reason === 'nocoverage', JSON.stringify(r2));
-  } else check('a beacon lies outside the strike zone to test with', false);
+  check('the map has no drop beacons at the start (SEAF build them)', m.beacons.length === 0, `${m.beacons.length}`);
+  const far = { x: m.hx + 400, y: m.hy };
+  m.beacons.push({ id: 1, x: far.x, y: far.y, relit: true, built: true });
+  m.seaf.readyAt = 0;
+  const r1 = m.callSeaf(far.x + 5, far.y + 5);
+  check('a SEAF drop can go to a built beacon far outside the strike zone', r1.ok, JSON.stringify(r1));
+  m.t = C.beacons.darkSec + 1; m.seaf.readyAt = 0;
+  check('a built beacon never goes dark', !!beaconAt(m, far.x, far.y));
 }
 
 // ---------------------------------------------------------------- the UAV radar sweep

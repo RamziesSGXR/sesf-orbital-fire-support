@@ -29,6 +29,7 @@
       <div id="callouts">
         <div id="co-boss" class="callout boss hidden"><span class="co-i">☠</span><span class="co-t"></span><button class="co-b" data-co="look-boss" data-t="hud.look">LOOK</button><i class="co-hp"><u></u><s></s></i></div>
         <div id="co-ffz" class="callout ffz hidden"><span class="co-i">◎</span><span class="co-t"></span><button class="co-b" data-co="look-ffz"><span data-t="hud.look">LOOK</span> <kbd>J</kbd></button></div>
+        <div id="co-time" class="callout time hidden"><span class="co-i">⏱</span><span class="co-t"></span><button class="co-b primary" data-co="time-yes"><span data-t="hud.approve">APPROVE</span> <kbd>K</kbd></button><button class="co-b x" data-co="time-no" data-ta="hud.declineTime" aria-label="Turn down the request">✕</button><i class="co-bar"></i></div>
         <div id="co-sup" class="callout sup hidden"><span class="co-i">⬢</span><span class="co-t"></span><button class="co-b primary" data-co="accept"><span data-t="hud.loadPod">LOAD POD</span> <kbd>U</kbd></button><button class="co-b" data-co="look-sup"><span data-t="hud.look">LOOK</span> <kbd>J</kbd></button><button class="co-b x" data-co="decline" data-ta="hud.declineSup" aria-label="Turn down the supply request">✕</button><i class="co-bar"></i></div>
       </div>
     </div>
@@ -57,6 +58,7 @@
     </div>
     <div id="radio"></div>
     <div id="tray">
+    <div id="hdbar" class="panel" data-tt="hud.hdbarTitle"></div>
     <div id="squads" class="panel">
       <button class="sqb" data-sq="-1"><span class="n" data-t="hud.all">ALL</span><span class="s">0</span></button>
       <button class="sqb" data-sq="0" style="--sc:#5fa8ff"><span class="n">S1</span><span class="s">--</span></button>
@@ -75,6 +77,12 @@
       <button class="ord" data-o="protect"><span class="k">Z</span><span class="n" data-t="hud.protect">PROTECT</span><span class="s">--</span></button>
       <button class="ord" data-o="attack"><span class="k">N</span><span class="n" data-t="hud.attack">ATTACK</span><span class="s">--</span></button>
       <button class="ord" data-o="escort"><span class="k">C</span><span class="n" data-t="hud.escort">ESCORT</span><span class="s">--</span></button>
+      <button class="ord" data-o="build"><span class="k">O</span><span class="n" data-t="hud.build">BUILD</span><span class="s">--</span></button>
+    </div>
+    <div id="buildmenu" class="panel hidden" role="menu">
+      <button class="bld" data-b="wall" type="button"><span class="n" data-t="build.wall">WALL</span><span class="s"></span></button>
+      <button class="bld" data-b="mg" type="button"><span class="n" data-t="build.mg">MG NEST</span><span class="s"></span></button>
+      <button class="bld" data-b="beacon" type="button"><span class="n" data-t="build.beacon">DROP BEACON</span><span class="s"></span></button>
     </div>
     </div>
     <div id="dock">

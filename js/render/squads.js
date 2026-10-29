@@ -86,6 +86,13 @@ export function drawSquadOrders(ctx, m, now, px, labels, scale, pal) {
         ctx.beginPath(); ctx.moveTo(o.x, o.y - r); ctx.lineTo(o.x + r * 0.85, o.y); ctx.lineTo(o.x, o.y + r); ctx.lineTo(o.x - r * 0.85, o.y); ctx.closePath(); ctx.fill();
       }
       labels.push({ x: o.x, y: o.y, dy: -R * scale - 6, text: `${nm} ${o.kind.toUpperCase()}`, col , pri: 1 });
+    } else if (o.kind === 'build') {
+      // the building site: a square outline, filling as the work goes on
+      const B = C.build[o.what], f = Math.min(1, (o.prog || 0) / B.sec), r = 6;
+      ctx.lineWidth = px(1.6); ctx.setLineDash([px(4), px(4)]); ctx.lineDashOffset = -now * px(8);
+      ctx.strokeRect(o.x - r, o.y - r, r * 2, r * 2); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      ctx.globalAlpha *= 0.35; ctx.fillRect(o.x - r, o.y + r - r * 2 * f, r * 2, r * 2 * f); ctx.globalAlpha = lit ? 1 : 0.5;
+      labels.push({ x: o.x, y: o.y, dy: -r * scale - 8, text: tr('lab.sq.build', { nm, what: tr('build.' + o.what), n: Math.round(f * 100) }), col, pri: 2 });
     } else if (o.kind === 'escort') {
       labels.push({ x: q.cx, y: q.cy, dy: multi ? -36 : -26, text: tr('lab.sq.escort', { nm }), col , pri: 1 });
     } else if (o.kind === 'path' && o.path) {
@@ -225,9 +232,18 @@ export function drawMiniSeaf(c, m, k, ac, ec) {
       c.beginPath(); c.arc(q.tgt.x * k, q.tgt.y * k, 6.5, 0, TAU); c.stroke();
     }
   }
+  // troopers: dark-edged dots, and a ring in the squad colour around each squad
+  const ctr = new Map();
   for (const a of m.seafAlive) {
+    const r = a.role === 'medic' || a.role === 'spotter' ? 3.4 : 2.8;
+    c.fillStyle = 'rgba(0,0,0,0.8)'; c.beginPath(); c.arc(a.x * k, a.y * k, r + 1.3, 0, TAU); c.fill();
     c.fillStyle = multi ? squadColor(a.sq) : ac;
-    c.beginPath(); c.arc(a.x * k, a.y * k, a.role === 'medic' || a.role === 'spotter' ? 2.8 : 2.1, 0, TAU); c.fill();
+    c.beginPath(); c.arc(a.x * k, a.y * k, r, 0, TAU); c.fill();
+    const q = ctr.get(a.sq) || { x: 0, y: 0, n: 0 }; q.x += a.x; q.y += a.y; q.n++; ctr.set(a.sq, q);
+  }
+  for (const [i, q] of ctr) {
+    c.strokeStyle = multi ? squadColor(i) : ac; c.lineWidth = 1.5; c.globalAlpha = 0.85;
+    c.beginPath(); c.arc((q.x / q.n) * k, (q.y / q.n) * k, 8, 0, TAU); c.stroke(); c.globalAlpha = 1;
   }
   c.fillStyle = ac;
   for (const p of m.pelicans) { c.beginPath(); c.moveTo(p.x * k + 5, p.y * k); c.lineTo(p.x * k - 4, p.y * k - 3.5); c.lineTo(p.x * k - 4, p.y * k + 3.5); c.closePath(); c.fill(); }

@@ -181,3 +181,52 @@ export function drawPad(ctx, x, y, lit, now, px) {
   ctx.beginPath(); ctx.moveTo(x - 4, y - 5); ctx.lineTo(x - 4, y + 5); ctx.moveTo(x + 4, y - 5); ctx.lineTo(x + 4, y + 5); ctx.moveTo(x - 4, y); ctx.lineTo(x + 4, y); ctx.stroke();
   for (let i = 0; i < 8; i++) { const a = i * TAU / 8; if (Math.floor(now * 3 + i) % 2) { ctx.fillStyle = '#ffe600'; ctx.beginPath(); ctx.arc(x + Math.cos(a) * 9.5, y + Math.sin(a) * 9.5, Math.max(0.6, px(1.6)), 0, TAU); ctx.fill(); } }
 }
+
+// ---------------------------------------------------------------- cover
+// The low walls round a held site: sandbags (a row of rounded bags), crates or a concrete barrier, lying along the ring.
+export function drawCover(ctx, m, px) {
+  for (const p of m.cover || []) {
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.ang + Math.PI / 2);
+    const L = p.len, w = 1.5;
+    ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(-L / 2 - 0.4, -w / 2 + 0.5, L + 0.8, w + 0.6);    // shadow
+    if (p.style === 0) {
+      const n = Math.max(3, Math.round(L / 1.3));
+      for (let i = 0; i < n; i++) {
+        const x = -L / 2 + (i + 0.5) * (L / n);
+        ctx.fillStyle = i % 2 ? '#9c8c62' : '#8a7b55'; ctx.beginPath(); ctx.ellipse(x, 0, L / n / 2 + 0.15, w / 2, 0, 0, TAU); ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(30,25,15,0.6)'; ctx.lineWidth = px(0.8); ctx.strokeRect(-L / 2, -w / 2, L, w);
+    } else if (p.style === 1) {
+      const n = Math.max(2, Math.round(L / 2.2));
+      for (let i = 0; i < n; i++) {
+        const x = -L / 2 + i * (L / n);
+        ctx.fillStyle = '#6f5a3a'; ctx.fillRect(x + 0.1, -w * 0.7, L / n - 0.2, w * 1.4);
+        ctx.strokeStyle = 'rgba(25,18,10,0.75)'; ctx.lineWidth = px(0.8); ctx.strokeRect(x + 0.1, -w * 0.7, L / n - 0.2, w * 1.4);
+        ctx.beginPath(); ctx.moveTo(x + 0.1, -w * 0.7); ctx.lineTo(x + L / n - 0.1, w * 0.7); ctx.stroke();
+      }
+    } else {
+      ctx.fillStyle = '#9aa29c'; ctx.fillRect(-L / 2, -w / 2, L, w);
+      ctx.fillStyle = '#c3cac4'; ctx.fillRect(-L / 2, -w / 2, L, w * 0.35);
+      ctx.strokeStyle = 'rgba(20,25,22,0.7)'; ctx.lineWidth = px(0.8); ctx.strokeRect(-L / 2, -w / 2, L, w);
+      for (let x = -L / 2 + 2; x < L / 2; x += 2) { ctx.beginPath(); ctx.moveTo(x, -w / 2); ctx.lineTo(x, w / 2); ctx.stroke(); }
+    }
+    ctx.restore();
+  }
+}
+
+// The citadel's walls: from the keep out to each of its bases, so the cluster reads as one place.
+export function drawCitadelWalls(ctx, m, col, px) {
+  for (const o of m.objectives) {
+    if (o.type !== 'fortress' || !o.parts) continue;
+    const k = o.base;
+    for (const b of o.parts) {
+      if (b === k) continue;
+      const up = !b.destroyed && !k.destroyed;
+      ctx.strokeStyle = up ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.3)'; ctx.lineWidth = 3.6; ctx.setLineDash(up ? [] : [3, 4]);
+      ctx.beginPath(); ctx.moveTo(k.x, k.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      ctx.strokeStyle = up ? rgba(col, 0.55) : 'rgba(120,120,120,0.35)'; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(k.x, k.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.setLineDash([]);
+    }
+    void px;
+  }
+}

@@ -129,18 +129,23 @@ export function updateDirector(m, dt) {
     }
 
     // Bases garrison themselves when Helldivers get close, and keep sending groups while they stand.
+    // Bases in a cluster turn out together, and send their groups faster for every neighbour still standing.
     const R2 = C.bases.garrisonRadius * C.bases.garrisonRadius;
     for (const b of m.bases) {
+      b.near = false;
       if (b.destroyed) continue;
-      let near = false;
-      for (const a of m.hdAlive) if ((a.x - b.x) ** 2 + (a.y - b.y) ** 2 <= R2) { near = true; break; }
-      if (!near) continue;
-      const cfg = b.fortress ? C.fortress : C.bases;
+      for (const a of m.hdAlive) if ((a.x - b.x) ** 2 + (a.y - b.y) ** 2 <= R2) { b.near = true; break; }
+    }
+    for (const b of m.bases) {
+      if (b.destroyed) continue;
+      const nb = (b.nb || []).filter((q) => !q.destroyed);
+      if (!b.near && !nb.some((q) => q.near)) continue;
+      const cfg = b.fortress || b.part ? C.fortress : C.bases, every = cfg.spawnSec / m.pressure / (1 + C.bases.clusterSpawn * nb.length);
       if (!b.garrisoned) {
-        b.garrisoned = true; b.nextSpawn = t + cfg.spawnSec / m.pressure; b.owed = cfg.garrisonGroups;
+        b.garrisoned = true; b.nextSpawn = t + every; b.owed = b.part ? 1 : cfg.garrisonGroups;
       } else if (t >= b.nextSpawn) {
-        b.nextSpawn = t + cfg.spawnSec / m.pressure;
-        if (m.enemies.length < liveCap(m) && garrisonCount(m, b) + (b.owed || 0) * m.groupSize < cfg.garrisonCap) b.owed = (b.owed || 0) + 1;
+        b.nextSpawn = t + every;
+        if (m.enemies.length < liveCap(m) && garrisonCount(m, b) + (b.owed || 0) * m.groupSize < (b.part ? C.bases.garrisonCap : cfg.garrisonCap)) b.owed = (b.owed || 0) + 1;
       }
       // groups owed to the base come out of sight and walk in (one a tick at most; a spot that is in view waits)
       if (b.owed > 0 && m.enemies.length < C.enemies.hardCap && spawnNear(m, b.x, b.y, 0, 14, 'patrol', { base: b })) b.owed--;

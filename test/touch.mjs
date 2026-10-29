@@ -73,7 +73,10 @@ await page.waitForTimeout(9800);
 check('tray closes by itself', !(await page.isVisible('#tray')));
 // the status chip opens the roster, and panels fade back until touched
 check('stratagem grid is out of the way', !(await page.isVisible('#strats')));
-check('re-center button only shows once the camera moved', !(await page.isVisible('#btn-follow')));
+// the camera is the player's: free from the start, with a re-center button that locks it on the squad (and then hides)
+check('the camera starts free, with a re-center button', await page.isVisible('#btn-follow') && !(await page.evaluate(() => window.__game.cam.follow)));
+await tap('#btn-follow'); await page.waitForTimeout(250);
+check('re-center locks the camera on the squad and the button steps aside', (await page.evaluate(() => window.__game.cam.follow)) && !(await page.isVisible('#btn-follow')));
 check('radio box is off on phones', !(await page.isVisible('#radio')));
 check('at most two notices', (await page.evaluate(() => document.querySelectorAll('#notices .nt').length)) <= 2);
 await page.waitForTimeout(3600);

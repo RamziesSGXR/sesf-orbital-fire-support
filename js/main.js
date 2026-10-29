@@ -15,6 +15,7 @@ import { sunAt, todAt, todName, todClock } from './render/sky.js';
 import { acceptSupply, declineSupply, fillSupply, launchSupply, supplyFilling } from './sim/supply.js';
 import { t, setLang, getLang, applyDom, startLang } from './i18n.js';
 import { clampLevel, LEVELS } from './difficulty.js';
+import { answerTime } from './sim/planner.js';
 
 const $ = (id) => document.getElementById(id);
 const qs = new URLSearchParams(location.search);
@@ -129,6 +130,7 @@ const input = new Input(canvas, $('minimap'), cam, {
   map: () => openMap(),
   follow: () => { if (live() && supplyFilling(mission)) { supTap(-1); return; } cam.follow = !cam.follow; },
   supply: () => supplyCall('accept'),
+  timeYes: () => supplyCall('time-yes'),
   look: () => lookLatest(),
   squad: (i) => selectSquad(i),
   squadCycle: (d) => cycleSquad(d),
@@ -145,6 +147,15 @@ hud.onWeapon = (i) => { audio.unlock(); if (live()) mission.selectWeapon(i); };
 hud.onOrder = (kind) => order(kind, false);
 hud.onSquad = (i) => { audio.unlock(); selectSquad(i); };
 hud.onSquadAct = (kind) => { audio.unlock(); squadAct(kind, false); };
+hud.onHd = () => { audio.unlock(); };
+hud.onFocus = (kind, i) => focusTeam(kind, i);
+hud.onBuild = (what) => {
+  audio.unlock(); buildMenu(false);
+  if (!live()) return;
+  if (!input.touch) { setPlacing('build:' + what); return; }
+  const w = aimWorld(); if (w) runOrder('build:' + what, w.x, w.y);
+};
+function buildMenu(on) { $('buildmenu').classList.toggle('hidden', !on); }
 hud.onCallout = (k) => { audio.unlock(); supplyCall(k); };
 hud.onSupTap = (i) => { audio.unlock(); supTap(i); };
 hud.onSupLaunch = () => { if (live() && launchSupply(mission)) audio.click(); };
@@ -161,6 +172,24 @@ function supplyCall(k) {
   else if (k === 'look-ffz' && mission.ffz) lookAt(mission.ffz.x, mission.ffz.y, 4, 1, () => mission.ffz);
   else if (k === 'look-boss' && mission.boss && !mission.boss.dead) lookAt(mission.boss.x, mission.boss.y, 4, 1, () => (mission.boss && !mission.boss.dead ? mission.boss : null));
   else if (k === 'look-sup') { const d = S && (S.drop || S.last); if (d) lookAt(d.x, d.y, 3.5); }
+  else if (k === 'time-yes' || k === 'time-no') { const r = answerTime(mission, k === 'time-yes'); if (r.ok) audio.click(); else audio.deny(); }
+}
+// A double tap on a team: the camera goes there and stays (it stops following the squad).
+function focusTeam(kind, i) {
+  if (!mission || !live()) return;
+  let p = null;
+  if (kind === 'hd') {
+    const tm = mission.teams[i], a = tm && tm.hd && !tm.hd.dead ? tm.hd : null;
+    const pod = !a && mission.pods.find((q) => q.type === 'H' && q.team === i);
+    p = a || pod || null;
+  } else {
+    let x = 0, y = 0, n = 0;
+    for (const a of mission.seafAlive) if (i < 0 || a.sq === i) { x += a.x; y += a.y; n++; }
+    if (n) p = { x: x / n, y: y / n };
+  }
+  if (!p) { audio.deny(); return; }
+  cam.follow = false; audio.click();
+  lookAt(p.x, p.y, 1.4);
 }
 // J: look at whatever was called most recently (a falling or fresh supply pod, else the free-fire zone).
 function lookLatest() {
@@ -241,6 +270,7 @@ function snap(x, y) {
 }
 function runOrder(kind, x, y) {
   const m = mission;
+  if (kind.startsWith('build:')) return m.seafBuild(kind.slice(6), x, y);
   if (kind === 'seaf') return m.callSeaf(x, y);
   if (kind === 'auto' || kind === 'escort') return m.seafOrder(kind);
   if (kind === 'assign') return m.assignSeaf(x, y, C.seaf.assignR);
@@ -252,6 +282,8 @@ function order(kind, viaKey) {
   if (!live()) return;
   audio.unlock();
   if (kind === 'auto' || kind === 'escort') { runOrder(kind); return; }
+  if (kind === 'build') { setPlacing(null); buildMenu($('buildmenu').classList.contains('hidden')); return; }
+  buildMenu(false);
   if (!input.touch && !viaKey) { setPlacing(placing === kind ? null : kind); return; }
   const w = aimWorld();
   if (w) runOrder(kind, w.x, w.y);
@@ -350,7 +382,7 @@ function deploy() {
   mission = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: true, missionN: session.missions.length + 1, difficulty: session.difficulty,
     loadout: info.loadout, keepOrder: true, objectives: info.ovObj, kit: session.kit, wallet: session.wallet, names: session.names, tod: info.tod });
   bot = BOT ? makeBot() : null;
-  cam.x = mission.lz.x; cam.y = mission.lz.y; cam.follow = true; cam.ao = mission.ao;
+  cam.x = mission.lz.x; cam.y = mission.lz.y; cam.follow = false; cam.ao = mission.ao;   // the camera is the player's: it only follows the squad when locked on
   cam.view = window.innerWidth >= window.innerHeight ? C.world.viewWidth : 280;
   firePending = false; acc = 0; endHandled = false; overAt = 0; wantAbort = false;
   drawing = false; stroke = null;
@@ -623,12 +655,9 @@ function onEvent(ev, now) {
     case 'drop_down': audio.dropDown(Math.max(0.6, L), P); break;
     case 'ffz':
       audio.ffz();
-      // frame the squad and the zone together (unless the player is already being shown something, like a supply drop)
-      if (cam.follow && !(camPan && mission.t < camPan.untilT && camPan.w >= 1)) lookAt(ev.x, ev.y, C.ffz.sec, C.ffz.camPull, () => mission.ffz);
       break;
     case 'boss':
       audio.siren(); hud.message(t('msg.boss', { name: ev.name }), 3200);
-      if (cam.follow && !(camPan && mission.t < camPan.untilT && camPan.w >= 1)) lookAt(ev.x, ev.y, 3.5, 0.6);
       break;
     case 'boss_down': audio.baseDown(); audio.objective(); hud.message(t('msg.bossDown', { name: ev.name }), 3000); break;
     case 'boss_block': audio.deny(); break;
@@ -636,7 +665,7 @@ function onEvent(ev, now) {
     case 'supply_ask': audio.supAsk(); hud.wake(6000); break;
     case 'supply_fill': audio.slowIn(); break;
     case 'supply_tap': audio.supTap(ev.i); if (ev.full) audio.supFull(ev.i); break;
-    case 'supply_launch': audio.slowOut(); audio.supLaunch(ev.fast); lookAt(ev.x, ev.y, C.supply.dropSec + 2.5); break;
+    case 'supply_launch': audio.slowOut(); audio.supLaunch(ev.fast); break;
     case 'supply_down': audio.supDown(L, P); break;
     case 'supply_no': audio.deny(); break;
     case 'ffz_end': audio.ready(); break;
@@ -649,6 +678,8 @@ function onEvent(ev, now) {
     case 'pelican_arrive': audio.rotor(); break;
     case 'pelican_drop': audio.snd('thud', L, P); break;
     case 'radar': audio.ping(); break;
+    case 'time_ask': audio.supAsk(); hud.wake(6000); break;
+    case 'time_yes': audio.ready(); break;
     case 'side_done': audio.sideDone(); break;
     case 'side_failed': audio.sideLost(); break;
     case 'side_state': if (ev.state === 'siege') audio.alarm(); else audio.ready(); break;
@@ -710,8 +741,8 @@ function frame(ts) {
   if (state === 'play' && mission) {
     input.update(dt);
     if (!paused) { simulate(dt, now); ambient(mission, dt); }
-    // The camera follows the squad (if locked), and is pulled toward a callout for a while: part of the way for a free-fire zone,
-    // all the way to a supply drop or when the player asks to look. The map holds still under a play being drawn.
+    // The camera is the player's. It follows the squad only when locked on, and moves to a callout only when the player asks to
+    // look (J, a callout button, a double tap on a team). The map holds still under a play being drawn.
     let cp = camPan && mission.t < camPan.untilT ? camPan : null;
     if (cp && cp.track) { const z = cp.track(); if (z) { cp.x = z.x; cp.y = z.y; } else { camPan = cp = null; } }
     if (!cp) camPan = null;
@@ -774,6 +805,6 @@ requestAnimationFrame((t) => { lastT = t / 1000; frame(t); });
 // Test hooks (used by the Playwright checks; harmless in production).
 window.__game = {
   get state() { return state; }, get mission() { return mission; }, get session() { return session; }, get info() { return info; },
-  cam, input, renderer, settings, order, get placing() { return placing; }, get drawing() { return drawing; }, squadAct, selectSquad, strokeBegin, strokeMove, strokeEnd, goShop, openArmory, closeArmory,
+  cam, input, renderer, settings, order, get placing() { return placing; }, get drawing() { return drawing; }, squadAct, selectSquad, focusTeam, strokeBegin, strokeMove, strokeEnd, goShop, openArmory, closeArmory,
   setSetting: (k, v) => { settings[k] = v; onSettingChange(k); },
 };

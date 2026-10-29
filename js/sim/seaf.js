@@ -6,12 +6,16 @@ import { CONFIG as C } from '../config.js';
 import { aoX, aoY } from './ao.js';
 import { COMMS } from '../data/data.js';
 import { seafStats } from '../data/kit.js';
+import { STRATS } from '../data/strat.js';
 import { fireShot } from './combat.js';
 import { nearestObjective } from './pois.js';
 import { strikeAt } from './strat.js';
 import { bark } from './chatter.js';
 import { canStep } from './safety.js';
 import { steer } from './terrain.js';
+import { speedMul } from './helldiver.js';
+import { shoreToward } from './enemies.js';
+import { siteAt, coverSlot } from './cover.js';
 
 const SIZE = C.world.size;
 const S = C.seaf;
@@ -31,11 +35,17 @@ function step(o, tx, ty, speed, dt) {
 
 // A trooper's step: like step(), but never into the footprint of an incoming strike.
 function walk(m, a, tx, ty, speed, dt) {
+  tx = aoX(m, tx, 3); ty = aoY(m, ty, 3);
+  if (m.terrain && m.terrain.blocked(tx, ty)) {          // a spot in the water: the nearest dry ground to it instead
+    const c = a.nlc;
+    if (c && Math.abs(c.tx - tx) + Math.abs(c.ty - ty) < 3) { tx = c.x; ty = c.y; }
+    else { const l = shoreToward(m.terrain, tx, ty, a.x, a.y); a.nlc = { tx, ty, x: l.x, y: l.y }; tx = l.x; ty = l.y; }
+  }
   const w = steer(m.terrain, a, a.x, a.y, tx, ty, m.t);     // round the water, if there is any in the way
   tx = w.x; ty = w.y;
   const dx = tx - a.x, dy = ty - a.y, d = Math.hypot(dx, dy);
   if (d < 0.05) return 0;
-  const s = Math.min(speed * dt, d), nx = a.x + (dx / d) * s, ny = a.y + (dy / d) * s;
+  const s = Math.min(speed * speedMul(m, a) * dt, d), nx = a.x + (dx / d) * s, ny = a.y + (dy / d) * s;
   if (!canStep(m, a, nx, ny)) return 0;
   a.x = nx; a.y = ny;
   return s;
@@ -78,12 +88,49 @@ export function pendingTroops(m) { let n = 0; for (const p of m.pelicans) n += p
 
 // ---------------------------------------------------------------- orders
 export function setSquadOrder(m, q, kind, x = 0, y = 0, extra = null) {
-  const t = m.t, o = newOrder(kind, x, y, kind === 'escort' ? t + S.followSec : kind === 'attack' ? t + S.attackSec : 0);
+  const o = newOrder(kind, x, y, 0);   // orders stick until the player gives another one
   if (extra) Object.assign(o, extra);
   q.order = o; q.tgt = null; q.clearT = 0; q.tgtT = 0; q.stand = null;
   if (kind === 'path' || kind === 'line' || kind === 'ring') { q.ax = q.cx; q.ay = q.cy; }
   const list = squadMembers(m, q.i), s = list[Math.floor(m.crng.next() * list.length)];
   if (s) bark(m, s, kind === 'auto' ? 'clear' : kind === 'path' || kind === 'line' || kind === 'ring' ? 'move' : kind, kind === 'auto' ? tr('place.nearest') : '', true);
+}
+
+// ---- building ----
+// How many of a kind are standing.
+export function builtCount(m, what) {
+  if (what === 'beacon') return (m.beacons || []).filter((b) => b.built).length;
+  if (what === 'mg') return m.assets.filter((s) => !s.dead && s.sid === 'seaf_mg').length;
+  return (m.coverSites || []).filter((s) => s.kind === 'built').length;
+}
+// Done: pay for it, put it up, and the squad stays to hold it. False (and the squad waits) if the credits are not there any more.
+function finishBuild(m, q, o) {
+  const B = C.build[o.what];
+  if (m.wallet.bal < B.cost) { if (!o.broke) { o.broke = true; m.emit('deny', { reason: 'funds' }); } return false; }
+  m.wallet.bal -= B.cost; m.wallet.spent += B.cost;
+  if (o.what === 'wall') {
+    // a ring of low walls, the open side toward the squad's own lines (the Helldivers), the walls toward the enemy
+    const site = { x: o.x, y: o.y, R: B.R, pieces: [], kind: 'built' }, face = Math.atan2(m.hy - o.y, m.hx - o.x) + Math.PI;
+    for (let k = 0; k < B.n; k++) {
+      const ang = face + (k - (B.n - 1) / 2) * 0.75, px = o.x + Math.cos(ang) * B.R, py = o.y + Math.sin(ang) * B.R;
+      if (m.terrain.blocked(px, py)) continue;
+      site.pieces.push({ x: px, y: py, nx: Math.cos(ang), ny: Math.sin(ang), ang, len: 6, style: k % 2 ? 0 : 2, k, built: true });
+    }
+    if (site.pieces.length) { m.coverSites.push(site); m.cover.push(...site.pieces); }
+  } else if (o.what === 'mg') {
+    const p = { ...STRATS.mg_sentry.t, ammo: B.ammo };
+    const s = { id: m.nextId++, kind: 'turret', sid: 'seaf_mg', x: o.x, y: o.y, born: m.t, dead: false, hurtAt: -9, name: tr('build.mg'), hp: B.hp, maxHp: B.hp,
+      ammo: B.ammo, maxAmmo: B.ammo, p, cool: 0.6, scan: 0, tgt: null, face: Math.atan2(o.y - m.hy, o.x - m.hx), focus: null, r: 3.5, snd: 'mg', seaf: true };
+    m.assets.push(s);
+    m.emit('asset_new', { kind: 'turret', sid: 'seaf_mg', x: o.x, y: o.y });
+  } else {
+    m.beacons.push({ id: m.nextId++, x: o.x, y: o.y, relit: true, built: true });
+  }
+  m.stats.built = (m.stats.built || 0) + 1;
+  m.notice(tr('n.built', { what: tr('build.' + o.what), cr: B.cost }), 'good');
+  m.emit('built', { what: o.what, x: o.x, y: o.y });
+  setSquadOrder(m, q, 'protect', o.x, o.y);
+  return true;
 }
 
 // ---- drawn plays ----
@@ -354,9 +401,11 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
     for (const a of list) walk(m, a, ride.tx, ride.ty, chase * 1.1, dt);
     return;
   }
-  if (ord.kind === 'escort' && (t >= ord.until || !m.hdAlive.length)) setSquadOrder(m, q, 'auto');
-  if (ord.kind === 'attack' && t >= ord.until) { ord.kind = 'protect'; ord.until = 0; }   // hold the ground they took
+  void ord;
   const o = q.order, cx = q.cx, cy = q.cy;
+  // An attack holds the ground it took (and keeps the order: nothing expires).
+  if (o.kind === 'attack' && !o.held && Math.hypot(cx - o.x, cy - o.y) < 14) o.held = true;
+  const hold = o.kind === 'protect' || (o.kind === 'attack' && o.held);
 
   // Default: clear the nearest objective, so the Helldivers get clean ground. Squads spread over different targets.
   let dest = null;
@@ -389,6 +438,17 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
     } else q.stand = null;
   }
 
+  // Building: everyone goes to the spot; with nobody to fight they build it (faster with more hands).
+  if (o.kind === 'build') {
+    const B = C.build[o.what], near = Math.hypot(cx - o.x, cy - o.y) < C.build.r;
+    if (near && !list.some((a) => a.engaged)) {
+      const at = list.filter((a) => Math.hypot(a.x - o.x, a.y - o.y) < C.build.r + 4).length;
+      o.prog += dt * Math.min(4, Math.max(1, at)) / 2;
+      o.building = true;
+      if (o.prog >= B.sec) { if (finishBuild(m, q, o)) return; }
+    } else o.building = false;
+  }
+
   // A drawn route: an anchor runs the waypoints and the squad follows it, stopping to fight when engaged.
   let anchorWait = false;
   if (o.kind === 'path') {
@@ -406,22 +466,34 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
 
   for (const a of list) {
     if (o.kind === 'line' || o.kind === 'ring') continue;   // formations are placed together afterwards
-    const en = eg.nearest(a.x, a.y, o.kind === 'attack' ? 14 : C.squad.engageRange);
+    const en = eg.nearest(a.x, a.y, o.kind === 'attack' && !o.held ? 14 : C.squad.engageRange);
     a.engaged = !!en;
     if (en) continue;   // stand and fight
     let tx, ty, spd = speed, wander = false;
+    const ki = list.indexOf(a), kn = list.length;
     if (o.kind === 'escort') {
+      if (!m.hdAlive.length) continue;            // nobody to escort right now: hold here until they are back
       tx = sq.ax + a.fx; ty = sq.ay + a.fy; spd = chase;
+      // with the squad holding a site: the walls between the Helldivers' (offset along each wall so nobody shares a spot)
+      const site = m.phase !== 'clear' ? siteAt(m, sq.ax, sq.ay) : null;
+      if (site) { const p = coverSlot(site, ki + 0.5, kn, ((a.id % 3) - 1) * 1.8); tx = p.x; ty = p.y; }
       if (Math.hypot(tx - a.x, ty - a.y) <= 4) continue;
-    } else if (o.kind === 'attack') {
+    } else if (o.kind === 'attack' && !hold) {
       tx = o.x + a.ox; ty = o.y + a.oy; spd = chase;
-    } else if (o.kind === 'protect') {
+    } else if (hold) {
       // Guard the marked ground: close on anything hunting near it, but never leave the leash.
       const thr = eg.nearest(o.x, o.y, 70);
-      if (thr && Math.hypot(thr.x - o.x, thr.y - o.y) <= S.protectLeash) { tx = thr.x; ty = thr.y; spd = chase; }
+      const site = siteAt(m, o.x, o.y, 4);
+      if (site && !thr) { const p = coverSlot(site, ki, kn, ((a.id % 3) - 1) * 1.8); tx = p.x; ty = p.y; }     // holding behind walls: each at his own
+      else if (thr && Math.hypot(thr.x - o.x, thr.y - o.y) <= S.protectLeash) { tx = thr.x; ty = thr.y; spd = chase; }
       else { tx = o.x + a.ox * 0.6; ty = o.y + a.oy * 0.6; wander = true; }
     } else if (o.kind === 'move') {
       tx = o.x + a.ox; ty = o.y + a.oy; wander = true;
+    } else if (o.kind === 'build') {
+      // round the spot, close in, each at his own side of it
+      const ang = (ki / Math.max(1, kn)) * Math.PI * 2;
+      tx = o.x + Math.cos(ang) * 4; ty = o.y + Math.sin(ang) * 4; spd = Math.hypot(tx - a.x, ty - a.y) > 30 ? chase * 0.8 : speed;
+      if (Math.hypot(tx - a.x, ty - a.y) <= 1.5) continue;
     } else if (o.kind === 'path') {
       // Bunch up around the anchor, hurrying if they fall behind.
       tx = q.ax + a.ox * 0.45; ty = q.ay + a.oy * 0.45;
@@ -430,6 +502,12 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
       if (dd <= 2.5) continue;
     } else if (dest) {
       tx = dest.x + a.ox; ty = dest.y + a.oy;
+      // once there, the squad fans out in an arc round the target instead of bunching up on one spot
+      const t0 = q.tgt;
+      if (t0 && Math.hypot(cx - t0.x, cy - t0.y) < t0.stand + 30) {
+        const a0 = Math.atan2(dest.y - t0.y, dest.x - t0.x), ang = a0 + (ki - (kn - 1) / 2) * Math.min(0.4, 9 / Math.max(6, t0.stand));
+        tx = t0.x + Math.cos(ang) * t0.stand; ty = t0.y + Math.sin(ang) * t0.stand;
+      }
       spd = Math.hypot(tx - a.x, ty - a.y) > 60 ? chase * 0.8 : speed;
     } else {   // nothing to clear: stay with the Helldivers at a distance
       tx = sq.ax + a.fx * 1.6; ty = sq.ay + a.fy * 1.6; spd = speed;

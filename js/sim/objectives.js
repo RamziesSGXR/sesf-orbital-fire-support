@@ -9,6 +9,7 @@ import { callReinforcements } from './reinforce.js';
 import { updateEvac } from './civilians.js';
 import { openExtract } from './extract.js';
 import { aoX, aoY, aoScale } from './ao.js';
+import { spawnBoss } from './boss.js';
 
 const O = C.objective;
 const TYPES = ['nuke', 'vip', 'fortress', 'evac'];
@@ -76,7 +77,18 @@ export function setupObjectives(m, forced) {
         lasedUntil: 0, lasedBy: null, garrisoned: false, nextSpawn: 0, lastHit: -99,
       };
       m.bases.push(b);
-      o = { type, state: 'travel', x: p.x, y: p.y, base: b, get text() { return COMMS.objFortress; } };
+      // the bases round the keep: placed on dry ground, evenly round it
+      const F = C.fortress, parts = [b], a0 = m.rng.angle();
+      for (let k = 0; k < F.parts; k++) {
+        for (const f of [1, 0.8, 1.25, 0.65]) {
+          const ang = a0 + (k / F.parts) * Math.PI * 2, x = b.x + Math.cos(ang) * F.partR * f, y = b.y + Math.sin(ang) * F.partR * f;
+          if (!m.terrain.isLand(x, y) || m.terrain.blocked(x, y)) continue;
+          const q = { id: m.nextId++, x, y, hp: F.partHp, maxHp: F.partHp, destroyed: false, r: C.bases.radius, part: b.id, garrisoned: false, nextSpawn: 0, lastHit: -99 };
+          m.bases.push(q); parts.push(q);
+          break;
+        }
+      }
+      o = { type, state: 'travel', x: p.x, y: p.y, base: b, parts, guarded: false, get text() { return COMMS.objFortress; } };
     }
     o.done = false;
     used.push(o);
@@ -86,12 +98,23 @@ export function setupObjectives(m, forced) {
 }
 
 export const activeObjective = (m) => m.objectives.find((o) => !o.done) || null;
+// The citadel's part the squad should knock down next: the nearest one standing (the keep last of all, once it is alone or nearest).
+export function nextPart(m, o) {
+  const from = m.squad ? { x: m.squad.ax, y: m.squad.ay } : m.lz;
+  let best = null, bd = Infinity;
+  for (const b of o.parts || [o.base]) {
+    if (b.destroyed) continue;
+    const d = Math.hypot(b.x - from.x, b.y - from.y) + (b.fortress ? 40 : 0);
+    if (d < bd) { bd = d; best = b; }
+  }
+  return best || o.base;
+}
 
 // Where the squad should be heading. Fortress is handled as a base; the others are points.
 export function objectiveGoal(m) {
   const o = activeObjective(m);
   if (!o) return null;
-  if (o.type === 'fortress') return { o, base: o.base };
+  if (o.type === 'fortress') return { o, base: nextPart(m, o) };
   if (o.type === 'nuke') return { o, x: o.x, y: o.y, stop: 14 };
   if (o.type === 'evac') return { o, x: o.x, y: o.y, stop: 16 };
   const going = o.state === 'carry' || o.state === 'deliver';
@@ -266,8 +289,12 @@ export function updateObjectives(m, dt) {
     else if (o.type === 'vip') updateVip(m, o, dt);
     else if (o.type === 'evac') updateEvac(m, o, dt);
     else if (o.type === 'fortress') {
-      if (o.base.destroyed) completeObjective(m, o);
-      else if (squadAt(m, o.base.x, o.base.y, C.siege.fortressR)) siege(m, o, o.base.x, o.base.y, dt);   // the citadel calls for help while it is attacked
+      if ((o.parts || [o.base]).every((b) => b.destroyed)) completeObjective(m, o);
+      else if (squadAt(m, o.base.x, o.base.y, C.siege.fortressR + C.fortress.partR)) {
+        // its guardian, a super heavy, turns out the first time the squad comes in (unless one is already out)
+        if (!o.guarded) { o.guarded = true; if (!(m.boss && !m.boss.dead)) { m.bossPlan = null; spawnBoss(m, { at: o.base, guard: true }); } }
+        siege(m, o, o.base.x, o.base.y, dt);   // the citadel calls for help while it is attacked
+      }
     }
   }
 }
@@ -300,5 +327,7 @@ export function objectiveStatus(m) {
     return { text: tr('obj.vip.deliver', { of }), p: o.delT / O.vip.deliverSec };
   }
   const b = o.base;
-  return { text: tr('obj.fort', { n: Math.max(0, Math.ceil((b.hp / b.maxHp) * 100)), of }), p: 1 - b.hp / b.maxHp };
+  // the whole cluster: what is left of every part's health together
+  const P = o.parts || [b], hp = P.reduce((v, q) => v + Math.max(0, q.hp), 0), max = P.reduce((v, q) => v + q.maxHp, 0) || 1;
+  return { text: tr('obj.fort', { n: Math.max(0, Math.ceil((hp / max) * 100)), of }), p: 1 - hp / max };
 }

@@ -134,7 +134,7 @@ export function nearestObjective(m, x, y, skip) {
   for (const b of m.bases) {
     if (b.destroyed || b.fortress || !ok(b.id)) continue;
     const s = Math.hypot(b.x - x, b.y - y) * 1.4;
-    if (s < bs) { bs = s; best = { kind: 'base', obj: b, x: b.x, y: b.y, stand: 62, name: tr(`fac.${m.faction.id}.baseThe`) }; }
+    if (s < bs) { bs = s; best = { kind: 'base', obj: b, x: b.x, y: b.y, stand: 40, name: tr(`fac.${m.faction.id}.baseThe`) }; }
   }
   return best;
 }

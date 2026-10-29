@@ -253,8 +253,9 @@ export function updatePlayer(m, dt) {
     damageArea(m, b.cx, b.cy, (b.width / 2) * m.biome.splash, b.dps * dt, ALL, 'player', true, '');
   }
 
-  // UAV scans run out.
+  // UAV scans run out. Allies under one get its lift (a.uavAt: the last tick they were covered).
   for (let i = m.uavs.length - 1; i >= 0; i--) if (t >= m.uavs[i].until) m.uavs.splice(i, 1);
+  if (m.uavs.length) for (const a of m.alive) for (const u of m.uavs) if ((a.x - u.x) ** 2 + (a.y - u.y) ** 2 <= u.r * u.r) { a.uavAt = t; break; }
   // Inbound markers expire.
   for (let i = m.markers.length - 1; i >= 0; i--) if (t >= m.markers[i].end) m.markers.splice(i, 1);
 }

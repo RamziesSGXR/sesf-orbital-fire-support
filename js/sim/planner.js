@@ -6,6 +6,7 @@ import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
 import { activeObjective, objectiveGoal, startExtract } from './objectives.js';
 import { aoScale } from './ao.js';
+import { t as tr } from '../i18n.js';
 
 const PL = () => C.plan;
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -13,7 +14,7 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 // Every optional task still open: enemy bases (not the citadel) and side missions.
 export function openTasks(m) {
   const out = [];
-  for (const b of m.bases) if (!b.destroyed && !b.fortress) out.push({ kind: 'base', ref: b, x: b.x, y: b.y });
+  for (const b of m.bases) if (!b.destroyed && !b.fortress && !b.part) out.push({ kind: 'base', ref: b, x: b.x, y: b.y });   // the citadel's bases are the objective
   for (const s of m.sides || []) if (!s.done && !s.failed) out.push({ kind: s.kind, ref: s, x: s.x, y: s.y });
   return out;
 }
@@ -83,7 +84,19 @@ function choose(m) {
     if (!tasks.length) return null;
     // a full clear only with lives to spare and the time to finish it and still get out
     const tour = tourTime(m, here, tasks), need = tour.sec + extractTime(m, tour.end);
-    const go = m.hd.lives > P.clearLives && left - need >= P.reserve;
+    const lives = m.hd.lives > P.clearLives, pl = m.plan;
+    let nearest = null, nd = Infinity;
+    for (const k of tasks) { const d = dist(here, k); if (d < nd) { nd = d; nearest = k; } }
+    // the next task alone, and still out in time
+    const oneMore = nearest && left - (travel(m, nd) + work(m, nearest) + extractTime(m, nearest)) >= P.reserve;
+    let go = lives && (left - need >= P.reserve || (pl.bought > 0 && oneMore));
+    // Lives to spare but not the time: ask the gunner for more (it costs credits; at most maxMin at a time, and they then clear what
+    // they can in it). While the question is open they make a start.
+    if (lives && !go && !pl.denied) {
+      const A = P.ask, min = Math.max(1, Math.ceil((need + P.reserve - left) / 60));
+      if (pl.ask) go = true;
+      else if ((pl.asks || 0) < A.asks && min <= A.maxMin * 3) { askTime(m, Math.min(A.maxMin, min)); go = true; }
+    }
     m.plan.full = go;
     if (!go) return null;
     let best = null, bd = Infinity;
@@ -93,11 +106,41 @@ function choose(m) {
   return null;
 }
 
-export function initPlan(m) { m.plan = { task: null, at: -99, full: false, decided: false }; }
+export function initPlan(m) { m.plan = { task: null, at: -99, full: false, decided: false, ask: null, asks: 0, denied: false, bought: 0 }; }
+
+// ---- more time for a full clear ----
+function askTime(m, min) {
+  const A = PL().ask, a = m.hdAlive[0], pl = m.plan;
+  pl.ask = { min, cost: min * A.perMin, until: m.t + A.askSec, tag: a ? m.tag(a) : '' };
+  pl.asks = (pl.asks || 0) + 1;
+  m.radio(COMMS.timeAsk(min, pl.ask.cost), 'timeask', 0);
+  m.emit('time_ask', { min, cost: pl.ask.cost });
+}
+// The gunner's answer (yes: true). Returns { ok } (or the reason it could not be done).
+export function answerTime(m, yes) {
+  const pl = m.plan, q = pl && pl.ask;
+  if (!q) return { ok: false, reason: 'none' };
+  if (yes && m.wallet.bal < q.cost) { m.emit('deny', { reason: 'funds' }); return { ok: false, reason: 'funds' }; }
+  pl.ask = null;
+  if (!yes) { pl.denied = true; m.radio(COMMS.timeNo, 'timeno', 0); m.emit('time_no', {}); pl.t = 0; return { ok: true }; }
+  m.wallet.bal -= q.cost; m.wallet.spent += q.cost;
+  m.limitSec += q.min * 60; pl.bought += q.min;
+  m.stats.timeBought = (m.stats.timeBought || 0) + q.min;
+  m.radio(COMMS.timeYes(q.min), 'timeyes', 0);
+  m.notice(tr('n.timeYes', { n: q.min, cr: q.cost }), 'good');
+  m.emit('time_yes', { min: q.min });
+  return { ok: true };
+}
+function updateAsk(m) {
+  const q = m.plan && m.plan.ask;
+  if (q && m.t >= q.until) answerTime(m, false);     // no answer is a no
+}
 
 export function updatePlan(m, dt) {
   const pl = m.plan;
+  if (pl && pl.ask && (m.over || m.phase === 'extract')) pl.ask = null;
   if (!pl || m.over || m.phase === 'extract') return;
+  updateAsk(m);
   if (!m.hdAlive.length) return;
   pl.t = (pl.t || 0) - dt;
   const cur = pl.task;

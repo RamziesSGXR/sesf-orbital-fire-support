@@ -11,6 +11,7 @@ import { canStep } from './safety.js';
 import { steer } from './terrain.js';
 import { boardingNow } from './extract.js';
 import { aoX, aoY } from './ao.js';
+import { siteAt, coverSlot } from './cover.js';
 
 function step(o, tx, ty, speed, dt) {
   const dx = tx - o.x, dy = ty - o.y, d = Math.hypot(dx, dy);
@@ -157,7 +158,18 @@ export function updateSquad(m, dt) {
     for (const a of hds) {
       if (a.mounted || a.retreat) continue;   // a Helldiver who is falling back is not drifting to his slot
       const selfEngaged = eg.nearest(a.x, a.y, C.squad.engageRange);
-      const tx = sq.ax + a.ox, ty = sq.ay + a.oy;
+      let tx = sq.ax + a.ox, ty = sq.ay + a.oy;
+      const hi = hds.indexOf(a), hn = hds.length;
+      const site = m.phase !== 'clear' ? siteAt(m, sq.ax, sq.ay) : null;
+      if (site) { const p = coverSlot(site, hi, hn); tx = p.x; ty = p.y; }          // holding a site: spread out behind its walls
+      else if (sq.base && !sq.base.destroyed) {
+        // at a base: fan out round it on the near side instead of shooting from one spot
+        const b = sq.base, d = Math.hypot(sq.ax - b.x, sq.ay - b.y);
+        if (d < b.r + C.structure.standOff + 14) {
+          const a0 = Math.atan2(sq.ay - b.y, sq.ax - b.x), ang = a0 + (hi - (hn - 1) / 2) * Math.min(0.6, 16 / Math.max(1, d));
+          tx = b.x + Math.cos(ang) * d; ty = b.y + Math.sin(ang) * d;
+        }
+      }
       const sw = steer(m.terrain, a, a.x, a.y, tx, ty, t);
       const dx = sw.x - a.x, dy = sw.y - a.y, d = Math.hypot(dx, dy);
       const keepUp = sq.fightOn && d > 4;      // fighting forward: keep with the anchor, shooting on the move

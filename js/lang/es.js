@@ -236,19 +236,21 @@ export default {
     + '<div><kbd>7</kbd> la nuke, cuando el sitio de lanzamiento esté armado</div>'
     + '<div><kbd>8</kbd> cañón de la nave: mantén <kbd>CLIC</kbd> sobre lo que veas. Munición propia.</div>'
     + '<div><kbd>G</kbd> despliegue SEAF <kbd>X</kbd> auto (limpiar el objetivo más cercano)</div>'
-    + '<div><kbd>V</kbd> mover <kbd>Z</kbd> proteger <kbd>N</kbd> atacar <kbd>C</kbd> escoltar</div>'
+    + '<div><kbd>V</kbd> mover <kbd>Z</kbd> proteger <kbd>N</kbd> atacar <kbd>C</kbd> escoltar <kbd>O</kbd> construir. Las órdenes siguen hasta que las cambies.</div>'
     + '<div class="sub">Despliegues y órdenes caen bajo el cursor, o haz clic en una orden y luego en el mapa. Haz clic en un agujero de bichos o en un objetivo para mandar a los SEAF. Una baliza de DESPLIEGUE SEAF encendida acepta un despliegue en cualquier punto del mapa.</div>'
     + '<div><kbd>TAB</kbd> siguiente escuadra <kbd>`</kbd> todas <kbd>R</kbd> trazar una maniobra <kbd>F</kbd> dividir <kbd>M</kbd> unir <kbd>Y</kbd> asignar</div>'
     + '<div class="sub">Modo trazo: arrastra sobre el mapa. Un bucle es un círculo, un trazo recto una línea, lo demás una ruta.</div>'
     + '<div><kbd>B</kbd> arsenal <kbd>ESC</kbd> pausa</div>'
     + '<div><kbd>WASD</kbd> o arrastre con clic derecho: desplazar <kbd>RUEDA</kbd> zoom <kbd>ESPACIO</kbd> cámara fija <kbd>T</kbd> térmica <kbd>H</kbd> relieve <kbd>I</kbd> info de misión</div>'
-    + '<div><kbd>L</kbd> o el minimapa: mapa táctico <kbd>U</kbd> responder a los suministros <kbd>J</kbd> ver el último aviso</div>',
+    + '<div><kbd>L</kbd> o el minimapa: mapa táctico <kbd>U</kbd> responder a los suministros <kbd>J</kbd> ver el último aviso <kbd>K</kbd> aprobar más tiempo</div>'
+    + '<div class="sub">Doble clic en un Helldiver o una escuadra SEAF de las barras para llevar la cámara hasta ellos. Flechas en el borde de la pantalla señalan a cada equipo.</div>',
   'ctl.touch': '<div><kbd>ARRASTRAR</kbd> mover el mapa bajo la mira</div>'
     + '<div><kbd>PELLIZCAR</kbd> zoom <kbd>MINIMAPA</kbd> mapa táctico</div>'
     + '<div><kbd>CARGAR</kbd> responder a los suministros <kbd>VER</kbd> ver un aviso</div>'
     + '<div><kbd>LLAMAR</kbd> lanzar el escaneo o ataque elegido bajo la mira</div>'
     + '<div><kbd>BARRA</kbd> elegir dron, orbital o nuke</div>'
-    + '<div><kbd>ÓRDENES</kbd> despliegue SEAF, auto, mover, proteger, atacar, escoltar</div>'
+    + '<div><kbd>ÓRDENES</kbd> despliegue SEAF, auto, mover, proteger, atacar, escoltar, construir. Las órdenes siguen hasta que las cambies.</div>'
+    + '<div><kbd>DOBLE TOQUE</kbd> en un Helldiver o una escuadra de las barras: la cámara va allí</div>'
     + '<div><kbd>S1-S4</kbd> elegir escuadra. <kbd>TRAZAR</kbd> y arrastra un dedo: ruta, línea o círculo. Dos dedos siguen moviendo y haciendo zoom.</div>'
     + '<div class="sub">Despliegues y órdenes caen bajo la mira. Una baliza de DESPLIEGUE SEAF encendida acepta un despliegue en cualquier punto. Cañón: elígelo en la barra y mantén LLAMAR.</div>',
 
@@ -282,7 +284,7 @@ export default {
   'kit.slot': 'Ranura orbital {n}',
   'kit.slot.b': 'Una estratagema orbital más en el equipamiento de misión.',
   'kit.uav': 'Escaneo de dron',
-  'kit.uav.b': 'Un escaneo más amplio, más largo y de recarga más rápida, y un radar más veloz.',
+  'kit.uav.b': 'Un escaneo más amplio, más largo y de recarga más rápida, y un radar más veloz. Los aliados bajo él reciben apoyo (mira las dos mejoras del dron más abajo).',
   'kit.seaf.cap': 'Barracones SEAF', 'kit.seaf.cap.b': '+{n} SEAF en tierra por nivel.',
   'kit.seaf.drop': 'Hangar de Pelican', 'kit.seaf.drop.b': 'Despliegues SEAF mayores, Pelican más rápidos.',
   'kit.seaf.hp': 'Blindaje y fusiles SEAF', 'kit.seaf.hp.b': 'Los SEAF aguantan más y pegan más fuerte.',
@@ -512,9 +514,9 @@ export default {
   'info.patrols': 'DE DÓNDE VIENE EL ENEMIGO',
   'info.patrolsV': 'Cada base enemiga mantiene una guarnición y envía patrullas por sus propias rutas, y las repone mientras sigue en pie. Las patrullas oyen al escuadrón combatir y van a por él, y algunas esperan en el camino. El enemigo también pide refuerzos: con bengalas, en los sitios de objetivo (cada vez más rápido si el escuadrón se queda) y en la extracción. Nada detiene esas llamadas, pero cada base destruida reduce las patrullas.',
   'info.sides': 'OBJETIVOS SECUNDARIOS',
-  'info.sidesV': '<b>Torre de radio:</b> un Helldiver la activa; reenciende las balizas de despliegue SEAF a su alrededor. <b>Torre de propaganda:</b> una torre enemiga que atrae a las patrullas hacia el escuadrón. Destrúyela. <b>SEAF bajo fuego:</b> una escuadra SEAF inmovilizada. Cuando los Helldivers se acercan, el enemigo se lanza sobre ellos; despéjalos y los supervivientes se unen a tus SEAF.',
+  'info.sidesV': '<b>Torre de radio:</b> un Helldiver la activa; el terreno a su alrededor queda a la vista, y se puede atacar allí, el resto de la misión. <b>Torre de propaganda:</b> una torre enemiga que atrae a las patrullas hacia el escuadrón. Destrúyela. <b>SEAF bajo fuego:</b> una escuadra SEAF inmovilizada. Cuando los Helldivers se acercan, el enemigo se lanza sobre ellos; despéjalos y los supervivientes se unen a tus SEAF.',
   'info.beacons': 'BALIZAS DE DESPLIEGUE SEAF',
-  'info.beaconsV': 'Las antenas azules del mapa. Un despliegue SEAF apuntado a una baliza encendida aterriza allí, esté donde esté el escuadrón. Se apagan a los {n} minutos de misión, salvo que una torre de radio las reencienda.',
+  'info.beaconsV': 'Las antenas azules que construye el SEAF (CONSTRUIR, luego BALIZA). Un despliegue SEAF apuntado a una aterriza allí, esté donde esté el escuadrón.',
   'info.radar': 'RADAR Y ENEMIGOS DELATADOS',
   'info.radarV': 'El dron barre todo el mapa cada pocos segundos (más rápido con mejoras): marcas tenues donde estaba cada enemigo. Un enemigo que dispara a tus aliados se delata (rombo rojo). Mantenlo delatado {n} segundos y queda fijado (corchetes blancos): tus ataques y el cañón pueden alcanzarlo en cualquier sitio.',
   'info.hits': 'IMPACTOS',
@@ -974,6 +976,43 @@ export default {
   ],
   'tip.nuke': ['Defiende el sitio hasta que la nuke esté armada. Luego dispárala donde quieras. Arrasa una zona enorme: da tiempo a tus aliados para apartarse.'],
   'tip.vip': ['Quien carga al VIP va más lento. Despeja el camino delante de la escolta.'],
-  'tip.fortress': ['La ciudadela pide refuerzos mientras la atacan. Golpéala fuerte y a menudo.'],
+  'tip.fortress': ['La ciudadela es un grupo de bases alrededor de una fortaleza, guardada por un superpesado. Las bases cercanas se envían refuerzos. Tómalas de una en una.'],
   'tip.evac': ['Los civiles caminan a campo abierto del refugio al hangar. Mantén tus ataques lejos de ellos, y al enemigo también.'],
+  // Revision 12
+  "hud.hdbarTitle": "Helldivers. Toca dos veces uno para llevar la cámara hasta él.",
+  "kit.uavb.speed": "Relé de objetivos del dron",
+  "kit.uavb.speed.b": "Los aliados bajo un dron activo se mueven más rápido.",
+  "kit.uavb.dodge": "Alerta de amenazas del dron",
+  "kit.uavb.dodge.b": "Los aliados bajo un dron activo esquivan el fuego enemigo más a menudo.",
+  "n.partDown": "BASE DE LA CIUDADELA DESTRUIDA  QUEDAN {n}",
+  "c.timeAsk": "Objetivo cumplido. Pedimos {n} minutos más para limpiar el mapa. Costará {cr} créditos.",
+  "c.timeYes": "Recibido, {n} minutos más. Limpiando el mapa.",
+  "c.timeNo": "Entendido. Rumbo a la extracción.",
+  "n.timeYes": "TIEMPO APROBADO  +{n} MIN  -{cr} CR",
+  "hud.co.timeAsk": "{who}: ¿{n} MIN MÁS? {cr} CR",
+  "hud.approve": "APROBAR",
+  "hud.declineTime": "Rechazar la petición de tiempo",
+  "hud.build": "CONSTRUIR",
+  "build.wall": "MURO",
+  "build.mg": "NIDO DE AMETR.",
+  "build.beacon": "BALIZA",
+  "hud.o.pick": "ELEGIR",
+  "hud.b.max": "MÁX {n}/{max}",
+  "hud.b.cost": "{cr} CR  {n}/{max}",
+  "n.built": "EL SEAF CONSTRUYÓ {what}  -{cr} CR",
+  "lab.sq.build": "{nm} CONSTRUYE {what} {n} %",
+  "lab.place.build": "SEAF: CONSTRUIR {what} AQUÍ",
+  "hud.q.build": "CON",
+  "hud.d.build": "CONSTRUIR",
+  "c.seafBuild.wall": "El SEAF avanza para levantar un muro.",
+  "c.seafBuild.mg": "El SEAF avanza para montar un nido de ametralladora.",
+  "c.seafBuild.beacon": "El SEAF avanza para plantar una baliza de despliegue.",
+  "info.build": "Construcciones del SEAF",
+  "info.buildV": "<b>CONSTRUIR</b> (<kbd>O</kbd>) manda a una escuadra SEAF a levantar una defensa donde apuntes. <b>Muro:</b> un anillo de cobertura tras el que resisten los soldados. <b>Nido de ametralladora:</b> una ametralladora que dispara a todo lo que esté a su alcance. <b>Baliza:</b> un punto de despliegue. Puedes enviar ahí despliegues SEAF desde cualquier lugar del mapa. Pagas cuando está terminado, y la escuadra se queda a defenderlo.",
+  "info.cover": "Cobertura",
+  "info.coverV": "Los lugares que el escuadrón tiene que defender (el sitio de lanzamiento, el de evacuación, la recogida del VIP y la zona de extracción) tienen muros bajos alrededor. Los aliados se reparten tras ellos y reciben menos daño.",
+  "info.uavBuff": "Apoyo del dron",
+  "info.uavBuffV": "Los aliados bajo un dron activo se mueven más rápido y esquivan más a menudo. El SEAF también puede esquivar, mucho menos que los Helldivers. Dos mejoras de la armería aumentan este apoyo.",
+  "info.time": "Más tiempo",
+  "info.timeV": "Cumplido el objetivo, un escuadrón con refuerzos de sobra puede pedir unos minutos más para limpiar todo el mapa. Cuesta créditos. Pulsa <kbd>K</kbd> o APROBAR para aceptar. Si no respondes, la respuesta es no.",
 };

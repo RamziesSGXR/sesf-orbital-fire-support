@@ -492,10 +492,13 @@ export function steer(tr, o, x, y, gx, gy, t) {
     const pts = tr.path(x, y, gx, gy);
     // A routine re-plan that only swaps one way round the water for the other, about as long, keeps the old route: otherwise a
     // mover halfway between two equal routes turns back and forth for ever.
-    const end = nv && nv.pts && nv.pts.length ? nv.pts[nv.pts.length - 1] : null;
-    if (pts && end && t >= nv.at && nv.i < nv.pts.length - 1 && Math.hypot(end.x - gx, end.y - gy) < 8 && pts.length
-        && routeLen(x, y, pts, 0) > routeLen(x, y, nv.pts, nv.i) * 0.85) {
+    // The same goes for a goal that has moved on a little (a slot in a moving formation): the old way round is kept, ending at the
+    // new goal, unless the new route is clearly shorter.
+    const end = nv && nv.pts && nv.pts.length ? nv.pts[nv.pts.length - 1] : null, moved = end ? Math.hypot(end.x - gx, end.y - gy) : 0;
+    if (pts && end && t >= nv.at && nv.i < nv.pts.length - 1 && moved < 40 && pts.length
+        && routeLen(x, y, pts, 0) > (routeLen(x, y, nv.pts, nv.i) + moved) * 0.85) {
       nv.at = t; nv.gx = gx; nv.gy = gy;
+      if (moved > 2) nv.pts = nv.pts.slice(0, -1).concat({ x: gx, y: gy });
     } else if (pts !== undefined) nv = o.nv = { gx, gy, at: t, pts, i: 0 };
     else if (!nv) { OUT.x = gx; OUT.y = gy; return OUT; }      // no search left this tick: try again next tick
   }

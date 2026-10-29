@@ -4,8 +4,8 @@
 //                      squad while it stands. Destroy it.
 //   SEAF under fire:   a SEAF squad dug in and pinned down. When the Helldivers come near, the enemy closes in on it; clear them off
 //                      with a Helldiver at hand and the survivors join the player's SEAF.
-// Drop beacons: a few places the player can send a SEAF drop to without a strike zone. They go dark darkSec into the mission,
-// unless a radio tower has relit them.
+// Drop beacons: places the player can send a SEAF drop to without a strike zone. SEAF build them (seaf.js); a radio tower powered
+// up keeps the ground round it in view for the rest of the mission (a relay, mission.js visLevel).
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
 import { hiddenSpot, spawnGroup } from './director.js';
@@ -56,16 +56,11 @@ export function setupSides(m) {
       m.sides.push(s);
     }
   }
-  // drop beacons, spread over the map away from the landing zone
-  const B = C.beacons, nb = Math.min(B.max, B.min + Math.floor((m.ao.size - C.ao.start) / B.perAoM));
+  // SEAF drop beacons are no longer on the map at the start: SEAF build them (seaf.js, the build order)
   m.beacons = [];
-  for (let i = 0; i < nb; i++) {
-    const p = findSpot(m, [{ x: m.lz.x, y: m.lz.y, r: aoScale(m, 230) }, ...m.beacons.map((b) => ({ x: b.x, y: b.y, r: aoScale(m, 330) })), ...m.bases.map((b) => ({ x: b.x, y: b.y, r: 80 }))], 60);
-    m.beacons.push({ id: m.nextId++, x: p.x, y: p.y, relit: false });
-  }
 }
 
-export const beaconLit = (m, b) => b.relit || m.t < C.beacons.darkSec;
+export const beaconLit = (m, b) => b.relit || b.built || m.t < C.beacons.darkSec;
 // A lit beacon a SEAF drop at (x, y) can use, or null.
 export function beaconAt(m, x, y) {
   const r2 = C.beacons.r * C.beacons.r;
@@ -85,6 +80,7 @@ function finish(m, s, ok) {
   m.radio(COMMS.sideDone(s.kind), 'sidedone', 0);
   m.notice(COMMS.sideDoneNotice(s.kind, R.reward), 'good');
   m.emit('side_done', { kind: s.kind, x: s.x, y: s.y });
+  (m.relays || (m.relays = [])).push({ x: s.x, y: s.y, r: C.relay.r, kind: s.kind });   // the ground round it stays in view
 }
 
 // A propaganda tower has been destroyed (pois.js damagePoi).

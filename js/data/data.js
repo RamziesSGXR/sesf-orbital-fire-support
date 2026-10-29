@@ -61,6 +61,7 @@ export const COMMS = {
   get seafProtect() { return t('c.seafProtect'); },
   get seafAttack() { return t('c.seafAttack'); },
   get seafEscort() { return t('c.seafEscort'); },
+  seafBuild: (w) => t('c.seafBuild.' + w),
   get seafPath() { return t('c.seafPath'); },
   get seafLine() { return t('c.seafLine'); },
   get seafRing() { return t('c.seafRing'); },
@@ -148,6 +149,9 @@ export const COMMS = {
   fullClearNotice: (cr) => t('n.fullClear', { cr }),
   get noClear() { return t('c.noClear'); },
   get clearOff() { return t('c.clearOff'); },
+  timeAsk: (n, cr) => t('c.timeAsk', { n, cr }),
+  timeYes: (n) => t('c.timeYes', { n }),
+  get timeNo() { return t('c.timeNo'); },
   get allClear() { return t('c.allClear'); },
   sideNext: (k) => t('c.sideNext.' + (['radio', 'propaganda', 'rescue'].includes(k) ? k : 'base')),
 };

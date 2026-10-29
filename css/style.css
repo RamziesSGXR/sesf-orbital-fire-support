@@ -207,6 +207,14 @@ textarea {
 .ord.ready .s { color: #7dff9b; } .ord.cd .s { color: var(--amber); } .ord.off { opacity: 0.45; } .ord.off .s { color: var(--g-dim); }
 .ord.active { border-color: var(--yellow); background: rgba(70, 60, 0, 0.7); box-shadow: 0 0 12px rgba(255, 230, 0, 0.3); } .ord.active .s { color: var(--yellow); }
 .ord:hover:not(.off) { border-color: var(--g); }
+/* the build menu: what SEAF can put up */
+#orders { grid-template-columns: repeat(7, minmax(0, 1fr)); width: min(550px, 70vw); }
+#buildmenu { position: absolute; left: calc(max(10px, env(safe-area-inset-left)) + min(550px, 70vw) + 6px); bottom: 94px; display: grid; grid-template-columns: repeat(3, 92px); gap: 4px; padding: 4px; pointer-events: auto; }
+.bld { min-width: 0; height: 50px; padding: 4px 3px; text-align: center; font: inherit; font-size: 10px; color: var(--g); background: rgba(8, 30, 16, 0.92); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; touch-action: none; }
+.bld .n { display: block; font-size: 9.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bld .s { display: block; margin-top: 5px; font-size: 10px; color: #fff; white-space: nowrap; }
+.bld.ready .s { color: #7dff9b; } .bld.poor .s { color: var(--amber); } .bld.off { opacity: 0.45; }
+.bld:hover:not(.off) { border-color: var(--g); }
 /* SEAF squads: pick one, draw it a play, split it, merge it, hand it troopers */
 #squads { position: absolute; left: max(10px, env(safe-area-inset-left)); bottom: 160px; width: min(500px, 66vw); display: grid; grid-template-columns: repeat(5, minmax(0, 1.1fr)) repeat(4, minmax(0, 1fr)); gap: 4px; padding: 4px; pointer-events: auto; }
 .sqb, .sqa {
@@ -224,6 +232,9 @@ textarea {
 .sqa.ready .n { color: #7dff9b; } .sqa.off { opacity: 0.45; }
 .sqa.active { border-color: var(--yellow); background: rgba(70, 60, 0, 0.7); box-shadow: 0 0 12px rgba(255, 230, 0, 0.3); } .sqa.active .n { color: var(--yellow); }
 .sqb:hover, .sqa:hover:not(.off) { border-color: var(--g); }
+/* Helldivers: one button per group beside the SEAF squads, in the same style (a double tap on either moves the camera there) */
+#hdbar { position: absolute; left: calc(max(10px, env(safe-area-inset-left)) + min(500px, 66vw) + 6px); bottom: 160px; width: 272px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 4px; pointer-events: auto; }
+.hdb.hurt .s { color: #ff8a6a; } .hdb.wait .s { color: var(--amber); } .hdb.empty { opacity: 0.5; }
 body.drawing #view { cursor: crosshair; }
 #flavor { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: 96px; text-align: right; font-size: 10px; color: var(--g-dim); line-height: 1.6; white-space: pre; }
 
@@ -365,6 +376,10 @@ tr.sum td { color: #fff; border-top: 1px solid var(--line); font-weight: 700; }
 /* ---------- smaller screens ---------- */
 @media (max-width: 1100px) {
   .hud-tc { width: min(440px, calc(100vw - 2 * 222px)); }
+  /* no room beside the SEAF squads: the Helldivers sit just above them */
+  #hdbar { left: max(10px, env(safe-area-inset-left)); bottom: 210px; width: min(272px, 40vw); }
+  #radio { bottom: 264px; }
+  #buildmenu { left: auto; right: max(10px, env(safe-area-inset-right)); bottom: 94px; }
 }
 @media (max-width: 760px), (max-height: 520px) {
   body { font-size: 12px; }
@@ -379,9 +394,9 @@ tr.sum td { color: #fff; border-top: 1px solid var(--line); font-weight: 700; }
   .hud-tc { width: min(330px, calc(100vw - 2 * 182px)); gap: 4px; } #objective { font-size: 11px; padding: 4px 8px; } #obj-sub { display: none; }
   #strats { gap: 3px; padding: 3px; } .sg { padding: 2px; } .sh { font-size: 7.5px; margin-bottom: 2px; } .sh b { font-size: 9px; } .sc .g { font-size: 7px; }
   .wbtn { width: auto; flex: 1; min-width: 0; height: 52px; padding: 4px 4px; } .wbtn .n { font-size: 9px; } .wbtn .sub { font-size: 10px; margin-top: 2px; }
-  #squads { bottom: 148px; } .sqb, .sqa { height: 34px; } .sqa .n { margin-top: 6px; font-size: 8.5px; } .sqb .s { margin-top: 1px; }
+  #squads { bottom: 148px; } #hdbar { bottom: 192px; } #radio { bottom: 240px; } .sqb, .sqa { height: 34px; } .sqa .n { margin-top: 6px; font-size: 8.5px; } .sqb .s { margin-top: 1px; }
   .ord { height: 40px; padding: 3px 2px; } .ord .n { font-size: 8px; margin-top: 2px; padding-right: 6px; } .ord .s { font-size: 10px; margin-top: 2px; } .ord .k { display: none; }
-  #radio { width: min(250px, 50vw); } #radio .line { font-size: 10.5px; } #flavor { display: none; }
+  #radio { width: min(250px, 50vw); bottom: 240px; } #radio .line { font-size: 10.5px; } #flavor { display: none; }
   #fire-btn { width: 88px; height: 88px; font-size: 16px; } #btn-follow { width: 88px; }
   .card { padding: 16px 14px 14px; }
   .shop-lo { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; } .slot { padding: 4px 4px 5px; font-size: 10px; } .slot .nm { padding-right: 0; font-size: 9px; letter-spacing: 0; } .slot .lv { display: none; } .slot .x { top: -2px; right: -2px; width: 24px; height: 24px; }
@@ -401,6 +416,9 @@ tr.sum td { color: #fff; border-top: 1px solid var(--line); font-weight: 700; }
   #squads { left: calc(max(8px, env(safe-area-inset-left)) + 226px); right: 112px; width: auto; bottom: 66px; gap: 3px; padding: 3px; }
   .sqb, .sqa { height: 30px; padding: 2px 1px; } .sqb .n { font-size: 10px; margin-top: 0; } .sqb .s { font-size: 8.5px; margin-top: 0; } .sqa .n { margin-top: 5px; font-size: 8px; } .sqa .k { display: none; }
   body.lefty #squads { left: 112px; right: calc(max(8px, env(safe-area-inset-right)) + 226px); }
+  #hdbar { left: calc(max(8px, env(safe-area-inset-left)) + 226px); width: min(240px, 34vw); bottom: 102px; gap: 3px; padding: 3px; }
+  body.lefty #hdbar { left: 112px; }
+  #buildmenu { left: calc(max(8px, env(safe-area-inset-left)) + 226px); right: auto; bottom: 140px; }
   #radio { display: none; }
   #notices { width: max-content; max-width: min(250px, 34vw); } #notices .nt:nth-last-child(n+3) { display: none; }
   #btn-follow { white-space: nowrap; font-size: 10px; padding: 2px 4px; }
@@ -415,8 +433,10 @@ tr.sum td { color: #fff; border-top: 1px solid var(--line); font-weight: 700; }
   #notices { position: fixed; left: max(10px, env(safe-area-inset-left)); top: calc(max(10px, env(safe-area-inset-top)) + 330px); width: min(270px, 66vw); }
   #notices .nt:nth-last-child(n+3) { display: none; }
   #minimap { width: 80px; height: 80px; }
-  #orders { left: 6px; right: 6px; width: auto; bottom: 68px; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; padding: 3px; }
+  #orders { left: 6px; right: 6px; width: auto; bottom: 68px; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; padding: 3px; }
+  #buildmenu { left: 6px; bottom: 236px; grid-template-columns: repeat(3, minmax(0, 96px)); }
   #squads { left: 6px; right: 6px; width: auto; bottom: 118px; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px; padding: 3px; }
+  #hdbar { left: 6px; right: auto; width: min(240px, 62vw); bottom: 194px; gap: 3px; padding: 3px; }
   .sqb, .sqa { height: 32px; } .sqa .k { display: none; } .sqa .n { margin-top: 5px; }
   .ord .n { font-size: 7.5px; letter-spacing: 0; }
   #weapons { left: 6px; right: 6px; bottom: max(8px, env(safe-area-inset-bottom)); gap: 3px; transform: none; }
@@ -535,10 +555,13 @@ body.touch #tray {
 }
 body.touch #hud.tray-open #tray { display: flex; }
 body.touch.drawing #tray { display: none !important; }
+body.touch #tray #buildmenu { position: static; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; padding: 3px; background: rgba(2, 14, 7, 0.9); }
+body.touch #tray #orders { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; }
+body.touch #tray #hdbar { position: static; width: auto; gap: 3px; padding: 3px; background: rgba(2, 14, 7, 0.9); }
 body.touch #tray #squads, body.touch #tray #orders { position: static; left: auto; right: auto; bottom: auto; width: auto; gap: 3px; padding: 3px; grid-template-columns: repeat(5, minmax(0, 1fr)); background: rgba(2, 14, 7, 0.9); }
 body.touch #tray .sqb, body.touch #tray .sqa { height: 34px; }
 body.touch #tray .ord { height: 38px; } body.touch #tray .ord[data-o="seaf"] { display: none; }
-body.touch #tray .ord .n { font-size: 8px; letter-spacing: 0; padding-right: 0; margin-top: 3px; } body.touch #tray .ord .s { font-size: 10px; margin-top: 3px; }
+body.touch #tray .ord .n { font-size: 8px; letter-spacing: 0; padding-right: 0; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } body.touch #tray .ord .s { font-size: 9.5px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.02em; }
 body.touch #tray .sqa .n { margin-top: 7px; }
 body.touch #center-msg { font-size: clamp(13px, 3.6vw, 20px); }
 
@@ -670,6 +693,8 @@ body.touch #info-body { max-height: 56vh; }
 .callout .co-hp s { position: absolute; inset: 0 auto auto 0; height: 2px; background: #8fd0ff; }
 @keyframes bosspulse { 50% { box-shadow: 0 0 16px rgba(255, 80, 50, 0.55); } }
 .callout.sup { color: #9dffb8; border-color: rgba(125, 255, 155, 0.6); }
+.callout.time { color: #ffe27a; border-color: rgba(255, 226, 122, 0.65); animation: copulse 0.9s ease-in-out infinite; }
+.callout.time.poor .co-b.primary { opacity: 0.45; }
 .callout.sup.ask { animation: copulse 0.9s ease-in-out infinite; }
 @keyframes copulse { 50% { box-shadow: 0 0 14px rgba(255, 160, 80, 0.45); } }
 body.touch .callout { font-size: 10.5px; padding: 4px 6px 5px 8px; gap: 6px; }

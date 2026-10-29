@@ -10,7 +10,7 @@ import { rollLoadout } from '../data/strat.js';
 import { newKit, newWallet, seafStats, maxLives, zoneExtra, buy, loadoutIds } from '../data/kit.js';
 import { seafName } from '../data/names.js';
 import { updateSquad } from './squad.js';
-import { initSeaf, targetSquads, setSquadOrder, drawOrder, splitSquad, mergeSquad, assignNear, callPelican, pendingTroops, dropSquad } from './seaf.js';
+import { initSeaf, targetSquads, setSquadOrder, builtCount, drawOrder, splitSquad, mergeSquad, assignNear, callPelican, pendingTroops, dropSquad } from './seaf.js';
 import { updateEnemies, updateAllies } from './enemies.js';
 import { updateDirector } from './director.js';
 import { initPatrols, updatePatrols } from './patrols.js';
@@ -22,6 +22,7 @@ import { initPlayer, updatePlayer, syncSlots } from './player.js';
 import { initStrat, updateStrat, destroyAsset, mechDown } from './strat.js';
 import { setupObjectives, updateObjectives, completeObjective } from './objectives.js';
 import { setupPois, updatePois, damagePoi, damageBreach } from './pois.js';
+import { setupCover } from './cover.js';
 import { updateChatter } from './chatter.js';
 import { initKit, updateHelldivers } from './helldiver.js';
 import { buildDanger, updateEvade } from './safety.js';
@@ -38,6 +39,7 @@ import { applyDifficulty, appliedLevel, clampLevel, reward, LEVELS } from '../di
 const SIZE = C.world.size;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const ORDER_KINDS = ['auto', 'move', 'protect', 'attack', 'escort'];
+export const BUILD_KINDS = ['wall', 'mg', 'beacon'];
 const ORDER_RADIO = { auto: 'seafAuto', move: 'seafMove', protect: 'seafProtect', attack: 'seafAttack', escort: 'seafEscort', path: 'seafPath', line: 'seafLine', ring: 'seafRing' };
 // What killed an ally, by faction and size, for the death report.
 
@@ -115,7 +117,7 @@ export class Mission {
     this.deaths = [];     // the death report: every Helldiver and SEAF who fell, in order
 
     this.enemies = []; this.groups = []; this.allies = []; this.alive = []; this.hdAlive = []; this.seafAlive = [];
-    this.shells = []; this.beams = []; this.markers = []; this.pods = []; this.pelicans = []; this.incoming = []; this.uavs = [];
+    this.shells = []; this.beams = []; this.markers = []; this.pods = []; this.pelicans = []; this.incoming = []; this.uavs = []; this.relays = [];
     this.assets = []; this.zones = []; this.civs = []; this.ffz = null;
     this.pois = []; this.breaches = [];
     this.locked = [];                      // enemies that have given themselves away long enough to be hit from orbit
@@ -174,6 +176,8 @@ export class Mission {
 
     // Objectives (may add the citadel to the base list).
     setupObjectives(this, opts.objectives);
+    // Bases close together work as a cluster (director.js): each one knows its neighbours.
+    for (const b of this.bases) b.nb = this.bases.filter((q) => q !== b && Math.hypot(q.x - b.x, q.y - b.y) <= C.bases.clusterR);
 
     // Hidden extraction point.
     const exAvoid = [{ x: this.lz.x, y: this.lz.y, r: aoScale(this, C.extract.minFromLz) }, ...this.bases.map((b) => ({ x: b.x, y: b.y, r: C.extract.minFromBase }))];
@@ -188,6 +192,8 @@ export class Mission {
       if (d <= exReach) break;
     }
     this.extraction = { x: ex.x, y: ex.y, revealed: false, holdT: 0, nextWave: Infinity };
+    // Cover round the sites the squad will have to hold.
+    setupCover(this);
 
     // Points of interest SEAF can take out for credits.
     setupPois(this);
@@ -271,6 +277,24 @@ export class Mission {
     this.radio(COMMS[ORDER_RADIO[kind]], 'seaf' + kind, 1);
     this.emit('seaf_order', { kind, x, y, sq: this.seaf.sel });
     return { ok: true };
+  }
+  // Send the selected squad (one squad: the selected one, or the nearest to the spot when all are selected) to build a wall, an
+  // MG nest or a drop beacon at (x, y). Paid for when it is done.
+  seafBuild(what, x, y) {
+    if (this.over) return { ok: false, reason: 'over' };
+    const B = C.build[what];
+    if (!B) return { ok: false, reason: 'kind' };
+    const sq = targetSquads(this).filter((q) => q.n > 0);
+    if (!sq.length) return this._deny('noseaf');
+    x = aoX(this, x, 20); y = aoY(this, y, 20);
+    if (!this.terrain.isLand(x, y) || this.terrain.blocked(x, y)) return this._deny('water', COMMS.noWater);
+    if (this.wallet.bal < B.cost) return this._deny('funds');
+    if (builtCount(this, what) + sq.filter((q) => q.order.kind === 'build' && q.order.what === what).length >= B.max) return this._deny('maxed');
+    const q = sq.slice().sort((a, b) => Math.hypot(a.cx - x, a.cy - y) - Math.hypot(b.cx - x, b.cy - y))[0];
+    setSquadOrder(this, q, 'build', x, y, { what, prog: 0 });
+    this.radio(COMMS.seafBuild(what), 'seafbuild', 1);
+    this.emit('seaf_order', { kind: 'build', what, x, y, sq: q.i });
+    return { ok: true, squad: q.i };
   }
   // A freehand stroke on the map becomes a route, a line or a ring for the selected squad(s).
   seafDraw(pts) {
@@ -464,6 +488,7 @@ export class Mission {
   // What the squad can see (2), what only the player can see just beyond that (1), or nothing (0). A UAV circle counts as seen by all.
   visLevel(x, y) {
     for (const u of this.uavs) { const dx = u.x - x, dy = u.y - y; if (dx * dx + dy * dy <= u.r * u.r) return 2; }
+    for (const u of this.relays) { const dx = u.x - x, dy = u.y - y; if (dx * dx + dy * dy <= u.r * u.r) return 2; }
     let lvl = 0;
     for (const a of this.alive) {
       const dx = a.x - x, dy = a.y - y, d2 = dx * dx + dy * dy;
@@ -480,6 +505,7 @@ export class Mission {
       if (dx * dx + dy * dy <= r * r) return true;
     }
     for (const u of this.uavs) { const r = u.r + extra, dx = u.x - x, dy = u.y - y; if (dx * dx + dy * dy <= r * r) return true; }
+    for (const u of this.relays) { const r = u.r + extra, dx = u.x - x, dy = u.y - y; if (dx * dx + dy * dy <= r * r) return true; }
     return false;
   }
   // The same, but only around living Helldivers (and UAV circles): the squad's own stratagems need this.
@@ -597,14 +623,17 @@ export class Mission {
   }
   destroyBase(b) {
     b.destroyed = true; b.hp = 0;
-    this.stats.bases++;
+    if (!b.fortress && !b.part) this.stats.bases++;     // (the citadel and its bases are the objective)
     // The citadel pays out as the objective; ordinary bases are score and credits. Once the objective is done they are bonus.
     if (!b.fortress) { this.sc.bases += C.score.base; this.earn('bases', C.credits.base, b.x, b.y); }
     this.pressure = Math.max(C.pressure.floor, this.pressure * C.pressure.onBaseKill);
     for (const e of this.enemies) if (e.g.base === b) e.g.garrison = false; // survivors stop being garrison
     this.emit('base_down', { x: b.x, y: b.y, fortress: !!b.fortress });
-    if (!b.fortress) {
-      const left = this.bases.filter((x) => !x.destroyed && !x.fortress).length;
+    if (b.part) {
+      const o = this.objectives.find((x) => x.type === 'fortress'), n = o ? o.parts.filter((x) => !x.destroyed).length : 0;
+      if (n) this.notice(tr('n.partDown', { n }), 'good');
+    } else if (!b.fortress) {
+      const left = this.bases.filter((x) => !x.destroyed && !x.fortress && !x.part).length;
       this.radio(left === 0 ? COMMS.lastBase : COMMS.baseDown(left, this.baseTotal), 'basedown', 0);
     }
   }

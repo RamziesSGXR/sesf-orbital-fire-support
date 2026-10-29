@@ -7,6 +7,7 @@ import { pickNukeTarget } from './objectives.js';
 import { acceptSupply, fillSupply } from './supply.js';
 import { covered } from './combat.js';
 import { beaconLit } from './sides.js';
+import { answerTime } from './planner.js';
 
 // skill: aimNoise (metres of error on a strike), react (seconds between looks for an orbital to call), gun (the share of the time it
 // works the ship gun), orders (seconds between SEAF and UAV decisions), supply (seconds before it answers a supply request), split
@@ -254,6 +255,9 @@ export function botStep(m, bot) {
   // Supply requests: take them after a moment, then load the pod at a steady tap rate (a little faster or slower each time).
   const S = m.supply;
   if (S && S.state === 'ask' && t - S.ask.at >= bot.supply) acceptSupply(m);
+  // More time for a full clear: yes when the credits can spare it
+  const q = m.plan && m.plan.ask;
+  if (q && t >= q.until - C.plan.ask.askSec + bot.supply) answerTime(m, m.wallet.bal >= q.cost * 2);
   if (S && S.state === 'fill') {
     const f = S.fill;
     if (f.tapEvery === undefined) f.tapEvery = C.supply.slowmo * (0.28 + ((S.n * 7 + m.seed) % 5) * 0.06);   // 3.6 down to 1.9 taps a second

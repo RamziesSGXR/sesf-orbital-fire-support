@@ -44,6 +44,7 @@ export function makeRoute(m, b) {
 // How many patrols a base keeps out at once: more on later missions and as this one goes on.
 export function patrolCap(m, b) {
   const Q = P();
+  if (b.part) return 0;           // the citadel's outer bases keep their troops at home (the keep sends the patrols)
   return Math.min(Q.maxPerBase, Q.perBase + (b.fortress ? Q.fortressExtra : 0) + Math.floor(m.S / Q.perSessionMin) + Math.floor(m.t / 60 / Q.perMissionMin));
 }
 

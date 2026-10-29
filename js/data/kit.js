@@ -24,13 +24,13 @@ export function newKit() {
   for (const id of C.kit.startLoadout) owned[id] = 1;
   const loadout = Array(C.kit.slotsMax).fill('');
   C.kit.startLoadout.forEach((id, i) => { loadout[i] = id; });
-  return { slots: C.kit.slotsStart, loadout, owned, uav: 1, seaf: { cap: 0, drop: 0, hp: 0, gren: 0, rocket: 0, medic: 0, spot: 0 }, sup: { lives: 0, zone: 0 }, gun: { dmg: 0, ammo: 0, regen: 0, spread: 0 } };
+  return { slots: C.kit.slotsStart, loadout, owned, uav: 1, uavb: { speed: 0, dodge: 0 }, seaf: { cap: 0, drop: 0, hp: 0, gren: 0, rocket: 0, medic: 0, spot: 0 }, sup: { lives: 0, zone: 0 }, gun: { dmg: 0, ammo: 0, regen: 0, spread: 0 } };
 }
 // Old or partial saves are filled in rather than thrown away.
 export function fixKit(k) {
   const base = newKit();
   if (!k || typeof k !== 'object') return base;
-  const out = { ...base, ...k, seaf: { ...base.seaf, ...(k.seaf || {}) }, sup: { ...base.sup, ...(k.sup || {}) }, gun: { ...base.gun, ...(k.gun || {}) }, owned: { ...base.owned, ...(k.owned || {}) } };
+  const out = { ...base, ...k, uavb: { ...base.uavb, ...(k.uavb || {}) }, seaf: { ...base.seaf, ...(k.seaf || {}) }, sup: { ...base.sup, ...(k.sup || {}) }, gun: { ...base.gun, ...(k.gun || {}) }, owned: { ...base.owned, ...(k.owned || {}) } };
   // Anything the catalog no longer has (the old Orbital Gatling Barrage) is dropped from a save rather than carried around.
   for (const id of Object.keys(out.owned)) if (!STRATS[id]) delete out.owned[id];
   out.loadout = Array.from({ length: C.kit.slotsMax }, (_, i) => (k.loadout && out.owned[k.loadout[i]] ? k.loadout[i] : ''));
@@ -66,6 +66,11 @@ export function orbStats(id, level = 1) {
 export const uavStats = (lvl = 1) => {
   const i = Math.max(1, Math.min(C.uav.r.length, lvl)) - 1;
   return { r: C.uav.r[i], sec: C.uav.sec[i], cd: C.uav.cd[i] };
+};
+// What a UAV overhead does for the allies under it: extra speed and extra dodge chance, by the two upgrade tracks.
+export const uavBuff = (kit) => {
+  const b = (kit && kit.uavb) || { speed: 0, dodge: 0 }, at = (arr, l) => arr[Math.max(0, Math.min(arr.length - 1, l | 0))];
+  return { speed: at(C.uav.speed, b.speed), dodge: at(C.uav.dodge, b.dodge) };
 };
 export function seafStats(kit) {
   const s = kit.seaf, K = C.kit;
@@ -128,6 +133,10 @@ export function shopItems(kit) {
   }
   // UAV
   items.push({ id: 'uav', section: 'uav', name: t('kit.uav'), blurb: t('kit.uav.b'), level: kit.uav, max: C.uav.r.length, cost: kit.uav >= C.uav.r.length ? null : price(350 * kit.uav), live: true });
+  for (const k of ['speed', 'dodge']) {
+    const lvl = (kit.uavb && kit.uavb[k]) || 0, mx = C.uav.buffMax;
+    items.push({ id: `uavb.${k}`, section: 'uav', ...named(`uavb.${k}`), level: lvl, max: mx, cost: lvl >= mx ? null : price(C.uav.buffPrice * (lvl + 1)), live: true });
+  }
   for (const [k, u] of Object.entries(SEAF_UP)) {
     const lvl = kit.seaf[k];
     items.push({ id: `seaf.${k}`, section: k === 'medic' || k === 'spot' || k === 'gren' || k === 'rocket' ? 'specialists' : 'seaf', ...named(`seaf.${k}`), level: lvl, max: u.max, cost: lvl >= u.max ? null : price(u.price * (lvl + 1)), live: true });
@@ -152,6 +161,7 @@ export function buy(kit, wallet, id, inMission = false) {
   else if (kind === 'own') { kit.owned[arg] = 1; equip(kit, arg); }
   else if (kind === 'up') kit.owned[arg] = Math.min(MAXL, kit.owned[arg] + 1);
   else if (kind === 'uav') kit.uav++;
+  else if (kind === 'uavb') { kit.uavb = kit.uavb || { speed: 0, dodge: 0 }; kit.uavb[arg] = (kit.uavb[arg] || 0) + 1; }
   else if (kind === 'seaf') kit.seaf[arg]++;
   else if (kind === 'gun') kit.gun[arg]++;
   else if (kind === 'sup') kit.sup[arg]++;

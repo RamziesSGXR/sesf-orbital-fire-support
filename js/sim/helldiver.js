@@ -4,6 +4,7 @@
 // Every number is in CONFIG.hd.
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
+import { uavBuff } from '../data/kit.js';
 import { aoX, aoY } from './ao.js';
 import { fireShot, blocker } from './combat.js';
 import { bark } from './chatter.js';
@@ -24,7 +25,8 @@ export function initKit(m, a) {
 }
 
 // How fast a Helldiver moves relative to normal: a stim is a burst of speed.
-export const speedMul = (m, a) => (m.t < a.stimUntil ? K.stimSpeed : 1) * (m.supply && m.t < m.supply.boostUntil ? C.supply.boostSpeed : 1);
+export const underUav = (m, a) => a.uavAt !== undefined && m.t - a.uavAt < 0.25;
+export const speedMul = (m, a) => (m.t < a.stimUntil ? K.stimSpeed : 1) * (m.supply && m.t < m.supply.boostUntil ? C.supply.boostSpeed : 1) * (underUav(m, a) ? 1 + uavBuff(m.kit).speed : 1);
 
 export function useStim(m, a) {
   if (a.stims <= 0 || m.t < a.stimReady) return false;

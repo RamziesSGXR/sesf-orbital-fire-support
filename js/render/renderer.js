@@ -3,7 +3,7 @@ import { CONFIG as C } from '../config.js';
 import { SUBTYPES } from '../data/data.js';
 import { scorch, makeDecals, mark } from './terrain.js';
 import { drawZones, drawMarkers, drawObjectives, drawAssets, drawEnemyExtras, drawPois, drawUavs, drawPings } from './world.js';
-import { drawSquadOrders, drawSeafMark, drawStroke, drawPelicans, drawMiniSeaf, seafTargets, squadsInUse } from './squads.js';
+import { drawSquadOrders, drawSeafMark, drawStroke, drawPelicans, drawMiniSeaf, seafTargets, squadsInUse, squadColor } from './squads.js';
 
 import { slotStats } from '../sim/player.js';
 import { drawAllyBody, drawEnemyBody, enemyR, drawBossBody, bossR } from './units.js';
@@ -12,7 +12,7 @@ import { OPS } from '../data/data.js';
 import { t as tr } from '../i18n.js';
 import { beaconAt } from '../sim/sides.js';
 import { drawFlares, drawHoles, drawDrops, drawFfz, drawEvac, drawExtraction, critText, drawSupply } from './reinf.js';
-import { drawBaseArt, drawBaseRuin } from './sites.js';
+import { drawBaseArt, drawBaseRuin, drawCover, drawCitadelWalls } from './sites.js';
 import { todAt, skyTint, destroyerShadows, drawDestroyerShadow } from './sky.js';
 
 const SIZE = C.world.size;
@@ -124,6 +124,13 @@ export class Renderer {
           break;
         }
         if (ev.r >= 1.5) fx.push({ k: 'flash', x: ev.x, y: ev.y, r: Math.max(2, ev.r), t0: now, life: 0.22 + ev.r * 0.012, a: flash, col: ecol });
+        if (ev.by === 'player' && ev.r >= 3 && fx.length < 260) {
+          // an orbital shell: a shockwave, debris thrown out and a slow column of smoke
+          fx.push({ k: 'shock', x: ev.x, y: ev.y, r: ev.r * 2.2, t0: now, life: 0.35, a: flash });
+          const n = Math.min(10, 4 + Math.round(ev.r / 2));
+          for (let i = 0; i < n; i++) { const ang = Math.random() * TAU, sp = ev.r * (1.2 + Math.random() * 1.6); fx.push({ k: 'debris', x: ev.x, y: ev.y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, t0: now, life: 0.5 + Math.random() * 0.4 }); }
+          fx.push({ k: 'smoke', x: ev.x, y: ev.y, r: ev.r * 1.3, t0: now + 0.1, life: ev.big ? 4 : 2.6, drift: (Math.random() - 0.5) * 3 });
+        }
         if (ev.r >= 3.5) fx.push({ k: 'ring', x: ev.x, y: ev.y, r: ev.r * 1.4, t0: now, life: 0.55, a: flash, col: ecol });
         if (ev.r >= 2.5) this._scorch(ev.x, ev.y, ev.r * (ev.r >= 6 ? 1 : 0.7), black);
         if (ev.r >= 10) this.shake = Math.min(12, this.shake + ev.r * 0.35);
@@ -139,6 +146,12 @@ export class Renderer {
       }
       case 'flyby': fx.push({ k: 'fly', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, t0: now + Math.max(0, ev.at - m.t), life: ev.dur }); break;
       case 'strat_call': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 26, t0: now, life: 0.8, a: 1, col: '#ffe600' }); break;
+      case 'strike_call':
+        // the destroyer paints the target: a targeting laser from the sky, brackets closing in, and a ring
+        fx.push({ k: 'paint', x: ev.x, y: ev.y, t0: now, life: 1.1, a: flash });
+        fx.push({ k: 'lock', x: ev.x, y: ev.y, r: 14, t0: now, life: 0.9 });
+        fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 26, t0: now, life: 0.8, a: 1, col: '#ffe600' });
+        break;
       case 'asset_new': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 14, t0: now, life: 0.7, a: 1, col: this.allyColor() }); fx.push({ k: 'flash', x: ev.x, y: ev.y, r: 7, t0: now, life: 0.35, a: flash }); break;
       case 'asset_down':
         if (ev.why === 'killed') fx.push({ k: 'x', x: ev.x, y: ev.y, r: 7, t0: now, life: 1.4, col: '#ff4a4a' });
@@ -283,6 +296,9 @@ export class Renderer {
     // The extraction pad and its pelican
     drawExtraction(ctx, m, now, px, labels, scale);
 
+    // Cover at the sites the squad holds, and the citadel's walls
+    drawCover(ctx, m, px);
+    drawCitadelWalls(ctx, m, pal.enemy, px);
     // Bases: always known from orbit.
     const sqBase = m.squad.base, tgBs = seafTargets(m);
     for (const b of m.bases) {
@@ -383,14 +399,16 @@ export class Renderer {
       const sp = bc || (ui.snap && k !== 'seaf' ? ui.snap(ui.aim.x, ui.aim.y) : ui.aim), ax = sp.x, ay = sp.y;
       const covered = k === 'seaf' ? !!bc || m.inZone(ax, ay, -5) : true;
       const col = !covered ? '#ff4a4a' : pal.ally;
-      const R = k === 'protect' ? C.seaf.protectR : k === 'move' ? C.seaf.patrolRadius : k === 'attack' ? 24 : k === 'assign' ? C.seaf.assignR : 22;
+      const bk = k.startsWith('build:') ? k.slice(6) : null;
+      const R = bk ? C.build.r : k === 'protect' ? C.seaf.protectR : k === 'move' ? C.seaf.patrolRadius : k === 'attack' ? 24 : k === 'assign' ? C.seaf.assignR : 22;
       ctx.strokeStyle = col; ctx.lineWidth = px(2); ctx.setLineDash([px(6), px(5)]); ctx.lineDashOffset = -now * px(12);
       ctx.beginPath(); ctx.arc(ax, ay, R, 0, TAU); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
       ctx.fillStyle = col; this._diamond(ctx, ax, ay, Math.max(px(6), 3.5));
-      labels.push({ x: ax, y: ay, dy: 38, text: !covered ? tr('ret.noCover') : k === 'assign' ? tr('lab.assign', { n: m.seaf.sel + 1 }) : k === 'seaf' ? tr(bc ? 'lab.dropBeacon' : 'lab.beacon') : tr('lab.place.' + k), col , pri: 3 });
+      labels.push({ x: ax, y: ay, dy: 38, text: !covered ? tr('ret.noCover') : bk ? tr('lab.place.build', { what: tr('build.' + bk) }) : k === 'assign' ? tr('lab.assign', { n: m.seaf.sel + 1 }) : k === 'seaf' ? tr(bc ? 'lab.dropBeacon' : 'lab.beacon') : tr('lab.place.' + k), col , pri: 3 });
     }
 
-    // Effects
+    // Effects, and the player's orbital shells coming down
+    this._incoming(ctx, m, now, px);
     this._effects(ctx, now, px);
 
     // ---- screen space ----
@@ -419,6 +437,7 @@ export class Renderer {
     };
     for (const a of m.alive) hole(a.x, a.y, a.vision, 0.8);
     for (const u of m.uavs) hole(u.x, u.y, u.r, 0.9);
+    for (const u of m.relays || []) hole(u.x, u.y, u.r, 0.85);
     fc.globalCompositeOperation = 'source-over';
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(this.fog, 0, 0, this.W, this.H);
@@ -428,6 +447,7 @@ export class Renderer {
     const cs = this._zc || (this._zc = []); cs.length = 0;
     for (const a of m.alive) cs.push(a.x * scale + tx, a.y * scale + ty, a.zone * scale);
     for (const u of m.uavs) cs.push(u.x * scale + tx, u.y * scale + ty, u.r * scale);
+    for (const u of m.relays || []) cs.push(u.x * scale + tx, u.y * scale + ty, u.r * scale);
     const n = cs.length / 3, W = this.W, H = this.H, lw = Math.max(1.2, 1.5 * this.dpr);
     ctx.strokeStyle = 'rgba(157,255,184,0.55)'; ctx.lineWidth = lw;
     ctx.beginPath();
@@ -642,6 +662,34 @@ export class Renderer {
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, TAU); ctx.fill();
         ctx.strokeStyle = `rgba(255,255,255,${0.9 * (1 - p)})`; ctx.lineWidth = px(3); ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (0.2 + 0.9 * p), 0, TAU); ctx.stroke();
         ctx.strokeStyle = `rgba(255,170,80,${0.6 * (1 - p)})`; ctx.lineWidth = px(2); ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (0.1 + 0.6 * p), 0, TAU); ctx.stroke();
+      } else if (f.k === 'paint') {
+        // the targeting laser: a flickering line from high above down onto the mark, and a hot dot where it lands
+        const on = p < 0.75 ? 1 : (1 - p) / 0.25, fl = 0.7 + 0.3 * Math.sin(now * 60), top = 240;
+        const g = ctx.createLinearGradient(f.x, f.y - top, f.x, f.y);
+        g.addColorStop(0, 'rgba(255,60,40,0)'); g.addColorStop(1, `rgba(255,70,50,${0.85 * on * fl * (f.a ?? 1)})`);
+        ctx.strokeStyle = g; ctx.lineWidth = px(2.2); ctx.beginPath(); ctx.moveTo(f.x + top * 0.18, f.y - top); ctx.lineTo(f.x, f.y); ctx.stroke();
+        ctx.fillStyle = `rgba(255,90,70,${0.9 * on * fl})`; ctx.beginPath(); ctx.arc(f.x, f.y, px(3.2), 0, TAU); ctx.fill();
+        ctx.strokeStyle = `rgba(255,120,90,${0.6 * on})`; ctx.lineWidth = px(1.2); ctx.beginPath(); ctx.arc(f.x, f.y, px(6 + 6 * ((now * 3) % 1)), 0, TAU); ctx.stroke();
+      } else if (f.k === 'lock') {
+        // four brackets closing in and turning as the target is locked
+        const q = Math.min(1, p * 1.6), r = f.r * (1.8 - 0.8 * q), rot = (1 - q) * 0.8, l = r * 0.45;
+        ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(rot);
+        ctx.strokeStyle = `rgba(255,230,0,${0.95 * (1 - Math.max(0, p - 0.7) / 0.3)})`; ctx.lineWidth = px(2);
+        ctx.beginPath();
+        for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { ctx.moveTo(sx * r, sy * (r - l)); ctx.lineTo(sx * r, sy * r); ctx.lineTo(sx * (r - l), sy * r); }
+        ctx.stroke(); ctx.restore();
+      } else if (f.k === 'shock') {
+        ctx.strokeStyle = `rgba(255,250,235,${0.75 * a})`; ctx.lineWidth = px(3) * (1 - p) + px(0.5);
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (0.25 + 0.75 * Math.sqrt(p)), 0, TAU); ctx.stroke();
+      } else if (f.k === 'debris') {
+        const e = 1 - (1 - p) * (1 - p), x = f.x + f.vx * e, y = f.y + f.vy * e - Math.sin(Math.PI * p) * 3;
+        ctx.strokeStyle = `rgba(255,${180 + Math.round(60 * (1 - p))},120,${0.9 * (1 - p)})`; ctx.lineWidth = Math.max(px(1.4), 0.3);
+        ctx.beginPath(); ctx.moveTo(x - f.vx * 0.12, y - f.vy * 0.12); ctx.lineTo(x, y); ctx.stroke();
+      } else if (f.k === 'smoke') {
+        const r = f.r * (0.6 + 0.9 * p), y = f.y - p * 6, x = f.x + f.drift * p;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, `rgba(60,64,60,${0.35 * (1 - p)})`); g.addColorStop(1, 'rgba(60,64,60,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
       } else if (f.k === 'ring') {
         ctx.strokeStyle = this._rgba(f.col || '#ffffff', 0.8 * a); ctx.lineWidth = px(1.8);
         ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (0.3 + 0.7 * p), 0, TAU); ctx.stroke();
@@ -664,6 +712,27 @@ export class Renderer {
         ctx.strokeStyle = this._rgba(f.col, a); ctx.lineWidth = px(2);
         ctx.beginPath(); ctx.moveTo(f.x - r, f.y - r); ctx.lineTo(f.x + r, f.y + r); ctx.moveTo(f.x + r, f.y - r); ctx.lineTo(f.x - r, f.y + r); ctx.stroke();
       }
+    }
+  }
+
+  // The last moments of every orbital shell: a glowing round streaking down out of the sky (screen-up is the sky) with its trail,
+  // and a shrinking ring on the ground where it will hit.
+  _incoming(ctx, m, now, px) {
+    const t = m.t, fall = 0.75;
+    for (const sh of m.shells) {
+      if (sh.quiet || sh.by !== 'player') continue;
+      const left = sh.at - t;
+      if (left <= 0 || left > fall) continue;
+      const q = 1 - left / fall, h = (sh.nuke ? 260 : sh.big ? 170 : 120) * (1 - q), x = sh.x + h * 0.18, y = sh.y - h;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = `rgba(255,190,110,${0.25 + 0.3 * q})`; ctx.lineWidth = px(sh.big ? 6 : 4);
+      ctx.beginPath(); ctx.moveTo(x + 9, y - 50); ctx.lineTo(x, y); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,250,230,0.95)'; ctx.lineWidth = px(sh.big ? 2.4 : 1.6);
+      ctx.beginPath(); ctx.moveTo(x + 3, y - 16); ctx.lineTo(x, y); ctx.stroke();
+      ctx.lineCap = 'butt';
+      ctx.fillStyle = '#fffdf0'; ctx.beginPath(); ctx.arc(x, y, px(sh.big ? 3.4 : 2.4), 0, TAU); ctx.fill();
+      ctx.strokeStyle = `rgba(255,120,60,${0.35 + 0.5 * q})`; ctx.lineWidth = px(1.4);
+      ctx.beginPath(); ctx.arc(sh.x, sh.y, Math.max(px(3), (sh.splash || 3) * (1.4 - q)), 0, TAU); ctx.stroke();
     }
   }
 
@@ -725,7 +794,7 @@ export class Renderer {
     try {
       const cv = this.cv || document.getElementById('view');
       const cr = cv.getBoundingClientRect(), k = this.W / cr.width;
-      for (const sel of ['#weapons', '#orders', '#squads', '#strats', '#objective', '#touch-ctl', '.hud-tl', '#notices', '.hud-tr']) {
+      for (const sel of ['#weapons', '#orders', '#squads', '#hdbar', '#strats', '#objective', '#touch-ctl', '.hud-tl', '#notices', '.hud-tr']) {
         const el = document.querySelector(sel);
         if (!el || el.offsetParent === null) continue;
         const r = el.getBoundingClientRect();
@@ -740,7 +809,19 @@ export class Renderer {
   _edgeArrows(ctx, m, w2sx, w2sy, scale, ui) {
     const W = this.W, H = this.H, pad = 34 * this.dpr, d = this.dpr;
     const items = [];
-    if (m.alive.length) items.push({ x: m.cx, y: m.cy, col: this.allyColor(), label: m.hdAlive.length ? tr('lab.squad') : 'SEAF' });
+    // every team: each Helldiver in its group colour, and each SEAF squad in its squad colour
+    // (Helldivers standing together share one arrow, with a dot in each one's colour, so the edge does not fill up)
+    const hg = [];
+    for (const a of m.hdAlive) {
+      const tm = m.teams[a.team], col = tm ? tm.color : this.allyColor();
+      const g = hg.find((q) => Math.hypot(q.x - a.x, q.y - a.y) < 40);
+      if (g) { g.tags.push(m.tag(a)); g.cols.push(col); } else hg.push({ x: a.x, y: a.y, tags: [m.tag(a)], cols: [col] });
+    }
+    for (const g of hg) items.push({ x: g.x, y: g.y, col: g.cols[0], cols: g.cols, label: g.tags.join(' '), team: true });
+    const sq = new Map();
+    for (const a of m.seafAlive) { const q = sq.get(a.sq) || { x: 0, y: 0, n: 0 }; q.x += a.x; q.y += a.y; q.n++; sq.set(a.sq, q); }
+    const many = sq.size > 1 || m.seaf.sel >= 0;
+    for (const [i, q] of sq) items.push({ x: q.x / q.n, y: q.y / q.n, col: many ? squadColor(i) : this.allyColor(), label: many ? `S${i + 1}` : 'SEAF', team: true });
     const ao = m.objectives.find((o) => !o.done), task = m.plan && m.plan.task;
     if (task && task.kind !== 'main') items.push({ x: task.x, y: task.y, col: task.kind === 'base' ? '#c8d2cc' : '#7fd8ff', label: tr(TASK_LABEL[task.kind] || 'lab.base') });
     if (m.phase === 'objective' && ao) {
@@ -786,14 +867,22 @@ export class Renderer {
       placed.push({ x: ax, y: ay });
       ctx.save(); ctx.translate(ax, ay); ctx.rotate(ang);
       ctx.fillStyle = it.col; ctx.globalAlpha = 0.9;
-      ctx.beginPath(); ctx.moveTo(10 * d, 0); ctx.lineTo(-6 * d, -7 * d); ctx.lineTo(-6 * d, 7 * d); ctx.closePath(); ctx.fill();
+      const z = it.team ? 1.35 : 1;   // teams get a bigger arrow with a dark edge, so they read over any ground
+      ctx.beginPath(); ctx.moveTo(10 * d * z, 0); ctx.lineTo(-6 * d * z, -7 * d * z); ctx.lineTo(-6 * d * z, 7 * d * z); ctx.closePath(); ctx.fill();
+      if (it.team) { ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 1.5 * d; ctx.stroke(); }
       ctx.restore();
+      if (it.cols && it.cols.length > 1) {          // one dot per Helldiver sharing the arrow
+        it.cols.forEach((c, i) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(ax - Math.cos(ang) * 14 * d + (i - (it.cols.length - 1) / 2) * 6 * d * Math.sin(ang), ay - Math.sin(ang) * 14 * d - (i - (it.cols.length - 1) / 2) * 6 * d * Math.cos(ang), 2.4 * d, 0, TAU); ctx.fill(); });
+      }
       const dist = Math.round(Math.hypot(it.x - ui.cam.x, it.y - ui.cam.y));
       const text = document.body.classList.contains('touch') && !it.obj && !it.far ? it.label : `${it.label} ${dist}M`;   // phones: a distance only for the objective
+      if (it.team) { ctx.font = `bold ${Math.round(11 * d)}px ui-monospace, Menlo, Consolas, monospace`; ctx.lineWidth = 3 * d; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; }
       ctx.globalAlpha = 0.9; ctx.fillStyle = it.col;
       ctx.textAlign = ax > W / 2 ? 'right' : 'left';
       const tx2 = ax + (ax > W / 2 ? -14 * d : 14 * d), ty2 = Math.max(14 * d, Math.min(H - 8 * d, ay + 4 * d));
+      if (it.team) ctx.strokeText(text, tx2, ty2);
       ctx.fillText(text, tx2, ty2);
+      ctx.font = `${Math.round(10 * d)}px ui-monospace, Menlo, Consolas, monospace`;
       ctx.globalAlpha = 1;
     }
   }
@@ -995,6 +1084,8 @@ export class Renderer {
     for (const a of m.alive) { c.beginPath(); c.arc(a.x * k, a.y * k, a.vision * k, 0, TAU); c.fill(); }
     c.strokeStyle = 'rgba(157,255,184,0.9)'; c.lineWidth = 1.5; c.fillStyle = 'rgba(125,255,155,0.12)';
     for (const u of m.uavs) { c.beginPath(); c.arc(u.x * k, u.y * k, u.r * k, 0, TAU); c.fill(); c.stroke(); }
+    c.fillStyle = 'rgba(127,216,255,0.1)'; c.strokeStyle = 'rgba(127,216,255,0.55)'; c.lineWidth = 1;
+    for (const u of m.relays || []) { c.beginPath(); c.arc(u.x * k, u.y * k, u.r * k, 0, TAU); c.fill(); c.stroke(); }
     // Bases are always known
     for (const b of m.bases) {
       c.lineWidth = 2;
@@ -1090,11 +1181,14 @@ export class Renderer {
     drawMiniSeaf(c, m, k, ac, ec);
     // Helldivers, with each one's ping in its group color
     c.fillStyle = ac;
+    // (big and outlined so they stand out on the minimap; the tactical map adds each one's letter)
     for (const a of m.hdAlive) {
-      const tm = m.teams[a.team], col = tm ? tm.color : '#ffe600';
+      const tm = m.teams[a.team], col = tm ? tm.color : '#ffe600', x = a.x * k, y = a.y * k, r = big ? 5 : 6;
       if (a.ping) { c.strokeStyle = col; c.lineWidth = 1.5; c.beginPath(); c.arc(a.ping.x * k, a.ping.y * k, 3.5, 0, TAU); c.stroke(); }
-      c.fillStyle = ac; c.beginPath(); c.arc(a.x * k, a.y * k, 3.5, 0, TAU); c.fill();
-      c.strokeStyle = col; c.lineWidth = 1.5; c.beginPath(); c.arc(a.x * k, a.y * k, 4.8, 0, TAU); c.stroke();
+      c.fillStyle = 'rgba(0,0,0,0.85)'; c.beginPath(); c.arc(x, y, r + 2.6, 0, TAU); c.fill();
+      c.fillStyle = col; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill();
+      c.fillStyle = '#ffffff'; c.beginPath(); c.arc(x, y, r * 0.4, 0, TAU); c.fill();
+      if (big && tm) { c.font = 'bold 11px ui-monospace, Menlo, Consolas, monospace'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,0.85)'; c.strokeText(tm.letter, x, y - r - 5); c.fillStyle = col; c.fillText(tm.letter, x, y - r - 5); c.textAlign = 'left'; }
     }
   }
 

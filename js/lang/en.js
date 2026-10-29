@@ -236,19 +236,21 @@ export default {
     + '<div><kbd>7</kbd> the nuke, once the launch site is armed</div>'
     + '<div><kbd>8</kbd> ship gun: hold <kbd>CLICK</kbd> on anything in sight. It has its own ammo.</div>'
     + '<div><kbd>G</kbd> SEAF drop <kbd>X</kbd> auto (clear the nearest target)</div>'
-    + '<div><kbd>V</kbd> move <kbd>Z</kbd> protect <kbd>N</kbd> attack <kbd>C</kbd> escort</div>'
+    + '<div><kbd>V</kbd> move <kbd>Z</kbd> protect <kbd>N</kbd> attack <kbd>C</kbd> escort <kbd>O</kbd> build. Orders stay until you change them.</div>'
     + '<div class="sub">Drops and orders land at the cursor, or click an order, then the map. Click a bug hole or a target to send SEAF at it. A lit SEAF DROP beacon takes a drop anywhere on the map.</div>'
     + '<div><kbd>TAB</kbd> next squad <kbd>`</kbd> all squads <kbd>R</kbd> draw a play <kbd>F</kbd> split <kbd>M</kbd> merge <kbd>Y</kbd> assign</div>'
     + '<div class="sub">Draw mode: drag on the map. A loop is a ring, a straight stroke a line, anything else a route.</div>'
     + '<div><kbd>B</kbd> armory <kbd>ESC</kbd> pause</div>'
     + '<div><kbd>WASD</kbd> or right-drag pan <kbd>WHEEL</kbd> zoom <kbd>SPACE</kbd> camera lock <kbd>T</kbd> thermal <kbd>H</kbd> relief <kbd>I</kbd> mission info</div>'
-    + '<div><kbd>L</kbd> or the minimap: tactical map <kbd>U</kbd> answer a supply request <kbd>J</kbd> look at the latest callout</div>',
+    + '<div><kbd>L</kbd> or the minimap: tactical map <kbd>U</kbd> answer a supply request <kbd>J</kbd> look at the latest callout <kbd>K</kbd> approve more time</div>'
+    + '<div class="sub">Double-click a Helldiver or a SEAF squad on the bars to move the camera to them. Arrows at the screen edge point to every team.</div>',
   'ctl.touch': '<div><kbd>DRAG</kbd> slide the map under the crosshair</div>'
     + '<div><kbd>PINCH</kbd> zoom <kbd>TAP MINIMAP</kbd> tactical map</div>'
     + '<div><kbd>LOAD POD</kbd> answer a supply request <kbd>LOOK</kbd> see a callout</div>'
     + '<div><kbd>CALL</kbd> fire the selected scan or strike at the crosshair</div>'
     + '<div><kbd>BAR</kbd> pick UAV, orbital or nuke</div>'
-    + '<div><kbd>ORDERS</kbd> SEAF drop, auto, move, protect, attack, escort</div>'
+    + '<div><kbd>ORDERS</kbd> SEAF drop, auto, move, protect, attack, escort, build. Orders stay until you change them.</div>'
+    + '<div><kbd>DOUBLE TAP</kbd> a Helldiver or a squad on the bars: move the camera there</div>'
     + '<div><kbd>S1-S4</kbd> pick a squad. <kbd>DRAW</kbd>, then drag one finger: a route, line or ring. Two fingers still pan and zoom.</div>'
     + '<div class="sub">Drops and orders land at the crosshair. A lit SEAF DROP beacon takes a drop anywhere. Ship gun: pick it on the bar and hold CALL.</div>',
 
@@ -282,7 +284,7 @@ export default {
   'kit.slot': 'Orbital Slot {n}',
   'kit.slot.b': 'One more orbital stratagem in the mission loadout.',
   'kit.uav': 'UAV Scan',
-  'kit.uav.b': 'A bigger, longer, faster-recharging scan, and a faster radar sweep.',
+  'kit.uav.b': 'A bigger, longer, faster-recharging scan, and a faster radar sweep. Allies under it get a lift (see the two UAV upgrades below).',
   'kit.seaf.cap': 'SEAF Barracks', 'kit.seaf.cap.b': '+{n} SEAF on the ground per level.',
   'kit.seaf.drop': 'Pelican Hangar', 'kit.seaf.drop.b': 'Bigger SEAF drops, faster pelican turnaround.',
   'kit.seaf.hp': 'SEAF Armor and Rifles', 'kit.seaf.hp.b': 'SEAF take less damage and hit harder.',
@@ -512,9 +514,9 @@ export default {
   'info.patrols': 'WHERE THE ENEMY COMES FROM',
   'info.patrolsV': 'Every enemy base keeps a garrison and sends patrols out on its own routes, and replaces them while it stands. Patrols hear the squad fighting and come for it, and some wait on the road ahead. The enemy also calls in backup: by flare, at objective sites (faster the longer the squad stays) and at extraction. Nothing stops the backup calls, but every base you destroy thins the patrols.',
   'info.sides': 'SIDE OBJECTIVES',
-  'info.sidesV': '<b>Radio tower:</b> a Helldiver powers it up; it relights the SEAF drop beacons around it. <b>Broadcast tower:</b> an enemy tower that rallies patrols onto the squad. Destroy it. <b>SEAF under fire:</b> a pinned SEAF squad. When the Helldivers come near, the enemy closes in; clear them off and the survivors join your SEAF.',
+  'info.sidesV': '<b>Radio tower:</b> a Helldiver powers it up; the ground round it then stays in view, and strikes can be called there, for the rest of the mission. <b>Broadcast tower:</b> an enemy tower that rallies patrols onto the squad. Destroy it. <b>SEAF under fire:</b> a pinned SEAF squad. When the Helldivers come near, the enemy closes in; clear them off and the survivors join your SEAF.',
   'info.beacons': 'SEAF DROP BEACONS',
-  'info.beaconsV': 'Blue antennas on the map. A SEAF drop aimed at a lit beacon lands there, wherever the squad is. They go dark {n} minutes into the mission unless a radio tower relights them.',
+  'info.beaconsV': 'Blue antennas SEAF build (BUILD, then DROP BEACON). A SEAF drop aimed at one lands there, wherever the squad is.',
   'info.radar': 'RADAR AND REVEALED ENEMIES',
   'info.radarV': 'The UAV sweeps the whole map every few seconds (faster with upgrades): faint marks where every enemy was. An enemy that fires on your allies gives itself away (red diamond). Keep it revealed for {n} seconds and it is locked (white brackets): your strikes and the ship gun can hit it anywhere.',
   'info.hits': 'HITS',
@@ -974,6 +976,43 @@ export default {
   ],
   'tip.nuke': ['Hold the launch site until the nuke is armed. Then fire it anywhere. It flattens a huge area, so give your allies time to clear.'],
   'tip.vip': ['Whoever carries the VIP moves slower. Clear the road ahead of the escort.'],
-  'tip.fortress': ['The citadel calls for help while it is attacked. Hit it hard and often.'],
+  'tip.fortress': ['The citadel is a cluster of bases round a keep, guarded by a super heavy. Bases close together send help to each other. Take them one at a time.'],
   'tip.evac': ['Civilians walk from the shelter to the hangar in the open. Keep your strikes off them and the enemy away from them.'],
+  // Revision 12
+  "hud.hdbarTitle": "Helldivers. Double-tap one to move the camera to them.",
+  "kit.uavb.speed": "UAV Target Relay",
+  "kit.uavb.speed.b": "Allies under an active UAV move faster.",
+  "kit.uavb.dodge": "UAV Threat Warning",
+  "kit.uavb.dodge.b": "Allies under an active UAV dodge enemy fire more often.",
+  "n.partDown": "CITADEL BASE DOWN  {n} LEFT",
+  "c.timeAsk": "Objective done. Requesting {n} more minutes to clear the map. It will cost {cr} credits.",
+  "c.timeYes": "Copy, {n} more minutes. Clearing the map.",
+  "c.timeNo": "Understood. Heading for extraction.",
+  "n.timeYes": "TIME APPROVED  +{n} MIN  -{cr} CR",
+  "hud.co.timeAsk": "{who}: {n} MORE MIN TO CLEAR? {cr} CR",
+  "hud.approve": "APPROVE",
+  "hud.declineTime": "Turn down the request for more time",
+  "hud.build": "BUILD",
+  "build.wall": "WALL",
+  "build.mg": "MG NEST",
+  "build.beacon": "DROP BEACON",
+  "hud.o.pick": "PICK",
+  "hud.b.max": "MAX {n}/{max}",
+  "hud.b.cost": "{cr} CR  {n}/{max}",
+  "n.built": "SEAF BUILT {what}  -{cr} CR",
+  "lab.sq.build": "{nm} BUILDING {what} {n}%",
+  "lab.place.build": "SEAF BUILD {what} HERE",
+  "hud.q.build": "BLD",
+  "hud.d.build": "BUILD",
+  "c.seafBuild.wall": "SEAF moving up to dig in a wall.",
+  "c.seafBuild.mg": "SEAF moving up to set an MG nest.",
+  "c.seafBuild.beacon": "SEAF moving up to plant a drop beacon.",
+  "info.build": "SEAF building",
+  "info.buildV": "<b>BUILD</b> (<kbd>O</kbd>) sends a SEAF squad to put up a defense where you point. <b>Wall:</b> a ring of cover that troopers hold behind. <b>MG nest:</b> a machine gun that fires at anything in reach. <b>Drop beacon:</b> a spawn point. SEAF drops can be sent to it from anywhere. You pay when it is finished, and the squad stays to guard it.",
+  "info.cover": "Cover",
+  "info.coverV": "Sites the squad has to hold (the launch site, the evacuation site, the VIP pickup and the extraction pad) have low walls round them. Allies spread out behind them and take less damage there.",
+  "info.uavBuff": "UAV support",
+  "info.uavBuffV": "Allies under an active UAV move faster and dodge more often. SEAF can dodge too, far less often than Helldivers. Two armory upgrades make the UAV help more.",
+  "info.time": "More time",
+  "info.timeV": "Once the objective is done, a squad with lives to spare may ask for more minutes to clear the whole map. It costs credits. Press <kbd>K</kbd> or APPROVE to say yes. If you do not answer, the answer is no.",
 }

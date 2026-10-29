@@ -147,7 +147,7 @@ for (const fac of ['bugs', 'bots', 'squids']) {
     for (const e of m.enemies) {
       if (seen.has(e.id)) continue;
       seen.add(e.id); total++;
-      if (e.g.reinf || e.g.assault) continue;
+      if (e.g.reinf || e.g.assault || (e.g.bossGroup && m.boss && m.boss.guard)) continue;   // (a citadel's guardian stands at its keep)
       if (m.visLevel(e.x, e.y) > 0) inSight++;
     }
   }

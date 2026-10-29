@@ -236,19 +236,21 @@ export default {
     + '<div><kbd>7</kbd> la nuke, une fois le site de lancement armé</div>'
     + '<div><kbd>8</kbd> canon du vaisseau : maintenez <kbd>CLIC</kbd> sur tout ce qui est en vue. Munitions à part.</div>'
     + '<div><kbd>G</kbd> largage SEAF <kbd>X</kbd> auto (nettoyer la cible la plus proche)</div>'
-    + '<div><kbd>V</kbd> bouger <kbd>Z</kbd> protéger <kbd>N</kbd> attaquer <kbd>C</kbd> escorter</div>'
+    + '<div><kbd>V</kbd> bouger <kbd>Z</kbd> protéger <kbd>N</kbd> attaquer <kbd>C</kbd> escorter <kbd>O</kbd> bâtir. Les ordres restent jusqu’à ce que vous les changiez.</div>'
     + '<div class="sub">Largages et ordres tombent sous le curseur, ou cliquez un ordre puis la carte. Cliquez un trou d’insectes ou une cible pour y envoyer les SEAF. Une balise LARGAGE SEAF allumée accepte un largage n’importe où sur la carte.</div>'
     + '<div><kbd>TAB</kbd> escouade suivante <kbd>`</kbd> toutes <kbd>R</kbd> tracer une manœuvre <kbd>F</kbd> diviser <kbd>M</kbd> fusionner <kbd>Y</kbd> affecter</div>'
     + '<div class="sub">Mode tracé : glissez sur la carte. Une boucle fait un cercle, un trait droit une ligne, le reste un itinéraire.</div>'
     + '<div><kbd>B</kbd> armurerie <kbd>ÉCHAP</kbd> pause</div>'
     + '<div><kbd>ZQSD</kbd>/<kbd>WASD</kbd> ou clic droit glissé : déplacer <kbd>MOLETTE</kbd> zoom <kbd>ESPACE</kbd> caméra fixe <kbd>T</kbd> thermique <kbd>H</kbd> relief <kbd>I</kbd> infos mission</div>'
-    + '<div><kbd>L</kbd> ou la mini-carte : carte tactique <kbd>U</kbd> répondre au ravitaillement <kbd>J</kbd> voir la dernière alerte</div>',
+    + '<div><kbd>L</kbd> ou la mini-carte : carte tactique <kbd>U</kbd> répondre au ravitaillement <kbd>J</kbd> voir la dernière alerte <kbd>K</kbd> accorder du temps</div>'
+    + '<div class="sub">Double-cliquez un Helldiver ou une escouade SEAF sur les barres pour y amener la caméra. Des flèches au bord de l’écran montrent chaque équipe.</div>',
   'ctl.touch': '<div><kbd>GLISSER</kbd> faire défiler la carte sous le viseur</div>'
     + '<div><kbd>PINCER</kbd> zoom <kbd>MINI-CARTE</kbd> carte tactique</div>'
     + '<div><kbd>CHARGER</kbd> répondre au ravitaillement <kbd>VOIR</kbd> voir une alerte</div>'
     + '<div><kbd>APPEL</kbd> lancer le scan ou la frappe choisis sous le viseur</div>'
     + '<div><kbd>BARRE</kbd> choisir drone, orbitale ou nuke</div>'
-    + '<div><kbd>ORDRES</kbd> largage SEAF, auto, bouger, protéger, attaquer, escorter</div>'
+    + '<div><kbd>ORDRES</kbd> largage SEAF, auto, bouger, protéger, attaquer, escorter, bâtir. Les ordres restent jusqu’à ce que vous les changiez.</div>'
+    + '<div><kbd>DOUBLE TOUCHE</kbd> un Helldiver ou une escouade sur les barres : la caméra y va</div>'
     + '<div><kbd>S1-S4</kbd> choisir une escouade. <kbd>TRACER</kbd>, puis glissez un doigt : itinéraire, ligne ou cercle. Deux doigts déplacent et zooment.</div>'
     + '<div class="sub">Largages et ordres tombent sous le viseur. Une balise LARGAGE SEAF allumée accepte un largage n’importe où. Canon : choisissez-le sur la barre et maintenez APPEL.</div>',
 
@@ -282,7 +284,7 @@ export default {
   'kit.slot': 'Emplacement orbital {n}',
   'kit.slot.b': 'Un stratagème orbital de plus dans l’équipement de mission.',
   'kit.uav': 'Scan drone',
-  'kit.uav.b': 'Un scan plus large, plus long, qui recharge plus vite, et un radar plus rapide.',
+  'kit.uav.b': 'Un scan plus large, plus long, qui recharge plus vite, et un radar plus rapide. Les alliés dessous en profitent (voir les deux améliorations du drone ci-dessous).',
   'kit.seaf.cap': 'Casernes SEAF', 'kit.seaf.cap.b': '+{n} SEAF au sol par niveau.',
   'kit.seaf.drop': 'Hangar à Pelican', 'kit.seaf.drop.b': 'Largages SEAF plus gros, rotations plus rapides.',
   'kit.seaf.hp': 'Blindage et fusils SEAF', 'kit.seaf.hp.b': 'Les SEAF encaissent mieux et frappent plus fort.',
@@ -512,9 +514,9 @@ export default {
   'info.patrols': 'D’OÙ VIENT L’ENNEMI',
   'info.patrolsV': 'Chaque base ennemie garde une garnison et envoie des patrouilles sur ses propres itinéraires, qu’elle remplace tant qu’elle tient. Les patrouilles entendent l’escouade combattre et viennent la chercher, et certaines attendent sur la route. L’ennemi appelle aussi des renforts : par fusée, sur les sites d’objectif (de plus en plus vite si l’escouade s’attarde) et à l’extraction. Rien n’arrête ces appels, mais chaque base détruite réduit les patrouilles.',
   'info.sides': 'OBJECTIFS SECONDAIRES',
-  'info.sidesV': '<b>Tour radio :</b> un Helldiver l’allume ; elle rallume les balises de largage SEAF autour d’elle. <b>Tour de propagande :</b> une tour ennemie qui rameute les patrouilles sur l’escouade. Détruisez-la. <b>SEAF sous le feu :</b> une escouade SEAF clouée au sol. Quand les Helldivers approchent, l’ennemi se rue sur eux ; dégagez-les et les survivants rejoignent vos SEAF.',
+  'info.sidesV': '<b>Tour radio :</b> un Helldiver l’allume ; le terrain autour reste ensuite en vue, et on peut y frapper, jusqu’à la fin de la mission. <b>Tour de propagande :</b> une tour ennemie qui rameute les patrouilles sur l’escouade. Détruisez-la. <b>SEAF sous le feu :</b> une escouade SEAF clouée au sol. Quand les Helldivers approchent, l’ennemi se rue sur eux ; dégagez-les et les survivants rejoignent vos SEAF.',
   'info.beacons': 'BALISES DE LARGAGE SEAF',
-  'info.beaconsV': 'Les antennes bleues sur la carte. Un largage SEAF visé sur une balise allumée y atterrit, où que soit l’escouade. Elles s’éteignent au bout de {n} minutes, sauf si une tour radio les rallume.',
+  'info.beaconsV': 'Les antennes bleues que bâtit le SEAF (BÂTIR, puis BALISE). Un largage SEAF visé sur l’une d’elles y atterrit, où que soit l’escouade.',
   'info.radar': 'RADAR ET ENNEMIS REPÉRÉS',
   'info.radarV': 'Le drone balaie toute la carte toutes les quelques secondes (plus vite avec les améliorations) : de faibles marques là où était chaque ennemi. Un ennemi qui tire sur vos alliés se trahit (losange rouge). Gardez-le repéré {n} secondes et il est verrouillé (crochets blancs) : vos frappes et le canon peuvent le toucher n’importe où.',
   'info.hits': 'TOUCHES',
@@ -974,6 +976,43 @@ export default {
   ],
   'tip.nuke': ['Tenez le site jusqu’à ce que la nuke soit armée. Puis tirez n’importe où. Elle rase une zone énorme : laissez à vos alliés le temps de dégager.'],
   'tip.vip': ['Celui qui porte le VIP est plus lent. Dégagez la route devant l’escorte.'],
-  'tip.fortress': ['La citadelle appelle des renforts quand on l’attaque. Frappez fort et souvent.'],
+  'tip.fortress': ['La citadelle est un groupe de bases autour d’un donjon, gardé par un super lourd. Les bases proches s’envoient des renforts. Prenez-les une par une.'],
   'tip.evac': ['Les civils marchent à découvert de l’abri au hangar. Gardez vos frappes loin d’eux, et l’ennemi aussi.'],
+  // Revision 12
+  "hud.hdbarTitle": "Helldivers. Touchez deux fois pour y amener la caméra.",
+  "kit.uavb.speed": "Relais de cible du drone",
+  "kit.uavb.speed.b": "Les alliés sous un drone actif se déplacent plus vite.",
+  "kit.uavb.dodge": "Alerte de menace du drone",
+  "kit.uavb.dodge.b": "Les alliés sous un drone actif esquivent plus souvent le feu ennemi.",
+  "n.partDown": "BASE DE LA CITADELLE DÉTRUITE  {n} RESTANTES",
+  "c.timeAsk": "Objectif rempli. Demande {n} minutes de plus pour nettoyer la carte. Coût : {cr} crédits.",
+  "c.timeYes": "Reçu, {n} minutes de plus. On nettoie la carte.",
+  "c.timeNo": "Compris. Direction l’extraction.",
+  "n.timeYes": "TEMPS ACCORDÉ  +{n} MIN  -{cr} CR",
+  "hud.co.timeAsk": "{who} : {n} MIN DE PLUS ? {cr} CR",
+  "hud.approve": "ACCORDER",
+  "hud.declineTime": "Refuser la demande de temps",
+  "hud.build": "BÂTIR",
+  "build.wall": "MUR",
+  "build.mg": "NID DE MITR.",
+  "build.beacon": "BALISE",
+  "hud.o.pick": "CHOIX",
+  "hud.b.max": "MAX {n}/{max}",
+  "hud.b.cost": "{cr} CR  {n}/{max}",
+  "n.built": "LE SEAF A BÂTI : {what}  -{cr} CR",
+  "lab.sq.build": "{nm} BÂTIT {what} {n} %",
+  "lab.place.build": "SEAF : BÂTIR {what} ICI",
+  "hud.q.build": "BÂT",
+  "hud.d.build": "BÂTIR",
+  "c.seafBuild.wall": "Le SEAF monte creuser un mur.",
+  "c.seafBuild.mg": "Le SEAF monte installer un nid de mitrailleuse.",
+  "c.seafBuild.beacon": "Le SEAF monte planter une balise de largage.",
+  "info.build": "Constructions du SEAF",
+  "info.buildV": "<b>BÂTIR</b> (<kbd>O</kbd>) envoie une escouade SEAF construire une défense là où vous visez. <b>Mur :</b> un cercle de couverture derrière lequel les soldats tiennent. <b>Nid de mitrailleuse :</b> une mitrailleuse qui tire sur tout ce qui est à portée. <b>Balise :</b> un point de largage. On peut y envoyer des largages SEAF de n’importe où. Vous payez une fois l’ouvrage fini, et l’escouade reste pour le garder.",
+  "info.cover": "Couverture",
+  "info.coverV": "Les sites que l’escouade doit tenir (le site de lancement, le site d’évacuation, le point de récupération du VIP et la zone d’extraction) sont entourés de murets. Les alliés s’y répartissent et y prennent moins de dégâts.",
+  "info.uavBuff": "Appui du drone",
+  "info.uavBuffV": "Les alliés sous un drone actif se déplacent plus vite et esquivent plus souvent. Le SEAF peut aussi esquiver, bien moins souvent que les Helldivers. Deux améliorations de l’armurerie renforcent cet appui.",
+  "info.time": "Plus de temps",
+  "info.timeV": "Une fois l’objectif rempli, une escouade qui a des renforts en réserve peut demander quelques minutes de plus pour nettoyer toute la carte. Cela coûte des crédits. Appuyez sur <kbd>K</kbd> ou ACCORDER pour dire oui. Sans réponse, c’est non.",
 };
