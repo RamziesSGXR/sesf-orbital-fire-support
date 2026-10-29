@@ -1,6 +1,6 @@
 // Unit art, seen from straight above, with a clear front and back. Every unit is drawn in its own frame turned to where it faces
-// (+x is the front). Allies: a Helldiver has a helmet and rifle at the front and a cape and backpack (with its IR strobe) behind; a
-// SEAF trooper is smaller, with no cape. Enemies show their head, eyes or gun at the front; heavies carry a glowing weak spot on the
+// (+x is the front). Allies: a Helldiver has a helmet and rifle at the front and a backpack (with its IR strobe,
+// edged in the squad colour) behind; a SEAF trooper is smaller and plainer. Enemies show their head, eyes or gun at the front; heavies carry a glowing weak spot on the
 // back, where hits do the most. All sizes are in metres with a floor in screen pixels (px), so a unit reads at any zoom.
 const TAU = Math.PI * 2;
 
@@ -21,17 +21,10 @@ export function drawAllyBody(ctx, a, r, col, team, strobe, now, px) {
   ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.face || 0);
   // dark halo so the shape reads on any ground
   ctx.fillStyle = 'rgba(0,0,0,0.55)'; ell(ctx, -0.15 * r, 0, r * 1.25, r * 1.05); ctx.fill();
-  if (H && team) {
-    // the cape, trailing behind and swaying a little
-    const sw = Math.sin(now * 5 + a.id) * 0.18 * r;
-    ctx.fillStyle = rgba(team, 0.95);
-    ctx.beginPath(); ctx.moveTo(-0.15 * r, -0.62 * r); ctx.quadraticCurveTo(-1.1 * r, -0.55 * r + sw, -1.65 * r, sw * 1.6);
-    ctx.quadraticCurveTo(-1.1 * r, 0.55 * r + sw, -0.15 * r, 0.62 * r); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = px(0.8); ctx.stroke();
-  }
-  // backpack, with the strobe
+  // backpack, with the strobe; a Helldiver's is edged in its squad colour
   ctx.fillStyle = H ? '#174f86' : '#1d5a8f';
   rect(ctx, -0.82 * r, -0.42 * r, -0.28 * r, 0.42 * r); ctx.fill();
+  if (H && team) { ctx.strokeStyle = rgba(team, 0.95); ctx.lineWidth = Math.max(0.12 * r, px(1.2)); ctx.stroke(); }
   ctx.fillStyle = strobe ? '#ffffff' : 'rgba(170,215,255,0.55)';
   circ(ctx, -0.62 * r, 0, Math.max(0.16 * r, px(1.2))); ctx.fill();
   // body and shoulders
