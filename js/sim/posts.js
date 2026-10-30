@@ -95,9 +95,10 @@ export function removePost(m, p) {
 
 // ---------------------------------------------------------------- garrisons
 // The SEAF crew on a post (up to its places) leave their squad and stay with it. Returns how many.
-export function garrisonPost(m, p) {
+// sq: only troopers of that squad (a squad sent in through the post's door).
+export function garrisonPost(m, p, sq = null) {
   let n = 0;
-  const crew = m.seafAlive.filter((a) => a.inPost === p && a.sq !== GARRISON).sort((a, b) => a.id - b.id);
+  const crew = m.seafAlive.filter((a) => a.inPost === p && a.sq !== GARRISON && (sq === null || a.sq === sq)).sort((a, b) => a.id - b.id);
   const room = Math.max(0, (p.cap || 4) - p.garrison);
   for (const a of crew.slice(0, room)) { a.sqWas = a.sq; a.sq = GARRISON; a.post = p; n++; }
   p.garrison += n;
@@ -134,6 +135,8 @@ export function updatePosts(m, dt) {
     }
     p.crew = n; p.crewH = nh; p.crewS = ns;
     p.garrison = 0; for (const a of m.seafAlive) if (a.post === p) p.garrison++;
+    // a squad sent in through the door: whoever of it has got there goes in, until the post is full
+    if (ns && p.garrison < (p.cap || 0)) for (const q of m.seaf.squads) if (q.n && q.order.kind === 'post' && q.order.post === p && q.order.garrison) garrisonPost(m, p, q.i);   // (it counts them in)
     p.manned = !needsCrew(p) || n > 0;
     if (p.what === 'mg') {
       p.rate = n >= 2 ? 1 : n === 1 ? 0.6 : 0;

@@ -273,7 +273,12 @@ export function updatePlayer(m, dt) {
   p.firePress = false;
   p.prevFiring = p.firing;
   if (s.type === 'gun') updateGun(m, dt, pressed);
-  else { if (pressed && t >= p.swapUntil) fireSlot(m, p.weapon); updateGun(m, dt, false); }
+  else {
+    // a press while the weapon is still coming up waits for it (arming a weapon and clicking at once is one call, not none)
+    if (pressed && t < p.swapUntil) p.queued = p.weapon;
+    if ((pressed || p.queued === p.weapon) && t >= p.swapUntil) { p.queued = -1; fireSlot(m, p.weapon); }
+    updateGun(m, dt, false);
+  }
 
   // Shells land.
   for (let i = m.shells.length - 1; i >= 0; i--) {

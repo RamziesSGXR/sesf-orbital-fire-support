@@ -22,11 +22,12 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 On the higher difficulty levels the Helldivers can't win this alone. Left to themselves they take the objective, then run out of lives and the run ends. What you do from orbit decides whether they get out. Every minute you spend covering them is a minute you're not hitting something else, and that choice is the game.
 
+- **Select, then aim.** With no weapon armed, your cursor selects things: posts, sentries, defence sites and SEAF troopers. Press a weapon key (or tap the weapon bar) to arm it and the reticle appears; after one call the cursor goes back to selecting. Hold `Shift` while you click to keep it armed. A right click or `Esc` puts it down. The ship gun stays armed until you put it down.
 - **You run the sky.** You aim the UAV scan and the orbital strikes. Strikes can only land inside the **strike zone** around your allies or inside a UAV scan circle. Your strikes hurt friendlies, so watch where the squad is.
 - **The ship gun** (slot 8) fires anywhere you can see, needs no strike zone and never hurts allies. Hold to fire. It has its own ammo that refills by itself. It is the one weapon ready the moment a mission starts.
 - **Utilities** help the squad instead of hurting the enemy. Buy them in the armory and put them in an orbital slot: a **med pod** that heals every ally where it lands, **smoke** the enemy can't shoot through, a **shield dome**, and a **sentry**. They are safe to drop right on top of your allies.
 - **SEAF troops** are yours to command. Call a drop, split them into squads, give orders, or draw a play on the map: a route to run, a line to hold or a ring to defend. An order stays until you give another one: a squad told to escort the Helldivers keeps escorting them.
-- **The tactical menu.** Press **TACTICAL** (`O`) and time slows down while you choose. Pick something to build (`1`-`7`) or a formation for the selected squad (`Z` loose, `X` line, `C` wedge, `V` column, `B` ring).
+- **The tactical build screen.** Press **TACTICAL** at the top left (or `O`). The game waits while it is open (Settings can make it only slow down instead). A console across the bottom shows what is selected, a picture of everything SEAF can build (`1`-`7`), and the formations for the selected squad (`Z` loose, `X` line, `C` wedge, `V` column, `B` ring). The Helldivers and the SEAF squads fold away into two drop menus. Pick a build, then click (or tap) the map to put it there. Drag a box round troopers to make them a squad of their own. With a squad selected, right-click the map (tap it on a phone): on a post they man it, on an enemy they attack, anywhere else they move.
 - **SEAF build.** There is no limit on how many you put up, but each one costs credits and takes time, so each one is worth having:
   - **Foxhole** (free): light cover, and troopers in it shoot faster. It is dug, so no crate is needed.
   - **Defilade Bastions**: a full ring of walls the troops fight from.
@@ -36,9 +37,9 @@ On the higher difficulty levels the Helldivers can't win this alone. Left to the
   - **SAM site** (unlock in the armory): automatic, with the reach of a UAV scan. It shoots down dropships and warp ships.
   - **Artillery cannon** (unlock in the armory): see below.
 
-  You pay when you order it. A cargo pelican drops a crate at the spot and the squad deploys it (more hands build faster). The squad stays on what it built: if you move it away and that was its last order, it goes back. Troops at a post repair it when nothing is shooting at them. Helldivers holding nearby use the posts too. Every buildable except the foxhole is upgraded in the armory's **BUILDABLES** tab.
-- **Select a post.** Click, right-click or tap anything SEAF built, a sentry or a defence site's walls to select it. You can send the selected squad to man it, or **GARRISON** it: the crew leaves its squad and stays on that post for good, so you can move the squad on. Garrisoned troopers still count toward your SEAF total. **RELEASE** gives them back to you.
-- **Box select.** `Shift` + drag (or **SELECT**, then drag, on a phone) round SEAF troopers to make them a squad of their own, then give them an order.
+  You pay when you order it. A cargo pelican drops a crate at the spot and the squad deploys it (more hands build faster, and the **Combat Engineers** upgrade in the armory's SEAF tab makes them faster still). The squad stays on what it built: if you move it away and that was its last order, it goes back. Troops at a post repair it when nothing is shooting at them. Helldivers holding nearby use the posts too. Every buildable except the foxhole is upgraded in the armory's **BUILDABLES** tab.
+- **Select a post.** Click or tap anything SEAF built, a sentry or a defence site's walls. Its name, level and health show in a small panel just above it. Like a tower in Age of Empires, a post has a **door**: it sends the selected squad in to garrison it. As many as fit leave their squad and stay on that post for good, so you can move the squad on. Garrisoned troopers still count toward your SEAF total. Once someone is inside, a **door out** brings them back. On a defence site the door sends the squad to man its walls.
+- **Select a squad.** Click (or tap) a SEAF trooper to select his squad, or use S1-S4. On the tactical build screen, drag a box round troopers to make them a squad of their own.
 - **Troops stay in cover.** Helldivers and SEAF holding walls or a post don't step out to shoot at something they can hit from there. Pushed off, they go back.
 - **The artillery cannon** (weapon 9) fires a **mini-nuke** anywhere in its range that you can see, on a slow recharge. It hurts allies too, and it only fires while someone mans it. Unlock it in the armory and have SEAF build one, or let the squad take over an **abandoned artillery cannon** some maps have.
 - **The Helldivers** play on their own. They go for the main objective and pick up side missions that are on the way. They call their own stratagems and drop back in when one dies, as long as the squad has lives left. They get **20 lives every mission**, and the lives reset at every drop. The Helldivers can't be upgraded in the armory. Each one carries an **Ultimatum** (one round that kills almost anything it hits square; a super heavy loses a big piece) and **four grenades** for groups and heavies (about four bring a heavy down). They mark a target on the map before they use them, so you see it too, and a supply pod reloads both.
@@ -61,13 +62,14 @@ On the higher difficulty levels the Helldivers can't win this alone. Left to the
 
 | | Computer | Phone and tablet |
 |---|---|---|
-| Aim | Mouse | Drag the map under the crosshair |
-| Fire or call | Click | **CALL** button |
-| Pick a weapon | `1` UAV scan, `2`-`6` orbitals, `7` the nuke (once armed), `8` ship gun (hold to fire). `Q` / `E` cycle | Weapon bar. Hold **FIRE** for the ship gun |
+| Select | Click a post, sentry, defence site or trooper (no weapon armed) | Tap it |
+| Arm a weapon | `1` UAV scan, `2`-`6` orbitals, `7` the nuke (once armed), `8` ship gun, `9` artillery cannon. `Q` / `E` cycle. The reticle shows | Weapon bar. The crosshair shows |
+| Fire or call | Click (hold for the ship gun). The cursor then selects again; hold `Shift` to keep it armed | **CALL** button (hold for the ship gun) |
+| Put a weapon down | Right click or `Esc` | It goes down after the call |
+| Order the selected squad | Right click: a post (man it), an enemy (attack), anywhere else (move) | Tap the map on the tactical build screen |
 | Mission info | `I` or the **INFO** button | **INFO** button |
-| Tactical menu (time slows) | `O` or **TACTICAL**, then `1`-`7` to build, `Z` `X` `C` `V` `B` for a formation, `Esc` to close | **TACTICAL** in the squad panel |
-| Select a post or defence site | Click or right-click it | Tap it |
-| Select troopers | `Shift` + drag a box | **SELECT**, then drag |
+| Tactical build screen (the game waits) | `O` or **TACTICAL**, then `1`-`7` to build, `Z` `X` `C` `V` `B` for a formation, drag a box round troopers, `Esc` to close | **TACTICAL**, then tap a build and the map; drag a box with one finger, two fingers move the map |
+| Garrison a post | Select it, then its door (the door out brings them back) | Same |
 | Tactical map | `L` or click the round minimap (bottom right). Click a spot on it to look there | Tap the minimap (top right), then tap a spot to look there |
 | Supply request | `U` (or **LOAD POD**), then `1`-`3` or click the compartments; `Space` loads the next one | **LOAD POD**, then tap the compartments |
 | Look at a callout | `J` or **LOOK**: the latest supply drop or super heavy | **LOOK** |
@@ -75,22 +77,23 @@ On the higher difficulty levels the Helldivers can't win this alone. Left to the
 | Look at a super heavy | **LOOK** on its callout | **LOOK** |
 | SEAF drop | `G` at the cursor, or click **SEAF DROP** then the map | **SEAF DROP** at the crosshair |
 | SEAF squads | `Tab` next squad, `` ` `` all squads, `Shift+1`-`4` pick one, `F` split, `M` merge, `Y` add nearby troops | S1-S4 buttons |
-| SEAF orders | `X` auto, `V` move, `Z` protect, `N` attack, `C` escort, `O` tactical | Order buttons |
+| SEAF orders | `X` auto, `V` move, `Z` protect, `N` attack, `C` escort | Order buttons |
 | Move the camera to a team | Double-click its Helldiver row or SEAF squad | Double-tap it |
 | More time for a full clear | `K` or **APPROVE** | **APPROVE** |
 | Draw a play | `R`, then drag: a loop is a ring, a straight stroke is a line, anything else is a route | **DRAW**, then drag one finger |
 | Send SEAF at a target | Click a bug hole or point of interest | Tap it with an order selected |
 | Armory (upgrades) | `B` or the **ARMORY** button | **MENU**, then **ARMORY** |
-| Camera | `WASD` or right-drag to move, wheel or `+` / `-` to zoom, `Space` to follow the squad, drag on the minimap | Drag, pinch |
+| Camera | `WASD`, or drag the map (left or right button), wheel or `+` / `-` to zoom, `Space` to follow the squad, drag on the minimap | Drag, pinch |
 | Artillery cannon | `9`, once one is built or captured and someone mans it | Weapon bar |
 | Pause and look around | `P`: the game stops, but you can still move the camera, zoom, open the map and double-click a team. No menu opens. `P` again to play on | Pause button (**II**). It turns into **▶**; tap it or **RESUME** to play on |
 | Half speed | `,` or the **1×** button next to pause (it shows **½×**). Every control still works | **1×** button next to pause |
 | Menu | **MENU** or `Esc` opens the pause menu: settings, **CONTROLS**, the **FIELD MANUAL**, the armory and retire | **MENU** |
+| Hide the HUD | `F2` (again, or **SHOW UI**, brings it back) | **HIDE UI** in the menu; **SHOW UI** brings it back |
 | Other | `T` white-hot / black-hot, `H` relief map (height, water and slow ground) | Relief map in Settings |
 
-**Screen layout on a computer:** the INFO, ARMORY and MENU buttons, speed and pause are at the top left. The mission clock, number and difficulty are at the top right, with the current objective just below. The Helldivers (health, ship names, stratagems and what each one is doing) and the SEAF squads with their orders are at the bottom left, and the round minimap is at the bottom right.
+**Screen layout on a computer:** the INFO, ARMORY, TACTICAL and MENU buttons, speed and pause are at the top left, with one feed of news under them: supply requests, the super heavy and requests for more time first, then the radio and the notices. The mission clock, number and difficulty are at the top right, with the current objective just below. The Helldivers (health, ship names, stratagems and what each one is doing) and the SEAF squads with their orders are at the bottom left, and the round minimap is at the bottom right. The minimap is twice as big as it was; **Settings > Minimap size** changes it.
 
-Every panel closes with its ✕ button or `Esc`. On a phone, the squad panel stays open until you close it with its ✕ or tap the map. In **Settings** you can make the in-mission controls bigger or smaller (**UI size**), move the info cards (side or top) or turn them off. **CONTROLS** and the **FIELD MANUAL** (everything you can do, with tips) are in the menu, the pause menu, the briefing and the armory.
+Every panel closes with its ✕ button or `Esc`. On a phone, the squad panel stays open until you close it with its ✕ or tap the map. In **Settings** you can make the in-mission controls bigger or smaller (**UI size**), move the info cards (side or top) or turn them off. **CONTROLS** and the **FIELD MANUAL** (everything you can do, with tips) are in the menu (on the briefing too, through its **MENU** button) and the armory. The briefing's **CANCEL** goes back to the armory; the same mission waits for you when you deploy again.
 
 ## Missions
 
@@ -180,4 +183,4 @@ PLAY AT ORBITALFURY.COM
 
 ## Give feedback
 
-This is a work in progress, and feedback from players is how it gets better. Press **GIVE FEEDBACK** on the title screen, the pause menu or the final screen, or use **[this feedback form](https://github.com/RamziesSGXR/sesf-orbital-fire-support/issues/new?template=feedback.yml)**. Tell us what you played on, how far you got, what was fun, what was confusing or broken, and what you'd change. You'll need a free GitHub account to send it.
+This is a work in progress, and feedback from players is how it gets better. Press **FEEDBACK (DISCORD)** on the title screen, the pause menu or the final screen, or join the **[SESF Helldivers Discord](https://discord.com/invite/qruRY4nkEz)**. Tell us what you played on, how far you got, what was fun, what was confusing or broken, and what you'd change. The version you played is on the title screen and under every mission's result.

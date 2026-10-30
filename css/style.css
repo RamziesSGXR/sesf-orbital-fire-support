@@ -974,3 +974,209 @@ body.touch #hud.idle .fadeable.hot { opacity: 1; }
   body.touch #tray .tray-x { position: sticky; top: 0; z-index: 2; flex: none; }
   body.touch #tray > * { flex: none; }
 }
+
+/* ======================= 0.17 ======================= */
+:root { --mm: 2; }
+body { --mmw: min(calc(168px * var(--mm)), 38vh, 28vw); --tch: 190px; }
+@media (max-width: 1100px) { body { --mmw: min(calc(140px * var(--mm)), 36vh, 26vw); } }
+@media (max-width: 760px), (max-height: 520px) { body { --mmw: min(calc(104px * var(--mm)), 34vh, 30vw); } }
+body.touch { --mmw: min(calc(66px * var(--mm)), 30vw, 30vh); }
+
+/* the version, on the title screen and every result */
+.ver { margin: 10px 0 0; font-size: 10px; letter-spacing: 0.2em; color: var(--g-dim); text-align: center; }
+
+/* the armory: folder tabs joined to the page they open */
+.shop-tabs { display: flex; gap: 4px; margin: 8px 0 0; padding: 0 8px; flex-wrap: nowrap; border-bottom: 2px solid rgba(255, 230, 0, 0.6); }
+.shop-tabs .tab { flex: 1 1 0; min-width: 0; min-height: 42px; margin: 0 0 -2px; padding: 9px 10px 7px; border: 1px solid rgba(157, 255, 184, 0.28); border-bottom: 2px solid rgba(255, 230, 0, 0.6);
+  border-radius: 10px 10px 0 0; background: rgba(2, 10, 5, 0.85); color: var(--g-dim); opacity: 1; font-size: 12px; letter-spacing: 0.14em; box-shadow: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shop-tabs .tab:hover { color: var(--g); background: rgba(10, 34, 18, 0.9); }
+.shop-tabs .tab.on { color: var(--yellow); font-weight: 700; background: rgba(9, 30, 16, 0.97); border: 2px solid rgba(255, 230, 0, 0.6); border-bottom: 2px solid rgba(9, 30, 16, 0.97); box-shadow: 0 -4px 14px rgba(255, 230, 0, 0.12); }
+.shop-tabs .tab.can::after { top: 7px; right: 8px; }
+.shop-scroll { padding: 10px 8px 8px 10px; background: rgba(9, 30, 16, 0.97); border: 2px solid rgba(255, 230, 0, 0.6); border-top: 0; border-radius: 0 0 10px 10px; }
+body.touch .shop-tabs { padding: 0 2px; gap: 2px; } body.touch .shop-tabs .tab { font-size: 10px; letter-spacing: 0.04em; padding: 8px 4px 6px; min-height: 38px; }
+
+/* the briefing: wider on a computer, and every ship's name in full */
+.card.wide2 { width: min(96vw, 1180px); }
+.b-cols { grid-template-columns: 1.25fr 1fr; }
+.bgh { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.3; }
+.b-left .btns { flex-wrap: wrap; }
+
+/* the cursor: an arrow that selects; the reticle (no cursor) only with a weapon armed */
+#view { cursor: default; }
+body.canpick #view { cursor: pointer; }
+body.armed #view { cursor: none; }
+body.placing #view, body.drawing #view { cursor: crosshair; }
+#weapons .wbtn:not(.sel) { box-shadow: none; }
+
+/* top left: the buttons (TACTICAL is its own screen), then one feed: callouts with buttons first, then the news */
+.hud-l { width: min(430px, 40vw); }
+.tl-btns { flex-wrap: wrap; }
+.tl-btns .tacb { color: #7fd8ff; border-color: rgba(127, 216, 255, 0.6); }
+.tl-btns .tacb kbd { font-size: 9px; padding: 0 3px; border: 1px solid currentColor; border-radius: 3px; opacity: 0.8; margin-left: 2px; }
+.tl-btns .tacb.on { background: rgba(127, 216, 255, 0.22); color: #fff; }
+#feed { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; pointer-events: none; }
+#feed #callouts { position: static !important; margin: 0; align-items: flex-start; pointer-events: none; top: auto; }
+#feed .callout { pointer-events: auto; max-width: 100%; }
+#feed .callout .co-t { white-space: normal; }
+#notices { width: max-content; max-width: 100%; }
+#notices .nt:nth-last-child(n+7) { display: none; }
+#radio { display: none !important; }
+/* F2 hides the HUD; SHOW UI brings it back */
+#showui { display: none; position: absolute; top: max(8px, env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left)); pointer-events: auto; opacity: 0.55; min-height: 30px; padding: 3px 10px; font-size: 10.5px; }
+#showui:hover { opacity: 1; }
+#showui kbd { font-size: 9px; padding: 0 3px; border: 1px solid currentColor; border-radius: 3px; }
+body.hide-ui #hud > *:not(#showui) { display: none !important; }
+body.hide-ui #showui { display: block; }
+body.touch #showui kbd { display: none; }
+
+/* bottom left: the Helldivers, half as wide: designation and ship in full, health, then what they are doing and their stratagems */
+#tray #sqpanel { align-self: flex-start; width: 50%; min-width: 262px; }
+.hr { grid-template-columns: 14px minmax(0, 1fr); gap: 5px; padding: 2px 0; }
+.hr .h1 { flex-wrap: wrap; row-gap: 0; }
+.hr .hm > .hp { display: block; margin-top: 2px; }
+.hr .h3 { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 2px; }
+.hr .st { white-space: normal; min-width: 0; }
+.hr .cells { flex: none; display: grid; grid-template-columns: repeat(4, 24px); gap: 2px; }
+.hr .sc { height: 17px; }
+body.touch #tray #sqpanel { width: auto; align-self: stretch; }
+body.touch .hr .cells { grid-template-columns: repeat(4, 26px); }
+
+/* the minimap, twice as big (Settings > Minimap size) */
+#minimap, body.touch #minimap { width: var(--mmw); height: var(--mmw); }
+#infocard { bottom: calc(var(--mmw) + 58px); }
+body.lefty #infocard.dock-side { bottom: 96px; }
+@media (max-width: 1100px) { #infocard { width: min(320px, 34vw); } }
+/* phones: the objective under the clock, the buttons under the minimap, the feed under the objective */
+body.touch .hud-l { top: calc(max(8px, env(safe-area-inset-top)) + var(--mmw) * var(--ui, 1) + 10px); width: auto; }
+body.touch #feed { position: fixed; left: max(8px, env(safe-area-inset-left)); top: calc(max(8px, env(safe-area-inset-top)) + 72px); width: min(64vw, 280px); }
+body.touch #feed #notices { max-width: 100%; }
+body.touch #feed .callout { font-size: 10.5px; }
+body.touch #objective { right: calc(max(8px, env(safe-area-inset-right)) + var(--mmw) * var(--ui, 1) + 10px); }
+@media (max-width: 520px) {
+  body.touch #objective { top: calc(max(8px, env(safe-area-inset-top)) + 54px); left: max(8px, env(safe-area-inset-left)); right: calc(max(8px, env(safe-area-inset-right)) + var(--mmw) * var(--ui, 1) + 10px); max-width: none; margin: 0; text-align: left; }
+  body.touch #feed { top: calc(max(8px, env(safe-area-inset-top)) + 104px); }
+}
+
+/* the tactical build screen: a console across the bottom (what is selected, the builds, the formations); the game waits */
+#tactical { position: absolute; left: max(10px, env(safe-area-inset-left)); right: calc(max(10px, env(safe-area-inset-right)) + var(--mmw) + 22px); bottom: max(10px, env(safe-area-inset-bottom));
+  z-index: 7; padding: 6px 9px 9px; background: rgba(3, 16, 9, 0.97); border: 1px solid rgba(127, 216, 255, 0.6); border-radius: 9px; box-shadow: 0 0 26px rgba(127, 216, 255, 0.14); pointer-events: auto; }
+#tactical.hidden { display: none; }
+.tc-h { position: relative; display: flex; align-items: baseline; gap: 12px; padding: 0 32px 6px 2px; margin-bottom: 7px; border-bottom: 1px solid rgba(127, 216, 255, 0.25); }
+.tc-h b { color: #7fd8ff; letter-spacing: 0.22em; font-size: 13px; }
+.tc-state { color: var(--yellow); font-size: 10.5px; letter-spacing: 0.16em; }
+.tc-help { margin-left: auto; color: var(--g-dim); font-size: 10px; text-align: right; }
+.tc-x { position: absolute; right: -2px; top: -3px; width: 28px; height: 26px; font-size: 13px; }
+.tc-body { display: grid; grid-template-columns: minmax(170px, 230px) minmax(0, 1fr) minmax(150px, 230px); gap: 12px; align-items: start; }
+.tc-sel { min-height: 104px; padding: 7px 9px; font-size: 10.5px; line-height: 1.35; border: 1px solid var(--line); border-radius: 6px; background: rgba(0, 0, 0, 0.32); }
+.ts-h { color: var(--yellow); font-weight: 700; font-size: 12px; letter-spacing: 0.08em; }
+.ts-h i { font-style: normal; font-weight: 400; color: var(--g-dim); font-size: 10px; margin-left: 4px; }
+.ts-hp { display: block; height: 5px; margin: 5px 0 3px; background: rgba(157, 255, 184, 0.15); border-radius: 2px; overflow: hidden; } .ts-hp u { display: block; height: 100%; background: #7dff9b; text-decoration: none; }
+.ts-r { margin-top: 3px; } .ts-r b { color: #fff; font-weight: 400; }
+.ts-b { margin-top: 5px; color: var(--g-dim); }
+.ts-pips { display: flex; flex-wrap: wrap; gap: 3px; margin: 6px 0 3px; }
+.tp { width: 9px; height: 9px; border-radius: 50%; background: #9dd8ff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5); }
+.tp.r-medic { background: #7dff9b; } .tp.r-rocket { background: #ff8a4a; } .tp.r-gren { background: #ffd34a; } .tp.r-spotter { background: #c58bff; }
+.tc-l { font-size: 9.5px; letter-spacing: 0.24em; color: #7fd8ff; margin-bottom: 5px; }
+.tc-grid.tac-build { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.tc-grid.tac-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+#tactical .bld { position: relative; height: auto; min-width: 0; padding: 5px 4px 6px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+#tactical .bld .ic { display: block; width: 100%; max-width: 66px; aspect-ratio: 1; height: auto; border-radius: 6px; border: 1px solid rgba(157, 255, 184, 0.28); }
+#tactical .bld .k { position: absolute; top: 3px; left: 4px; right: auto; padding: 0 4px; color: #fff; font-size: 10px; background: rgba(0, 0, 0, 0.6); border-radius: 3px; }
+#tactical .bld .c { position: absolute; top: 3px; right: 4px; left: auto; padding: 0 3px; color: #7fd8ff; font-size: 9.5px; background: rgba(0, 0, 0, 0.6); border-radius: 3px; }
+#tactical .bld .n { min-height: 22px; padding: 0; font-size: 9.5px; line-height: 1.15; text-align: center; white-space: normal; }
+#tactical .bld .s { margin: 0; font-size: 9.5px; color: #ffe27a; }
+#tactical .bld.off .ic { filter: grayscale(1) brightness(0.55); } #tactical .bld.off .s { color: var(--g-dim); } #tactical .bld.poor .s { color: var(--red); }
+#tactical .bld.on { border-color: var(--yellow); box-shadow: 0 0 12px rgba(255, 230, 0, 0.4); }
+#tactical .bld:hover:not(.off) { border-color: var(--g); }
+#tactical .frm { height: 44px; }
+/* its two drop menus, at the bottom of the left column: the Helldivers, and the SEAF squads with their orders */
+#tac-drops { display: none; gap: 6px; order: 20; }
+.tdb { min-height: 30px; padding: 3px 12px; font-size: 11px; letter-spacing: 0.12em; background: rgba(3, 16, 9, 0.95); }
+.tdb i { font-style: normal; display: inline-block; margin-left: 4px; transition: transform 0.15s; }
+body.tac-hd #td-hd, body.tac-sf #td-sf { color: var(--yellow); border-color: var(--yellow); }
+body.tac-hd #td-hd i, body.tac-sf #td-sf i { transform: rotate(180deg); }
+body.tac-open #tac-drops { display: flex; }
+body.tac-open #tray { bottom: calc(var(--tch) + 18px); }
+body.tac-open #tray .tray-x, body.tac-open #tray #sqpanel, body.tac-open #tray #squads, body.tac-open #tray #orders { display: none !important; }
+body.tac-open.tac-hd #tray #sqpanel { display: block !important; }
+body.tac-open.tac-sf #tray #squads, body.tac-open.tac-sf #tray #orders { display: grid !important; }
+body.tac-open #weapons, body.tac-open #dock, body.tac-open #touch-ctl, body.tac-open #infocard { display: none !important; }
+body.tac-open #toast { bottom: calc(var(--tch) + 22px); }
+body.tacpause #hud::after { content: ''; position: absolute; inset: 0; border: 2px solid rgba(255, 230, 0, 0.42); box-shadow: inset 0 0 40px rgba(255, 230, 0, 0.1); pointer-events: none; }
+/* phones */
+body.touch #tactical { left: max(6px, env(safe-area-inset-left)); right: max(6px, env(safe-area-inset-right)); bottom: max(6px, env(safe-area-inset-bottom)); padding: 5px 6px 7px; zoom: var(--ui, 1); }
+body.touch .tc-help { font-size: 9px; }
+body.touch.tac-open #tray { display: flex !important; left: max(6px, env(safe-area-inset-left)); right: max(6px, env(safe-area-inset-right)); bottom: calc(var(--tch) + 12px); max-height: none; overflow: visible; }
+@media (max-width: 700px) {
+  .tc-body { grid-template-columns: 1fr; gap: 6px; }
+  .tc-sel { min-height: 0; padding: 4px 7px; }
+  .tc-sel .ts-b { display: none; }
+  .tc-grid.tac-build { gap: 3px; }
+  .tc-grid.tac-form { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  #tactical .bld { padding: 3px 2px 4px; } #tactical .bld .n { font-size: 8px; min-height: 18px; } #tactical .bld .s { font-size: 8.5px; }
+  #tactical .bld .k { display: none; }
+  .tc-help { display: none; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  body.touch .tc-body { grid-template-columns: 150px minmax(0, 1fr) 150px; gap: 6px; }
+  body.touch .tc-sel .ts-b { display: none; }
+  body.touch #tactical .bld .ic { max-width: 44px; }
+  body.touch #tactical .bld .n { font-size: 8px; min-height: 18px; }
+  body.touch .tc-grid.tac-form { grid-template-columns: repeat(3, minmax(0, 1fr)); } body.touch #tactical .frm { height: 36px; }
+}
+
+/* what is selected on the map: a small panel just above it, with its doors (in: garrison it; out: bring them out) */
+#selpop { position: absolute; left: 0; top: 0; z-index: 8; min-width: 128px; max-width: 240px; padding: 5px 7px 6px; pointer-events: auto; font-size: 10px; line-height: 1.3;
+  background: rgba(2, 14, 7, 0.93); border: 1px solid rgba(255, 230, 0, 0.65); border-radius: 6px; box-shadow: 0 3px 12px rgba(0, 0, 0, 0.55); }
+#selpop.hidden { display: none; }
+#selpop::after { content: ''; position: absolute; left: 50%; bottom: -6px; width: 10px; height: 10px; transform: translateX(-50%) rotate(45deg); background: rgba(2, 14, 7, 0.93); border-right: 1px solid rgba(255, 230, 0, 0.65); border-bottom: 1px solid rgba(255, 230, 0, 0.65); }
+.sp-t { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sp-t b { color: var(--yellow); font-size: 10.5px; letter-spacing: 0.08em; white-space: nowrap; }
+.sp-t b i { font-style: normal; font-weight: 400; color: var(--g-dim); margin-left: 3px; }
+.sp-d { display: flex; gap: 4px; }
+#selpop .dr { width: 30px; height: 30px; padding: 3px; border: 1px solid currentColor; border-radius: 5px; background: rgba(0, 0, 0, 0.35); cursor: pointer; touch-action: manipulation; }
+#selpop .dr svg { display: block; width: 100%; height: 100%; }
+#selpop .dr.in { color: #7dff9b; } #selpop .dr.out { color: var(--amber); }
+#selpop .dr:hover { background: rgba(125, 255, 155, 0.16); }
+.sp-hp { display: block; height: 4px; margin-top: 4px; background: rgba(157, 255, 184, 0.15); border-radius: 2px; overflow: hidden; }
+.sp-hp u { display: block; height: 100%; background: #7dff9b; text-decoration: none; } .sp-hp.low u { background: var(--red); }
+.sp-s { margin-top: 3px; color: var(--g-dim); white-space: nowrap; } .sp-s em { font-style: normal; color: var(--amber); }
+body.touch #selpop .dr { width: 36px; height: 36px; }
+
+/* the pause menu opened from the briefing: only what makes sense before the drop */
+#s-pause .brief-only { display: none; }
+#s-pause.brief .play-only { display: none !important; }
+#s-pause.brief .brief-only { display: inline; }
+/* (0.17: SELECT and TACTICAL left these rows) */
+#squads { grid-template-columns: repeat(5, minmax(0, 1.1fr)) repeat(4, minmax(0, 1fr)); }
+#tray #orders { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; }
+body.touch #tray #squads { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+/* phones: the feed keeps clear of the minimap; no key hints on buttons */
+body.touch .tl-btns .tacb kbd { display: none; }
+@media (max-width: 520px) { body.touch #feed { width: calc(100vw - var(--mmw) * var(--ui, 1) - 30px); } }
+body.touch #tactical .bld .ic { max-width: 50px; }
+/* phones held sideways: a low console, one row of builds */
+@media (max-height: 520px) and (orientation: landscape) {
+  body.touch .tc-grid.tac-build { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+  body.touch #tactical .bld { padding: 2px 2px 3px; gap: 1px; }
+  body.touch #tactical .bld .ic { max-width: 36px; }
+  body.touch #tactical .bld .n { font-size: 7.5px; min-height: 17px; }
+  body.touch #tactical .bld .s { font-size: 8px; }
+  body.touch #tactical .bld .c { font-size: 8px; }
+  body.touch .tc-help { display: none; }
+  body.touch .tc-h { padding-bottom: 3px; margin-bottom: 4px; } body.touch .tc-h b { font-size: 11px; }
+  body.touch .tc-sel { min-height: 0; padding: 4px 6px; } body.touch .tc-sel .ts-h { font-size: 10.5px; }
+  body.touch .tc-l { margin-bottom: 2px; }
+  body.touch #tactical .frm { height: 30px; } body.touch #tactical .frm .fg { height: 12px; }
+}
+#feed #notices, body.touch #feed #notices { position: static; left: auto; top: auto; width: max-content; max-width: 100%; }
+/* phones: each Helldiver on two lines (designation and ship; then health, what they are doing and the stratagems) */
+body.touch .hr .hm { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 6px; align-items: center; }
+body.touch .hr .h1 { grid-column: 1 / -1; }
+body.touch .hr .hm > .hp { grid-column: 1; margin-top: 2px; }
+body.touch .hr .h3 { grid-column: 2; margin-top: 1px; }
+body.touch .hr .h3 .st { white-space: nowrap; }
+/* phones held upright: the feed goes under the button row (which sits under the minimap), full width */
+@media (max-width: 520px) {
+  body.touch #feed { top: calc(max(8px, env(safe-area-inset-top)) + var(--mmw) * var(--ui, 1) + 58px); width: calc(100vw - 16px); }
+}

@@ -436,7 +436,7 @@ export class Renderer {
     }
     this._tags(ctx, m, w2sx, w2sy, scale, now);
     this._edgeArrows(ctx, m, w2sx, w2sy, scale, { cam });
-    if (aim) this._reticle(ctx, m, aim, w2sx(aim.x), w2sy(aim.y), scale, now, ui);
+    if (aim && ui.armed) this._reticle(ctx, m, aim, w2sx(aim.x), w2sy(aim.y), scale, now, ui);     // (only with a weapon armed: otherwise the cursor selects)
     this._post(ctx, now);
   }
 
@@ -536,7 +536,25 @@ export class Renderer {
         placed.push(r); n++; out.push(o);
       }
       list = out;
+    } else {
+      // Computers: every label, none on top of another. One that would land on a placed one moves a line up (or down); a minor one
+      // with no free line near its spot is left out. (Calls coming down together no longer print over each other.)
+      list.sort((a, b) => (b.l.pri ?? 1) - (a.l.pri ?? 1));
+      const placed = [], out = [], lh = 15 * d;
+      for (const o of list) {
+        if (o.x < -60 || o.y < -20 || o.x > this.W + 60 || o.y > this.H + 20) continue;
+        const w = ctx.measureText(o.l.text).width + 8 * d;
+        let ok = false;
+        for (const dy of [0, -lh, lh, -2 * lh, 2 * lh, -3 * lh]) {
+          const r = { l: o.x - w / 2, r: o.x + w / 2, t: o.y + dy - 10 * d, b: o.y + dy + 4 * d };
+          if (placed.some((q) => r.l < q.r && r.r > q.l && r.t < q.b && r.b > q.t)) continue;
+          o.y += dy; placed.push(r); ok = true; break;
+        }
+        if (ok || (o.l.pri ?? 1) >= 3) out.push(o);
+      }
+      list = out;
     }
+    this._lblR = [];
     for (const o of list) {
       const { l, y } = o; let x = o.x;
       if (x < -60 || y < -20 || x > this.W + 60 || y > this.H + 20) continue;
@@ -545,13 +563,14 @@ export class Renderer {
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(x - w / 2, y - 10 * d, w, 14 * d);
       ctx.fillStyle = l.col; ctx.fillText(l.text, x, y);
+      this._lblR.push({ l: x - w / 2, r: x + w / 2, t: y - 10 * d, b: y + 4 * d });
     }
     ctx.textAlign = 'left';
   }
 
   // Name tags under every ally and speech bubbles over them. Helldivers first, so SEAF tags are the ones skipped when crowded.
   _tags(ctx, m, w2sx, w2sy, scale, now) {
-    const d = this.dpr, W = this.W, H = this.H, t = m.t, placed = [];
+    const d = this.dpr, W = this.W, H = this.H, t = m.t, placed = (this._lblR || []).slice();     // (name tags keep off the map labels)
     const hit = (r) => { for (const q of placed) if (r.l < q.r && r.r > q.l && r.t < q.b && r.b > q.t) return true; return false; };
     const mono = (px) => `${Math.round(px * d)}px ui-monospace, Menlo, Consolas, monospace`;
     ctx.textAlign = 'center';

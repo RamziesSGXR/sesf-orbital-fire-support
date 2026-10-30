@@ -115,6 +115,29 @@ function art(ctx, p, now, px, t) {
   }
 }
 
+// A small picture of a build for the tactical build screen (its tile), drawn with the same art as on the map.
+const ICON_K = { foxhole: 12, bastion: 7.5, mg: 10, bunker: 8.5, tower: 8, sam: 8.5, arty: 6.4 };
+export function postIcon(cv, what) {
+  const ctx = cv.getContext('2d'), S = cv.width, k = (ICON_K[what] || 8) * (S / 112), px = (n) => n / k;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, S, S);
+  const g = ctx.createRadialGradient(S / 2, S / 2, S * 0.08, S / 2, S / 2, S * 0.5);
+  g.addColorStop(0, 'rgba(70,96,74,0.95)'); g.addColorStop(1, 'rgba(20,34,24,0.95)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+  ctx.setTransform(k, 0, 0, k, S / 2 + (what === 'arty' ? -S * 0.12 : 0), S / 2 + (what === 'arty' ? S * 0.06 : 0));
+  const p = { what, x: 0, y: 0, face: what === 'arty' ? -0.5 : -0.6, hurtAt: -99, manned: true, r: 5.2 };
+  if (what === 'bastion') {
+    // the ring of walls (on the map they are drawn with the rest of the cover)
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * TAU;
+      ctx.save(); ctx.translate(Math.cos(a) * 5, Math.sin(a) * 5); ctx.rotate(a + Math.PI / 2);
+      ctx.fillStyle = '#b9c4bc'; ctx.fillRect(-1.6, -0.5, 3.2, 1); ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = px(1); ctx.strokeRect(-1.6, -0.5, 3.2, 1);
+      ctx.restore();
+    }
+  }
+  art(ctx, p, 0.4, px, 0);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
 // sel: the selected post, asset or site (or null).
 export function drawPosts(ctx, m, now, px, labels, scale, sel) {
   const t = m.t;
@@ -127,7 +150,7 @@ export function drawPosts(ctx, m, now, px, labels, scale, sel) {
     const crewless = needsCrew(p) && !p.crew;
     const crew = p.cap ? ` ${p.crew}/${p.cap}` : '';
     const gar = p.garrison ? ' ' + tr('lab.garrisoned') : '';
-    labels.push({ x: p.x, y: p.y, dy: -R * scale - 8, text: (crewless ? `${p.name.toUpperCase()} · ${tr('lab.noCrew')}` : `${p.name.toUpperCase()}${crew}${gar}`), col: crewless ? '#ffb020' : '#6fc0ff', pri: sel === p ? 3 : 1 });
+    if (sel !== p) labels.push({ x: p.x, y: p.y, dy: -R * scale - 8, text: (crewless ? `${p.name.toUpperCase()} · ${tr('lab.noCrew')}` : `${p.name.toUpperCase()}${crew}${gar}`), col: crewless ? '#ffb020' : '#6fc0ff', pri: 1 });   // (selected: the panel over it says it)
   }
   if (!sel || sel.dead) return;
   // the selection: brackets and the reach of whatever it is

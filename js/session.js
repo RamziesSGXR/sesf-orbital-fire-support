@@ -20,6 +20,8 @@ export function drop(key) { try { localStorage.removeItem(K[key]); } catch { /* 
 export const DEFAULT_SETTINGS = {
   polarity: 'white', relief: false, quality: 'auto', reduceFlash: false, colorblind: false,
   volume: 0.6, muted: false, lefty: false, touchSens: 1, bubbles: true, cards: 'side', lang: 'en', uiScale: 1,
+  mini: 2,           // the minimap's size (x its old size)
+  tacTime: 'pause',  // the tactical build screen: 'pause' stops the game while it is open, 'slow' only slows it
   difficulty: C.difficulty.start,     // the level the next new session starts at (a session keeps its own)
 };
 export const getSettings = () => ({ ...DEFAULT_SETTINGS, ...load('settings', {}) });

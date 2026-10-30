@@ -13,7 +13,7 @@ export class Input {
     this.mx = window.innerWidth / 2; this.my = window.innerHeight / 2; // mouse in CSS px
     this.keys = new Set();
     this.ptrs = new Map();
-    this.pinch = null; this.panning = null; this.stroke = null; this.box = null;
+    this.pinch = null; this.panning = null; this.stroke = null; this.box = null; this.lp = null;   // lp: a left press that becomes a click, a pan or a box
     this.sens = 1;
     this._bind();
   }
@@ -74,18 +74,21 @@ export class Input {
         this.mx = e.clientX; this.my = e.clientY;
         if (draw && e.button === 0) { this.stroke = e.pointerId; this.h.drawBegin(e.clientX, e.clientY); return; }
         if (e.button === 0 && this.h.placing()) { this.h.place(); return; }
-        // Shift + drag (or SELECT armed): a box round the SEAF troopers to pick
-        if (e.button === 0 && (e.shiftKey || (this.h.boxing && this.h.boxing()))) { this.box = e.pointerId; this.h.boxBegin(e.clientX, e.clientY); return; }
-        // a click on something SEAF built (or a sentry, or a defence site) selects it, unless an enemy is right there
-        if (e.button === 0 && this.h.pick && this.h.pick(e.clientX, e.clientY, false)) return;
-        if (e.button === 0) this.h.fire(true);
-        else if (e.button === 2) this.panning = e.pointerId;
+        // An armed weapon: the click calls it (the ship gun fires while the button is held)
+        if (e.button === 0 && this.h.armed()) { this.h.fire(true); return; }
+        // Nothing armed, the cursor selects: a click picks what is under it; a drag pans the map, or on the tactical build screen
+        // draws a box round SEAF troopers.
+        if (e.button === 0) { this.lp = { id: e.pointerId, x: e.clientX, y: e.clientY, drag: false, box: this.h.tac() }; return; }
+        if (e.button === 2) this.panning = e.pointerId;
+      } else if (this.h.tac() && this.ptrs.size === 1) {
+        this.lp = { id: e.pointerId, x: e.clientX, y: e.clientY, drag: false, box: true };   // the tactical screen: one finger draws a box
       } else if (this.h.boxing && this.h.boxing() && this.ptrs.size === 1) {
         this.box = e.pointerId; this.h.boxBegin(e.clientX, e.clientY);   // SELECT armed: one finger draws the box
       } else if (draw && this.ptrs.size === 1) {
         this.stroke = e.pointerId; this.h.drawBegin(e.clientX, e.clientY);   // one finger draws in draw mode
       } else if (this.ptrs.size === 2) {
         if (this.stroke !== null) { this.h.drawCancel(); this.stroke = null; }   // a second finger turns it back into pan and zoom
+        if (this.lp) { if (this.box !== null) { this.box = null; this.h.boxCancel && this.h.boxCancel(); } this.lp = null; }
         const [a, b] = [...this.ptrs.values()];
         this.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), view: this.cam.view };
       }
@@ -98,6 +101,15 @@ export class Input {
       p.x = e.clientX; p.y = e.clientY;
       if (this.stroke === e.pointerId) { this.h.drawMove(e.clientX, e.clientY); return; }
       if (this.box === e.pointerId) { this.h.boxMove(e.clientX, e.clientY); return; }
+      const lp = this.lp;
+      if (lp && lp.id === e.pointerId) {
+        if (!lp.drag && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > (p.type === 'mouse' ? 6 : 10)) {
+          lp.drag = true;
+          if (lp.box) { this.box = e.pointerId; this.h.boxBegin(lp.x, lp.y); this.h.boxMove(e.clientX, e.clientY); return; }
+        }
+        if (lp.drag && !lp.box) this._pan(dx * (p.type === 'mouse' ? 1 : this.sens), dy * (p.type === 'mouse' ? 1 : this.sens));
+        return;
+      }
       if (p.type === 'mouse') {
         if (this.panning === e.pointerId) this._pan(dx, dy);
       } else if (this.ptrs.size >= 2 && this.pinch) {
@@ -110,11 +122,17 @@ export class Input {
       const p = this.ptrs.get(e.pointerId);
       if (!p) return;
       this.ptrs.delete(e.pointerId);
+      const lp = this.lp && this.lp.id === e.pointerId ? this.lp : null;
+      if (lp) this.lp = null;
       if (this.box === e.pointerId) { this.box = null; this.h.boxEnd(); if (this.ptrs.size < 2) this.pinch = null; return; }
-      // a right click (no drag) selects what is under it
-      if (p.type === 'mouse' && p.btn === 2 && e.type === 'pointerup' && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) < 5 && this.h.pick) this.h.pick(e.clientX, e.clientY, true);
-      // a tap (no drag, short) on the map selects what is there, or closes panels that are open over it
-      if (e.type === 'pointerup' && this.stroke !== e.pointerId && this.h.tap && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) < 8 && performance.now() - p.t0 < 350 && this.ptrs.size === 0) this.h.tap(p.type, e.clientX, e.clientY);
+      // a left click (no drag) with nothing armed: select what is under it
+      if (lp && p.type === 'mouse' && !lp.drag && e.type === 'pointerup') this.h.click(e.clientX, e.clientY);
+      // a right click (no drag): put down an armed weapon or a placement; otherwise an order for the selected SEAF squad
+      if (p.type === 'mouse' && p.btn === 2 && e.type === 'pointerup' && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) < 5) {
+        if (this.h.armed()) this.h.disarm(); else if (this.h.placing()) this.h.cancelPlace(); else this.h.command(e.clientX, e.clientY);
+      }
+      // a tap (no drag, short) on the map: select, place, or order (touch)
+      if (p.type !== 'mouse' && e.type === 'pointerup' && this.stroke !== e.pointerId && this.h.tap && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) < 8 && performance.now() - p.t0 < 350 && this.ptrs.size === 0) this.h.tap(p.type, e.clientX, e.clientY);
       if (this.stroke === e.pointerId) { this.stroke = null; if (e.type === 'pointercancel') this.h.drawCancel(); else this.h.drawEnd(); if (p.type !== 'mouse') { if (this.ptrs.size < 2) this.pinch = null; return; } }
       if (p.type === 'mouse') { if (e.button === 0 || e.type === 'pointercancel') this.h.fire(false); if (this.panning === e.pointerId) this.panning = null; }
       if (this.ptrs.size < 2) this.pinch = null;
@@ -151,16 +169,15 @@ export class Input {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) return;
       this.keys.add(e.code);
       if (e.repeat) return;
-      if (e.code === 'Escape' && this.h.drawing()) { this.h.drawExit(); return; }
-      if (e.code === 'Escape' && this.h.tac && this.h.tac()) { this.h.order('build', true); return; }
-      // the tactical menu is open: 1 to 7 build, Z X C V B pick a formation
+      // Esc steps back one thing at a time (main.js): drawing, a placement, the tactical screen, an armed weapon, then the menu
+      if (e.code === 'Escape') { this.h.escape(); return; }
+      if (e.code === 'F2') { e.preventDefault(); if (this.h.hideUi) this.h.hideUi(); return; }     // hide the HUD, and back
+      // the tactical build screen is open: 1 to 7 build, Z X C V B pick a formation (and no weapon keys)
       if (this.h.tac && this.h.tac() && !e.shiftKey) {
-        const d = /^Digit([1-7])$/.exec(e.code), f = ['KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB'].indexOf(e.code);
-        if (d) { this.h.tacBuild(Number(d[1]) - 1); return; }
+        const d = /^Digit([0-9])$/.exec(e.code), f = ['KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB'].indexOf(e.code);
+        if (d) { if (Number(d[1]) >= 1 && Number(d[1]) <= 7) this.h.tacBuild(Number(d[1]) - 1); return; }
         if (f >= 0) { this.h.tacForm(f); return; }
       }
-      if (e.code === 'Escape' && this.h.placing()) { this.h.cancelPlace(); return; }
-      if (e.code === 'Escape') { this.h.pause(); return; }         // the menu
       if (e.code === 'KeyP') { this.h.soft(); return; }            // the soft pause: the game stops, the menu stays shut
       if (e.code === 'Comma' && this.h.speed) { this.h.speed(); return; }   // half speed / normal speed
       if (!this.active()) return;
@@ -195,6 +212,6 @@ export class Input {
       else if (e.code === 'Minus' || e.code === 'NumpadSubtract') this.zoom(1.15);
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
-    window.addEventListener('blur', () => { this.keys.clear(); this.h.fire(false); if (this.stroke !== null) this.h.drawCancel(); this.stroke = null; this.ptrs.clear(); this.pinch = null; this.panning = null; });
+    window.addEventListener('blur', () => { this.keys.clear(); this.h.fire(false); if (this.stroke !== null) this.h.drawCancel(); this.stroke = null; this.ptrs.clear(); this.pinch = null; this.panning = null; this.lp = null; if (this.box !== null) { this.box = null; this.h.boxEnd(); } });
   }
 }

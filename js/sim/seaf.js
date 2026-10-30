@@ -455,7 +455,7 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
     o.waiting = near && !ready;
     if (near && ready && !list.some((a) => a.engaged)) {
       const at = list.filter((a) => Math.hypot(a.x - o.x, a.y - o.y) < C.build.r + 4).length;
-      o.prog += dt * Math.min(4, Math.max(1, at)) / 2;
+      o.prog += (dt * Math.min(4, Math.max(1, at)) / 2) * seafStats(m.kit).buildSpeed;     // (Combat Engineers build faster)
       o.building = true;
       if (o.prog >= B.sec) { if (finishBuild(m, q, o)) return; }
     } else o.building = false;

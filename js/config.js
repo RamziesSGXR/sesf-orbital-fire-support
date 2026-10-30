@@ -260,12 +260,12 @@ export const CONFIG = {
   // a target relay that speeds allies up (speed, by level 0-3) and threat warnings that help them dodge (dodge, added chance).
   uav:      { r: [95, 120, 145, 175, 205], sec: [24, 28, 32, 36, 40], cd: [42, 38, 34, 30, 26],
               speed: [0.05, 0.1, 0.15, 0.2], dodge: [0.05, 0.1, 0.15, 0.2], buffMax: 3, buffPrice: 300 },
-  kit:      { slotsStart: 3, slotsMax: 5, seafCap: 3, seafDropEvery: 2, seafHp: 0.18, seafDmg: 0.12, seafGren: 0.06, seafRocket: 0.07, seafMedic: 0.14, medicRate: 0.25, seafSpot: 0.15, spotCool: 0.12, spotDmg: 0.18,
+  kit:      { slotsStart: 3, slotsMax: 5, seafCap: 3, seafDropEvery: 2, seafHp: 0.18, seafDmg: 0.12, seafGren: 0.06, seafRocket: 0.07, seafMedic: 0.14, medicRate: 0.25, seafSpot: 0.15, spotCool: 0.12, spotDmg: 0.18, seafBuild: 0.25,
               livesPer: 2, zonePer: 18, startLoadout: ['orb_airburst', 'orb_120', 'orb_precision'] },
   // Credits: earned from kills, bases, POIs, breaches and the objective, with a bonus at extraction. Spent in the armory.
   // One multiplier on every armory price. Bot sessions earn about 520 credits a minute, so three hours earns roughly what the whole
   // armory costs at 0.9 (about 97,000 credits). test/r7.mjs checks the two stay together.
-  econ:     { priceMul: 0.9, earnPerMin: 640, maxAtMin: 180 },
+  econ:     { priceMul: 0.88, earnPerMin: 640, maxAtMin: 180 },
   credits:  { start: 1200, kill: { L: 2, M: 8, H: 45 }, base: 150, objective: 500, extraction: 800, perMission: 0, civ: 8, fullClear: 400 },
 
   // Mission objectives. The squad does these before anything else.
@@ -322,7 +322,7 @@ export const CONFIG = {
   // When set, the final screen shows a button that copies the score block and opens that link.
   share:    { channelUrl: '',
               // Where the FEEDBACK buttons go: a short form on the project's GitHub page (a free GitHub account is needed to post).
-              feedbackUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support/issues/new?template=feedback.yml',
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.16.0',
+              feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.17.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives; the score block ends with it so pasted scores bring players in
 };

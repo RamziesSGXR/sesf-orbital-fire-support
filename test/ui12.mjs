@@ -13,6 +13,7 @@ let fails = 0;
 const check = (name, ok, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  (' + detail + ')' : ''}`); if (!ok) fails++; };
 const browser = await chromium.launch();
 const ctx = await browser.newContext(touch ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } : { viewport: { width: 1280, height: 720 } });
+const W = touch ? 390 : 1280, H = touch ? 844 : 720;
 const page = await ctx.newPage();
 const errs = []; page.on('pageerror', (e) => errs.push(e.message));
 const ev = (f, a) => page.evaluate(f, a);
@@ -77,17 +78,20 @@ if (sq) {
   const esc = await ev(() => document.querySelector('#orders .ord[data-o="escort"] .s').textContent);
   check('an escort order shows no timer and is still on after 70 s', /ACTIVE/i.test(esc), esc);
   // the build menu
-  if (touch && !(await page.isVisible('#tray'))) { await tap('#dk-sq'); await page.waitForTimeout(300); }
-  await tap('#orders .ord[data-o="build"]'); await page.waitForTimeout(300);
-  const menu = await page.isVisible('#buildmenu');
-  const items = await ev(() => [...document.querySelectorAll('#buildmenu .bld')].map((b) => b.textContent));
-  check('TACTICAL opens a menu: seven builds with their prices (the SAM site and the cannon unlocked in the armory)', menu && items.length === 7 && /FREE/.test(items[0]) && items.slice(1, 5).every((x) => /CR/.test(x)) && /UNLOCK/.test(items[5]) && /UNLOCK/.test(items[6]), items.join(' | '));
+  // (0.17: TACTICAL is its own screen, from the button at the top left)
+  if (touch && (await page.isVisible('#tray'))) { await tap('#tray .tray-x'); await page.waitForTimeout(300); }
+  await tap('#btn-tac'); await page.waitForTimeout(300);
+  const menu = await page.isVisible('#tactical');
+  const items = await ev(() => [...document.querySelectorAll('#tactical .bld')].map((b) => b.textContent));
+  check('TACTICAL opens its screen: seven builds with their prices (the SAM site and the cannon unlocked in the armory)', menu && items.length === 7 && /FREE/.test(items[0]) && items.slice(1, 5).every((x) => /CR/.test(x)) && /UNLOCK/.test(items[5]) && /UNLOCK/.test(items[6]), items.join(' | '));
   await shot('buildmenu');
-  const fit = await ev(() => { const r = document.getElementById('buildmenu').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth + 1 && r.top >= 0; });
-  check('the menu fits the screen', fit);
+  const fit = await ev(() => { const r = document.getElementById('tactical').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth + 1 && r.top >= 0 && r.bottom <= innerHeight + 1; });
+  check('the screen fits', fit);
   await ev(() => { window.__game.mission.wallet.bal = 9999; });
-  await tap('#buildmenu .bld[data-b="tower"]'); await page.waitForTimeout(300);
-  if (!touch) { await page.mouse.move(640, 360); await page.waitForTimeout(100); await page.mouse.click(640, 360); await page.waitForTimeout(300); }
+  await tap('#tactical .bld[data-b="tower"]'); await page.waitForTimeout(300);
+  if (!touch) { await page.mouse.move(640, 300); await page.waitForTimeout(100); await page.mouse.click(640, 300); await page.waitForTimeout(300); }
+  else { await page.touchscreen.tap(W / 2, H * 0.45); await page.waitForTimeout(300); }
+  await page.keyboard.press('Escape'); await page.waitForTimeout(200);
   const bo = await ev(() => window.__game.mission.seaf.squads.some((q) => q.n && q.order.kind === 'build' && q.order.what === 'tower'));
   check('picking one sends a squad to build it', bo);
   await ev(() => { const m = window.__game.mission; for (let i = 0; i < 30 * 70; i++) m.step(1 / 30); });

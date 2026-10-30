@@ -14,6 +14,8 @@ import { objectiveStatus, OBJ_NAME } from './sim/objectives.js';
 import { todAt, todName, todClock } from './render/sky.js';
 import { situation, tipsFor } from './data/tips.js';
 import { t, tl, getLang, LANGS } from './i18n.js';
+import { postIcon } from './render/posts.js';
+import { squadColor } from './render/squads.js';
 import { LEVELS, levelFactors, reward } from './difficulty.js';
 
 const $ = (id) => document.getElementById(id);
@@ -21,6 +23,11 @@ const SCREENS = ['s-title', 's-shop', 's-brief', 's-debrief', 's-final'];
 const OVERLAYS = ['s-pause', 's-lock', 's-controls', 's-manual', 's-armory', 's-names', 's-settings', 's-notice', 's-info', 's-about', 's-map'];
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const SQUAD_COL = [0, 1, 2, 3].map(squadColor);
+// The doors on a selected post (Age of Empires style): go in (garrison it) and come out (release the garrison).
+const DOOR = '<path d="M4 21V4.5L12 3v18M12 3h6v18h-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="9.6" cy="12.5" r="1" fill="currentColor"/>';
+const DOOR_IN = `<svg viewBox="0 0 24 24" aria-hidden="true">${DOOR}<path d="M23 12h-8.5m3-3-3 3 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const DOOR_OUT = `<svg viewBox="0 0 24 24" aria-hidden="true">${DOOR}<path d="M14.5 12H23m-3-3 3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 // The short name of an orbital or utility for the weapon bar and the armory ("120mm HE").
 export const shortName = (id) => t(`strat.${id}.s`);
 
@@ -65,15 +72,17 @@ export class Hud {
       e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); this.onOrder && this.onOrder(kind); });
       this.ord[kind] = { el: e, sub: e.querySelector('.s'), key: '' };
     });
-    // The tactical menu: what SEAF can build (keys 1 to 7) and the formations for the selected squad (Z X C V B). Time slows
-    // while it is open (main.js).
+    // The tactical build screen (main.js opens it): what is selected, a picture of everything SEAF can build (keys 1 to 7), and
+    // the formations for the selected squad (Z X C V B). The game waits while it is open.
     this.bld = {}; this.frm = {};
-    const tb = document.querySelector('#buildmenu .tac-build'), tf = document.querySelector('#buildmenu .tac-form');
+    const tb = document.querySelector('#tactical .tac-build'), tf = document.querySelector('#tactical .tac-form');
     POSTS.forEach((what, i) => {
-      const e = el('button', 'bld', `<span class="k">${i + 1}</span><span class="c"></span><span class="n"></span><span class="s"></span>`);
+      const e = el('button', 'bld', `<canvas class="ic" width="112" height="112"></canvas><span class="k">${i + 1}</span><span class="c"></span><span class="n"></span><span class="s"></span>`);
       e.type = 'button'; e.dataset.b = what;
+      postIcon(e.querySelector('canvas'), what);
       e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onBuild && this.onBuild(what); });
       e.addEventListener('mouseenter', () => { if (this.m) this.showCard(buildInfo(this.m, what), 4000); });
+      e.addEventListener('mouseleave', () => this.hideCard(500));
       tb.appendChild(e); this.bld[what] = { el: e, n: e.querySelector('.n'), s: e.querySelector('.s'), c: e.querySelector('.c'), key: '' };
     });
     FORMS.forEach((f, i) => {
@@ -82,9 +91,16 @@ export class Hud {
       e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onForm && this.onForm(f); });
       tf.appendChild(e); this.frm[f] = { el: e, n: e.querySelector('.n'), key: '' };
     });
-    document.querySelector('#buildmenu .tac-x').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onOrder && this.onOrder('build'); });
-    // The selection card: what is selected on the map, with MAN, GARRISON and RELEASE for SEAF.
-    $('selcard').addEventListener('pointerdown', (ev) => { const b = ev.target.closest('[data-sa]'); if (!b) return; ev.preventDefault(); ev.stopPropagation(); this.onSelAct && this.onSelAct(b.dataset.sa); });
+    document.querySelector('#tactical .tc-x').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onTac && this.onTac(false); });
+    $('btn-tac').addEventListener('click', () => this.onTac && this.onTac());
+    // its two drop menus: the Helldivers, and the SEAF squads with their orders
+    for (const [id, cls] of [['td-hd', 'tac-hd'], ['td-sf', 'tac-sf']]) {
+      $(id).addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); const b = document.body, on = !b.classList.contains(cls); b.classList.remove('tac-hd', 'tac-sf'); b.classList.toggle(cls, on); });
+    }
+    // What is selected on the map: a small panel just above it, with a door to send SEAF in (or to bring them out).
+    $('selpop').addEventListener('pointerdown', (ev) => { ev.stopPropagation(); const b = ev.target.closest('[data-sa]'); if (!b) return; ev.preventDefault(); this.onSelAct && this.onSelAct(b.dataset.sa); });
+    // SHOW UI: the HUD was hidden (F2)
+    $('showui').addEventListener('click', () => this.onHideUi && this.onHideUi(false));
     // Compact (touch) HUD: the dock under the weapon bar, the squad and orders tray it opens, and the idle fade.
     this.dkSq = $('dk-sq'); this.dkDrop = $('dk-drop');
     this.dkSq.addEventListener('pointerdown', (e) => { e.preventDefault(); if (this.drawing) this.onSquadAct && this.onSquadAct('draw'); else this.trayToggle(); });
@@ -197,12 +213,7 @@ export class Hud {
     if (c.classList.contains('hidden')) return;
     const top = b.classList.contains('touch') || b.classList.contains('cards-top');
     c.classList.toggle('dock-top', top); c.classList.toggle('dock-side', !top);
-    if (!top) {     // down the right side: above the selection card when one is open
-      c.style.top = '';
-      const sc = $('selcard');
-      c.style.bottom = sc && !sc.classList.contains('hidden') ? `${Math.round(innerHeight - sc.getBoundingClientRect().top + 8)}px` : '';
-      return;
-    }
+    if (!top) { c.style.top = ''; c.style.bottom = ''; return; }     // down the right side, above the minimap (style.css)
     c.style.top = `${Math.round(topBelow(msg.classList.contains('show') ? msg : null) + 6)}px`;
   }
   hideCard(ms = 0) { clearTimeout(this._ct); this._ct = setTimeout(() => this.card.classList.add('hidden'), ms); }
@@ -233,26 +244,22 @@ export class Hud {
     return true;
   }
 
+  // One feed, at the top left: radio lines join the notices (acknowledgements of your own button presses are dropped, and a line
+  // the feed already shows is not shown twice).
   radio(text, key = '') {
-    // Phones: one short feed. Radio lines join the notices, and acknowledgements of your own button presses are dropped.
-    if (document.body.classList.contains('touch')) {
-      if (!/^(seaf|deny|uav|gundry|landed|nomark|assault)/.test(key)) this.notice(text, 'radio');
-      return;
-    }
-    const box = $('radio'), d = el('div', 'line'); d.textContent = text; box.appendChild(d);
-    while (box.children.length > 3) box.removeChild(box.firstChild);
-    const k = document.body.classList.contains('touch') ? 0.65 : 1;
-    setTimeout(() => d.classList.add('old'), 5200 * k);
-    setTimeout(() => d.remove(), 6400 * k);
+    if (/^(seaf|deny|uav|gundry|landed|nomark|assault)/.test(key)) return;
+    const box = $('notices'), last = box.lastElementChild;
+    if (last && last.textContent === text && !last.classList.contains('old')) return;
+    this.notice(text, 'radio');
   }
-  clearRadio() { $('radio').innerHTML = ''; }
+  clearRadio() { /* (radio lines are notices now) */ }
 
   // The notice feed: Helldiver deployments and deaths, breaches, points of interest, purchases.
   notice(text, tone = 'info') {
     const touch = document.body.classList.contains('touch');
     if (touch && tone === 'dim') return;   // phones: only news worth a glance
     const box = $('notices'), d = el('div', 'nt ' + tone); d.textContent = text; box.appendChild(d);
-    while (box.children.length > (touch ? 2 : 4)) box.removeChild(box.firstChild);
+    while (box.children.length > (touch ? 3 : 6)) box.removeChild(box.firstChild);
     const life = touch ? (tone === 'bad' || tone === 'warn' ? 5600 : 3800) : (tone === 'bad' ? 8000 : tone === 'dim' ? 3800 : 5600);
     setTimeout(() => d.classList.add('old'), life);
     setTimeout(() => d.remove(), life + 1200);
@@ -282,7 +289,7 @@ export class Hud {
     document.body.classList.remove('slowmo'); $('co-sup').classList.add('hidden'); $('co-boss').classList.add('hidden');
     for (const o of Object.values(this.ord)) o.key = '';
     this.setDrawing(false); for (const b of this.sqb) b.key = ''; for (const a of Object.values(this.sqa)) a.key = '';
-    this.trayToggle(false); this.dkKey = ''; this.selKey = ''; $('selcard').classList.add('hidden'); this.setBoxArm(false);
+    this.trayToggle(false); this.dkKey = ''; this.selKey = ''; $('selpop').classList.add('hidden'); this.setBoxArm(false); this.setArmed(false);
     for (const b of Object.values(this.bld)) b.key = ''; for (const f of Object.values(this.frm)) f.key = '';
     this.wake(5000);
   }
@@ -306,9 +313,10 @@ export class Hud {
     this.placing = kind;
     const e = $('place-hint'), name = kind ? (kind.startsWith('build:') ? t('build.' + kind.slice(6)) : t('hud.p.' + kind)) : '';
     if (!this.drawing) e.classList.toggle('hidden', !kind);
-    if (kind) e.textContent = t('hud.p.click', { name });
+    if (kind) e.textContent = t(document.body.classList.contains('touch') ? 'hud.p.tap' : 'hud.p.click', { name });
     for (const o of Object.values(this.ord)) o.key = '';
     for (const a of Object.values(this.sqa)) a.key = '';
+    for (const b of Object.values(this.bld || {})) b.key = '';
   }
   // Draw mode: drag on the map to draw a route, a line or a ring for the selected squad(s).
   setDrawing(on, label = '') {
@@ -342,7 +350,7 @@ export class Hud {
     this.m = m;
     const rows = $('hdrows'); rows.innerHTML = ''; this.rr = []; this.sc = [];
     m.teams.forEach((tm, i) => {
-      const r = el('div', 'hr', `<b class="l">${tm.letter}</b><div class="hm"><div class="h1"><span class="t">--</span><span class="ship">${esc(tm.ship)}</span></div><div class="h2"><i class="hp"><u></u></i><span class="st"></span></div></div><div class="cells"></div>`);
+      const r = el('div', 'hr', `<b class="l">${tm.letter}</b><div class="hm"><div class="h1"><span class="t">--</span><span class="ship">${esc(tm.ship)}</span></div><i class="hp"><u></u></i><div class="h3"><span class="st"></span><div class="cells"></div></div></div>`);
       r.style.setProperty('--tc', tm.color); r.dataset.hd = i;
       r.addEventListener('pointerdown', (ev) => { if (ev.target.closest('.sc')) return; this.onHd && this.onHd(i); if (this.dbl('h' + i)) this.onFocus && this.onFocus('hd', i); });
       const cells = r.querySelector('.cells');
@@ -495,67 +503,96 @@ export class Hud {
     if (none) set('escort', t('hud.o.noSeaf'), 'off');
     else if (!m.hdAlive.length) set('escort', t('hud.o.noHd'), 'off');
     else r = cur('escort', RDY), set('escort', r[0], r[1]);
-    // building: how far along the selected squad is, or the menu
-    const bq = tq.find((q) => q.order.kind === 'build'), menu = !$('buildmenu').classList.contains('hidden');
-    const pb = placing && placing.startsWith('build:');
-    if (none) set('build', t('hud.o.noSeaf'), 'off');
-    else if (pb) set('build', t('hud.o.place'), 'active');
-    else if (bq && bq.order.waiting) set('build', t('hud.o.crate'), 'active');
-    else if (bq) set('build', `${Math.floor(Math.min(1, bq.order.prog / buildStats(bq.order.what, buildLevel(m.kit, bq.order.what)).sec) * 100)}%`, 'active');
-    else set('build', menu ? t('hud.o.pick') : RDY, menu ? 'active' : 'ready');
-    if (menu) this.fillTactical(m);
+    if (document.body.classList.contains('tac-open')) this.fillTactical(m);
   }
-  // The tactical menu's buttons: each build's name, level and cost (or LOCKED), and the selected squad's formation.
-  fillTactical(m) {
+  // The tactical build screen: what is selected, each build's picture, name, level and cost (or LOCKED), and the selected squad's
+  // formation.
+  fillTactical(m, sel = this.selObj) {
     if (!m) return;
+    this._tacSel(m, sel);
     for (const [what, b] of Object.entries(this.bld)) {
       const lvl = buildLevel(m.kit, what), B = buildStats(what, lvl), n = builtCount(m, what);
       const cls = !lvl ? 'off' : m.wallet.bal < B.cost ? 'poor' : 'ready';
       const name = t('build.' + what) + (what !== 'foxhole' && lvl ? ` L${lvl}` : '');
       const sub = !lvl ? t('hud.b.locked') : B.cost ? t('hud.b.costN', { cr: B.cost }) : t('hud.b.freeShort');
-      const key = `${name}|${sub}|${cls}|${n}`;
-      if (b.key !== key) { b.key = key; b.n.textContent = name; b.s.textContent = sub; b.c.textContent = n ? `×${n}` : ''; b.el.className = 'bld ' + cls; }
+      const on = this.placing === 'build:' + what, key = `${name}|${sub}|${cls}|${n}|${on}`;
+      if (b.key !== key) { b.key = key; b.n.textContent = name; b.s.textContent = sub; b.c.textContent = n ? `×${n}` : ''; b.el.className = 'bld ' + cls + (on ? ' on' : ''); }
     }
     const sf = m.seaf, tq = (sf.sel >= 0 ? [sf.squads[sf.sel]] : sf.squads).filter((q) => q.n > 0), forms = new Set(tq.map((q) => q.form || 'loose'));
     for (const [f, b] of Object.entries(this.frm)) {
       const on = forms.size === 1 && forms.has(f), key = `${on}|${tq.length > 0}|${getLang()}`;
       if (b.key !== key) { b.key = key; b.n.textContent = t('form.' + f); b.el.className = 'frm' + (on ? ' on' : '') + (tq.length ? '' : ' off'); }
     }
+    // how tall the console is, so the drop menus sit just above it
+    const h = $('tactical').offsetHeight;
+    if (h && h !== this.last.tch) { this.last.tch = h; document.body.style.setProperty('--tch', `${h}px`); }
   }
   // Touch: SELECT is armed (the next drag on the map draws a selection box).
   setBoxArm(on) { this.boxArm = !!on; document.body.classList.toggle('boxing', !!on); if (this.sqa && this.sqa.box) this.sqa.box.key = ''; }
-  // What is selected on the map (posts.js): its name, health, crew, what it does, and the SEAF buttons. sel null closes it.
-  selCard(m, s, force = false) {
-    const c = $('selcard');
-    if (!s || !m) { if (!c.classList.contains('hidden')) { c.classList.add('hidden'); this.placeCard(true); } this.selKey = ''; return; }
-    const post = s.kind === 'post' ? s : null, sentry = s.kind === 'turret' ? s : null, site = !post && !sentry ? s : null;
-    const gar = post ? garrisonOf(m, post).length : 0;
-    const hp = s.maxHp ? Math.round((100 * s.hp) / s.maxHp) : null;
-    const key = [s.id || s.kind, post && post.crew, gar, hp, post && post.repairing, sentry && Math.round(sentry.ammo), m.seaf.sel, getLang()].join('|');
-    if (!force && key === this.selKey) return;
-    this.selKey = key;
-    let h = '', name, what = '';
-    if (post) {
-      name = `${t('build.' + post.what).toUpperCase()}${post.what !== 'foxhole' ? ` <i>${t('card.level', { n: post.lvl })}</i>` : ''}`;
-      what = t('sel.' + post.what);
-      if (post.cap) h += row(t('sel.crew'), `${post.crew}/${post.cap}${needsCrew(post) && !post.crew ? ` · ${t('lab.noCrew')}` : ''}`);
-      if (gar) h += row(t('sel.garrison'), String(gar));
-      const reach = postReach(m, post); if (reach) h += row(t('sel.reach'), `${Math.round(reach)} M`);
-    } else if (sentry) {
-      name = (sentry.name || t('lab.sentry')).toUpperCase(); what = t('sel.sentry');
-      h += row(t('card.range'), `${Math.round(sentry.p.range)} M`) + row(t('card.ammo'), `${Math.max(0, Math.round(sentry.ammo))}/${sentry.maxAmmo}`);
-    } else { name = t('sel.site').toUpperCase(); what = t('sel.siteB'); h += row(t('sel.walls'), String(site.pieces.length)); }
-    if (hp !== null) h += row(t('sel.hp'), `${hp}%${post && post.repairing ? ` · ${t('sel.repairing')}` : ''}`);
-    const who = m.seaf.sel >= 0 ? `S${m.seaf.sel + 1}` : t('hud.all');
-    let btns = '';
-    if (!sentry) btns += `<button class="btn primary" type="button" data-sa="man">${esc(t('sel.man', { who }))}</button>`;
-    if (post && post.cap) btns += `<button class="btn" type="button" data-sa="garrison"${post.crewS ? '' : ' disabled'}>${esc(t('sel.garrisonBtn'))}</button>`;
-    if (gar) btns += `<button class="btn" type="button" data-sa="release">${esc(t('sel.release'))}</button>`;
-    c.innerHTML = `<button class="x-close" type="button" data-sa="close" aria-label="${esc(t('hud.closeSel'))}">✕</button><div class="ic-h">${name}</div>${h}<div class="ic-b">${esc(what)}</div>${btns ? `<div class="sel-btns">${btns}</div>` : ''}`;
-    c.classList.remove('hidden');
-    this.placeCard(true);
+  // The tactical build screen's header: whether the game waits or runs slow, and how to use it here.
+  setTacState(slow, touch) {
+    $('tc-state').textContent = t(slow ? 'tac.slowed' : 'tac.paused');
+    $('tc-help').textContent = t(touch ? 'tac.helpTouch' : 'tac.helpDesk');
   }
-
+  // A weapon is armed (picked on the bar or with its key): the reticle shows and a click calls it. Otherwise the cursor selects.
+  setArmed(on) { this.armed = !!on; document.body.classList.toggle('armed', !!on); for (const w of this.wb) w.key = ''; }
+  // The tactical screen's left panel: the selected post (or site, or sentry), or the selected squad and what it is made of.
+  _tacSel(m, sel) {
+    const sf = m.seaf, q = sf.sel >= 0 ? sf.squads[sf.sel] : null;
+    let h;
+    if (sel && !sel.dead) {
+      const post = sel.kind === 'post' ? sel : null, hp = sel.maxHp ? Math.round((100 * sel.hp) / sel.maxHp) : null;
+      const name = post ? t('build.' + post.what) : sel.kind === 'turret' ? sel.name || t('lab.sentry') : t('sel.site');
+      h = `<div class="ts-h">${esc(name.toUpperCase())}${post && post.what !== 'foxhole' ? ` <i>${esc(t('card.level', { n: post.lvl }))}</i>` : ''}</div>`
+        + (hp !== null ? `<i class="ts-hp"><u style="width:${hp}%"></u></i>` : '')
+        + (post && post.cap ? `<div class="ts-r">${esc(t('sel.crew'))} <b>${post.crew}/${post.cap}</b>${post.garrison ? ` · ${esc(t('sel.garrison'))} <b>${post.garrison}</b>` : ''}</div>` : '')
+        + `<div class="ts-b">${esc(post ? t('sel.' + post.what) : sel.kind === 'turret' ? t('sel.sentry') : t('sel.siteB'))}</div>`;
+    } else if (q && q.n) {
+      const list = m.seafAlive.filter((a) => a.sq === q.i), roles = {};
+      for (const a of list) { const r = a.role || 'rifle'; roles[r] = (roles[r] || 0) + 1; }
+      const pip = list.map((a) => `<i class="tp r-${a.role || 'rifle'}"></i>`).join('');
+      h = `<div class="ts-h" style="color:${SQUAD_COL[q.i] || '#fff'}">S${q.i + 1} <i>${esc(t('tac.troopers', { n: q.n }))}</i></div><div class="ts-pips">${pip}</div>`
+        + `<div class="ts-r">${esc(t('card.ord.' + (q.order.kind === 'post' ? 'post' : q.order.kind === 'build' ? 'build' : q.order.kind)) || q.order.kind)} · ${esc(t('form.' + (q.form || 'loose')))}</div>`
+        + `<div class="ts-b">${esc(t('tac.cmdHint'))}</div>`;
+    } else {
+      const n = m.countAlly('S');
+      h = `<div class="ts-h">${esc(t('hud.all'))} <i>${esc(t('tac.troopers', { n }))}</i></div><div class="ts-b">${esc(t(n ? 'tac.selHint' : 'tac.noSeaf'))}</div>`;
+    }
+    this._set('tacsel', $('tc-sel'), h, 'innerHTML');
+  }
+  // The selected post, site or sentry: name, level, health and crew in a small panel just above it on the map, with a door to send
+  // the selected SEAF squad in (they garrison it) and a door out when someone is garrisoned there. pos: where it is on screen.
+  selPop(m, s, pos, force = false) {
+    const c = $('selpop');
+    this.selObj = s && !s.dead ? s : null;
+    if (!s || !m || !pos) { if (!c.classList.contains('hidden')) c.classList.add('hidden'); this.selKey = ''; return; }
+    const post = s.kind === 'post' ? s : null, sentry = s.kind === 'turret' ? s : null, site = !post && !sentry ? s : null;
+    const hp = s.maxHp ? Math.round((100 * s.hp) / s.maxHp) : null;
+    const key = [s.id || s.kind, post && post.crew, post && post.garrison, hp, post && post.repairing, sentry && Math.round(sentry.ammo), m.seaf.sel, getLang()].join('|');
+    if (force || key !== this.selKey) {
+      this.selKey = key;
+      const who = m.seaf.sel >= 0 ? `S${m.seaf.sel + 1}` : t('hud.all');
+      let name, sub = '', btns = '';
+      if (post) {
+        name = `${esc(t('build.' + post.what).toUpperCase())}${post.what !== 'foxhole' ? ` <i>${esc(t('card.lvShort', { n: post.lvl }))}</i>` : ''}`;
+        if (post.cap) sub = `${needsCrew(post) && !post.crew ? `<em>${esc(t('lab.noCrew'))}</em>` : `${esc(t('sel.crew'))} ${post.crew}/${post.cap}`}${post.garrison ? ` · ${esc(t('sel.garrison'))} ${post.garrison}` : ''}`;
+        if (post.cap && post.garrison < post.cap) btns += `<button class="dr in" type="button" data-sa="in" title="${esc(t('sel.inT', { who }))}" aria-label="${esc(t('sel.inT', { who }))}">${DOOR_IN}</button>`;
+        if (post.garrison) btns += `<button class="dr out" type="button" data-sa="out" title="${esc(t('sel.outT'))}" aria-label="${esc(t('sel.outT'))}">${DOOR_OUT}</button>`;
+      } else if (sentry) {
+        name = esc((sentry.name || t('lab.sentry')).toUpperCase());
+        sub = `${esc(t('card.ammo'))} ${Math.max(0, Math.round(sentry.ammo))}/${sentry.maxAmmo}`;
+      } else {
+        name = esc(t('sel.site').toUpperCase());
+        sub = esc(t('sel.walls')) + ' ' + site.pieces.length;
+        btns += `<button class="dr in" type="button" data-sa="man" title="${esc(t('sel.manT', { who }))}" aria-label="${esc(t('sel.manT', { who }))}">${DOOR_IN}</button>`;
+      }
+      c.innerHTML = `<div class="sp-t"><b>${name}</b>${btns ? `<span class="sp-d">${btns}</span>` : ''}</div>`
+        + (hp !== null ? `<i class="sp-hp${hp < 35 ? ' low' : ''}"><u style="width:${hp}%"></u></i>` : '')
+        + (sub ? `<div class="sp-s">${sub}${post && post.repairing ? ` · ${esc(t('sel.repairing'))}` : ''}</div>` : '');
+      c.classList.remove('hidden');
+    }
+    c.style.transform = `translate(${Math.round(pos.x)}px, ${Math.round(pos.y)}px) translate(-50%, -100%)`;
+  }
   // The Helldiver bar: each group's Helldiver, its health and what it is doing, or when the next one lands.
   _hdbar(m) {
     m.teams.forEach((tm, i) => {
@@ -595,13 +632,12 @@ export class Hud {
     }
     const selN = sf.sel >= 0 ? sf.squads[sf.sel].n : 0;
     this._dock(sf, total);
-    const set = (kind, cls) => { const a = this.sqa[kind], key = cls; if (a.key === key) return; a.key = key; a.el.className = 'sqa ' + cls; };
+    const set = (kind, cls) => { const a = this.sqa[kind], key = cls; if (!a || a.key === key) return; a.key = key; a.el.className = 'sqa ' + cls; };
     set('draw', !total ? 'off' : this.drawing ? 'active' : 'ready');
     const biggest = sf.sel >= 0 ? selN : Math.max(0, ...sf.squads.map((q) => q.n));
     set('split', biggest >= 2 && free ? 'ready' : 'off');
     set('merge', sf.sel >= 0 && selN > 0 && sf.squads.some((q) => q.i !== sf.sel && q.n) ? 'ready' : 'off');
     set('assign', sf.sel < 0 || !total ? 'off' : this.placing === 'assign' ? 'active' : 'ready');
-    set('box', !total ? 'off' : this.boxArm ? 'active' : 'ready');
   }
 
   // The dock chip shows which squad is selected and what it is doing, so the tray can stay closed.
@@ -627,7 +663,7 @@ export class Hud {
       const hidden = s.type === 'empty' || (s.type === 'nuke' && !nuke);
       let name = '--', sub = '', frac = 1, cls = '';
       if (!hidden) {
-        const sel = i === p.weapon;
+        const sel = i === p.weapon && this.armed;
         if (s.type === 'uav') {
           name = t('hud.w.uavBar'); const u = m.uavs[m.uavs.length - 1], cd = slotStats(m, i).cd;
           if (u && tt < u.until) { sub = t('hud.w.scan', { n: Math.ceil(u.until - tt) }); frac = (u.until - tt) / (u.until - u.born); cls = 'act'; }
@@ -662,11 +698,12 @@ export class Hud {
           else { sub = t('hud.w.locked'); frac = 0; cls = 'nomark'; }
         }
       }
-      const key = `${hidden}|${name}|${sub}|${cls}|${i === p.weapon}`;   // the gun's ammo changes the text a lot, which is fine
+      const on = i === p.weapon && this.armed;
+      const key = `${hidden}|${name}|${sub}|${cls}|${on}`;   // the gun's ammo changes the text a lot, which is fine
       if (w.key !== key) {
         w.key = key; w.el.style.display = hidden ? 'none' : '';
         w.n.textContent = name; w.sub.textContent = sub;
-        w.el.className = 'wbtn' + (s.type === 'nuke' ? ' big-w obj-w' : s.type === 'arty' ? ' big-w arty-w' : s.type === 'uav' ? ' uav-w' : s.type === 'gun' ? ' gun-w' : ' orb-w') + (i === p.weapon ? ' sel' : '') + (cls ? ' ' + cls : '');
+        w.el.className = 'wbtn' + (s.type === 'nuke' ? ' big-w obj-w' : s.type === 'arty' ? ' big-w arty-w' : s.type === 'uav' ? ' uav-w' : s.type === 'gun' ? ' gun-w' : ' orb-w') + (on ? ' sel' : '') + (cls ? ' ' + cls : '');
       }
       w.bar.style.width = `${Math.max(0, Math.min(1, frac)) * 100}%`;
     });
@@ -709,7 +746,7 @@ export function squadStatus(m) {
 export function setBriefHeader(n, score) { $('b-num').textContent = n; $('b-score').textContent = fmtNum(score); }
 
 // Every mission loads for at least C.ui.minLoadSec, then waits for a click on CONTINUE.
-export function runBriefing({ info, mission, touch, onContinue, onEnd, canEnd, onReveal, pre, again }) {
+export function runBriefing({ info, mission, touch, onContinue, onEnd, onCancel, onMenu, canEnd, onReveal, pre, again }) {
   $('controls-desktop').classList.toggle('hidden', touch);
   $('controls-touch').classList.toggle('hidden', !touch);
   const lines = ['r-op', 'r-enemy', 'r-biome', 'r-obj', 'r-diff', 'r-fail'].map($);
@@ -776,6 +813,8 @@ export function runBriefing({ info, mission, touch, onContinue, onEnd, canEnd, o
   raf = requestAnimationFrame(tick);
   cont.onclick = () => { if (!finished) return; cancelled = true; clearTimeout(tipT); onContinue(); };
   $('btn-end').onclick = () => { cancelled = true; clearTimeout(tipT); cancelAnimationFrame(raf); onEnd(); };
+  $('b-cancel').onclick = () => { cancelled = true; clearTimeout(tipT); cancelAnimationFrame(raf); onCancel && onCancel(); };
+  $('b-menu').onclick = () => onMenu && onMenu();
   return {
     terrainReady() { terrainReady = true; },
     cancel() { cancelled = true; clearTimeout(tipT); cancelAnimationFrame(raf); },
@@ -806,6 +845,7 @@ function statLine(it, kit) {
   if (id === 'seaf.cap') return t('st.seafCap', { n: s.max });
   if (id === 'seaf.drop') return t('st.seafDrop', { n: s.drop, s: s.cool });
   if (id === 'seaf.hp') return t('st.seafHp', { a: s.hpMul.toFixed(2), b: s.dmgMul.toFixed(2) });
+  if (id === 'seaf.build') return t('st.seafBuild', { x: s.buildSpeed.toFixed(2) });
   if (id === 'seaf.gren') return t('st.seafGren', { p: Math.round(s.grenChance * 100) });
   if (id === 'seaf.rocket') return t('st.seafRocket', { p: Math.round(s.rocketChance * 100) });
   if (id === 'seaf.medic') return t('st.seafMedic', { p: Math.round(s.medicChance * 100), x: s.medicRate.toFixed(2) });
@@ -859,6 +899,7 @@ function keyAt(it, kit, L) {
   if (id === 'seaf.cap') return String(s.max);
   if (id === 'seaf.drop') return String(s.drop);
   if (id === 'seaf.hp') return `x${s.hpMul.toFixed(2)}`;
+  if (id === 'seaf.build') return `x${s.buildSpeed.toFixed(2)}`;
   if (id === 'seaf.gren') return pc(s.grenChance);
   if (id === 'seaf.rocket') return pc(s.rocketChance);
   if (id === 'seaf.medic') return pc(s.medicChance);
@@ -1092,6 +1133,9 @@ export function fillFinal(session, fin, block) {
 // A recorded super heavy: its name in the current language (older saves only have the English name).
 const bossName = (b) => (b.fac ? t('boss.' + b.fac) : b.name || t('boss.generic'));
 
+// The version, on the title screen and under every mission's result and the final screen.
+export function fillVersion() { for (const id of ['ver-t', 'ver-d', 'ver-f']) $(id).textContent = t('ui.ver', { v: C.share.version }); }
+
 export function setupBest() {
   let best = 0;
   try { best = (JSON.parse(localStorage.getItem('ofs.history') || '[]')[0] || {}).score || 0; } catch { best = 0; }
@@ -1106,7 +1150,7 @@ function topBelow(extra = null) {
   if (document.body.classList.contains('touch')) {
     for (const e of $('callouts').children) if (!e.classList.contains('hidden')) under(e);
     under(document.querySelector('.tl-btns')); under($('mbox')); under($('objective'));
-  } else { for (const e of $('radio').children) under(e); y = Math.max(y, 96); }     // a computer: under the radio, at the top in the middle
+  } else y = Math.max(y, 12);     // a computer: nothing across the top in the middle any more
   under(extra);
   return y;
 }
@@ -1128,7 +1172,7 @@ export function buildSettings(settings, onChange) {
   const select = (key, opts) => {
     const s = el('select');
     for (const [v, label] of opts) { const o = el('option'); o.value = v; o.textContent = label; s.appendChild(o); }
-    s.value = String(settings[key]); s.onchange = () => { settings[key] = key === 'uiScale' ? Number(s.value) : s.value; onChange(key); }; return s;
+    s.value = String(settings[key]); s.onchange = () => { settings[key] = key === 'uiScale' || key === 'mini' ? Number(s.value) : s.value; onChange(key); }; return s;
   };
   const range = (key, min, max, step) => {
     const r = el('input'); r.type = 'range'; r.min = min; r.max = max; r.step = step; r.value = settings[key];
@@ -1136,6 +1180,8 @@ export function buildSettings(settings, onChange) {
   };
   row(t('set.lang'), t('set.langHint'), select('lang', Object.entries(LANGS).map(([k, v]) => [k, v.name])));
   row(t('set.ui'), t('set.uiHint'), select('uiScale', [['0.8', '80%'], ['0.9', '90%'], ['1', '100%'], ['1.15', '115%'], ['1.3', '130%']]));
+  row(t('set.mini'), t('set.miniHint'), select('mini', [['1', '1×'], ['1.5', '1.5×'], ['2', '2×'], ['2.5', '2.5×']]));
+  row(t('set.tac'), t('set.tacHint'), select('tacTime', [['pause', t('set.tacPause')], ['slow', t('set.tacSlow')]]));
   row(t('set.thermal'), t('set.thermalHint'), select('polarity', [['white', t('set.white')], ['black', t('set.black')]]));
   row(t('set.relief'), t('set.reliefHint'), toggle('relief'));
   row(t('set.volume'), '', range('volume', 0, 1, 0.05));

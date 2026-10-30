@@ -24,7 +24,7 @@ export function newKit() {
   for (const id of C.kit.startLoadout) owned[id] = 1;
   const loadout = Array(C.kit.slotsMax).fill('');
   C.kit.startLoadout.forEach((id, i) => { loadout[i] = id; });
-  return { slots: C.kit.slotsStart, loadout, owned, uav: 1, uavb: { speed: 0, dodge: 0 }, seaf: { cap: 0, drop: 0, hp: 0, gren: 0, rocket: 0, medic: 0, spot: 0 }, sup: { lives: 0, zone: 0 }, gun: { dmg: 0, ammo: 0, regen: 0, spread: 0 },
+  return { slots: C.kit.slotsStart, loadout, owned, uav: 1, uavb: { speed: 0, dodge: 0 }, seaf: { cap: 0, drop: 0, hp: 0, gren: 0, rocket: 0, medic: 0, spot: 0, build: 0 }, sup: { lives: 0, zone: 0 }, gun: { dmg: 0, ammo: 0, regen: 0, spread: 0 },
     build: { bastion: 1, mg: 1, bunker: 1, tower: 1, sam: 0, arty: 0 } };
 }
 // Old or partial saves are filled in rather than thrown away.
@@ -101,6 +101,7 @@ export function seafStats(kit) {
     medicChance: Math.min(1, C.seaf.medicChance + K.seafMedic * s.medic), medicRate: 1 + K.medicRate * s.medic,
     spotChance: Math.min(1, C.seaf.spotChance + K.seafSpot * s.spot), spotCool: C.spotter.coolSec * (1 - K.spotCool * s.spot),
     spotN: C.spotter.n + Math.floor(s.spot / 2), spotDmg: 1 + K.spotDmg * s.spot,
+    buildSpeed: 1 + K.seafBuild * (s.build || 0),       // Combat Engineers: how much faster SEAF put up what they build
   };
 }
 // The Ship Gun (the one gatling the destroyer has): damage, magazine, ammo regeneration and how tight the rounds group.
@@ -135,7 +136,7 @@ export const zoneExtra = (kit) => C.kit.zonePer * kit.sup.zone;
 // ---------- the shop ----------
 // Every item has: id, section, name, blurb, level, max, cost (null when maxed), and live (true when it can be bought mid-mission).
 // Names and blurbs come from the language tables (kit.<group>.<key> and kit.<group>.<key>.b).
-const SEAF_UP = { cap: { max: Infinity, price: 300, endless: true }, drop: { max: 3, price: 400 }, hp: { max: 4, price: 350 }, gren: { max: 4, price: 300 },
+const SEAF_UP = { cap: { max: Infinity, price: 300, endless: true }, drop: { max: 3, price: 400 }, hp: { max: 4, price: 350 }, build: { max: 4, price: 300 }, gren: { max: 4, price: 300 },
   rocket: { max: 4, price: 350 }, medic: { max: 4, price: 300 }, spot: { max: 4, price: 400 } };
 const GUN_UP = { dmg: { max: 5, price: 300 }, ammo: { max: 5, price: 250 }, regen: { max: 5, price: 250 }, spread: { max: 5, price: 300 } };
 const SUP_UP = { zone: { max: 4, price: 450 } };

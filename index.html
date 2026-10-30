@@ -19,12 +19,21 @@
       <div class="tl-btns">
         <button id="btn-info" class="btn icon" data-ta="hud.infoAria" data-tt="hud.infoTitle" data-t="hud.info">INFO</button>
         <button id="btn-shop" class="btn icon" data-ta="hud.armory" data-t="hud.armory">ARMORY</button>
+        <button id="btn-tac" class="btn icon tacb" type="button" data-tt="hud.tacTitle"><span data-t="hud.tactical">TACTICAL</span> <kbd>O</kbd></button>
         <button id="btn-menu" class="btn icon" data-ta="hud.menu" data-t="hud.menu">MENU</button>
         <button id="btn-speed" class="btn icon" type="button" data-ta="hud.speedAria" data-tt="hud.speedTitle">1×</button>
         <button id="btn-pause" class="btn icon" data-ta="hud.pause">II</button>
       </div>
-      <div id="notices"></div>
+      <div id="feed">
+        <div id="callouts">
+          <div id="co-sup" class="callout sup hidden"><span class="co-i">⬢</span><span class="co-t"></span><button class="co-b primary" data-co="accept"><span data-t="hud.loadPod">LOAD POD</span> <kbd>U</kbd></button><button class="co-b" data-co="look-sup"><span data-t="hud.look">LOOK</span> <kbd>J</kbd></button><button class="co-b x" data-co="decline" data-ta="hud.declineSup" aria-label="Turn down the supply request">✕</button><i class="co-bar"></i></div>
+          <div id="co-time" class="callout time hidden"><span class="co-i">⏱</span><span class="co-t"></span><button class="co-b primary" data-co="time-yes"><span data-t="hud.approve">APPROVE</span> <kbd>K</kbd></button><button class="co-b x" data-co="time-no" data-ta="hud.declineTime" aria-label="Turn down the request">✕</button><i class="co-bar"></i></div>
+          <div id="co-boss" class="callout boss hidden"><span class="co-i">☠</span><span class="co-t"></span><button class="co-b" data-co="look-boss" data-t="hud.look">LOOK</button><i class="co-hp"><u></u><s></s></i></div>
+        </div>
+        <div id="notices"></div>
+      </div>
     </div>
+    <button id="showui" class="btn icon" type="button"><span data-t="hud.showUi">SHOW UI</span> <kbd>F2</kbd></button>
     <!-- top right: the clock, the mission and the difficulty, the score; the objective under it -->
     <div class="hud-tr">
       <div id="mbox" class="panel fadeable">
@@ -35,18 +44,12 @@
       </div>
       <div id="objective" class="panel fadeable"><div id="obj-main"></div><div id="obj-bar" class="hidden"><i></i></div><div id="obj-sub"></div></div>
       <div id="place-hint" class="panel hidden"></div>
-      <div id="callouts">
-        <div id="co-boss" class="callout boss hidden"><span class="co-i">☠</span><span class="co-t"></span><button class="co-b" data-co="look-boss" data-t="hud.look">LOOK</button><i class="co-hp"><u></u><s></s></i></div>
-        <div id="co-time" class="callout time hidden"><span class="co-i">⏱</span><span class="co-t"></span><button class="co-b primary" data-co="time-yes"><span data-t="hud.approve">APPROVE</span> <kbd>K</kbd></button><button class="co-b x" data-co="time-no" data-ta="hud.declineTime" aria-label="Turn down the request">✕</button><i class="co-bar"></i></div>
-        <div id="co-sup" class="callout sup hidden"><span class="co-i">⬢</span><span class="co-t"></span><button class="co-b primary" data-co="accept"><span data-t="hud.loadPod">LOAD POD</span> <kbd>U</kbd></button><button class="co-b" data-co="look-sup"><span data-t="hud.look">LOOK</span> <kbd>J</kbd></button><button class="co-b x" data-co="decline" data-ta="hud.declineSup" aria-label="Turn down the supply request">✕</button><i class="co-bar"></i></div>
-      </div>
     </div>
     <!-- bottom right: the minimap (round; a click or a tap opens the map) -->
     <div class="hud-br">
       <div id="flavor" class="fadeable"></div>
       <canvas id="minimap" class="fadeable" width="240" height="240" data-tt="hud.miniTitle"></canvas>
     </div>
-    <div id="radio"></div>
     <!-- bottom left: the Helldivers (health, kit, stratagems, ships), then the SEAF squads and their orders -->
     <div id="tray">
     <button class="x-close tray-x" type="button" data-close="tray" data-ta="hud.closeTray">✕</button>
@@ -61,7 +64,6 @@
       <button class="sqa" data-a="split"><span class="k">F</span><span class="n" data-t="hud.split">SPLIT</span></button>
       <button class="sqa" data-a="merge"><span class="k">M</span><span class="n" data-t="hud.merge">MERGE</span></button>
       <button class="sqa" data-a="assign"><span class="k">Y</span><span class="n" data-t="hud.assign">ASSIGN</span></button>
-      <button class="sqa" data-a="box"><span class="k">⇧</span><span class="n" data-t="hud.box">SELECT</span></button>
     </div>
     <div id="orders" class="panel">
       <button class="ord" data-o="seaf"><span class="k">G</span><span class="n" data-t="hud.seafDrop">SEAF DROP</span><span class="s">--</span></button>
@@ -70,18 +72,24 @@
       <button class="ord" data-o="protect"><span class="k">Z</span><span class="n" data-t="hud.protect">PROTECT</span><span class="s">--</span></button>
       <button class="ord" data-o="attack"><span class="k">N</span><span class="n" data-t="hud.attack">ATTACK</span><span class="s">--</span></button>
       <button class="ord" data-o="escort"><span class="k">C</span><span class="n" data-t="hud.escort">ESCORT</span><span class="s">--</span></button>
-      <button class="ord" data-o="build"><span class="k">O</span><span class="n" data-t="hud.tactical">TACTICAL</span><span class="s">--</span></button>
     </div>
-    <div id="buildmenu" class="panel hidden" role="menu">
-      <div class="tac-h"><b data-t="hud.tactical">TACTICAL</b><span class="tac-slow" data-t="hud.tacSlow">TIME SLOWED</span><button class="x-close tac-x" type="button" data-ta="hud.closeTac">✕</button></div>
-      <div class="tac-l" data-t="tac.build">BUILD</div>
-      <div class="tac-row tac-build"></div>
-      <div class="tac-l" data-t="tac.form">FORMATION</div>
-      <div class="tac-row tac-form"></div>
+    <!-- the tactical build screen: the Helldivers and the SEAF squads fold away into these two drop menus -->
+    <div id="tac-drops">
+      <button id="td-hd" class="btn tdb" type="button"><span data-t="tac.dropHd">HELLDIVERS</span> <i>▴</i></button>
+      <button id="td-sf" class="btn tdb" type="button"><span data-t="tac.dropSf">SEAF SQUADS</span> <i>▴</i></button>
     </div>
     </div>
-    <!-- what is selected on the map: a post, a sentry or a defence site -->
-    <div id="selcard" class="panel hidden" role="dialog"></div>
+    <!-- the tactical build screen (O): the game waits while it is open. What is selected, what SEAF can build, and formations. -->
+    <div id="tactical" class="panel hidden" role="dialog">
+      <div class="tc-h"><b data-t="tac.title">TACTICAL BUILD</b><span id="tc-state" class="tc-state"></span><span class="tc-help" id="tc-help"></span><button class="x-close tc-x" type="button" data-ta="hud.closeTac">✕</button></div>
+      <div class="tc-body">
+        <div id="tc-sel" class="tc-sel"></div>
+        <div class="tc-sec tc-b"><div class="tc-l" data-t="tac.build">BUILD</div><div class="tc-grid tac-build"></div></div>
+        <div class="tc-sec tc-f"><div class="tc-l" data-t="tac.form">FORMATION</div><div class="tc-grid tac-form"></div></div>
+      </div>
+    </div>
+    <!-- what is selected on the map (a post, a sentry or a defence site): its name, level and health, just above it -->
+    <div id="selpop" class="hidden" role="dialog"></div>
     <div id="dock">
       <button id="dk-sq" class="dkb"><span class="n"></span><span class="s">--</span></button>
       <button id="dk-drop" class="dkb"><span class="n" data-t="hud.seafDrop">SEAF DROP</span><span class="s">--</span></button>
@@ -138,6 +146,7 @@
       <p class="fine fb-note" data-t="title.fbNote"></p>
       <p id="best" class="fine"></p>
       <p class="fine" data-t="ui.disclaimer"></p>
+      <p class="ver" id="ver-t"></p>
     </div>
   </section>
 
@@ -173,8 +182,8 @@
           <div id="b-status" class="fine"></div>
           <div class="btns">
             <button id="b-continue" class="btn primary big" disabled></button>
-            <button id="btn-ctl-b" class="btn" type="button" data-t="ui.controls">CONTROLS</button>
-            <button id="btn-man-b" class="btn" type="button" data-t="ui.manual">FIELD MANUAL</button>
+            <button id="b-cancel" class="btn big" type="button" data-t="brief.cancel">CANCEL</button>
+            <button id="b-menu" class="btn" type="button" data-t="hud.menu">MENU</button>
             <button id="btn-end" class="btn" data-t="ui.endSession">END SESSION</button>
           </div>
         </div>
@@ -209,6 +218,7 @@
         <div class="btns"><button id="btn-copy-d" class="btn" type="button" data-t="deb.copy">COPY SCORE</button></div>
         <p id="d-msg" class="fine"></p>
       </div>
+      <p class="ver" id="ver-d"></p>
     </div>
   </section>
 
@@ -231,6 +241,7 @@
       </div>
       <p id="f-msg" class="fine"></p>
       <p class="fine fb-note" data-t="fin.fbNote"></p>
+      <p class="ver" id="ver-f"></p>
     </div>
   </section>
 
@@ -240,16 +251,17 @@
       <button class="x-close" data-close="s-pause" data-ta="pause.close">✕</button>
       <h2 data-t="pause.title">PAUSED</h2>
       <div class="btns col">
-        <button id="btn-resume-m" class="btn primary big" data-t="pause.resume">RESUME</button>
-        <button id="btn-info-m" class="btn" data-t="ui.missionInfo">MISSION INFO</button>
-        <button id="btn-armory-m" class="btn" data-t="hud.armory">ARMORY</button>
+        <button id="btn-resume-m" class="btn primary big"><span class="play-only" data-t="pause.resume">RESUME</span><span class="brief-only" data-t="ui.backBtn">BACK</span></button>
+        <button id="btn-info-m" class="btn play-only" data-t="ui.missionInfo">MISSION INFO</button>
+        <button id="btn-armory-m" class="btn play-only" data-t="hud.armory">ARMORY</button>
         <button id="btn-names-m" class="btn" data-t="ui.names">SQUAD NAMES</button>
         <button id="btn-ctl-m" class="btn" type="button" data-t="ui.controls">CONTROLS</button>
         <button id="btn-man-m" class="btn" type="button" data-t="ui.manual">FIELD MANUAL</button>
         <button id="btn-settings-m" class="btn" data-t="ui.settings">SETTINGS</button>
+        <button id="btn-hideui-m" class="btn play-only" type="button"><span data-t="pause.hideUi">HIDE UI</span> <kbd>F2</kbd></button>
         <button id="btn-about-m" class="btn" data-t="ui.about">ABOUT</button>
         <a id="lnk-fb-m" class="btn fb" target="_blank" rel="noopener" data-t="ui.feedback">FEEDBACK</a>
-        <button id="btn-abort" class="btn danger" data-t="pause.retire">RETIRE FROM MISSION</button>
+        <button id="btn-abort" class="btn danger play-only" data-t="pause.retire">RETIRE FROM MISSION</button>
       </div>
       <p class="fine fb-note" data-t="pause.fbNote"></p>
       <p id="abort-confirm" class="fine hidden" data-t="pause.confirm"></p>

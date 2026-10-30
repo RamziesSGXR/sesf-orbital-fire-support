@@ -272,7 +272,7 @@ export class Mission {
     const s = p.slots[i];
     if (s.type === 'empty') return;
     if (s.type === 'nuke' && !this.nukeReady()) { this.emit('deny', { reason: 'nomark' }); this.radio(COMMS.holdFire, 'nomark', 3); return; }
-    p.weapon = i; p.swapUntil = this.t + C.weapons.swapSec;
+    p.weapon = i; p.swapUntil = this.t + C.weapons.swapSec; p.queued = -1;
     this.emit('swap', { w: i });
   }
 
@@ -368,6 +368,22 @@ export class Mission {
     this.emit('seaf_order', { kind: 'post', x: site.x, y: site.y, sq: q.i });
     return { ok: true, squad: q.i };
   }
+  // The door on a selected post: the selected squad (or the nearest) goes there and as many as fit go in for good: they leave
+  // their squad and stay with it (they still count toward the troops in the field). Anyone of the squad already on it goes in now.
+  garrisonGo(p) {
+    if (this.over || !p || p.dead || p.kind !== 'post') return { ok: false, reason: 'over' };
+    if (!p.cap) return this._deny('nogarrison');
+    if (p.garrison >= p.cap) return this._deny('postfull');
+    const sq = targetSquads(this).filter((q) => q.n > 0);
+    if (!sq.length) return this._deny('noseaf');
+    const q = sq.slice().sort((a, b) => Math.hypot(a.cx - p.x, a.cy - p.y) - Math.hypot(b.cx - p.x, b.cy - p.y))[0];
+    setSquadOrder(this, q, 'post', p.site.x, p.site.y, { post: p, site: p.site, garrison: true });
+    const now = garrisonPost(this, p, q.i);
+    this.radio(COMMS.seafMan, 'seafman', 1);
+    this.emit('seaf_order', { kind: 'post', x: p.x, y: p.y, sq: q.i });
+    if (now) this.notice(tr('n.garrison', { n: now, what: p.name.toUpperCase() }), 'info');
+    return { ok: true, squad: q.i, now };
+  }
   // The SEAF crew on a post leave their squad and stay with it (they still count toward the troops in the field).
   garrison(p) {
     if (this.over || !p || p.dead) return { ok: false, reason: 'over' };
@@ -379,6 +395,7 @@ export class Mission {
   }
   ungarrison(p) {
     if (!p) return { ok: false, reason: 'over' };
+    for (const q of this.seaf.squads) if (q.order.post === p) q.order.garrison = false;     // (or they would walk straight back in)
     const n = releaseGarrison(this, p, this.seaf.sel);
     if (!n) return this._deny('nogarrison');
     this.notice(tr('n.ungarrison', { n, what: p.name.toUpperCase() }), 'info');

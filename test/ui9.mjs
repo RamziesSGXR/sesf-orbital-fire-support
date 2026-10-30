@@ -51,9 +51,9 @@ if (!touch) {
   // at the top: under the objective and callouts
   await ev(() => window.__game.setSetting('cards', 'top'));
   await page.keyboard.press('Digit2'); await page.waitForTimeout(400);
-  // (0.16: the top middle holds the radio; the objective and callouts are in the top right corner)
+  // (0.17: nothing is across the top middle any more: the radio joined the feed at the top left)
   card = await rect('#infocard'); const tr = await rect('.hud-tr'), tl = await rect('.hud-l');
-  check('Settings > Info cards: At the top puts it across the top, under the radio, clear of both top corners', card && card.t >= 90 && !overlap(card, tr) && !overlap(card, tl), card ? `card ${Math.round(card.l)},${Math.round(card.t)} to ${Math.round(card.r)},${Math.round(card.b)}` : '');
+  check('Settings > Info cards: At the top puts it across the top, in the middle, clear of both top corners', card && card.t >= 6 && card.t < 120 && !overlap(card, tr) && !overlap(card, tl), card ? `card ${Math.round(card.l)},${Math.round(card.t)} to ${Math.round(card.r)},${Math.round(card.b)}` : '');
   await ev(() => window.__game.setSetting('cards', 'off'));
   await page.keyboard.press('Digit3'); await page.waitForTimeout(400);
   check('Off hides them', !(await page.isVisible('#infocard')));

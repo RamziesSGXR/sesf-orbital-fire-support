@@ -70,7 +70,7 @@ await tap('#man-close'); await page.waitForTimeout(200);
 
 // ---------------------------------------------------------------- the briefing
 await tap('#shop-go'); await page.waitForTimeout(500);
-check('the briefing no longer prints the controls; it has CONTROLS and FIELD MANUAL buttons', !(await page.isVisible('#controls-desktop')) && !(await page.isVisible('#controls-touch')) && await page.isVisible('#btn-ctl-b') && await page.isVisible('#btn-man-b'));
+check('the briefing prints no controls; it has CONTINUE, CANCEL and MENU (0.17: the menu holds the controls and the manual)', !(await page.isVisible('#controls-desktop')) && !(await page.isVisible('#controls-touch')) && await page.isVisible('#b-cancel') && await page.isVisible('#b-menu') && !(await page.$('#btn-ctl-b')) && !(await page.$('#btn-man-b')));
 await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
 await tap('#b-continue'); await page.waitForTimeout(1200);
 await ev(() => { const m = window.__game.mission; for (let i = 0; i < 30 * 10; i++) m.step(1 / 30); });
@@ -115,14 +115,13 @@ check('and back to full speed', await ev(() => window.__game.speed === 1 && docu
 
 // ---------------------------------------------------------------- building: the tactical menu, weapon 9 (the cannon needs a crew)
 await ev(() => { const m = window.__game.mission; m.seaf.readyAt = 0; m.callSeaf(m.hx + 20, m.hy + 10); for (let i = 0; i < 30 * 14; i++) m.step(1 / 30); });
-if (touch) { await tap('#dk-sq'); await page.waitForTimeout(300); }
-await tap('#orders .ord[data-o="build"]'); await page.waitForTimeout(300);
-const bm = await ev(() => [...document.querySelectorAll('#buildmenu .bld')].map((b) => b.textContent));
-check('the tactical menu has the artillery cannon, locked until the armory unlocks it', bm.length === 7 && /ARTILLERY CANNON/.test(bm[6]) && /UNLOCK/.test(bm[6]), bm.join(' | '));
-check('and slows time while it is open', await ev(() => window.__game.tac && document.body.classList.contains('slowtac')));
+await tap('#btn-tac'); await page.waitForTimeout(300);
+const bm = await ev(() => [...document.querySelectorAll('#tactical .bld')].map((b) => b.textContent));
+check('the tactical build screen has the artillery cannon, locked until the armory unlocks it', bm.length === 7 && /ARTILLERY CANNON/.test(bm[6]) && /UNLOCK/.test(bm[6]), bm.join(' | '));
+check('and the game waits while it is open (0.17)', await ev(async () => { const g = window.__game, t0 = g.mission.t; await new Promise((r) => setTimeout(r, 300)); return g.tac && g.mission.t === t0 && document.body.classList.contains('tacpause'); }));
 await shot('buildmenu');
-if (touch) { await page.touchscreen.tap(195, 330); await page.waitForTimeout(250); check('a tap on the map closes the squad panel', !(await page.isVisible('#tray'))); }
-else { await tap('#orders .ord[data-o="build"]'); await page.waitForTimeout(200); }
+await tap('#tactical .tc-x'); await page.waitForTimeout(250);
+check('its ✕ closes it', !(await page.isVisible('#tactical')) && await ev(() => !window.__game.tac));
 await ev(() => { const g = window.__game, m = g.mission; g.makePost('arty', m.hx + 40, m.hy + 20); m.step(1 / 30); m.step(1 / 30); });
 await page.waitForTimeout(300);
 const w9 = await ev(() => { const b = document.querySelectorAll('#weapons .wbtn')[8]; return { shown: b && b.style.display !== 'none', txt: b ? b.textContent : '' }; });
