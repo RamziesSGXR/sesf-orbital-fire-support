@@ -26,15 +26,34 @@ On the higher difficulty levels the Helldivers can't win this alone. Left to the
 - **The ship gun** (slot 8) fires anywhere you can see, needs no strike zone and never hurts allies. Hold to fire. It has its own ammo that refills by itself. It is the one weapon ready the moment a mission starts.
 - **Utilities** help the squad instead of hurting the enemy. Buy them in the armory and put them in an orbital slot: a **med pod** that heals every ally where it lands, **smoke** the enemy can't shoot through, a **shield dome**, and a **sentry**. They are safe to drop right on top of your allies.
 - **SEAF troops** are yours to command. Call a drop, split them into squads, give orders, or draw a play on the map: a route to run, a line to hold or a ring to defend. An order stays until you give another one: a squad told to escort the Helldivers keeps escorting them.
-- **SEAF build.** Press **BUILD** (`O`) and pick what to put up: a **wall** (a ring of cover troopers hold behind), an **MG nest** (a machine gun that fires at anything in reach), a **drop beacon** (a spawn point you can send SEAF drops to from anywhere on the map) or, once it's unlocked, a **howitzer**. You pay when you order it. A cargo pelican drops a crate at the spot, the squad deploys it (more hands build faster), and then stays to guard it. If you change the squad's order first, the crate waits on the ground and the next build of that kind there is free. Every buildable is upgraded in the armory's **BUILDABLES** section.
-- **The howitzer** (weapon 9) fires a **mini-nuke** anywhere in its range that you can see, on a slow recharge. It hurts allies too. Unlock it in the armory and have SEAF build one, or let the squad take over an **abandoned howitzer** some maps have.
+- **The tactical menu.** Press **TACTICAL** (`O`) and time slows down while you choose. Pick something to build (`1`-`7`) or a formation for the selected squad (`Z` loose, `X` line, `C` wedge, `V` column, `B` ring).
+- **SEAF build.** There is no limit on how many you put up, but each one costs credits and takes time, so each one is worth having:
+  - **Foxhole** (free): light cover, and troopers in it shoot faster. It is dug, so no crate is needed.
+  - **Defilade Bastions**: a full ring of walls the troops fight from.
+  - **MG nest**: a heavy machine gun on a strong post. It needs a crew, and two crew fire faster than one.
+  - **Bunker**: a protected firing position with a big health pool. Helldivers and SEAF inside take almost nothing while it stands, and they stay put when a strike lands near them.
+  - **Propaganda Tower**: covers the same ground as a UAV scan and gives the same boosts while it is manned. SEAF drops can land at it from anywhere on the map.
+  - **SAM site** (unlock in the armory): automatic, with the reach of a UAV scan. It shoots down dropships and warp ships.
+  - **Artillery cannon** (unlock in the armory): see below.
+
+  You pay when you order it. A cargo pelican drops a crate at the spot and the squad deploys it (more hands build faster). The squad stays on what it built: if you move it away and that was its last order, it goes back. Troops at a post repair it when nothing is shooting at them. Helldivers holding nearby use the posts too. Every buildable except the foxhole is upgraded in the armory's **BUILDABLES** tab.
+- **Select a post.** Click, right-click or tap anything SEAF built, a sentry or a defence site's walls to select it. You can send the selected squad to man it, or **GARRISON** it: the crew leaves its squad and stays on that post for good, so you can move the squad on. Garrisoned troopers still count toward your SEAF total. **RELEASE** gives them back to you.
+- **Box select.** `Shift` + drag (or **SELECT**, then drag, on a phone) round SEAF troopers to make them a squad of their own, then give them an order.
+- **Troops stay in cover.** Helldivers and SEAF holding walls or a post don't step out to shoot at something they can hit from there. Pushed off, they go back.
+- **The artillery cannon** (weapon 9) fires a **mini-nuke** anywhere in its range that you can see, on a slow recharge. It hurts allies too, and it only fires while someone mans it. Unlock it in the armory and have SEAF build one, or let the squad take over an **abandoned artillery cannon** some maps have.
 - **The Helldivers** play on their own. They go for the main objective and pick up side missions that are on the way. They call their own stratagems and drop back in when one dies, as long as the squad has lives left. They get **20 lives every mission**, and the lives reset at every drop. The Helldivers can't be upgraded in the armory. Each one carries an **Ultimatum** (one round that kills almost anything it hits square; a super heavy loses a big piece) and **four grenades** for groups and heavies (about four bring a heavy down). They mark a target on the map before they use them, so you see it too, and a supply pod reloads both.
 - **Bases see the squad coming.** Every enemy base has an invisible **detection range**. It stays asleep until someone walks into it or the structure is hit; then its garrison turns out, it keeps sending groups, and its neighbours follow. The Helldivers stop just outside, **mark the base** (a red ring with a countdown) and wait about 18 seconds before they go in: your time to soften it up, bring SEAF in and build. The citadel is one big base: wake any part of it and all of it turns out. SEAF know nothing about the detection range, so walk them near a base and it wakes.
 - **Defences start with a set-up.** When the squad reaches the launch site or the evacuation site, it gets 25 quiet seconds to take the walls facing the threat before the enemy comes. You never steer them, but they talk to you: they say what they are about to do, ping where they are going, and ask you for help.
 - **The UAV helps the squad too.** Allies under an active UAV move faster and dodge more often. Two armory upgrades, **Target Relay** and **Threat Warning**, make it help more. The scan circle is drawn faint so it doesn't hide the fight.
 - **Radar.** Your UAV sweeps the whole map every few seconds and marks every enemy as a blip, even far out of sight. The blips stay where the enemy was until the next sweep, like real radar. A better UAV sweeps faster.
 - **Shooters give themselves away.** An enemy that fires on your allies is marked on the map. Once it has been marked for three seconds it is **locked**, and your strikes and the ship gun can hit it even outside the strike zone.
-- **You hold the camera.** It starts at the landing zone and only moves when you move it. Nothing pulls it away: not a supply drop, a free-fire zone or a super heavy. `Space` (or **RE-CENTER** on a phone) locks it on the squad. Arrows at the edge of the screen point to every Helldiver and every SEAF squad you can't see, and they stand out on the minimap. **Double-tap** (or double-click) a Helldiver on the Helldiver bar, or a SEAF squad on the squad bar, to move the camera to them.
+- **You hold the camera.** It starts at the landing zone and only moves when you move it. Nothing pulls it away: not a supply drop or a super heavy. `Space` (or **RE-CENTER** on a phone) locks it on the squad. Arrows at the edge of the screen point to every Helldiver and every SEAF squad you can't see, and they stand out on the minimap. **Double-tap** (or double-click) a Helldiver in the Helldiver list, or a SEAF squad on the squad bar, to move the camera to them.
+- **New enemies.** Each enemy brings a medium of its own alongside the others, and kills on them pay three times as much:
+  - **Bugs:** the **Hive Guard** leads the swarm in behind an armoured front.
+  - **Bots:** the **Commander** hangs back behind the line. Inside its red ring nothing can be called down: no stratagem, orbital, UAV scan or Ship Gun round. Kill it with rifles, grenades or a strike just outside the ring.
+  - **Squids:** the **Fleshmob** is a slow melee mass that soaks part of every hit.
+
+  Heavies got tougher too. A bug **Charger** shrugs off rifle and rocket fire from the front, but strikes from above still hit it in full. Bot tanks have more health, but their weak points crit more often. Squid heavies carry a **shield** that takes hits first and comes back if they're left alone.
 - **Super heavies.** Now and then the enemy sends a giant into the mission: a **Brood Titan** (bugs), a **Siege Walker** (bots) or a **Warp Colossus** (squids). The radio calls it in, a red callout tracks it, and the pelican won't land until it is dead. It is rare early in a session and more likely later.
 - **Supply drops.** When the Helldivers run low on stims or grenades, one of them asks you for supplies. You have thirty seconds to notice and answer. Press **LOAD POD** (or `U`) and time slows down while you load the pod: tap each compartment (stims, grenades, ammo) until it's full. What you load is what they get, and a pod filled within five seconds gives the squad a short boost. Press **LOOK** if you want to watch it land. Ignore the request and they make do; they can ask again after a minute.
 
@@ -46,25 +65,30 @@ On the higher difficulty levels the Helldivers can't win this alone. Left to the
 | Fire or call | Click | **CALL** button |
 | Pick a weapon | `1` UAV scan, `2`-`6` orbitals, `7` the nuke (once armed), `8` ship gun (hold to fire). `Q` / `E` cycle | Weapon bar. Hold **FIRE** for the ship gun |
 | Mission info | `I` or the **INFO** button | **INFO** button |
-| Tactical map | `L` or click the minimap. Click a spot on it to look there | Tap the minimap, then tap a spot to look there |
+| Tactical menu (time slows) | `O` or **TACTICAL**, then `1`-`7` to build, `Z` `X` `C` `V` `B` for a formation, `Esc` to close | **TACTICAL** in the squad panel |
+| Select a post or defence site | Click or right-click it | Tap it |
+| Select troopers | `Shift` + drag a box | **SELECT**, then drag |
+| Tactical map | `L` or click the round minimap (bottom right). Click a spot on it to look there | Tap the minimap (top right), then tap a spot to look there |
 | Supply request | `U` (or **LOAD POD**), then `1`-`3` or click the compartments; `Space` loads the next one | **LOAD POD**, then tap the compartments |
-| Look at a callout | `J` or **LOOK**: the latest supply drop or free-fire zone | **LOOK** |
+| Look at a callout | `J` or **LOOK**: the latest supply drop or super heavy | **LOOK** |
 | What does this do? | Hover or select a weapon, stratagem or squad to see its power, level and numbers. The card sits at the right side, clear of your controls | Select a weapon or squad, or tap a stratagem. The card shows across the top |
 | Look at a super heavy | **LOOK** on its callout | **LOOK** |
 | SEAF drop | `G` at the cursor, or click **SEAF DROP** then the map | **SEAF DROP** at the crosshair |
 | SEAF squads | `Tab` next squad, `` ` `` all squads, `Shift+1`-`4` pick one, `F` split, `M` merge, `Y` add nearby troops | S1-S4 buttons |
-| SEAF orders | `X` auto, `V` move, `Z` protect, `N` attack, `C` escort, `O` build | Order buttons |
-| Move the camera to a team | Double-click it on the Helldiver bar or the SEAF squad bar | Double-tap it |
+| SEAF orders | `X` auto, `V` move, `Z` protect, `N` attack, `C` escort, `O` tactical | Order buttons |
+| Move the camera to a team | Double-click its Helldiver row or SEAF squad | Double-tap it |
 | More time for a full clear | `K` or **APPROVE** | **APPROVE** |
 | Draw a play | `R`, then drag: a loop is a ring, a straight stroke is a line, anything else is a route | **DRAW**, then drag one finger |
 | Send SEAF at a target | Click a bug hole or point of interest | Tap it with an order selected |
-| Armory (upgrades) | `B` | **MENU**, then **ARMORY** |
+| Armory (upgrades) | `B` or the **ARMORY** button | **MENU**, then **ARMORY** |
 | Camera | `WASD` or right-drag to move, wheel or `+` / `-` to zoom, `Space` to follow the squad, drag on the minimap | Drag, pinch |
-| Howitzer | `9`, once one is built or captured | Weapon bar |
+| Artillery cannon | `9`, once one is built or captured and someone mans it | Weapon bar |
 | Pause and look around | `P`: the game stops, but you can still move the camera, zoom, open the map and double-click a team. No menu opens. `P` again to play on | Pause button (**II**). It turns into **▶**; tap it or **RESUME** to play on |
 | Half speed | `,` or the **1×** button next to pause (it shows **½×**). Every control still works | **1×** button next to pause |
-| Menu | **MENU** pauses the game while it's open: settings, **CONTROLS**, the **FIELD MANUAL** and the pause menu. `Esc` opens the pause menu | **MENU** |
+| Menu | **MENU** or `Esc` opens the pause menu: settings, **CONTROLS**, the **FIELD MANUAL**, the armory and retire | **MENU** |
 | Other | `T` white-hot / black-hot, `H` relief map (height, water and slow ground) | Relief map in Settings |
+
+**Screen layout on a computer:** the INFO, ARMORY and MENU buttons, speed and pause are at the top left. The mission clock, number and difficulty are at the top right, with the current objective just below. The Helldivers (health, ship names, stratagems and what each one is doing) and the SEAF squads with their orders are at the bottom left, and the round minimap is at the bottom right.
 
 Every panel closes with its ✕ button or `Esc`. On a phone, the squad panel stays open until you close it with its ✕ or tap the map. In **Settings** you can make the in-mission controls bigger or smaller (**UI size**), move the info cards (side or top) or turn them off. **CONTROLS** and the **FIELD MANUAL** (everything you can do, with tips) are in the menu, the pause menu, the briefing and the armory.
 
@@ -77,14 +101,14 @@ Each mission has a random operation name, enemy (Bugs, Bots or Squids), terrain 
 - **Destroy the Citadel.** A keep with a ring of bases round it, walled together and guarded by a super heavy that turns out when the squad arrives. Every base in it has to go down, the keep last.
 - **Evacuate Civilians.** Hold a site while forty-four civilians walk from the shelter to the hangar and fly out. Your strikes can kill them too.
 
-The places the squad has to hold (the launch site, the shelter and the hangar, the VIP pickup and the extraction pad) have **low walls** round them. Helldivers and SEAF spread out behind them instead of bunching up in the middle, and take less damage there.
+The places the squad has to hold (the launch site, the shelter and the hangar, the VIP pickup and the extraction pad) have **low walls** round them. Helldivers and SEAF spread out behind them instead of bunching up in the middle, and take less damage there. You can select these walls to send SEAF to man them.
 
 **Side missions** sit around the map, more on bigger maps. The Helldivers take the ones close to their way:
 
-- **Radio tower.** A Helldiver stands by it while it powers up. From then on the ground for 200 m around it stays in view, and you can call strikes there, for the rest of the mission. A freed SEAF squad or a destroyed propaganda tower does the same.
-- **Propaganda tower.** While it stands it sends the patrols around it after the squad. Destroy it.
+- **Radio tower.** A Helldiver stands by it while it powers up. From then on the ground for 200 m around it stays in view, and you can call strikes there, for the rest of the mission. A freed SEAF squad or a destroyed enemy broadcaster does the same.
+- **Enemy broadcaster** (a spore broadcaster, broadcast mast or psychic beacon). While it stands it sends the patrols around it after the squad. Destroy it.
 - **SEAF under fire.** A SEAF squad is dug in and pinned down. When the Helldivers get close the enemy closes in on it. Clear them off and the survivors join your SEAF, under your orders.
-- **Abandoned howitzer** (from the second mission, on some maps). A Helldiver gets it working again, and then it's yours to fire as weapon 9.
+- **Abandoned artillery cannon** (from the second mission, on some maps). A Helldiver gets it working again, and then it's yours to fire as weapon 9 while someone mans it.
 
 Once the objective is done, the Helldivers decide what's next. With **more than three lives left** and the time for it, they go for a **full clear**: every base and side mission on the map, for a big bonus. If they have the lives but not the time, they **ask you for more minutes**: a callout says how many and what it costs in credits. Press **APPROVE** (or `K`) and they go for it; say nothing and they head out. If lives run down to three, they break it off. With fewer lives they head straight for the **extraction point**. A Helldiver calls the pelican and the squad holds the pad while the enemy throws reinforcements at it. When the pelican lands, everyone runs for the ramp, and SEAF squads get pelicans of their own. Extracting wins the mission with full pay. If the squad is lost or the clock runs out **after** the primary objective is done, the mission still counts (**OBJECTIVE COMPLETE**) and the session goes on, just without the extraction pay. If the squad runs out of lives with no Helldiver left standing **before** the objective is done, the mission fails, SEAF or not.
 
@@ -94,17 +118,18 @@ Once the objective is done, the Helldivers decide what's next. With **more than 
 
 - **Hit them from behind.** Every unit shows which way it faces: Helldivers have a visor at the front and a blinking backpack edged in their squad colour at the back; enemies have eyes or sensors at the front, and the bigger ones have a glowing weak spot on the back. Hits from behind do 1.5× damage, and 2.2× on heavies.
 - **Critical hits** do double damage. Your orbital strikes crit most often (14%), then the ship gun (10%).
-- **Everything can be destroyed.** Bases, the citadel, points of interest, propaganda towers, bug holes and dropships all go down to enough fire. Bases go down faster than they used to.
-- **Bases close together work together.** When one wakes, its neighbours turn out a few seconds later, and each one sends troops faster for every neighbour still standing. Take them out one at a time, and keep SEAF away from the ones you aren't hitting yet.
+- **Everything can be destroyed.** Bases, the citadel, points of interest, enemy broadcasters, bug holes and dropships all go down to enough fire. Bases go down faster than they used to.
+- **Bases close together work together.** Bases come in clusters, and the clusters get bigger and tighter later in a session and on higher difficulties. When one wakes, its neighbours turn out a few seconds later, and each one sends troops faster for every neighbour still standing. Take them out one at a time, and keep SEAF away from the ones you aren't hitting yet.
 - **Watch for flares.** A patrol that spots the squad or gets shot may fire a flare. Kill the one holding it within about four seconds and no reinforcements come. If you're too late, **bugs** dig up out of a hole (blow it up to close it), and **bots** and **squids** arrive by ship. You can shoot ships down while they hover low, and the troops inside go down with them, for credits. Troops the ship has just let down are shielded by it (a dashed ring) until it pulls away.
 - **Range matters.** Everyone sees farther than they can shoot well. Shots at long range miss more and hit softer, and that goes for the enemy too.
 - **Kill the super heavy.** Hit it with your heaviest strikes, from behind if you can. The Colossus's shield comes back if you leave it alone, and the Walker keeps dropping bots while it stands.
-- **Free-fire zones.** When the enemy masses ahead of the squad, a Helldiver calls a free-fire zone on it: an orange circle that follows the pack, with a callout and a **LOOK** button. Your allies stay out of it for thirty seconds and your strikes into it recharge twice as fast. Pour it on.
+- **Dig in.** A foxhole costs nothing and makes troopers shoot faster. A bunker lets a squad hold a spot your strikes are landing on. A manned MG nest or Propaganda Tower is worth more than a squad standing in the open.
+- **Kill the Commander first.** While a bot Commander stands, nothing lands inside its ring. Rifles, grenades and the Ultimatum still work.
 - **Load supplies fast.** A full pod refills every stim and grenade, and a fast one makes the Helldivers hit harder and move quicker for a while. A half-loaded pod only gives half.
 - **Pause to plan.** Press `P` (or the pause button on a phone) to stop the game without opening the menu. Look around the map, check where your teams are, then play on and make your call.
 - **Use the map.** The tactical map has compass points and a lettered grid, so when the radio says "dropship inbound west" you know where to look.
 - **Know your enemy.** Bugs swarm in from every side. Bots form a firing line and stand there shooting. Squids spread out and surround you.
-- **Mind the ground.** Deep water can't be crossed on foot, and mud, snow and sand slow everyone down. High ground helps whoever holds it: units on a rise see farther and hit harder. Press `H` to see it.
+- **Mind the ground.** Deep water can't be crossed on foot except at the bridges (natural crossings, old war-time bridges, logs or ice), and mud, snow and sand slow everyone down. High ground helps whoever holds it: units on a rise see farther and hit harder. Press `H` to see it.
 - **Patrols come from the bases.** Each base sends patrols out on a route of its own: bugs roam round their nest, bots march out and back, squids sweep a wide circle. They come over when they hear fighting. Destroy a base and it stops replacing its patrols.
 - **Backup never stops at a mission site.** While the squad works an objective, a side mission or the extraction, the enemy keeps calling in more. Clearing the map doesn't stop it, but it only comes so fast. Keep the site clear from orbit.
 
@@ -129,11 +154,11 @@ The percentages compare each level with level 10. "Enemies" covers everything th
 
 ## How a session works
 
-Missions follow one another until one fails. A mission fails when **all 20 Helldiver lives are lost before the primary objective is done**, or the clock runs out before it is done. Retiring from the pause menu before the objective is done fails it too. Once the primary objective is done, the mission counts whatever happens next.
+Missions follow one another until one fails. A mission fails when **all 20 Helldiver lives are lost before the primary objective is done**, or the clock runs out before it is done. Retiring from the pause menu always fails the mission, even with the objective done, so you can't skip ahead by leaving early. Otherwise, once the primary objective is done, the mission counts whatever happens next.
 
 **Retry a mission.** Every debrief has a **RETRY MISSION** button (tap it twice). It flies the same mission again: same map, same enemy, same bases and targets, same time of day. Your credits, upgrades, score and session time go back to what they were when you dropped. Use it after a failed mission to keep the session alive, or after a good one to go for a better score. A retry replaces the result you just got. If you don't retry a failed mission, the session ends.
 
-Between missions the **armory** opens. Credits from kills, bases, targets, super heavies, the objective and extraction buy new orbital strikes and utilities, more loadout slots and upgrades for your orbitals, the ship gun, the UAV scan, SEAF, the buildables and the strike zone. Every upgrade shows what it does **now**, what the **next** level adds, and its whole **path** level by level. The **SEAF Barracks** has no top level: each level puts more troops on the ground and costs a little more. A very long session earns enough to max out everything. (Sessions saved before version 0.13 that bought extra Helldiver lives get those credits back.)
+Between missions the **armory** opens. Credits from kills, bases, targets, super heavies, the objective and extraction buy new orbital strikes and utilities, more loadout slots and upgrades for your orbitals, the ship gun, the UAV scan, SEAF, the buildables and the strike zone. The armory is split into tabs (**ORBITALS**, **SHIP**, **SEAF**, **BUILDABLES**); a green dot on a tab means there is something in it you can afford. Every upgrade shows what it does **now**, what the **next** level adds, and its whole **path** level by level. The **SEAF Barracks** has no top level: each level puts more troops on the ground and costs a little more. A very long session earns enough to max out everything. (Sessions saved before version 0.13 that bought extra Helldiver lives get those credits back.)
 
 The war gets worse every minute: tougher enemies, harder hits and more heavies, on top of each mission's own climb. Every run ends eventually. A good gunner gets the squad through five to ten missions, an hour or two.
 

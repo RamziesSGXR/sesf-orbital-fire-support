@@ -12,6 +12,31 @@ import { aoX, aoY, inAO } from './ao.js';
 const POD_MULT = { L: 1, M: 1, H: 1, B: 0.2 };
 
 
+// A heavy's own protection (CONFIG.heavies): the charger's front plate, the tank's extra health and weak points, the harvester's shield.
+function heavyKit(fid, e) {
+  const H = C.heavies[fid];
+  if (!H) return;
+  if (H.front) { e.front = H.front; e.frontCos = H.frontCos; }
+  if (H.hp) { e.hp = e.maxHp = Math.round(e.maxHp * H.hp); }
+  if (H.crit) e.critUp = H.crit;
+  if (H.shield) { e.shield = e.maxShield = Math.round(e.maxHp * H.shield); e.shieldAt = -99; e.regen = H.regen; e.regenDelay = H.regenDelay; }
+}
+// Is this medium draw one of the faction's specials? (its own random stream, so the rest of the mission is unchanged)
+function wantSpecial(m) {
+  const S = C.special;
+  if (m.srng.next() >= S.share) return false;
+  let n = 0;
+  for (const e of m.enemies) if (!e.dead && e.sub) n++;
+  return n < Math.min(S.max, S.cap + S.perMin * (m.S || 0));
+}
+function specialKit(fid, e) {
+  const P = C.special[fid];
+  e.sub = P.id; e.hp = e.maxHp = Math.round(e.maxHp * P.hp); e.speed *= P.speed; e.r = P.r;
+  if (P.front) { e.front = P.front; e.frontCos = P.frontCos; }
+  if (P.soak) e.soak = P.soak;
+  if (P.jamR) e.jamR = P.jamR;
+}
+
 export function spawnGroup(m, x, y, state = 'patrol', opts = {}) {
   const fac = m.faction, rng = m.rng;
   const g = {
@@ -32,7 +57,8 @@ export function spawnGroup(m, x, y, state = 'patrol', opts = {}) {
       face: rng.angle(), aimA: 0, aimUntil: 0,
     };
     // Heavies have their own pace: the charger sprints, the tank rolls, the harvester stalks.
-    if (kind === 'H') e.speed = attackProfile(fac.id, 'H').speed * m.biome.speed;
+    if (kind === 'H') { e.speed = attackProfile(fac.id, 'H').speed * m.biome.speed; heavyKit(fac.id, e); }
+    else if (kind === 'M' && wantSpecial(m)) specialKit(fac.id, e);
     g.members.push(e); m.enemies.push(e);
   }
   m.groups.push(g);

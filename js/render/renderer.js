@@ -11,11 +11,14 @@ import { drawAoEdge, drawSides, drawBeacons, drawRevealed, drawRadar, drawArty, 
 import { OPS } from '../data/data.js';
 import { t as tr } from '../i18n.js';
 import { beaconAt } from '../sim/sides.js';
-import { drawFlares, drawHoles, drawDrops, drawFfz, drawEvac, drawExtraction, critText, drawSupply } from './reinf.js';
+import { drawFlares, drawHoles, drawDrops, drawEvac, drawExtraction, critText, drawSupply } from './reinf.js';
 import { drawBaseArt, drawBaseRuin, drawCover, drawCitadelWalls } from './sites.js';
+import { drawPosts } from './posts.js';
+import { buildStats, uavStats } from '../data/kit.js';
 import { todAt, skyTint, destroyerShadows, drawDestroyerShadow } from './sky.js';
 
 const SIZE = C.world.size;
+export const MINI_Q = 0.72;     // the share of the round minimap's width the area of operations fills
 const TAU = Math.PI * 2;
 const TASK_LABEL = { base: 'lab.base', radio: 'lab.radio', propaganda: 'lab.prop', rescue: 'lab.rescue', arty: 'lab.artySite' };
 const slotCd = (m, i) => { const st = slotStats(m, i); return st ? st.cd : 0; };
@@ -204,14 +207,13 @@ export class Renderer {
       case 'credit': fx.push({ k: 'text', x: ev.x, y: ev.y, text: `+${ev.amt}`, col: '#ffe27a', t0: now, life: 1.3 }); break;
       case 'crit':
         // the destroyer's critical hits, and any hit on a heavy's back; a few at a time, so a barrage does not bury the map in text
-        if (now - (this._critAt || 0) > 0.12 && (ev.by === 'player' || (ev.f & 1))) { this._critAt = now; fx.push({ k: 'text', x: ev.x + (Math.random() - 0.5) * 3, y: ev.y - 2, text: critText(ev.f), col: ev.f & 1 ? '#ff9a4a' : '#fff3a0', t0: now, life: 0.8, small: true }); }
+        if (now - (this._critAt || 0) > 0.12 && (ev.by === 'player' || (ev.f & 1))) { this._critAt = now; fx.push({ k: 'text', x: ev.x + (Math.random() - 0.5) * 3, y: ev.y - 2, text: critText(ev.f), col: ev.f & 1 ? '#ff9a4a' : ev.f & 2 ? '#fff3a0' : '#a8b4ae', t0: now, life: 0.8, small: true }); }
         break;
       case 'flare': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 22, t0: now, life: 0.7, a: 1, col: '#ff5a3a' }); break;
       case 'flare_out': fx.push({ k: 'text', x: ev.x, y: ev.y - 4, text: tr('lab.flareStopped'), col: '#7dff9b', t0: now, life: 1.4 }); break;
       case 'reinf': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 40, t0: now, life: 1.0, a: 1, col: this.enemyColor(m) }); break;
       case 'reinf_spawn': fx.push({ k: 'flash', x: ev.x, y: ev.y, r: 8, t0: now, life: 0.4, a: flash * 0.8, col: this.enemyColor(m) }); if (ev.src === 'warp') fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 14, t0: now, life: 0.5, a: 1, col: '#e6c8ff' }); break;
       case 'drop_down': fx.push({ k: 'flash', x: ev.x, y: ev.y, r: 24, t0: now, life: 0.6, a: flash }); fx.push({ k: 'text', x: ev.x, y: ev.y - 8, text: tr(ev.kind === 'ship' ? 'lab.dropshipDown' : 'lab.warpDown'), col: '#7dff9b', t0: now, life: 1.8 }); this.shake = Math.min(14, this.shake + 6); break;
-      case 'ffz': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: ev.r * 1.4, t0: now, life: 1.2, a: 1, col: '#ff9a4a' }); break;
       case 'board': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 7, t0: now, life: 0.5, a: 1, col: '#7dff9b' }); break;
       case 'civ_down': fx.push({ k: 'x', x: ev.x, y: ev.y, r: 3, t0: now, life: 1.2, col: '#ff8080' }); break;
       case 'shuttle': fx.push({ k: 'shuttle', x: ev.x, y: ev.y, ang: ev.ang, t0: now, life: 4 }); break;
@@ -259,6 +261,12 @@ export class Renderer {
     if (!this._cr || this._crCv !== cv || now - this._crT > 400) { this._cr = cv.getBoundingClientRect(); this._crCv = cv; this._crT = now; }
     const r = this._cr, k = this.W / r.width;
     return { x: ((cssX - r.left) * k - v.tx) / v.scale, y: ((cssY - r.top) * k - v.ty) / v.scale };
+  }
+
+  worldToScreen(x, y, cv) {
+    const v = this.view; if (!v) return null;
+    const r = cv.getBoundingClientRect(), k = this.W / r.width;
+    return { x: (x * v.scale + v.tx) / k + r.left, y: (y * v.scale + v.ty) / k + r.top };
   }
 
   draw(m, cam, ui) {
@@ -319,13 +327,13 @@ export class Renderer {
     drawPois(ctx, m, now, px, labels, scale, pal);
     drawSides(ctx, m, now, px, labels, scale);
     drawArty(ctx, m, now, px, labels, scale);
+    drawPosts(ctx, m, now, px, labels, scale, ui.sel || null);
     drawCrates(ctx, m, now, px, labels);
     drawMarks(ctx, m, now, px, labels, scale);
     drawBeacons(ctx, m, now, px, labels, scale, ui.placing === 'seaf');
     drawHoles(ctx, m, now, px, labels, scale, pal);
     drawObjectives(ctx, m, now, px, labels, scale, pal);
     drawEvac(ctx, m, now, px, labels, scale);
-    drawFfz(ctx, m, now, px, labels, scale);
     drawSquadOrders(ctx, m, now, px, labels, scale, pal);
 
     // Inbound strikes, drops and warnings, and laser beams
@@ -403,7 +411,10 @@ export class Renderer {
       const covered = k === 'seaf' ? !!bc || m.inZone(ax, ay, -5) : true;
       const col = !covered ? '#ff4a4a' : pal.ally;
       const bk = k.startsWith('build:') ? k.slice(6) : null;
-      const R = bk ? C.build.r : k === 'protect' ? C.seaf.protectR : k === 'move' ? C.seaf.patrolRadius : k === 'attack' ? 24 : k === 'assign' ? C.seaf.assignR : 22;
+      const R = bk === 'bastion' ? buildStats('bastion', Math.max(1, (m.kit.build || {}).bastion || 1)).R : bk ? C.build.r : k === 'protect' ? C.seaf.protectR : k === 'move' ? C.seaf.patrolRadius : k === 'attack' ? 24 : k === 'assign' ? C.seaf.assignR : 22;
+      // a build that reaches out (the SAM site, the tower, the MG post, the cannon): its reach, faint
+      const reach = bk === 'sam' || bk === 'tower' ? uavStats(m.kit.uav).r : bk === 'mg' ? 46 : bk === 'arty' ? buildStats('arty', Math.max(1, (m.kit.build || {}).arty || 1)).range : 0;
+      if (reach) { ctx.strokeStyle = 'rgba(255,230,0,0.4)'; ctx.lineWidth = px(1.2); ctx.setLineDash([px(4), px(6)]); ctx.beginPath(); ctx.arc(ax, ay, reach, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
       ctx.strokeStyle = col; ctx.lineWidth = px(2); ctx.setLineDash([px(6), px(5)]); ctx.lineDashOffset = -now * px(12);
       ctx.beginPath(); ctx.arc(ax, ay, R, 0, TAU); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
       ctx.fillStyle = col; this._diamond(ctx, ax, ay, Math.max(px(6), 3.5));
@@ -417,6 +428,12 @@ export class Renderer {
     // ---- screen space ----
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this._drawLabels(ctx, w2sx, w2sy);
+    // a selection box being dragged round SEAF troopers
+    if (ui.box) {
+      const b = ui.box, d = this.dpr, x = Math.min(b.x0, b.x1) * d, y = Math.min(b.y0, b.y1) * d, w = Math.abs(b.x1 - b.x0) * d, h = Math.abs(b.y1 - b.y0) * d;
+      ctx.fillStyle = 'rgba(255,230,0,0.08)'; ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = '#ffe600'; ctx.lineWidth = 1.5 * d; ctx.setLineDash([6 * d, 4 * d]); ctx.strokeRect(x, y, w, h); ctx.setLineDash([]);
+    }
     this._tags(ctx, m, w2sx, w2sy, scale, now);
     this._edgeArrows(ctx, m, w2sx, w2sy, scale, { cam });
     if (aim) this._reticle(ctx, m, aim, w2sx(aim.x), w2sy(aim.y), scale, now, ui);
@@ -836,7 +853,6 @@ export class Renderer {
     for (const b of m.breaches) if (!b.dead && !b.kind) items.push({ x: b.x, y: b.y, col: this.enemyColor(m), label: tr('lab.breach') });
     for (const b of m.breaches) if (!b.dead && b.kind === 'hole') items.push({ x: b.x, y: b.y, col: this.enemyColor(m), label: tr('lab.bugHole') });
     for (const dr of m.drops || []) if (dr.state === 'hover' || dr.state === 'in') items.push({ x: dr.tx ?? dr.x, y: dr.ty ?? dr.y, col: this.enemyColor(m), label: tr(dr.kind === 'ship' ? 'n.dropship' : 'n.warpship') });
-    if (m.ffz) items.push({ x: m.ffz.x, y: m.ffz.y, col: '#ff7a2a', obj: true, label: tr('lab.ffz') });
     if (m.boss && !m.boss.dead) items.push({ x: m.boss.x, y: m.boss.y, col: '#ff6a4a', label: m.boss.name, far: true });
     const SU = m.supply;
     if (SU && SU.state === 'inbound' && SU.drop) items.push({ x: SU.drop.x, y: SU.drop.y, col: '#9dffb8', obj: true, label: tr('lab.supply') });
@@ -901,14 +917,14 @@ export class Renderer {
       else status = tr(info.lock ? 'ret.locked' : p.gun && p.gun.firing ? 'ret.firing' : 'ret.freeFire');
     } else if (isNuke) { if (!info.ready) { status = tr(s.uses <= 0 ? 'hud.w.launched' : 'ret.notArmed'); bad = true; } else status = tr('ret.armed'); }
     else if (s.type === 'empty') { status = tr('ret.empty'); bad = true; }
-    else if (s.type === 'arty' && t >= s.readyAt && !info.inZone) { status = tr(info.artyWhy === 'range' ? 'ret.artyRange' : 'ret.gunNoVis'); bad = true; }
+    else if (s.type === 'arty' && t >= s.readyAt && !info.inZone) { status = tr(info.artyWhy === 'range' ? 'ret.artyRange' : info.artyWhy === 'crew' ? 'ret.artyCrew' : 'ret.gunNoVis'); bad = true; }
     else if (t < s.readyAt) { status = tr('ret.cooldown', { n: Math.ceil(s.readyAt - t) }); bad = true; }
     else if (s.uses <= 0) { status = tr('ret.noUses'); bad = true; }
     else if (!info.inZone) { status = tr('ret.noCover'); bad = true; }
     else status = tr(isUav ? 'ret.scanReady' : info.lock ? 'ret.locked' : 'ret.ready');
+    if (info.jammed) { status = tr('ret.jammed'); bad = true; }     // a commander's jammer covers the aim point
     const danger = info.danger && !isUav && !isGun;
     if (danger && !bad) status = tr('ret.danger');
-    else if (!bad && !isUav && !isGun && !isNuke && m.ffz && Math.hypot(aim.x - m.ffz.x, aim.y - m.ffz.y) <= m.ffz.r) status = tr('ret.ffz');
     const col = danger ? '#ff4040' : bad ? '#ffb020' : isUav ? '#9dffb8' : '#7dff9b';
     ctx.save();
     ctx.translate(x, y);
@@ -1014,21 +1030,27 @@ export class Renderer {
     }
     c.textAlign = 'left'; c.textBaseline = 'alphabetic';
   }
+  // The minimap is round: the whole area of operations sits inside the circle (MINI_Q of its width; input.js maps clicks the same way).
   drawMinimap(cv, m, cam) {
-    const a = m.ao, c = cv.getContext('2d'), S = cv.width, k = S / a.size, t = m.t, ac = this.allyColor(), ec = this.enemyColor(m);
+    const a = m.ao, c = cv.getContext('2d'), S = cv.width, R = S / 2, q = MINI_Q, o = (S * (1 - q)) / 2, k = (S * q) / a.size, t = m.t, ac = this.allyColor(), ec = this.enemyColor(m);
     c.setTransform(1, 0, 0, 1, 0, 0);
-    c.drawImage(this._mapBg(S, 'mini', a), 0, 0);
-    c.setTransform(1, 0, 0, 1, -a.x0 * k, -a.y0 * k);
+    c.clearRect(0, 0, S, S);
+    c.save(); c.beginPath(); c.arc(R, R, R - 1, 0, TAU); c.clip();
+    c.fillStyle = 'rgba(2,10,5,0.92)'; c.fillRect(0, 0, S, S);
+    c.drawImage(this._mapBg(S, 'mini', a), o, o, S * q, S * q);
+    c.strokeStyle = 'rgba(157,255,184,0.22)'; c.lineWidth = 1; c.strokeRect(o, o, S * q, S * q);      // the edge of the area of operations
+    c.setTransform(1, 0, 0, 1, o - a.x0 * k, o - a.y0 * k);
     this._mapMarks(c, m, k, t, ac, ec);
     // Camera view rectangle
     const vw = cam.view, vh = cam.view * (this.H / this.W);
     c.strokeStyle = 'rgba(255,255,255,0.8)'; c.lineWidth = 1.5;
     c.strokeRect((cam.x - vw / 2) * k, (cam.y - vh / 2) * k, vw * k, vh * k);
+    c.restore();
     c.setTransform(1, 0, 0, 1, 0, 0);
     // N E S W, about eight screen pixels tall whatever size the minimap is shown at
     const shown = cv.clientWidth || S;
     this._compass(c, S, Math.max(9, Math.min(S * 0.16, 8.5 * (S / shown))));
-    c.strokeStyle = 'rgba(157,255,184,0.4)'; c.lineWidth = 1; c.strokeRect(0.5, 0.5, S - 1, S - 1);
+    c.strokeStyle = 'rgba(157,255,184,0.55)'; c.lineWidth = 2; c.beginPath(); c.arc(R, R, R - 1.5, 0, TAU); c.stroke();
   }
   // The tactical map: the minimap's picture, big, with a grid, labels and a compass rose.
   drawBigMap(cv, m, cam) {
@@ -1063,7 +1085,6 @@ export class Renderer {
       else lab(o.x, o.y, tr('lab.citadel'), '#ffe600');
     }
     if (m.extraction.revealed) lab(m.extraction.x, m.extraction.y, tr(m.extraction.state === 'open' ? 'lab.extract' : 'lab.extractCalled'), '#ffe600');
-    if (m.ffz) lab(m.ffz.x, m.ffz.y, tr('lab.ffz'), '#ff9a4a');
     for (const q of m.sides || []) if (!q.done && !q.failed) lab(q.x, q.y, q.kind === 'radio' ? OPS.radio : q.kind === 'rescue' ? OPS.rescue : q.kind === 'arty' ? OPS.artySite : q.name, q.kind === 'propaganda' ? '#ffb020' : '#7fd8ff');
     for (const bc of m.beacons || []) if (bc.relit || t < C.beacons.darkSec) lab(bc.x, bc.y, OPS.beacon, '#6fc0ff', 2.2);
     if (m.supply && m.supply.drop) lab(m.supply.drop.x, m.supply.drop.y, tr('lab.supply'), '#9dffb8');
@@ -1118,10 +1139,6 @@ export class Renderer {
       if (on) { c.strokeStyle = '#ffe600'; c.lineWidth = 1.5; c.globalAlpha = 0.5 + 0.5 * Math.sin(t * 6); c.beginPath(); c.arc(ex.x * k, ex.y * k, 11, 0, TAU); c.stroke(); c.globalAlpha = 1; }
     }
     // The free-fire zone, enemy flares and the ships bringing reinforcements
-    if (m.ffz) {
-      c.strokeStyle = '#ff7a2a'; c.fillStyle = 'rgba(255,122,42,0.25)'; c.lineWidth = 2; c.setLineDash([3, 2]); c.beginPath(); c.arc(m.ffz.x * k, m.ffz.y * k, Math.max(6, m.ffz.r * k), 0, TAU); c.fill(); c.stroke(); c.setLineDash([]);
-      c.globalAlpha = 0.5 + 0.5 * Math.sin(t * 6); c.beginPath(); c.arc(m.ffz.x * k, m.ffz.y * k, Math.max(10, m.ffz.r * k) + 4, 0, TAU); c.stroke(); c.globalAlpha = 1;
-    }
     const SU = m.supply, sd = SU && SU.state === 'inbound' ? SU.drop : null;
     if (sd) { c.fillStyle = '#9dffb8'; c.fillRect(sd.x * k - 3, sd.y * k - 3, 6, 6); c.strokeStyle = '#9dffb8'; c.lineWidth = 1.5; c.globalAlpha = 0.5 + 0.5 * Math.sin(t * 8); c.beginPath(); c.arc(sd.x * k, sd.y * k, 8, 0, TAU); c.stroke(); c.globalAlpha = 1; }
     for (const dr of m.drops || []) {
@@ -1156,7 +1173,7 @@ export class Renderer {
       else if (q.kind === 'arty') { if (!q.done) { c.strokeStyle = '#7fd8ff'; c.lineWidth = 1.5; c.strokeRect(x - 3.5, y - 3.5, 7, 7); } }
       else if (!q.done) { c.strokeStyle = q.state === 'siege' ? '#ff8a6a' : '#9dd0ff'; c.lineWidth = 2; c.beginPath(); c.arc(x, y, 5, 0, TAU); c.stroke(); c.beginPath(); c.arc(x, y, 1.6, 0, TAU); c.stroke(); }
     }
-    for (const g of m.arty || []) { c.fillStyle = '#6fc0ff'; c.fillRect(g.x * k - 3, g.y * k - 3, 6, 6); }     // howitzers the gunner can fire
+    for (const g of m.posts || []) { if (g.dead) continue; c.fillStyle = g.what === 'arty' ? '#6fc0ff' : '#3da9ff'; const s = g.what === 'arty' ? 3 : 2; c.fillRect(g.x * k - s, g.y * k - s, s * 2, s * 2); }     // what SEAF built
     for (const bc of m.beacons || []) {
       const lit = bc.relit || t < C.beacons.darkSec;
       c.strokeStyle = lit ? '#3da9ff' : 'rgba(140,150,150,0.5)'; c.lineWidth = 1.5;

@@ -51,8 +51,9 @@ if (!touch) {
   // at the top: under the objective and callouts
   await ev(() => window.__game.setSetting('cards', 'top'));
   await page.keyboard.press('Digit2'); await page.waitForTimeout(400);
-  card = await rect('#infocard'); const tc = await rect('.hud-tc');
-  check('Settings > Info cards: At the top puts it under the objective and callouts', card && tc && card.t >= tc.b - 1, card && tc ? `card top ${Math.round(card.t)}, panel bottom ${Math.round(tc.b)}` : '');
+  // (0.16: the top middle holds the radio; the objective and callouts are in the top right corner)
+  card = await rect('#infocard'); const tr = await rect('.hud-tr'), tl = await rect('.hud-l');
+  check('Settings > Info cards: At the top puts it across the top, under the radio, clear of both top corners', card && card.t >= 90 && !overlap(card, tr) && !overlap(card, tl), card ? `card ${Math.round(card.l)},${Math.round(card.t)} to ${Math.round(card.r)},${Math.round(card.b)}` : '');
   await ev(() => window.__game.setSetting('cards', 'off'));
   await page.keyboard.press('Digit3'); await page.waitForTimeout(400);
   check('Off hides them', !(await page.isVisible('#infocard')));
@@ -75,7 +76,7 @@ await page.waitForTimeout(400);
 check('a super heavy shows a callout with its name', await page.isVisible('#co-boss') && /SIEGE WALKER/.test(await page.textContent('#co-boss .co-t')), await page.textContent('#co-boss .co-t'));
 const msg = await rect('#center-msg'), co = await rect('#callouts');
 check('the big message shows', await ev(() => document.getElementById('center-msg').classList.contains('show')), await page.textContent('#center-msg'));
-check('and sits under the callouts, clear of mid-screen', msg && co && msg.t >= co.b - 1 && msg.b < (touch ? 844 : 720) * 0.45, msg ? `top ${Math.round(msg.t)}, callouts end ${co ? Math.round(co.b) : '?'}` : '');
+check('and sits clear of the callouts and of mid-screen', msg && co && (touch ? msg.t >= co.b - 1 : !overlap(msg, co)) && msg.b < (touch ? 844 : 720) * 0.45, msg ? `top ${Math.round(msg.t)}, callouts end ${co ? Math.round(co.b) : '?'}` : '');   // (0.16: on a computer the callouts are in the top right corner)
 await ev(() => { window.__game.cam.follow = true; });
 await tap('#co-boss [data-co="look-boss"]'); await page.waitForTimeout(touch ? 2500 : 2000);
 const lk = await ev(() => { const g = window.__game, b = g.mission.boss; return Math.hypot(g.cam.x - b.x, g.cam.y - b.y); });

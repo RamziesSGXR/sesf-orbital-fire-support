@@ -75,10 +75,7 @@ await page.waitForFunction(() => window.__game.mission.supply.state === 'idle', 
 const after = await ev(() => window.__game.mission.hdAlive.map((a) => a.stims));
 check('the drop restocks the squad', after.every((v) => v >= 4), after.join(','));
 
-// ---- the free-fire zone callout
-await ev(() => { const m = window.__game.mission, a = m.hdAlive[0]; const x = m.hx + 90, y = m.hy - 30; m.ffz = { x, y, r: 42, start: m.t, until: m.t + 30, by: a.id, team: a.team, n: 12, strikes: 0, caller: m.tag(a), dir: 'east', dist: 95, trackT: 1 }; m.events.push({ type: 'ffz', x, y, r: 42, team: a.team }); });
-await page.waitForTimeout(500);
-check('a free-fire zone shows a callout with LOOK', await page.isVisible('#co-ffz [data-co="look-ffz"]'));
+check('no free-fire zone callout any more (0.16)', !(await page.$('#co-ffz')));
 check('no page errors', errs.length === 0, errs.slice(0, 3).join(' | '));
 await browser.close();
 console.log(fails ? `\n${fails} FAILED` : '\nall passed');

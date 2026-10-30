@@ -6,7 +6,7 @@ import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
 import { orbStats, uavStats, gunStats, buildStats, buildLevel } from '../data/kit.js';
 import { noise } from './enemies.js';
-import { damageArea, hurtEnemy } from './combat.js';
+import { damageArea, hurtEnemy, jammedAt } from './combat.js';
 import { strikeAt, queueZone, destroyAsset } from './strat.js';
 
 export const SLOT_UAV = 0, SLOT_NUKE = 6, SLOT_GUN = 7, SLOT_ARTY = 8, ORB_SLOTS = 5;
@@ -64,24 +64,29 @@ export function slotStats(m, i) {
   if (s.type === 'arty') { const a = artyStats(m); return { name: tr('hud.w.arty'), g: 'ARTY', cd: a.cd, delay: C.arty.flight, splash: a.r, dmg: a.dmg, range: a.range }; }
   return null;
 }
-// The howitzer's numbers: the armory level (a captured gun fires at level 1 at least).
+// The cannon's numbers: the armory level (a captured gun fires at level 1 at least).
 export const artyStats = (m) => buildStats('arty', Math.max(1, buildLevel(m.kit, 'arty')));
-// The nearest howitzer to (x, y), and how far it is.
+// The nearest manned artillery cannon to (x, y), and how far it is (crewless: one that has nobody on it, if that is all there is).
 export function nearestArty(m, x, y) {
-  let best = null, bd = Infinity;
-  for (const g of m.arty || []) { const d = Math.hypot(g.x - x, g.y - y); if (d < bd) { bd = d; best = g; } }
-  return { g: best, d: bd };
+  let best = null, bd = Infinity, idle = null, id = Infinity;
+  for (const g of m.arty || []) {
+    const d = Math.hypot(g.x - x, g.y - y);
+    if (g.crew > 0 || g.manned) { if (d < bd) { bd = d; best = g; } } else if (d < id) { id = d; idle = g; }
+  }
+  return { g: best, d: bd, idle, idleD: id };
 }
-// A mini-nuke from the howitzer: anywhere in its range that is in sight (or locked), on a slow recharge. It hurts allies too.
+// A mini-nuke from the cannon: anywhere in its range that is in sight (or locked), on a slow recharge, while someone mans it.
+// It hurts allies too.
 function fireArty(m, s) {
   const p = m.player, t = m.t, a = artyStats(m), A = C.arty;
   if (t < s.readyAt) return deny(m, 'cooldown');
-  const { g, d } = nearestArty(m, p.aimX, p.aimY);
+  const { g, d, idle, idleD } = nearestArty(m, p.aimX, p.aimY);
+  if ((!g || d > a.range) && idle && idleD <= a.range) return deny(m, 'artycrew', COMMS.artyCrew);
   if (!g || d > a.range) return deny(m, 'artyrange');
   if (m.visLevel(p.aimX, p.aimY) <= 0 && !m.nearLock(p.aimX, p.aimY)) return deny(m, 'novisual');
   s.readyAt = t + a.cd;
   g.face = Math.atan2(p.aimY - g.y, p.aimX - g.x); g.firedAt = t;
-  m.shells.push({ x: p.aimX, y: p.aimY, at: t + A.flight, dmg: a.dmg, splash: a.r, mult: A.mult, by: 'player', friendly: true, big: true, mini: true, fx: g.x, fy: g.y });
+  m.shells.push({ x: p.aimX, y: p.aimY, at: t + A.flight, dmg: a.dmg, splash: a.r, mult: A.mult, by: 'player', friendly: true, big: true, mini: true, fx: g.x, fy: g.y, above: true });   // (a high arc: it comes down from above)
   m.markers.push({ type: 'strat', x: p.aimX, y: p.aimY, r: a.r, start: t, end: t + A.flight, impact: t + A.flight, id: tr('hud.w.arty'), cat: 'ORBITAL', by: 'player' });
   m.stats.artyShots = (m.stats.artyShots || 0) + 1; m.stats.shots++;
   m.radio(COMMS.artyFire, 'artyfire', 3);
@@ -101,12 +106,12 @@ function explode(m, sh) {
   const by = sh.by || 'player', friendly = sh.friendly !== false;
   // a round aimed at one enemy (the Ultimatum): it takes the full hit if it is still where the round lands
   if (sh.direct && !sh.direct.dead && Math.hypot(sh.direct.x - sh.x, sh.direct.y - sh.y) <= sh.direct.r + 1.5) {
-    if (sh.flat) hurtEnemy(m, sh.direct, sh.directDmg, by, null, null, '');      // a flat share: no rear or critical bonus on top
-    else hurtEnemy(m, sh.direct, sh.directDmg, by, sh.fx ?? sh.x, sh.fy ?? sh.y, sh.cs);
+    if (sh.flat) hurtEnemy(m, sh.direct, sh.directDmg, by, null, null, '', !!sh.pierce);      // a flat share: no rear or critical bonus on top
+    else hurtEnemy(m, sh.direct, sh.directDmg, by, sh.fx ?? sh.x, sh.fy ?? sh.y, sh.cs, !!sh.pierce);
     m.emit('boom', { x: sh.x, y: sh.y, r: 3, dmg: sh.directDmg, by, ult: true });
   }
   if (!(sh.splash > 0) || !(sh.dmg > 0)) return;
-  damageArea(m, sh.x, sh.y, sh.splash, sh.dmg, sh.mult, by, friendly, sh.cs, sh.fx ?? sh.x, sh.fy ?? sh.y);
+  damageArea(m, sh.x, sh.y, sh.splash, sh.dmg, sh.mult, by, friendly, sh.cs, sh.above ? sh.x : sh.fx ?? sh.x, sh.above ? sh.y : sh.fy ?? sh.y);
   if (sh.splash >= 4) noise(m, sh.x, sh.y, C.noise.strike);
   m.emit('boom', { x: sh.x, y: sh.y, r: sh.splash, dmg: sh.dmg, by, big: !!sh.big, nuke: !!sh.nuke });
 }
@@ -133,9 +138,7 @@ function fireOrbital(m, idx) {
   if (!m.inZone(p.aimX, p.aimY) && !(st.k !== 'util' && m.nearLock(p.aimX, p.aimY))) return deny(m, 'nocoverage', COMMS.noCoverage);   // a locked enemy can be hit anywhere
   if (st.k === 'util') return callUtil(m, s, st);
   // into a free-fire zone the Helldivers asked for: the destroyer recharges faster, so the gunner can saturate it
-  const inFfz = m.ffz && Math.hypot(p.aimX - m.ffz.x, p.aimY - m.ffz.y) <= m.ffz.r;
-  s.readyAt = t + st.cd * (inFfz ? C.ffz.cdMul : 1);
-  if (inFfz) { m.ffz.strikes++; m.stats.ffzStrikes = (m.stats.ffzStrikes || 0) + 1; }
+  s.readyAt = t + st.cd;
   if (s.uses !== Infinity) s.uses--;
   let tgt = { x: p.aimX, y: p.aimY };
   if (st.lock) {      // the railcannon picks the biggest enemy near the aim point
@@ -204,6 +207,7 @@ function landUtil(m, u) {
 export function fireSlot(m, idx) {
   const p = m.player, s = p.slots[idx];
   if (!s || s.type === 'empty') return false;
+  if (s.type !== 'nuke' && jammedAt(m, p.aimX, p.aimY)) return deny(m, 'jammed', COMMS.jammed);   // a commander jams the ground round it
   if (s.type === 'uav') return fireUav(m, s);
   if (s.type === 'nuke') {   // works anywhere on the map, once the launch site is armed
     if (!m.nukeReady() || s.uses <= 0) return deny(m, 'nomark', COMMS.holdFire);
@@ -244,7 +248,7 @@ export function updatePlayer(m, dt) {
   } else if (s.type === 'arty') {
     const a = artyStats(m), near = nearestArty(m, p.aimX, p.aimY);
     info.lock = m.visLevel(p.aimX, p.aimY) <= 0 && !!m.nearLock(p.aimX, p.aimY);
-    info.artyWhy = !near.g || near.d > a.range ? 'range' : m.visLevel(p.aimX, p.aimY) > 0 || info.lock ? '' : 'vis';
+    info.artyWhy = !near.g || near.d > a.range ? (near.idle && near.idleD <= a.range ? 'crew' : 'range') : m.visLevel(p.aimX, p.aimY) > 0 || info.lock ? '' : 'vis';
     info.inZone = !info.artyWhy; info.splash = a.r; info.ready = info.inZone && t >= s.readyAt;
   } else if (s.type === 'gun') {
     // free fire: anywhere the player can see, no strike zone needed
@@ -254,6 +258,8 @@ export function updatePlayer(m, dt) {
     info.splash = gs.spread + gs.bloom * g.bloom; info.ready = info.inZone && g.ammo >= 1 && !g.dry;
     info.gun = { ammo: g.ammo, max: g.max, dry: g.dry };
   } else { info.inZone = false; info.ready = false; }
+  info.jammed = s.type !== 'nuke' && !!jammedAt(m, p.aimX, p.aimY);
+  if (info.jammed) info.ready = false;
   info.ok = info.ready;
   info.util = s.type === 'orb' && st.k === 'util' ? st.util : null;      // help for the squad: no danger-close warning
   info.dangerR = s.type === 'uav' || s.type === 'gun' || info.util ? 0 : info.splash + info.spread + 5;
@@ -308,10 +314,12 @@ export function updatePlayer(m, dt) {
 function updateGun(m, dt, pressed) {
   const p = m.player, g = p.gun, G = C.gun, gs = gunStats(m.kit), t = m.t;
   const holding = p.slots[p.weapon].type === 'gun' && p.firing && t >= p.swapUntil;
-  const seen = holding && (m.visLevel(p.aimX, p.aimY) > 0 || !!m.nearLock(p.aimX, p.aimY));   // a locked enemy can be shot unseen
+  const jam = holding && !!jammedAt(m, p.aimX, p.aimY);
+  const seen = holding && !jam && (m.visLevel(p.aimX, p.aimY) > 0 || !!m.nearLock(p.aimX, p.aimY));   // a locked enemy can be shot unseen
   if (g.dry && g.ammo >= 45) g.dry = false;
   if (holding && pressed) {
-    if (!seen) deny(m, 'novisual', COMMS.noVisual);
+    if (jam) deny(m, 'jammed', COMMS.jammed);
+    else if (!seen) deny(m, 'novisual', COMMS.noVisual);
     else if (g.ammo < 1 || g.dry) deny(m, 'gundry', COMMS.gunDry);
   }
   if (seen && g.ammo >= 1 && !g.dry) {

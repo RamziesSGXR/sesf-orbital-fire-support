@@ -235,12 +235,6 @@ function targetFor(m, st, bot) {
   if (st.base && base && st.id !== 'orb_walk') return { x: base.x, y: base.y };
   // a super heavy in view: the big strikes go on it too
   if (m.boss && !m.boss.dead && m.boss.vis >= 1 && (st.dmg || 0) >= 250) { const h = heavy(); if (h) return h; }
-  // a free-fire zone the Helldivers asked for: strikes there recharge faster, so saturate it while it lasts
-  if (m.ffz && m.inZone(m.ffz.x, m.ffz.y, -6) && clearOfAllies(m, m.ffz.x, m.ffz.y, danger)) {
-    let n = 0, sx = 0, sy = 0;
-    m.eGrid.near(m.ffz.x, m.ffz.y, m.ffz.r, (o) => { n++; sx += o.x; sy += o.y; });
-    if (n >= 3) return { x: sx / n, y: sy / n };
-  }
   const c = bestCluster(m, danger, Math.max(3, (st.min || 4) - 1));
   if (c) return { x: c.x, y: c.y };
   return base && st.base ? { x: base.x, y: base.y } : null;

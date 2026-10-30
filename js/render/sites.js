@@ -186,6 +186,7 @@ export function drawPad(ctx, x, y, lit, now, px) {
 // The low walls round a held site: sandbags (a row of rounded bags), crates or a concrete barrier, lying along the ring.
 export function drawCover(ctx, m, px) {
   for (const p of m.cover || []) {
+    if (p.post && p.post.what !== 'bastion') continue;     // a post's places: the post draws itself (render/posts.js)
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.ang + Math.PI / 2);
     const L = p.len, w = 1.5;
     ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(-L / 2 - 0.4, -w / 2 + 0.5, L + 0.8, w + 0.6);    // shadow

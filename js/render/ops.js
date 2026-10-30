@@ -89,13 +89,8 @@ function howitzerArt(ctx, x, y, face, now, px, live, firedAt) {
 }
 
 // Howitzers the gunner can fire (built by SEAF or taken on the map), and the abandoned ones still waiting for the squad.
+// (the cannons in service are posts: render/posts.js draws them)
 export function drawArty(ctx, m, now, px, labels, scale) {
-  const t = m.t;
-  for (const g of m.arty || []) {
-    howitzerArt(ctx, g.x, g.y, g.face, now, px, true);
-    if (g.firedAt !== undefined && t - g.firedAt < 0.5) { ctx.fillStyle = `rgba(255,220,140,${0.8 * (1 - (t - g.firedAt) / 0.5)})`; ring(ctx, g.x + Math.cos(g.face) * px(20), g.y + Math.sin(g.face) * px(20), px(7)); ctx.fill(); }
-    labels.push({ x: g.x, y: g.y, dy: 24, text: OPS.arty, col: '#6fc0ff', pri: 1 });
-  }
   for (const s of m.sides || []) {
     if (s.kind !== 'arty' || s.done || s.failed) continue;
     howitzerArt(ctx, s.x, s.y, s.face, now, px, false);
@@ -145,6 +140,10 @@ export function drawMarks(ctx, m, now, px, labels, scale) {
 export function drawBeacons(ctx, m, now, px, labels, scale, placingSeaf) {
   const B = C.beacons, t = m.t;
   for (const b of m.beacons || []) {
+    if (b.post) {     // a propaganda tower draws itself (render/posts.js); its drop ring shows while a drop is being placed
+      if (placingSeaf) { ctx.setLineDash([px(6), px(5)]); ctx.strokeStyle = 'rgba(61,169,255,0.85)'; ctx.lineWidth = px(2); ring(ctx, b.x, b.y, B.r); ctx.stroke(); ctx.setLineDash([]); }
+      continue;
+    }
     const lit = b.relit || t < B.darkSec, R = B.r;
     ctx.save(); ctx.translate(b.x, b.y);
     ctx.strokeStyle = lit ? 'rgba(61,169,255,0.9)' : 'rgba(140,150,150,0.45)'; ctx.lineWidth = px(1.6);

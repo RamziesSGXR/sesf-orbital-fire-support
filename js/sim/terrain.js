@@ -1,6 +1,7 @@
 // The ground the mission is fought on. A height map, a water depth map and a surface map on an 8 m grid, built from the mission seed
 // and the biome, the same for the simulation and for the picture of it (render/terrain.js draws exactly this).
-//   - Deep water (rivers, lakes, crevasses) cannot be crossed on foot. Fords and shallows can, slowly.
+//   - Deep water (rivers, lakes, crevasses) cannot be crossed on foot. Fords and shallows can, slowly. Bridges (natural ones, or
+//     old war-torn ones) cross the rivers here and there at full pace, so routes to the objectives are shorter.
 //   - Mud, snow, sand and dust slow everyone down.
 //   - A rise gives more sight and harder hits on whoever is below.
 // Units move through it by the post-step pass in mission.js (speed, no entry into deep water) and by steer() below, which plans a
@@ -20,10 +21,10 @@ const smooth = (a, b, x) => { const t = c01((x - a) / (b - a)); return t * t * (
 // What each biome has. rivers: scale of the winding, half width in metres, how much of it is ford. lakes: noise scale, threshold,
 // highest ground a lake sits on. bank: cells of mud round water. swamp: wet ground away from water. soft: snow, sand or dust.
 const RECIPE = {
-  grass:  { gain: 2.2, hill: 300, rivers: [{ s: 560, W: 24, ford: 0.64 }], lakes: { s: 170, thr: 0.69, hmax: 0.5 }, bank: 3, soft: null },
+  grass:  { gain: 2.2, hill: 300, rivers: [{ s: 560, W: 24, ford: 0.64 }], lakes: { s: 170, thr: 0.69, hmax: 0.5 }, bank: 3, soft: null, bridge: 'old' },
   jungle: { gain: 1.8, hill: 250, rivers: [{ s: 470, W: 17, ford: 0.62 }, { s: 720, W: 22, ford: 0.64 }], lakes: { s: 150, thr: 0.71, hmax: 0.45 }, bank: 3,
-            swamp: { s: 120, thr: 0.61, hmax: 0.5 }, soft: null },
-  ice:    { gain: 2.0, hill: 340, rivers: [{ s: 430, W: 11, ford: 0.57 }], lakes: { s: 190, thr: 0.72, hmax: 0.5 }, bank: 0, soft: { s: 90, thr: 0.6, ax: 1.0, ay: 0.55 } },
+            swamp: { s: 120, thr: 0.61, hmax: 0.5 }, soft: null, bridge: 'log' },
+  ice:    { gain: 2.0, hill: 340, rivers: [{ s: 430, W: 11, ford: 0.57 }], lakes: { s: 190, thr: 0.72, hmax: 0.5 }, bank: 0, soft: { s: 90, thr: 0.6, ax: 1.0, ay: 0.55 }, bridge: 'ice' },
   desert: { gain: 2.3, hill: 330, terrace: true, rivers: [], lakes: { s: 120, thr: 0.75, hmax: 0.3 }, bank: 1, soft: { s: 70, thr: 0.53, dune: true } },
   moon:   { gain: 2.0, hill: 260, rivers: [], lakes: null, bank: 0, craters: 26, soft: { s: 55, thr: 0.56, ax: 1, ay: 1, low: 0.5 } },
 };
@@ -50,6 +51,8 @@ export class Terrain {
     this.kind = new Uint8Array(N * N);      // FIRM, MUD or SOFT
     this.spd = new Float32Array(N * N);     // movement multiplier; 0 = blocked
     this.comp = new Int32Array(N * N);      // connected region of walkable ground; 1 is the biggest
+    this.br = new Uint8Array(N * N);        // 1 on a bridge deck: walkable at full pace over the water under it
+    this.bridges = [];                      // { x1, y1, x2, y2, w, style } for the picture
     if (K.on) { this._build(RECIPE[biomeId] || RECIPE.grass); this._finish(); }
     else { this.h.fill(0.5); this.spd.fill(1); this.comp.fill(1); }     // terrain switched off: flat, firm ground everywhere
     this._navBuild();
@@ -81,7 +84,7 @@ export class Terrain {
     }
 
     // Water: winding rivers measured in real metres from the centre line, with fords, and lakes in the low ground.
-    const E = 5;
+    const E = 5, spans = [];
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
       const x = (i + 0.5) * CELL, y = (j + 0.5) * CELL, k = j * N + i;
       let w = 0;
@@ -92,8 +95,10 @@ export class Terrain {
         const dist = Math.abs(v - 0.5) / g;                                       // metres from the middle of the channel
         const W = r.W * (0.7 + 0.7 * n.v(x / 230 + r.fo, y / 230 + r.fo));         // it widens and narrows
         let depth = smooth(W, W * 0.3, dist);
-        if (n.fbm(x / 75 + r.fo, y / 75 + r.fo, 2) > r.ford) depth = Math.min(depth, 0.34);   // a ford
+        const ford = n.fbm(x / 75 + r.fo, y / 75 + r.fo, 2) > r.ford;
+        if (ford) depth = Math.min(depth, 0.34);   // a ford
         if (depth > w) w = depth;
+        if (!ford && dist < CELL * 0.6 && depth >= K.deep) spans.push({ x, y, gx, gy, W });     // the middle of a deep channel: a bridge could go here
       }
       if (R.lakes) {
         const L = R.lakes, lv = n.fbm(x / L.s + o3, y / L.s + o3, 3);
@@ -101,6 +106,8 @@ export class Terrain {
       }
       d[k] = w;
     }
+
+    this._bridges(spans, R, rng);
 
     // Normalise the heights so every map has real rises, then lay the water in the low ground.
     this._normalise();
@@ -144,6 +151,34 @@ export class Terrain {
     }
   }
 
+  // Bridges over the rivers: every bridgeSpacing metres or so along the deep channels, a deck straight across (along the slope of
+  // the river's noise, so square to the banks) from dry ground to dry ground, bridgeW metres wide. Natural ones (a rock arch, an ice
+  // bridge, a fallen giant tree) or old war-torn ones, by biome. Not where the far bank is out of reach (a lake).
+  _bridges(spans, R, rng) {
+    if (!spans.length) return;
+    const B = K.bridge, d = this.d, br = this.br, picked = [];
+    for (let k = spans.length - 1; k > 0; k--) { const j = rng.int(k + 1); const t = spans[k]; spans[k] = spans[j]; spans[j] = t; }
+    for (const s of spans) {
+      if (picked.length >= B.max) break;
+      if (picked.some((p) => (p.x - s.x) ** 2 + (p.y - s.y) ** 2 < B.spacing * B.spacing)) continue;
+      if (s.x < 30 || s.y < 30 || s.x > SIZE - 30 || s.y > SIZE - 30) continue;
+      const L = Math.hypot(s.gx, s.gy) || 1, ux = s.gx / L, uy = s.gy / L;
+      const dryAt = (sign) => { for (let m = 4; m <= B.reach; m += 2) { const x = s.x + ux * m * sign, y = s.y + uy * m * sign; if (x < 0 || y < 0 || x >= SIZE || y >= SIZE) return -1; if (d[this._i(x, y)] <= K.wet) return m; } return -1; };
+      const a = dryAt(-1), b = dryAt(1);
+      if (a < 0 || b < 0) continue;
+      const x1 = s.x - ux * (a + 6), y1 = s.y - uy * (a + 6), x2 = s.x + ux * (b + 6), y2 = s.y + uy * (b + 6);
+      // paint the deck
+      const len = Math.hypot(x2 - x1, y2 - y1), hw = B.w / 2;
+      for (let m = 0; m <= len; m += CELL / 2) for (let q = -hw; q <= hw; q += CELL / 2) {
+        const x = x1 + ux * m - uy * q, y = y1 + uy * m + ux * q;
+        if (x < 0 || y < 0 || x >= SIZE || y >= SIZE) continue;
+        br[this._i(x, y)] = 1;
+      }
+      picked.push({ x: s.x, y: s.y });
+      this.bridges.push({ x1, y1, x2, y2, w: B.w, style: R.bridge || 'old', worn: rng.next() });
+    }
+  }
+
   // Stretch the heights to 0..1. The extremes are squeezed rather than cut off, so no rise or hollow ends in a flat plateau.
   _normalise(final = false) {
     const h = this.h, a = Float32Array.from(h).sort();
@@ -160,7 +195,7 @@ export class Terrain {
   _speeds() {
     const sp = this.spd, d = this.d, kind = this.kind, S = K.speed;
     for (let k = 0; k < N * N; k++) {
-      sp[k] = d[k] >= K.deep ? 0 : d[k] > K.wet ? S.shallow : kind[k] === MUD ? S.mud : kind[k] === SOFT ? S.soft : 1;
+      sp[k] = this.br[k] ? 1 : d[k] >= K.deep ? 0 : d[k] > K.wet ? S.shallow : kind[k] === MUD ? S.mud : kind[k] === SOFT ? S.soft : 1;
     }
   }
 

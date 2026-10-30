@@ -19,7 +19,7 @@ function quiet(faction = 'bots', seed = 77, opts = {}) {
   m.enemies = []; m.groups = [];
   for (const b of m.bases) { b.garrisoned = true; b.owed = 0; b.nextPatrol = 1e9; if (b.patrols) b.patrols = []; }
   for (const p of m.pois) { p.woke = true; p.owed = 0; }
-  m.intercept.nextAt = 1e9; m.strat.callAt = 1e9; m.reinf.readyAt = 1e9; m.ffzAt = 1e9;
+  m.intercept.nextAt = 1e9; m.strat.callAt = 1e9; m.reinf.readyAt = 1e9;
   for (const o of m.objectives) { o.garrisoned = true; o.owed = 0; }
   return m;
 }
@@ -64,7 +64,7 @@ const objDone = (m) => { for (const o of m.objectives) o.done = true; m.objDone 
   const e = quiet('bots', 9140); e.retire();
   check('retiring before the objective: retired (failed)', e.outcome === 'retired' && !carriesOn(e.outcome));
   const f = quiet('bots', 9150); objDone(f); f.retire();
-  check('retiring after the objective: complete', f.outcome === 'complete');
+  check('retiring after the objective still fails (0.16)', f.outcome === 'retired' && !carriesOn(f.outcome), f.outcome);
   check('victory still carries on', carriesOn('victory'));
 }
 // ---------------------------------------------------------------- retry: the same mission from the same seed

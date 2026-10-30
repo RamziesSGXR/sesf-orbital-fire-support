@@ -7,12 +7,13 @@ import { CONFIG as C } from '../config.js';
 import { STRATS, dealGroups } from '../data/strat.js';
 import { LETTERS, TEAM_COLOR, shipNames } from '../data/names.js';
 import { COMMS } from '../data/data.js';
-import { fireShot, hurtEnemy, damageArea, blocker } from './combat.js';
+import { fireShot, hurtEnemy, damageArea, blocker, jammedAt } from './combat.js';
 import { alertGroup, compass } from './enemies.js';
 import { bark } from './chatter.js';
 import { baseNear } from './pois.js';
 import { restock } from './helldiver.js';
 import { dropNear } from './reinforce.js';
+import { postDown } from './posts.js';
 
 const M = (L, Mm, H, B) => ({ L, M: Mm, H, B });
 const TMULT = { bullet: M(1, 0.8, 0.2, 0.03), shell: M(1, 1, 0.6, 0.15), arc: M(1, 1, 0.5, 0.15), 'arc-zap': M(1, 1, 0.4, 0) };
@@ -413,6 +414,7 @@ function land(m, it) {
 
 export function destroyAsset(m, s, why) {
   if (s.dead) return;
+  if (s.kind === 'post') { postDown(m, s); m.emit('asset_down', { kind: 'post', sid: s.sid, x: s.x, y: s.y, why }); m.emit('boom', { x: s.x, y: s.y, r: 6, dmg: 0, by: 'enemy' }); return; }
   s.dead = true;
   if (s.kind === 'vehicle') {
     dismount(m, s, why === 'killed' ? 'bail' : why);
@@ -458,7 +460,8 @@ function turretTarget(m, s) {
   return best;
 }
 
-function turretStep(m, s, dt) {
+// (a manned MG post runs the same gun: s.rate is how fast its crew keep it firing, and it never runs dry)
+export function turretStep(m, s, dt) {
   const p = s.p, t = m.t;
   s.cool -= dt; s.scan -= dt;
   if (s.scan <= 0) { s.scan = 0.2; s.tgt = turretTarget(m, s); }
@@ -466,8 +469,8 @@ function turretStep(m, s, dt) {
   if (s.tgt) s.face = Math.atan2(s.tgt.y - s.y, s.tgt.x - s.x);
   else if (s.focus) s.face = Math.atan2(s.focus.y - s.y, s.focus.x - s.x);
   if (!s.tgt || s.cool > 0) return;
-  const e = s.tgt, k = mul();
-  s.cool = p.every;
+  const e = s.tgt, k = s.kind === 'post' ? 1 : mul();
+  s.cool = p.every / (s.rate || 1);
   if (p.style === 'arc-zap') {
     let n = 0;
     const hit = [];
@@ -484,8 +487,7 @@ function turretStep(m, s, dt) {
     const mult = p.prefer === 'H' ? RK_MULT : TMULT[p.style];
     fireShot(m, s, e, { dmg: p.dmg * k, acc: p.acc, splash: p.splash, mult, flight: p.flight || 0 }, 'strat', 't', s.snd);
   }
-  s.ammo -= 1;
-  if (s.ammo <= 0) destroyAsset(m, s, 'spent');
+  if (s.ammo !== Infinity) { s.ammo -= 1; if (s.ammo <= 0) destroyAsset(m, s, 'spent'); }
   void t;
 }
 
@@ -685,65 +687,6 @@ function updateZones(m, dt) {
   }
 }
 
-// ---------------------------------------------------------------- free-fire zones
-// A Helldiver who sees a big pack well ahead of the squad asks for a free-fire zone on it. While it lasts every ally keeps out of it
-// (safety.js treats it as a strike footprint) and the player's orbitals landed inside it recharge faster (player.js).
-function updateFfz(m, dt) {
-  const F = C.ffz, t = m.t, z = m.ffz;
-  if (z && t >= z.until) { m.ffz = null; m.radio(COMMS.ffzEnd, 'ffzend', 0); m.emit('ffz_end', { x: z.x, y: z.y }); }
-  // The zone stays on the pack: once a second it slides toward the middle of the enemies in and around it (never onto the squad).
-  if (m.ffz) {
-    z.trackT = (z.trackT || 0) - dt;
-    if (z.trackT <= 0) {
-      z.trackT = 1;
-      let n = 0, sx = 0, sy = 0;
-      m.eGrid.near(z.x, z.y, z.r * 1.3, (o) => { if (o.vis >= 1) { n++; sx += o.x; sy += o.y; } });
-      z.n = n;
-      if (n >= 3) {
-        const dx = sx / n - z.x, dy = sy / n - z.y, d = Math.hypot(dx, dy), s = Math.min(d, F.follow);
-        if (d > 0.5) {
-          const nx = z.x + (dx / d) * s, ny = z.y + (dy / d) * s;
-          if (!m.hdAlive.some((h) => Math.hypot(h.x - nx, h.y - ny) < F.minDist * 0.8)) { z.x = nx; z.y = ny; }
-        }
-      }
-      z.dir = compass(z.x - m.cx, z.y - m.cy); z.dist = Math.round(Math.hypot(z.x - m.cx, z.y - m.cy));
-    }
-  }
-  if (m.ffz || t < (m.ffzAt ?? F.firstSec) || !m.hdAlive.length || m.phase === 'over' || (m.phase === 'extract' && m.extraction.state !== 'open' && m.extraction.state !== 'called')) return;
-  m.ffzScan = (m.ffzScan || 0) - dt;
-  if (m.ffzScan > 0) return;
-  m.ffzScan = 1;
-  const list = m.enemies.filter((e) => !e.dead && e.vis >= 1);
-  if (list.length < F.minN) return;
-  const stride = Math.max(1, Math.floor(list.length / 50));
-  for (const a of m.hdAlive) {
-    if (a.mounted || a.dead) continue;
-    let best = null, bn = 0;
-    for (let i = 0; i < list.length; i += stride) {
-      const e = list[i], d = Math.hypot(e.x - a.x, e.y - a.y);
-      if (d > Math.min(a.zone - 10, F.maxDist) || d < F.minDist) continue;
-      let n = 0, sx = 0, sy = 0;
-      m.eGrid.near(e.x, e.y, F.r * 0.8, (o) => { n += o.kind === 'H' ? F.heavyN : 1; sx += o.x; sy += o.y; });
-      if (n <= bn) continue;
-      const cnt = Math.max(1, (() => { let c = 0; m.eGrid.near(e.x, e.y, F.r * 0.8, () => { c++; }); return c; })());
-      const x = sx / cnt, y = sy / cnt;
-      if (m.hdAlive.some((h) => Math.hypot(h.x - x, h.y - y) < F.minDist)) continue;
-      bn = n; best = { x, y };
-    }
-    if (best && bn >= F.minN) {
-      const dir = compass(best.x - m.cx, best.y - m.cy);
-      m.ffz = { x: best.x, y: best.y, r: F.r, start: t, until: t + F.sec, by: a.id, team: a.team, n: bn, strikes: 0, caller: m.tag(a), dir, dist: Math.round(Math.hypot(best.x - m.cx, best.y - m.cy)), trackT: 1 };
-      m.ffzAt = t + F.cooldownSec;
-      m.stats.ffz = (m.stats.ffz || 0) + 1;
-      m.radio(COMMS.ffzAsk(m.tag(a), dir), 'ffz', 0);
-      m.notice(tr('n.ffz', { dir: dir.toUpperCase() }), 'warn');
-      m.emit('ffz', { x: best.x, y: best.y, r: F.r, team: a.team });
-      bark(m, a, 'ffz', '', true);
-      return;
-    }
-  }
-}
-
 // ---------------------------------------------------------------- main update
 export function updateStrat(m, dt) {
   const S = m.strat, t = m.t;
@@ -751,7 +694,6 @@ export function updateStrat(m, dt) {
   updateAssets(m, dt);
   updateWeapons(m, dt);
   updateZones(m, dt);
-  updateFfz(m, dt);
   for (let i = m.assets.length - 1; i >= 0; i--) if (m.assets[i].dead) m.assets.splice(i, 1);
   if (m.over || !m.hdAlive.length) return;
   S.scanT -= dt;
@@ -768,6 +710,9 @@ export function updateStrat(m, dt) {
     const ctx = ctxs[key] || (ctxs[key] = buildCtx(m, d.shared ? null : team.hd));
     const tgt = choose(m, g, ctx);
     if (!tgt) continue;
+    // a commander's jammer: nothing can be called down inside it, and nobody standing in it can call at all
+    const caller = stratOwner(m, g);
+    if (jammedAt(m, tgt.x, tgt.y, 4) || (caller && jammedAt(m, caller.x, caller.y))) { m.stats.jammed = (m.stats.jammed || 0) + 1; continue; }
     if (!ctx.panic && m.rng.next() > 0.7) continue;   // not every opportunity gets taken the instant it appears (but a runner calls at once)
     execute(m, g, tgt, ctx);
     g.readyAt = t + d.cd; g.uses++;

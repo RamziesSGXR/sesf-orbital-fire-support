@@ -108,7 +108,6 @@ export class Audio {
   dropDown(v = 1, pan = 0) { if (!this.ctx) return; this._pan = pan; this._tone(700, 90, 1.1, 0.12 * v, 'sawtooth'); this._noise(1.4, 1200, 50, 0.6 * v, 'lowpass', 0.7, 0.9); this._tone(70, 25, 1.2, 0.5 * v, 'sine', 0.9); this._pan = 0; }
   // a critical hit from the destroyer: a short metallic ping; a hit on a heavy's back: a heavier clank
   crit(rear, v = 1, pan = 0) { if (!this._ok('crit', 0.09)) return; this._pan = pan; if (rear) { this._tone(300, 180, 0.12, 0.09 * v, 'square'); this._tone(1200, 800, 0.08, 0.05 * v, 'triangle'); } else this._tone(2400, 1700, 0.09, 0.05 * v, 'triangle'); this._pan = 0; }
-  ffz() { if (!this.ctx) return; for (let i = 0; i < 3; i++) { this._tone(620, 620, 0.14, 0.1, 'square', i * 0.3); this._tone(930, 930, 0.14, 0.1, 'square', i * 0.3 + 0.15); } }
   // Resupply: the request, a tap loading the pod, a full compartment, the launch and the landing.
   supAsk() { if (!this.ctx) return; [784, 988, 784, 1175].forEach((f, i) => this._tone(f, f, 0.11, 0.08, 'triangle', i * 0.13)); }
   supTap(i = 0) { if (!this._ok('suptap', 0.03)) return; this._noise(0.07, 1400 - i * 250, 300, 0.12, 'bandpass', 2); this._tone(300 + i * 70, 160, 0.06, 0.08, 'square'); }

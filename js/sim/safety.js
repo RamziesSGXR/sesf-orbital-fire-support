@@ -31,7 +31,6 @@ export function buildDanger(m) {
     if (s) out.push(s);
   }
   for (const b of m.beams) if (t >= b.start - 1.5 && t < b.end) out.push({ x1: b.cx, y1: b.cy, x2: b.cx, y2: b.cy, r: (b.width / 2) * m.biome.splash + 7, hard: true });
-  if (m.ffz) out.push({ x1: m.ffz.x, y1: m.ffz.y, x2: m.ffz.x, y2: m.ffz.y, r: m.ffz.r, hard: true, ffz: true });   // a free-fire zone: keep out
 }
 
 // Distance from a point to a shape's spine, and the closest point on it.
@@ -69,6 +68,7 @@ export function updateEvade(m, dt) {
   if (!list || !list.length) return;
   for (const a of m.alive) {
     if (a.dead || a.mounted) continue;
+    if (a.inPost && a.inPost.what === 'bunker' && !a.inPost.dead) continue;     // safe inside a bunker: nobody runs from it
     let worst = null, wd = 0;
     for (const s of list) {
       const sp = spine(s, a.x, a.y), pad = s.hard ? 2.5 : 0;

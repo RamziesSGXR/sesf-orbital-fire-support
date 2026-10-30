@@ -7,7 +7,7 @@ import { aoX, aoY } from './ao.js';
 import { COMMS } from '../data/data.js';
 import { seafStats, buildStats, buildLevel } from '../data/kit.js';
 import { STRATS } from '../data/strat.js';
-import { fireShot } from './combat.js';
+import { fireShot, jammedAt } from './combat.js';
 import { nearestObjective } from './pois.js';
 import { strikeAt } from './strat.js';
 import { bark } from './chatter.js';
@@ -15,7 +15,8 @@ import { canStep } from './safety.js';
 import { steer } from './terrain.js';
 import { speedMul } from './helldiver.js';
 import { shoreToward } from './enemies.js';
-import { siteAt, coverSlot } from './cover.js';
+import { siteAt, coverSlot, threatSlot } from './cover.js';
+import { makePost, GARRISON } from './posts.js';
 
 const SIZE = C.world.size;
 const S = C.seaf;
@@ -64,7 +65,7 @@ export function initSeaf() {
 // Squads an order applies to: the selected one, or every squad that has troops.
 function recount(m) {
   for (const q of m.seaf.squads) q.n = 0;
-  for (const a of m.seafAlive) { if (!(a.sq >= 0 && a.sq < m.seaf.squads.length)) a.sq = 0; m.seaf.squads[a.sq].n++; }
+  for (const a of m.seafAlive) { if (a.sq === GARRISON) continue; if (!(a.sq >= 0 && a.sq < m.seaf.squads.length)) a.sq = 0; m.seaf.squads[a.sq].n++; }
 }
 export function targetSquads(m) {
   const sf = m.seaf;
@@ -97,45 +98,18 @@ export function setSquadOrder(m, q, kind, x = 0, y = 0, extra = null) {
 }
 
 // ---- building ----
-// How many of a kind are standing.
-export function builtCount(m, what) {
-  if (what === 'beacon') return (m.beacons || []).filter((b) => b.built).length;
-  if (what === 'mg') return m.assets.filter((s) => !s.dead && s.sid === 'seaf_mg').length;
-  if (what === 'arty') return (m.arty || []).filter((g) => g.built).length;
-  return (m.coverSites || []).filter((s) => s.kind === 'built').length;
-}
-// Done: the crate is deployed (it was paid for when ordered), and the squad stays to hold it. Upgrades from the armory decide how
-// good it is (data/kit.js buildStats).
+// How many of a kind are standing, and crates of it on the way.
+export function builtCount(m, what) { return (m.posts || []).filter((p) => !p.dead && p.what === what).length; }
+// Done: the crate is deployed (it was paid for when ordered; a foxhole is dug), the post goes up (posts.js) and the squad that
+// built it stays on it. Upgrades from the armory decide how good it is (data/kit.js buildStats).
 function finishBuild(m, q, o) {
-  const lvl = buildLevel(m.kit, o.what), B = buildStats(o.what, lvl);
-  if (o.crate) { o.crate.used = true; m.crates = m.crates.filter((c) => c !== o.crate); }
-  if (o.what === 'wall') {
-    // a ring of low walls, the open side toward the squad's own lines (the Helldivers), the walls toward the enemy
-    const site = { x: o.x, y: o.y, R: B.R, pieces: [], kind: 'built' }, face = Math.atan2(m.hy - o.y, m.hx - o.x) + Math.PI;
-    const step = Math.min(0.75, (Math.PI * 1.6) / Math.max(1, B.n - 1));
-    for (let k = 0; k < B.n; k++) {
-      const ang = face + (k - (B.n - 1) / 2) * step, px = o.x + Math.cos(ang) * B.R, py = o.y + Math.sin(ang) * B.R;
-      if (m.terrain.blocked(px, py)) continue;
-      site.pieces.push({ x: px, y: py, nx: Math.cos(ang), ny: Math.sin(ang), ang, len: 6, style: k % 2 ? 0 : 2, k, built: true, mul: B.mul, lvl });
-    }
-    if (site.pieces.length) { m.coverSites.push(site); m.cover.push(...site.pieces); }
-  } else if (o.what === 'mg') {
-    const base = STRATS.mg_sentry.t, p = { ...base, ammo: B.ammo, dmg: base.dmg * B.dmg };
-    const s = { id: m.nextId++, kind: 'turret', sid: 'seaf_mg', x: o.x, y: o.y, born: m.t, dead: false, hurtAt: -9, name: tr('build.mg'), hp: B.hp, maxHp: B.hp,
-      ammo: B.ammo, maxAmmo: B.ammo, p, cool: 0.6, scan: 0, tgt: null, face: Math.atan2(o.y - m.hy, o.x - m.hx), focus: null, r: 3.5, snd: 'mg', seaf: true, lvl };
-    m.assets.push(s);
-    m.emit('asset_new', { kind: 'turret', sid: 'seaf_mg', x: o.x, y: o.y });
-  } else if (o.what === 'arty') {
-    m.arty.push({ id: m.nextId++, x: o.x, y: o.y, built: true, face: Math.atan2(m.hy - o.y, m.hx - o.x) + Math.PI, born: m.t });
-    m.radio(COMMS.artyUp, 'artyup', 0);
-    m.emit('arty_new', { x: o.x, y: o.y });
-  } else {
-    m.beacons.push({ id: m.nextId++, x: o.x, y: o.y, relit: true, built: true });
-  }
+  if (o.crate && !o.crate.dig) { o.crate.used = true; m.crates = m.crates.filter((c) => c !== o.crate); }
+  const p = makePost(m, o.what, o.x, o.y);
+  if (o.what === 'arty') m.radio(COMMS.artyUp, 'artyup', 0);
   m.stats.built = (m.stats.built || 0) + 1;
-  m.notice(tr('n.built', { what: tr('build.' + o.what), cr: B.cost }), 'good');
+  m.notice(tr(o.what === 'foxhole' ? 'n.dug' : 'n.built', { what: tr('build.' + o.what), cr: buildStats(o.what, p.lvl).cost }), 'good');
   m.emit('built', { what: o.what, x: o.x, y: o.y });
-  setSquadOrder(m, q, 'protect', o.x, o.y);
+  setSquadOrder(m, q, 'post', p.x, p.y, { post: p, site: p.site });
   return true;
 }
 
@@ -380,7 +354,7 @@ function updateSpecialists(m, dt) {
         best = e; bs = n;
       });
       void R2;
-      if (best) {
+      if (best && !jammedAt(m, best.x, best.y, 4)) {
         sf.spotAt = t + st.spotCool;
         const d = SPOT(), g = best.g;
         d.n = st.spotN; d.dmg = K.dmg * st.spotDmg;
@@ -400,8 +374,12 @@ export function updateSeaf(m, dt, speed, bm) {
   const sf = m.seaf;
   m.kitDmg = seafStats(m.kit).dmgMul;
   updatePelicans(m, dt);
-  const by = sf.squads.map(() => []);
-  for (const a of m.seafAlive) { if (!(a.sq >= 0 && a.sq < by.length)) a.sq = 0; by[a.sq].push(a); }
+  const by = sf.squads.map(() => []), held = [];
+  for (const a of m.seafAlive) {
+    if (a.sq === GARRISON) { if (a.post && !a.post.dead) { held.push(a); continue; } a.post = null; a.sq = a.sqWas >= 0 ? a.sqWas : 0; }
+    if (!(a.sq >= 0 && a.sq < by.length)) a.sq = 0;
+    by[a.sq].push(a);
+  }
   sf.squads.forEach((q, i) => {
     q.n = by[i].length;
     if (!q.n) { q.tgt = null; q.stand = null; if (q.order.kind === 'auto') q.cx = q.cy = 0; return; }
@@ -414,6 +392,7 @@ export function updateSeaf(m, dt, speed, bm) {
   for (const q of sf.squads) if (q.n && q.tgt && q.order.kind === 'auto') claimed.add(q.tgt.obj.id);
   for (const q of sf.squads) if (q.n) stepSquad(m, q, by[q.i], dt, speed, bm, claimed);
   if (!(m.phase === 'extract' && m.pelicans.some((p) => p.evac))) stepFormations(m, by, dt, bm);
+  stepGarrisons(m, held, dt, speed);
   updateSpecialists(m, dt);
 }
 
@@ -427,7 +406,13 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
     return;
   }
   void ord;
-  const o = q.order, cx = q.cx, cy = q.cy;
+  let o = q.order;
+  const cx = q.cx, cy = q.cy;
+  // a post that has come down: hold the ground it stood on
+  if (o.kind === 'post' && o.post && o.post.dead) { setSquadOrder(m, q, 'protect', o.x, o.y); o = q.order; }
+  // the way the squad faces, for its formation: where it is going, or (standing) toward the nearest enemy
+  if (Math.hypot(o.x - cx, o.y - cy) > 10 && o.kind !== 'auto' && o.kind !== 'escort') q.fdir = Math.atan2(o.y - cy, o.x - cx);
+  else { const e = eg.nearest(cx, cy, 70); if (e) q.fdir = Math.atan2(e.y - cy, e.x - cx); }
   // An attack holds the ground it took (and keeps the order: nothing expires).
   if (o.kind === 'attack' && !o.held && Math.hypot(cx - o.x, cy - o.y) < 14) o.held = true;
   const hold = o.kind === 'protect' || (o.kind === 'attack' && o.held);
@@ -491,13 +476,17 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
     }
   }
 
+  const holdSite = hold ? siteAt(m, o.x, o.y, 4) : null;
+  if (o.kind === 'post' || holdSite) list.sort((a, b) => a.id - b.id);     // (everyone keeps the same place)
   for (const a of list) {
     if (o.kind === 'line' || o.kind === 'ring') continue;   // formations are placed together afterwards
     const en = eg.nearest(a.x, a.y, o.kind === 'attack' && !o.held ? 14 : C.squad.engageRange);
     a.engaged = !!en;
-    if (en) continue;   // stand and fight
+    // stand and fight, unless the order is a post or walls to hold: then they get back to their place and fight from it
+    // (nobody leaves cover to chase a target)
+    if (en && o.kind !== 'post' && !holdSite) continue;
     let tx, ty, spd = speed, wander = false;
-    const ki = list.indexOf(a), kn = list.length;
+    const ki = list.indexOf(a), kn = list.length, fo = formOff(q, a, ki, kn);
     if (o.kind === 'escort') {
       if (!m.hdAlive.length) continue;            // nobody to escort right now: hold here until they are back
       tx = sq.ax + a.fx; ty = sq.ay + a.fy; spd = chase;
@@ -505,17 +494,27 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
       const site = m.phase !== 'clear' ? siteAt(m, sq.ax, sq.ay) : null;
       if (site) { const p = coverSlot(site, ki + 0.5, kn, ((a.id % 3) - 1) * 1.8); tx = p.x; ty = p.y; }
       if (Math.hypot(tx - a.x, ty - a.y) <= 4) continue;
+    } else if (o.kind === 'post') {
+      // manning a post or a defence site: each takes one of its places and stays; anyone over holds round it
+      const p = o.post, site = o.site || (p && p.site);
+      const pl = p && p.slots && p.what !== 'bastion' ? p.slots : null;
+      let s;
+      if (pl && ki < pl.length) s = pl[ki];
+      else if (pl) { const k = ki - pl.length, n = Math.max(1, kn - pl.length), ang = (p.face || 0) + Math.PI + ((k + 0.5) / n - 0.5) * Math.PI * 1.4; s = { x: p.x + Math.cos(ang) * (p.r + 5), y: p.y + Math.sin(ang) * (p.r + 5) }; }
+      else if (site && site.pieces.length) s = coverSlot(site, ki, kn, ((a.id % 3) - 1) * 1.8);
+      else s = { x: o.x + fo.x * 0.5, y: o.y + fo.y * 0.5 };
+      tx = s.x; ty = s.y; spd = Math.hypot(tx - a.x, ty - a.y) > 18 ? chase : speed;
+      if (Math.hypot(tx - a.x, ty - a.y) <= 1.1) continue;
     } else if (o.kind === 'attack' && !hold) {
-      tx = o.x + a.ox; ty = o.y + a.oy; spd = chase;
+      tx = o.x + fo.x; ty = o.y + fo.y; spd = chase;
     } else if (hold) {
-      // Guard the marked ground: close on anything hunting near it, but never leave the leash.
-      const thr = eg.nearest(o.x, o.y, 70);
-      const site = siteAt(m, o.x, o.y, 4);
-      if (site && !thr) { const p = coverSlot(site, ki, kn, ((a.id % 3) - 1) * 1.8); tx = p.x; ty = p.y; }     // holding behind walls: each at his own
+      // Guard the marked ground: close on anything hunting near it, but never leave the leash. Behind walls, they stay in cover.
+      const thr = holdSite ? null : eg.nearest(o.x, o.y, 70);
+      if (holdSite) { const p = coverSlot(holdSite, ki, kn, ((a.id % 3) - 1) * 1.8); tx = p.x; ty = p.y; if (Math.hypot(tx - a.x, ty - a.y) <= 1.1) continue; }   // each at his own wall
       else if (thr && Math.hypot(thr.x - o.x, thr.y - o.y) <= S.protectLeash) { tx = thr.x; ty = thr.y; spd = chase; }
-      else { tx = o.x + a.ox * 0.6; ty = o.y + a.oy * 0.6; wander = true; }
+      else { tx = o.x + fo.x * 0.6; ty = o.y + fo.y * 0.6; wander = !q.form || q.form === 'loose'; }
     } else if (o.kind === 'move') {
-      tx = o.x + a.ox; ty = o.y + a.oy; wander = true;
+      tx = o.x + fo.x; ty = o.y + fo.y; wander = !q.form || q.form === 'loose';
     } else if (o.kind === 'build') {
       // round the spot, close in, each at his own side of it
       const ang = (ki / Math.max(1, kn)) * Math.PI * 2;
@@ -523,12 +522,13 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
       if (Math.hypot(tx - a.x, ty - a.y) <= 1.5) continue;
     } else if (o.kind === 'path') {
       // Bunch up around the anchor, hurrying if they fall behind.
-      tx = q.ax + a.ox * 0.45; ty = q.ay + a.oy * 0.45;
+      const k = !q.form || q.form === 'loose' ? 0.45 : 1;
+      tx = q.ax + fo.x * k; ty = q.ay + fo.y * k;
       const dd = Math.hypot(tx - a.x, ty - a.y);
       spd = dd > 10 ? chase : speed;
       if (dd <= 2.5) continue;
     } else if (dest) {
-      tx = dest.x + a.ox; ty = dest.y + a.oy;
+      tx = dest.x + fo.x; ty = dest.y + fo.y;
       // once there, the squad fans out in an arc round the target instead of bunching up on one spot
       const t0 = q.tgt;
       if (t0 && Math.hypot(cx - t0.x, cy - t0.y) < t0.stand + 30) {
@@ -540,7 +540,7 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
       tx = sq.ax + a.fx * 1.6; ty = sq.ay + a.fy * 1.6; spd = speed;
     }
     const d = Math.hypot(tx - a.x, ty - a.y);
-    if (d > (wander ? S.patrolRadius : 3)) { walk(m, a, tx, ty, spd, dt); a.wT = 0; }
+    if (d > (wander ? S.patrolRadius : o.kind === 'post' || holdSite ? 0.8 : 3)) { walk(m, a, tx, ty, spd, dt); a.wT = 0; }
     else if (wander) {
       a.wT -= dt;
       if (a.wT <= 0) { const [ox, oy] = m.rng.inDisc(S.patrolRadius * 0.6); a.wx = tx + ox; a.wy = ty + oy; a.wT = m.rng.range(4, 8); }
@@ -553,6 +553,59 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
     const last = o.path[o.path.length - 1];
     setSquadOrder(m, q, 'protect', last.x, last.y);
   }
+}
+
+// ---- formations (the tactical menu) ----
+// Where trooper ki of kn stands relative to the squad's point, for the squad's formation, turned to the way it faces (q.fdir):
+// loose (each his own spot), line (abreast), wedge (a V with the point ahead), column (in file) or ring (all round).
+export const FORMS = ['loose', 'line', 'wedge', 'column', 'ring'];
+export function formOff(q, a, ki, kn) {
+  const f = q.form || 'loose', G = S.formationSpacing;
+  if (f === 'loose') return { x: a.ox, y: a.oy };
+  const d = q.fdir || 0, cx = Math.cos(d), cy = Math.sin(d);
+  let fwd = 0, lat = 0;
+  if (f === 'line') lat = (ki - (kn - 1) / 2) * G * 1.1;
+  else if (f === 'column') fwd = ((kn - 1) / 2 - ki) * G * 0.9;
+  else if (f === 'wedge') { const rank = Math.ceil(ki / 2), side = ki % 2 ? 1 : -1; lat = side * rank * G * 0.9; fwd = (kn / 4 - rank) * G * 0.8; }
+  else { const R = Math.max(G, (kn * G) / (2 * Math.PI)), ang = d + (ki / kn) * 2 * Math.PI; return { x: Math.cos(ang) * R, y: Math.sin(ang) * R }; }
+  return { x: cx * fwd - cy * lat, y: cy * fwd + cx * lat };
+}
+export function setForm(m, q, form) { if (FORMS.includes(form)) q.form = form; }
+
+// ---- garrisons (posts.js): each garrisoned trooper keeps to one of his post's places and fights from it
+function stepGarrisons(m, held, dt, speed) {
+  if (!held.length) return;
+  const byPost = new Map();
+  for (const a of held) { let l = byPost.get(a.post); if (!l) byPost.set(a.post, (l = [])); l.push(a); }
+  for (const [p, list] of byPost) {
+    list.sort((a, b) => a.id - b.id);
+    const pl = p.slots && p.what !== 'bastion' ? p.slots : null;
+    list.forEach((a, k) => {
+      a.engaged = !!m.eGrid.nearest(a.x, a.y, C.squad.engageRange);
+      const s = pl ? pl[k % pl.length] : coverSlot(p.site, k, list.length);
+      if (Math.hypot(s.x - a.x, s.y - a.y) > 1.1) walk(m, a, s.x, s.y, speed * 1.3, dt);
+    });
+  }
+}
+
+// ---- box select: the troopers inside a box on the map become one squad, selected. If they are all of one squad already, that
+// squad is selected; otherwise they move to a free squad slot, or to the slot of a squad that is entirely inside the box.
+export function boxSelect(m, x0, y0, x1, y1) {
+  const inside = m.seafAlive.filter((a) => a.sq !== GARRISON && a.x >= x0 && a.x <= x1 && a.y >= y0 && a.y <= y1);
+  if (!inside.length) return { ok: false, reason: 'none' };
+  recount(m);
+  const from = new Set(inside.map((a) => a.sq));
+  const whole = [...from].filter((i) => squadCount(m, i) === inside.filter((a) => a.sq === i).length);
+  if (from.size === 1 && whole.length === 1) { m.seaf.sel = whole[0]; return { ok: true, to: whole[0], n: inside.length, split: false }; }
+  const free = m.seaf.squads.find((o) => squadCount(m, o.i) === 0 && pendingFor(m, o.i) === 0);
+  const to = free ? free.i : whole.length ? whole[0] : -1;
+  if (to < 0) return { ok: false, reason: 'nosquad' };
+  const src = m.seaf.squads[inside[0].sq], dst = m.seaf.squads[to];
+  if (free) { dst.order = { ...src.order, path: src.order.path ? src.order.path.slice() : null }; dst.tgt = null; dst.stand = null; dst.ax = src.ax; dst.ay = src.ay; dst.form = src.form; }
+  for (const a of inside) a.sq = to;
+  m.seaf.sel = to;
+  recount(m);
+  return { ok: true, to, n: inside.length, split: true };
 }
 
 // Lines and rings: everyone sharing the formation takes a slot, and stays there to fight.

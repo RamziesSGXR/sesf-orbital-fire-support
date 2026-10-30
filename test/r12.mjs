@@ -26,7 +26,7 @@ function quiet(faction = 'bots', seed = 77, opts = {}) {
   m.enemies = []; m.groups = [];
   for (const b of m.bases) { b.garrisoned = true; b.owed = 0; b.nextPatrol = 1e9; if (b.patrols) b.patrols = []; }
   for (const p of m.pois) { p.woke = true; p.owed = 0; }
-  m.intercept.nextAt = 1e9; m.strat.callAt = 1e9; m.reinf.readyAt = 1e9; m.ffzAt = 1e9;
+  m.intercept.nextAt = 1e9; m.strat.callAt = 1e9; m.reinf.readyAt = 1e9;
   for (const o of m.objectives) { o.garrisoned = true; o.owed = 0; }
   return m;
 }
@@ -150,20 +150,20 @@ const seafReady = (m, n = 5) => { m.seaf.readyAt = 0; m.callSeaf(m.hx + 10, m.hy
   const spot = { x: m.hx + 30, y: m.hy + 10 };
   if (m.terrain.blocked(spot.x, spot.y)) { const l = m.terrain.nearestLand(spot.x, spot.y); spot.x = l.x; spot.y = l.y; }
   const before = m.wallet.spent;
-  const r = m.seafBuild('beacon', spot.x, spot.y);
+  const r = m.seafBuild('tower', spot.x, spot.y);
   const spent = m.wallet.spent;
-  run(m, C.build.beacon.sec + 30);
+  run(m, C.build.tower.sec + 30);
   const bc = m.beacons.find((b) => b.built);
-  // (0.15: paid when ordered; a cargo pelican brings the crate and SEAF deploy it)
-  check('SEAF ordered to build a drop beacon build it, and it is paid for when ordered', r.ok && !!bc && spent === before + C.build.beacon.cost && m.wallet.spent === spent, r.ok ? `${m.beacons.length} beacons` : JSON.stringify(r));
-  check('a built beacon takes a SEAF drop', bc && !!beaconAt(m, bc.x, bc.y));
+  // (0.15: paid when ordered; a cargo pelican brings the crate and SEAF deploy it. 0.16: the drop beacon became the Propaganda Tower)
+  check('SEAF ordered to build a propaganda tower build it, and it is paid for when ordered', r.ok && !!bc && spent === before + C.build.tower.cost && m.wallet.spent === spent, r.ok ? `${m.beacons.length} beacons` : JSON.stringify(r));
+  check('a built tower takes a SEAF drop', bc && !!beaconAt(m, bc.x, bc.y));
   const q = m.seaf.squads.find((x) => x.n);
-  check('and the squad stays to guard it', q && q.order.kind === 'protect');
+  check('and the squad stays to man it', q && q.order.kind === 'post');
   m.seafBuild('mg', spot.x + 12, spot.y); run(m, C.build.mg.sec + 30);
-  check('an MG nest is a sentry gun', m.assets.some((s) => !s.dead && s.sid === 'seaf_mg' && s.kind === 'turret'));
+  check('an MG post goes up', m.posts.some((p) => !p.dead && p.what === 'mg'));
   const nC = m.cover.length;
-  m.seafBuild('wall', spot.x - 12, spot.y); run(m, C.build.wall.sec + 30);
-  check('a wall is a ring of cover', m.cover.length > nC && m.coverSites.some((s) => s.kind === 'built'), `${m.cover.length - nC} walls`);
+  m.seafBuild('bastion', spot.x - 12, spot.y); run(m, C.build.bastion.sec + 30);
+  check('the bastions are a ring of cover', m.cover.length > nC && m.coverSites.some((s) => s.kind === 'built'), `${m.cover.length - nC} walls`);
   m.wallet.bal = 0;
   const poor = m.seafBuild('mg', spot.x, spot.y + 15);
   check('nothing is built without the credits', !poor.ok && poor.reason === 'funds', JSON.stringify(poor));

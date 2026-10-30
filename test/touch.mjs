@@ -77,8 +77,7 @@ check('its close button closes it', !(await page.isVisible('#tray')));
 await tap('#dk-sq'); await page.waitForTimeout(300);
 await page.touchscreen.tap(195, 380); await page.waitForTimeout(250);
 check('a tap on the map closes it too', !(await page.isVisible('#tray')));
-// the status chip opens the roster, and panels fade back until touched
-check('stratagem grid is out of the way', !(await page.isVisible('#strats')));
+// the Helldivers live in the squad panel now (0.16), and panels fade back until touched
 // the camera is the player's: free from the start, with a re-center button that locks it on the squad (and then hides)
 check('the camera starts free, with a re-center button', await page.isVisible('#btn-follow') && !(await page.evaluate(() => window.__game.cam.follow)));
 await tap('#btn-follow'); await page.waitForTimeout(250);
@@ -86,21 +85,14 @@ check('re-center locks the camera on the squad and the button steps aside', (awa
 check('radio box is off on phones', !(await page.isVisible('#radio')));
 check('at most two notices', (await page.evaluate(() => document.querySelectorAll('#notices .nt').length)) <= 2);
 await page.waitForTimeout(3600);
-const idle = await page.evaluate(() => ({ chip: Number(getComputedStyle(document.querySelector('.hud-tl')).opacity), bar: Number(getComputedStyle(document.querySelector('#weapons .wbtn:not(.sel)')).opacity), mini: Number(getComputedStyle(document.getElementById('minimap')).opacity) }));
+const idle = await page.evaluate(() => ({ chip: Number(getComputedStyle(document.getElementById('mbox')).opacity), bar: Number(getComputedStyle(document.querySelector('#weapons .wbtn:not(.sel)')).opacity), mini: Number(getComputedStyle(document.getElementById('minimap')).opacity) }));
 check('the HUD fades when idle', idle.chip < 0.6 && idle.bar < 0.7 && idle.mini < 0.7, JSON.stringify(idle));
-await tap('#btn-menu'); await page.waitForTimeout(300);
-check('menu opens', await page.isVisible('#menu'));
-check('a touch wakes the HUD', await page.evaluate(() => Number(getComputedStyle(document.querySelector('.hud-tl')).opacity)) > 0.6);
-await page.screenshot({ path: path.join(root, `test/shots/t5-${vp}-menu.png`) });
-await tap('.mn[data-mn=strats]'); await page.waitForTimeout(300);
-check('menu opens the stratagem drawer', await page.isVisible('#strats') && !(await page.isVisible('#menu')));
-await page.screenshot({ path: path.join(root, `test/shots/t5-${vp}-strats.png`) });
-await page.waitForTimeout(8300);
-check('stratagem drawer closes by itself', !(await page.isVisible('#strats')));
-await tap('.hud-tl'); await page.waitForTimeout(500);
-check('chip opens the roster', await page.isVisible('#roster'));
-check('touched panel comes up to full', await page.evaluate(() => Number(getComputedStyle(document.querySelector('.hud-tl')).opacity)) > 0.95);
-await tap('.hud-tl'); await page.waitForTimeout(200);
+await tap('#mbox'); await page.waitForTimeout(800);
+check('a touch wakes the HUD', await page.evaluate(() => Number(getComputedStyle(document.getElementById('mbox')).opacity)) > 0.95);
+await tap('#dk-sq'); await page.waitForTimeout(300);
+check('the squad panel shows the Helldivers too, with their stratagems', (await page.isVisible('#sqpanel')) && await page.evaluate(() => document.querySelectorAll('#hdrows .hr').length === 4 && document.querySelectorAll('#hdrows .sc').length === 16));
+await page.screenshot({ path: path.join(root, `test/shots/t5-${vp}-squadpanel.png`) });
+await tap('#tray .tray-x'); await page.waitForTimeout(250);
 await tap('#dk-sq'); await page.waitForTimeout(250);
 await tap('#squads .sqb[data-sq="-1"]'); await page.waitForTimeout(200);
 await page.screenshot({ path: path.join(root, `test/shots/t4-${vp}-tray.png`) });
@@ -113,10 +105,12 @@ const v1 = await page.evaluate(() => window.__game.cam.view);
 check('pinch changes zoom', Math.abs(v1 - v0) > 1, `${v0.toFixed(0)} -> ${v1.toFixed(0)}`);
 // armory in the mission and pause
 await tap('#btn-menu'); await page.waitForTimeout(250);
-await tap('.mn[data-mn=armory]'); await page.waitForTimeout(400);
+check('MENU opens the pause menu', await page.evaluate(() => document.getElementById('s-pause').classList.contains('on')));
+await tap('#btn-armory-m'); await page.waitForTimeout(400);
 check('mission armory opens', await page.evaluate(() => document.getElementById('s-armory').classList.contains('on')));
 await page.screenshot({ path: path.join(root, `test/shots/t4-${vp}-armory.png`) });
 await tap('#arm-close'); await page.waitForTimeout(300);
+if (await page.evaluate(() => document.getElementById('s-pause').classList.contains('on'))) { await tap('#btn-resume-m'); await page.waitForTimeout(300); }
 await tap('#btn-pause'); await page.waitForTimeout(300);
 check('the pause button soft-pauses (no menu)', await page.evaluate(() => window.__game.soft && !document.getElementById('s-pause').classList.contains('on')));
 await tap('#sp-menu'); await page.waitForTimeout(300);

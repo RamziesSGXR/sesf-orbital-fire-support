@@ -16,7 +16,13 @@ import { siteAt, threatSlot } from './cover.js';
 // Where the squad waits before going in on a base: just outside its detection ring, on the near side, on dry ground.
 function stagePoint(m, b, sq) {
   const rg = ringOf(m, b), R = rg.R + C.bases.stageGap, a0 = Math.atan2(sq.ay - rg.y, sq.ax - rg.x), tr = m.terrain;
-  for (const k of [0, 0.2, -0.2, 0.4, -0.4, 0.65, -0.65, 0.9, -0.9, 1.2, -1.2]) {
+  // (outside the rings of the base's sleeping neighbours too, in a cluster)
+  const other = (x, y) => m.bases.some((o) => { if (o === b || o.destroyed || o.alert || o.part) return false; const q = ringOf(m, o); if (rg.keep && q.keep === rg.keep) return false; return (x - q.x) ** 2 + (y - q.y) ** 2 < (q.R + 4) ** 2; });
+  for (const k of [0, 0.2, -0.2, 0.4, -0.4, 0.65, -0.65, 0.9, -0.9, 1.2, -1.2, 1.6, -1.6, 2.1, -2.1, 2.6, -2.6, 3.1]) {
+    const x = aoX(m, rg.x + Math.cos(a0 + k) * R, 12), y = aoY(m, rg.y + Math.sin(a0 + k) * R, 12);
+    if (tr.isLand(x, y) && !tr.blocked(x, y) && Math.hypot(x - rg.x, y - rg.y) >= R - 8 && !other(x, y)) return { b, x, y };
+  }
+  for (const k of [0, 0.4, -0.4, 0.9, -0.9]) {
     const x = aoX(m, rg.x + Math.cos(a0 + k) * R, 12), y = aoY(m, rg.y + Math.sin(a0 + k) * R, 12);
     if (tr.isLand(x, y) && !tr.blocked(x, y) && Math.hypot(x - rg.x, y - rg.y) >= R - 8) return { b, x, y };
   }
@@ -195,7 +201,11 @@ export function updateSquad(m, dt) {
     // Close on anything that is already hunting us, or on a group we just set up on. Don't wander far from a point objective.
     // (on the way to a base or the citadel it only turns on what is close: with a stream of enemies hunting the squad, chasing each
     // one would pull it away from the target for good)
-    if (near && !engaged && (sq.state === 'attack' || threat) && !(sq.staging && !threat)) {
+    // (holding a walled site the squad does not leave cover for anything its rifles reach from the walls; it only goes out after
+    // what stands off beyond that, or it would be shot to pieces by longer guns while it waits)
+    const holdingWalls = m.phase !== 'clear' && pointGoal && siteAt(m, sq.ax, sq.ay)
+      && near && Math.hypot(near.x - sq.ax, near.y - sq.ay) <= C.combat.helldiver.range * 0.9;
+    if (near && !engaged && (sq.state === 'attack' || threat) && !(sq.staging && !threat) && !holdingWalls) {
       const lim = pointGoal ? 55 : baseGoal ? 60 : 1e9;
       if (Math.hypot(near.x - sq.ax, near.y - sq.ay) <= lim) { gx = near.x; gy = near.y; goal = 'attack'; }
     }

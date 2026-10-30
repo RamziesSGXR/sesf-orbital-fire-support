@@ -7,6 +7,8 @@
 // Drop beacons: places the player can send a SEAF drop to without a strike zone. SEAF build them (seaf.js); a radio tower powered
 // up keeps the ground round it in view for the rest of the mission (a relay, mission.js visLevel).
 import { CONFIG as C } from '../config.js';
+import { makePost } from './posts.js';
+import { buildLevel } from '../data/kit.js';
 import { COMMS } from '../data/data.js';
 import { hiddenSpot, spawnGroup } from './director.js';
 import { callReinforcements } from './reinforce.js';
@@ -109,14 +111,15 @@ export function updateSides(m, dt) {
         finish(m, s, true);
       }
     } else if (s.kind === 'arty') {
-      // an abandoned howitzer: a Helldiver gets it working again; the enemy comes to see what the noise is
+      // an abandoned artillery cannon: a Helldiver gets it working again (then it needs a crew, like one SEAF build); the enemy
+      // comes to see what the noise is
       const a = hdNear(m, s.x, s.y, S.arty.holdR);
       if (a && s.state === 'idle') { s.state = 'active'; m.radio(COMMS.artyStart, 'artystart', 0); m.emit('side_state', { kind: 'arty', state: 'active', x: s.x, y: s.y }); }
       if (s.state !== 'active') continue;
       if (a) s.holdT += dt;
       siteActivity(m, s, dt);
       if (s.holdT >= S.arty.holdSec) {
-        m.arty.push({ id: m.nextId++, x: s.x, y: s.y, captured: true, face: s.face, born: t });
+        makePost(m, 'arty', s.x, s.y, { captured: true, lvl: Math.max(1, buildLevel(m.kit, 'arty')), face: s.face });
         m.emit('arty_new', { x: s.x, y: s.y, captured: true });
         finish(m, s, true);
       }

@@ -26,7 +26,7 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
   run(m, 7);
   for (const e of m.enemies) e.dead = true;
   m.enemies = []; m.groups = [];
-  m.support.spawnT = 1e9; m.support.scanT = 1e9; m.strat.callAt = 1e9; m.reinf.readyAt = 1e9; m.ffzAt = 1e9;
+  m.support.spawnT = 1e9; m.support.scanT = 1e9; m.strat.callAt = 1e9; m.reinf.readyAt = 1e9;
   for (const b of m.bases) { b.garrisoned = true; b.nextPatrol = 1e9; }      // no new patrols out of the bases
   if (m.intercept) m.intercept.nextAt = 1e9;
   m.sides = [];                                                                // no side missions calling the enemy in
@@ -247,29 +247,11 @@ for (const fac of ['bugs', 'bots', 'squids']) {
   check('strikes are led onto where the pack will be', misses.length > 5 && misses[Math.floor(misses.length / 2)] < 14, `median ${misses.length ? misses[Math.floor(misses.length / 2)].toFixed(1) : '-'} m from the nearest enemy at impact (${misses.length} strikes)`);
 }
 
-// ---------------------------------------------------------------- free-fire zone
+// ---------------------------------------------------------------- free-fire zones are gone (0.16)
 {
-  const m = quiet('bugs', 97), a = m.hdAlive[0];
-  m.ffzAt = 0;
-  const p = away(m, a, 85, 0.3);
-  for (let k = 0; k < 4; k++) { const g = inert(spawnGroup(m, p.x + k * 3, p.y, 'hunt')); for (const e of g.members) { e.x = p.x + (Math.random() - 0.5) * 20; e.y = p.y + (Math.random() - 0.5) * 20; } }
-  // a SEAF trooper standing in the pack's way
-  m.callSeaf(a.x, a.y); run(m, 12);
-  const s = m.seafAlive[0];
-  run(m, 2.5);
-  const z = m.ffz;
-  check('a Helldiver facing a big pack well ahead asks for a free-fire zone', !!z, z ? `${z.n} enemy weight, ${Math.hypot(z.x - a.x, z.y - a.y).toFixed(0)} m out` : 'none');
-  if (z && s) {
-    s.x = z.x + 5; s.y = z.y; s.aimUntil = 0;
-    run(m, 6);
-    check('allies inside a free-fire zone get out of it', Math.hypot(s.x - z.x, s.y - z.y) > z.r - 1 || s.dead, `${Math.hypot(s.x - z.x, s.y - z.y).toFixed(0)} m from the centre (r ${z.r})`);
-  }
-  if (z) {
-    const pl = m.player, i = pl.slots.findIndex((q) => q.type === 'orb');
-    pl.slots[i].readyAt = 0; pl.weapon = i; m.setAim(z.x, z.y); m.fire(); m.step(dt);
-    const st = orbStats(pl.slots[i].id, pl.slots[i].level), cd = pl.slots[i].readyAt - m.t;
-    check('a strike into the free-fire zone recharges faster', Math.abs(cd - st.cd * C.ffz.cdMul) < 0.2, `${cd.toFixed(0)} s instead of ${st.cd.toFixed(0)} s`);
-  }
+  const m = quiet('bugs', 97);
+  run(m, 60);
+  check('no free-fire zone is ever asked for', !m.ffz && !C.ffz);
 }
 
 // ---------------------------------------------------------------- the nuke

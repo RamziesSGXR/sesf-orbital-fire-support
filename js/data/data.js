@@ -127,8 +127,6 @@ export const COMMS = {
   get evacPaused() { return t('c.evacPaused'); },
   get evacDone() { return t('c.evacDone', { n: C.objective.evac.need }); },
   get civFriendly() { return t('c.civFriendly'); },
-  ffzAsk: (who, dir) => t('c.ffzAsk', { who, dir }),
-  get ffzEnd() { return t('c.ffzEnd'); },
   utilCall: (name) => t('c.utilCall', { name }),
   get noWater() { return t('c.noWater'); },
   bossIn: (name, dir, d) => t('c.bossIn', { name, dir, d }),
@@ -161,6 +159,10 @@ export const COMMS = {
   sideNext: (k) => t('c.sideNext.' + (['radio', 'propaganda', 'rescue', 'arty'].includes(k) ? k : 'base')),
   get artyUp() { return t('c.artyUp'); },
   get artyStart() { return t('c.artyStart'); },
+  get jammed() { return t('c.jammed'); },
+  get artyCrew() { return t('c.artyCrew'); },
+  get seafMan() { return t('c.seafMan'); },
+  postDown: (what) => t('c.postDown', { what }),
   get artyFire() { return t('c.artyFire'); },
 };
 

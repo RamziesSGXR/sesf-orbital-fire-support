@@ -21,7 +21,7 @@ function quiet(faction = 'bots', seed = 77, opts = {}) {
   m.enemies = []; m.groups = [];
   for (const b of m.bases) { b.garrisoned = true; b.owed = 0; b.nextPatrol = 1e9; if (b.patrols) b.patrols = []; }
   for (const p of m.pois) { p.woke = true; p.owed = 0; }
-  m.intercept.nextAt = 1e9; m.strat.callAt = 1e9; m.reinf.readyAt = 1e9; m.ffzAt = 1e9;
+  m.intercept.nextAt = 1e9; m.strat.callAt = 1e9; m.reinf.readyAt = 1e9;
   for (const o of m.objectives) { o.garrisoned = true; o.owed = 0; }
   return m;
 }
@@ -157,31 +157,34 @@ function lone(m, kind, x, y) {
 // ---------------------------------------------------------------- buildables
 {
   const items = shopItems(newKit()).filter((x) => x.section === 'build');
-  check('the armory has a BUILDABLES section', items.map((x) => x.build).join(',') === 'wall,mg,beacon,arty');
-  check('walls, MG nests and beacons start at level 1; the howitzer must be unlocked', items.filter((x) => x.build !== 'arty').every((x) => x.level === 1) && items.find((x) => x.build === 'arty').level === 0);
+  // (0.16: walls became the Defilade Bastions, the drop beacon the Propaganda Tower, the howitzer the Artillery Cannon; r16 has more)
+  check('the armory has a BUILDABLES section', items.map((x) => x.build).join(',') === 'bastion,mg,bunker,tower,sam,arty');
+  check('bastions, MG posts, bunkers and towers start at level 1; the cannon must be unlocked', items.filter((x) => x.build !== 'arty' && x.build !== 'sam').every((x) => x.level === 1) && items.find((x) => x.build === 'arty').level === 0);
   const old = fixKit({ slots: 3, loadout: ['orb_airburst'], owned: { orb_airburst: 1 } });
-  check('an old save gets the buildables too', old.build && old.build.wall === 1 && old.build.arty === 0);
-  const w1 = buildStats('wall', 1), w5 = buildStats('wall', 5), g1 = buildStats('mg', 1), g5 = buildStats('mg', 5), a1 = buildStats('arty', 1), a5 = buildStats('arty', 5);
-  check('upgrades make each buildable better', w5.n > w1.n && w5.mul < w1.mul && g5.hp > g1.hp && g5.ammo > g1.ammo && a5.cd < a1.cd && a5.dmg > a1.dmg && a5.r > a1.r);
+  check('an old save gets the buildables too', old.build && old.build.bastion === 1 && old.build.arty === 0);
+  const w1 = buildStats('bastion', 1), w5 = buildStats('bastion', 5), g1 = buildStats('mg', 1), g5 = buildStats('mg', 5), a1 = buildStats('arty', 1), a5 = buildStats('arty', 5);
+  check('upgrades make each buildable better', w5.n > w1.n && w5.mul < w1.mul && g5.hp > g1.hp && g5.dmg > g1.dmg && a5.cd < a1.cd && a5.dmg > a1.dmg && a5.r > a1.r);
 
-  const kit = newKit(); kit.build.wall = 3;
+  const kit = newKit(); kit.build.bastion = 3;
   const m = quiet('bots', 1530, { kit, wallet: newWallet(3000) });
   for (let k = 0; k < 8; k++) { const a = m.addAlly('S', m.hx + 10 + k, m.hy + 6, { role: 'rifle' }); a.sq = k < 4 ? 0 : 1; }
   m._refreshAlive();
   m.selectSquad(0);
-  check('the howitzer cannot be built before it is unlocked', !m.seafBuild('arty', m.hx + 40, m.hy).ok);
-  const bal = m.wallet.bal, r = m.seafBuild('wall', m.hx + 40, m.hy + 10);
-  check('a build is paid for when it is ordered', r.ok && bal - m.wallet.bal === buildStats('wall', 3).cost, `${bal - m.wallet.bal} cr`);
+  check('the cannon cannot be built before it is unlocked', !m.seafBuild('arty', m.hx + 40, m.hy).ok);
+  const bal = m.wallet.bal, r = m.seafBuild('bastion', m.hx + 40, m.hy + 10);
+  check('a build is paid for when it is ordered', r.ok && bal - m.wallet.bal === buildStats('bastion', 3).cost, `${bal - m.wallet.bal} cr`);
   check('a cargo pelican brings a crate', m.crates.length === 1 && m.pelicans.some((p) => p.cargo === m.crates[0]));
   let landedAt = null, builtAt = null;
   run(m, 70, (mm) => { if (landedAt === null && mm.crates[0] && mm.crates[0].landed) landedAt = mm.t; if (builtAt === null && mm.coverSites.some((s) => s.kind === 'built')) builtAt = mm.t; });
   const site = m.coverSites.find((s) => s.kind === 'built');
   check('SEAF deploy the crate once it is down', landedAt !== null && builtAt !== null && builtAt > landedAt, landedAt ? `down ${landedAt.toFixed(0)} s, built ${builtAt && builtAt.toFixed(0)} s` : 'no crate');
-  check('the wall is built at its armory level', site && site.pieces.length === buildStats('wall', 3).n && site.pieces[0].mul === buildStats('wall', 3).mul, site ? `${site.pieces.length} walls` : '');
-  check('nothing more is charged when it is finished', m.wallet.bal >= bal - buildStats('wall', 3).cost);
+  check('the bastions are built at their armory level', site && site.pieces.length === buildStats('bastion', 3).n && site.pieces[0].mul === buildStats('bastion', 3).mul, site ? `${site.pieces.length} walls` : '');
+  check('nothing more is charged when it is finished', m.wallet.bal >= bal - buildStats('bastion', 3).cost);
   // an order changed before the crate is used: the crate stays, and the next build there costs nothing
   m.selectSquad(1);
-  const b2 = m.wallet.bal; m.seafBuild('mg', m.hx - 40, m.hy); const crate = m.crates[m.crates.length - 1], paid = b2 - m.wallet.bal;
+  // (0.16: a spot on dry land: a river near here may have a bridge over it now, and nothing is built on a bridge)
+  let sp = { x: m.hx - 40, y: m.hy }; for (let k = 0; k < 24 && !m.terrain.isLand(sp.x, sp.y); k++) sp = { x: m.hx - 40 + (k % 5) * 8, y: m.hy + Math.floor(k / 5) * 8 };
+  const b2 = m.wallet.bal; m.seafBuild('mg', sp.x, sp.y); const crate = m.crates[m.crates.length - 1], paid = b2 - m.wallet.bal;
   m.seafOrder('move', m.hx, m.hy + 50);
   run(m, 20);
   const n0 = m.crates.length, b3 = m.wallet.bal, again = m.seafBuild('mg', crate.x + 3, crate.y);
@@ -194,15 +197,16 @@ function lone(m, kind, x, y) {
   const m = quiet('bots', 1540, { kit, wallet: newWallet(5000), missionN: 2 });
   for (let k = 0; k < 4; k++) { const a = m.addAlly('S', m.hx + 10 + k, m.hy + 6, { role: 'rifle' }); a.sq = 0; }
   m._refreshAlive();
-  check('no weapon 9 without a howitzer', m.player.slots[8].type === 'empty');
-  m.seafBuild('arty', m.hx + 30, m.hy + 10);
-  run(m, 60, (mm) => { if (mm.arty.length) mm.step(dt); });
-  check('SEAF build the howitzer and it joins the weapon bar', m.arty.length === 1 && m.player.slots[8].type === 'arty');
+  check('no weapon 9 without a cannon', m.player.slots[8].type === 'empty');
+  m.selectSquad(0); m.seafBuild('arty', m.hx + 30, m.hy + 10);
+  run(m, 70, (mm) => { if (mm.arty.length) mm.step(dt); });
+  const built = m.arty.filter((g) => g.built);   // (a captured one may have joined it: the squad takes abandoned ones on the way)
+  check('SEAF build the cannon, man it, and it joins the weapon bar', built.length === 1 && m.player.slots[8].type === 'arty' && built[0].crew > 0, m.arty[0] ? `crew ${m.arty[0].crew}, ${m.arty.length} cannons, slot ${m.player.slots[8].type}` : '');
   const st = buildStats('arty', 2);
   m.player.slots[8].readyAt = 0; m.player.aimX = m.hx + 70; m.player.aimY = m.hy; m.player.weapon = 8;
   const ok = fireSlot(m, 8);
   check('it fires a mini-nuke on a slow recharge', ok && m.shells.some((s) => s.mini && s.splash === st.r) && Math.abs(m.player.slots[8].readyAt - m.t - st.cd) < 0.01, `${st.cd} s`);
-  m.player.slots[8].readyAt = 0; m.player.aimX = m.arty[0].x + st.range + 60; m.player.aimY = m.arty[0].y;
+  m.player.slots[8].readyAt = 0; m.player.aimX = Math.max(...m.arty.map((g) => g.x)) + st.range + 60; m.player.aimY = m.arty[0].y;
   check('not beyond its range', !fireSlot(m, 8));
   // captured on the map
   const m2 = quiet('bugs', 1541, { missionN: 3 });
@@ -211,7 +215,7 @@ function lone(m, kind, x, y) {
   m2.sides.push(side);
   m2.plan.task = null; m2.plan.t = 1e9;
   run(m2, C.sides.arty.holdSec + 3, (mm) => { for (const a of mm.hdAlive) { a.x = side.x + 2; a.y = side.y; } });
-  check('the squad can capture an abandoned howitzer', side.done && m2.arty.length === 1 && m2.arty[0].captured);
+  check('the squad can capture an abandoned cannon', side.done && m2.arty.length === 1 && m2.arty[0].captured);
   let found = 0;
   for (let s = 0; s < 30; s++) { const mm = new Mission({ seed: 3000 + s, faction: 'bots', biome: 'grass', events: false, sessionMinutes: 0, missionN: 3 }); if (mm.sides.some((q) => q.kind === 'arty')) found++; }
   check('some maps have one', found > 4 && found < 26, `${found} of 30`);

@@ -25,14 +25,19 @@ export function newKit() {
   const loadout = Array(C.kit.slotsMax).fill('');
   C.kit.startLoadout.forEach((id, i) => { loadout[i] = id; });
   return { slots: C.kit.slotsStart, loadout, owned, uav: 1, uavb: { speed: 0, dodge: 0 }, seaf: { cap: 0, drop: 0, hp: 0, gren: 0, rocket: 0, medic: 0, spot: 0 }, sup: { lives: 0, zone: 0 }, gun: { dmg: 0, ammo: 0, regen: 0, spread: 0 },
-    build: { wall: 1, mg: 1, beacon: 1, arty: 0 } };
+    build: { bastion: 1, mg: 1, bunker: 1, tower: 1, sam: 0, arty: 0 } };
 }
 // Old or partial saves are filled in rather than thrown away.
 export function fixKit(k) {
   const base = newKit();
   if (!k || typeof k !== 'object') return base;
+  // (0.16: the walls became the Defilade Bastions and the drop beacon the Propaganda Tower; their levels carry over)
+  const kb = { ...(k.build || {}) };
+  if (kb.wall !== undefined && kb.bastion === undefined) kb.bastion = kb.wall;
+  if (kb.beacon !== undefined && kb.tower === undefined) kb.tower = kb.beacon;
+  delete kb.wall; delete kb.beacon;
   const out = { ...base, ...k, uavb: { ...base.uavb, ...(k.uavb || {}) }, seaf: { ...base.seaf, ...(k.seaf || {}) }, sup: { ...base.sup, ...(k.sup || {}) }, gun: { ...base.gun, ...(k.gun || {}) }, owned: { ...base.owned, ...(k.owned || {}) },
-    build: { ...base.build, ...(k.build || {}) } };
+    build: { ...base.build, ...kb } };
   // Anything the catalog no longer has (the old Orbital Gatling Barrage) is dropped from a save rather than carried around.
   for (const id of Object.keys(out.owned)) if (!STRATS[id]) delete out.owned[id];
   out.loadout = Array.from({ length: C.kit.slotsMax }, (_, i) => (k.loadout && out.owned[k.loadout[i]] ? k.loadout[i] : ''));
@@ -112,13 +117,17 @@ export const maxLives = () => C.helldivers.lives;
 // What a buildable does at a level (1 to 5; 0 = not unlocked: the level-1 numbers, for the armory to show).
 export function buildStats(what, level = 1) {
   const B = C.build[what], L = Math.max(1, Math.min(C.build.levels, level | 0 || 1)), k = L - 1, A = C.arty;
-  if (what === 'wall') return { cost: B.cost, sec: B.sec, max: B.max + k, n: B.n + k, R: B.R + 0.75 * k, mul: Math.max(0.35, B.mul - 0.05 * k) };
-  if (what === 'mg') return { cost: B.cost, sec: B.sec, max: B.max + Math.floor(L / 3), hp: Math.round(B.hp * (1 + 0.25 * k)), ammo: Math.round(B.ammo * (1 + 0.2 * k)), dmg: 1 + 0.12 * k };
-  if (what === 'beacon') return { cost: B.cost, sec: B.sec - 2 * k, max: B.max + Math.floor(k / 2) };
-  return { cost: B.cost, sec: B.sec, max: B.max, cd: Math.round(A.cd * (1 - A.cdUp * k)), r: Math.round(A.r * (1 + A.rUp * k)), dmg: Math.round(A.dmg * (1 + A.dmgUp * k)), range: A.range + A.rangeUp * k };
+  const hp = (f) => Math.round(B.hp * (1 + f * k));
+  if (what === 'foxhole') return { cost: B.cost, sec: B.sec, cap: B.cap, mul: B.mul, rof: B.rof };
+  if (what === 'bastion') return { cost: B.cost, sec: B.sec, n: B.n + 2 * k, R: B.R + 0.75 * k, mul: Math.max(0.35, B.mul - 0.05 * k) };
+  if (what === 'mg') return { cost: B.cost, sec: B.sec, cap: B.cap, hp: hp(0.25), dmg: 1 + 0.15 * k, crewMul: Math.max(0.2, B.crewMul - 0.03 * k) };
+  if (what === 'bunker') return { cost: B.cost, sec: B.sec, cap: B.cap + k, hp: hp(0.3), take: B.take, ff: B.ff };
+  if (what === 'tower') return { cost: B.cost, sec: Math.max(24, B.sec - 4 * k), cap: B.cap, hp: hp(0.25), reachUp: 0.05 * k };
+  if (what === 'sam') return { cost: B.cost, sec: B.sec, hp: hp(0.25), dmg: Math.round(B.dmg * (1 + 0.2 * k)), every: +(B.every * (1 - 0.08 * k)).toFixed(2) };
+  return { cost: B.cost, sec: B.sec, cap: B.cap, hp: hp(0.25), cd: Math.round(A.cd * (1 - A.cdUp * k)), r: Math.round(A.r * (1 + A.rUp * k)), dmg: Math.round(A.dmg * (1 + A.dmgUp * k)), range: A.range + A.rangeUp * k };
 }
-export const buildLevel = (kit, what) => ((kit && kit.build) || {})[what] || 0;
-export const BUILDS = ['wall', 'mg', 'beacon', 'arty'];
+export const buildLevel = (kit, what) => (what === 'foxhole' ? 1 : ((kit && kit.build) || {})[what] || 0);
+export const BUILDS = ['bastion', 'mg', 'bunker', 'tower', 'sam', 'arty'];       // in the armory (the foxhole is free and has no levels)
 // The SEAF Barracks has no top level: each level adds troops and costs a little more than the last.
 export const barracksCost = (lvl) => price(300 * (lvl + 1) ** 1.4);
 export const zoneExtra = (kit) => C.kit.zonePer * kit.sup.zone;
@@ -169,7 +178,8 @@ export function shopItems(kit) {
     items.push({ id: `seaf.${k}`, section: k === 'medic' || k === 'spot' || k === 'gren' || k === 'rocket' ? 'specialists' : 'seaf', ...named(`seaf.${k}`), level: lvl, max: u.max,
       cost: lvl >= u.max ? null : u.endless ? barracksCost(lvl) : price(u.price * (lvl + 1)), live: true, endless: !!u.endless });
   }
-  // Buildables: what SEAF can put up. Walls, MG nests and drop beacons come at level 1; the howitzer is unlocked here.
+  // Buildables: what SEAF can put up. Bastions, MG nests, bunkers and propaganda towers come at level 1; the SAM site and the
+  // artillery cannon are unlocked here.
   for (const k of BUILDS) {
     const lvl = buildLevel(kit, k), B = C.build[k], mx = C.build.levels;
     items.push({ id: `bld:${k}`, section: 'build', ...named(`bld.${k}`), level: lvl, max: mx, build: k, owned: lvl > 0,

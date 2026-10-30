@@ -338,6 +338,7 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal) {
       ring(ctx, e.x, e.y, Math.max(e.r, px(4)) + px(2.5)); ctx.stroke(); ctx.setLineDash([]);
     }
     if (e.boss) { drawBossExtras(ctx, m, e, now, px, labels, scale, col); continue; }
+    if (e.sub) { drawSpecialExtras(ctx, m, e, now, px, labels, scale, col); continue; }
     if (e.kind !== 'H') continue;
     const r = Math.max(e.r, px(9));
     // speed streaks behind a running charger
@@ -364,10 +365,33 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal) {
       ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x + Math.cos(a) * r * 1.6, e.y + Math.sin(a) * r * 1.6); ctx.stroke();
     }
     ctx.strokeStyle = rgba(col, 0.9); ctx.lineWidth = px(1.2); ring(ctx, e.x, e.y, r * 1.35); ctx.stroke();
+    // a squid heavy's shield: a bubble that flares when hit
+    if (e.maxShield && e.shield > 0) {
+      const f = e.shield / e.maxShield, hit = t - (e.shieldAt || -9) < 0.15;
+      ctx.fillStyle = `rgba(150,200,255,${(hit ? 0.22 : 0.07) + 0.07 * f})`; ring(ctx, e.x, e.y, r * 1.7); ctx.fill();
+      ctx.strokeStyle = `rgba(190,225,255,${hit ? 0.95 : 0.3 + 0.4 * f})`; ctx.lineWidth = px(hit ? 2 : 1.2); ring(ctx, e.x, e.y, r * 1.7); ctx.stroke();
+    }
     if (e.vis >= 2) {
-      if (e.hp < e.maxHp) hpBar(ctx, e.x, e.y - r * 1.9, r * 2.6, px(3), e.hp / e.maxHp, col);
+      if (e.maxShield) hpBar(ctx, e.x, e.y - r * 1.9 - px(4), r * 2.6, px(2), e.shield / e.maxShield, '#8fd0ff');
+      if (e.hp < e.maxHp || e.maxShield) hpBar(ctx, e.x, e.y - r * 1.9, r * 2.6, px(3), e.hp / e.maxHp, col);
       labels.push({ x: e.x, y: e.y, dy: -r * scale * 1.5 - 8, text: fac.heavy, col , pri: 0 });
     }
+  }
+}
+
+// A special medium: the commander's jammer bubble (shown wherever the commander is known), a ring and health bar, and its name.
+function drawSpecialExtras(ctx, m, e, now, px, labels, scale, col) {
+  const r = Math.max(e.r, px(8));
+  if (e.jamR) {
+    const p = 0.5 + 0.5 * Math.sin(now * 5 + e.id);
+    ctx.fillStyle = `rgba(255,70,90,${0.06 + 0.05 * p})`; ring(ctx, e.x, e.y, e.jamR); ctx.fill();
+    ctx.strokeStyle = `rgba(255,110,120,${0.5 + 0.4 * p})`; ctx.lineWidth = px(1.6); ctx.setLineDash([px(3), px(3)]);
+    ctx.lineDashOffset = -now * px(10); ring(ctx, e.x, e.y, e.jamR); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+  }
+  ctx.strokeStyle = rgba(col, 0.8); ctx.lineWidth = px(1); ring(ctx, e.x, e.y, r * 1.3); ctx.stroke();
+  if (e.vis >= 2) {
+    if (e.hp < e.maxHp) hpBar(ctx, e.x, e.y - r * 1.8, r * 2.4, px(2.6), e.hp / e.maxHp, col);
+    labels.push({ x: e.x, y: e.y, dy: -r * scale * 1.4 - 8, text: tr(`kind.${m.faction.id}.${e.sub}`) + (e.jamR ? ' · ' + tr('lab.jammer') : ''), col, pri: 1 });
   }
 }
 

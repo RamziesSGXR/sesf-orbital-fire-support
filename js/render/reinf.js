@@ -141,34 +141,6 @@ export function drawDrops(ctx, m, now, px, labels, scale, pal) {
   }
 }
 
-// ---------------------------------------------------------------- the free-fire zone
-export function drawFfz(ctx, m, now, px, labels, scale) {
-  const z = m.ffz;
-  if (!z) return;
-  const left = Math.max(0, z.until - m.t), age = m.t - z.start, fade = Math.min(1, left / 2, age / 0.6);
-  // hatching that crawls across the zone
-  ctx.save();
-  ring(ctx, z.x, z.y, z.r); ctx.clip();
-  ctx.fillStyle = `rgba(255,110,30,${0.08 * fade})`; ctx.fillRect(z.x - z.r, z.y - z.r, z.r * 2, z.r * 2);
-  ctx.strokeStyle = `rgba(255,120,40,${0.28 * fade})`; ctx.lineWidth = px(2);
-  const gap = Math.max(px(12), 5), off = (now * 6) % gap;
-  ctx.beginPath();
-  for (let k = -z.r * 2; k < z.r * 2; k += gap) { ctx.moveTo(z.x + k + off - z.r, z.y - z.r); ctx.lineTo(z.x + k + off + z.r, z.y + z.r); }
-  ctx.stroke();
-  ctx.restore();
-  ctx.strokeStyle = `rgba(255,120,40,${(0.7 + 0.3 * Math.sin(now * 6)) * fade})`; ctx.lineWidth = px(3); ctx.setLineDash([px(12), px(6)]); ctx.lineDashOffset = -now * px(10);
-  ring(ctx, z.x, z.y, z.r); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
-  // when it is called, target brackets close in on it from far out, so the eye goes there
-  const lock = Math.min(1, age / 1.2), R = z.r * (1.12 + 2.6 * (1 - lock) ** 2), L = R * 0.32;
-  ctx.strokeStyle = `rgba(255,160,80,${lock < 1 ? 1 : 0.55 + 0.35 * Math.sin(now * 4)})`; ctx.lineWidth = px(lock < 1 ? 4 : 2.6);
-  ctx.beginPath();
-  for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-    ctx.moveTo(z.x + sx * R, z.y + sy * (R - L)); ctx.lineTo(z.x + sx * R, z.y + sy * R); ctx.lineTo(z.x + sx * (R - L), z.y + sy * R);
-  }
-  ctx.stroke();
-  if (lock < 1) { ctx.globalAlpha = 1 - lock; ctx.strokeStyle = '#ffb070'; ctx.lineWidth = px(2); ring(ctx, z.x, z.y, z.r * (1 + 3 * lock)); ctx.stroke(); ctx.globalAlpha = 1; }
-  labels.push({ x: z.x, y: z.y, dy: -R * scale - 10, text: tr('lab.ffzTime', { n: Math.ceil(left) }), col: '#ffb070', pri: 3 });
-}
 
 // ---------------------------------------------------------------- resupply
 // The Helldiver asking for supplies, the pod on its way down, and the squad's boost after a fast load.
@@ -293,4 +265,4 @@ export function drawExtraction(ctx, m, now, px, labels, scale) {
 }
 
 // Pings of hits that matter: critical hits from the destroyer and hits on a heavy's back.
-export function critText(f) { return tr(f & 1 ? (f & 2 ? 'lab.rearCrit' : 'lab.rearHit') : 'lab.crit'); }
+export function critText(f) { return tr(f & 1 ? (f & 2 ? 'lab.rearCrit' : 'lab.rearHit') : f & 2 ? 'lab.crit' : 'lab.armor'); }   // (4 alone: the armoured front took it)

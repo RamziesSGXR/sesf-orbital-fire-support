@@ -45,7 +45,7 @@ await page.waitForFunction(() => !document.getElementById('b-continue').disabled
 await page.screenshot({ path: out('4-brief') });
 await page.click('#b-continue'); await page.waitForTimeout(1200);
 check('mission running', (await ev(() => window.__game.state)) === 'play');
-const strats = await ev(() => document.querySelectorAll('#strats .sc').length);
+const strats = await ev(() => document.querySelectorAll('#hdrows .sc').length);   // (0.16: in the Helldiver rows)
 check('16 stratagem cells in the HUD', strats === 16, String(strats));
 
 // make the squad advance a bit, then call a SEAF drop right next to it
@@ -99,8 +99,8 @@ if (!touch) {
   await page.mouse.up(); await page.waitForTimeout(250);
   const k2 = await ev(() => window.__game.mission.seaf.squads[1].order.kind);
   check('a loop became a ring', k2 === 'ring', k2);
-  await page.mouse.move(cx - 90, cy + 50); await page.mouse.down();
-  for (let k = 0; k <= 12; k++) { await page.mouse.move(cx - 90 + k * 11, cy + 50 + k * 0.8); await page.waitForTimeout(15); }
+  await page.mouse.move(cx + 60, cy + 50); await page.mouse.down();     // (0.16: right of the bottom-left column)
+  for (let k = 0; k <= 12; k++) { await page.mouse.move(cx + 60 + k * 11, cy + 50 + k * 0.8); await page.waitForTimeout(15); }
   await page.mouse.up(); await page.waitForTimeout(250);
   const k3 = await ev(() => window.__game.mission.seaf.squads[1].order.kind);
   check('a straight stroke became a line', k3 === 'line', k3);

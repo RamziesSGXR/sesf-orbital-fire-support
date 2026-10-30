@@ -216,6 +216,7 @@ export function buildTerrain(biomeId, seed, { polarity = 'white', quality = 1, r
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(tmp, 0, 0, G, G, 0, 0, W, W);
 
+  drawBridges(ctx, T, W / SIZE, black);
   // Props: cosmetic only. None in the water, and none in the relief view, where they would be noise.
   if (relief) return cv;
   const rng = new RNG(seed ^ 0x9e3779b9), k = W / SIZE;
@@ -248,6 +249,42 @@ export function buildTerrain(biomeId, seed, { polarity = 'white', quality = 1, r
     for (let i = 0; i < 600; i++) { const x = rng.range(0, SIZE), y = rng.range(0, SIZE), r = rng.range(0.8, 2.4); if (dry(x, y)) { dot(x + 1, y + 1, r, dark(0.4)); dot(x, y, r, light(0.4)); } }
   }
   return cv;
+}
+
+// The bridges over the rivers (sim/terrain.js): an old war-torn span (concrete deck, railings, shell holes and a patched gap),
+// a fallen giant tree (jungle) or an arch of ice. k: pixels per metre.
+function drawBridges(ctx, T, k, black) {
+  for (const b of T.bridges || []) {
+    const dx = b.x2 - b.x1, dy = b.y2 - b.y1, L = Math.hypot(dx, dy), a = Math.atan2(dy, dx), w = b.w;
+    ctx.save(); ctx.translate(b.x1 * k, b.y1 * k); ctx.rotate(a); ctx.scale(k, k);
+    ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(2, -w / 2 + 2.5, L, w);       // its shadow on the water
+    if (b.style === 'log') {
+      ctx.fillStyle = black ? '#5a4632' : '#6b5038'; ctx.beginPath(); ctx.ellipse(L / 2, 0, L / 2, w * 0.36, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(30,20,10,0.6)'; ctx.lineWidth = 0.8;
+      for (let x = 6; x < L - 6; x += 4.5) { ctx.beginPath(); ctx.moveTo(x, -w * 0.3); ctx.quadraticCurveTo(x + 2, 0, x, w * 0.3); ctx.stroke(); }
+      ctx.fillStyle = black ? '#4a3a28' : '#5c4430';
+      for (let k2 = 0; k2 < 7; k2++) { const ang = (k2 / 7) * Math.PI * 2; ctx.beginPath(); ctx.ellipse(-2 + Math.cos(ang) * 4, Math.sin(ang) * w * 0.45, 4, 1.4, ang, 0, Math.PI * 2); ctx.fill(); }   // the root ball
+    } else if (b.style === 'ice') {
+      const g = ctx.createLinearGradient(0, -w / 2, 0, w / 2);
+      g.addColorStop(0, 'rgba(230,245,255,0.95)'); g.addColorStop(0.5, 'rgba(190,220,240,0.95)'); g.addColorStop(1, 'rgba(225,242,255,0.95)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, -w / 2); ctx.quadraticCurveTo(L / 2, -w * 0.62, L, -w / 2); ctx.lineTo(L, w / 2); ctx.quadraticCurveTo(L / 2, w * 0.62, 0, w / 2); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(120,160,190,0.7)'; ctx.lineWidth = 0.6;
+      for (let x = 5; x < L - 5; x += 7) { ctx.beginPath(); ctx.moveTo(x, -w * 0.4); ctx.lineTo(x + 3, -w * 0.05); ctx.lineTo(x + 1, w * 0.35); ctx.stroke(); }
+    } else {
+      ctx.fillStyle = black ? '#6c736e' : '#9aa29c'; ctx.fillRect(0, -w / 2, L, w);
+      ctx.fillStyle = black ? '#565c58' : '#838b85'; ctx.fillRect(0, -w * 0.08, L, w * 0.16);           // the worn middle
+      ctx.strokeStyle = 'rgba(25,30,27,0.85)'; ctx.lineWidth = 1.1;
+      ctx.beginPath(); ctx.moveTo(0, -w / 2 + 0.6); ctx.lineTo(L, -w / 2 + 0.6); ctx.moveTo(0, w / 2 - 0.6); ctx.lineTo(L, w / 2 - 0.6); ctx.stroke();   // railings
+      for (let x = 4; x < L; x += 6) { ctx.beginPath(); ctx.moveTo(x, -w / 2); ctx.lineTo(x, -w / 2 + 1.4); ctx.moveTo(x, w / 2); ctx.lineTo(x, w / 2 - 1.4); ctx.stroke(); }
+      // war damage: shell holes, a patched gap with planks, a twisted railing
+      ctx.fillStyle = 'rgba(30,26,22,0.8)';
+      for (let i = 0; i < 3; i++) { const x = L * (0.2 + 0.3 * i + 0.1 * b.worn), y = (i % 2 ? 1 : -1) * w * 0.22; ctx.beginPath(); ctx.ellipse(x, y, 2.2, 1.6, 0.4, 0, Math.PI * 2); ctx.fill(); }
+      const gx = L * (0.35 + 0.3 * b.worn);
+      ctx.fillStyle = '#6f5a3a'; for (let y = -w / 2 + 1; y < w / 2 - 1; y += 2.2) ctx.fillRect(gx, y, 5, 1.6);
+      ctx.strokeStyle = 'rgba(25,18,10,0.7)'; ctx.lineWidth = 0.5; ctx.strokeRect(gx, -w / 2 + 1, 5, w - 2);
+    }
+    ctx.restore();
+  }
 }
 
 // Persistent scorch marks left by explosions, 2 m per pixel.

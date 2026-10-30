@@ -157,8 +157,9 @@ export function updateReinf(m, dt) {
 }
 
 // A dropship or warp ship takes damage (only while it is low). Shot down, it crashes and takes its troops with it.
-export function damageDrop(m, d, dmg, by) {
-  if (d.dead || d.state === 'down' || !d.low || !(dmg > 0)) return;
+// any: hits it even when it is not low (a SAM site's missile).
+export function damageDrop(m, d, dmg, by, any = false) {
+  if (d.dead || d.state === 'down' || (!d.low && !any) || !(dmg > 0)) return;
   d.hp -= dmg; d.hurtAt = m.t;
   if (by in m.stats.dmg) m.stats.dmg[by] += Math.min(dmg, d.hp + dmg);
   if (d.hp > 0) return;

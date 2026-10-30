@@ -103,9 +103,11 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
     check(`${fac}: the ${C.boss[fac].name} spawns out of the squad's sight`, e && Math.hypot(e.x - m.hx, e.y - m.hy) > C.sight.helldiver, e ? `${Math.round(Math.hypot(e.x - m.hx, e.y - m.hy))} m off` : 'none');
     let evs = [];
     // it closes on the squad
-    const sx = m.hx, sy = m.hy, d0 = Math.hypot(e.x - sx, e.y - sy);   // where the squad was when it came in
+    // (0.16: measured along the way it has to walk, round the water or over a bridge, not as the crow flies)
+    const way = (x, y, tx, ty) => { const p = m.terrain.path(x, y, tx, ty); if (!p) return Math.hypot(tx - x, ty - y); let L = 0, a = { x, y }; for (const w of p) { L += Math.hypot(w.x - a.x, w.y - a.y); a = w; } return L; };
+    const sx = m.hx, sy = m.hy, d0 = way(e.x, e.y, sx, sy);   // where the squad was when it came in
     for (let i = 0; i < 30 * 30; i++) { m.step(dt); for (const v of m.events) evs.push(v.type); m.events.length = 0; }
-    const d1 = Math.hypot(e.x - sx, e.y - sy);
+    const d1 = way(e.x, e.y, sx, sy);
     check(`${fac}: it hunts the Helldivers`, d1 < d0 - 40, `${Math.round(d0)} m from the squad, then ${Math.round(d1)} m from where it was`);
     check(`${fac}: it can't be stunned`, (() => { e.stunUntil = m.t + 10; m.step(dt); return e.stunUntil <= m.t; })());
     // the extraction will not be called while it lives

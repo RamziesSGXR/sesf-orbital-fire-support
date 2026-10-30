@@ -92,8 +92,8 @@ function pickUltimatum(m, a, crowded) {
   let best = null, bs = -Infinity;
   m.eGrid.near(a.x, a.y, K.ult.range, (e, d2) => {
     if (!aware(m, e)) return;
-    if (e.kind === 'L' || (e.kind === 'M' && !crowded)) return;
-    const s = (e.boss ? 200 : e.kind === 'H' ? 100 : 30) + e.hp / 200 - Math.sqrt(d2);
+    if (e.kind === 'L' || (e.kind === 'M' && !crowded && !e.sub)) return;
+    const s = (e.boss ? 200 : e.kind === 'H' ? 100 : e.sub === 'cmd' ? 90 : e.sub ? 60 : 30) + e.hp / 200 - Math.sqrt(d2);   // a jamming commander comes first after the heavies
     if (s <= bs || blocker(m, a, e.x, e.y)) return;
     bs = s; best = e;
   });
@@ -107,7 +107,7 @@ export function fireUltimatum(m, a, e) {
   if (a.face !== undefined) { a.aimA = Math.atan2(e.y - a.y, e.x - a.x); a.aimUntil = m.t + 0.8; }
   const burst = rng.next() < U.splashChance, base = hp.L * U.splashLight;
   m.shells.push({ x: e.x, y: e.y, at: m.t + U.flight, lock: e, by: 'squad', friendly: false, fx: a.x, fy: a.y,
-    direct: hit ? e : null, directDmg: dmg * (e.boss ? 1 : a.dmgMul || 1), flat: !!e.boss,
+    direct: hit ? e : null, directDmg: dmg * (e.boss ? 1 : a.dmgMul || 1), flat: !!e.boss, pierce: !e.boss,   // through armour and shields
     dmg: burst ? base : 0, splash: burst ? U.splash : 0, mult: { L: 1, M: (hp.M * U.splashMed) / base, H: 0.2, B: 0.05 } });
 }
 

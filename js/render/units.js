@@ -62,6 +62,7 @@ export function drawEnemyBody(ctx, e, fac, r, col, now, px, hot) {
   // dark halo
   ctx.fillStyle = 'rgba(0,0,0,0.55)'; ell(ctx, -0.1 * r, 0, r * 1.25, r * 1.1); ctx.fill();
   const pulse = 0.6 + 0.4 * Math.sin(now * 6 + e.id);
+  if (e.sub) { drawSpecial(ctx, e, r, col, body, dark, lw, now, px, pulse); ctx.restore(); return; }
   if (fac === 'bugs') {
     // six legs
     ctx.strokeStyle = rgba(col, 0.9); ctx.lineWidth = lw(k === 'L' ? 1 : 1.4);
@@ -151,8 +152,50 @@ export function drawEnemyBody(ctx, e, fac, r, col, now, px, hot) {
   ctx.restore();
 }
 
+// The special mediums (CONFIG.special): the hive guard, the commander and the fleshmob, drawn in the unit's own frame.
+function drawSpecial(ctx, e, r, col, body, dark, lw, now, px, pulse) {
+  if (e.sub === 'guard') {
+    // the hive guard: a squat bug behind a wide curved shield of plates, the plate edged white so its front reads at a glance
+    ctx.strokeStyle = rgba(col, 0.9); ctx.lineWidth = lw(1.4);
+    for (let i = -1; i <= 1; i++) for (const s of [-1, 1]) { const bx = -0.1 * r + i * 0.3 * r; ctx.beginPath(); ctx.moveTo(bx, s * 0.3 * r); ctx.lineTo(bx + i * 0.2 * r, s * 0.95 * r); ctx.stroke(); }
+    ctx.fillStyle = body; ell(ctx, -0.35 * r, 0, 0.55 * r, 0.5 * r); ctx.fill(); ctx.strokeStyle = dark; ctx.lineWidth = lw(0.8); ctx.stroke();
+    ctx.fillStyle = body; ctx.strokeStyle = '#f4eadb'; ctx.lineWidth = lw(1.6);
+    ctx.beginPath(); ctx.moveTo(0.05 * r, -1.05 * r); ctx.quadraticCurveTo(1.0 * r, -0.7 * r, 0.95 * r, 0); ctx.quadraticCurveTo(1.0 * r, 0.7 * r, 0.05 * r, 1.05 * r);
+    ctx.quadraticCurveTo(0.45 * r, 0, 0.05 * r, -1.05 * r); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = dark; ctx.lineWidth = lw(0.8);
+    for (const y of [-0.5, 0, 0.5]) { ctx.beginPath(); ctx.moveTo(0.35 * r, y * r); ctx.lineTo(0.85 * r, y * 0.85 * r); ctx.stroke(); }
+    return;
+  }
+  if (e.sub === 'cmd') {
+    // the commander: a broad trooper with a sash, a tall antenna and a jammer dish on its back that pulses
+    ctx.fillStyle = `rgba(255,120,120,${0.35 + 0.45 * pulse})`; circ(ctx, -0.65 * r, 0, 0.3 * r); ctx.fill();
+    ctx.strokeStyle = '#ffd6c8'; ctx.lineWidth = lw(1); ctx.beginPath(); ctx.arc(-0.65 * r, 0, 0.42 * r, Math.PI * 0.6, Math.PI * 1.4); ctx.stroke();
+    ctx.fillStyle = body; ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(-0.45 * r, -0.9 * r, 0.9 * r, 1.8 * r, 0.25 * r); else ctx.rect(-0.45 * r, -0.9 * r, 0.9 * r, 1.8 * r);
+    ctx.fill(); ctx.strokeStyle = dark; ctx.lineWidth = lw(0.9); ctx.stroke();
+    ctx.strokeStyle = '#ffe600'; ctx.lineWidth = lw(1.4); line(ctx, -0.4 * r, -0.85 * r, 0.4 * r, 0.85 * r);
+    ctx.fillStyle = rgba(col, 1); ctx.strokeStyle = dark; rect(ctx, 0.05 * r, -0.28 * r, 0.6 * r, 0.28 * r); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ffffff'; circ(ctx, 0.5 * r, 0, Math.max(0.1 * r, px(0.9))); ctx.fill();
+    ctx.strokeStyle = '#ffd6c8'; ctx.lineWidth = lw(1); line(ctx, -0.3 * r, -0.6 * r, -0.95 * r, -1.25 * r);
+    ctx.fillStyle = '#ff6a6a'; circ(ctx, -0.95 * r, -1.25 * r, Math.max(0.1 * r, px(1))); ctx.fill();
+    return;
+  }
+  // the fleshmob: a heaving lump of bodies with several glowing eyes and arms reaching ahead
+  ctx.fillStyle = body;
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * TAU + e.id, w = 0.08 * Math.sin(now * 3 + i * 1.7);
+    ell(ctx, Math.cos(a) * 0.38 * r, Math.sin(a) * 0.38 * r, (0.48 + w) * r, (0.42 - w) * r); ctx.fill();
+  }
+  ctx.strokeStyle = dark; ctx.lineWidth = lw(0.9); circ(ctx, 0, 0, 0.78 * r); ctx.stroke();
+  ctx.strokeStyle = rgba(col, 1); ctx.lineWidth = lw(1.6);
+  for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(0.4 * r, s * 0.35 * r); ctx.quadraticCurveTo(1.0 * r, s * (0.55 + 0.15 * Math.sin(now * 5 + s)) * r, 1.25 * r, s * 0.2 * r); ctx.stroke(); }
+  ctx.fillStyle = '#ffffff';
+  for (const [x, y] of [[0.45, -0.2], [0.5, 0.15], [0.15, 0.4], [0.1, -0.45]]) { circ(ctx, x * r, y * r, Math.max(0.07 * r, px(0.7))); ctx.fill(); }
+}
+
 // How big an enemy is drawn: its real size, but never smaller than a few screen pixels.
 export function enemyR(e, st, px) {
+  if (e.sub) return Math.max(e.r, px(8));
   return Math.max(st.r * (e.kind === 'L' ? 1.15 : 1), px(e.kind === 'L' ? 4.2 : e.kind === 'M' ? 6.5 : 10));
 }
 

@@ -148,24 +148,5 @@ function dry(m) { for (const a of m.hdAlive) { a.stims = 0; a.gren = 0; } }
   check('requests never come less than a minute after the last drop', gapOk);
 }
 
-// ---------------------------------------------------------------- the free-fire zone follows the pack
-{
-  const m = quiet('bugs', 404);
-  const a = m.hdAlive[0];
-  const p = { x: a.x + 100, y: a.y };
-  const g = spawnGroup(m, p.x, p.y, 'patrol');
-  g.hold = 1e9;
-  for (const e of g.members) { e.hp = e.maxHp = 1e9; }
-  m.uavs.push({ x: p.x, y: p.y, r: 200, until: 1e9, t0: m.t });
-  run(m, 0.2);
-  m.ffz = { x: p.x - 20, y: p.y + 15, r: C.ffz.r, start: m.t, until: m.t + 30, by: a.id, team: a.team, n: 10, strikes: 0, caller: 'A1', dir: 'east', dist: 100, trackT: 0 };
-  const d0 = Math.hypot(m.ffz.x - g.cx, m.ffz.y - g.cy);
-  run(m, 6);
-  const d1 = m.ffz ? Math.hypot(m.ffz.x - g.cx, m.ffz.y - g.cy) : 999;
-  check('a free-fire zone slides onto the pack it was called on', d1 < d0 - 5, `${d0.toFixed(0)} m off, then ${d1.toFixed(0)} m`);
-  check('it never slides onto the squad', m.ffz && m.hdAlive.every((h) => Math.hypot(h.x - m.ffz.x, h.y - m.ffz.y) >= C.ffz.minDist * 0.8 - 0.5));
-  check('it says where it is from the squad', m.ffz && typeof m.ffz.dir === 'string' && m.ffz.dist > 0, m.ffz ? `${m.ffz.dir} ${m.ffz.dist} m` : '');
-}
-
 console.log(fails ? `\n${fails} FAILED` : '\nall passed');
 process.exit(fails ? 1 : 0);

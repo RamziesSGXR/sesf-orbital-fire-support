@@ -54,26 +54,31 @@ export const CONFIG = {
   // Terrain: a height map, a water depth map and a surface map on an 8 m grid, different for every mission. Deep water cannot be
   // crossed on foot; shallows, mud and soft ground (snow, sand, dust) slow everyone. A rise gives whoever stands on it more sight and
   // harder hits on whoever is below.
-  terrain:  { on: true, cell: 8, navCell: 16, relief: 70, deep: 0.5, wet: 0.03,
+  // Bridges: at most max a map, at least spacing metres apart along the rivers, w metres wide, where both banks are within reach.
+  terrain:  { on: true, cell: 8, navCell: 16, relief: 70, deep: 0.5, wet: 0.03, bridge: { max: 6, spacing: 240, w: 22, reach: 70 },
               speed: { shallow: 0.5, mud: 0.62, soft: 0.74 },
               hill: 0.5, sight: 0.32, attack: 0.25, top: 0.08, minLandShare: 0.55 },
 
   // Sight in meters. Multiplied by the biome visibility. The player sees a little farther than each ally (playerBonus).
   // Everyone sees farther than their weapons reach, so a fight is seen coming. The strike zone (where strikes and drops can be
   // called) is measured from zoneBase, not from sight, so seeing farther does not widen it: zoneBase + playerBonus + strikeBonus.
-  // SEAF can be ordered to build (seaf.js): they walk to the spot and build it there (sec seconds with two troopers working, faster
-  // with more, up to four); the credits are paid when it is done. A wall is a small ring of cover; an MG nest is a sentry gun; a
-  // drop beacon is a spawn point: SEAF drops can be sent to it from anywhere on the map. At most max of each standing at once.
-  // What SEAF build. Each costs `cost` credits up front; a cargo pelican drops a crate at the spot and the squad deploys it (sec
-  // seconds of work, faster with more hands). Levels 1 to 5 come from the armory's BUILDABLES section (unlock: the price to get
-  // level 1, up: the price scale for the next level). The per-level numbers are in data/kit.js buildStats().
-  build:    { r: 12, levels: 5, crateR: 16,
-              wall:   { cost: 80,  sec: 10, max: 6, n: 4, R: 9, mul: 0.6, unlock: 0, up: 150 },
-              mg:     { cost: 250, sec: 16, max: 3, hp: 520, ammo: 900, dmg: 1, unlock: 0, up: 250 },
-              beacon: { cost: 200, sec: 20, max: 2, unlock: 0, up: 200 },
-              arty:   { cost: 600, sec: 25, max: 1, unlock: 1200, up: 500 } },
-  // The howitzer: a SEAF gun the player fires like a stratagem (weapon 9), anywhere in range that is in sight (or locked), on a
-  // slow recharge. Each round is a mini-nuke. Built from the armory unlock, or captured on the map (a side mission). By level.
+  // What SEAF build (posts.js), from the tactical menu. Each costs `cost` credits when it is ordered (no limit on how many); a cargo
+  // pelican drops a crate at the spot and the squad deploys it (sec seconds of work with two troopers, faster with more hands, up to
+  // four). The foxhole is free and dug on the spot. Levels 1 to 5 come from the armory's BUILDABLES (unlock: the price of level 1,
+  // 0 = owned from the start; up: the price scale for the next level); the per-level numbers are in data/kit.js buildStats().
+  // cap: how many crew fit. Troopers at a post patch it up (repair health a second each, up to four) once it has not been hit for
+  // repairQuiet seconds and no enemy is within repairClear metres.
+  build:    { r: 12, levels: 5, crateR: 16, repair: 14, repairQuiet: 4, repairClear: 40, slowmo: 0.3,
+              foxhole: { cost: 0,   sec: 6,  cap: 3, mul: 0.8, rof: 1.3 },
+              bastion: { cost: 100, sec: 14, n: 8, R: 10, mul: 0.55, unlock: 0, up: 120 },
+              mg:      { cost: 300, sec: 18, cap: 2, hp: 1800, dmg: 1, crewMul: 0.35, unlock: 0, up: 200 },
+              bunker:  { cost: 450, sec: 24, cap: 6, hp: 3000, take: 0.6, ff: 0.15, unlock: 0, up: 220 },
+              tower:   { cost: 700, sec: 40, cap: 1, hp: 1400, unlock: 0, up: 220 },
+              sam:     { cost: 550, sec: 26, hp: 1600, dmg: 320, every: 2.4, unlock: 700, up: 260 },
+              arty:    { cost: 650, sec: 28, cap: 2, hp: 2200, unlock: 1000, up: 380 } },
+  // The Artillery Cannon: a SEAF gun the player fires like a stratagem (weapon 9) while someone mans it, anywhere in range that is in
+  // sight (or locked), on a slow recharge. Each round is a mini-nuke. Built from the armory unlock, or captured on the map (a side
+  // mission). By level.
   arty:     { range: 480, rangeUp: 30, cd: 90, cdUp: 0.1, r: 20, rUp: 0.08, dmg: 2400, dmgUp: 0.15, flight: 5, capture: 18, captureR: 16,
               chance: 0.45, fromMission: 2, mult: { L: 1, M: 1, H: 1, B: 0.5 } },
   // Cover at the sites the squad holds (cover.js): n walls in a ring of the given radius; standing within r of one, an ally takes
@@ -140,6 +145,22 @@ export const CONFIG = {
               alert: { callRadius: 70, fuzz: 15, loseSec: 12, noiseRadius: 60 },
               patrolRadius: 25, patrolSpeedMul: 0.4,
               spawn: { sec: 10, minLive: 14, minGapSec: 2.5 } },
+  // Heavies by faction: a bug heavy's armoured front lets through only `front` of a hit from ahead (within the arc cos > frontCos);
+  // a bot heavy has hp x the health but weak points that crit more often (crit, added to the attacker's chance); a squid heavy
+  // carries a shield (shield x its health) that soaks hits first and comes back at regen a second once it has not been hit for
+  // regenDelay seconds. The Ultimatum's round goes through plates and shields alike.
+  heavies:  { bugs: { front: 0.62, frontCos: 0.6 }, bots: { hp: 1.5, crit: 0.14 }, squids: { shield: 0.6, regen: 70, regenDelay: 6 } },
+  // Special mediums, alongside the others: `share` of the medium draws come out as the faction's own, no more than cap alive
+  // (plus perMin a session minute, up to max). hp, speed and r scale or set the medium's; atk is its own attack. reward: kill
+  // credits and score times this.
+  //   bugs: the Hive Guard, an armoured melee blocker that leads the swarm straight in (front: like the charger's plate).
+  //   bots: the Commander, who hangs back behind the line. Within jamR of it no stratagem, orbital, UAV, Ship Gun round or
+  //         artillery shot can be called.
+  //   squids: the Fleshmob, a slow melee mass that soaks damage (soak: the share of each hit it takes).
+  special:  { share: 0.25, cap: 2, perMin: 0.03, max: 6, reward: 3,
+              bugs:   { id: 'guard', hp: 1.7, speed: 1.25, r: 4.8, front: 0.55, frontCos: 0.5, atk: { range: 5.5, dmg: 22, every: 1.2, acc: 1 } },
+              bots:   { id: 'cmd',   hp: 1.4, speed: 0.9,  r: 4.3, jamR: 11, atk: { range: 44, dmg: 14, every: 1.1, acc: 0.65 } },
+              squids: { id: 'soak',  hp: 3,   speed: 1.1,  r: 5.2, soak: 0.6, atk: { range: 5.5, dmg: 38, every: 1.5, acc: 1 } } },
   // Patrols: every base keeps perBase (more later in the session and the mission, up to maxPerBase) out on a route of its own, radius
   // metres out, replacing a lost one every `every` seconds while it stands; atStart are out at the drop. An intercept is a patrol
   // already waiting out of sight where the squad is heading (interceptLead seconds ahead), every interceptSec; forgotten once the
@@ -158,7 +179,7 @@ export const CONFIG = {
               radio: { holdR: 16, holdSec: 25, relightR: 520, reward: 220 },
               propaganda: { hp: 1400, reward: 200, guards: 1, every: 22, reach: 320 },
               rescue: { n: 5, armor: 0.35, wakeR: 300, wakeSec: 600, groups: 2, perSessionMin: 45, reachR: 30, clearR: 45, holdSec: 4, reward: 200 },
-              // an abandoned SEAF howitzer: a Helldiver stands by it for holdSec and the gunner can fire it (weapon 9)
+              // an abandoned SEAF artillery cannon: a Helldiver stands by it for holdSec and it is ours (weapon 9, once someone mans it)
               arty: { holdR: 16, holdSec: 18, reward: 250 } },
   // The Helldivers' plan (planner.js): side tasks within `detour` extra metres of the way to the main objective, if there is time to
   // spare (reserve seconds) for them, the objective and extraction. After the objective a full clear only with more than clearLives
@@ -178,12 +199,16 @@ export const CONFIG = {
   // Bases within clusterR of each other work together: when the Helldivers come near one, the others turn out too, and each one
   // sends its groups faster for every standing neighbour (spawn interval / (1 + clusterSpawn x neighbours)).
   bases:    { min: 2, perAoM: 200, max: 14, minutesPerExtra: 14, hp: 2400, spacing: 250, lzClearance: 400, radius: 15,
-              garrisonRadius: 260, garrisonGroups: 2, garrisonCap: 15, spawnSec: 30, clusterR: 170, clusterSpawn: 0.4,
+              garrisonRadius: 260, garrisonGroups: 2, garrisonCap: 15, spawnSec: 30, clusterR: 170, clusterSpawn: 0.2,
               // Detection (invisible): a base wakes only when an ally walks inside detectR (SEAF know nothing of it) or its structure is
               // hit; then it turns out its garrison, keeps sending groups, and its neighbours join after alertSpread seconds. The
               // Helldivers stop stageGap metres outside the ring, mark the base and wait stageSec (the gunner's time to prepare),
               // then go in. Until then the garrison only sits at the base.
-              detectR: 105, stageGap: 16, stageSec: 18, alertSpread: 6 },
+              detectR: 105, stageGap: 16, stageSec: 18, alertSpread: 6,
+              // Clusters: the level q (0 to 1) is base + session minutes / perMin + (difficulty - 1) x perLevel. A cluster has up to
+              // 1 + (maxSize - 1) x q bases, and is a lone base anyway with chance single x (1 - q); its bases stand from far down to
+              // near metres apart as q rises, never closer than gap.
+              cluster: { base: 0, perMin: 240, perLevel: 0.05, maxSize: 4, single: 0.45, far: 140, near: 85, gap: 62 } },
   // The big base for the destroy-the-citadel objective.
   // Objective sites under siege (objectives.js siege): while the squad works an objective the enemy calls backup every `every`
   // seconds, down to `minEvery`, with up to `extra` more groups, over rampSec seconds at the site. A call waits (capWait s) while
@@ -277,13 +302,10 @@ export const CONFIG = {
                     cannon: { range: 62, dmg: 26, splash: 4, every: 1.6, acc: 0.7 }, deploy: { every: 30 } },
           squids: { hp: 3800, shield: 2000, regen: 120, regenDelay: 7, r: 12, speed: 1.9, stop: 48,
                     beam: { range: 78, dmg: 120, charge: 2.6, every: 7.5, width: 4.5, lock: 0.7 } } },
-  // Free-fire zone: a Helldiver facing a big pack well ahead asks for one. Every ally keeps out of it while it lasts, and orbital
-  // strikes the player lands inside it recharge faster (cdMul), so the gunner can saturate it.
   // Resupply on request: the Helldivers ask, the player loads a pod in slow motion (cells per compartment, fillSec real seconds at
   // the most), and a load finished within fastSec real seconds boosts the Helldivers' damage and pace for boostSec.
   supply:   { firstSec: 60, need: 1.5, askSec: 30, cells: 4, fillSec: 13, slowmo: 0.25, fastSec: 5, dropSec: 3.5, cooldownSec: 75, declineCooldownSec: 60,
               boostSec: 45, boostDmg: 0.15, boostSpeed: 1.1 },
-  ffz:      { r: 42, sec: 30, cooldownSec: 75, firstSec: 40, minN: 10, heavyN: 6, minDist: 52, maxDist: 150, cdMul: 0.5, follow: 5, camPull: 0.45 },
 
   // Chatter: speech bubbles over Helldivers and SEAF, on cooldowns so they stay readable.
   chatter:  { hdCool: 11, seafCool: 20, hdSec: 4.2, seafSec: 3.2, seafGlobalGap: 3.5, hdGlobalGap: 1.6 },
@@ -301,6 +323,6 @@ export const CONFIG = {
   share:    { channelUrl: '',
               // Where the FEEDBACK buttons go: a short form on the project's GitHub page (a free GitHub account is needed to post).
               feedbackUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support/issues/new?template=feedback.yml',
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.15.0',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.16.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives; the score block ends with it so pasted scores bring players in
 };

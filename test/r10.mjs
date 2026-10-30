@@ -28,7 +28,7 @@ function quiet(faction = 'bots', seed = 77, opts = {}) {
   m.enemies = []; m.groups = [];
   for (const b of m.bases) { b.garrisoned = true; b.owed = 0; b.nextPatrol = 1e9; if (b.patrols) b.patrols = []; }
   for (const p of m.pois) { p.woke = true; p.owed = 0; }
-  m.intercept.nextAt = 1e9; m.strat.callAt = 1e9; m.reinf.readyAt = 1e9; m.ffzAt = 1e9;
+  m.intercept.nextAt = 1e9; m.strat.callAt = 1e9; m.reinf.readyAt = 1e9;
   for (const o of m.objectives) { o.garrisoned = true; o.owed = 0; }
   return m;
 }
@@ -209,7 +209,7 @@ function quiet(faction = 'bots', seed = 77, opts = {}) {
 {
   const m = quiet('bots', 7200);
   const g = spawnGroup(m, m.hx + 700, m.hy, 'patrol'); g.hold = 1e9;
-  for (const e of g.members) { e.speed = 0; e.hp = e.maxHp = 1e6; }
+  for (const e of g.members) { e.speed = 0; e.hp = e.maxHp = 1e6; e.jamR = 0; }    // (no commander's jammer in the way: r16 checks that)
   const e = g.members[0];
   check('an enemy far outside the strike zone cannot be struck at first', !m.inZone(e.x, e.y) && !m.nearLock(e.x, e.y));
   reveal(m, e);

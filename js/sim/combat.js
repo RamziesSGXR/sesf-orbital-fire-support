@@ -10,13 +10,21 @@ import { alertGroup, noise } from './enemies.js';
 // most of all), and now and then a critical hit. cs names whose crit chance applies ('player', 'gun', 'ally', 'enemy'), or '' for
 // none (burning ground, gas). m.hitFlags says what happened (1 = from behind, 2 = critical) for whoever wants to show it.
 const B = C.combat.back, CR = C.combat.crit;
-export function hitMul(m, tgt, fx, fy, cs) {
+// An armoured front (a bug heavy, the Hive Guard: tgt.front, the share that gets through within the arc tgt.frontCos) takes less
+// from ahead (f 4), unless the hit pierces (the Ultimatum). A bot heavy's weak points crit more often (tgt.critUp).
+// (ABOVE: the hit is a blast coming down from orbit, not a shot from someone on the ground: a heavy's front plate does not stop it)
+let ABOVE = false;
+export function hitMul(m, tgt, fx, fy, cs, pierce = false) {
   let k = 1, f = 0;
   if (fx !== undefined && fx !== null && tgt.face !== undefined) {
     const dx = fx - tgt.x, dy = fy - tgt.y, d = Math.hypot(dx, dy);
-    if (d > 1.2 && (dx * Math.cos(tgt.face) + dy * Math.sin(tgt.face)) / d < B.cos) { k *= tgt.kind === 'H' ? B.heavy : B.mul; f |= 1; }
+    if (d > 1.2) {
+      const c = (dx * Math.cos(tgt.face) + dy * Math.sin(tgt.face)) / d;
+      if (c < B.cos) { k *= tgt.kind === 'H' ? B.heavy : B.mul; f |= 1; }
+      else if (tgt.front && !pierce && !ABOVE && c > tgt.frontCos) { k *= tgt.front; f |= 4; }
+    }
   }
-  if (cs && m.rng.next() < CR[cs]) { k *= CR.mul; f |= 2; }
+  if (cs && m.rng.next() < CR[cs] + (tgt.critUp || 0)) { k *= CR.mul; f |= 2; }
   m.hitFlags = f;
   return k;
 }
@@ -35,6 +43,12 @@ export function reveal(m, e) {
 export const revealed = (m, e) => e.revealUntil > m.t;
 export const locked = (m, e) => e.revealUntil > m.t && m.t - e.revealFrom >= C.reveal.lockSec;
 
+// A commander's jammer: the enemy jamming (x, y), if any. Nothing the destroyer or the squad calls down can land there.
+export function jammedAt(m, x, y, pad = 0) {
+  for (const e of m.jammers || []) if (!e.dead && (e.x - x) ** 2 + (e.y - y) ** 2 <= (e.jamR + pad) ** 2) return e;
+  return null;
+}
+
 export function covered(e) {
   const d = e.cover;
   if (!d) return false;
@@ -42,12 +56,13 @@ export function covered(e) {
   return true;
 }
 
-export function hurtEnemy(m, e, dmg, by, fx, fy, cs) {
+// pierce: the hit goes through armour and shields (the Ultimatum's round).
+export function hurtEnemy(m, e, dmg, by, fx, fy, cs, pierce = false) {
   if (e.dead || !(dmg > 0)) return 0;
   if (e.cover && covered(e)) return 0;
-  const k = hitMul(m, e, fx, fy, cs === undefined ? (by === 'player' ? 'player' : 'ally') : cs);
-  dmg *= k;
-  if (e.shield > 0) {                    // a shield (the Warp Colossus) soaks up damage first
+  const k = hitMul(m, e, fx, fy, cs === undefined ? (by === 'player' ? 'player' : 'ally') : cs, pierce);
+  dmg *= k * (e.soak && !pierce ? e.soak : 1);     // the fleshmob takes only part of every hit
+  if (e.shield > 0 && !pierce) {         // a shield (a squid heavy, the Warp Colossus) soaks up damage first
     const soak = Math.min(e.shield, dmg);
     e.shield -= soak; e.shieldAt = m.t; dmg -= soak;
     const bd = m.stats.bossDmg || (m.stats.bossDmg = {}); bd.shield = (bd.shield || 0) + soak;
@@ -70,10 +85,12 @@ export function hurtEnemy(m, e, dmg, by, fx, fy, cs) {
 // cs: crit side ('' for none). Civilians on an evacuation are hurt by friendly blasts too.
 // (fx, fy): where the blow comes from, when that is not the centre (a shell fired by someone standing there).
 export function damageArea(m, x, y, rad, dmg, mult, by = 'player', friendly = true, cs, fx = x, fy = y) {
+  ABOVE = (fx === x && fy === y) || cs === 'gun';      // a strike or a Ship Gun round, not a rocket fired along the ground
   m.eGrid.near(x, y, rad, (e) => {
     alertGroup(m, e.g);
     hurtEnemy(m, e, dmg * (e.boss && mult.boss !== undefined ? mult.boss : mult[e.kind]), by, fx, fy, cs);   // (a few blasts set their own share for a super heavy)
   });
+  ABOVE = false;
   for (const d of m.drops) if (!d.dead && d.hp > 0 && d.low && Math.hypot(d.x - x, d.y - y) <= rad + d.r) m.damageDrop(d, dmg * (mult.H ?? 1), by);
   if (friendly) {
     m.aGrid.near(x, y, rad, (a) => hurtAlly(m, a, dmg, by === 'player' ? 'player' : 'enemy', true, by === 'player' ? 'friendly' : 'enemy'));
@@ -125,6 +142,13 @@ function tryDodge(m, a, dmg) {
 // shot in the back hurts more; enemy hits can crit too.
 export function hurtAlly(m, a, rawDmg, by, raw = false, src = null, fx, fy) {
   if (a.dead || !(rawDmg > 0)) return;
+  // inside a bunker: the bunker takes it (only a share of the destroyer's own fire), whoever is inside takes nothing
+  const bk = a.inPost;
+  if (bk && bk.what === 'bunker' && !bk.dead && bk.hp > 0) {
+    hurtAsset(m, bk, rawDmg * (by === 'enemy' ? C.build.bunker.take : C.build.bunker.ff));
+    if (by === 'enemy') a.hurtAt = m.t;
+    return;
+  }
   if ((a.type === 'H' || a.type === 'S') && !raw && by === 'enemy' && tryDodge(m, a, rawDmg)) return;
   if (by === 'enemy' && !raw) rawDmg *= hitMul(m, a, fx, fy, 'enemy') * coverMul(m, a.x, a.y);   // behind a wall: less
   a.hurtAt = m.t;

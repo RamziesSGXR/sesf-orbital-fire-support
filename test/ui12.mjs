@@ -36,18 +36,18 @@ await page.waitForTimeout(400);
 const c1 = await ev(() => ({ x: window.__game.cam.x, y: window.__game.cam.y }));
 check('it stays where the player left it while the squad moves off', Math.hypot(c1.x - c0.x, c1.y - c0.y) < 2, `moved ${Math.hypot(c1.x - c0.x, c1.y - c0.y).toFixed(1)} m`);
 // a supply drop does not pull it
-await ev(() => { const m = window.__game.mission; m.events.push({ type: 'supply_launch', x: m.hx + 300, y: m.hy + 300, fast: false }); m.events.push({ type: 'ffz', x: m.hx - 300, y: m.hy, r: 40 }); });
+await ev(() => { const m = window.__game.mission; m.events.push({ type: 'supply_launch', x: m.hx + 300, y: m.hy + 300, fast: false }); });
 await page.waitForTimeout(1500);
 const c2 = await ev(() => ({ x: window.__game.cam.x, y: window.__game.cam.y }));
-check('a supply drop or a free-fire zone does not pull the camera', Math.hypot(c2.x - c1.x, c2.y - c1.y) < 2);
+check('a supply drop does not pull the camera', Math.hypot(c2.x - c1.x, c2.y - c1.y) < 2);
 
-// the Helldiver bar
-const hb = await ev(() => [...document.querySelectorAll('#hdbar .hdb')].map((b) => b.textContent));
-check('a Helldiver bar with a button for each group', hb.length === 4 && /A/.test(hb[0]), hb.join(' | '));
+// the Helldivers (0.16: one panel, a row each, above the SEAF squads)
+const hb = await ev(() => [...document.querySelectorAll('#hdrows .hr')].map((b) => b.textContent));
+check('a Helldiver row for each group', hb.length === 4 && /A/.test(hb[0]), hb.join(' | '));
 if (touch) { await tap('#dk-sq'); await page.waitForTimeout(300); }
-const vis = await page.isVisible('#hdbar');
+const vis = await page.isVisible('#sqpanel');
 check('it is on screen beside the SEAF squads', vis);
-const geo = await ev(() => { const a = document.getElementById('hdbar').getBoundingClientRect(), b = document.getElementById('squads').getBoundingClientRect(); return { a: [a.left, a.top, a.right, a.bottom], b: [b.left, b.top, b.right, b.bottom], W: innerWidth }; });
+const geo = await ev(() => { const a = document.getElementById('sqpanel').getBoundingClientRect(), b = document.getElementById('squads').getBoundingClientRect(); return { a: [a.left, a.top, a.right, a.bottom], b: [b.left, b.top, b.right, b.bottom], W: innerWidth }; });
 const overlap = !(geo.a[2] <= geo.b[0] || geo.a[0] >= geo.b[2] || geo.a[3] <= geo.b[1] || geo.a[1] >= geo.b[3]);
 check('without covering them, and on the screen', !overlap && geo.a[0] >= 0 && geo.a[2] <= geo.W + 1, JSON.stringify(geo));
 await shot('bars');
@@ -56,7 +56,7 @@ const target = await ev(() => { const m = window.__game.mission, a = m.teams[2].
 await ev(() => { window.__game.cam.x += 250; });
 // two taps 120 ms apart, sent straight to the button (the test tool's own clicks can wait for the button to settle between taps)
 const dbl = async (sel) => { await page.evaluate(async (s) => { const b = document.querySelector(s); const down = () => b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerType: 'mouse' })); down(); await new Promise((r) => setTimeout(r, 120)); down(); }, sel); };
-await dbl('#hdbar .hdb:nth-child(3)'); await page.waitForTimeout(1900);
+await dbl('#hdrows .hr:nth-child(3)'); await page.waitForTimeout(1900);
 const c3 = await ev(() => ({ x: window.__game.cam.x, y: window.__game.cam.y, f: window.__game.cam.follow }));
 check('a double tap on a Helldiver moves the camera to them', target && Math.hypot(c3.x - target.x, c3.y - target.y) < 25 && !c3.f, target ? `${Math.hypot(c3.x - target.x, c3.y - target.y).toFixed(0)} m off` : 'no Helldiver');
 
@@ -81,16 +81,16 @@ if (sq) {
   await tap('#orders .ord[data-o="build"]'); await page.waitForTimeout(300);
   const menu = await page.isVisible('#buildmenu');
   const items = await ev(() => [...document.querySelectorAll('#buildmenu .bld')].map((b) => b.textContent));
-  check('BUILD opens a menu: wall, MG nest, drop beacon, howitzer, with their prices', menu && items.length === 4 && items.slice(0, 3).every((x) => /CR/.test(x)) && /UNLOCK/.test(items[3]), items.join(' | '));   // (the howitzer: unlocked in the armory)
+  check('TACTICAL opens a menu: seven builds with their prices (the SAM site and the cannon unlocked in the armory)', menu && items.length === 7 && /FREE/.test(items[0]) && items.slice(1, 5).every((x) => /CR/.test(x)) && /UNLOCK/.test(items[5]) && /UNLOCK/.test(items[6]), items.join(' | '));
   await shot('buildmenu');
   const fit = await ev(() => { const r = document.getElementById('buildmenu').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth + 1 && r.top >= 0; });
   check('the menu fits the screen', fit);
   await ev(() => { window.__game.mission.wallet.bal = 9999; });
-  await tap('#buildmenu .bld[data-b="beacon"]'); await page.waitForTimeout(300);
+  await tap('#buildmenu .bld[data-b="tower"]'); await page.waitForTimeout(300);
   if (!touch) { await page.mouse.move(640, 360); await page.waitForTimeout(100); await page.mouse.click(640, 360); await page.waitForTimeout(300); }
-  const bo = await ev(() => window.__game.mission.seaf.squads.some((q) => q.n && q.order.kind === 'build' && q.order.what === 'beacon'));
+  const bo = await ev(() => window.__game.mission.seaf.squads.some((q) => q.n && q.order.kind === 'build' && q.order.what === 'tower'));
   check('picking one sends a squad to build it', bo);
-  await ev(() => { const m = window.__game.mission; for (let i = 0; i < 30 * 45; i++) m.step(1 / 30); });
+  await ev(() => { const m = window.__game.mission; for (let i = 0; i < 30 * 70; i++) m.step(1 / 30); });
   check('and it gets built', await ev(() => window.__game.mission.beacons.some((b) => b.built)));
 }
 
