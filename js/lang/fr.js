@@ -1290,7 +1290,10 @@ export default {
   'set.tacHint': 'Mettre le jeu en pause tant qu’il est ouvert, ou seulement le ralentir.',
   'set.tacPause': 'Pause',
   'set.tacSlow': 'Ralentir',
-  'kit.seaf.build': 'GÉNIE DE COMBAT',
+  'kit.seaf.build': 'Génie de combat',
   'kit.seaf.build.b': 'Les SEAF montent leurs constructions plus vite : chaque niveau ajoute un quart de vitesse.',
   'st.seafBuild': 'Vitesse de construction ×{x}',
+  // ---------- 0.17.1: the main menu from the pause menu ----------
+  'pause.home': 'MENU PRINCIPAL',
+  'pause.homeConfirm': 'Revenir au menu principal ? Cette mission ne comptera pas : votre session revient à son état au largage, et la même mission vous attend quand vous reprenez. Touchez encore pour confirmer.',
 };

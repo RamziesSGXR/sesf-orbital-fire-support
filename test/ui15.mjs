@@ -51,22 +51,24 @@ check('the armory is tabbed: ORBITALS, SHIP, SEAF, BUILDABLES, and only one show
 await ev(() => { const it = [...document.querySelectorAll('#shop-root .item')].find((x) => /^Artillery Cannon/.test(x.querySelector('.it-name').textContent)); it && it.scrollIntoView({ block: 'center' }); });
 await shot('armory_build');
 
-// ---------------------------------------------------------------- controls and the field manual, between missions
-await tap('#btn-ctl-s'); await page.waitForTimeout(300);
-check('CONTROLS opens from the armory', await on('s-controls'));
+// ---------------------------------------------------------------- controls and the field manual, between missions (0.17.1: through the armory's MENU)
+await tap('#shop-menu'); await page.waitForTimeout(250);
+await tap('#btn-ctl-m'); await page.waitForTimeout(300);
+check('CONTROLS opens from the armory (its MENU)', await on('s-controls'));
 const tabs = await ev(() => ({ d: !document.getElementById('controls-desktop').classList.contains('hidden'), t: !document.getElementById('controls-touch').classList.contains('hidden') }));
 check('it opens on this device\'s controls', touch ? tabs.t && !tabs.d : tabs.d && !tabs.t);
 await tap(touch ? '#ctl-tab-d' : '#ctl-tab-t'); await page.waitForTimeout(150);
 check('and the other tab shows the other device', await ev(() => !document.getElementById('controls-desktop').classList.contains('hidden')) === touch);
-check('the computer controls list the cannon, pause, half speed, the tactical menu and box select', await ev(() => { const s = document.getElementById('controls-desktop').textContent; return /artillery cannon/.test(s) && /half speed/.test(s) && /pause/.test(s) && /tactical/.test(s) && /SHIFT/.test(s); }));
+check('the computer controls list the cannon, pause, half speed, the tactical menu and box select', await ev(() => { const s = document.getElementById('controls-desktop').textContent; return /artillery cannon/.test(s) && /half speed/.test(s) && /pause/.test(s) && /TACTICAL/.test(s) && /box/.test(s); }));
 await shot('controls');
 await tap('#ctl-close'); await page.waitForTimeout(200);
-await tap('#btn-man-s'); await page.waitForTimeout(300);
+await tap('#btn-man-m'); await page.waitForTimeout(300);
 const man = await ev(() => ({ secs: document.querySelectorAll('#manual-body .man-sec').length, items: document.querySelectorAll('#manual-body li').length, text: document.getElementById('manual-body').textContent }));
 check('the FIELD MANUAL lists what the gunner can do, by section', man.secs === 7 && man.items >= 35, `${man.secs} sections, ${man.items} items`);
 check('it covers building, drawing plays, drops and the armory', /build/i.test(man.text) && /DRAW/.test(man.text) && /SEAF DROP/.test(man.text) && /Barracks/.test(man.text));
 await shot('manual');
 await tap('#man-close'); await page.waitForTimeout(200);
+await tap('#btn-resume-m'); await page.waitForTimeout(200);
 
 // ---------------------------------------------------------------- the briefing
 await tap('#shop-go'); await page.waitForTimeout(500);

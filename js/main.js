@@ -53,7 +53,6 @@ let sel = null;      // the selected post, sentry or defence site (posts.js): a 
 let tac = false;     // the tactical build screen (builds, formations, box select) is open: the game waits (or runs slow, in Settings)
 let armed = false;   // a weapon is armed: the reticle shows and a click calls it. Otherwise the cursor selects things.
 let hideUi = false;  // F2: the HUD is hidden
-let held = null;     // a mission rolled for a briefing that was cancelled: the same one comes back (no rerolling)
 let box = null;      // a selection box being dragged: { x0, y0, x1, y1 } in screen pixels
 let boxArm = false;  // touch: the next drag draws a selection box
 let drawing = false, stroke = null; // draw mode: drag on the map to draw a route, line or ring for the selected squad(s)
@@ -113,9 +112,10 @@ function pickLang(l) { audio.unlock(); audio.click(); settings.lang = l; onSetti
 // The difficulty a new session starts at (a session keeps its own). ?difficulty=N sets it for one visit (testing).
 function chosenDiff() { return clampLevel(qs.has('difficulty') ? qs.get('difficulty') : settings.difficulty ?? C.difficulty.start); }
 function pickDiff(d) { audio.unlock(); audio.click(); settings.difficulty = clampLevel(d); qs.delete('difficulty'); S.save('settings', settings); drawDiff(); }
+const resumable = (s) => !!(s && s.missions && (s.missions.length || s.held));
 function drawDiff() {
-  const saved = S.load('session', null), resumable = saved && saved.missions && saved.missions.length;
-  UI.buildDiff(chosenDiff(), resumable ? clampLevel(saved.difficulty ?? LEVELS) : null, pickDiff);
+  const saved = S.load('session', null);
+  UI.buildDiff(chosenDiff(), resumable(saved) ? clampLevel(saved.difficulty ?? LEVELS) : null, pickDiff);
 }
 
 // ---------------- input hooks ----------------
@@ -509,11 +509,13 @@ function placeNow() {
 
 // ---------------- screens and flow ----------------
 function toTitle() {
-  state = 'title'; paused = false; mission = null;
+  if (briefCtl) { briefCtl.cancel(); briefCtl = null; }
+  state = 'title'; paused = false; soft = false; mission = null; bot = null;
+  hud.setSoft(false); setHideUi(false); audio.humStop(); hud.reset(); $('s-pause').classList.remove('out');
   UI.hideOverlays(); UI.showScreen('s-title'); UI.setupBest();
   const saved = S.load('session', null);
   const rb = $('btn-resume');
-  rb.classList.toggle('hidden', !(saved && saved.missions && saved.missions.length));
+  rb.classList.toggle('hidden', !resumable(saved));
   if (saved && saved.missions) rb.textContent = t('title.resume', { n: saved.missions.length, score: S.fmtNum(saved.score), d: clampLevel(saved.difficulty ?? LEVELS) });
   UI.buildLangs(getLang(), pickLang);
   drawDiff();
@@ -540,7 +542,7 @@ function beginSession(resume) {
 // The armory: before every mission. Buy and equip orbitals, UAV, SEAF and squad upgrades with the session's credits.
 function goShop() {
   if (briefCtl) { briefCtl.cancel(); briefCtl = null; }
-  state = 'shop'; mission = null; paused = false; audio.humStop(); hud.reset(); setPlacing(null); setHideUi(false); $('s-pause').classList.remove('brief');
+  state = 'shop'; mission = null; paused = false; audio.humStop(); hud.reset(); setPlacing(null); setHideUi(false); $('s-pause').classList.remove('out');
   UI.hideOverlays(); UI.showScreen('s-shop');
   const n = session.missions.length + 1;
   $('shop-eyebrow').textContent = n === 1 ? t('arm.eyebrow1') : t('arm.eyebrowN', { n });
@@ -567,8 +569,9 @@ function goBrief(again = false) {
   UI.hideOverlays(); UI.showScreen('s-brief');
   const prev = session.missions.length ? session.missions[session.missions.length - 1] : null;
   const keep = again && info ? info : null;
-  const back = !keep && held && held.n === session.missions.length + 1 ? held.info : null;     // CANCEL was pressed: the same mission
-  held = null;
+  const held = session.held;
+  const back = !keep && held && held.n === session.missions.length + 1 ? held.info : null;     // CANCEL (or MAIN MENU) left this one waiting
+  session.held = null;
   info = keep ? { op: keep.op, faction: keep.faction, biome: keep.biome, seed: keep.seed, tod: keep.tod } : back ? { ...back } : S.rollMission(prev);
   if (!keep && !back && session.missions.length === 0) { // URL overrides for testing: ?seed= ?faction= ?biome= (first mission only)
     if (qs.get('seed')) info.seed = Number(qs.get('seed')) >>> 0;
@@ -594,17 +597,38 @@ function goBrief(again = false) {
     onContinue: () => { briefCtl = null; audio.click(); deploy(); },
     onEnd: () => { briefCtl = null; endSession(); },
     // CANCEL: back to the armory. The mission keeps its map, enemy and hour for when you deploy again.
-    onCancel: () => { briefCtl = null; audio.click(); held = { n, info: { op: info.op, faction: info.faction, biome: info.biome, seed: info.seed, tod: info.tod } }; goShop(); },
-    onMenu: () => { audio.unlock(); audio.click(); briefMenu(true); },
+    onCancel: () => { briefCtl = null; audio.click(); holdMission(); persist(); goShop(); },
+    onMenu: () => { audio.unlock(); audio.click(); outMenu(true); },
   });
   // Build the terrain while the loading bar runs. The bar always lasts at least C.ui.minLoadSec.
   setTimeout(() => { if (briefCtl !== ctl) return; buildFor(info.biome, info.seed); ctl.terrainReady(); }, 80);
 }
-// MENU on the briefing: the same menu as in a mission (settings, controls, the field manual, squad names), without what only
-// makes sense in one.
-function briefMenu(on) {
-  $('s-pause').classList.toggle('brief', !!on);
+// MENU on the armory and the briefing: the same menu as in a mission (settings, controls, the field manual, squad names, the main
+// menu), without what only makes sense in one.
+function outMenu(on) {
+  $('s-pause').classList.toggle('out', !!on);
+  $('home-confirm').classList.add('hidden'); wantHome = false;
   UI.overlay('s-pause', !!on);
+}
+// The mission rolled for this briefing waits on the session: CANCEL, the main menu or a reload bring the same one back.
+function holdMission() {
+  if (!info || !session) return;
+  session.held = { n: session.missions.length + 1, info: { op: info.op, faction: info.faction, biome: info.biome, seed: info.seed, tod: info.tod } };
+}
+// MAIN MENU (the pause menu, from anywhere). Out of a mission it just goes; the session is kept to resume (a new one that has not
+// flown or rolled anything is simply dropped). In a mission it asks twice: the mission is not counted, the session goes back to how
+// it was at the drop, and the same mission waits for RESUME (so it cannot be used to skip one).
+let wantHome = false;
+function goHome() {
+  if (state === 'play' && mission && !mission.over) {
+    if (!wantHome) { wantHome = true; $('home-confirm').classList.remove('hidden'); audio.click(); return; }
+    if (startSnap) session = S.fixSession(JSON.parse(startSnap));
+    holdMission();
+  } else if (state === 'brief') holdMission();
+  audio.click(); wantHome = false;
+  if (session && resumable(session)) persist();
+  session = null; mission = null;
+  toTitle();
 }
 const FACTION_OK = (f) => ['bugs', 'bots', 'squids'].includes(f);
 const BIOME_OK = (b) => ['ice', 'grass', 'desert', 'jungle', 'moon'].includes(b);
@@ -620,7 +644,7 @@ function deploy() {
   cam.view = window.innerWidth >= window.innerHeight ? C.world.viewWidth : 280;
   firePending = false; acc = 0; endHandled = false; overAt = 0; wantAbort = false;
   drawing = false; stroke = null; armed = false; tac = false; sel = null; box = null;
-  $('tactical').classList.add('hidden'); document.body.classList.remove('tac-open', 'tac-hd', 'tac-sf', 'placing'); $('s-pause').classList.remove('brief');
+  $('tactical').classList.add('hidden'); document.body.classList.remove('tac-open', 'tac-hd', 'tac-sf', 'placing'); $('s-pause').classList.remove('out');
   hud.reset(); hud.setOp(info.op); hud.setMission(mission); UI.showScreen(null); UI.hideOverlays();
   state = 'play'; paused = false; soft = false; hud.setSoft(false); menuSoft = false; toggleSpeed(1);
   audio.humStart();
@@ -672,15 +696,15 @@ function togglePause(force) {
   if (UI.isOn('s-about')) { closeAbout(); return; }
   if (UI.isOn('s-armory')) { closeArmory(); return; }
   if (UI.isOn('s-names')) { closeNames(false); return; }
-  if (state === 'brief') { if (!UI.isOn('s-settings')) briefMenu(force !== undefined ? force : !UI.isOn('s-pause')); return; }
+  if (state === 'brief' || state === 'shop') { if (!UI.isOn('s-settings')) outMenu(force !== undefined ? force : !UI.isOn('s-pause')); return; }
   if (state !== 'play' || !mission || mission.over) return;
   if (UI.isOn('s-settings')) return;
   if (soft) { soft = false; hud.setSoft(false); paused = false; force = true; }   // a soft pause opens into the full menu
   paused = force !== undefined ? force : !paused;
   firePending = false; setPlacing(null); setDrawing(false); disarm(); setTac(false); if (mission) mission.setFiring(false);
-  $('s-pause').classList.remove('brief');
+  $('s-pause').classList.remove('out');
   UI.overlay('s-pause', paused);
-  $('abort-confirm').classList.add('hidden'); wantAbort = false;
+  $('abort-confirm').classList.add('hidden'); wantAbort = false; $('home-confirm').classList.add('hidden'); wantHome = false;
   if (paused) audio.humStop(); else { audio.unlock(); audio.humStart(); }
 }
 
@@ -847,7 +871,9 @@ $('btn-settings').onclick = () => { audio.unlock(); openSettings('title'); };
 $('btn-settings-m').onclick = () => openSettings('pause');
 $('btn-settings-close').onclick = closeSettings;
 $('btn-names-t').onclick = () => openNames('title');
-$('shop-names').onclick = () => openNames('shop');
+$('shop-menu').onclick = () => { audio.unlock(); audio.click(); outMenu(true); };
+$('shop-back').onclick = () => { audio.unlock(); goHome(); };
+$('btn-home-m').onclick = () => goHome();
 $('btn-names-m').onclick = () => openNames('pause');
 $('names-save').onclick = () => closeNames(true);
 $('names-cancel').onclick = () => closeNames(false);
@@ -862,8 +888,7 @@ $('btn-hideui-m').onclick = () => { audio.click(); setHideUi(true); };
 $('btn-speed').onclick = () => toggleSpeed();
 // Controls and the field manual: from the briefing, the armory, the pause menu (and the HUD menu, above)
 const where = () => (UI.isOn('s-pause') ? 'pause' : state === 'play' ? (soft ? 'soft' : 'pause') : state);
-for (const [b, id, fill] of [['btn-ctl-s', 's-controls', fillControls], ['btn-ctl-m', 's-controls', fillControls],
-  ['btn-man-s', 's-manual', () => UI.fillManual()], ['btn-man-m', 's-manual', () => UI.fillManual()]]) {
+for (const [b, id, fill] of [['btn-ctl-m', 's-controls', fillControls], ['btn-man-m', 's-manual', () => UI.fillManual()]]) {
   $(b).onclick = () => { audio.unlock(); audio.click(); openPanel(id, where(), fill); };
 }
 $('ctl-close').onclick = () => closePanel('s-controls');
@@ -1124,5 +1149,5 @@ window.__game = {
   cam, input, renderer, settings, order, get placing() { return placing; }, get drawing() { return drawing; }, squadAct, selectSquad, focusTeam, strokeBegin, strokeMove, strokeEnd, goShop, openArmory, closeArmory,
   setSetting: (k, v) => { settings[k] = v; onSettingChange(k); },
   makePost: (w, x, y, o) => (mission ? makePost(mission, w, x, y, o) : null), select: (o) => select(o), get sel() { return sel; }, buildMenu, setTac, get tac() { return tac; },
-  arm, disarm, get armed() { return armed; }, clickAt, commandAt, deselect, setHideUi, get hideUi() { return hideUi; }, get held() { return held; },
+  arm, disarm, get armed() { return armed; }, clickAt, commandAt, deselect, setHideUi, get hideUi() { return hideUi; }, get held() { return session && session.held; }, goHome,
 };

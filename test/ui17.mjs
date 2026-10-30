@@ -1,4 +1,4 @@
-// 0.17 in the browser: the Discord feedback link and the version (title, results); the armory's folder tabs and Combat Engineers;
+// 0.17 in the browser (and 0.17.1: the armory's BACK and MENU, MAIN MENU in the pause menu): the Discord feedback link and the version (title, results); the armory's folder tabs and Combat Engineers;
 // the briefing (full ship names, CANCEL back to the armory with the same mission, MENU); the HUD (no weapon armed at the drop, the
 // reticle only once one is, back to selecting after a call, one feed at the top left with the supply callouts in it, the radio
 // gone from the top middle, the bigger minimap and its setting, F2 hides the HUD, the half-width Helldiver panel); the tactical
@@ -33,7 +33,7 @@ const PAGE = `file://${ROOT}/dist/orbital-fury.html?faction=bots&biome=grass&see
 await page.goto(PAGE); await page.waitForTimeout(600);
 // ---------------------------------------------------------------- title: the version, the Discord
 const ver = await ev(() => document.getElementById('ver-t').textContent);
-check('the title screen shows the version', /0\.17\.0/.test(ver), ver);
+check('the title screen shows the version', /0\.17\.\d/.test(ver), ver);
 const fb = await ev(() => [...document.querySelectorAll('a.fb')].map((a) => a.href));
 check('every FEEDBACK button goes to the SESF Helldivers Discord', fb.length >= 4 && fb.every((h) => h === 'https://discord.com/invite/qruRY4nkEz'), fb[0]);
 check('and says so', /DISCORD/.test(await ev(() => document.getElementById('lnk-fb-t').textContent)));
@@ -48,9 +48,22 @@ const tabs = await ev(() => { const t = [...document.querySelectorAll('#shop-roo
   return { n: t.length, joined: Math.abs(a.bottom - b.top) <= 3, round: parseFloat(cs.borderTopLeftRadius) >= 6 && parseFloat(cs.borderBottomLeftRadius) === 0 }; });
 check('the armory has four tabs, the open one joined to its page like a folder tab', tabs.n === 4 && tabs.joined && tabs.round, JSON.stringify(tabs));
 await tap('#shop-root .shop-tabs .tab[data-tab="seaf"]'); await page.waitForTimeout(200);
-const eng = await ev(() => { const it = [...document.querySelectorAll('#shop-root .tabpane.on .item')].find((x) => /COMBAT ENGINEERS/.test(x.querySelector('.it-name').textContent)); return it ? { stat: it.textContent, buy: !!it.querySelector('.btn.buy:not([disabled])') } : null; });
+const eng = await ev(() => { const it = [...document.querySelectorAll('#shop-root .tabpane.on .item')].find((x) => /Combat Engineers/.test(x.querySelector('.it-name').textContent)); return it ? { stat: it.textContent, buy: !!it.querySelector('.btn.buy:not([disabled])') } : null; });
 check('the SEAF tab sells Combat Engineers (build speed)', eng && /Build speed/.test(eng.stat) && eng.buy, eng && eng.stat.slice(0, 120));
 await shot('armory');
+// (0.17.1) the armory: DEPLOY, MENU and BACK; squad names, the controls and the manual are in the menu
+check('the armory has MENU and BACK, and no SQUAD NAMES, CONTROLS or FIELD MANUAL buttons', (await page.isVisible('#shop-menu')) && (await page.isVisible('#shop-back')) && !(await page.$('#shop-names')) && !(await page.$('#btn-ctl-s')) && !(await page.$('#btn-man-s')));
+await tap('#shop-menu'); await page.waitForTimeout(250);
+const am = await ev(() => ({ on: document.getElementById('s-pause').classList.contains('on'), out: document.getElementById('s-pause').classList.contains('out'),
+  names: !!document.getElementById('btn-names-m').offsetParent, set: !!document.getElementById('btn-settings-m').offsetParent, home: !!document.getElementById('btn-home-m').offsetParent, retire: !!document.getElementById('btn-abort').offsetParent }));
+check('its MENU opens the menu: squad names, settings and the main menu, no retire', am.on && am.out && am.names && am.set && am.home && !am.retire, JSON.stringify(am));
+await tap('#btn-resume-m'); await page.waitForTimeout(200);
+await tap('#shop-back'); await page.waitForTimeout(300);
+check('BACK goes back to the title screen, where the difficulty can be changed', (await ev(() => window.__game.state === 'title')) && await page.isVisible('#diff-row'));
+await tap('#btn-play'); await page.waitForTimeout(250);
+if (await page.isVisible('#btn-notice')) { await tap('#btn-notice'); await page.waitForTimeout(250); }
+await tap('#btn-lock'); await page.waitForTimeout(500);
+check('and PLAY locks in a level again', await ev(() => window.__game.state === 'shop'));
 
 // ---------------------------------------------------------------- the briefing: ship names in full, CANCEL, MENU
 await tap('#shop-go'); await page.waitForTimeout(500);
@@ -62,7 +75,7 @@ check('no CONTROLS or FIELD MANUAL on the briefing; CANCEL and MENU instead', !(
 const cb = await box('#b-cancel'), cc = await box('#b-continue');
 check('CANCEL sits next to CONTINUE', cb && cc && Math.abs(cb.t - cc.t) < 6 && cb.l > cc.l && cb.l - cc.r < 30);
 await tap('#b-menu'); await page.waitForTimeout(250);
-const bm = await ev(() => ({ on: document.getElementById('s-pause').classList.contains('on'), brief: document.getElementById('s-pause').classList.contains('brief'),
+const bm = await ev(() => ({ on: document.getElementById('s-pause').classList.contains('on'), brief: document.getElementById('s-pause').classList.contains('out'),
   ctl: !!document.getElementById('btn-ctl-m').offsetParent, man: !!document.getElementById('btn-man-m').offsetParent, set: !!document.getElementById('btn-settings-m').offsetParent,
   retire: !!document.getElementById('btn-abort').offsetParent, armory: !!document.getElementById('btn-armory-m').offsetParent }));
 check('MENU opens the menu: controls, the field manual and settings, nothing that needs a mission', bm.on && bm.brief && bm.ctl && bm.man && bm.set && !bm.retire && !bm.armory, JSON.stringify(bm));
@@ -221,10 +234,24 @@ if (!touch) { await page.keyboard.press('Escape'); await page.waitForTimeout(200
 else { await tap('#tactical .tc-x'); await page.waitForTimeout(200); check('its ✕ closes it', !(await ev(() => window.__game.tac))); }
 const t1 = await ev(() => window.__game.mission.t); await page.waitForTimeout(500);
 check('and the game goes on', (await ev(() => window.__game.mission.t)) > t1);
+// (0.17.1) MAIN MENU in the pause menu: asks twice; the mission does not count, and the same one waits for RESUME
+const opNow = await ev(() => window.__game.info.op), flown0 = await ev(() => window.__game.session.missions.length);
+await tap('#btn-menu'); await page.waitForTimeout(250);
+check('the pause menu has MAIN MENU', await page.isVisible('#btn-home-m'));
+await tap('#btn-home-m'); await page.waitForTimeout(200);
+check('it asks before leaving a mission', (await ev(() => window.__game.state === 'play')) && await page.isVisible('#home-confirm'));
+await tap('#btn-home-m'); await page.waitForTimeout(400);
+check('the second tap goes to the title screen, with RESUME', (await ev(() => window.__game.state === 'title')) && await page.isVisible('#btn-resume'));
+await tap('#btn-resume'); await page.waitForTimeout(400);
+check('RESUME: the session as it was at the drop', (await ev(() => window.__game.state === 'shop')) && (await ev(() => window.__game.session.missions.length)) === flown0);
+await tap('#shop-go'); await page.waitForTimeout(500);
+check('and the same mission waits (it cannot be skipped this way)', (await ev(() => document.getElementById('r-op').textContent)) === opNow.toUpperCase(), opNow);
+await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
+await tap('#b-continue'); await page.waitForTimeout(1200);
 // the results carry the version
 await ev(() => { const m = window.__game.mission; m.finish('defeat'); });
 await page.waitForTimeout(4200);
-check('the mission result shows the version', /0\.17\.0/.test(await ev(() => document.getElementById('ver-d').textContent)) && await page.isVisible('#ver-d'));
+check('the mission result shows the version', /0\.17\.\d/.test(await ev(() => document.getElementById('ver-d').textContent)) && await page.isVisible('#ver-d'));
 await shot('debrief');
 
 console.log('errors:', errs.length ? '\n' + errs.join('\n') : 'none');

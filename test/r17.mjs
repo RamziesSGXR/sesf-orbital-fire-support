@@ -30,7 +30,7 @@ function troops(m, n, sq = 0, x = m.hx + 10, y = m.hy + 6) {
 
 // ---------------------------------------------------------------- the meta: Discord, version
 check('feedback goes to the SESF Helldivers Discord', C.share.feedbackUrl === 'https://discord.com/invite/qruRY4nkEz', C.share.feedbackUrl);
-check('the version is 0.17.0', C.share.version === '0.17.0', C.share.version);
+check('the version is 0.17.x', /^0\.17\.\d+$/.test(C.share.version), C.share.version);
 
 // ---------------------------------------------------------------- Combat Engineers
 {

@@ -93,7 +93,7 @@ On the higher difficulty levels the Helldivers can't win this alone. Left to the
 
 **Screen layout on a computer:** the INFO, ARMORY, TACTICAL and MENU buttons, speed and pause are at the top left, with one feed of news under them: supply requests, the super heavy and requests for more time first, then the radio and the notices. The mission clock, number and difficulty are at the top right, with the current objective just below. The Helldivers (health, ship names, stratagems and what each one is doing) and the SEAF squads with their orders are at the bottom left, and the round minimap is at the bottom right. The minimap is twice as big as it was; **Settings > Minimap size** changes it.
 
-Every panel closes with its ✕ button or `Esc`. On a phone, the squad panel stays open until you close it with its ✕ or tap the map. In **Settings** you can make the in-mission controls bigger or smaller (**UI size**), move the info cards (side or top) or turn them off. **CONTROLS** and the **FIELD MANUAL** (everything you can do, with tips) are in the menu (on the briefing too, through its **MENU** button) and the armory. The briefing's **CANCEL** goes back to the armory; the same mission waits for you when you deploy again.
+Every panel closes with its ✕ button or `Esc`. On a phone, the squad panel stays open until you close it with its ✕ or tap the map. In **Settings** you can make the in-mission controls bigger or smaller (**UI size**), move the info cards (side or top) or turn them off. **CONTROLS**, the **FIELD MANUAL** (everything you can do, with tips), **SQUAD NAMES** and **SETTINGS** are in the menu, which the armory and the briefing open with their **MENU** buttons too. The armory's **BACK** goes to the title screen, where you can change the difficulty before you lock in. The briefing's **CANCEL** goes back to the armory; the same mission waits for you when you deploy again.
 
 ## Missions
 
@@ -158,6 +158,8 @@ The percentages compare each level with level 10. "Enemies" covers everything th
 ## How a session works
 
 Missions follow one another until one fails. A mission fails when **all 20 Helldiver lives are lost before the primary objective is done**, or the clock runs out before it is done. Retiring from the pause menu always fails the mission, even with the objective done, so you can't skip ahead by leaving early. Otherwise, once the primary objective is done, the mission counts whatever happens next.
+
+**Leave for the main menu.** **MAIN MENU** in the pause menu (tap it twice in a mission) goes back to the title screen. The mission you were on doesn't count: your session goes back to how it was at the drop, and **RESUME** brings you back to the same mission.
 
 **Retry a mission.** Every debrief has a **RETRY MISSION** button (tap it twice). It flies the same mission again: same map, same enemy, same bases and targets, same time of day. Your credits, upgrades, score and session time go back to what they were when you dropped. Use it after a failed mission to keep the session alive, or after a good one to go for a better score. A retry replaces the result you just got. If you don't retry a failed mission, the session ends.
 

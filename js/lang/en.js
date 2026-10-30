@@ -1290,7 +1290,10 @@ export default {
   'set.tacHint': 'Pause the game while it is open, or only slow it down.',
   'set.tacPause': 'Pause',
   'set.tacSlow': 'Slow down',
-  'kit.seaf.build': 'COMBAT ENGINEERS',
+  'kit.seaf.build': 'Combat Engineers',
   'kit.seaf.build.b': 'SEAF put up what they build faster: each level adds a quarter more speed.',
   'st.seafBuild': 'Build speed ×{x}',
+  // ---------- 0.17.1: the main menu from the pause menu ----------
+  'pause.home': 'MAIN MENU',
+  'pause.homeConfirm': 'Back to the main menu? This mission will not count: your session goes back to how it was at the drop, and the same mission waits for you when you resume. Tap again to confirm.',
 }

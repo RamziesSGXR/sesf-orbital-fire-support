@@ -1143,10 +1143,10 @@ body.touch.tac-open #tray { display: flex !important; left: max(6px, env(safe-ar
 .sp-s { margin-top: 3px; color: var(--g-dim); white-space: nowrap; } .sp-s em { font-style: normal; color: var(--amber); }
 body.touch #selpop .dr { width: 36px; height: 36px; }
 
-/* the pause menu opened from the briefing: only what makes sense before the drop */
+/* the pause menu opened from the armory or the briefing: only what makes sense before the drop */
 #s-pause .brief-only { display: none; }
-#s-pause.brief .play-only { display: none !important; }
-#s-pause.brief .brief-only { display: inline; }
+#s-pause.out .play-only { display: none !important; }
+#s-pause.out .brief-only { display: inline; }
 /* (0.17: SELECT and TACTICAL left these rows) */
 #squads { grid-template-columns: repeat(5, minmax(0, 1.1fr)) repeat(4, minmax(0, 1fr)); }
 #tray #orders { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; }
