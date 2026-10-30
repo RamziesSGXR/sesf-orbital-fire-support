@@ -37,7 +37,7 @@ if (await page.isVisible('#btn-notice')) { await tap('#btn-notice'); await page.
 check('PLAY shows the difficulty lock-in first', await on('s-lock') && (await ev(() => window.__game.state)) === 'title');
 const lk = await ev(() => ({ lv: document.getElementById('lock-level').textContent, name: document.getElementById('lock-name').textContent, rules: [...document.querySelectorAll('#lock-rules li')].map((l) => l.textContent), go: document.getElementById('btn-lock').textContent, big: getComputedStyle(document.getElementById('lock-level')).fontSize }));
 check('it shows the level big, with its name', lk.lv === '7' && lk.name.length > 2 && parseFloat(lk.big) >= 50, `${lk.lv} ${lk.name} ${lk.big}`);
-check('and how a session ends (lives, failing, retry, objective done)', lk.rules.length === 4 && /12 lives/.test(lk.rules[0]) && /fails/.test(lk.rules[1]) && /retry/.test(lk.rules[2]) && /objective/.test(lk.rules[3]), lk.rules[1]);
+check('and how a session ends (lives, failing, retry, objective done)', lk.rules.length === 4 && /20 lives/.test(lk.rules[0]) && /fails/.test(lk.rules[1]) && /retry/.test(lk.rules[2]) && /objective/.test(lk.rules[3]), lk.rules[1]);
 check('the button says what it locks in', /LOCK IN LEVEL 7/.test(lk.go), lk.go);
 await shot('lock');
 await tap('#btn-lock-change'); await page.waitForTimeout(400);
@@ -55,7 +55,7 @@ check('no Helldiver lives upgrade in the armory', !/Reinforcement Budget|Helldiv
 await tap('#shop-go'); await page.waitForTimeout(500);
 await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
 const fail = await ev(() => document.getElementById('r-fail').textContent), lockc = await ev(() => document.querySelector('#r-diff .lockchip')?.textContent || '');
-check('the brief says when the mission fails', /FAIL IF/.test(fail) && /12 Helldiver lives/.test(fail) && /primary objective/.test(fail), fail);
+check('the brief says when the mission fails', /FAIL IF/.test(fail) && /20 Helldiver lives/.test(fail) && /primary objective/.test(fail), fail);
 check('and that the level is locked', /LOCKED/.test(lockc));
 check('no RETRY tag on a first try', !(await page.isVisible('#b-again')));
 await shot('brief');
@@ -174,7 +174,7 @@ await tap('#btn-continue'); await page.waitForTimeout(500);
 check('NEXT MISSION goes to the armory for mission 2', (await ev(() => window.__game.state)) === 'shop' && /2/.test(await ev(() => document.getElementById('shop-go').textContent)));
 // lives are full again next mission
 await tap('#shop-go'); await page.waitForTimeout(500); await toPlay();
-check('mission 2 starts with a full set of lives', (await ev(() => window.__game.mission.hd.lives)) === 12);
+check('mission 2 starts with a full set of lives', (await ev(() => window.__game.mission.hd.lives)) === 20);
 
 console.log('errors:', errs.length ? '\n' + errs.join('\n') : 'none');
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
