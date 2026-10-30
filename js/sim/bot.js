@@ -24,12 +24,12 @@ export const NOVICE = { aimNoise: 9, react: 2.5, gun: 0.5, orders: 6, supply: 6,
 // the luxuries.
 const PLAN = [
   'up:orb_120', 'up:orb_precision', 'up:orb_airburst', 'up:orb_120',
-  'slot:4', 'own:util_med', 'uav', 'gun.ammo', 'up:orb_precision', 'sup.lives', 'seaf.medic', 'gun.dmg', 'up:orb_120', 'seaf.hp',
-  'gun.ammo', 'uav', 'up:orb_airburst', 'sup.lives', 'seaf.drop', 'gun.regen',
-  'own:orb_rail', 'up:orb_precision', 'seaf.spot', 'gun.dmg', 'up:util_med', 'up:orb_120', 'sup.lives', 'seaf.hp', 'gun.ammo', 'uav', 'sup.zone',
-  'slot:5', 'own:orb_380', 'up:orb_rail', 'seaf.rocket', 'gun.spread', 'up:orb_380', 'seaf.medic', 'gun.regen', 'sup.lives', 'up:orb_precision',
+  'slot:4', 'own:util_med', 'uav', 'gun.ammo', 'up:orb_precision', 'seaf.medic', 'gun.dmg', 'up:orb_120', 'seaf.hp',
+  'gun.ammo', 'uav', 'up:orb_airburst', 'seaf.drop', 'gun.regen',
+  'own:orb_rail', 'up:orb_precision', 'seaf.spot', 'gun.dmg', 'up:util_med', 'up:orb_120', 'seaf.hp', 'gun.ammo', 'uav', 'sup.zone',
+  'slot:5', 'own:orb_380', 'up:orb_rail', 'seaf.rocket', 'gun.spread', 'up:orb_380', 'seaf.medic', 'gun.regen', 'up:orb_precision',
   'seaf.gren', 'seaf.cap', 'up:orb_rail', 'up:orb_380', 'gun.dmg', 'uav', 'seaf.hp', 'up:util_med', 'seaf.drop', 'sup.zone', 'gun.ammo',
-  'own:orb_laser', 'up:orb_laser', 'up:orb_rail', 'seaf.spot', 'seaf.medic', 'gun.spread', 'up:orb_380', 'up:orb_laser', 'sup.lives', 'seaf.rocket',
+  'own:orb_laser', 'up:orb_laser', 'up:orb_rail', 'seaf.spot', 'seaf.medic', 'gun.spread', 'up:orb_380', 'up:orb_laser', 'seaf.rocket',
   'gun.regen', 'seaf.cap', 'up:orb_laser', 'up:util_med', 'seaf.gren', 'sup.zone', 'gun.dmg', 'gun.spread', 'seaf.hp', 'seaf.drop',
 ];
 // What a new orbital pushes out of a full loadout, first found first.

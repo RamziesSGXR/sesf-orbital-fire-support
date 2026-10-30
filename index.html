@@ -106,6 +106,14 @@
     <div id="touch-ctl">
       <button id="fire-btn" class="btn fire" data-t="hud.call">CALL</button>
     </div>
+    <div id="softpause" class="hidden" role="status">
+      <div class="sp-frame"></div>
+      <div class="sp-bar panel">
+        <b data-t="soft.title">PAUSED</b><span class="sp-hint" data-t="soft.hint">Look around: pan, zoom, open the map</span>
+        <button id="sp-resume" class="btn primary" type="button"><span data-t="soft.resume">RESUME</span> <kbd>P</kbd></button>
+        <button id="sp-menu" class="btn" type="button"><span data-t="soft.menu">PAUSE MENU</span> <kbd>ESC</kbd></button>
+      </div>
+    </div>
     <div id="center-msg"></div>
     <div id="toast"></div>
   </div>
@@ -154,12 +162,13 @@
     <div id="b-card" class="card wide2">
       <div class="b-cols">
         <div class="b-left">
-          <div class="eyebrow"><span data-t="brief.mission">Mission</span> <span id="r-n">1</span></div>
+          <div class="eyebrow"><span data-t="brief.mission">Mission</span> <span id="r-n">1</span> <span id="b-again" class="again hidden" data-t="brief.again">RETRY: SAME MAP</span></div>
           <div id="r-op" class="r-line big"></div>
           <div id="r-enemy" class="r-line"></div>
           <div id="r-biome" class="r-line"></div>
           <div id="r-obj" class="r-line"></div>
           <div id="r-diff" class="r-line"></div>
+          <div id="r-fail" class="r-line fail"></div>
           <div id="b-strats"></div>
           <div id="b-strat-note" class="fine"></div>
           <div class="progress"><i id="b-prog"></i></div>
@@ -194,7 +203,15 @@
       <div id="d-extra" class="fine"></div>
       <div class="d-total"><span data-t="deb.mscore">MISSION SCORE</span> <b id="d-mscore">0</b></div>
       <div class="d-total"><span data-t="deb.sscore">SESSION TOTAL</span> <b id="d-sscore">0</b></div>
-      <div class="btns"><button id="btn-continue" class="btn primary big"></button><button id="btn-end-d" class="btn" data-t="ui.endSession">END SESSION</button></div>
+      <div class="btns"><button id="btn-continue" class="btn primary big"></button><button id="btn-retry" class="btn retry" type="button"></button><button id="btn-end-d" class="btn" data-t="ui.endSession">END SESSION</button></div>
+      <p id="d-retry-note" class="fine retry-note"></p>
+      <div class="d-copy">
+        <h3 data-t="deb.copyTitle">SESSION SCORE SO FAR</h3>
+        <p class="fine" data-t="deb.copyNote"></p>
+        <textarea id="d-text" readonly rows="8" spellcheck="false" data-ta="deb.copyTitle"></textarea>
+        <div class="btns"><button id="btn-copy-d" class="btn" type="button" data-t="deb.copy">COPY SCORE</button></div>
+        <p id="d-msg" class="fine"></p>
+      </div>
     </div>
   </section>
 
@@ -308,6 +325,20 @@
         <a id="lnk-proj" class="btn" target="_blank" rel="noopener" data-t="about.project">PROJECT PAGE</a>
         <button id="about-close" class="btn" data-t="ui.closeBtn">CLOSE</button>
       </div>
+    </div>
+  </section>
+
+  <section id="s-lock" class="screen overlay">
+    <div class="card lockcard">
+      <button class="x-close" data-close="s-lock" data-ta="lock.change">✕</button>
+      <div class="eyebrow" data-t="lock.eyebrow">New session</div>
+      <h2 data-t="lock.title">DIFFICULTY LOCKED IN</h2>
+      <div class="lock-big"><b id="lock-level">7</b><span id="lock-name"></span></div>
+      <div id="lock-pay" class="lock-pay"></div>
+      <p class="lock-stay" data-t="lock.stay"></p>
+      <h3 data-t="lock.howEnds">HOW A SESSION ENDS</h3>
+      <ul id="lock-rules" class="lock-rules"></ul>
+      <div class="btns"><button id="btn-lock" class="btn primary big" type="button"></button><button id="btn-lock-change" class="btn" type="button" data-t="lock.change">CHANGE DIFFICULTY</button></div>
     </div>
   </section>
 

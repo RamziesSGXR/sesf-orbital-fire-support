@@ -3,7 +3,7 @@
 // so what you buy and earn carries from mission to mission.
 import { ADJECTIVES, NOUNS, FACTIONS, BIOMES } from './data/data.js';
 import { tEn } from './i18n.js';
-import { newKit, newWallet, fixKit } from './data/kit.js';
+import { newKit, newWallet, fixKit, refundLives } from './data/kit.js';
 import { CONFIG as C } from './config.js';
 import { clampLevel, LEVELS } from './difficulty.js';
 
@@ -59,12 +59,16 @@ export function fixSession(s) {
   if (!s || typeof s !== 'object') return null;
   s.kit = fixKit(s.kit);
   s.wallet = { ...newWallet(), ...(s.wallet || {}) };
+  refundLives(s.kit, s.wallet);
   s.names = getNames();
   s.missions = Array.isArray(s.missions) ? s.missions : [];
   s.difficulty = clampLevel(s.difficulty ?? LEVELS);      // sessions saved before there were levels were played at the top one
   return s;
 }
 export function sessionMinutes(s) { return s.seconds / 60; }
+// The outcomes that let the session go on to the next mission: extracted, or the primary objective done even though the squad
+// did not make it out. Anything else (defeat, time up before the objective, retired) is a failed mission.
+export const carriesOn = (outcome) => outcome === 'victory' || outcome === 'complete';
 
 export function recordMission(s, info, result) {
   const c = result.credits;
@@ -90,7 +94,7 @@ export const fmtNum = (n) => Math.round(n).toLocaleString('en-US');
 
 export function finalise(s, endedAt = new Date()) {
   const id = sessionId(endedAt);
-  const w = s.missions.filter((m) => m.outcome === 'victory').length;
+  const w = s.missions.filter((m) => carriesOn(m.outcome)).length;
   const rec = { id, score: s.score, callsign: s.callsign || 'ANON', missions: s.missions.length, wins: w, seconds: Math.round(s.seconds), at: endedAt.toISOString(), difficulty: s.difficulty || LEVELS };
   const hist = load('history', []);
   const best = hist.reduce((a, h) => Math.max(a, h.score), 0);
@@ -106,15 +110,18 @@ export function sessionTotals(s) {
   return t;
 }
 
+// The block players paste into the community channel. fin: the finished session (finalise). With no fin it is the session so far,
+// for the copy button after each mission: the session goes on and its final ID is not known yet.
 export function scoreBlock(s, fin) {
-  const lines = [], t = sessionTotals(s);
+  const lines = [], t = sessionTotals(s), live = !fin;
+  const wins = live ? s.missions.filter((m) => carriesOn(m.outcome)).length : fin.wins;
   lines.push('ORBITAL FIRE SUPPORT | SUPER EARTH SPECIAL FORCES');
-  lines.push(`SESSION ${fin.id}`);
-  lines.push(`CALLSIGN ${fin.callsign}`);
+  lines.push(live ? `SESSION IN PROGRESS | STARTED ${sessionId(new Date(s.startedAt || Date.now()))}` : `SESSION ${fin.id}`);
+  lines.push(`CALLSIGN ${live ? s.callsign || 'ANON' : fin.callsign}`);
   const dl = s.difficulty || LEVELS;
   lines.push(`DIFFICULTY ${dl} ${tEn('diff.' + dl).toUpperCase()}`);
-  lines.push(`FINAL SCORE ${fmtNum(s.score)}`);
-  lines.push(`MISSIONS ${s.missions.length} (${fin.wins} won) | TIME ${fmtTime(s.seconds)}`);
+  lines.push(`${live ? `SCORE AFTER MISSION ${s.missions.length}` : 'FINAL SCORE'} ${fmtNum(s.score)}`);
+  lines.push(`MISSIONS ${s.missions.length} (${wins} won) | TIME ${fmtTime(s.seconds)}`);
   lines.push(`CREDITS EARNED ${fmtNum(t.earned)} | SPENT ${fmtNum(t.spent)}`);
   lines.push(`KILLS ${fmtNum(t.kills)} | HELLDIVERS LOST ${t.lostH} | SEAF LOST ${t.lostS}`);
   lines.push('---');

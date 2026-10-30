@@ -78,6 +78,7 @@ export const COMMS = {
   get noCoverage() { return t('c.noCoverage'); },
   get victory() { return t('c.victory'); },
   get defeat() { return t('c.defeat'); },
+  get complete() { return t('c.complete'); },
   get timeout() { return t('c.timeout'); },
   get hdWipe() { return t('c.hdWipe'); },
   get uavUp() { return t('c.uavUp'); },

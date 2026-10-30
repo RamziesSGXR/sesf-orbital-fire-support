@@ -23,6 +23,7 @@ await page.screenshot({ path: out('1-title') });
 await page.click('#btn-play');
 await page.waitForTimeout(200);
 if (await page.isVisible('#btn-notice')) { await page.click('#btn-notice'); }
+await page.waitForTimeout(250); if (await page.isVisible('#btn-lock')) await page.click('#btn-lock');   // 0.13: the difficulty lock-in
 await page.waitForTimeout(400);
 console.log('state after play:', await page.evaluate(() => window.__game.state));
 await page.screenshot({ path: out('2-shop') });

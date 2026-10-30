@@ -240,11 +240,12 @@ export default {
     + '<div class="sub">Despliegues y órdenes caen bajo el cursor, o haz clic en una orden y luego en el mapa. Haz clic en un agujero de bichos o en un objetivo para mandar a los SEAF. Una baliza de DESPLIEGUE SEAF encendida acepta un despliegue en cualquier punto del mapa.</div>'
     + '<div><kbd>TAB</kbd> siguiente escuadra <kbd>`</kbd> todas <kbd>R</kbd> trazar una maniobra <kbd>F</kbd> dividir <kbd>M</kbd> unir <kbd>Y</kbd> asignar</div>'
     + '<div class="sub">Modo trazo: arrastra sobre el mapa. Un bucle es un círculo, un trazo recto una línea, lo demás una ruta.</div>'
-    + '<div><kbd>B</kbd> arsenal <kbd>ESC</kbd> pausa</div>'
+    + '<div><kbd>B</kbd> arsenal <kbd>P</kbd> pausa para mirar <kbd>ESC</kbd> menú</div>'
     + '<div><kbd>WASD</kbd> o arrastre con clic derecho: desplazar <kbd>RUEDA</kbd> zoom <kbd>ESPACIO</kbd> cámara fija <kbd>T</kbd> térmica <kbd>H</kbd> relieve <kbd>I</kbd> info de misión</div>'
     + '<div><kbd>L</kbd> o el minimapa: mapa táctico <kbd>U</kbd> responder a los suministros <kbd>J</kbd> ver el último aviso <kbd>K</kbd> aprobar más tiempo</div>'
     + '<div class="sub">Doble clic en un Helldiver o una escuadra SEAF de las barras para llevar la cámara hasta ellos. Flechas en el borde de la pantalla señalan a cada equipo.</div>',
   'ctl.touch': '<div><kbd>ARRASTRAR</kbd> mover el mapa bajo la mira</div>'
+    + '<div><kbd>II</kbd> pausa para mirar alrededor. MENÚ DE PAUSA está en la barra de pausa.</div>'
     + '<div><kbd>PELLIZCAR</kbd> zoom <kbd>MINIMAPA</kbd> mapa táctico</div>'
     + '<div><kbd>CARGAR</kbd> responder a los suministros <kbd>VER</kbd> ver un aviso</div>'
     + '<div><kbd>LLAMAR</kbd> lanzar el escaneo o ataque elegido bajo la mira</div>'
@@ -296,7 +297,6 @@ export default {
   'kit.gun.ammo': 'Bodega de munición', 'kit.gun.ammo.b': '+{n} proyectiles en el cargador.',
   'kit.gun.regen': 'Sintetizador de munición', 'kit.gun.regen.b': 'El cargador se rellena más rápido.',
   'kit.gun.spread': 'Estabilizadores', 'kit.gun.spread.b': 'Los proyectiles caen más agrupados.',
-  'kit.sup.lives': 'Presupuesto de refuerzos', 'kit.sup.lives.b': '+{n} vidas de Helldiver por nivel.',
   'kit.sup.zone': 'Alcance de la zona de ataque', 'kit.sup.zone.b': 'Ataques y despliegues llegan {n} m más lejos del escuadrón por nivel.',
   // las cifras bajo cada artículo
   'st.recharge': 'RECARGA {n}S',
@@ -320,7 +320,6 @@ export default {
   'st.gunAmmo': 'CARGADOR DE {n}',
   'st.gunRegen': 'RELLENA {n} POR SEGUNDO',
   'st.gunSpread': 'DISPERSIÓN {a}M, HASTA {b}M EN RÁFAGA',
-  'st.lives': '{n} VIDAS DE HELLDIVER POR MISIÓN',
   'st.zoneR': 'ZONA DE ATAQUE {n}M MÁS ALLÁ DE LA VISTA',
 
   // ---------- nombres del escuadrón ----------
@@ -338,9 +337,9 @@ export default {
   // ---------- resumen ----------
   'out.victory': 'VICTORIA', 'out.defeat': 'DERROTA', 'out.timeout': 'TIEMPO AGOTADO', 'out.retired': 'RETIRADA',
   'deb.why.victory': 'Objetivo cumplido y escuadrón extraído. La sesión sigue.',
-  'deb.why.defeat': 'El escuadrón nunca salió. Una misión solo se gana en la extracción.',
-  'deb.why.timeout': 'Se acabó el tiempo antes de que el escuadrón saliera.',
-  'deb.why.retired': 'Retiraste al escuadrón. La sesión termina aquí.',
+  'deb.why.defeat': 'Se perdieron todas las vidas de Helldiver antes de cumplir el objetivo principal. La misión fracasó.',
+  'deb.why.timeout': 'Se acabó el tiempo antes de cumplir el objetivo principal. La misión fracasó.',
+  'deb.why.retired': 'Retiraste al escuadrón antes de cumplir el objetivo. La misión fracasó.',
   'deb.deaths': 'INFORME DE BAJAS',
   'deb.none': 'Ninguna baja. Súper Tierra está satisfecha.',
   'deb.more': '+{n} más',
@@ -404,7 +403,7 @@ export default {
   'pause.resume': 'REANUDAR',
   'pause.retire': 'ABANDONAR LA MISIÓN',
   'pause.fbNote': 'OPINIÓN abre GitHub en una pestaña nueva. El juego sigue en pausa.',
-  'pause.confirm': 'Abandonar termina la sesión. Toca otra vez para confirmar.',
+  'pause.confirm': 'Abandonar antes de cumplir el objetivo principal hace fracasar la misión. Toca otra vez para confirmar.',
   'set.close': 'Cerrar los ajustes',
   'set.done': 'LISTO',
   'set.on': 'SÍ',
@@ -535,7 +534,7 @@ export default {
   'info.supply': 'PETICIONES DE SUMINISTROS',
   'info.supplyV': 'Cuando a los Helldivers les faltan estims o granadas, te piden suministros. Pulsa CARGAR (o U) y el tiempo se ralentiza mientras cargas: toca cada compartimento hasta llenarlo. Lo que cargas es lo que reciben, y una cápsula llena en menos de {f} segundos enardece al escuadrón durante {b} segundos. Si la rechazas, se apañan; vuelven a pedir al cabo de un minuto.',
   'info.fail': 'FRACASO',
-  'info.failV': 'Una misión se gana en la extracción: objetivo cumplido y al menos un Helldiver a bordo del Pelican. Fracasa si el reloj de {n} minutos se acaba antes, o si se gastan todas las vidas de Helldiver (los SEAF no pueden terminar el trabajo por ellos). Una misión fallida termina la sesión.',
+  'info.failV': 'Una misión se gana en la extracción: objetivo cumplido y al menos un Helldiver a bordo del Pelican. Con el objetivo principal cumplido, la misión cuenta aunque se pierda el escuadrón o se acabe el tiempo, sin la paga de extracción. Fracasa si el reloj de {n} minutos se acaba o se gastan todas las vidas de Helldiver antes de cumplir el objetivo. Una misión fallida termina la sesión, salvo que la reintentes.',
   // ---------- rechazos (una línea corta sobre la barra de armas) ----------
   'deny.nocoverage': 'SIN COBERTURA. MANTENLO EN LA ZONA DE ATAQUE',
   'deny.cooldown': 'RECARGANDO',
@@ -1015,4 +1014,36 @@ export default {
   "info.uavBuffV": "Los aliados bajo un dron activo se mueven más rápido y esquivan más a menudo. El SEAF también puede esquivar, mucho menos que los Helldivers. Dos mejoras de la armería aumentan este apoyo.",
   "info.time": "Más tiempo",
   "info.timeV": "Cumplido el objetivo, un escuadrón con refuerzos de sobra puede pedir unos minutos más para limpiar todo el mapa. Cuesta créditos. Pulsa <kbd>K</kbd> o APROBAR para aceptar. Si no respondes, la respuesta es no.",
+  // ---------- 0.13: soft pause, difficulty lock-in, retry, score so far ----------
+  'soft.title': 'PAUSA',
+  'soft.hint': 'Mira alrededor: mueve, haz zoom, abre el mapa',
+  'soft.resume': 'REANUDAR',
+  'soft.menu': 'MENÚ DE PAUSA',
+  'brief.locked': 'FIJADA PARA ESTA SESIÓN',
+  'brief.fail': 'FRACASA SI',
+  'brief.failIf': 'se pierden las {n} vidas de Helldiver antes de cumplir el objetivo principal',
+  'brief.again': 'REINTENTO: MISMO MAPA',
+  'title.diffLock': 'Queda fijada para toda la sesión.',
+  'deb.retry': 'REINTENTAR MISIÓN',
+  'deb.retryConfirm': 'TOCA OTRA VEZ PARA REINTENTAR',
+  'deb.retryNoteWin': 'REINTENTAR MISIÓN vuelve a jugar esta misión en el mismo mapa. Este resultado se descarta y tus créditos vuelven a {n}, lo que tenías al desplegar.',
+  'deb.retryNoteFail': 'REINTENTAR MISIÓN vuelve a jugar esta misión en el mismo mapa, con tus créditos de nuevo en {n}. Si no, la sesión termina aquí.',
+  'deb.copyTitle': 'PUNTUACIÓN DE LA SESIÓN HASTA AHORA',
+  'deb.copyNote': 'Lista para pegar en el canal de la comunidad. Copiarla no termina la sesión.',
+  'deb.copy': 'COPIAR PUNTUACIÓN',
+  'lock.eyebrow': 'Nueva sesión',
+  'lock.title': 'DIFICULTAD FIJADA',
+  'lock.pay': 'CRÉDITOS Y PUNTUACIÓN ×{x}',
+  'lock.stay': 'Este nivel se mantiene durante toda la sesión. Para jugar en otro nivel, termina la sesión y empieza una nueva.',
+  'lock.howEnds': 'CÓMO TERMINA UNA SESIÓN',
+  'lock.r1': 'Los Helldivers tienen {n} vidas en cada misión. Las vidas se recuperan en cada despliegue y no se pueden comprar.',
+  'lock.r2': 'Si se pierden las {n} vidas antes de cumplir el objetivo principal, la misión fracasa. También si se acaba el tiempo antes.',
+  'lock.r3': 'Una misión fallida termina la sesión. Puedes reintentarla desde el principio (mismo mapa, créditos devueltos) o terminar la sesión y publicar tu puntuación.',
+  'lock.r4': 'Una vez cumplido el objetivo principal, la misión cuenta aunque el escuadrón no salga. Extrae para cobrar la paga completa.',
+  'lock.go': 'FIJAR NIVEL {n}',
+  'lock.change': 'CAMBIAR DIFICULTAD',
+  'out.complete': 'OBJETIVO CUMPLIDO',
+  'deb.why.complete': 'El objetivo principal se cumplió, pero el escuadrón no fue extraído. La misión cuenta y la sesión sigue, sin la paga de extracción.',
+  'msg.end.complete': 'OBJETIVO CUMPLIDO. SIN EXTRACCIÓN',
+  'c.complete': 'Objetivo asegurado. Sin extracción. El Alto Mando lo cuenta como victoria.',
 };

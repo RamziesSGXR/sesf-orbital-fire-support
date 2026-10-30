@@ -23,6 +23,7 @@ const PAGE = `file://${ROOT}/dist/orbital-fire-support.html?faction=bots&biome=g
 await page.goto(PAGE); await page.waitForTimeout(600);
 await tap('#btn-play'); await page.waitForTimeout(250);
 if (await page.isVisible('#btn-notice')) await tap('#btn-notice');
+await page.waitForTimeout(250); if (await page.isVisible('#btn-lock')) await tap('#btn-lock');   // 0.13: the difficulty lock-in
 await page.waitForTimeout(300); await tap('#shop-go'); await page.waitForTimeout(500);
 await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
 await tap('#b-continue'); await page.waitForTimeout(1500);

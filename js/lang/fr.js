@@ -240,11 +240,12 @@ export default {
     + '<div class="sub">Largages et ordres tombent sous le curseur, ou cliquez un ordre puis la carte. Cliquez un trou d’insectes ou une cible pour y envoyer les SEAF. Une balise LARGAGE SEAF allumée accepte un largage n’importe où sur la carte.</div>'
     + '<div><kbd>TAB</kbd> escouade suivante <kbd>`</kbd> toutes <kbd>R</kbd> tracer une manœuvre <kbd>F</kbd> diviser <kbd>M</kbd> fusionner <kbd>Y</kbd> affecter</div>'
     + '<div class="sub">Mode tracé : glissez sur la carte. Une boucle fait un cercle, un trait droit une ligne, le reste un itinéraire.</div>'
-    + '<div><kbd>B</kbd> armurerie <kbd>ÉCHAP</kbd> pause</div>'
+    + '<div><kbd>B</kbd> armurerie <kbd>P</kbd> pause pour regarder <kbd>ÉCHAP</kbd> menu</div>'
     + '<div><kbd>ZQSD</kbd>/<kbd>WASD</kbd> ou clic droit glissé : déplacer <kbd>MOLETTE</kbd> zoom <kbd>ESPACE</kbd> caméra fixe <kbd>T</kbd> thermique <kbd>H</kbd> relief <kbd>I</kbd> infos mission</div>'
     + '<div><kbd>L</kbd> ou la mini-carte : carte tactique <kbd>U</kbd> répondre au ravitaillement <kbd>J</kbd> voir la dernière alerte <kbd>K</kbd> accorder du temps</div>'
     + '<div class="sub">Double-cliquez un Helldiver ou une escouade SEAF sur les barres pour y amener la caméra. Des flèches au bord de l’écran montrent chaque équipe.</div>',
   'ctl.touch': '<div><kbd>GLISSER</kbd> faire défiler la carte sous le viseur</div>'
+    + '<div><kbd>II</kbd> pause pour regarder autour. MENU PAUSE est sur la bande de pause.</div>'
     + '<div><kbd>PINCER</kbd> zoom <kbd>MINI-CARTE</kbd> carte tactique</div>'
     + '<div><kbd>CHARGER</kbd> répondre au ravitaillement <kbd>VOIR</kbd> voir une alerte</div>'
     + '<div><kbd>APPEL</kbd> lancer le scan ou la frappe choisis sous le viseur</div>'
@@ -296,7 +297,6 @@ export default {
   'kit.gun.ammo': 'Soute à munitions', 'kit.gun.ammo.b': '+{n} obus dans le chargeur.',
   'kit.gun.regen': 'Synthétiseur de munitions', 'kit.gun.regen.b': 'Le chargeur se remplit plus vite.',
   'kit.gun.spread': 'Stabilisateurs', 'kit.gun.spread.b': 'Les obus tombent plus groupés.',
-  'kit.sup.lives': 'Budget de renforts', 'kit.sup.lives.b': '+{n} vies de Helldiver par niveau.',
   'kit.sup.zone': 'Portée de la zone de frappe', 'kit.sup.zone.b': 'Frappes et largages portent {n} m plus loin de l’escouade par niveau.',
   // les chiffres sous chaque article
   'st.recharge': 'RECHARGE {n}S',
@@ -320,7 +320,6 @@ export default {
   'st.gunAmmo': 'CHARGEUR DE {n} OBUS',
   'st.gunRegen': 'RECHARGE {n} OBUS PAR SECONDE',
   'st.gunSpread': 'DISPERSION {a}M, JUSQU’À {b}M EN RAFALE',
-  'st.lives': '{n} VIES DE HELLDIVER PAR MISSION',
   'st.zoneR': 'ZONE DE FRAPPE {n}M AU-DELÀ DE LA VUE',
 
   // ---------- noms de l’escouade ----------
@@ -338,9 +337,9 @@ export default {
   // ---------- compte rendu ----------
   'out.victory': 'VICTOIRE', 'out.defeat': 'DÉFAITE', 'out.timeout': 'TEMPS ÉCOULÉ', 'out.retired': 'RETRAITE',
   'deb.why.victory': 'Objectif accompli, escouade extraite. La session continue.',
-  'deb.why.defeat': 'L’escouade n’est jamais sortie. Une mission ne se gagne qu’à l’extraction.',
-  'deb.why.timeout': 'Le temps s’est écoulé avant que l’escouade ne sorte.',
-  'deb.why.retired': 'Vous avez retiré l’escouade. La session s’arrête ici.',
+  'deb.why.defeat': 'Toutes les vies de Helldiver ont été perdues avant que l’objectif principal soit accompli. La mission a échoué.',
+  'deb.why.timeout': 'Le temps s’est écoulé avant que l’objectif principal soit accompli. La mission a échoué.',
+  'deb.why.retired': 'Vous avez retiré l’escouade avant que l’objectif soit accompli. La mission a échoué.',
   'deb.deaths': 'RAPPORT DES PERTES',
   'deb.none': 'Aucune perte. La Super Terre est satisfaite.',
   'deb.more': '+{n} autres',
@@ -404,7 +403,7 @@ export default {
   'pause.resume': 'REPRENDRE',
   'pause.retire': 'QUITTER LA MISSION',
   'pause.fbNote': 'AVIS ouvre GitHub dans un nouvel onglet. Le jeu reste en pause.',
-  'pause.confirm': 'Quitter met fin à la session. Touchez encore pour confirmer.',
+  'pause.confirm': 'Quitter avant que l’objectif principal soit accompli fait échouer la mission. Touchez encore pour confirmer.',
   'set.close': 'Fermer les réglages',
   'set.done': 'OK',
   'set.on': 'OUI',
@@ -535,7 +534,7 @@ export default {
   'info.supply': 'DEMANDES DE RAVITAILLEMENT',
   'info.supplyV': 'Quand les Helldivers manquent de stims ou de grenades, ils vous demandent un ravitaillement. Appuyez sur CHARGER (ou U) et le temps ralentit pendant le chargement : touchez chaque compartiment jusqu’à ce qu’il soit plein. Ce que vous chargez, ils le reçoivent, et une capsule remplie en moins de {f} secondes galvanise l’escouade pendant {b} secondes. Refusez et ils se débrouillent ; ils redemandent au bout d’une minute.',
   'info.fail': 'ÉCHEC',
-  'info.failV': 'Une mission se gagne à l’extraction : objectif accompli et au moins un Helldiver à bord du Pelican. Elle échoue si le chrono de {n} minutes s’écoule avant, ou si toutes les vies de Helldiver sont épuisées (les SEAF ne peuvent pas finir le travail à leur place). Une mission ratée met fin à la session.',
+  'info.failV': 'Une mission se gagne à l’extraction : objectif accompli et au moins un Helldiver à bord du Pelican. Une fois l’objectif principal accompli, la mission compte même si l’escouade est perdue ou si le temps s’écoule, sans la paie d’extraction. Elle échoue si le chrono de {n} minutes s’écoule ou si toutes les vies de Helldiver sont épuisées avant que l’objectif soit accompli. Une mission ratée met fin à la session, sauf si vous la rejouez.',
   // ---------- refus (une courte ligne au-dessus de la barre d’armes) ----------
   'deny.nocoverage': 'HORS COUVERTURE. RESTEZ DANS LA ZONE DE FRAPPE',
   'deny.cooldown': 'EN RECHARGE',
@@ -1015,4 +1014,36 @@ export default {
   "info.uavBuffV": "Les alliés sous un drone actif se déplacent plus vite et esquivent plus souvent. Le SEAF peut aussi esquiver, bien moins souvent que les Helldivers. Deux améliorations de l’armurerie renforcent cet appui.",
   "info.time": "Plus de temps",
   "info.timeV": "Une fois l’objectif rempli, une escouade qui a des renforts en réserve peut demander quelques minutes de plus pour nettoyer toute la carte. Cela coûte des crédits. Appuyez sur <kbd>K</kbd> ou ACCORDER pour dire oui. Sans réponse, c’est non.",
+  // ---------- 0.13: soft pause, difficulty lock-in, retry, score so far ----------
+  'soft.title': 'PAUSE',
+  'soft.hint': 'Regardez autour : déplacez, zoomez, ouvrez la carte',
+  'soft.resume': 'REPRENDRE',
+  'soft.menu': 'MENU PAUSE',
+  'brief.locked': 'FIXÉ POUR CETTE SESSION',
+  'brief.fail': 'ÉCHEC SI',
+  'brief.failIf': 'les {n} vies de Helldiver sont perdues avant que l’objectif principal soit accompli',
+  'brief.again': 'NOUVEL ESSAI : MÊME CARTE',
+  'title.diffLock': 'Il est fixé pour toute la session.',
+  'deb.retry': 'REJOUER LA MISSION',
+  'deb.retryConfirm': 'TOUCHEZ ENCORE POUR REJOUER',
+  'deb.retryNoteWin': 'REJOUER LA MISSION relance cette mission sur la même carte. Ce résultat est effacé et vos crédits reviennent à {n}, ce que vous aviez au largage.',
+  'deb.retryNoteFail': 'REJOUER LA MISSION relance cette mission sur la même carte, avec vos crédits revenus à {n}. Sinon, la session s’arrête ici.',
+  'deb.copyTitle': 'SCORE DE LA SESSION JUSQU’ICI',
+  'deb.copyNote': 'Prêt à coller dans le canal de la communauté. Le copier ne met pas fin à la session.',
+  'deb.copy': 'COPIER LE SCORE',
+  'lock.eyebrow': 'Nouvelle session',
+  'lock.title': 'DIFFICULTÉ FIXÉE',
+  'lock.pay': 'CRÉDITS ET SCORE ×{x}',
+  'lock.stay': 'Ce niveau reste le même pour toute la session. Pour jouer à un autre niveau, terminez la session et lancez-en une nouvelle.',
+  'lock.howEnds': 'COMMENT SE TERMINE UNE SESSION',
+  'lock.r1': 'Les Helldivers ont {n} vies à chaque mission. Les vies sont rétablies à chaque largage et ne s’achètent pas.',
+  'lock.r2': 'Si les {n} vies sont perdues avant que l’objectif principal soit accompli, la mission échoue. De même si le temps s’écoule avant.',
+  'lock.r3': 'Une mission ratée met fin à la session. Vous pouvez la rejouer depuis le début (même carte, crédits rendus), ou terminer la session et publier votre score.',
+  'lock.r4': 'Une fois l’objectif principal accompli, la mission compte même si l’escouade ne sort pas. Extrayez-vous pour la paie complète.',
+  'lock.go': 'FIXER LE NIVEAU {n}',
+  'lock.change': 'CHANGER LA DIFFICULTÉ',
+  'out.complete': 'OBJECTIF ACCOMPLI',
+  'deb.why.complete': 'L’objectif principal est accompli, mais l’escouade n’a pas été extraite. La mission compte et la session continue, sans la paie d’extraction.',
+  'msg.end.complete': 'OBJECTIF ACCOMPLI. PAS D’EXTRACTION',
+  'c.complete': 'Objectif sécurisé. Pas d’extraction. Le Haut Commandement le compte comme une victoire.',
 };

@@ -20,6 +20,7 @@ const ev = (f, a) => page.evaluate(f, a);
 await page.goto(`file://${root}/dist/orbital-fire-support.html?faction=bugs&biome=grass&seed=12&tod=11&objective=nuke`);
 await page.waitForTimeout(500); await page.click('#btn-play'); await page.waitForTimeout(200);
 if (await page.isVisible('#btn-notice')) await page.click('#btn-notice');
+await page.waitForTimeout(250); if (await page.isVisible('#btn-lock')) await page.click('#btn-lock');   // 0.13: the difficulty lock-in
 await page.waitForTimeout(300); await page.click('#shop-go'); await page.waitForTimeout(500);
 await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
 await page.click('#b-continue'); await page.waitForTimeout(6000);

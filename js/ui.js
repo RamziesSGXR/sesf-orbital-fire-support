@@ -1,10 +1,10 @@
 // DOM side: screens, HUD, briefing, armory, names editor, debrief, final screen and settings.
 import { CONFIG as C } from './config.js';
 import { FACTIONS, BIOMES } from './data/data.js';
-import { fmtTime, fmtNum, sessionTotals, MAX_NAME } from './session.js';
+import { fmtTime, fmtNum, sessionTotals, MAX_NAME, carriesOn } from './session.js';
 import { STRATS, CAT_COLOR } from './data/strat.js';
 import { LETTERS, TEAM_COLOR } from './data/names.js';
-import { shopItems, orbStats, uavStats, seafStats, gunStats, maxLives, zoneExtra } from './data/kit.js';
+import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra } from './data/kit.js';
 import { stratReady, stratOnline } from './sim/strat.js';
 import { slotStats } from './sim/player.js';
 import { compass } from './sim/enemies.js';
@@ -17,7 +17,7 @@ import { LEVELS, levelFactors, reward } from './difficulty.js';
 
 const $ = (id) => document.getElementById(id);
 const SCREENS = ['s-title', 's-shop', 's-brief', 's-debrief', 's-final'];
-const OVERLAYS = ['s-pause', 's-armory', 's-names', 's-settings', 's-notice', 's-info', 's-about', 's-map'];
+const OVERLAYS = ['s-pause', 's-lock', 's-armory', 's-names', 's-settings', 's-notice', 's-info', 's-about', 's-map'];
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // The short name of an orbital or utility for the weapon bar and the armory ("120mm HE").
@@ -297,6 +297,21 @@ export class Hud {
     this.setDrawing(false); for (const b of this.sqb) b.key = ''; for (const a of Object.values(this.sqa)) a.key = '';
     this.trayToggle(false); this.menu.classList.add('hidden'); $('hud').classList.remove('strats-open'); document.querySelector('.hud-tl').classList.remove('open'); this.dkKey = '';
     this.wake(5000);
+  }
+  // The soft pause: a frame and a strip saying the game is stopped, and the pause button turns into a play button.
+  setSoft(on) {
+    document.body.classList.toggle('softpaused', !!on);
+    $('softpause').classList.toggle('hidden', !on);
+    const b = $('btn-pause');
+    b.textContent = on ? '▶' : 'II';
+    b.setAttribute('aria-label', t(on ? 'soft.resume' : 'hud.pause'));
+    b.classList.toggle('on', !!on);
+    if (on) this.placeSoft();
+  }
+  // The strip goes just under whatever is across the top (nothing moves while the game is stopped, so once is enough).
+  placeSoft() {
+    const bar = document.querySelector('#softpause .sp-bar');
+    if (bar) bar.style.top = `${Math.round(topBelow() + 8)}px`;
   }
   // Placement mode (desktop): the next click on the map drops or sends.
   setPlacing(kind) {
@@ -656,10 +671,11 @@ export function squadStatus(m) {
 export function setBriefHeader(n, score) { $('b-num').textContent = n; $('b-score').textContent = fmtNum(score); }
 
 // Every mission loads for at least C.ui.minLoadSec, then waits for a click on CONTINUE.
-export function runBriefing({ info, mission, touch, onContinue, onEnd, canEnd, onReveal, pre }) {
+export function runBriefing({ info, mission, touch, onContinue, onEnd, canEnd, onReveal, pre, again }) {
   $('controls-desktop').classList.toggle('hidden', touch);
   $('controls-touch').classList.toggle('hidden', !touch);
-  const lines = ['r-op', 'r-enemy', 'r-biome', 'r-obj', 'r-diff'].map($);
+  const lines = ['r-op', 'r-enemy', 'r-biome', 'r-obj', 'r-diff', 'r-fail'].map($);
+  $('b-again').classList.toggle('hidden', !again);
   lines.forEach((l) => l.classList.remove('show'));
   $('r-n').textContent = mission;
   $('btn-end').classList.toggle('hidden', !canEnd);
@@ -672,7 +688,8 @@ export function runBriefing({ info, mission, touch, onContinue, onEnd, canEnd, o
   $('r-biome').innerHTML = `${t('brief.biome')} <b>${b.name.toUpperCase()}</b> <span style="color:var(--g-dim)">· ${t('brief.area')} ${t('brief.areaVal', { n: pre.ao })}</span>`;
   $('r-obj').innerHTML = `${t('brief.objective')} <b style="color:var(--yellow)">${pre.objectives.map((o) => OBJ_NAME[o]).join(' + ')}</b>`;
   const dl = pre.difficulty || LEVELS;
-  $('r-diff').innerHTML = `${t('brief.diff')} <b>${dl} · ${esc(t('diff.' + dl).toUpperCase())}</b> <span style="color:var(--g-dim)">· ${esc(t('brief.pay', { x: reward(dl).toFixed(2) }))}</span>`;
+  $('r-diff').innerHTML = `${t('brief.diff')} <b>${dl} · ${esc(t('diff.' + dl).toUpperCase())}</b> <span style="color:var(--g-dim)">· ${esc(t('brief.pay', { x: reward(dl).toFixed(2) }))}</span> <span class="lockchip">${esc(t('brief.locked'))}</span>`;
+  $('r-fail').innerHTML = `${esc(t('brief.fail'))} <b>${esc(t('brief.failIf', { n: pre.lives || C.helldivers.lives }))}</b>`;
 
   // The squad's twelve stratagems appear group by group while the mission loads.
   const box = $('b-strats'), chips = [];
@@ -762,7 +779,6 @@ function statLine(it, kit) {
     if (id === 'gun.regen') return t('st.gunRegen', { n: f1(g.regen) });
     if (id === 'gun.spread') return t('st.gunSpread', { a: f1(g.spread), b: f1(g.spread + g.bloom) });
   }
-  if (id === 'sup.lives') return t('st.lives', { n: maxLives(kit) });
   if (id === 'sup.zone') return t('st.zoneR', { n: C.sight.strikeBonus + zoneExtra(kit) });
   return '';
 }
@@ -855,7 +871,7 @@ function deathList(res) {
   if (d.length > 140) rows.push(`<div class="d-none">${esc(t('deb.more', { n: d.length - 140 }))}</div>`);
   return rows.join('');
 }
-export function fillDebrief(info, res, session) {
+export function fillDebrief(info, res, session, block = '', startCr = null) {
   $('d-op').textContent = info.op;
   const o = $('d-outcome'); o.textContent = t('out.' + res.outcome); o.className = res.outcome;
   $('d-why').textContent = t('deb.why.' + res.outcome);
@@ -898,9 +914,24 @@ export function fillDebrief(info, res, session) {
     + (s.stratCalls ? `<br>${esc(t('deb.x.calls', { n: s.stratCalls, top: top ? ` (${top})` : '', u: s.uavs, o: s.orbCalls }))}` : '');
   $('d-mscore').textContent = fmtNum(res.score);
   $('d-sscore').textContent = fmtNum(session.score);
-  const win = res.outcome === 'victory';
+  const win = carriesOn(res.outcome);
   $('btn-continue').textContent = t(win ? 'deb.next' : 'deb.report');
   $('btn-end-d').classList.toggle('hidden', !win);
+  // RETRY MISSION: the same map from the start, credits back to what they were at the drop.
+  $('btn-retry').textContent = t('deb.retry');
+  $('d-retry-note').textContent = startCr === null ? '' : t(win ? 'deb.retryNoteWin' : 'deb.retryNoteFail', { n: fmtNum(startCr) });
+  $('d-retry-note').dataset.cr = startCr === null ? '' : fmtNum(startCr);
+  armRetry(false);
+  // The session so far, ready to paste, without ending the session.
+  const ta = $('d-text'); ta.value = block; ta.rows = Math.min(10, block.split('\n').length + 1);
+  $('d-msg').textContent = '';
+}
+// The first tap on RETRY MISSION says what it does; the second does it.
+export function armRetry(on) {
+  const b = $('btn-retry');
+  b.classList.toggle('armed', !!on);
+  b.textContent = t(on ? 'deb.retryConfirm' : 'deb.retry');
+  $('d-retry-note').classList.toggle('warn', !!on);
 }
 
 // ---------------- final ----------------
@@ -993,8 +1024,20 @@ export function buildDiff(cur, saved, onPick) {
   $('diff-name').textContent = `${cur} · ${t('diff.' + cur).toUpperCase()}`;
   const f = levelFactors(cur), pay = f.reward.toFixed(2);
   let note = cur >= LEVELS ? t('title.diffMax', { pay }) : t('title.diffNote', { spawn: Math.round(f.spawn * 100), heavy: Math.round(f.heavy * 100), pay });
+  note += ' ' + t('title.diffLock');
   if (saved && saved !== cur) note += ' ' + t('title.diffNew', { n: saved });
   $('diff-note').textContent = note;
+}
+
+// The notice before a new session: the level being locked in, and how a session ends.
+export function fillLock(level) {
+  const f = levelFactors(level), lives = C.helldivers.lives;
+  $('lock-level').textContent = String(level);
+  $('lock-name').textContent = t('diff.' + level).toUpperCase();
+  $('lock-pay').textContent = t('lock.pay', { x: f.reward.toFixed(2) });
+  $('lock-rules').innerHTML = ['lock.r1', 'lock.r2', 'lock.r3', 'lock.r4'].map((k) => `<li>${esc(t(k, { n: lives }))}</li>`).join('');
+  $('btn-lock').textContent = t('lock.go', { n: level });
+  $('s-lock').classList.toggle('hot', level >= 9);
 }
 
 // The language buttons on the title screen.

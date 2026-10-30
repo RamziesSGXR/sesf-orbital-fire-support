@@ -49,11 +49,11 @@ for (let i = 0; i < N; i++) {
     boss: m.boss ? `${m.boss.dead ? 'K' : 'A'}${Math.round((m.boss.born || 0) / 60)}` : '-',
     ao: m.ao.size, clear: `${m.bases.filter((b) => b.destroyed).length}/${m.bases.length} ${m.sides.filter((q) => q.done).length}/${m.sides.length}`, full: m.plan && m.plan.full ? 'y' : 'n',
   });
-  if (session && r.outcome !== 'victory') { console.log(`session ended at mission ${i + 1}: ${r.outcome}`); break; }
+  if (session && r.outcome !== 'victory' && r.outcome !== 'complete') { console.log(`session ended at mission ${i + 1}: ${r.outcome}`); break; }
 }
 console.table(rows);
 const sum = (k) => rows.reduce((a, r) => a + r[k], 0) / rows.length;
 const mins = rows.map((r) => r.min).sort((a, b) => a - b);
-console.log(`objective done ${rows.filter((r) => r.objAt !== '-').length}/${rows.length}  victories ${rows.filter((r) => r.outcome === 'victory').length}  defeats ${rows.filter((r) => r.outcome === 'defeat').length}  timeouts ${rows.filter((r) => r.outcome === 'timeout').length}  extracted ${rows.filter((r) => r.ext === 'y').length}`);
+console.log(`objective done ${rows.filter((r) => r.objAt !== '-').length}/${rows.length}  victories ${rows.filter((r) => r.outcome === 'victory').length}  complete ${rows.filter((r) => r.outcome === 'complete').length}  defeats ${rows.filter((r) => r.outcome === 'defeat').length}  timeouts ${rows.filter((r) => r.outcome === 'timeout').length}  extracted ${rows.filter((r) => r.ext === 'y').length}`);
 console.log(`mission length: median ${mins[Math.floor(mins.length / 2)]} min  min ${mins[0]}  max ${mins[mins.length - 1]}   avg credits ${sum('cr').toFixed(0)}`);
 console.log(`avg damage share: player ${sum('plr').toFixed(0)}%  squad ${sum('sqd').toFixed(0)}%  stratagems ${sum('str').toFixed(0)}%   avg wipes ${sum('wipes').toFixed(1)}  avg lostH ${sum('lostH').toFixed(1)}  (${((Date.now() - t0) / 1000).toFixed(1)}s)`);

@@ -12,7 +12,7 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 ## Quick start
 
-1. Open the link above. Type a callsign if you want one on your score, pick a **difficulty** (start at 3 if you're new), and press **PLAY**.
+1. Open the link above. Type a callsign if you want one on your score, pick a **difficulty** (start at 3 if you're new), and press **PLAY**. A screen shows the level you're locking in and how a session ends. Press **LOCK IN** to start, or **CHANGE DIFFICULTY** to go back.
 2. The **armory** opens. You start with a UAV scan, three orbital strikes and the ship gun. Buy something or just press **DEPLOY**.
 3. Read the briefing while the mission loads, then press **CONTINUE**.
 4. The Helldivers drop in and head for the objective. The ship gun is ready at once; your UAV scan and orbital strikes are still charging for the first half minute or so. Aim, pick a weapon and call strikes on the enemy, not on your own squad.
@@ -27,7 +27,7 @@ On the higher difficulty levels the Helldivers can't win this alone. Left to the
 - **Utilities** help the squad instead of hurting the enemy. Buy them in the armory and put them in an orbital slot: a **med pod** that heals every ally where it lands, **smoke** the enemy can't shoot through, a **shield dome**, and a **sentry**. They are safe to drop right on top of your allies.
 - **SEAF troops** are yours to command. Call a drop, split them into squads, give orders, or draw a play on the map: a route to run, a line to hold or a ring to defend. An order stays until you give another one: a squad told to escort the Helldivers keeps escorting them.
 - **SEAF build.** Press **BUILD** (`O`) and pick what to put up: a **wall** (a ring of cover troopers hold behind), an **MG nest** (a machine gun that fires at anything in reach) or a **drop beacon** (a spawn point you can send SEAF drops to from anywhere on the map). The squad walks there and builds it, you pay when it's done, and the squad stays to guard it.
-- **The Helldivers** play on their own. They go for the main objective and pick up side missions that are on the way. They call their own stratagems and drop back in when one dies, as long as the squad has lives left. You never steer them, but they talk to you: they say what they are about to do, ping where they are going, and ask you for help.
+- **The Helldivers** play on their own. They go for the main objective and pick up side missions that are on the way. They call their own stratagems and drop back in when one dies, as long as the squad has lives left. They get **12 lives every mission**, and the lives reset at every drop. The Helldivers can't be upgraded in the armory. You never steer them, but they talk to you: they say what they are about to do, ping where they are going, and ask you for help.
 - **The UAV helps the squad too.** Allies under an active UAV move faster and dodge more often. Two armory upgrades, **Target Relay** and **Threat Warning**, make it help more. The scan circle is drawn faint so it doesn't hide the fight.
 - **Radar.** Your UAV sweeps the whole map every few seconds and marks every enemy as a blip, even far out of sight. The blips stay where the enemy was until the next sweep, like real radar. A better UAV sweeps faster.
 - **Shooters give themselves away.** An enemy that fires on your allies is marked on the map. Once it has been marked for three seconds it is **locked**, and your strikes and the ship gun can hit it even outside the strike zone.
@@ -57,7 +57,8 @@ On the higher difficulty levels the Helldivers can't win this alone. Left to the
 | Send SEAF at a target | Click a bug hole or point of interest | Tap it with an order selected |
 | Armory (upgrades) | `B` | **MENU**, then **ARMORY** |
 | Camera | `WASD` or right-drag to move, wheel or `+` / `-` to zoom, `Space` to follow the squad, drag on the minimap | Drag, pinch |
-| Pause | `Esc` or `P` | Pause button |
+| Pause and look around | `P`: the game stops, but you can still move the camera, zoom, open the map and double-click a team. No menu opens. `P` again to play on | Pause button (**II**). It turns into **▶**; tap it or **RESUME** to play on |
+| Pause menu | `Esc` | **PAUSE MENU** on the pause strip |
 | Other | `T` white-hot / black-hot, `H` relief map (height, water and slow ground) | Relief map in Settings |
 
 Every panel closes with its ✕ button or `Esc`. In **Settings** you can move the info cards (side or top) or turn them off.
@@ -79,7 +80,7 @@ The places the squad has to hold (the launch site, the shelter and the hangar, t
 - **Propaganda tower.** While it stands it sends the patrols around it after the squad. Destroy it.
 - **SEAF under fire.** A SEAF squad is dug in and pinned down. When the Helldivers get close the enemy closes in on it. Clear them off and the survivors join your SEAF, under your orders.
 
-Once the objective is done, the Helldivers decide what's next. With **more than three lives left** and the time for it, they go for a **full clear**: every base and side mission on the map, for a big bonus. If they have the lives but not the time, they **ask you for more minutes**: a callout says how many and what it costs in credits. Press **APPROVE** (or `K`) and they go for it; say nothing and they head out. If lives run down to three, they break it off. With fewer lives they head straight for the **extraction point**. A Helldiver calls the pelican and the squad holds the pad while the enemy throws reinforcements at it. When the pelican lands, everyone runs for the ramp, and SEAF squads get pelicans of their own. **A mission is only won by extracting.** If the squad runs out of lives with no Helldiver left standing, the mission is lost, SEAF or not.
+Once the objective is done, the Helldivers decide what's next. With **more than three lives left** and the time for it, they go for a **full clear**: every base and side mission on the map, for a big bonus. If they have the lives but not the time, they **ask you for more minutes**: a callout says how many and what it costs in credits. Press **APPROVE** (or `K`) and they go for it; say nothing and they head out. If lives run down to three, they break it off. With fewer lives they head straight for the **extraction point**. A Helldiver calls the pelican and the squad holds the pad while the enemy throws reinforcements at it. When the pelican lands, everyone runs for the ramp, and SEAF squads get pelicans of their own. Extracting wins the mission with full pay. If the squad is lost or the clock runs out **after** the primary objective is done, the mission still counts (**OBJECTIVE COMPLETE**) and the session goes on, just without the extraction pay. If the squad runs out of lives with no Helldiver left standing **before** the objective is done, the mission fails, SEAF or not.
 
 **Maps grow with every mission.** The first is a 760 m square, small enough for a full clear with your help. Each mission adds about 110 m, up to 1.5 km. Missions take ten to fifteen minutes. After about forty minutes of a session each mission has two objectives. Each mission has a 30-minute limit, and each gets harder the longer it runs: more enemies on the field and harder hits.
 
@@ -94,6 +95,7 @@ Once the objective is done, the Helldivers decide what's next. With **more than 
 - **Kill the super heavy.** Hit it with your heaviest strikes, from behind if you can. The Colossus's shield comes back if you leave it alone, and the Walker keeps dropping bots while it stands.
 - **Free-fire zones.** When the enemy masses ahead of the squad, a Helldiver calls a free-fire zone on it: an orange circle that follows the pack, with a callout and a **LOOK** button. Your allies stay out of it for thirty seconds and your strikes into it recharge twice as fast. Pour it on.
 - **Load supplies fast.** A full pod refills every stim and grenade, and a fast one makes the Helldivers hit harder and move quicker for a while. A half-loaded pod only gives half.
+- **Pause to plan.** Press `P` (or the pause button on a phone) to stop the game without opening the menu. Look around the map, check where your teams are, then play on and make your call.
 - **Use the map.** The tactical map has compass points and a lettered grid, so when the radio says "dropship inbound west" you know where to look.
 - **Know your enemy.** Bugs swarm in from every side. Bots form a firing line and stand there shooting. Squids spread out and surround you.
 - **Mind the ground.** Deep water can't be crossed on foot, and mud, snow and sand slow everyone down. High ground helps whoever holds it: units on a rise see farther and hit harder. Press `H` to see it.
@@ -102,7 +104,7 @@ Once the objective is done, the Helldivers decide what's next. With **more than 
 
 ## Difficulty
 
-Pick a level from 1 to 10 on the title screen before you press **PLAY**. The level stays with the session: to change it, start a new one. **RESUME** carries on at the level the session was started at. Level 10 is the full war, as hard as the game gets. Every level below it sends fewer enemies, with fewer mediums and heavies among them and fewer super heavies. Higher levels pay more credits and more score, and your score block shows the level you played at.
+Pick a level from 1 to 10 on the title screen before you press **PLAY**. **PLAY** then shows the level you're about to lock in. The level stays with the session: to change it, start a new one. **RESUME** carries on at the level the session was started at. Level 10 is the full war, as hard as the game gets. Every level below it sends fewer enemies, with fewer mediums and heavies among them and fewer super heavies. Higher levels pay more credits and more score, and your score block shows the level you played at.
 
 | Level | Name | Enemies | Mediums | Heavies | Super heavies | Credits and score |
 |---|---|---|---|---|---|---|
@@ -121,15 +123,17 @@ The percentages compare each level with level 10. "Enemies" covers everything th
 
 ## How a session works
 
-Missions follow one another until one fails: the clock runs out with the objective undone, or the whole squad is gone with no lives left. You can also retire from the pause menu.
+Missions follow one another until one fails. A mission fails when **all 12 Helldiver lives are lost before the primary objective is done**, or the clock runs out before it is done. Retiring from the pause menu before the objective is done fails it too. Once the primary objective is done, the mission counts whatever happens next.
 
-Between missions the **armory** opens. Credits from kills, bases, targets, super heavies, the objective and extraction buy new orbital strikes and utilities, more loadout slots and upgrades for your orbitals, the ship gun, the UAV scan, SEAF and the squad. A very long session earns enough to max out everything.
+**Retry a mission.** Every debrief has a **RETRY MISSION** button (tap it twice). It flies the same mission again: same map, same enemy, same bases and targets, same time of day. Your credits, upgrades, score and session time go back to what they were when you dropped. Use it after a failed mission to keep the session alive, or after a good one to go for a better score. A retry replaces the result you just got. If you don't retry a failed mission, the session ends.
+
+Between missions the **armory** opens. Credits from kills, bases, targets, super heavies, the objective and extraction buy new orbital strikes and utilities, more loadout slots and upgrades for your orbitals, the ship gun, the UAV scan, SEAF and the strike zone. A very long session earns enough to max out everything. (Sessions saved before version 0.13 that bought extra Helldiver lives get those credits back.)
 
 The war gets worse every minute: tougher enemies, harder hits and more heavies, on top of each mission's own climb. Every run ends eventually. A good gunner gets the squad through five to ten missions, an hour or two.
 
 ## Share your score
 
-When your session ends, the final screen shows your **score block** and a **session ID**. Press **COPY** and paste it in the community channel:
+After every mission the debrief shows your **session score so far**. Press **COPY SCORE** to paste it in the community channel without ending the session. When your session ends, the final screen shows your **score block** and a **session ID**. Press **COPY** and paste it in the community channel:
 
 ```
 ORBITAL FIRE SUPPORT | SUPER EARTH SPECIAL FORCES

@@ -240,11 +240,12 @@ export default {
     + '<div class="sub">Drops and orders land at the cursor, or click an order, then the map. Click a bug hole or a target to send SEAF at it. A lit SEAF DROP beacon takes a drop anywhere on the map.</div>'
     + '<div><kbd>TAB</kbd> next squad <kbd>`</kbd> all squads <kbd>R</kbd> draw a play <kbd>F</kbd> split <kbd>M</kbd> merge <kbd>Y</kbd> assign</div>'
     + '<div class="sub">Draw mode: drag on the map. A loop is a ring, a straight stroke a line, anything else a route.</div>'
-    + '<div><kbd>B</kbd> armory <kbd>ESC</kbd> pause</div>'
+    + '<div><kbd>B</kbd> armory <kbd>P</kbd> pause and look around <kbd>ESC</kbd> menu</div>'
     + '<div><kbd>WASD</kbd> or right-drag pan <kbd>WHEEL</kbd> zoom <kbd>SPACE</kbd> camera lock <kbd>T</kbd> thermal <kbd>H</kbd> relief <kbd>I</kbd> mission info</div>'
     + '<div><kbd>L</kbd> or the minimap: tactical map <kbd>U</kbd> answer a supply request <kbd>J</kbd> look at the latest callout <kbd>K</kbd> approve more time</div>'
     + '<div class="sub">Double-click a Helldiver or a SEAF squad on the bars to move the camera to them. Arrows at the screen edge point to every team.</div>',
   'ctl.touch': '<div><kbd>DRAG</kbd> slide the map under the crosshair</div>'
+    + '<div><kbd>II</kbd> pause and look around. PAUSE MENU is on the pause strip.</div>'
     + '<div><kbd>PINCH</kbd> zoom <kbd>TAP MINIMAP</kbd> tactical map</div>'
     + '<div><kbd>LOAD POD</kbd> answer a supply request <kbd>LOOK</kbd> see a callout</div>'
     + '<div><kbd>CALL</kbd> fire the selected scan or strike at the crosshair</div>'
@@ -296,7 +297,6 @@ export default {
   'kit.gun.ammo': 'Gun Ammo Bay', 'kit.gun.ammo.b': '+{n} rounds in the magazine.',
   'kit.gun.regen': 'Ammo Synthesizer', 'kit.gun.regen.b': 'The magazine refills faster.',
   'kit.gun.spread': 'Gun Stabilizers', 'kit.gun.spread.b': 'Rounds land in a tighter group.',
-  'kit.sup.lives': 'Reinforcement Budget', 'kit.sup.lives.b': '+{n} Helldiver lives per level.',
   'kit.sup.zone': 'Strike Zone Range', 'kit.sup.zone.b': 'Strikes and drops reach {n} m farther from the squad per level.',
   // the numbers under each armory item
   'st.recharge': '{n}S RECHARGE',
@@ -320,7 +320,6 @@ export default {
   'st.gunAmmo': '{n} ROUND MAGAZINE',
   'st.gunRegen': 'REFILLS {n} ROUNDS A SECOND',
   'st.gunSpread': '{a}M SPREAD, UP TO {b}M WHEN HELD',
-  'st.lives': '{n} HELLDIVER LIVES PER MISSION',
   'st.zoneR': 'STRIKE ZONE {n}M BEYOND SIGHT',
 
   // ---------- squad names ----------
@@ -338,9 +337,9 @@ export default {
   // ---------- debrief ----------
   'out.victory': 'VICTORY', 'out.defeat': 'DEFEAT', 'out.timeout': 'TIME UP', 'out.retired': 'RETIRED',
   'deb.why.victory': 'Objective complete and the squad extracted. The session goes on.',
-  'deb.why.defeat': 'The squad never made it out. A mission is only won at extraction.',
-  'deb.why.timeout': 'The clock ran out before the squad got out.',
-  'deb.why.retired': 'You pulled the squad out. The session ends here.',
+  'deb.why.defeat': 'Every Helldiver life was spent before the primary objective was done. The mission failed.',
+  'deb.why.timeout': 'The clock ran out before the primary objective was done. The mission failed.',
+  'deb.why.retired': 'You pulled the squad out before the objective was done. The mission failed.',
   'deb.deaths': 'DEATH REPORT',
   'deb.none': 'Nobody fell. Super Earth is pleased.',
   'deb.more': '+{n} more',
@@ -404,7 +403,7 @@ export default {
   'pause.resume': 'RESUME',
   'pause.retire': 'RETIRE FROM MISSION',
   'pause.fbNote': 'FEEDBACK opens GitHub in a new tab. The game stays paused.',
-  'pause.confirm': 'Retiring ends the session. Tap again to confirm.',
+  'pause.confirm': 'Retiring before the primary objective is done fails the mission. Tap again to confirm.',
   'set.close': 'Close settings',
   'set.done': 'DONE',
   'set.on': 'ON',
@@ -535,7 +534,7 @@ export default {
   'info.supply': 'SUPPLY REQUESTS',
   'info.supplyV': 'When the Helldivers run low on stims or grenades they ask you for a supply drop. Press LOAD POD (or U) and time slows while you load: tap each compartment until it is full. What you load is what they get, and a pod filled within {f} seconds fires the squad up for {b} seconds. Turn it down and they make do; they ask again after a minute.',
   'info.fail': 'FAILING',
-  'info.failV': 'A mission is won at extraction: the objective done and at least one Helldiver aboard the pelican. It fails if the {n}-minute clock runs out first, or every Helldiver life is spent (SEAF cannot finish the job for them). A failed mission ends the session.',
+  'info.failV': 'A mission is won at extraction: the objective done and at least one Helldiver aboard the pelican. Once the primary objective is done, the mission still counts if the squad is lost or the clock runs out, just without the extraction pay. It fails if the {n}-minute clock runs out or every Helldiver life is spent before the objective is done. A failed mission ends the session unless you retry it.',
   // ---------- refusals (a short line over the weapon bar) ----------
   'deny.nocoverage': 'NO COVERAGE THERE. KEEP IT IN THE STRIKE ZONE',
   'deny.cooldown': 'RECHARGING',
@@ -1015,4 +1014,36 @@ export default {
   "info.uavBuffV": "Allies under an active UAV move faster and dodge more often. SEAF can dodge too, far less often than Helldivers. Two armory upgrades make the UAV help more.",
   "info.time": "More time",
   "info.timeV": "Once the objective is done, a squad with lives to spare may ask for more minutes to clear the whole map. It costs credits. Press <kbd>K</kbd> or APPROVE to say yes. If you do not answer, the answer is no.",
+  // ---------- 0.13: soft pause, difficulty lock-in, retry, score so far ----------
+  'soft.title': 'PAUSED',
+  'soft.hint': 'Look around: pan, zoom, open the map',
+  'soft.resume': 'RESUME',
+  'soft.menu': 'PAUSE MENU',
+  'brief.locked': 'LOCKED FOR THIS SESSION',
+  'brief.fail': 'FAIL IF',
+  'brief.failIf': 'all {n} Helldiver lives are lost before the primary objective is done',
+  'brief.again': 'RETRY: SAME MAP',
+  'title.diffLock': 'It is locked in for the whole session.',
+  'deb.retry': 'RETRY MISSION',
+  'deb.retryConfirm': 'TAP AGAIN TO RETRY',
+  'deb.retryNoteWin': 'RETRY MISSION flies this mission again on the same map. This result is dropped and your credits go back to {n}, what you had at the drop.',
+  'deb.retryNoteFail': 'RETRY MISSION flies this mission again on the same map, with your credits back at {n}. Otherwise the session ends here.',
+  'deb.copyTitle': 'SESSION SCORE SO FAR',
+  'deb.copyNote': 'Ready to paste into the community channel. Copying it does not end the session.',
+  'deb.copy': 'COPY SCORE',
+  'lock.eyebrow': 'New session',
+  'lock.title': 'DIFFICULTY LOCKED IN',
+  'lock.pay': 'CREDITS AND SCORE ×{x}',
+  'lock.stay': 'This level stays for the whole session. To play at another level, end the session and start a new one.',
+  'lock.howEnds': 'HOW A SESSION ENDS',
+  'lock.r1': 'The Helldivers get {n} lives every mission. Lives reset at every drop and cannot be bought.',
+  'lock.r2': 'If all {n} lives are lost before the primary objective is done, the mission fails. So does running out of time before it is done.',
+  'lock.r3': 'A failed mission ends the session. You can retry it from the start (same map, credits put back), or end the session and post your score.',
+  'lock.r4': 'Once the primary objective is done, the mission counts even if the squad never makes it out. Extract for the full pay.',
+  'lock.go': 'LOCK IN LEVEL {n}',
+  'lock.change': 'CHANGE DIFFICULTY',
+  'out.complete': 'OBJECTIVE COMPLETE',
+  'deb.why.complete': 'The primary objective was done, but the squad did not extract. The mission counts and the session goes on, without the extraction pay.',
+  'msg.end.complete': 'OBJECTIVE COMPLETE. NO EXTRACTION',
+  'c.complete': 'Objective secured. No extraction. High Command logs it as a win.',
 }

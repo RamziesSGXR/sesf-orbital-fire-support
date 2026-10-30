@@ -20,6 +20,7 @@ await page.goto('file://' + path.join(root, 'dist/orbital-fire-support.html') + 
 await page.waitForTimeout(500);
 await tap('#btn-play'); await page.waitForTimeout(300);
 if (await page.isVisible('#btn-notice')) await tap('#btn-notice');
+await page.waitForTimeout(250); if (await page.isVisible('#btn-lock')) await tap('#btn-lock');   // 0.13: the difficulty lock-in
 await page.waitForTimeout(300);
 await tap('#shop-go'); await page.waitForTimeout(500);
 await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 15000 });

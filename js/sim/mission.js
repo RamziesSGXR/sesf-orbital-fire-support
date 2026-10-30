@@ -134,7 +134,7 @@ export class Mission {
     const dBase = C.ramp.base * (C.ramp.fac[opts.faction] || 1);
     this.dmgMul = Math.min(C.ramp.dmgCap * dBase, dBase * (1 + C.ramp.dmg * this.S));
     this.bag = [];
-    this.hd = { lives: maxLives(this.kit), max: maxLives(this.kit) };
+    this.hd = { lives: maxLives(), max: maxLives() };    // a full set of lives every mission
     this.wiped = false;
     this.seaf = initSeaf();
     this.support = { spawnT: 0, lastSpawn: -99, scanT: 0, near: 0 };
@@ -332,10 +332,8 @@ export class Mission {
 
   // ----- the armory: upgrades can be bought mid-mission, new orbitals and slots only between missions -----
   spend(id) {
-    const before = maxLives(this.kit), r = buy(this.kit, this.wallet, id, true);
+    const r = buy(this.kit, this.wallet, id, true);
     if (!r.ok) { this.emit('deny', { reason: r.reason }); return r; }
-    const after = maxLives(this.kit);
-    this.hd.lives += after - before; this.hd.max = after;
     syncSlots(this);
     const st = seafStats(this.kit);
     for (const a of this.seafAlive) {
@@ -357,7 +355,7 @@ export class Mission {
   }
 
   // The player gives up the mission. If the objective is already done the mission still counts.
-  retire() { this.finish('retired'); }
+  retire() { this.finish(this.objDone ? 'complete' : 'retired'); }   // with the primary objective done, pulling out still counts
 
   // ----- the nuke: only available once the squad has held the launch site -----
   nukeObj() { return this.objectives.find((o) => o.type === 'nuke') || null; }
@@ -690,11 +688,11 @@ export class Mission {
       if (this.extracted) { this.sc.extraction = s.extraction; this.earn('extraction', C.credits.extraction); }
       this.earn('extraction', C.credits.perMission);
     }
-    if (outcome === 'victory' || outcome === 'timeout') {
+    if (outcome === 'victory' || outcome === 'timeout' || outcome === 'complete') {
       const ex = this.extraction;
       this.sc.survivor = (this.countAlly('H') + (ex.boardedH || 0)) * s.survivorHelldiver + (this.countAlly('S') + (ex.boardedS || 0)) * s.survivorSeaf;
     }
-    this.radio(outcome === 'victory' ? COMMS.victory : outcome === 'timeout' ? COMMS.timeout : COMMS.defeat, 'end', 0);
+    this.radio(outcome === 'victory' ? COMMS.victory : outcome === 'complete' ? COMMS.complete : outcome === 'timeout' ? COMMS.timeout : COMMS.defeat, 'end', 0);
     this.emit('end', { outcome });
   }
 
@@ -849,12 +847,13 @@ export class Mission {
     }
     if (this.dirtyA) { compact(this.allies, deadE); this.dirtyA = false; }
 
-    // A mission is won only by extracting (extract.js). It fails when the clock runs out, or when the squad is gone for good: the
-    // last Helldiver down with no lives left, objective done or not (SEAF cannot finish the job for them).
+    // A mission is won outright by extracting (extract.js). If the squad is gone for good (the last Helldiver down with no lives
+    // left; SEAF cannot finish the job for them) or the clock runs out, what counts is the primary objective: done, and the
+    // mission is complete without extraction and the session goes on; not done, and the mission has failed.
     if (!this.over) {
       const hdAlive = this.allies.some((a) => !a.dead && a.type === 'H');
-      if (!hdAlive && this.pendingPods('H') === 0 && this.hd.lives <= 0) this.finish('defeat');
-      else if (this.t >= this.limitSec) this.finish('timeout');
+      if (!hdAlive && this.pendingPods('H') === 0 && this.hd.lives <= 0) this.finish(this.objDone ? 'complete' : 'defeat');
+      else if (this.t >= this.limitSec) this.finish(this.objDone ? 'complete' : 'timeout');
     }
   }
 }

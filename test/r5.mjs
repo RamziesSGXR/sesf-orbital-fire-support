@@ -25,6 +25,7 @@ await page.goto('file://' + path.join(root, 'dist/orbital-fire-support.html') + 
 await page.waitForTimeout(500);
 await page.click('#btn-play'); await page.waitForTimeout(200);
 if (await page.isVisible('#btn-notice')) await page.click('#btn-notice');
+await page.waitForTimeout(250); if (await page.isVisible('#btn-lock')) await page.click('#btn-lock');   // 0.13: the difficulty lock-in
 await page.waitForTimeout(300);
 // armory colours: give the session credits so every section has buyable items
 await ev(() => { window.__game.session.wallet.bal = 9000; window.__game.goShop(); });

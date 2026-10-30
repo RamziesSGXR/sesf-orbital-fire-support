@@ -20,6 +20,7 @@ await page.goto('file://' + path.join(root, 'dist/orbital-fire-support.html') + 
 await page.waitForTimeout(500);
 await tap('#btn-play'); await page.waitForTimeout(300);
 await tap('#btn-notice'); await page.waitForTimeout(400);
+await page.waitForTimeout(250); if (await page.isVisible('#btn-lock')) await tap('#btn-lock');   // 0.13: the difficulty lock-in
 check('armory opens', await page.evaluate(() => window.__game.state) === 'shop');
 await tap('#shop-go'); await page.waitForTimeout(500);
 await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 15000 });
@@ -112,6 +113,8 @@ check('mission armory opens', await page.evaluate(() => document.getElementById(
 await page.screenshot({ path: path.join(root, `test/shots/t4-${vp}-armory.png`) });
 await tap('#arm-close'); await page.waitForTimeout(300);
 await tap('#btn-pause'); await page.waitForTimeout(300);
+check('the pause button soft-pauses (no menu)', await page.evaluate(() => window.__game.soft && !document.getElementById('s-pause').classList.contains('on')));
+await tap('#sp-menu'); await page.waitForTimeout(300);
 check('pause opens', await page.evaluate(() => document.getElementById('s-pause').classList.contains('on')));
 await tap('#btn-names-m'); await page.waitForTimeout(300);
 check('names editor opens', await page.evaluate(() => document.getElementById('s-names').classList.contains('on')));

@@ -3,7 +3,7 @@ import { CONFIG as C } from './config.js';
 
 export class Input {
   /**
-   * hooks: { weapon(i), cycle(d), fire(bool), order(kind, viaKey), placing(), place(), cancelPlace(), pause(), armory(), polarity(), relief(), follow(),
+   * hooks: { weapon(i), cycle(d), fire(bool), order(kind, viaKey), placing(), place(), cancelPlace(), pause(), soft(), armory(), polarity(), relief(), follow(),
    *          squad(i), squadCycle(d), squadAct(kind), drawing(), drawBegin(x, y), drawMove(x, y), drawEnd(), drawCancel(), drawExit() }
    * cam: { x, y, view, follow } shared with main.js
    */
@@ -115,7 +115,7 @@ export class Input {
     const fup = (e) => { fb.classList.remove('held'); this.h.fire(false); };
     fb.addEventListener('pointerup', fup); fb.addEventListener('pointercancel', fup);
     document.getElementById('btn-follow').addEventListener('pointerdown', (e) => { e.preventDefault(); this.h.follow(); });
-    document.getElementById('btn-pause').addEventListener('click', () => this.h.pause());
+    document.getElementById('btn-pause').addEventListener('click', () => this.h.soft());
     document.getElementById('btn-shop').addEventListener('click', () => this.h.armory());
 
     // Minimap: a tap opens the tactical map; a drag moves the camera.
@@ -141,7 +141,8 @@ export class Input {
       if (e.repeat) return;
       if (e.code === 'Escape' && this.h.drawing()) { this.h.drawExit(); return; }
       if (e.code === 'Escape' && this.h.placing()) { this.h.cancelPlace(); return; }
-      if (e.code === 'Escape' || e.code === 'KeyP') { this.h.pause(); return; }
+      if (e.code === 'Escape') { this.h.pause(); return; }         // the menu
+      if (e.code === 'KeyP') { this.h.soft(); return; }            // the soft pause: the game stops, the menu stays shut
       if (!this.active()) return;
       const dig = /^Digit([0-8])$/.exec(e.code);
       if (dig && e.shiftKey) this.h.squad(Number(dig[1]) >= 1 && Number(dig[1]) <= 4 ? Number(dig[1]) - 1 : -1);   // Shift+1..4 pick a squad, Shift+0 all

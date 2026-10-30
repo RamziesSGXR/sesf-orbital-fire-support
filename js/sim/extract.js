@@ -116,6 +116,6 @@ export function updateExtract(m, dt) {
   if (ex.state === 'away') {
     const seafLeft = m.pelicans.some((p) => p.evac && p.state !== 'out');
     // the mission is won only by getting Helldivers out: a pelican that leaves without one is a failed mission
-    if (t >= ex.awayAt + 2.5 && (!seafLeft || t >= ex.awayAt + X.seafBoardSec)) m.finish(ex.boardedH > 0 ? 'victory' : 'defeat');
+    if (t >= ex.awayAt + 2.5 && (!seafLeft || t >= ex.awayAt + X.seafBoardSec)) m.finish(ex.boardedH > 0 ? 'victory' : m.objDone ? 'complete' : 'defeat');
   }
 }

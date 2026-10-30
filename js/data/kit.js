@@ -44,6 +44,16 @@ export function fixKit(k) {
   return out;
 }
 export const newWallet = (bal = C.credits.start) => ({ bal, earned: 0, spent: 0 });
+// Saves from before 0.13 may have bought extra Helldiver lives. That upgrade is gone: the levels come off and the credits go back.
+export function refundLives(kit, wallet) {
+  const L = (kit && kit.sup && kit.sup.lives) | 0;
+  if (L <= 0) return 0;
+  let cr = 0;
+  for (let i = 1; i <= L; i++) cr += price(LIVES_PRICE * i);
+  kit.sup.lives = 0;
+  if (wallet) { wallet.bal += cr; wallet.spent = Math.max(0, wallet.spent - cr); }
+  return cr;
+}
 
 // ---------- stats ----------
 // An orbital stratagem at a given level: the base entry from STRATS, scaled for the player.
@@ -94,7 +104,8 @@ export function gunStats(kit) {
     spread: G.spread * (1 - G.upSpread * (g.spread || 0)), bloom: G.bloom * (1 - G.upSpread * (g.spread || 0)),
   };
 }
-export const maxLives = (kit) => C.helldivers.lives + C.kit.livesPer * kit.sup.lives;
+// Helldiver lives are the same every mission and reset at each drop. The Helldivers themselves are not upgraded in the armory.
+export const maxLives = () => C.helldivers.lives;
 export const zoneExtra = (kit) => C.kit.zonePer * kit.sup.zone;
 
 // ---------- the shop ----------
@@ -103,9 +114,10 @@ export const zoneExtra = (kit) => C.kit.zonePer * kit.sup.zone;
 const SEAF_UP = { cap: { max: 4, price: 300 }, drop: { max: 3, price: 400 }, hp: { max: 4, price: 350 }, gren: { max: 4, price: 300 },
   rocket: { max: 4, price: 350 }, medic: { max: 4, price: 300 }, spot: { max: 4, price: 400 } };
 const GUN_UP = { dmg: { max: 5, price: 300 }, ammo: { max: 5, price: 250 }, regen: { max: 5, price: 250 }, spread: { max: 5, price: 300 } };
-const SUP_UP = { lives: { max: 5, price: 300 }, zone: { max: 4, price: 450 } };
+const SUP_UP = { zone: { max: 4, price: 450 } };
+const LIVES_PRICE = 300;      // the old Reinforcement Budget (extra Helldiver lives), kept only to refund old saves
 // the number a blurb quotes, if it has one
-const BLURB_N = { 'seaf.cap': () => C.kit.seafCap, 'gun.ammo': () => C.gun.upAmmo, 'sup.lives': () => C.kit.livesPer, 'sup.zone': () => C.kit.zonePer };
+const BLURB_N = { 'seaf.cap': () => C.kit.seafCap, 'gun.ammo': () => C.gun.upAmmo, 'sup.zone': () => C.kit.zonePer };
 const named = (key) => ({ get name() { return t(`kit.${key}`); }, get blurb() { return t(`kit.${key}.b`, { n: BLURB_N[key] ? BLURB_N[key]() : '' }); } });
 const ORB_UP_BASE = 400;       // upgrade price scale: level L to L+1 costs this (or the unlock price) x 0.5 x L
 

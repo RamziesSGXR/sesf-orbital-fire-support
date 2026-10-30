@@ -37,6 +37,9 @@ applyDom(document);
 
 let state = 'title';          // title | shop | brief | play | debrief | final
 let paused = false;
+let soft = false;             // a soft pause: the game is frozen (paused is true too) but the menu stays shut, so the player can look around
+let startSnap = null;         // the session as it was at the drop, for RETRY MISSION (same map, credits as they were)
+let retryArm = false;         // RETRY MISSION asks for a second tap
 let session = null, info = null, mission = null, bot = null, lastRes = null;
 let firePending = false;
 let acc = 0, lastT = 0, overAt = 0, endHandled = false;
@@ -84,7 +87,7 @@ function relang() {
   if (UI.isOn('s-settings')) UI.buildSettings(settings, onSettingChange);
   if (state === 'title') toTitle();
   else if (state === 'shop') { const n = session.missions.length + 1; $('shop-eyebrow').textContent = n === 1 ? t('arm.eyebrow1') : t('arm.eyebrowN', { n }); $('shop-go').textContent = t('arm.deploy', { n }); drawShop(); }
-  else if (state === 'debrief' && lastRes) UI.fillDebrief(info, lastRes, session);
+  else if (state === 'debrief' && lastRes) UI.fillDebrief(info, lastRes, session, S.scoreBlock(session, null), startCredits());
   else if (state === 'final' && lastFin) UI.fillFinal(session, lastFin.fin, lastFin.block);
   if (UI.isOn('s-info') && mission) UI.fillMissionInfo(mission, info);
   if (UI.isOn('s-armory') && mission) drawArmory();
@@ -123,6 +126,7 @@ const input = new Input(canvas, $('minimap'), cam, {
   place: () => placeNow(),
   cancelPlace: () => setPlacing(null),
   pause: () => togglePause(),
+  soft: () => softPause(),
   armory: () => openArmory(),
   polarity: () => { settings.polarity = settings.polarity === 'white' ? 'black' : 'white'; onSettingChange('polarity'); },
   relief: () => { settings.relief = !settings.relief; onSettingChange('relief'); if (mission) hud.notice(t(settings.relief ? 'set.reliefOn' : 'set.reliefOff'), 'info'); },
@@ -141,7 +145,7 @@ const input = new Input(canvas, $('minimap'), cam, {
   drawEnd: () => strokeEnd(),
   drawCancel: () => { stroke = null; },
   drawExit: () => setDrawing(false),
-}, () => state === 'play' && !paused && !UI.anyOverlay());
+}, () => state === 'play' && (!paused || soft) && !UI.anyOverlay());
 input.setTouch(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
 hud.onWeapon = (i) => { audio.unlock(); if (live()) mission.selectWeapon(i); };
 hud.onOrder = (kind) => order(kind, false);
@@ -176,7 +180,7 @@ function supplyCall(k) {
 }
 // A double tap on a team: the camera goes there and stays (it stops following the squad).
 function focusTeam(kind, i) {
-  if (!mission || !live()) return;
+  if (!mission || !(live() || (soft && !mission.over))) return;
   let p = null;
   if (kind === 'hd') {
     const tm = mission.teams[i], a = tm && tm.hd && !tm.hd.dead ? tm.hd : null;
@@ -189,6 +193,7 @@ function focusTeam(kind, i) {
   }
   if (!p) { audio.deny(); return; }
   cam.follow = false; audio.click();
+  if (soft) { cam.x = p.x; cam.y = p.y; camPan = null; return; }
   lookAt(p.x, p.y, 1.4);
 }
 // J: look at whatever was called most recently (a falling or fresh supply pod, else the free-fire zone).
@@ -308,6 +313,12 @@ function toTitle() {
   if (!renderer.terrain) setTimeout(() => buildFor('ice', 4242), 30);
 }
 
+// A new session first shows the level it is locking in and how a session ends (LOCK IN starts it, CHANGE goes back).
+function askLock() {
+  UI.fillLock(chosenDiff());
+  UI.overlay('s-lock', true);
+  $('btn-lock').focus({ preventScroll: true });
+}
 function beginSession(resume) {
   audio.unlock(); audio.click();
   if (resume) session = S.fixSession(S.load('session', null));
@@ -342,12 +353,14 @@ function drawShop(note) {
   });
 }
 
-function goBrief() {
-  state = 'brief'; mission = null; paused = false; audio.humStop(); hud.reset(); setPlacing(null);
+// again: RETRY MISSION, the same mission (map, seed, enemy, hour) flown from the start.
+function goBrief(again = false) {
+  state = 'brief'; mission = null; paused = false; soft = false; hud.setSoft(false); audio.humStop(); hud.reset(); setPlacing(null);
   UI.hideOverlays(); UI.showScreen('s-brief');
   const prev = session.missions.length ? session.missions[session.missions.length - 1] : null;
-  info = S.rollMission(prev);
-  if (session.missions.length === 0) { // URL overrides for testing: ?seed= ?faction= ?biome= (first mission only)
+  const keep = again && info ? info : null;
+  info = keep ? { op: keep.op, faction: keep.faction, biome: keep.biome, seed: keep.seed, tod: keep.tod } : S.rollMission(prev);
+  if (!keep && session.missions.length === 0) { // URL overrides for testing: ?seed= ?faction= ?biome= (first mission only)
     if (qs.get('seed')) info.seed = Number(qs.get('seed')) >>> 0;
     if (FACTION_OK(qs.get('faction'))) info.faction = qs.get('faction');
     if (BIOME_OK(qs.get('biome'))) info.biome = qs.get('biome');
@@ -360,12 +373,13 @@ function goBrief() {
   const pre = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: false, missionN: n, difficulty: session.difficulty,
     loadout: ovLoad.length ? ovLoad : undefined, objectives: ovObj, kit: session.kit, wallet: session.wallet, names: session.names });
   info.loadout = pre.loadout.slice();
-  info.tod = qs.has('tod') ? ((Number(qs.get('tod')) % 24) + 24) % 24 : pre.tod0;   // ?tod=14 forces the hour (testing)
+  if (keep) { info.ovObj = keep.ovObj || []; info.loadout = keep.loadout.slice(); }
+  else info.tod = qs.has('tod') ? ((Number(qs.get('tod')) % 24) + 24) % 24 : pre.tod0;   // ?tod=14 forces the hour (testing)
   UI.setBriefHeader(n, session.score);
   if (briefCtl) briefCtl.cancel();
   const ctl = briefCtl = UI.runBriefing({
-    info, mission: n, touch: input.touch, canEnd: session.missions.length > 0,
-    pre: { objectives: pre.objectives.map((o) => o.type), teams: pre.teams, ao: Math.round(pre.ao.size), difficulty: session.difficulty },
+    info, mission: n, touch: input.touch, canEnd: session.missions.length > 0, again: !!keep,
+    pre: { objectives: pre.objectives.map((o) => o.type), teams: pre.teams, ao: Math.round(pre.ao.size), difficulty: session.difficulty, lives: pre.hd.max },
     onReveal: () => audio.chirp(),
     onContinue: () => { briefCtl = null; audio.click(); deploy(); },
     onEnd: () => { briefCtl = null; endSession(); },
@@ -378,6 +392,7 @@ const BIOME_OK = (b) => ['ice', 'grass', 'desert', 'jungle', 'moon'].includes(b)
 
 function deploy() {
   audio.unlock();
+  startSnap = JSON.stringify(session);      // what RETRY MISSION puts back: credits, kit, score and time as they were at the drop
   if (terrainKey !== `${info.biome}|${info.seed}`) buildFor(info.biome, info.seed);
   mission = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: true, missionN: session.missions.length + 1, difficulty: session.difficulty,
     loadout: info.loadout, keepOrder: true, objectives: info.ovObj, kit: session.kit, wallet: session.wallet, names: session.names, tod: info.tod });
@@ -387,7 +402,7 @@ function deploy() {
   firePending = false; acc = 0; endHandled = false; overAt = 0; wantAbort = false;
   drawing = false; stroke = null;
   hud.reset(); hud.setOp(info.op); hud.setMission(mission); UI.showScreen(null); UI.hideOverlays();
-  state = 'play'; paused = false;
+  state = 'play'; paused = false; soft = false; hud.setSoft(false);
   audio.humStart();
   hud.message(t('msg.start', { op: info.op.toUpperCase(), tod: todName(info.tod), clock: todClock(info.tod) }), 2600);
   hud.radio(COMMS.startDrop);
@@ -396,12 +411,27 @@ function deploy() {
 
 function finishMission() {
   endHandled = true; setPlacing(null); setDrawing(false);
+  soft = false; hud.setSoft(false);
   const res = lastRes = mission.result();
   S.recordMission(session, info, res);
-  if (res.outcome === 'victory') persist(); else S.drop('session');    // a failed mission ends the session for good
-  UI.fillDebrief(info, res, session);
+  // Extracted, or the primary objective done: the session goes on. A failed mission ends it, unless the player retries it.
+  if (S.carriesOn(res.outcome)) persist(); else S.drop('session');
+  retryArm = false;
+  UI.fillDebrief(info, res, session, S.scoreBlock(session, null), startCredits());
   state = 'debrief'; audio.humStop(); hud.reset();
   UI.showScreen('s-debrief');
+}
+function startCredits() { try { return JSON.parse(startSnap).wallet.bal; } catch { return null; } }
+// RETRY MISSION: the session goes back to how it was at the drop (credits, kit, score, time) and the same mission loads again.
+// The result just flown is dropped.
+function retryMission() {
+  if (!startSnap || !info) return;
+  if (!retryArm) { retryArm = true; audio.click(); UI.armRetry(true); return; }
+  audio.click(); retryArm = false;
+  session = S.fixSession(JSON.parse(startSnap));
+  lastRes = null;
+  persist();
+  goBrief(true);
 }
 
 function endSession() {
@@ -422,11 +452,25 @@ function togglePause(force) {
   if (UI.isOn('s-names')) { closeNames(false); return; }
   if (state !== 'play' || !mission || mission.over) return;
   if (UI.isOn('s-settings')) return;
+  if (soft) { soft = false; hud.setSoft(false); paused = false; force = true; }   // a soft pause opens into the full menu
   paused = force !== undefined ? force : !paused;
   firePending = false; setPlacing(null); setDrawing(false); if (mission) mission.setFiring(false);
   UI.overlay('s-pause', paused);
   $('abort-confirm').classList.add('hidden'); wantAbort = false;
   if (paused) audio.humStop(); else { audio.unlock(); audio.humStart(); }
+}
+
+// The soft pause (the pause button, or P): the game stops, nothing opens. Pan, zoom, look at the map and the squads, then go on.
+function softPause(force) {
+  if (UI.isOn('s-pause') && !soft) { togglePause(false); return; }   // P with the menu open resumes, as it did before
+  if (UI.anyOverlay()) { togglePause(); return; }                      // with a panel open, it closes the panel first
+  if (state !== 'play' || !mission || mission.over) return;
+  const on = force !== undefined ? !!force : !soft;
+  if (on === soft) return;
+  soft = on; paused = on;
+  firePending = false; setPlacing(null); setDrawing(false); buildMenu(false); mission.setFiring(false); camPan = null;
+  hud.setSoft(on);
+  if (on) { audio.humStop(); audio.click(); } else { audio.unlock(); audio.humStart(); audio.click(); }
 }
 
 function openSettings(from) {
@@ -476,14 +520,14 @@ function drawArmory(note) {
 }
 function openArmory(from) {
   if (state !== 'play' || !mission || mission.over || UI.isOn('s-armory')) return;
-  armoryFrom = from || (paused ? 'pause' : 'play');
+  armoryFrom = from || (soft ? 'soft' : paused ? 'pause' : 'play');
   paused = true; firePending = false; setPlacing(null); setDrawing(false); if (mission) mission.setFiring(false); audio.humStop();
   UI.overlay('s-pause', false); UI.overlay('s-armory', true); drawArmory();
 }
 function closeArmory() {
   UI.overlay('s-armory', false);
   if (armoryFrom === 'pause') UI.overlay('s-pause', true);
-  else { paused = false; audio.unlock(); audio.humStart(); }
+  else if (armoryFrom !== 'soft') { paused = false; audio.unlock(); audio.humStart(); }
   armoryFrom = null;
 }
 
@@ -492,21 +536,21 @@ function closeArmory() {
 let infoFrom = null, aboutFrom = null;
 function openInfo(from) {
   if (state !== 'play' || !mission || UI.isOn('s-info')) return;
-  infoFrom = from || (paused ? 'pause' : 'play');
+  infoFrom = from || (soft ? 'soft' : paused ? 'pause' : 'play');
   paused = true; firePending = false; setPlacing(null); setDrawing(false); mission.setFiring(false);
   UI.fillMissionInfo(mission, info);
   UI.overlay('s-pause', false); UI.overlay('s-info', true);
 }
 function closeInfo() {
   UI.overlay('s-info', false);
-  if (infoFrom === 'pause') UI.overlay('s-pause', true); else { paused = false; audio.unlock(); }
+  if (infoFrom === 'pause') UI.overlay('s-pause', true); else if (infoFrom !== 'soft') { paused = false; audio.unlock(); }
   infoFrom = null;
 }
 // ---------------- the tactical map ----------------
 let mapFrom = null;
 function openMap() {
   if (state !== 'play' || !mission || UI.isOn('s-map')) return;
-  mapFrom = paused ? 'pause' : 'play';
+  mapFrom = soft ? 'soft' : paused ? 'pause' : 'play';
   paused = true; firePending = false; setPlacing(null); setDrawing(false); mission.setFiring(false);
   UI.overlay('s-pause', false); UI.overlay('s-map', true);
   renderer.drawBigMap($('bigmap'), mission, cam);
@@ -514,7 +558,7 @@ function openMap() {
 }
 function closeMap() {
   UI.overlay('s-map', false);
-  if (mapFrom === 'pause') UI.overlay('s-pause', true); else { paused = false; audio.unlock(); }
+  if (mapFrom === 'pause') UI.overlay('s-pause', true); else if (mapFrom !== 'soft') { paused = false; audio.unlock(); }
   mapFrom = null;
 }
 {
@@ -555,7 +599,7 @@ $('about-close').onclick = closeAbout;
 // Every panel's close (X) button does what that panel's own back button does.
 const CLOSE = {
   's-pause': () => togglePause(false), 's-armory': () => closeArmory(), 's-names': () => closeNames(false), 's-settings': () => closeSettings(),
-  's-notice': () => $('btn-notice').click(), 's-info': () => closeInfo(), 's-about': () => closeAbout(), 's-map': () => closeMap(),
+  's-notice': () => $('btn-notice').click(), 's-lock': () => closeLock(), 's-info': () => closeInfo(), 's-about': () => closeAbout(), 's-map': () => closeMap(),
 };
 for (const b of document.querySelectorAll('.x-close[data-close]')) { const f = CLOSE[b.dataset.close]; if (f) b.addEventListener('click', f); }
 
@@ -563,9 +607,12 @@ for (const b of document.querySelectorAll('.x-close[data-close]')) { const f = C
 $('btn-play').onclick = () => {
   audio.unlock(); audio.click();
   if (!S.load('notice', false)) { noticePending = true; UI.overlay('s-notice', true); return; }
-  beginSession(false);
+  askLock();
 };
-$('btn-notice').onclick = () => { S.save('notice', true); noticePending = false; UI.overlay('s-notice', false); beginSession(false); };
+$('btn-notice').onclick = () => { S.save('notice', true); noticePending = false; UI.overlay('s-notice', false); askLock(); };
+function closeLock() { UI.overlay('s-lock', false); audio.click(); }
+$('btn-lock').onclick = () => { UI.overlay('s-lock', false); beginSession(false); };
+$('btn-lock-change').onclick = () => { closeLock(); $('diff-row').scrollIntoView({ block: 'center', behavior: 'smooth' }); };
 $('btn-notice-set').onclick = () => openSettings('notice');
 $('btn-resume').onclick = () => beginSession(true);
 $('btn-settings').onclick = () => { audio.unlock(); openSettings('title'); };
@@ -583,6 +630,8 @@ $('shop-go').onclick = () => {
   audio.click(); persist(); goBrief();
 };
 $('btn-resume-m').onclick = () => togglePause(false);
+$('sp-resume').onclick = () => softPause(false);
+$('sp-menu').onclick = () => togglePause();
 $('btn-armory-m').onclick = () => openArmory('pause');
 $('arm-close').onclick = () => closeArmory();
 $('btn-abort').onclick = () => {
@@ -590,25 +639,28 @@ $('btn-abort').onclick = () => {
   UI.overlay('s-pause', false); paused = false;
   mission.retire(); finishMission();
 };
-$('btn-continue').onclick = () => { audio.click(); if (lastRes && lastRes.outcome === 'victory') goShop(); else endSession(); };
+$('btn-continue').onclick = () => { audio.click(); if (lastRes && S.carriesOn(lastRes.outcome)) goShop(); else endSession(); };
+$('btn-retry').onclick = () => retryMission();
 $('btn-end-d').onclick = () => { audio.click(); endSession(); };
 $('btn-again').onclick = () => { audio.click(); session = null; toTitle(); };
-async function copyScore() {
-  const text = $('f-text').value, msg = $('f-msg');
+// Copy a score block: the final one (f-text) or the session so far, after any mission (d-text).
+async function copyScore(box = 'f-text', out = 'f-msg') {
+  const ta = $(box), text = ta.value, msg = $(out);
   try { await navigator.clipboard.writeText(text); msg.textContent = t('fin.copied'); }
   catch {
-    const ta = $('f-text'); ta.removeAttribute('readonly'); ta.focus(); ta.select();
+    ta.removeAttribute('readonly'); ta.focus(); ta.select();
     let ok = false; try { ok = document.execCommand('copy'); } catch { ok = false; }
     ta.setAttribute('readonly', ''); window.getSelection()?.removeAllRanges();
     msg.textContent = t(ok ? 'fin.copied' : 'fin.copyHand');
   }
 }
-$('btn-copy').onclick = copyScore;
+$('btn-copy').onclick = () => copyScore();
+$('btn-copy-d').onclick = () => { audio.click(); copyScore('d-text', 'd-msg'); };
 $('btn-post').onclick = async () => { await copyScore(); window.open(C.share.channelUrl, '_blank', 'noopener'); };
 $('btn-share').onclick = async () => { try { await navigator.share({ text: $('f-text').value }); } catch { /* user cancelled */ } };
 $('callsign').value = S.load('callsign', '');
 document.addEventListener('visibilitychange', () => { if (document.hidden && live()) togglePause(true); });
-window.addEventListener('resize', () => renderer.resize());
+window.addEventListener('resize', () => { renderer.resize(); if (soft) hud.placeSoft(); });
 window.addEventListener('orientationchange', () => setTimeout(() => renderer.resize(), 200));
 
 // ---------------- events from the sim ----------------
@@ -716,7 +768,7 @@ function onEvent(ev, now) {
       if (ev.fortress) hud.message(t('msg.citadel'), 2400); else hud.notice(t('msg.baseDown'), 'good');
       break;
     case 'end':
-      if (ev.outcome === 'victory') audio.win(); else audio.lose();
+      if (ev.outcome === 'victory' || ev.outcome === 'complete') audio.win(); else audio.lose();
       hud.message(t(ev.outcome === 'victory' ? (mission.extracted ? 'msg.end.extracted' : 'msg.end.victory') : 'msg.end.' + ev.outcome), 4000);
       break;
     default:
@@ -805,6 +857,7 @@ requestAnimationFrame((t) => { lastT = t / 1000; frame(t); });
 // Test hooks (used by the Playwright checks; harmless in production).
 window.__game = {
   get state() { return state; }, get mission() { return mission; }, get session() { return session; }, get info() { return info; },
+  get paused() { return paused; }, get soft() { return soft; }, softPause, retryMission,
   cam, input, renderer, settings, order, get placing() { return placing; }, get drawing() { return drawing; }, squadAct, selectSquad, focusTeam, strokeBegin, strokeMove, strokeEnd, goShop, openArmory, closeArmory,
   setSetting: (k, v) => { settings[k] = v; onSettingChange(k); },
 };

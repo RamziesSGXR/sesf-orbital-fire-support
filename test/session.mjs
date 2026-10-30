@@ -20,6 +20,7 @@ await page.goto('file://' + path.join(root, 'dist/orbital-fire-support.html') + 
 await page.waitForTimeout(500);
 await page.click('#btn-play'); await page.waitForTimeout(200);
 if (await page.isVisible('#btn-notice')) await page.click('#btn-notice');
+await page.waitForTimeout(250); if (await page.isVisible('#btn-lock')) await page.click('#btn-lock');   // 0.13: the difficulty lock-in
 let missions = 0, last = '', t0 = Date.now(), shot = new Set();
 while (Date.now() - t0 < 600000) {
   const st = await page.evaluate(() => window.__game.state);
