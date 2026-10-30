@@ -4,7 +4,7 @@ import { FACTIONS, BIOMES } from './data/data.js';
 import { fmtTime, fmtNum, sessionTotals, MAX_NAME, carriesOn } from './session.js';
 import { STRATS, CAT_COLOR } from './data/strat.js';
 import { LETTERS, TEAM_COLOR } from './data/names.js';
-import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra } from './data/kit.js';
+import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, barracksCost, BUILDS } from './data/kit.js';
 import { stratReady, stratOnline } from './sim/strat.js';
 import { slotStats } from './sim/player.js';
 import { compass } from './sim/enemies.js';
@@ -12,12 +12,12 @@ import { builtCount } from './sim/seaf.js';
 import { objectiveStatus, OBJ_NAME } from './sim/objectives.js';
 import { todAt, todName, todClock } from './render/sky.js';
 import { situation, tipsFor } from './data/tips.js';
-import { t, getLang, LANGS } from './i18n.js';
+import { t, tl, getLang, LANGS } from './i18n.js';
 import { LEVELS, levelFactors, reward } from './difficulty.js';
 
 const $ = (id) => document.getElementById(id);
 const SCREENS = ['s-title', 's-shop', 's-brief', 's-debrief', 's-final'];
-const OVERLAYS = ['s-pause', 's-lock', 's-armory', 's-names', 's-settings', 's-notice', 's-info', 's-about', 's-map'];
+const OVERLAYS = ['s-pause', 's-lock', 's-controls', 's-manual', 's-armory', 's-names', 's-settings', 's-notice', 's-info', 's-about', 's-map'];
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // The short name of an orbital or utility for the weapon bar and the armory ("120mm HE").
@@ -39,7 +39,7 @@ export class Hud {
     this.wb = []; this.sc = []; this.rr = [];
     const bar = $('weapons');
     bar.innerHTML = '';
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 9; i++) {
       const b = el('button', 'wbtn', `<span class="k">${i + 1}</span><span class="n">--</span><span class="sub">--</span><span class="bar"><i></i></span>`);
       b.addEventListener('pointerdown', (e) => { e.preventDefault(); this.onWeapon && this.onWeapon(i); });
       bar.appendChild(b); this.wb.push({ el: b, n: b.querySelector('.n'), sub: b.querySelector('.sub'), bar: b.querySelector('.bar i'), key: '' });
@@ -76,6 +76,7 @@ export class Hud {
     this.dkSq.addEventListener('pointerdown', (e) => { e.preventDefault(); if (this.drawing) this.onSquadAct && this.onSquadAct('draw'); else this.trayToggle(); });
     this.dkDrop.addEventListener('pointerdown', (e) => { e.preventDefault(); this.onOrder && this.onOrder('seaf'); });
     $('tray').addEventListener('pointerdown', () => this.trayBump());
+    document.querySelector('.tray-x').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); this.trayToggle(false); });
     const chip = document.querySelector('.hud-tl');
     chip.addEventListener('pointerdown', () => {
       if (!document.body.classList.contains('touch')) return;
@@ -207,13 +208,17 @@ export class Hud {
     const h = $('hud'); h.classList.remove('idle');
     clearTimeout(this._wt); this._wt = setTimeout(() => h.classList.add('idle'), ms);
   }
-  menuToggle(force) {
-    const on = force === undefined ? this.menu.classList.contains('hidden') : force;
+  // The menu pauses the game while it is open (main.js onMenu); it stays open until it is closed.
+  menuToggle(force, keepPaused = false) {
+    const was = !this.menu.classList.contains('hidden'), on = force === undefined ? !was : force;
     this.menu.classList.toggle('hidden', !on);
-    clearTimeout(this._mnt); if (on) { this.trayToggle(false); this._mnt = setTimeout(() => this.menu.classList.add('hidden'), 7000); }
+    document.body.classList.toggle('menu-open', on);       // (the pause strip steps aside: the menu says the game is paused)
+    if (on) this.trayToggle(false);
+    if (on !== was && this.onMenu) this.onMenu(on, keepPaused);
   }
   menuAct(kind) {
-    if (kind === 'info') { this.menuToggle(false); this.onInfo && this.onInfo(); }
+    if (kind === 'settings' || kind === 'controls' || kind === 'manual' || kind === 'pause') { this.menuToggle(false, true); this.onMenuPanel && this.onMenuPanel(kind); return; }
+    if (kind === 'info') { this.menuToggle(false, true); this.onInfo && this.onInfo(); }
     else if (kind === 'armory') { this.menuToggle(false); $('btn-shop').click(); }
     else if (kind === 'strats') { this.menuToggle(false); this.stratsToggle(); }
     else if (kind === 'roster') { this.menuToggle(false); const c = document.querySelector('.hud-tl'); c.classList.add('open'); clearTimeout(this._rt); this._rt = setTimeout(() => c.classList.remove('open'), 7000); }
@@ -232,13 +237,13 @@ export class Hud {
     node.classList.add('hot'); clearTimeout(node._ht); node._ht = setTimeout(() => node.classList.remove('hot'), ms);
   }
   // The squad and orders tray (touch): opens from the dock, closes itself after a few idle seconds.
+  // (it stays open until closed: its ✕, the squads button again, or a tap on the map)
   trayToggle(force) {
     const h = $('hud'), on = force === undefined ? !h.classList.contains('tray-open') : force;
     h.classList.toggle('tray-open', on);
-    if (on) { this.menu.classList.add('hidden'); h.classList.remove('strats-open'); this.wake(); }
-    clearTimeout(this._tt); if (on) this._tt = setTimeout(() => h.classList.remove('tray-open'), 9000);
+    if (on) { if (!this.menu.classList.contains('hidden')) this.menuToggle(false); h.classList.remove('strats-open'); this.wake(); }
   }
-  trayBump() { if ($('hud').classList.contains('tray-open')) this.trayToggle(true); }
+  trayBump() { /* the tray no longer closes itself */ }
 
   _set(key, node, val, prop = 'textContent') {
     if (this.last[key] === val) return;
@@ -445,7 +450,7 @@ export class Hud {
         name = m.tag(a);
         const mech = a.mech && a.mech.hp > 0 ? a.mech : null;
         f = mech ? mech.hp / mech.maxHp : a.hp / a.maxHp;
-        st = mech ? t('hud.r.exo') : a.mounted ? t('hud.r.frv') : a.retreat ? t('hud.r.falling') : a.sw ? t('hud.r.gun') : t('hud.r.kit', { s: a.stims, g: a.gren });   // stims and grenades left
+        st = mech ? t('hud.r.exo') : a.mounted ? t('hud.r.frv') : a.retreat ? t('hud.r.falling') : a.sw ? t('hud.r.gun') : t('hud.r.kit', { s: a.stims, g: a.gren, u: a.ult ?? 0 });   // stims and grenades left
         if (f < 0.35) cls = 'hurt';
       } else {
         name = m.slotTag(tm);
@@ -520,11 +525,13 @@ export class Hud {
     const pb = placing && placing.startsWith('build:');
     if (none) set('build', t('hud.o.noSeaf'), 'off');
     else if (pb) set('build', t('hud.o.place'), 'active');
-    else if (bq) set('build', `${Math.floor(Math.min(1, bq.order.prog / C.build[bq.order.what].sec) * 100)}%`, 'active');
+    else if (bq && bq.order.waiting) set('build', t('hud.o.crate'), 'active');
+    else if (bq) set('build', `${Math.floor(Math.min(1, bq.order.prog / buildStats(bq.order.what, buildLevel(m.kit, bq.order.what)).sec) * 100)}%`, 'active');
     else set('build', menu ? t('hud.o.pick') : RDY, menu ? 'active' : 'ready');
     if (menu) for (const [what, b] of Object.entries(this.bld)) {
-      const B = C.build[what], n = builtCount(m, what), cls = n >= B.max ? 'off' : m.wallet.bal < B.cost ? 'poor' : 'ready';
-      const sub = n >= B.max ? t('hud.b.max', { n, max: B.max }) : t('hud.b.cost', { cr: B.cost, n, max: B.max }), key = `${sub}|${cls}`;
+      const lvl = buildLevel(m.kit, what), B = buildStats(what, lvl), n = builtCount(m, what) + (m.crates || []).filter((c) => c.what === what && !c.used).length;
+      const cls = !lvl ? 'off' : n >= B.max ? 'off' : m.wallet.bal < B.cost ? 'poor' : 'ready';
+      const sub = !lvl ? t('hud.b.locked') : n >= B.max ? t('hud.b.max', { n, max: B.max }) : t('hud.b.cost', { cr: B.cost, n, max: B.max }), key = `${sub}|${cls}|${lvl}`;
       if (b.key !== key) { b.key = key; b.s.textContent = sub; b.el.className = 'bld ' + cls; }
     }
   }
@@ -620,6 +627,12 @@ export class Hud {
           else if (g.firing) { sub = `${Math.floor(g.ammo)}`; cls = 'act'; }
           else if (sel && !p.aim.inZone) { sub = t('hud.w.noVisual'); cls = 'nomark'; }
           else { sub = `${Math.floor(g.ammo)}/${Math.round(gs.ammo)}`; cls = 'ready'; }
+        } else if (s.type === 'arty') {
+          const cd = slotStats(m, i).cd;
+          name = t('hud.w.artyBar');
+          if (tt < s.readyAt) { sub = t('hud.o.sec', { n: Math.ceil(s.readyAt - tt) }); frac = Math.max(0, 1 - (s.readyAt - tt) / cd); cls = 'cd'; }
+          else if (sel && !p.aim.inZone) { sub = t(p.aim.artyWhy === 'range' ? 'hud.w.outRange' : 'hud.w.noVisual'); cls = 'nomark'; }
+          else { sub = t('hud.w.ready'); cls = 'ready'; }
         } else {
           name = t('hud.w.nuke');
           if (s.uses <= 0) { sub = t('hud.w.launched'); frac = 0; cls = 'cd'; }
@@ -631,7 +644,7 @@ export class Hud {
       if (w.key !== key) {
         w.key = key; w.el.style.display = hidden ? 'none' : '';
         w.n.textContent = name; w.sub.textContent = sub;
-        w.el.className = 'wbtn' + (s.type === 'nuke' ? ' big-w obj-w' : s.type === 'uav' ? ' uav-w' : s.type === 'gun' ? ' gun-w' : ' orb-w') + (i === p.weapon ? ' sel' : '') + (cls ? ' ' + cls : '');
+        w.el.className = 'wbtn' + (s.type === 'nuke' ? ' big-w obj-w' : s.type === 'arty' ? ' big-w arty-w' : s.type === 'uav' ? ' uav-w' : s.type === 'gun' ? ' gun-w' : ' orb-w') + (i === p.weapon ? ' sel' : '') + (cls ? ' ' + cls : '');
       }
       w.bar.style.width = `${Math.max(0, Math.min(1, frac)) * 100}%`;
     });
@@ -659,7 +672,10 @@ export function squadStatus(m) {
     if (k.kind === 'radio') return t(near && s.state === 'active' ? 'sq.radioOn' : 'sq.radioGo');
     if (k.kind === 'propaganda') return t(near ? 'sq.propOn' : 'sq.propGo');
     if (k.kind === 'rescue') return t(near ? 'sq.rescueOn' : 'sq.rescueGo');
+    if (k.kind === 'arty') return t(near && s.state === 'active' ? 'sq.artyOn' : 'sq.artyGo');
   }
+  if (sq.staging && sq.stage === 'mark') return t('sq.staged', { n: Math.max(0, Math.ceil(sq.stageT || 0)) });
+  if (sq.staging) return t('sq.staging');
   if (sq.state === 'setup') return t('sq.setup');
   if (sq.engaged) return t('sq.engaged');
   if (sq.state === 'hold') return t(sq.pushed ? 'sq.push' : 'sq.base');
@@ -746,7 +762,7 @@ export function runBriefing({ info, mission, touch, onContinue, onEnd, canEnd, o
 
 // ---------------- the armory ----------------
 // css class per armory section (the styles predate the section ids)
-const SEC_SLUG = { loadout: 'loadout', orbitals: 'orbitals', utilities: 'utilities', gun: 'ship-gun', uav: 'uav-scan', seaf: 'seaf-troops', specialists: 'seaf-specialists', support: 'squad-support' };
+const SEC_SLUG = { loadout: 'loadout', orbitals: 'orbitals', utilities: 'utilities', gun: 'ship-gun', uav: 'uav-scan', seaf: 'seaf-troops', specialists: 'seaf-specialists', build: 'buildables', support: 'squad-support' };
 const pips = (lv, max) => { let s = ''; for (let i = 0; i < max; i++) s += i < lv ? '●' : '○'; return s; };
 
 // One line of numbers under an item's name.
@@ -780,7 +796,84 @@ function statLine(it, kit) {
     if (id === 'gun.spread') return t('st.gunSpread', { a: f1(g.spread), b: f1(g.spread + g.bloom) });
   }
   if (id === 'sup.zone') return t('st.zoneR', { n: C.sight.strikeBonus + zoneExtra(kit) });
+  if (id.startsWith('uavb.')) { const b = uavBuff(kit); return t(id === 'uavb.speed' ? 'st.uavSpeed' : 'st.uavDodge', { p: Math.round((id === 'uavb.speed' ? b.speed : b.dodge) * 100) }); }
+  if (it.build) {
+    const B = buildStats(it.build, Math.max(1, buildLevel(kit, it.build)));
+    if (it.build === 'wall') return t('st.bWall', { n: B.n, p: Math.round((1 - B.mul) * 100), max: B.max, cr: B.cost });
+    if (it.build === 'mg') return t('st.bMg', { hp: B.hp, n: B.ammo, d: B.dmg.toFixed(2), max: B.max, cr: B.cost });
+    if (it.build === 'beacon') return t('st.bBeacon', { s: B.sec, max: B.max, cr: B.cost });
+    return t('st.bArty', { dmg: fmtNum(B.dmg), r: B.r, s: B.cd, m: B.range, cr: B.cost });
+  }
   return '';
+}
+
+// A copy of the kit with one item at level L, so the armory can show what any level gives.
+function kitAt(kit, it, L) {
+  const k = JSON.parse(JSON.stringify(kit)), id = it.id;
+  if (it.orb) k.owned[it.orb] = Math.max(1, L);
+  else if (id === 'uav') k.uav = L;
+  else if (id.startsWith('uavb.')) { k.uavb = k.uavb || {}; k.uavb[id.slice(5)] = L; }
+  else if (id.startsWith('seaf.')) k.seaf[id.slice(5)] = L;
+  else if (id.startsWith('gun.')) k.gun[id.slice(4)] = L;
+  else if (id.startsWith('sup.')) k.sup[id.slice(4)] = L;
+  else if (it.build) { k.build = k.build || {}; k.build[it.build] = Math.max(1, L); }
+  return k;
+}
+// The one number that changes most along an item's upgrade path, at level L (for the PATH line).
+function keyAt(it, kit, L) {
+  const k = kitAt(kit, it, L), id = it.id, pc = (v) => `${Math.round(v * 100)}%`;
+  if (it.orb) {
+    const o = orbStats(it.orb, Math.max(1, L));
+    if (o.k === 'util') return o.util === 'med' ? pc(o.heal) : o.util === 'smoke' ? t('st.k.m', { n: Math.round(o.zone.r) }) : o.util === 'shield' ? fmtNum(o.shield) : t('st.k.hp', { n: o.t.hp });
+    if (o.k === 'beam') return t('st.k.ps', { n: Math.round(o.beam.dps) });
+    if (o.k === 'zone') return t('st.k.m', { n: Math.round(o.zone.r) });
+    return String(Math.round(o.dmg));
+  }
+  if (id === 'uav') return t('st.k.m', { n: uavStats(L).r });
+  if (id.startsWith('uavb.')) { const b = uavBuff(k); return `+${pc(id === 'uavb.speed' ? b.speed : b.dodge)}`; }
+  const s = seafStats(k), g = gunStats(k);
+  if (id === 'seaf.cap') return String(s.max);
+  if (id === 'seaf.drop') return String(s.drop);
+  if (id === 'seaf.hp') return `x${s.hpMul.toFixed(2)}`;
+  if (id === 'seaf.gren') return pc(s.grenChance);
+  if (id === 'seaf.rocket') return pc(s.rocketChance);
+  if (id === 'seaf.medic') return pc(s.medicChance);
+  if (id === 'seaf.spot') return pc(s.spotChance);
+  if (id === 'gun.dmg') return g.dmg.toFixed(1);
+  if (id === 'gun.ammo') return String(Math.round(g.ammo));
+  if (id === 'gun.regen') return t('st.k.ps', { n: g.regen.toFixed(1) });
+  if (id === 'gun.spread') return t('st.k.m', { n: g.spread.toFixed(1) });
+  if (id === 'sup.zone') return t('st.k.m', { n: C.sight.strikeBonus + zoneExtra(k) });
+  if (it.build) {
+    const B = buildStats(it.build, Math.max(1, L));
+    return it.build === 'wall' ? pc(1 - B.mul) : it.build === 'mg' ? t('st.k.hp', { n: B.hp }) : it.build === 'beacon' ? t('st.k.s', { n: B.sec }) : t('st.k.s', { n: B.cd });
+  }
+  return '';
+}
+// What an item does now, what the next level gives, and the whole path (level by level), as HTML.
+function upgradeLines(it, kit) {
+  if (it.id.startsWith('slot')) return `<div class="it-stat">${statLine(it, kit)}</div>`;
+  const L = it.level, unlock = (it.orb && !it.owned) || (it.build && !L);
+  const at = (lv) => statLine(it, kitAt(kit, it, lv));
+  let h = '';
+  if (unlock) h += `<div class="it-stat"><b>${t('arm.l1')}</b> ${at(1)}</div>`;
+  else {
+    h += `<div class="it-stat"><b>${t('arm.now', { n: L })}</b> ${at(L)}</div>`;
+    if (it.cost !== null) h += `<div class="it-next"><b>${t('arm.next', { n: L + 1 })}</b> ${at(L + 1)}</div>`;
+  }
+  // the path: every level and its key number (an endless track shows the levels round where it stands)
+  const lo = it.orb || it.build || it.id === 'uav' ? 1 : 0;
+  let from = lo, to = it.max;
+  if (!isFinite(it.max)) { from = Math.max(lo, L - 1); to = L + 3; }
+  if (to - from <= 8) {
+    const steps = [];
+    for (let lv = from; lv <= to; lv++) {
+      const cls = lv === L && !unlock ? 'cur' : lv < L ? 'past' : '';
+      steps.push(`<span class="${cls}">${t('arm.lv', { n: lv })} ${esc(keyAt(it, kit, lv))}</span>`);
+    }
+    h += `<div class="it-path"><b>${t('arm.path')}</b> ${steps.join('<i>›</i>')}${!isFinite(it.max) ? `<i>›</i><span>${t('arm.more')}</span>` : ''}</div>`;
+  }
+  return h;
 }
 
 // Draw the armory into root. opts: { kit, wallet, live, onBuy(id), onEquip(id), onUnequip(slot), note }
@@ -816,20 +909,20 @@ export function renderShop(root, opts) {
       const inLoad = it.orb && kit.loadout.slice(0, kit.slots).includes(it.orb);
       const card = el('div', 'item sec-' + slug + (it.owned ? ' owned' : '') + (it.cost === null ? ' maxed' : '') + (inLoad ? ' equipped' : ''));
       const main = el('div', 'it-main');
-      main.innerHTML = `<div class="it-name">${esc(it.orb ? shortName(it.orb) : it.name)}<span class="tagc">${esc(t('kit.tag.' + sec.name))}</span>${it.max > 1 ? `<span class="pips">${pips(it.level, it.max)}</span>` : ''}${inLoad ? `<span class="tagq">${t('arm.equipped')}</span>` : ''}</div>`
-        + `<div class="it-blurb">${esc(it.blurb)}</div><div class="it-stat">${statLine(it, kit)}</div>`;
+      main.innerHTML = `<div class="it-name">${esc(it.orb ? shortName(it.orb) : it.name)}<span class="tagc">${esc(t('kit.tag.' + sec.name))}</span>${it.max > 1 && isFinite(it.max) ? `<span class="pips">${pips(it.level, it.max)}</span>` : it.endless ? `<span class="pips">${t('arm.lv', { n: it.level })}</span>` : ''}${inLoad ? `<span class="tagq">${t('arm.equipped')}</span>` : ''}</div>`
+        + `<div class="it-blurb">${esc(it.blurb)}</div>${upgradeLines(it, kit)}`;
       const btns = el('div', 'it-btns');
       const b = el('button', 'btn buy');
       if (it.cost === null) { b.textContent = t(it.locked ? 'arm.locked' : 'arm.max'); b.disabled = true; }
       else if (live && !it.live) { b.textContent = t('arm.between'); b.disabled = true; b.classList.add('small'); }
       else {
-        const verb = t(it.orb ? (it.owned ? 'arm.upgrade' : 'arm.unlock') : it.id.startsWith('slot') ? 'arm.buy' : 'arm.upgrade');
+        const verb = t(it.orb || it.build ? (it.owned ? 'arm.upgrade' : 'arm.unlock') : it.id.startsWith('slot') ? 'arm.buy' : 'arm.upgrade');
         b.innerHTML = `${verb}<small>${t('arm.cr', { n: fmtNum(it.cost) })}</small>`;
         if (wallet.bal < it.cost) { b.disabled = true; b.classList.add('poor'); }
         else b.onclick = () => opts.onBuy(it.id);
       }
       btns.appendChild(b);
-      if (it.owned && !live) {
+      if (it.owned && it.orb && !live) {          // (orbitals and utilities go in a loadout slot; buildables do not)
         const q = el('button', 'btn small', t(inLoad ? 'arm.unequip' : 'arm.equip'));
         q.onclick = () => (inLoad ? opts.onUnequip(kit.loadout.indexOf(it.orb)) : opts.onEquip(it.orb));
         btns.appendChild(q);
@@ -991,13 +1084,14 @@ export function buildSettings(settings, onChange) {
   const select = (key, opts) => {
     const s = el('select');
     for (const [v, label] of opts) { const o = el('option'); o.value = v; o.textContent = label; s.appendChild(o); }
-    s.value = settings[key]; s.onchange = () => { settings[key] = s.value; onChange(key); }; return s;
+    s.value = String(settings[key]); s.onchange = () => { settings[key] = key === 'uiScale' ? Number(s.value) : s.value; onChange(key); }; return s;
   };
   const range = (key, min, max, step) => {
     const r = el('input'); r.type = 'range'; r.min = min; r.max = max; r.step = step; r.value = settings[key];
     r.oninput = () => { settings[key] = Number(r.value); onChange(key); }; return r;
   };
   row(t('set.lang'), t('set.langHint'), select('lang', Object.entries(LANGS).map(([k, v]) => [k, v.name])));
+  row(t('set.ui'), t('set.uiHint'), select('uiScale', [['0.8', '80%'], ['0.9', '90%'], ['1', '100%'], ['1.15', '115%'], ['1.3', '130%']]));
   row(t('set.thermal'), t('set.thermalHint'), select('polarity', [['white', t('set.white')], ['black', t('set.black')]]));
   row(t('set.relief'), t('set.reliefHint'), toggle('relief'));
   row(t('set.volume'), '', range('volume', 0, 1, 0.05));
@@ -1040,6 +1134,14 @@ export function fillLock(level) {
   $('s-lock').classList.toggle('hot', level >= 9);
 }
 
+// The field manual: everything the gunner can do, and the tips, by section (lists in the language tables).
+export const MANUAL = ['you', 'seaf', 'build', 'hd', 'enemy', 'armory', 'session'];
+export function fillManual() {
+  const body = $('manual-body');
+  body.innerHTML = MANUAL.map((k) => `<section class="man-sec"><h3>${esc(t('man.h.' + k))}</h3><ul>${tl('man.l.' + k).map((x) => `<li>${esc(x)}</li>`).join('')}</ul></section>`).join('');
+  body.scrollTop = 0;
+}
+
 // The language buttons on the title screen.
 export function buildLangs(cur, onPick) {
   const box = $('langs'); box.innerHTML = '';
@@ -1071,6 +1173,12 @@ export function weaponInfo(m, i) {
       + row(t('card.dmg'), t('card.gun.dmgV', { d: g.dmg.toFixed(1), r: C.gun.rps })) + row(t('card.gun.mag'), t('card.gun.magV', { n: Math.round(g.ammo), r: g.regen.toFixed(1) }))
       + row(t('card.gun.spread'), t('card.gun.spreadV', { a: g.spread.toFixed(1), b: (g.spread + g.bloom).toFixed(1) })) + row(t('card.crit'), t('card.critV', { p: pctS(K.gun), m: K.mul }))
       + `<div class="ic-b">${esc(t('card.gun.b'))}</div>`;
+  }
+  if (s.type === 'arty') {
+    const a = slotStats(m, i), n = (m.arty || []).length;
+    return `<div class="ic-h">${t('hud.w.arty')} <i>${t('card.level', { n: Math.max(1, (m.kit.build || {}).arty || 0) })}</i></div>` + row(t('card.dmg'), fmtNum(a.dmg)) + row(t('card.blast'), M(a.r))
+      + row(t('card.range'), M(a.range)) + row(t('card.impact'), S(a.delay)) + row(t('card.recharge'), S(a.cd)) + row(t('card.guns'), String(n))
+      + `<div class="ic-b">${esc(t('card.arty.b'))}</div>`;
   }
   if (s.type === 'nuke') {
     const N = C.objective.nuke;

@@ -7,12 +7,12 @@ import { RNG } from '../util/rng.js';
 import { Grid } from '../util/grid.js';
 import { FACTIONS, SUBTYPES, ALLY, BIOMES, NUKE, COMMS } from '../data/data.js';
 import { rollLoadout } from '../data/strat.js';
-import { newKit, newWallet, seafStats, maxLives, zoneExtra, buy, loadoutIds } from '../data/kit.js';
+import { newKit, newWallet, seafStats, maxLives, zoneExtra, buy, loadoutIds, buildStats, buildLevel } from '../data/kit.js';
 import { seafName } from '../data/names.js';
 import { updateSquad } from './squad.js';
-import { initSeaf, targetSquads, setSquadOrder, builtCount, drawOrder, splitSquad, mergeSquad, assignNear, callPelican, pendingTroops, dropSquad } from './seaf.js';
+import { initSeaf, targetSquads, setSquadOrder, builtCount, drawOrder, splitSquad, mergeSquad, assignNear, callPelican, pendingTroops, dropSquad, callCargo } from './seaf.js';
 import { updateEnemies, updateAllies } from './enemies.js';
-import { updateDirector } from './director.js';
+import { updateDirector, alertBase } from './director.js';
 import { initPatrols, updatePatrols } from './patrols.js';
 import { setupSides, updateSides, beaconAt } from './sides.js';
 import { noise } from './enemies.js';
@@ -20,7 +20,7 @@ import { locked } from './combat.js';
 import { initPlan, updatePlan } from './planner.js';
 import { initPlayer, updatePlayer, syncSlots } from './player.js';
 import { initStrat, updateStrat, destroyAsset, mechDown } from './strat.js';
-import { setupObjectives, updateObjectives, completeObjective } from './objectives.js';
+import { setupObjectives, updateObjectives, completeObjective, startSetup } from './objectives.js';
 import { setupPois, updatePois, damagePoi, damageBreach } from './pois.js';
 import { setupCover } from './cover.js';
 import { updateChatter } from './chatter.js';
@@ -119,6 +119,7 @@ export class Mission {
     this.enemies = []; this.groups = []; this.allies = []; this.alive = []; this.hdAlive = []; this.seafAlive = [];
     this.shells = []; this.beams = []; this.markers = []; this.pods = []; this.pelicans = []; this.incoming = []; this.uavs = []; this.relays = [];
     this.assets = []; this.zones = []; this.civs = []; this.ffz = null;
+    this.crates = []; this.arty = [];      // supply crates SEAF deploy into defences; howitzers (built or captured)
     this.pois = []; this.breaches = [];
     this.locked = [];                      // enemies that have given themselves away long enough to be hit from orbit
     this.radar = { nextAt: 3, at: -99, blips: [], n: 0 };   // the UAV's radar sweeps
@@ -284,14 +285,26 @@ export class Mission {
     if (this.over) return { ok: false, reason: 'over' };
     const B = C.build[what];
     if (!B) return { ok: false, reason: 'kind' };
+    const lvl = buildLevel(this.kit, what);
+    if (!lvl) return this._deny('locked');                       // (the howitzer has to be unlocked in the armory first)
+    const st = buildStats(what, lvl);
     const sq = targetSquads(this).filter((q) => q.n > 0);
     if (!sq.length) return this._deny('noseaf');
     x = aoX(this, x, 20); y = aoY(this, y, 20);
     if (!this.terrain.isLand(x, y) || this.terrain.blocked(x, y)) return this._deny('water', COMMS.noWater);
-    if (this.wallet.bal < B.cost) return this._deny('funds');
-    if (builtCount(this, what) + sq.filter((q) => q.order.kind === 'build' && q.order.what === what).length >= B.max) return this._deny('maxed');
+    // a crate of this kind already on the ground near the spot (from an order that was changed) is used again, at no charge
+    let crate = this.crates.find((c) => c.what === what && !c.used && Math.hypot(c.x - x, c.y - y) < C.build.crateR);
+    if (!crate) {
+      if (builtCount(this, what) + this.crates.filter((c) => c.what === what && !c.used).length >= st.max) return this._deny('maxed');
+      if (this.wallet.bal < st.cost) return this._deny('funds');
+      this.wallet.bal -= st.cost; this.wallet.spent += st.cost;     // paid now: a cargo pelican brings the crate
+      crate = { id: this.nextId++, what, x, y, landed: false, used: false, born: this.t };
+      this.crates.push(crate);
+      callCargo(this, x, y, crate);
+      this.notice(tr('n.crateIn', { what: tr('build.' + what), cr: st.cost }), 'info');
+    }
     const q = sq.slice().sort((a, b) => Math.hypot(a.cx - x, a.cy - y) - Math.hypot(b.cx - x, b.cy - y))[0];
-    setSquadOrder(this, q, 'build', x, y, { what, prog: 0 });
+    setSquadOrder(this, q, 'build', crate.x, crate.y, { what, prog: 0, crate });
     this.radio(COMMS.seafBuild(what), 'seafbuild', 1);
     this.emit('seaf_order', { kind: 'build', what, x, y, sq: q.i });
     return { ok: true, squad: q.i };
@@ -373,6 +386,7 @@ export class Mission {
     return true;
   }
   completeObjective(o) { completeObjective(this, o); }
+  startSetup(o) { startSetup(this, o); }
   onNukeLanded() {
     const o = this.nukeObj();
     if (o && !o.done) completeObjective(this, o);
@@ -614,6 +628,7 @@ export class Mission {
   mechDown(a) { mechDown(this, a); }
   damageBase(b, dmg, by = 'player') {
     if (b.destroyed || dmg <= 0) return;
+    if (!b.alert) alertBase(this, b, 'hit');      // a hit on the structure wakes the base
     const dealt = Math.min(dmg, b.hp);
     b.hp -= dmg; b.lastHit = this.t;
     if (by in this.stats.dmg) this.stats.dmg[by] += dealt;

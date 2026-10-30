@@ -149,11 +149,13 @@ const seafReady = (m, n = 5) => { m.seaf.readyAt = 0; m.callSeaf(m.hx + 10, m.hy
   m.wallet.bal = 5000;
   const spot = { x: m.hx + 30, y: m.hy + 10 };
   if (m.terrain.blocked(spot.x, spot.y)) { const l = m.terrain.nearestLand(spot.x, spot.y); spot.x = l.x; spot.y = l.y; }
+  const before = m.wallet.spent;
   const r = m.seafBuild('beacon', spot.x, spot.y);
   const spent = m.wallet.spent;
   run(m, C.build.beacon.sec + 30);
   const bc = m.beacons.find((b) => b.built);
-  check('SEAF ordered to build a drop beacon build it, and it is paid for when done', r.ok && !!bc && m.wallet.spent === spent + C.build.beacon.cost, r.ok ? `${m.beacons.length} beacons` : JSON.stringify(r));
+  // (0.15: paid when ordered; a cargo pelican brings the crate and SEAF deploy it)
+  check('SEAF ordered to build a drop beacon build it, and it is paid for when ordered', r.ok && !!bc && spent === before + C.build.beacon.cost && m.wallet.spent === spent, r.ok ? `${m.beacons.length} beacons` : JSON.stringify(r));
   check('a built beacon takes a SEAF drop', bc && !!beaconAt(m, bc.x, bc.y));
   const q = m.seaf.squads.find((x) => x.n);
   check('and the squad stays to guard it', q && q.order.kind === 'protect');

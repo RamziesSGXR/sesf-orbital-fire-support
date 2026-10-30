@@ -67,11 +67,16 @@ check('tray steps aside while drawing', !(await page.isVisible('#tray')));
 check('dock offers to finish drawing', /FINISH/.test(await page.evaluate(() => document.getElementById('dk-sq').textContent)));
 await tap('#dk-sq'); await page.waitForTimeout(250);
 check('draw mode off by tap', !(await page.evaluate(() => window.__game.drawing)));
-// the idle tray closes by itself
+// 0.15: the tray stays open until it is closed: its ✕, or a tap on the map
 await tap('#dk-sq'); await page.waitForTimeout(300);
 check('tray reopens', await page.isVisible('#tray'));
 await page.waitForTimeout(9800);
-check('tray closes by itself', !(await page.isVisible('#tray')));
+check('tray stays open until closed', await page.isVisible('#tray'));
+await tap('#tray .tray-x'); await page.waitForTimeout(250);
+check('its close button closes it', !(await page.isVisible('#tray')));
+await tap('#dk-sq'); await page.waitForTimeout(300);
+await page.touchscreen.tap(195, 380); await page.waitForTimeout(250);
+check('a tap on the map closes it too', !(await page.isVisible('#tray')));
 // the status chip opens the roster, and panels fade back until touched
 check('stratagem grid is out of the way', !(await page.isVisible('#strats')));
 // the camera is the player's: free from the start, with a re-center button that locks it on the squad (and then hides)

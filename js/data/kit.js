@@ -24,13 +24,15 @@ export function newKit() {
   for (const id of C.kit.startLoadout) owned[id] = 1;
   const loadout = Array(C.kit.slotsMax).fill('');
   C.kit.startLoadout.forEach((id, i) => { loadout[i] = id; });
-  return { slots: C.kit.slotsStart, loadout, owned, uav: 1, uavb: { speed: 0, dodge: 0 }, seaf: { cap: 0, drop: 0, hp: 0, gren: 0, rocket: 0, medic: 0, spot: 0 }, sup: { lives: 0, zone: 0 }, gun: { dmg: 0, ammo: 0, regen: 0, spread: 0 } };
+  return { slots: C.kit.slotsStart, loadout, owned, uav: 1, uavb: { speed: 0, dodge: 0 }, seaf: { cap: 0, drop: 0, hp: 0, gren: 0, rocket: 0, medic: 0, spot: 0 }, sup: { lives: 0, zone: 0 }, gun: { dmg: 0, ammo: 0, regen: 0, spread: 0 },
+    build: { wall: 1, mg: 1, beacon: 1, arty: 0 } };
 }
 // Old or partial saves are filled in rather than thrown away.
 export function fixKit(k) {
   const base = newKit();
   if (!k || typeof k !== 'object') return base;
-  const out = { ...base, ...k, uavb: { ...base.uavb, ...(k.uavb || {}) }, seaf: { ...base.seaf, ...(k.seaf || {}) }, sup: { ...base.sup, ...(k.sup || {}) }, gun: { ...base.gun, ...(k.gun || {}) }, owned: { ...base.owned, ...(k.owned || {}) } };
+  const out = { ...base, ...k, uavb: { ...base.uavb, ...(k.uavb || {}) }, seaf: { ...base.seaf, ...(k.seaf || {}) }, sup: { ...base.sup, ...(k.sup || {}) }, gun: { ...base.gun, ...(k.gun || {}) }, owned: { ...base.owned, ...(k.owned || {}) },
+    build: { ...base.build, ...(k.build || {}) } };
   // Anything the catalog no longer has (the old Orbital Gatling Barrage) is dropped from a save rather than carried around.
   for (const id of Object.keys(out.owned)) if (!STRATS[id]) delete out.owned[id];
   out.loadout = Array.from({ length: C.kit.slotsMax }, (_, i) => (k.loadout && out.owned[k.loadout[i]] ? k.loadout[i] : ''));
@@ -106,12 +108,25 @@ export function gunStats(kit) {
 }
 // Helldiver lives are the same every mission and reset at each drop. The Helldivers themselves are not upgraded in the armory.
 export const maxLives = () => C.helldivers.lives;
+
+// What a buildable does at a level (1 to 5; 0 = not unlocked: the level-1 numbers, for the armory to show).
+export function buildStats(what, level = 1) {
+  const B = C.build[what], L = Math.max(1, Math.min(C.build.levels, level | 0 || 1)), k = L - 1, A = C.arty;
+  if (what === 'wall') return { cost: B.cost, sec: B.sec, max: B.max + k, n: B.n + k, R: B.R + 0.75 * k, mul: Math.max(0.35, B.mul - 0.05 * k) };
+  if (what === 'mg') return { cost: B.cost, sec: B.sec, max: B.max + Math.floor(L / 3), hp: Math.round(B.hp * (1 + 0.25 * k)), ammo: Math.round(B.ammo * (1 + 0.2 * k)), dmg: 1 + 0.12 * k };
+  if (what === 'beacon') return { cost: B.cost, sec: B.sec - 2 * k, max: B.max + Math.floor(k / 2) };
+  return { cost: B.cost, sec: B.sec, max: B.max, cd: Math.round(A.cd * (1 - A.cdUp * k)), r: Math.round(A.r * (1 + A.rUp * k)), dmg: Math.round(A.dmg * (1 + A.dmgUp * k)), range: A.range + A.rangeUp * k };
+}
+export const buildLevel = (kit, what) => ((kit && kit.build) || {})[what] || 0;
+export const BUILDS = ['wall', 'mg', 'beacon', 'arty'];
+// The SEAF Barracks has no top level: each level adds troops and costs a little more than the last.
+export const barracksCost = (lvl) => price(300 * (lvl + 1) ** 1.4);
 export const zoneExtra = (kit) => C.kit.zonePer * kit.sup.zone;
 
 // ---------- the shop ----------
 // Every item has: id, section, name, blurb, level, max, cost (null when maxed), and live (true when it can be bought mid-mission).
 // Names and blurbs come from the language tables (kit.<group>.<key> and kit.<group>.<key>.b).
-const SEAF_UP = { cap: { max: 4, price: 300 }, drop: { max: 3, price: 400 }, hp: { max: 4, price: 350 }, gren: { max: 4, price: 300 },
+const SEAF_UP = { cap: { max: Infinity, price: 300, endless: true }, drop: { max: 3, price: 400 }, hp: { max: 4, price: 350 }, gren: { max: 4, price: 300 },
   rocket: { max: 4, price: 350 }, medic: { max: 4, price: 300 }, spot: { max: 4, price: 400 } };
 const GUN_UP = { dmg: { max: 5, price: 300 }, ammo: { max: 5, price: 250 }, regen: { max: 5, price: 250 }, spread: { max: 5, price: 300 } };
 const SUP_UP = { zone: { max: 4, price: 450 } };
@@ -151,7 +166,14 @@ export function shopItems(kit) {
   }
   for (const [k, u] of Object.entries(SEAF_UP)) {
     const lvl = kit.seaf[k];
-    items.push({ id: `seaf.${k}`, section: k === 'medic' || k === 'spot' || k === 'gren' || k === 'rocket' ? 'specialists' : 'seaf', ...named(`seaf.${k}`), level: lvl, max: u.max, cost: lvl >= u.max ? null : price(u.price * (lvl + 1)), live: true });
+    items.push({ id: `seaf.${k}`, section: k === 'medic' || k === 'spot' || k === 'gren' || k === 'rocket' ? 'specialists' : 'seaf', ...named(`seaf.${k}`), level: lvl, max: u.max,
+      cost: lvl >= u.max ? null : u.endless ? barracksCost(lvl) : price(u.price * (lvl + 1)), live: true, endless: !!u.endless });
+  }
+  // Buildables: what SEAF can put up. Walls, MG nests and drop beacons come at level 1; the howitzer is unlocked here.
+  for (const k of BUILDS) {
+    const lvl = buildLevel(kit, k), B = C.build[k], mx = C.build.levels;
+    items.push({ id: `bld:${k}`, section: 'build', ...named(`bld.${k}`), level: lvl, max: mx, build: k, owned: lvl > 0,
+      cost: lvl >= mx ? null : lvl === 0 ? price(B.unlock) : price(B.up * lvl), live: lvl > 0 });
   }
   for (const [k, u] of Object.entries(SUP_UP)) {
     const lvl = kit.sup[k];
@@ -177,6 +199,7 @@ export function buy(kit, wallet, id, inMission = false) {
   else if (kind === 'seaf') kit.seaf[arg]++;
   else if (kind === 'gun') kit.gun[arg]++;
   else if (kind === 'sup') kit.sup[arg]++;
+  else if (kind === 'bld') { kit.build = kit.build || {}; kit.build[arg] = (kit.build[arg] || 0) + 1; }
   return { ok: true, item: it };
 }
 

@@ -36,7 +36,12 @@ function held(m, o) {
 export function updateEvac(m, o, dt) {
   const t = m.t;
   if (o.state === 'travel') {
-    if (held(m, o)) {
+    if (held(m, o)) m.startSetup(o);
+    return;
+  }
+  if (o.state === 'setup') {
+    o.setupT -= dt;
+    if (o.setupT <= 0) {
       o.state = 'run'; o.batchT = 1;
       m.radio(COMMS.evacStart, 'evacstart', 0);
       m.emit('obj_state', { type: 'evac', state: 'run' });

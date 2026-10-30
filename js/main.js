@@ -40,6 +40,8 @@ let paused = false;
 let soft = false;             // a soft pause: the game is frozen (paused is true too) but the menu stays shut, so the player can look around
 let startSnap = null;         // the session as it was at the drop, for RETRY MISSION (same map, credits as they were)
 let retryArm = false;         // RETRY MISSION asks for a second tap
+let menuSoft = false;         // the HUD menu stopped the game (closing it, or a panel opened from it, plays on)
+let speed = 1;                // game speed: 1, or 0.5 (half speed: everything still works, only slower)
 let session = null, info = null, mission = null, bot = null, lastRes = null;
 let firePending = false;
 let acc = 0, lastT = 0, overAt = 0, endHandled = false;
@@ -58,6 +60,7 @@ function applySettings() {
   document.body.classList.toggle('lefty', !!settings.lefty);
   document.body.classList.toggle('cards-top', settings.cards === 'top');
   document.body.classList.toggle('cards-off', settings.cards === 'off');
+  document.documentElement.style.setProperty('--ui', String(Number(settings.uiScale) || 1));
   if (settings.cards === 'off') $('infocard').classList.add('hidden');
   input.sens = settings.touchSens;
   S.save('settings', settings);
@@ -92,6 +95,7 @@ function relang() {
   if (UI.isOn('s-info') && mission) UI.fillMissionInfo(mission, info);
   if (UI.isOn('s-armory') && mission) drawArmory();
   if (UI.isOn('s-names')) UI.buildNames(session ? session.names : S.getNames());
+  if (UI.isOn('s-manual')) UI.fillManual();
 }
 function pickLang(l) { audio.unlock(); audio.click(); settings.lang = l; onSettingChange('lang'); }
 // The difficulty a new session starts at (a session keeps its own). ?difficulty=N sets it for one visit (testing).
@@ -127,6 +131,8 @@ const input = new Input(canvas, $('minimap'), cam, {
   cancelPlace: () => setPlacing(null),
   pause: () => togglePause(),
   soft: () => softPause(),
+  speed: () => toggleSpeed(),
+  tap: () => tapAway(),
   armory: () => openArmory(),
   polarity: () => { settings.polarity = settings.polarity === 'white' ? 'black' : 'white'; onSettingChange('polarity'); },
   relief: () => { settings.relief = !settings.relief; onSettingChange('relief'); if (mission) hud.notice(t(settings.relief ? 'set.reliefOn' : 'set.reliefOff'), 'info'); },
@@ -161,6 +167,52 @@ hud.onBuild = (what) => {
 };
 function buildMenu(on) { $('buildmenu').classList.toggle('hidden', !on); }
 hud.onCallout = (k) => { audio.unlock(); supplyCall(k); };
+// The HUD menu stops the game while it is open; closing it plays on (unless one of its panels was opened).
+hud.onMenu = (on, keep) => {
+  if (on) { if (live()) { softPause(true); menuSoft = true; } }
+  else if (menuSoft && !keep) { menuSoft = false; if (soft) softPause(false); }
+};
+hud.onMenuPanel = (kind) => {
+  if (kind === 'pause') { menuSoft = false; togglePause(); return; }
+  const from = soft ? 'soft' : paused ? 'pause' : 'play';
+  if (kind === 'settings') openSettings(from);
+  else if (kind === 'controls') openPanel('s-controls', from, fillControls);
+  else if (kind === 'manual') openPanel('s-manual', from, () => UI.fillManual());
+};
+// A tap on the map (not a drag) closes the squad panel, the build menu and the menu.
+function tapAway() {
+  if (state !== 'play') return;
+  hud.trayToggle(false); buildMenu(false);
+  if (!$('menu').classList.contains('hidden')) hud.menuToggle(false);
+}
+// Half speed: the whole game runs at half speed; every control works as normal.
+function toggleSpeed(force) {
+  if (state !== 'play' || !mission) return;
+  speed = force !== undefined ? force : speed === 1 ? 0.5 : 1;
+  const b = $('btn-speed'); b.textContent = speed === 1 ? '1×' : '½×'; b.classList.toggle('on', speed !== 1);
+  document.body.classList.toggle('halfspeed', speed !== 1);
+  audio.click();
+}
+// Panels that open over whatever is showing (controls, the field manual): where they came from is where they go back to.
+const panelFrom = {};
+function openPanel(id, from, fill) {
+  panelFrom[id] = from;
+  if (fill) fill();
+  if (from === 'pause') UI.overlay('s-pause', false);
+  UI.overlay(id, true);
+}
+function closePanel(id) {
+  UI.overlay(id, false);
+  const f = panelFrom[id]; panelFrom[id] = null;
+  if (f === 'pause') UI.overlay('s-pause', true); else if (f === 'soft') afterPanel();
+}
+// Back from a panel opened while soft-paused: if the menu stopped the game, it plays on.
+function afterPanel() { if (menuSoft) { menuSoft = false; if (soft) softPause(false); } }
+function fillControls(tab) {
+  const tch = tab ? tab === 'touch' : input.touch;
+  $('controls-desktop').classList.toggle('hidden', tch); $('controls-touch').classList.toggle('hidden', !tch);
+  $('ctl-tab-d').classList.toggle('on', !tch); $('ctl-tab-t').classList.toggle('on', tch);
+}
 hud.onSupTap = (i) => { audio.unlock(); supTap(i); };
 hud.onSupLaunch = () => { if (live() && launchSupply(mission)) audio.click(); };
 
@@ -209,7 +261,7 @@ const live = () => state === 'play' && !paused && mission && !mission.over;
 
 // ---------------- orders: SEAF drop and SEAF orders ----------------
 // Why a call or a purchase was refused: deny.<reason> in the language tables.
-const DENY_KEYS = new Set(['nocoverage', 'cooldown', 'full', 'noseaf', 'nohd', 'noallies', 'nomark', 'funds', 'between', 'maxed', 'locked', 'novisual', 'gundry',
+const DENY_KEYS = new Set(['artyrange', 'nocoverage', 'cooldown', 'full', 'noseaf', 'nohd', 'noallies', 'nomark', 'funds', 'between', 'maxed', 'locked', 'novisual', 'gundry',
   'short', 'splitsmall', 'splitnosquad', 'splitunknown', 'mergesel', 'mergesmall', 'mergenosquad', 'assignsel', 'assignnone', 'water']);
 const deny = (r) => (DENY_KEYS.has(r) ? t('deny.' + r) : '');
 function setPlacing(kind) { if (kind) setDrawing(false); placing = kind; hud.setPlacing(kind); }
@@ -402,7 +454,7 @@ function deploy() {
   firePending = false; acc = 0; endHandled = false; overAt = 0; wantAbort = false;
   drawing = false; stroke = null;
   hud.reset(); hud.setOp(info.op); hud.setMission(mission); UI.showScreen(null); UI.hideOverlays();
-  state = 'play'; paused = false; soft = false; hud.setSoft(false);
+  state = 'play'; paused = false; soft = false; hud.setSoft(false); menuSoft = false; toggleSpeed(1);
   audio.humStart();
   hud.message(t('msg.start', { op: info.op.toUpperCase(), tod: todName(info.tod), clock: todClock(info.tod) }), 2600);
   hud.radio(COMMS.startDrop);
@@ -445,6 +497,8 @@ function endSession() {
 }
 
 function togglePause(force) {
+  if (UI.isOn('s-controls')) { closePanel('s-controls'); return; }
+  if (UI.isOn('s-manual')) { closePanel('s-manual'); return; }
   if (UI.isOn('s-map')) { closeMap(); return; }
   if (UI.isOn('s-info')) { closeInfo(); return; }
   if (UI.isOn('s-about')) { closeAbout(); return; }
@@ -467,6 +521,7 @@ function softPause(force) {
   if (state !== 'play' || !mission || mission.over) return;
   const on = force !== undefined ? !!force : !soft;
   if (on === soft) return;
+  if (!on) { menuSoft = false; hud.menuToggle(false, true); }     // playing on closes the menu too
   soft = on; paused = on;
   firePending = false; setPlacing(null); setDrawing(false); buildMenu(false); mission.setFiring(false); camPan = null;
   hud.setSoft(on);
@@ -484,6 +539,7 @@ function closeSettings() {
   UI.overlay('s-settings', false);
   if (settingsReturn === 'pause') UI.overlay('s-pause', true);
   if (settingsReturn === 'notice') UI.overlay('s-notice', true);
+  if (settingsReturn === 'soft') afterPanel();
   settingsReturn = null;
 }
 
@@ -527,7 +583,8 @@ function openArmory(from) {
 function closeArmory() {
   UI.overlay('s-armory', false);
   if (armoryFrom === 'pause') UI.overlay('s-pause', true);
-  else if (armoryFrom !== 'soft') { paused = false; audio.unlock(); audio.humStart(); }
+  else if (armoryFrom === 'soft') afterPanel();
+  else { paused = false; audio.unlock(); audio.humStart(); }
   armoryFrom = null;
 }
 
@@ -543,7 +600,7 @@ function openInfo(from) {
 }
 function closeInfo() {
   UI.overlay('s-info', false);
-  if (infoFrom === 'pause') UI.overlay('s-pause', true); else if (infoFrom !== 'soft') { paused = false; audio.unlock(); }
+  if (infoFrom === 'pause') UI.overlay('s-pause', true); else if (infoFrom === 'soft') afterPanel(); else { paused = false; audio.unlock(); }
   infoFrom = null;
 }
 // ---------------- the tactical map ----------------
@@ -558,7 +615,7 @@ function openMap() {
 }
 function closeMap() {
   UI.overlay('s-map', false);
-  if (mapFrom === 'pause') UI.overlay('s-pause', true); else if (mapFrom !== 'soft') { paused = false; audio.unlock(); }
+  if (mapFrom === 'pause') UI.overlay('s-pause', true); else if (mapFrom === 'soft') afterPanel(); else { paused = false; audio.unlock(); }
   mapFrom = null;
 }
 {
@@ -599,7 +656,8 @@ $('about-close').onclick = closeAbout;
 // Every panel's close (X) button does what that panel's own back button does.
 const CLOSE = {
   's-pause': () => togglePause(false), 's-armory': () => closeArmory(), 's-names': () => closeNames(false), 's-settings': () => closeSettings(),
-  's-notice': () => $('btn-notice').click(), 's-lock': () => closeLock(), 's-info': () => closeInfo(), 's-about': () => closeAbout(), 's-map': () => closeMap(),
+  's-notice': () => $('btn-notice').click(), 's-lock': () => closeLock(),
+  's-controls': () => closePanel('s-controls'), 's-manual': () => closePanel('s-manual'), 's-info': () => closeInfo(), 's-about': () => closeAbout(), 's-map': () => closeMap(),
 };
 for (const b of document.querySelectorAll('.x-close[data-close]')) { const f = CLOSE[b.dataset.close]; if (f) b.addEventListener('click', f); }
 
@@ -630,6 +688,17 @@ $('shop-go').onclick = () => {
   audio.click(); persist(); goBrief();
 };
 $('btn-resume-m').onclick = () => togglePause(false);
+$('btn-speed').onclick = () => toggleSpeed();
+// Controls and the field manual: from the briefing, the armory, the pause menu (and the HUD menu, above)
+const where = () => (state === 'play' ? (soft ? 'soft' : 'pause') : state);
+for (const [b, id, fill] of [['btn-ctl-b', 's-controls', fillControls], ['btn-ctl-s', 's-controls', fillControls], ['btn-ctl-m', 's-controls', fillControls],
+  ['btn-man-b', 's-manual', () => UI.fillManual()], ['btn-man-s', 's-manual', () => UI.fillManual()], ['btn-man-m', 's-manual', () => UI.fillManual()]]) {
+  $(b).onclick = () => { audio.unlock(); audio.click(); openPanel(id, where(), fill); };
+}
+$('ctl-close').onclick = () => closePanel('s-controls');
+$('man-close').onclick = () => closePanel('s-manual');
+$('ctl-tab-d').onclick = () => fillControls('desk');
+$('ctl-tab-t').onclick = () => fillControls('touch');
 $('sp-resume').onclick = () => softPause(false);
 $('sp-menu').onclick = () => togglePause();
 $('btn-armory-m').onclick = () => openArmory('pause');
@@ -834,7 +903,7 @@ function simulate(dt, now) {
     if (w && !bot) m.setAim(w.x, w.y);
     if (!bot && firePending) { m.fire(); firePending = false; }
   }
-  acc += dt * FAST * (supplyFilling(m) ? C.supply.slowmo : 1);   // slow motion while the supply pod is being loaded
+  acc += dt * FAST * speed * (supplyFilling(m) ? C.supply.slowmo : 1);   // half speed if picked; slow motion while the supply pod is loaded
   let n = 0;
   const cap = 6 * FAST + 2;
   while (acc >= STEP && n < cap) {
@@ -857,7 +926,7 @@ requestAnimationFrame((t) => { lastT = t / 1000; frame(t); });
 // Test hooks (used by the Playwright checks; harmless in production).
 window.__game = {
   get state() { return state; }, get mission() { return mission; }, get session() { return session; }, get info() { return info; },
-  get paused() { return paused; }, get soft() { return soft; }, softPause, retryMission,
+  get paused() { return paused; }, get soft() { return soft; }, get speed() { return speed; }, softPause, retryMission, toggleSpeed,
   cam, input, renderer, settings, order, get placing() { return placing; }, get drawing() { return drawing; }, squadAct, selectSquad, focusTeam, strokeBegin, strokeMove, strokeEnd, goShop, openArmory, closeArmory,
   setSetting: (k, v) => { settings[k] = v; onSettingChange(k); },
 };

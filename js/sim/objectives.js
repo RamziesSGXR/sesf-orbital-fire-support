@@ -179,10 +179,22 @@ export function pickNukeTarget(m) {
   return { x: aoX(m, m.cx + Math.cos(m.squad.dir) * d, 20), y: aoY(m, m.cy + Math.sin(m.squad.dir) * d, 20) };
 }
 
+// A defence begins with a quiet set-up: the squad takes its positions and the gunner prepares (CONFIG.defense).
+export function startSetup(m, o) {
+  o.state = 'setup'; o.setupT = C.defense.setupSec;
+  m.radio(COMMS.setup(Math.round(C.defense.setupSec)), 'setup', 0);
+  m.emit('obj_state', { type: o.type, state: 'setup', sec: C.defense.setupSec });
+}
+
 function updateNuke(m, o, dt) {
   const t = m.t;
   if (o.state === 'travel') {
-    if (squadAt(m, o.x, o.y, o.r)) { o.state = 'hold'; m.radio(COMMS.nukeHold, 'nukehold', 0); m.emit('obj_state', { type: 'nuke', state: 'hold' }); }
+    if (squadAt(m, o.x, o.y, o.r)) startSetup(m, o);
+    return;
+  }
+  if (o.state === 'setup') {
+    o.setupT -= dt;
+    if (o.setupT <= 0) { o.state = 'hold'; m.radio(COMMS.nukeHold, 'nukehold', 0); m.emit('obj_state', { type: 'nuke', state: 'hold' }); }
     return;
   }
   if (o.state === 'hold') {
@@ -290,8 +302,8 @@ export function updateObjectives(m, dt) {
     else if (o.type === 'evac') updateEvac(m, o, dt);
     else if (o.type === 'fortress') {
       if ((o.parts || [o.base]).every((b) => b.destroyed)) completeObjective(m, o);
-      else if (squadAt(m, o.base.x, o.base.y, C.siege.fortressR + C.fortress.partR)) {
-        // its guardian, a super heavy, turns out the first time the squad comes in (unless one is already out)
+      else if ((o.parts || [o.base]).some((b) => b.alert) && squadAt(m, o.base.x, o.base.y, C.siege.fortressR + C.fortress.partR + C.fortress.detectR)) {
+        // once the citadel is awake: its guardian, a super heavy, turns out (unless one is already out)
         if (!o.guarded) { o.guarded = true; if (!(m.boss && !m.boss.dead)) { m.bossPlan = null; spawnBoss(m, { at: o.base, guard: true }); } }
         siege(m, o, o.base.x, o.base.y, dt);   // the citadel calls for help while it is attacked
       }
@@ -312,12 +324,14 @@ export function objectiveStatus(m) {
   const of = m.objectives.length > 1 ? tr('obj.of', { i: m.objectives.indexOf(o) + 1, n: m.objectives.length }) : '';
   if (o.type === 'nuke') {
     if (o.state === 'travel') return { text: tr('obj.nuke.travel', { of }), p: 0 };
+    if (o.state === 'setup') return { text: tr('obj.setup', { n: Math.max(0, Math.ceil(o.setupT)), of }), p: 1 - o.setupT / C.defense.setupSec, urgent: true };
     if (o.state === 'hold') return { text: tr('obj.nuke.hold', { of }), p: o.holdT / O.nuke.holdSec };
     if (o.state === 'armed') return { text: tr('obj.nuke.armed', { n: Math.max(0, Math.ceil(o.armedAt + O.nuke.armedSec - m.t)) }), p: 1, urgent: true };
     return { text: tr('obj.nuke.inbound'), p: 1, urgent: true };
   }
   if (o.type === 'evac') {
     if (o.state === 'travel') return { text: tr('obj.evac.travel', { of }), p: 0 };
+    if (o.state === 'setup') return { text: tr('obj.setup', { n: Math.max(0, Math.ceil(o.setupT)), of }), p: 1 - o.setupT / C.defense.setupSec, urgent: true };
     return { text: tr(o.open ? 'obj.evac.run' : 'obj.evac.shut', { saved: o.saved, need: O.evac.need, of }), p: o.saved / O.evac.need };
   }
   if (o.type === 'vip') {

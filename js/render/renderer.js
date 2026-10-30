@@ -7,7 +7,7 @@ import { drawSquadOrders, drawSeafMark, drawStroke, drawPelicans, drawMiniSeaf, 
 
 import { slotStats } from '../sim/player.js';
 import { drawAllyBody, drawEnemyBody, enemyR, drawBossBody, bossR } from './units.js';
-import { drawAoEdge, drawSides, drawBeacons, drawRevealed, drawRadar } from './ops.js';
+import { drawAoEdge, drawSides, drawBeacons, drawRevealed, drawRadar, drawArty, drawCrates, drawMarks } from './ops.js';
 import { OPS } from '../data/data.js';
 import { t as tr } from '../i18n.js';
 import { beaconAt } from '../sim/sides.js';
@@ -17,7 +17,7 @@ import { todAt, skyTint, destroyerShadows, drawDestroyerShadow } from './sky.js'
 
 const SIZE = C.world.size;
 const TAU = Math.PI * 2;
-const TASK_LABEL = { base: 'lab.base', radio: 'lab.radio', propaganda: 'lab.prop', rescue: 'lab.rescue' };
+const TASK_LABEL = { base: 'lab.base', radio: 'lab.radio', propaganda: 'lab.prop', rescue: 'lab.rescue', arty: 'lab.artySite' };
 const slotCd = (m, i) => { const st = slotStats(m, i); return st ? st.cd : 0; };
 
 export class Renderer {
@@ -318,6 +318,9 @@ export class Renderer {
 
     drawPois(ctx, m, now, px, labels, scale, pal);
     drawSides(ctx, m, now, px, labels, scale);
+    drawArty(ctx, m, now, px, labels, scale);
+    drawCrates(ctx, m, now, px, labels);
+    drawMarks(ctx, m, now, px, labels, scale);
     drawBeacons(ctx, m, now, px, labels, scale, ui.placing === 'seaf');
     drawHoles(ctx, m, now, px, labels, scale, pal);
     drawObjectives(ctx, m, now, px, labels, scale, pal);
@@ -898,6 +901,7 @@ export class Renderer {
       else status = tr(info.lock ? 'ret.locked' : p.gun && p.gun.firing ? 'ret.firing' : 'ret.freeFire');
     } else if (isNuke) { if (!info.ready) { status = tr(s.uses <= 0 ? 'hud.w.launched' : 'ret.notArmed'); bad = true; } else status = tr('ret.armed'); }
     else if (s.type === 'empty') { status = tr('ret.empty'); bad = true; }
+    else if (s.type === 'arty' && t >= s.readyAt && !info.inZone) { status = tr(info.artyWhy === 'range' ? 'ret.artyRange' : 'ret.gunNoVis'); bad = true; }
     else if (t < s.readyAt) { status = tr('ret.cooldown', { n: Math.ceil(s.readyAt - t) }); bad = true; }
     else if (s.uses <= 0) { status = tr('ret.noUses'); bad = true; }
     else if (!info.inZone) { status = tr('ret.noCover'); bad = true; }
@@ -1060,7 +1064,7 @@ export class Renderer {
     }
     if (m.extraction.revealed) lab(m.extraction.x, m.extraction.y, tr(m.extraction.state === 'open' ? 'lab.extract' : 'lab.extractCalled'), '#ffe600');
     if (m.ffz) lab(m.ffz.x, m.ffz.y, tr('lab.ffz'), '#ff9a4a');
-    for (const q of m.sides || []) if (!q.done && !q.failed) lab(q.x, q.y, q.kind === 'radio' ? OPS.radio : q.kind === 'rescue' ? OPS.rescue : q.name, q.kind === 'propaganda' ? '#ffb020' : '#7fd8ff');
+    for (const q of m.sides || []) if (!q.done && !q.failed) lab(q.x, q.y, q.kind === 'radio' ? OPS.radio : q.kind === 'rescue' ? OPS.rescue : q.kind === 'arty' ? OPS.artySite : q.name, q.kind === 'propaganda' ? '#ffb020' : '#7fd8ff');
     for (const bc of m.beacons || []) if (bc.relit || t < C.beacons.darkSec) lab(bc.x, bc.y, OPS.beacon, '#6fc0ff', 2.2);
     if (m.supply && m.supply.drop) lab(m.supply.drop.x, m.supply.drop.y, tr('lab.supply'), '#9dffb8');
     if (m.hdAlive.length) lab(m.hx, m.hy, tr('lab.squad'), '#e8f6ff', 2.4);
@@ -1149,8 +1153,10 @@ export class Renderer {
       if (q.kind === 'propaganda' || q.failed) continue;
       const x = q.x * k, y = q.y * k;
       if (q.kind === 'radio') { c.strokeStyle = q.done ? 'rgba(127,216,255,0.6)' : '#7fd8ff'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x, y - 5); c.lineTo(x - 4, y + 4); c.moveTo(x, y - 5); c.lineTo(x + 4, y + 4); c.moveTo(x - 2.5, y + 1); c.lineTo(x + 2.5, y + 1); c.stroke(); }
+      else if (q.kind === 'arty') { if (!q.done) { c.strokeStyle = '#7fd8ff'; c.lineWidth = 1.5; c.strokeRect(x - 3.5, y - 3.5, 7, 7); } }
       else if (!q.done) { c.strokeStyle = q.state === 'siege' ? '#ff8a6a' : '#9dd0ff'; c.lineWidth = 2; c.beginPath(); c.arc(x, y, 5, 0, TAU); c.stroke(); c.beginPath(); c.arc(x, y, 1.6, 0, TAU); c.stroke(); }
     }
+    for (const g of m.arty || []) { c.fillStyle = '#6fc0ff'; c.fillRect(g.x * k - 3, g.y * k - 3, 6, 6); }     // howitzers the gunner can fire
     for (const bc of m.beacons || []) {
       const lit = bc.relit || t < C.beacons.darkSec;
       c.strokeStyle = lit ? '#3da9ff' : 'rgba(140,150,150,0.5)'; c.lineWidth = 1.5;

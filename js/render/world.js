@@ -479,6 +479,7 @@ export function drawUavs(ctx, m, now, px, labels, scale) {
 export function drawPings(ctx, m, now, px, labels, scale) {
   for (const a of m.hdAlive) {
     const pg = a.ping; if (!pg) continue;
+    if (pg.e && !pg.e.dead) { pg.x = pg.e.x; pg.y = pg.e.y; }      // a marked target: the mark rides on it
     const tm = m.teams[a.team], col = tm ? tm.color : '#ffe600', tag = m.tag(a);
     const pulse = 0.5 + 0.5 * Math.sin(now * 7 + a.team);
     const r = Math.max(px(7), 4);
@@ -488,6 +489,15 @@ export function drawPings(ctx, m, now, px, labels, scale) {
       ring(ctx, pg.x, pg.y, r * (1.1 + 0.2 * pulse)); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(pg.x - r * 1.9, pg.y); ctx.lineTo(pg.x - r * 0.7, pg.y); ctx.moveTo(pg.x + r * 0.7, pg.y); ctx.lineTo(pg.x + r * 1.9, pg.y);
       ctx.moveTo(pg.x, pg.y - r * 1.9); ctx.lineTo(pg.x, pg.y - r * 0.7); ctx.moveTo(pg.x, pg.y + r * 0.7); ctx.lineTo(pg.x, pg.y + r * 1.9); ctx.stroke();
+    } else if (pg.kind === 'ult' || pg.kind === 'gren') {
+      // a target mark: a red diamond in the Helldiver's colour brackets, closing in
+      const R = Math.max(px(11), (pg.e ? pg.e.r : 4) + px(5)), c = R * 0.45;
+      ctx.strokeStyle = 'rgba(255,90,70,0.95)'; ctx.lineWidth = px(2);
+      ctx.beginPath(); ctx.moveTo(pg.x, pg.y - R); ctx.lineTo(pg.x + R, pg.y); ctx.lineTo(pg.x, pg.y + R); ctx.lineTo(pg.x - R, pg.y); ctx.closePath(); ctx.stroke();
+      const br = R * (1.45 - 0.25 * pulse);
+      ctx.strokeStyle = rgba(col, 0.95); ctx.beginPath();
+      for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const x = pg.x + sx * br, y = pg.y + sy * br; ctx.moveTo(x, y - sy * c); ctx.lineTo(x, y); ctx.lineTo(x - sx * c, y); }
+      ctx.stroke();
     } else if (pg.kind === 'breach') {
       ring(ctx, pg.x, pg.y, r * (1.3 + 0.2 * pulse)); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(pg.x, pg.y - r * 0.9); ctx.lineTo(pg.x + r * 0.8, pg.y + r * 0.7); ctx.lineTo(pg.x - r * 0.8, pg.y + r * 0.7); ctx.closePath(); ctx.fill();
@@ -497,6 +507,6 @@ export function drawPings(ctx, m, now, px, labels, scale) {
       ctx.globalAlpha = 0.35; ctx.lineWidth = px(1); ctx.setLineDash([px(2), px(5)]);
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(pg.x, pg.y); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
     }
-    labels.push({ x: pg.x, y: pg.y, dy: pg.kind === 'go' ? -r * scale * 1.6 - 5 : r * scale * 2 + 12, text: pg.kind === 'fight' ? tr('lab.engaging', { who: tag }) : pg.kind === 'breach' ? tr('lab.atBreach', { who: tag }) : tag, col , pri: 0 });
+    labels.push({ x: pg.x, y: pg.y, dy: pg.kind === 'go' ? -r * scale * 1.6 - 5 : r * scale * 2 + 12, text: pg.kind === 'fight' ? tr('lab.engaging', { who: tag }) : pg.kind === 'breach' ? tr('lab.atBreach', { who: tag }) : pg.kind === 'ult' ? tr('lab.markUlt', { who: tag }) : pg.kind === 'gren' ? tr('lab.markGren', { who: tag }) : tag, col: pg.kind === 'ult' || pg.kind === 'gren' ? '#ff8a6a' : col, pri: pg.kind === 'ult' ? 2 : 0 });
   }
 }

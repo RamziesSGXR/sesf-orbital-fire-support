@@ -123,28 +123,39 @@ function ahead(x, y, vx, vy, lead) {
 }
 const leadOf = (d) => (d.delay || 0) + C.strat.callSec;
 
+// A strike that would reach the structure of a base that has not seen the squad would wake it: the Helldivers don't call those.
+export function wakesBase(m, x, y, reach) {
+  for (const b of m.bases) if (!b.destroyed && !b.alert && Math.hypot(b.x - x, b.y - y) < b.r + reach + 6) return true;
+  return false;
+}
+const blastOf = (d) => (d.zone ? d.zone.r : d.splash || 8) + (d.len || 0) / 2;
+// While the squad is staging on a base, only what is already hunting it gets a stratagem.
+const quiet = (m, ctx) => m.squad.staging && !ctx.hunt;
+
 function pickCluster(m, d, ctx) {
   const need = ctx.panic ? 2 : d.min || 5, lead = leadOf(d);
+  if (quiet(m, ctx)) return null;
   for (const c of clusters(m, ctx)) {
     if (c.n < need) continue;
     // aim where the pack will be when the strike lands
     const p = ahead(c.x, c.y, c.vx, c.vy, lead);
-    if (safeSpot(m, p.x, p.y, clearance(d)) && inOwn(ctx, p.x, p.y) && m.terrain.isLand(p.x, p.y)) return p;
+    if (safeSpot(m, p.x, p.y, clearance(d)) && inOwn(ctx, p.x, p.y) && m.terrain.isLand(p.x, p.y) && !wakesBase(m, p.x, p.y, blastOf(d))) return p;
   }
   return null;
 }
 function pickHeavy(m, d, ctx) {
   const lead = leadOf(d);
+  if (quiet(m, ctx)) return null;
   for (const e of ctx.heavies) {
     // Aim where it will be when the strike lands.
     const p = ahead(e.x, e.y, e.vx, e.vy, lead);
-    if (safeSpot(m, p.x, p.y, clearance(d)) && inOwn(ctx, p.x, p.y)) return { x: p.x, y: p.y, e };
+    if (safeSpot(m, p.x, p.y, clearance(d)) && inOwn(ctx, p.x, p.y) && !wakesBase(m, p.x, p.y, blastOf(d))) return { x: p.x, y: p.y, e };
   }
   return null;
 }
 function pickBase(m, d, ctx) {
   const sq = m.squad, b = sq.base;
-  if (!b || b.destroyed || sq.state !== 'hold') return null;
+  if (!b || b.destroyed || sq.state !== 'hold' || !(b.alert || sq.assault)) return null;   // (not a base still being staged on)
   if (!inOwn(ctx, b.x, b.y) || !safeSpot(m, b.x, b.y, clearance(d))) return null;
   return { x: b.x, y: b.y, base: b };
 }
@@ -187,7 +198,7 @@ function choose(m, g, ctx) {
     case 'heavy':
       if (d.k === 'weapon') {
         // Heavy weapons come out for armor, and also to crack a base the squad is sieging.
-        const sq = m.squad, siege = sq.base && !sq.base.destroyed && sq.state === 'hold' && !d.sw.only && d.sw.mult.B >= C.structure.weaponTry;
+        const sq = m.squad, siege = sq.base && !sq.base.destroyed && sq.state === 'hold' && (sq.base.alert || sq.assault) && !d.sw.only && d.sw.mult.B >= C.structure.weaponTry;
         return ctx.heavies.length || siege ? { x: ctx.cx, y: ctx.cy } : null;
       }
       return pickHeavy(m, d, ctx) || (d.base ? pickBase(m, d, ctx) : null);
@@ -435,6 +446,7 @@ function turretTarget(m, s) {
     if (e.vis <= 0) return;
     const d = Math.sqrt(d2);
     if (p.minRange && d < p.minRange) return;
+    if (p.splash > 0 && !m.squad.assault && wakesBase(m, e.x, e.y, p.splash)) return;   // its blast would wake a base
     let score = -d;
     if (p.prefer && p.prefer.includes(e.kind)) score += 40;
     if (focus) {
@@ -595,7 +607,8 @@ function updateWeapons(m, dt) {
       const w = a.sw;
       w.t -= dt;
       if (w.t <= 0) {
-        const e = pickWeaponTarget(m, a, w);
+        let e = pickWeaponTarget(m, a, w);
+        if (e && w.splash > 0 && !sq.assault && wakesBase(m, e.x, e.y, w.splash)) e = null;   // its blast would wake a base
         if (e && ok(e)) {
           if (w.splash < 3 && blocker(m, a, e.x, e.y)) { w.t = 0.3; w.lockE = null; w.lockT = 0; }   // a friendly is in the line of fire
           else if (w.lock && !lockedOn(m, w, e, dt)) w.t = 0;                                        // still acquiring
@@ -609,7 +622,8 @@ function updateWeapons(m, dt) {
         } else {
           w.lockE = null; w.lockT = 0;
           // No enemy to shoot: a weapon that can crack structures works on a base or the citadel in range.
-          const bs = w.only || w.mult.B < C.structure.weaponTry ? null : baseNear(m, a.x, a.y, w.range * 0.9);
+          let bs = w.only || w.mult.B < C.structure.weaponTry ? null : baseNear(m, a.x, a.y, w.range * 0.9);
+          if (bs && !bs.alert && !(sq.assault && sq.base === bs)) bs = null;     // not a base the squad has not gone in on yet
           if (bs) {
             w.t = w.every;
             const dx = a.x - bs.x, dy = a.y - bs.y, d = Math.hypot(dx, dy) || 1, kk = bs.r * 0.7 / d;

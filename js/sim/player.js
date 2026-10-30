@@ -4,12 +4,12 @@
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
-import { orbStats, uavStats, gunStats } from '../data/kit.js';
+import { orbStats, uavStats, gunStats, buildStats, buildLevel } from '../data/kit.js';
 import { noise } from './enemies.js';
-import { damageArea } from './combat.js';
+import { damageArea, hurtEnemy } from './combat.js';
 import { strikeAt, queueZone, destroyAsset } from './strat.js';
 
-export const SLOT_UAV = 0, SLOT_NUKE = 6, SLOT_GUN = 7, ORB_SLOTS = 5;
+export const SLOT_UAV = 0, SLOT_NUKE = 6, SLOT_GUN = 7, SLOT_ARTY = 8, ORB_SLOTS = 5;
 export const UAV_REACH = 70;       // a UAV can be dropped this far beyond the strike zone of the allies
 const ALL = { L: 1, M: 1, H: 1, B: 1 };
 const GUN_MULT = { L: 1, M: 0.8, H: 0.2, B: C.gun.struct };
@@ -17,7 +17,7 @@ const GUN_MULT = { L: 1, M: 0.8, H: 0.2, B: C.gun.struct };
 export function initPlayer(m) {
   const p = {
     weapon: 1, aimX: m.lz.x, aimY: m.lz.y + 60, firing: false, prevFiring: false, swapUntil: 0,
-    slots: [{ type: 'uav', readyAt: startCd(uavStats(m.kit.uav).cd) }, { type: 'empty' }, { type: 'empty' }, { type: 'empty' }, { type: 'empty' }, { type: 'empty' }, { type: 'nuke', uses: 1, readyAt: 0 }, { type: 'gun' }],
+    slots: [{ type: 'uav', readyAt: startCd(uavStats(m.kit.uav).cd) }, { type: 'empty' }, { type: 'empty' }, { type: 'empty' }, { type: 'empty' }, { type: 'empty' }, { type: 'nuke', uses: 1, readyAt: 0 }, { type: 'gun' }, { type: 'empty' }],
     gun: { ammo: gunStats(m.kit).ammo, max: gunStats(m.kit).ammo, bloom: 0, idle: 9, acc: 0, dry: false, firing: false },
     aim: { ok: true, inZone: true, danger: false, dangerR: 0, ready: false, splash: 0, spread: 0, delay: 0, name: '' },
   };
@@ -44,6 +44,10 @@ export function syncSlots(m, start = false) {
   // gun upgrades bought mid-mission: a bigger magazine arrives full of the extra rounds
   const gs = gunStats(kit);
   if (p.gun && gs.ammo !== p.gun.max) { p.gun.ammo = Math.min(gs.ammo, p.gun.ammo + Math.max(0, gs.ammo - p.gun.max)); p.gun.max = gs.ammo; }
+  // the howitzer: weapon 9, once one stands (built by SEAF or captured on the map)
+  const hasArty = (m.arty || []).length > 0;
+  if (hasArty && p.slots[SLOT_ARTY].type !== 'arty') p.slots[SLOT_ARTY] = { type: 'arty', readyAt: m.t + (start ? 0 : C.weapons.warmupSec) };
+  else if (!hasArty) p.slots[SLOT_ARTY] = { type: 'empty' };
   if (p.slots[p.weapon].type === 'empty') {
     const j = p.slots.findIndex((s, i) => i >= 1 && i <= ORB_SLOTS && s.type === 'orb');
     p.weapon = j >= 0 ? j : 0;
@@ -57,7 +61,32 @@ export function slotStats(m, i) {
   if (s.type === 'uav') { const u = uavStats(m.kit.uav); return { name: tr('hud.w.uav'), g: 'UAV', cd: u.cd, r: u.r, sec: u.sec, delay: 0 }; }
   if (s.type === 'nuke') return { name: tr('card.nuke.h'), g: 'NUKE', cd: 0, delay: C.objective.nuke.delaySec, splash: C.objective.nuke.blastR, dmg: C.objective.nuke.blastDmg };
   if (s.type === 'gun') return { name: tr('hud.w.gun'), g: 'GUN', cd: 0, delay: 0 };
+  if (s.type === 'arty') { const a = artyStats(m); return { name: tr('hud.w.arty'), g: 'ARTY', cd: a.cd, delay: C.arty.flight, splash: a.r, dmg: a.dmg, range: a.range }; }
   return null;
+}
+// The howitzer's numbers: the armory level (a captured gun fires at level 1 at least).
+export const artyStats = (m) => buildStats('arty', Math.max(1, buildLevel(m.kit, 'arty')));
+// The nearest howitzer to (x, y), and how far it is.
+export function nearestArty(m, x, y) {
+  let best = null, bd = Infinity;
+  for (const g of m.arty || []) { const d = Math.hypot(g.x - x, g.y - y); if (d < bd) { bd = d; best = g; } }
+  return { g: best, d: bd };
+}
+// A mini-nuke from the howitzer: anywhere in its range that is in sight (or locked), on a slow recharge. It hurts allies too.
+function fireArty(m, s) {
+  const p = m.player, t = m.t, a = artyStats(m), A = C.arty;
+  if (t < s.readyAt) return deny(m, 'cooldown');
+  const { g, d } = nearestArty(m, p.aimX, p.aimY);
+  if (!g || d > a.range) return deny(m, 'artyrange');
+  if (m.visLevel(p.aimX, p.aimY) <= 0 && !m.nearLock(p.aimX, p.aimY)) return deny(m, 'novisual');
+  s.readyAt = t + a.cd;
+  g.face = Math.atan2(p.aimY - g.y, p.aimX - g.x); g.firedAt = t;
+  m.shells.push({ x: p.aimX, y: p.aimY, at: t + A.flight, dmg: a.dmg, splash: a.r, mult: A.mult, by: 'player', friendly: true, big: true, mini: true, fx: g.x, fy: g.y });
+  m.markers.push({ type: 'strat', x: p.aimX, y: p.aimY, r: a.r, start: t, end: t + A.flight, impact: t + A.flight, id: tr('hud.w.arty'), cat: 'ORBITAL', by: 'player' });
+  m.stats.artyShots = (m.stats.artyShots || 0) + 1; m.stats.shots++;
+  m.radio(COMMS.artyFire, 'artyfire', 3);
+  m.emit('arty_fire', { x: p.aimX, y: p.aimY, gx: g.x, gy: g.y });
+  return true;
 }
 
 // The footprint of an orbital for aiming: how big each blast is and how far the shells spread around the aim point.
@@ -70,6 +99,13 @@ export function aimGeom(m, st) {
 // A shell lands. by says who fired it; friendly = whether it hurts allies (only the player's strikes do).
 function explode(m, sh) {
   const by = sh.by || 'player', friendly = sh.friendly !== false;
+  // a round aimed at one enemy (the Ultimatum): it takes the full hit if it is still where the round lands
+  if (sh.direct && !sh.direct.dead && Math.hypot(sh.direct.x - sh.x, sh.direct.y - sh.y) <= sh.direct.r + 1.5) {
+    if (sh.flat) hurtEnemy(m, sh.direct, sh.directDmg, by, null, null, '');      // a flat share: no rear or critical bonus on top
+    else hurtEnemy(m, sh.direct, sh.directDmg, by, sh.fx ?? sh.x, sh.fy ?? sh.y, sh.cs);
+    m.emit('boom', { x: sh.x, y: sh.y, r: 3, dmg: sh.directDmg, by, ult: true });
+  }
+  if (!(sh.splash > 0) || !(sh.dmg > 0)) return;
   damageArea(m, sh.x, sh.y, sh.splash, sh.dmg, sh.mult, by, friendly, sh.cs, sh.fx ?? sh.x, sh.fy ?? sh.y);
   if (sh.splash >= 4) noise(m, sh.x, sh.y, C.noise.strike);
   m.emit('boom', { x: sh.x, y: sh.y, r: sh.splash, dmg: sh.dmg, by, big: !!sh.big, nuke: !!sh.nuke });
@@ -174,12 +210,14 @@ export function fireSlot(m, idx) {
     s.uses--;
     return m.nukeFire(p.aimX, p.aimY);
   }
+  if (s.type === 'arty') return fireArty(m, s);
   return fireOrbital(m, idx);
 }
 
 export function updatePlayer(m, dt) {
   for (let i = m.utilQ.length - 1; i >= 0; i--) if (m.t >= m.utilQ[i].at) landUtil(m, m.utilQ.splice(i, 1)[0]);
   const p = m.player, t = m.t, info = p.aim;
+  if (((m.arty || []).length > 0) !== (p.slots[SLOT_ARTY].type === 'arty')) syncSlots(m);
   // The nuke slot is only usable while the launch site is armed; fall back to the first orbital when it is spent.
   if (p.slots[p.weapon].type === 'nuke' && !m.nukeReady()) {
     const j = p.slots.findIndex((q, i) => i >= 1 && i <= ORB_SLOTS && q.type === 'orb');
@@ -203,6 +241,11 @@ export function updatePlayer(m, dt) {
     info.splash = st.r; info.ready = info.inZone && t >= s.readyAt;
   } else if (s.type === 'nuke') {
     info.inZone = true; info.splash = C.objective.nuke.blastR; info.ready = m.nukeReady() && s.uses > 0;
+  } else if (s.type === 'arty') {
+    const a = artyStats(m), near = nearestArty(m, p.aimX, p.aimY);
+    info.lock = m.visLevel(p.aimX, p.aimY) <= 0 && !!m.nearLock(p.aimX, p.aimY);
+    info.artyWhy = !near.g || near.d > a.range ? 'range' : m.visLevel(p.aimX, p.aimY) > 0 || info.lock ? '' : 'vis';
+    info.inZone = !info.artyWhy; info.splash = a.r; info.ready = info.inZone && t >= s.readyAt;
   } else if (s.type === 'gun') {
     // free fire: anywhere the player can see, no strike zone needed
     const gs = gunStats(m.kit), g = p.gun;

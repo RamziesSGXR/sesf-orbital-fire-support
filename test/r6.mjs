@@ -62,13 +62,13 @@ const nearHd = (m, a, d, ang = 0) => ({ x: a.x + Math.cos(ang) * d, y: a.y + Mat
 // ---------------------------------------------------------------- the Helldiver kit
 {
   const m = quiet(), a = m.hdAlive[0], K = C.hd;
-  check('a Helldiver carries 4 stims and 3 grenades', a.stims === 4 && a.gren === 3, `${a.stims}/${a.gren}`);
-  check('grenades: six kill a medium, five do not', 6 * K.gren.dmg * K.gren.mult.M >= C.enemies.hp.medium && 5 * K.gren.dmg * K.gren.mult.M < C.enemies.hp.medium);
-  check('grenades are heavy penetration', K.gren.mult.H >= 0.8);
-  check('the Ultimatum is slow, short-range, heavy-penetration and kills a medium in one shot', K.ult.every >= 7 && K.ult.range <= 35 && K.ult.mult.H >= 0.8 && K.ult.dmg * K.ult.mult.M >= C.enemies.hp.medium);
+  check('a Helldiver carries 4 stims, 4 grenades and an Ultimatum round', a.stims === 4 && a.gren === 4 && a.ult === 1, `${a.stims}/${a.gren}/${a.ult}`);
+  // (0.15: grenades and the Ultimatum scale with the enemy's own health; test/r15.mjs checks them in play)
+  check('grenades: a light dies in the blast, two take a medium, about four a heavy', K.gren.light >= 1 && K.gren.med * 2 >= 1 && K.gren.heavy * 4 >= 1 && K.gren.heavy * 3 < 1);
+  check('the Ultimatum is a single round that kills almost anything it hits square', K.ult.uses === 1 && K.ult.kill >= 1 && K.ult.bossFrac < 0.5);
 
   // a hurt Helldiver with enemies close pumps a stim, heals and runs faster
-  for (const x of m.hdAlive) { x.atk = 1e9; x.gren = 0; x.ultAt = 1e9; }
+  for (const x of m.hdAlive) { x.atk = 1e9; x.gren = 0; x.ult = 0; x.ultAt = 1e9; }
   const p = nearHd(m, a, 42), g = inert(spawnGroup(m, p.x, p.y, 'hunt'));
   a.hp = a.maxHp * 0.45; const hp0 = a.hp;
   run(m, 5);
@@ -102,7 +102,7 @@ const nearHd = (m, a, d, ang = 0) => ({ x: a.x + Math.cos(ang) * d, y: a.y + Mat
 // ---------------------------------------------------------------- retreat, and calling stratagems while running
 {
   const m = quiet(), a = m.hdAlive[0];
-  for (const x of m.hdAlive) { x.atk = 1e9; x.gren = 0; x.ultAt = 1e9; }
+  for (const x of m.hdAlive) { x.atk = 1e9; x.gren = 0; x.ult = 0; x.ultAt = 1e9; }
   m.strat.callAt = 0;
   // everything in this Helldiver's group is ready; the others stay quiet
   const tm = m.teams[a.team];

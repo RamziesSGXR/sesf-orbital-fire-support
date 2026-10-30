@@ -2,7 +2,7 @@
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
 import { compass } from './enemies.js';
-import { onSpot } from './director.js';
+import { onSpot, ringOf, baseAwake } from './director.js';
 import { planGoal } from './planner.js';
 import { bark } from './chatter.js';
 import { updateSeaf } from './seaf.js';
@@ -11,7 +11,44 @@ import { canStep } from './safety.js';
 import { steer } from './terrain.js';
 import { boardingNow } from './extract.js';
 import { aoX, aoY } from './ao.js';
-import { siteAt, coverSlot } from './cover.js';
+import { siteAt, threatSlot } from './cover.js';
+
+// Where the squad waits before going in on a base: just outside its detection ring, on the near side, on dry ground.
+function stagePoint(m, b, sq) {
+  const rg = ringOf(m, b), R = rg.R + C.bases.stageGap, a0 = Math.atan2(sq.ay - rg.y, sq.ax - rg.x), tr = m.terrain;
+  for (const k of [0, 0.2, -0.2, 0.4, -0.4, 0.65, -0.65, 0.9, -0.9, 1.2, -1.2]) {
+    const x = aoX(m, rg.x + Math.cos(a0 + k) * R, 12), y = aoY(m, rg.y + Math.sin(a0 + k) * R, 12);
+    if (tr.isLand(x, y) && !tr.blocked(x, y) && Math.hypot(x - rg.x, y - rg.y) >= R - 8) return { b, x, y };
+  }
+  return { b, x: aoX(m, rg.x + Math.cos(a0) * R, 12), y: aoY(m, rg.y + Math.sin(a0) * R, 12) };
+}
+// On the way somewhere, the squad keeps out of the detection rings of bases that have not seen it (unless where it is going is
+// inside one): a step that would cut into a ring turns along its edge instead.
+function ringAvoid(m, sq, x, y, wx, wy, gx, gy, target) {
+  let dx = wx - x, dy = wy - y;
+  const L = Math.hypot(dx, dy);
+  if (L < 1e-6) return { x: wx, y: wy };
+  const tk = target ? ringOf(m, target).keep : null;
+  let ang = Math.atan2(dy, dx);
+  for (const b of m.bases) {
+    if (b.destroyed || b === target || b.alert || b.part) continue;          // (a citadel's pieces share the keep's ring)
+    if (b.fortress && (tk === b || baseAwake(m, b))) continue;
+    const rg = ringOf(m, b), R = rg.R + 6, ox = x - rg.x, oy = y - rg.y, od = Math.hypot(ox, oy);
+    if ((gx - rg.x) ** 2 + (gy - rg.y) ** 2 < R * R) continue;              // the goal is inside it: no way round
+    if (od < R) { ang = Math.atan2(oy, ox); continue; }                       // inside already: straight out
+    const look = Math.min(40, Math.hypot(gx - x, gy - y));
+    // does the next stretch of the way cut into the ring?
+    const cx = -ox, cy = -oy, along = cx * Math.cos(ang) + cy * Math.sin(ang);
+    if (along <= 0 || along - R > look) continue;
+    const perp = Math.abs(cx * Math.sin(ang) - cy * Math.cos(ang));
+    if (perp >= R) continue;
+    const tc = Math.atan2(cy, cx), al = Math.asin(Math.min(1, R / od));
+    const t1 = tc + al, t2 = tc - al, dd = (a) => Math.abs(Math.atan2(Math.sin(a - ang), Math.cos(a - ang)));
+    ang = dd(t1) <= dd(t2) ? t1 : t2;
+    sq.rounding = m.t;
+  }
+  return { x: x + Math.cos(ang) * L, y: y + Math.sin(ang) * L };
+}
 
 function step(o, tx, ty, speed, dt) {
   const dx = tx - o.x, dy = ty - o.y, d = Math.hypot(dx, dy);
@@ -60,7 +97,7 @@ export function updateSquad(m, dt) {
       if (sq.setupT <= 0 || !g || g.state === 'hunt' || !g.members.some((e) => !e.dead) || engaged) {
         sq.state = 'attack'; sq.free = true; sq.setupCool = C.squad.setupCooldownSec; sq.attackT = 14;
       }
-    } else if (spot && !engaged && !threat && !mounted && sq.setupCool <= 0 && m.phase !== 'over') {
+    } else if (spot && !engaged && !threat && !mounted && sq.setupCool <= 0 && m.phase !== 'over' && !sq.staging) {
       sq.state = 'setup'; sq.setupT = C.squad.setupSec; sq.free = false; sq.spotG = spot.g;
       m.radio(COMMS.spotted(m.faction.name.toLowerCase(), compass(spot.x - m.hx, spot.y - m.hy)), 'spotted', 6);
       m.emit('spotted', { x: spot.g.cx, y: spot.g.cy });
@@ -96,8 +133,47 @@ export function updateSquad(m, dt) {
       pointGoal = true;
       if (sq.goalDist > (ex.state === 'open' ? 3 : 8)) { gx = ex.x; gy = ex.y; goal = 'extract'; }
     }
+    sq.staging = false;
+    if (!baseGoal) { sq.assault = false; sq.stage = null; }
     if (baseGoal) {
-      if (sq.base !== baseGoal) { sq.base = baseGoal; sq.holdT = 0; sq.pushed = false; sq.hpAt = baseGoal.hp; }
+      if (sq.base !== baseGoal) {
+        // a new base: a citadel already being assaulted stays assaulted
+        const same = sq.base && (sq.base.fortress || sq.base.part) && (baseGoal.fortress || baseGoal.part) && sq.stage === 'go';
+        sq.base = baseGoal; sq.holdT = 0; sq.pushed = false; sq.hpAt = baseGoal.hp;
+        if (!same) { sq.stage = null; sq.stagePt = null; sq.assault = false; }
+      }
+      const b = baseGoal;
+      // A base that has not seen the squad: stop outside its detection ring, mark it, give the gunner time, then go in.
+      if (!baseAwake(m, b) && sq.stage !== 'go') {
+        if (!sq.stagePt || sq.stagePt.b !== b) sq.stagePt = stagePoint(m, b, sq);
+        const P = sq.stagePt, d = Math.hypot(P.x - sq.ax, P.y - sq.ay), B = C.bases;
+        sq.staging = true; sq.free = false;                    // hold fire on a garrison that has not noticed anything
+        sq.dir = Math.atan2(b.y - sq.ay, b.x - sq.ax); sq.goalDist = d;
+        const mk = b.fortress || b.part ? ringOf(m, b).keep : b;
+        if (!sq.stage) {
+          if (d > 6) { gx = P.x; gy = P.y; goal = 'stage'; }
+          else {
+            sq.stage = 'mark'; sq.stageT = B.stageSec;
+            mk.marked = { at: t, until: t + B.stageSec, by: hds[0] ? hds[0].team : 0 };
+            m.stats.staged = (m.stats.staged || 0) + 1;
+            m.radio(COMMS.baseMarked(Math.round(B.stageSec)), 'basemark', 0);
+            m.emit('base_mark', { x: mk.x, y: mk.y, sec: B.stageSec, fortress: !!mk.fortress });
+          }
+        } else {
+          sq.stageT -= dt;
+          if (mk.marked) mk.marked.until = t + Math.max(0, sq.stageT);
+          if (sq.stageT <= 0) { sq.stage = 'go'; sq.assault = true; m.radio(COMMS.baseGo, 'basego', 0); m.emit('base_go', { x: mk.x, y: mk.y }); }
+          else if (d > 10) { gx = P.x; gy = P.y; goal = 'stage'; }     // pushed off the spot by a fight: back to it
+        }
+      } else if (sq.stage !== 'go') {
+        // seen before the squad was ready (SEAF walked in, or the structure was hit): straight in
+        if (sq.stage === 'mark') m.radio(COMMS.baseSpotted, 'basego', 0);
+        sq.stage = 'go'; sq.assault = true;
+        const mk = b.fortress || b.part ? ringOf(m, b).keep : b;
+        if (mk.marked) mk.marked.until = t;
+      }
+    }
+    if (baseGoal && sq.stage === 'go') {
       const b = baseGoal;
       // Close enough that rifles reach the structure: just outside its edge, then closer once the stalemate has lasted a while.
       const hold = b.r + (sq.pushed ? C.structure.push : C.structure.standOff);
@@ -119,7 +195,7 @@ export function updateSquad(m, dt) {
     // Close on anything that is already hunting us, or on a group we just set up on. Don't wander far from a point objective.
     // (on the way to a base or the citadel it only turns on what is close: with a stream of enemies hunting the squad, chasing each
     // one would pull it away from the target for good)
-    if (near && !engaged && (sq.state === 'attack' || threat)) {
+    if (near && !engaged && (sq.state === 'attack' || threat) && !(sq.staging && !threat)) {
       const lim = pointGoal ? 55 : baseGoal ? 60 : 1e9;
       if (Math.hypot(near.x - sq.ax, near.y - sq.ay) <= lim) { gx = near.x; gy = near.y; goal = 'attack'; }
     }
@@ -134,7 +210,8 @@ export function updateSquad(m, dt) {
     const hold = (engaged && !fightOn) || sq.state === 'setup';
     if (!hold && goal !== 'none') {
       const w = steer(m.terrain, sq, sq.ax, sq.ay, gx, gy, t);     // round the water, if there is any in the way
-      const wx = aoX(m, w.x, 3), wy = aoY(m, w.y, 3);                // (a corner of the route may lie just past the map's edge)
+      let wx = aoX(m, w.x, 3), wy = aoY(m, w.y, 3);                  // (a corner of the route may lie just past the map's edge)
+      if (goal !== 'attack') { const r = ringAvoid(m, sq, sq.ax, sq.ay, wx, wy, gx, gy, baseGoal); if (!m.terrain.blocked(r.x, r.y)) { wx = aoX(m, r.x, 3); wy = aoY(m, r.y, 3); } }
       const dx = wx - sq.ax, dy = wy - sq.ay, d = Math.hypot(dx, dy);
       const v = speed * (fightOn ? C.squad.fightOnSpeed : 1);
       if (d > 0.05) { const s = Math.min(v * dt, d); sq.ax += (dx / d) * s; sq.ay += (dy / d) * s; }
@@ -161,7 +238,7 @@ export function updateSquad(m, dt) {
       let tx = sq.ax + a.ox, ty = sq.ay + a.oy;
       const hi = hds.indexOf(a), hn = hds.length;
       const site = m.phase !== 'clear' ? siteAt(m, sq.ax, sq.ay) : null;
-      if (site) { const p = coverSlot(site, hi, hn); tx = p.x; ty = p.y; }          // holding a site: spread out behind its walls
+      if (site) { const p = threatSlot(m, site, hi, hn); tx = p.x; ty = p.y; }     // holding a site: the walls that face the threat
       else if (sq.base && !sq.base.destroyed) {
         // at a base: fan out round it on the near side instead of shooting from one spot
         const b = sq.base, d = Math.hypot(sq.ax - b.x, sq.ay - b.y);

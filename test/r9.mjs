@@ -48,7 +48,7 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
     const a = m.hdAlive[0];
     const g = spawnGroup(m, a.x + dist, a.y, 'patrol'); g.hold = 1e9;
     for (const e of g.members) { e.hp = e.maxHp = 1e9; e.speed = 0; }
-    for (const h of m.alive) { h.hp = h.maxHp = 1e9; }
+    for (const h of m.alive) { h.hp = h.maxHp = 1e9; h.ult = 0; h.gren = 0; }     // rifles only: grenades and the Ultimatum aside
     m.uavs.push({ x: a.x + dist, y: a.y, r: 120, until: 1e9, t0: m.t });
     let dmg = 0; const orig = m.stats.dmg.squad;
     run(m, 12); dmg = m.stats.dmg.squad - orig;
@@ -99,6 +99,7 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
   for (const fac of ['bugs', 'bots', 'squids']) {
     const m = quiet(fac, 610, { boss: true, bossAt: 1e9 });
     const e = spawnBoss(m);
+    for (const h of m.hdAlive) { h.ult = 0; h.gren = 0; }      // (0.15: the squad's own grenades and Ultimatum kept out of this one)
     check(`${fac}: the ${C.boss[fac].name} spawns out of the squad's sight`, e && Math.hypot(e.x - m.hx, e.y - m.hy) > C.sight.helldiver, e ? `${Math.round(Math.hypot(e.x - m.hx, e.y - m.hy))} m off` : 'none');
     let evs = [];
     // it closes on the squad

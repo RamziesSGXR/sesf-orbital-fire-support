@@ -16,7 +16,7 @@ const check = (name, ok, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} 
 const browser = await chromium.launch();
 const ctx = await browser.newContext(touch ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } : { viewport: { width: 1280, height: 720 } });
 const page = await ctx.newPage();
-const errs = []; page.on('pageerror', (e) => errs.push(e.message));
+const errs = []; page.on('pageerror', (e) => errs.push(e.message + ' @ ' + (e.stack || '').split('\n').slice(1, 4).join(' | ')));
 const ev = (f, a) => page.evaluate(f, a);
 const tap = (sel) => (touch ? page.tap(sel) : page.click(sel));
 const shot = (n) => page.screenshot({ path: path.join(SHOTS, `ui13_${mode}_${n}.png`) });
@@ -93,7 +93,8 @@ if (touch) { await tap('#dk-sq'); await page.waitForTimeout(250); }
 const hdPos = await ev(() => { const a = window.__game.mission.teams[1].hd; return a && !a.dead ? { x: a.x, y: a.y } : null; });
 await ev(() => { window.__game.cam.x += 200; });
 if (await page.isVisible('#hdbar .hdb:nth-child(2)')) {
-  if (touch) { await page.tap('#hdbar .hdb:nth-child(2)'); await page.waitForTimeout(80); await page.tap('#hdbar .hdb:nth-child(2)'); } else await page.dblclick('#hdbar .hdb:nth-child(2)');
+  // two taps 120 ms apart, sent straight to the button (the test tool's own taps can wait for the button to settle in between)
+  await ev(async () => { const b = document.querySelector('#hdbar .hdb:nth-child(2)'); const down = () => b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })); down(); await new Promise((r) => setTimeout(r, 120)); down(); });
   await page.waitForTimeout(300);
   const c = await ev(() => ({ x: window.__game.cam.x, y: window.__game.cam.y }));
   check('a double tap on a Helldiver moves the camera there while paused', hdPos && Math.hypot(c.x - hdPos.x, c.y - hdPos.y) < 3, hdPos ? `${Math.hypot(c.x - hdPos.x, c.y - hdPos.y).toFixed(1)} m` : 'no Helldiver');

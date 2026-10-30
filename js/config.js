@@ -19,8 +19,14 @@ export const CONFIG = {
   // heavy-penetration pistol that hits very hard. Four stims (heal over a few seconds and a burst of speed), three
   // heavy-penetration grenades (six to kill a medium), and a dodge that comes round every so often. A resupply restocks all of it.
   hd:       { stims: 4, stimHeal: 0.5, stimSec: 3.5, stimBoostSec: 8, stimSpeed: 1.4, stimCool: 3.5, stimAt: 0.5, stimRunAt: 0.8,
-              grenades: 3, gren: { dmg: 34, splash: 4.5, range: 36, minRange: 10, every: 3.2, acc: 0.85, flight: 0.9, mult: { L: 1, M: 1, H: 0.9, B: 0.3 } },
-              ult: { dmg: 520, splash: 3.4, range: 30, every: 9, acc: 0.92, flight: 0.2, mult: { L: 1, M: 1, H: 0.9, B: 0.25 } },
+              // Grenades: four, for groups and for heavies. Damage follows the enemy's own health as the war toughens it: a grenade
+              // kills lights in its blast, takes `med` of a medium and `heavy` of a heavy (about four to kill one). `group` is the
+              // weight of enemies (light 1, medium 2, heavy 4) round a spot worth a grenade.
+              grenades: 4, gren: { light: 2.5, med: 0.55, heavy: 0.27, boss: 0.25, struct: 60, splash: 5.5, range: 44, minRange: 9, every: 2.4, acc: 0.85, flight: 0.9, group: 4 },
+              // The Ultimatum: one round, a direct hit kills almost anything (a super heavy loses bossFrac of its health; structures are
+              // too hard for it). splashChance of rounds also burst round the target. A supply pod reloads it. markSec: the target is
+              // marked on the map first.
+              ult: { uses: 1, range: 60, acc: 0.92, flight: 0.6, kill: 1.05, bossFrac: 0.1, splashChance: 0.5, splash: 4.5, splashLight: 3, splashMed: 0.6, markSec: 0.8 },
               dodge: { cool: 10, chance: 0.65, minHit: 9, dist: 3.6, sec: 0.35 },
               seafDodge: { cool: 14, chance: 0.12 },     // SEAF dodge too, far less often (a UAV overhead helps both)
               // no single enemy hit takes more than maxHit of a Helldiver's health: however late in the war, it takes two
@@ -58,11 +64,24 @@ export const CONFIG = {
   // SEAF can be ordered to build (seaf.js): they walk to the spot and build it there (sec seconds with two troopers working, faster
   // with more, up to four); the credits are paid when it is done. A wall is a small ring of cover; an MG nest is a sentry gun; a
   // drop beacon is a spawn point: SEAF drops can be sent to it from anywhere on the map. At most max of each standing at once.
-  build:    { r: 12, wall: { cost: 80, sec: 10, max: 6, n: 4, R: 9 }, mg: { cost: 250, sec: 16, max: 3, hp: 520, ammo: 900 },
-              beacon: { cost: 200, sec: 20, max: 2 } },
+  // What SEAF build. Each costs `cost` credits up front; a cargo pelican drops a crate at the spot and the squad deploys it (sec
+  // seconds of work, faster with more hands). Levels 1 to 5 come from the armory's BUILDABLES section (unlock: the price to get
+  // level 1, up: the price scale for the next level). The per-level numbers are in data/kit.js buildStats().
+  build:    { r: 12, levels: 5, crateR: 16,
+              wall:   { cost: 80,  sec: 10, max: 6, n: 4, R: 9, mul: 0.6, unlock: 0, up: 150 },
+              mg:     { cost: 250, sec: 16, max: 3, hp: 520, ammo: 900, dmg: 1, unlock: 0, up: 250 },
+              beacon: { cost: 200, sec: 20, max: 2, unlock: 0, up: 200 },
+              arty:   { cost: 600, sec: 25, max: 1, unlock: 1200, up: 500 } },
+  // The howitzer: a SEAF gun the player fires like a stratagem (weapon 9), anywhere in range that is in sight (or locked), on a
+  // slow recharge. Each round is a mini-nuke. Built from the armory unlock, or captured on the map (a side mission). By level.
+  arty:     { range: 480, rangeUp: 30, cd: 90, cdUp: 0.1, r: 20, rUp: 0.08, dmg: 2400, dmgUp: 0.15, flight: 5, capture: 18, captureR: 16,
+              chance: 0.45, fromMission: 2, mult: { L: 1, M: 1, H: 1, B: 0.5 } },
   // Cover at the sites the squad holds (cover.js): n walls in a ring of the given radius; standing within r of one, an ally takes
   // mul of what enemy fire would do.
   cover:    { n: 7, nukeR: 30, vipR: 22, evacR: 26, padR: 20, r: 3.6, mul: 0.6 },
+  // A defence (holding the launch site, running the evacuation) starts with setupSec quiet seconds: the Helldivers take the walls
+  // that face the threat, and the gunner can bring SEAF in, build and get strikes ready. The enemy comes after.
+  defense:  { setupSec: 25 },
   // Relays: a side mission the Helldivers or SEAF win (a radio tower powered, a pinned SEAF squad freed, a broadcast tower destroyed)
   // keeps the ground around it in view for the rest of the mission, and strikes can be called there: r metres round it.
   relay:    { r: 200 },
@@ -138,7 +157,9 @@ export const CONFIG = {
   sides:    { min: 2, perAoM: 250, max: 5, callMul: 1.1,
               radio: { holdR: 16, holdSec: 25, relightR: 520, reward: 220 },
               propaganda: { hp: 1400, reward: 200, guards: 1, every: 22, reach: 320 },
-              rescue: { n: 5, armor: 0.35, wakeR: 300, wakeSec: 600, groups: 2, perSessionMin: 45, reachR: 30, clearR: 45, holdSec: 4, reward: 200 } },
+              rescue: { n: 5, armor: 0.35, wakeR: 300, wakeSec: 600, groups: 2, perSessionMin: 45, reachR: 30, clearR: 45, holdSec: 4, reward: 200 },
+              // an abandoned SEAF howitzer: a Helldiver stands by it for holdSec and the gunner can fire it (weapon 9)
+              arty: { holdR: 16, holdSec: 18, reward: 250 } },
   // The Helldivers' plan (planner.js): side tasks within `detour` extra metres of the way to the main objective, if there is time to
   // spare (reserve seconds) for them, the objective and extraction. After the objective a full clear only with more than clearLives
   // lives left and the time for it. Time is estimated at pace x squad speed plus `work` seconds per task. Re-planned every `every` s.
@@ -146,7 +167,7 @@ export const CONFIG = {
   // (minutes rounded up, at most maxMin, costing perMin credits a minute; the player has askSec to answer; asks per mission).
   plan:     { detour: 260, reserve: 150, clearLives: 3, every: 6, keepR: 70, pace: 0.5, extractPad: 30,
               ask: { maxMin: 10, perMin: 40, askSec: 30, asks: 2 },
-              work: { base: 70, radio: 45, propaganda: 35, rescue: 60, nuke: 150, vip: 100, evac: 220, fortress: 200 } },
+              work: { base: 70, radio: 45, propaganda: 35, rescue: 60, arty: 40, nuke: 150, vip: 100, evac: 220, fortress: 200 } },
   // An enemy that fires on an ally gives itself away: it shows for `sec` seconds after each shot, and once it has shown for lockSec
   // without a break it is locked: orbitals and the ship gun can hit it (within lockR of it) even outside the strike zone.
   reveal:   { sec: 5, lockSec: 3, lockR: 12 },
@@ -157,7 +178,12 @@ export const CONFIG = {
   // Bases within clusterR of each other work together: when the Helldivers come near one, the others turn out too, and each one
   // sends its groups faster for every standing neighbour (spawn interval / (1 + clusterSpawn x neighbours)).
   bases:    { min: 2, perAoM: 200, max: 14, minutesPerExtra: 14, hp: 2400, spacing: 250, lzClearance: 400, radius: 15,
-              garrisonRadius: 260, garrisonGroups: 2, garrisonCap: 15, spawnSec: 30, clusterR: 170, clusterSpawn: 0.4 },
+              garrisonRadius: 260, garrisonGroups: 2, garrisonCap: 15, spawnSec: 30, clusterR: 170, clusterSpawn: 0.4,
+              // Detection (invisible): a base wakes only when an ally walks inside detectR (SEAF know nothing of it) or its structure is
+              // hit; then it turns out its garrison, keeps sending groups, and its neighbours join after alertSpread seconds. The
+              // Helldivers stop stageGap metres outside the ring, mark the base and wait stageSec (the gunner's time to prepare),
+              // then go in. Until then the garrison only sits at the base.
+              detectR: 105, stageGap: 16, stageSec: 18, alertSpread: 6 },
   // The big base for the destroy-the-citadel objective.
   // Objective sites under siege (objectives.js siege): while the squad works an objective the enemy calls backup every `every`
   // seconds, down to `minEvery`, with up to `extra` more groups, over rampSec seconds at the site. A call waits (capWait s) while
@@ -165,7 +191,7 @@ export const CONFIG = {
   siege:    { first: 10, every: 18, minEvery: 10, rampSec: 150, extra: 3, fortressR: 120, cap: 60, capR: 200, capWait: 4 },
   // The citadel: a cluster of bases round a central keep (parts bases partR metres out, partHp each), guarded by a super heavy that
   // turns out when the squad arrives (its health x guardHp at level 1, rising to full at level 10). Every part has to come down.
-  fortress: { hp: 4500, radius: 24, parts: 3, partHp: 2000, partR: 62, guardHp: 0.55, garrisonGroups: 2, garrisonCap: 24, spawnSec: 22, minFromLz: 650 },
+  fortress: { hp: 4500, radius: 24, parts: 3, partHp: 2000, partR: 62, guardHp: 0.55, garrisonGroups: 2, garrisonCap: 24, spawnSec: 22, minFromLz: 650, detectR: 150 },
   // Difficulty (difficulty.js): 1 to 10, picked when a session starts. 10 is the game exactly as tuned in this file. At level 1 the
   // enemy is these fractions of that, rising to 1 at level 10 (in even steps with curve 1; above 1 the top levels are spread finer):
   // spawn = how many come (patrols, backup, group sizes, the live cap), medium and heavy = how many of them are mediums and heavies,
@@ -275,6 +301,6 @@ export const CONFIG = {
   share:    { channelUrl: '',
               // Where the FEEDBACK buttons go: a short form on the project's GitHub page (a free GitHub account is needed to post).
               feedbackUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support/issues/new?template=feedback.yml',
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.14.0',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.15.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives; the score block ends with it so pasted scores bring players in
 };

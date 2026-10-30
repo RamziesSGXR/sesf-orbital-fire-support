@@ -3,7 +3,7 @@
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { SUBTYPES, COMMS, attackProfile } from '../data/data.js';
-import { compass } from './enemies.js';
+import { compass, alertGroup } from './enemies.js';
 import { damageArea } from './combat.js';
 import { seafStats } from '../data/kit.js';
 import { bark } from './chatter.js';
@@ -45,10 +45,11 @@ export function spawnGroup(m, x, y, state = 'patrol', opts = {}) {
 export function unseenSpot(m, x, y, spread, pad = 4) {
   if (!m.terrain.isLand(x, y)) return false;   // nothing appears in the water
   for (const b of m.alive) {
-    const r = b.vision + spread + pad;
+    const r = Math.max(b.vision || 0, b.sight || 0) + spread + pad;      // (the same reach mission.visLevel uses)
     if ((b.x - x) ** 2 + (b.y - y) ** 2 < r * r) return false;
   }
   for (const u of m.uavs) if ((u.x - x) ** 2 + (u.y - y) ** 2 < (u.r + spread + pad) ** 2) return false;
+  for (const u of m.relays || []) if ((u.x - x) ** 2 + (u.y - y) ** 2 < (u.r + spread + pad) ** 2) return false;
   return true;
 }
 
@@ -97,6 +98,31 @@ export function onSpot(m, g) { void m; void g; }
 function garrisonCount(m, b) { let n = 0; for (const e of m.enemies) if (!e.dead && e.g.base === b && e.g.garrison) n++; return n; }
 
 // How many enemies may be alive right now: fewer at the drop, more as the mission (and the session) goes on.
+// The detection ring round a base. The citadel has one ring for the whole of it, round its keep.
+export const detectR = (b) => (b.fortress || b.part ? C.fortress.detectR + C.fortress.partR : C.bases.detectR);
+export function ringOf(m, b) {
+  if (b.fortress || b.part) { const k = b.fortress ? b : m.bases.find((q) => q.fortress) || b; return { x: k.x, y: k.y, R: detectR(b), keep: k }; }
+  return { x: b.x, y: b.y, R: C.bases.detectR, keep: null };
+}
+// Is this base (or, for a citadel piece, any of the citadel) awake?
+export const baseAwake = (m, b) => (b.fortress || b.part ? m.bases.some((q) => (q.fortress || q.part) && q.alert) : !!b.alert);
+// A base wakes: its garrison turns out, it starts sending groups, and its neighbours (the whole citadel, for a citadel piece)
+// follow after a few seconds. why: 'squad' | 'seaf' | 'hit' | 'cluster'.
+export function alertBase(m, b, why = 'squad') {
+  if (b.alert || b.destroyed) return;
+  b.alert = true; b.alertWhy = why; b.alertT = m.t;
+  for (const g of m.groups) if (g.base === b && g.state !== 'hunt') alertGroup(m, g);
+  const now = b.fortress || b.part;
+  for (const q of m.bases) {
+    if (q === b || q.destroyed || q.alert) continue;
+    if (now && (q.fortress || q.part)) { q.alertAt = m.t + 1; continue; }          // the citadel is walled together: all of it wakes
+    if ((b.nb || []).includes(q) && !(q.alertAt && q.alertAt <= m.t + C.bases.alertSpread)) q.alertAt = m.t + C.bases.alertSpread;
+  }
+  m.stats.alerts = (m.stats.alerts || 0) + 1;
+  if (why === 'seaf') m.stats.seafAlerts = (m.stats.seafAlerts || 0) + 1;
+  m.emit('base_alert', { x: b.x, y: b.y, why, fortress: !!(b.fortress || b.part) });
+}
+
 export function liveCap(m) {
   const E = C.enemies;
   return Math.min(E.maxLive, E.liveCap + E.capPerMissionMin * (m.t / 60) + E.capPerSessionMin * m.S);
@@ -128,27 +154,38 @@ export function updateDirector(m, dt) {
       }
     }
 
-    // Bases garrison themselves when Helldivers get close, and keep sending groups while they stand.
-    // Bases in a cluster turn out together, and send their groups faster for every neighbour still standing.
+    // A base's garrison takes its place when the Helldivers come within garrisonRadius: it sits at the base, unaware. The base
+    // itself wakes only when an ally walks into its detection ring (detectR; SEAF know nothing of it) or the structure is hit
+    // (mission.damageBase). Awake, it turns its garrison out and keeps sending groups while it stands; a cluster's neighbours
+    // wake a few seconds later, and send faster for every neighbour still standing.
     const R2 = C.bases.garrisonRadius * C.bases.garrisonRadius;
     for (const b of m.bases) {
       b.near = false;
       if (b.destroyed) continue;
       for (const a of m.hdAlive) if ((a.x - b.x) ** 2 + (a.y - b.y) ** 2 <= R2) { b.near = true; break; }
+      if (!b.alert) {
+        const rg = ringOf(m, b), D2 = rg.R * rg.R;
+        for (const a of m.alive) if (!a.dead && (a.x - rg.x) ** 2 + (a.y - rg.y) ** 2 <= D2) { alertBase(m, b, a.type === 'S' ? 'seaf' : 'squad'); break; }
+        if (!b.alert && b.alertAt && t >= b.alertAt) alertBase(m, b, 'cluster');
+      }
     }
     for (const b of m.bases) {
       if (b.destroyed) continue;
       const nb = (b.nb || []).filter((q) => !q.destroyed);
-      if (!b.near && !nb.some((q) => q.near)) continue;
+      if (!b.near && !b.alert) continue;
       const cfg = b.fortress || b.part ? C.fortress : C.bases, every = cfg.spawnSec / m.pressure / (1 + C.bases.clusterSpawn * nb.length);
       if (!b.garrisoned) {
         b.garrisoned = true; b.nextSpawn = t + every; b.owed = b.part ? 1 : cfg.garrisonGroups;
-      } else if (t >= b.nextSpawn) {
+      } else if (b.alert && t >= b.nextSpawn) {
         b.nextSpawn = t + every;
         if (m.enemies.length < liveCap(m) && garrisonCount(m, b) + (b.owed || 0) * m.groupSize < (b.part ? C.bases.garrisonCap : cfg.garrisonCap)) b.owed = (b.owed || 0) + 1;
       }
-      // groups owed to the base come out of sight and walk in (one a tick at most; a spot that is in view waits)
-      if (b.owed > 0 && m.enemies.length < C.enemies.hardCap && spawnNear(m, b.x, b.y, 0, 14, 'patrol', { base: b })) b.owed--;
+      // groups owed to the base come out of sight and walk in (one a tick at most; a spot that is in view waits). An awake base's
+      // groups come out hunting.
+      if (b.owed > 0 && m.enemies.length < C.enemies.hardCap) {
+        const g = spawnNear(m, b.x, b.y, 0, 14, 'patrol', { base: b });
+        if (g) { b.owed--; if (b.alert) alertGroup(m, g); }
+      }
     }
   }
 

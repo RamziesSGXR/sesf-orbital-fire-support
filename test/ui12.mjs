@@ -54,7 +54,8 @@ await shot('bars');
 // double tap a Helldiver: the camera goes there
 const target = await ev(() => { const m = window.__game.mission, a = m.teams[2].hd; return a && !a.dead ? { x: a.x, y: a.y } : null; });
 await ev(() => { window.__game.cam.x += 250; });
-const dbl = async (sel) => { if (touch) { await page.tap(sel); await page.waitForTimeout(90); await page.tap(sel); } else { await page.click(sel); await page.waitForTimeout(90); await page.click(sel); } };
+// two taps 120 ms apart, sent straight to the button (the test tool's own clicks can wait for the button to settle between taps)
+const dbl = async (sel) => { await page.evaluate(async (s) => { const b = document.querySelector(s); const down = () => b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerType: 'mouse' })); down(); await new Promise((r) => setTimeout(r, 120)); down(); }, sel); };
 await dbl('#hdbar .hdb:nth-child(3)'); await page.waitForTimeout(1900);
 const c3 = await ev(() => ({ x: window.__game.cam.x, y: window.__game.cam.y, f: window.__game.cam.follow }));
 check('a double tap on a Helldiver moves the camera to them', target && Math.hypot(c3.x - target.x, c3.y - target.y) < 25 && !c3.f, target ? `${Math.hypot(c3.x - target.x, c3.y - target.y).toFixed(0)} m off` : 'no Helldiver');
@@ -80,7 +81,7 @@ if (sq) {
   await tap('#orders .ord[data-o="build"]'); await page.waitForTimeout(300);
   const menu = await page.isVisible('#buildmenu');
   const items = await ev(() => [...document.querySelectorAll('#buildmenu .bld')].map((b) => b.textContent));
-  check('BUILD opens a menu: wall, MG nest, drop beacon, with their prices', menu && items.length === 3 && items.every((x) => /CR/.test(x)), items.join(' | '));
+  check('BUILD opens a menu: wall, MG nest, drop beacon, howitzer, with their prices', menu && items.length === 4 && items.slice(0, 3).every((x) => /CR/.test(x)) && /UNLOCK/.test(items[3]), items.join(' | '));   // (the howitzer: unlocked in the armory)
   await shot('buildmenu');
   const fit = await ev(() => { const r = document.getElementById('buildmenu').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth + 1 && r.top >= 0; });
   check('the menu fits the screen', fit);

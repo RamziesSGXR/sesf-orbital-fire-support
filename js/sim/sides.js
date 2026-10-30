@@ -24,6 +24,8 @@ function kindsFor(m) {
   const pool = ['radio', 'propaganda', 'rescue'], out = [];
   const order = m.rng.shuffle(pool.slice());
   for (let i = 0; i < n; i++) out.push(order[i % order.length]);
+  // some maps have an abandoned SEAF howitzer the squad can take over (from the second mission of a session)
+  if ((m.missionN || 1) >= C.arty.fromMission && m.rng.next() < C.arty.chance) out.push('arty');
   return out;
 }
 
@@ -37,8 +39,8 @@ export function setupSides(m) {
   ];
   for (const kind of kindsFor(m)) {
     const p = findSpot(m, avoid(), 70);
-    if (kind === 'radio') {
-      m.sides.push({ id: m.nextId++, side: true, kind, x: p.x, y: p.y, r: 9, state: 'idle', holdT: 0, done: false, failed: false, callT: 0 });
+    if (kind === 'radio' || kind === 'arty') {
+      m.sides.push({ id: m.nextId++, side: true, kind, x: p.x, y: p.y, r: kind === 'arty' ? 10 : 9, state: 'idle', holdT: 0, done: false, failed: false, callT: 0, face: m.rng.angle() });
     } else if (kind === 'propaganda') {
       // a point of interest of its own kind, so everything that can hurt a structure hurts it; listed here as a side mission too
       const fac = m.faction.id;
@@ -106,6 +108,18 @@ export function updateSides(m, dt) {
         m.emit('beacons_lit', { n: lit, x: s.x, y: s.y });
         finish(m, s, true);
       }
+    } else if (s.kind === 'arty') {
+      // an abandoned howitzer: a Helldiver gets it working again; the enemy comes to see what the noise is
+      const a = hdNear(m, s.x, s.y, S.arty.holdR);
+      if (a && s.state === 'idle') { s.state = 'active'; m.radio(COMMS.artyStart, 'artystart', 0); m.emit('side_state', { kind: 'arty', state: 'active', x: s.x, y: s.y }); }
+      if (s.state !== 'active') continue;
+      if (a) s.holdT += dt;
+      siteActivity(m, s, dt);
+      if (s.holdT >= S.arty.holdSec) {
+        m.arty.push({ id: m.nextId++, x: s.x, y: s.y, captured: true, face: s.face, born: t });
+        m.emit('arty_new', { x: s.x, y: s.y, captured: true });
+        finish(m, s, true);
+      }
     } else if (s.kind === 'propaganda') {
       if (s.done) continue;
       // while it stands it rallies the patrols round it onto the squad, when the squad is in its reach
@@ -168,6 +182,7 @@ function siteActivity(m, s, dt) {
 export function sideStatus(m, s) {
   const S = SD();
   if (s.kind === 'radio') return s.state === 'active' ? { p: s.holdT / S.radio.holdSec } : { p: 0 };
+  if (s.kind === 'arty') return s.state === 'active' ? { p: s.holdT / S.arty.holdSec } : { p: 0 };
   if (s.kind === 'propaganda') return { p: 1 - s.hp / s.maxHp };
   return { p: s.state === 'siege' ? Math.min(1, (s.holdT || 0) / S.rescue.holdSec) : 0, n: s.troops.filter((a) => !a.dead).length };
 }

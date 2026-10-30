@@ -199,12 +199,23 @@ export function drawPelicans(ctx, m, now, px, labels, scale, pal) {
     }
     // the belly cannon
     ctx.fillStyle = '#ffd24a'; ring(ctx, p.x + fx * s * 0.35, p.y + fy * s * 0.35, Math.max(px(2.2), 1.2)); ctx.fill();
+    // a cargo pelican carries its crate slung underneath until it is down
+    if (p.cargo && !p.cargo.landed) {
+      const cs = s * 0.32;
+      ctx.fillStyle = 'rgba(255,214,120,0.95)'; ctx.fillRect(p.x - cs, p.y - cs, cs * 2, cs * 2);
+      ctx.strokeStyle = 'rgba(80,50,10,0.9)'; ctx.lineWidth = px(1); ctx.strokeRect(p.x - cs, p.y - cs, cs * 2, cs * 2);
+    }
     // rotor wash while it hovers
     if (p.state === 'hover') {
       ctx.strokeStyle = rgba('#cfe9ff', 0.4); ctx.lineWidth = px(1.2);
       ring(ctx, p.x, p.y, s * (1.3 + 0.25 * Math.sin(now * 9))); ctx.stroke();
     }
     const left = p.roles.length - p.dropped;
+    if (p.cargo) {
+      const text = p.state === 'in' ? tr('lab.cargoSec', { n: Math.max(1, Math.ceil(Math.hypot(p.tx - p.x, p.ty - p.y) / P.speed)) }) : p.cargo.landed ? tr('lab.pelicanOut') : tr('lab.cargoDrop');
+      labels.push({ x: p.x, y: p.y, dy: -s * scale - 8, text, col: '#ffd27a', pri: 1 });
+      continue;
+    }
     let text = tr('lab.pelican');
     if (p.state === 'in') text = tr('lab.pelicanSec', { n: Math.max(1, Math.ceil(Math.hypot(p.tx - p.x, p.ty - p.y) / P.speed)) });
     else if (p.state === 'hover') text = tr('lab.deploying', { a: p.dropped, b: p.roles.length });

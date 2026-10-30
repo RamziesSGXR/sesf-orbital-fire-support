@@ -2,7 +2,7 @@
 import { CONFIG as C } from '../config.js';
 import { ALLY } from '../data/data.js';
 import { uavBuff } from '../data/kit.js';
-import { inCover } from './cover.js';
+import { coverMul } from './cover.js';
 import { alertGroup, noise } from './enemies.js';
 
 // ---------- hits from behind and critical hits ----------
@@ -72,7 +72,7 @@ export function hurtEnemy(m, e, dmg, by, fx, fy, cs) {
 export function damageArea(m, x, y, rad, dmg, mult, by = 'player', friendly = true, cs, fx = x, fy = y) {
   m.eGrid.near(x, y, rad, (e) => {
     alertGroup(m, e.g);
-    hurtEnemy(m, e, dmg * mult[e.kind], by, fx, fy, cs);
+    hurtEnemy(m, e, dmg * (e.boss && mult.boss !== undefined ? mult.boss : mult[e.kind]), by, fx, fy, cs);   // (a few blasts set their own share for a super heavy)
   });
   for (const d of m.drops) if (!d.dead && d.hp > 0 && d.low && Math.hypot(d.x - x, d.y - y) <= rad + d.r) m.damageDrop(d, dmg * (mult.H ?? 1), by);
   if (friendly) {
@@ -126,7 +126,7 @@ function tryDodge(m, a, dmg) {
 export function hurtAlly(m, a, rawDmg, by, raw = false, src = null, fx, fy) {
   if (a.dead || !(rawDmg > 0)) return;
   if ((a.type === 'H' || a.type === 'S') && !raw && by === 'enemy' && tryDodge(m, a, rawDmg)) return;
-  if (by === 'enemy' && !raw) rawDmg *= hitMul(m, a, fx, fy, 'enemy') * (inCover(m, a.x, a.y) ? C.cover.mul : 1);   // behind a wall: less
+  if (by === 'enemy' && !raw) rawDmg *= hitMul(m, a, fx, fy, 'enemy') * coverMul(m, a.x, a.y);   // behind a wall: less
   a.hurtAt = m.t;
   a.lastSrc = src || (by === 'player' ? 'friendly' : 'enemy');
   if (a.mech && a.mech.hp > 0) {

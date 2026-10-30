@@ -48,6 +48,7 @@ export function drawSides(ctx, m, now, px, labels, scale) {
       if (!s.done && s === task) labels.push({ x: s.x, y: s.y, dy: 26, text: OPS.squadOnIt, col: '#7fd8ff', pri: 1 });
       continue;
     }
+    if (s.kind === 'arty') continue;          // drawn by drawArty
     if (s.kind === 'radio') {
       const col = '#7fd8ff';
       radioArt(ctx, s, now, px, col);
@@ -68,6 +69,75 @@ export function drawSides(ctx, m, now, px, labels, scale) {
     ctx.setLineDash([px(4), px(2)]); ring(ctx, s.x, s.y, R); ctx.stroke(); ctx.setLineDash([]);
     if (hot) { const p = 0.5 + 0.5 * Math.sin(now * 5); ctx.strokeStyle = `rgba(255,80,60,${0.35 + 0.4 * p})`; ctx.lineWidth = px(2); ring(ctx, s.x, s.y, R * 1.6); ctx.stroke(); }
     labels.push({ x: s.x, y: s.y, dy: -R * scale - 8, text: `${hot ? OPS.rescueHot : OPS.rescue} ${alive}`, col: hot ? '#ff8a6a' : '#9dd0ff', pri: s === task || hot ? 2 : 1 });
+  }
+}
+
+// A howitzer from above: a dug-in pit, the carriage and a long barrel that points where it last fired. live = it can fire.
+function howitzerArt(ctx, x, y, face, now, px, live, firedAt) {
+  const s = Math.max(px(9), 6);
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ring(ctx, 0, 0, s * 1.5); ctx.fill();
+  ctx.strokeStyle = live ? 'rgba(111,192,255,0.9)' : 'rgba(150,160,160,0.6)'; ctx.lineWidth = px(1.4);
+  ctx.setLineDash([px(3), px(2)]); ring(ctx, 0, 0, s * 1.5); ctx.stroke(); ctx.setLineDash([]);
+  ctx.rotate(face || 0);
+  ctx.fillStyle = live ? 'rgba(200,225,240,0.95)' : 'rgba(150,160,160,0.75)';
+  ctx.fillRect(-s * 0.6, -s * 0.45, s * 1.0, s * 0.9);                  // the carriage
+  const kick = firedAt !== undefined && now >= 0 ? 0 : 0;
+  ctx.fillRect(s * 0.3 - kick, -s * 0.12, s * 1.7, s * 0.24);           // the barrel
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = px(1); ctx.strokeRect(-s * 0.6, -s * 0.45, s * 1.0, s * 0.9);
+  ctx.restore();
+}
+
+// Howitzers the gunner can fire (built by SEAF or taken on the map), and the abandoned ones still waiting for the squad.
+export function drawArty(ctx, m, now, px, labels, scale) {
+  const t = m.t;
+  for (const g of m.arty || []) {
+    howitzerArt(ctx, g.x, g.y, g.face, now, px, true);
+    if (g.firedAt !== undefined && t - g.firedAt < 0.5) { ctx.fillStyle = `rgba(255,220,140,${0.8 * (1 - (t - g.firedAt) / 0.5)})`; ring(ctx, g.x + Math.cos(g.face) * px(20), g.y + Math.sin(g.face) * px(20), px(7)); ctx.fill(); }
+    labels.push({ x: g.x, y: g.y, dy: 24, text: OPS.arty, col: '#6fc0ff', pri: 1 });
+  }
+  for (const s of m.sides || []) {
+    if (s.kind !== 'arty' || s.done || s.failed) continue;
+    howitzerArt(ctx, s.x, s.y, s.face, now, px, false);
+    if (s.state === 'active') {
+      const f = s.holdT / C.sides.arty.holdSec, R = Math.max(C.sides.arty.holdR, px(14));
+      ctx.strokeStyle = 'rgba(127,216,255,0.35)'; ctx.lineWidth = px(3); ring(ctx, s.x, s.y, R); ctx.stroke();
+      ctx.strokeStyle = '#7fd8ff'; ctx.beginPath(); ctx.arc(s.x, s.y, R, -Math.PI / 2, -Math.PI / 2 + f * TAU); ctx.stroke();
+    }
+    const task = m.plan && m.plan.task ? m.plan.task.ref : null;
+    labels.push({ x: s.x, y: s.y, dy: -Math.max(s.r * scale, 10) - 8, text: s.state === 'active' ? `${OPS.artySite} ${Math.round(100 * s.holdT / C.sides.arty.holdSec)}%` : OPS.artySite, col: '#7fd8ff', pri: s === task ? 2 : 1 });
+  }
+}
+
+// Supply crates on the ground, waiting for SEAF to deploy them.
+export function drawCrates(ctx, m, now, px, labels) {
+  for (const c of m.crates || []) {
+    if (!c.landed || c.used) continue;
+    const s = Math.max(px(6), 3.5);
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(c.x - s * 1.25, c.y - s * 1.25, s * 2.5, s * 2.5);
+    ctx.fillStyle = 'rgba(255,214,120,0.95)'; ctx.fillRect(c.x - s, c.y - s, s * 2, s * 2);
+    ctx.strokeStyle = 'rgba(80,50,10,0.9)'; ctx.lineWidth = px(1.2);
+    ctx.beginPath(); ctx.moveTo(c.x - s, c.y - s); ctx.lineTo(c.x + s, c.y + s); ctx.moveTo(c.x + s, c.y - s); ctx.lineTo(c.x - s, c.y + s); ctx.stroke();
+    const blink = Math.floor(now * 2 + c.id) % 2;
+    ctx.fillStyle = blink ? '#7fd8ff' : 'rgba(127,216,255,0.35)'; ring(ctx, c.x + s, c.y - s, px(2)); ctx.fill();
+    labels.push({ x: c.x, y: c.y, dy: 22, text: `${OPS.crate}: ${OPS.build(c.what)}`, col: '#ffd27a', pri: 1 });
+  }
+}
+
+// A base the Helldivers have marked and are about to go in on: a red ring that tightens, and the countdown.
+export function drawMarks(ctx, m, now, px, labels, scale) {
+  const t = m.t;
+  for (const b of m.bases) {
+    const mk = b.marked;
+    if (!mk || b.destroyed || t > mk.until + 0.5) continue;
+    const left = Math.max(0, mk.until - t), f = Math.min(1, (t - mk.at) / Math.max(1, mk.until - mk.at));
+    const R = (b.r || 15) * (b.fortress ? 4.4 : 1.8) * (1.35 - 0.35 * f), pulse = 0.5 + 0.5 * Math.sin(now * 6);
+    ctx.strokeStyle = `rgba(255,80,60,${0.55 + 0.4 * pulse})`; ctx.lineWidth = px(2.4);
+    ctx.setLineDash([px(10), px(6)]); ctx.lineDashOffset = -now * px(12); ring(ctx, b.x, b.y, R); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+    ctx.beginPath();
+    for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + Math.PI / 4, x = b.x + Math.cos(a) * R, y = b.y + Math.sin(a) * R; ctx.moveTo(x, y); ctx.lineTo(b.x + Math.cos(a) * R * 0.78, b.y + Math.sin(a) * R * 0.78); }
+    ctx.stroke();
+    labels.push({ x: b.x, y: b.y, dy: -R * scale - 10, text: OPS.marked(Math.ceil(left)), col: '#ff8a6a', pri: 3 });
   }
 }
 

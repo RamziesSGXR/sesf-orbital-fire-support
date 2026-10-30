@@ -5,7 +5,7 @@ import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { aoX, aoY } from './ao.js';
 import { COMMS } from '../data/data.js';
-import { seafStats } from '../data/kit.js';
+import { seafStats, buildStats, buildLevel } from '../data/kit.js';
 import { STRATS } from '../data/strat.js';
 import { fireShot } from './combat.js';
 import { nearestObjective } from './pois.js';
@@ -101,28 +101,34 @@ export function setSquadOrder(m, q, kind, x = 0, y = 0, extra = null) {
 export function builtCount(m, what) {
   if (what === 'beacon') return (m.beacons || []).filter((b) => b.built).length;
   if (what === 'mg') return m.assets.filter((s) => !s.dead && s.sid === 'seaf_mg').length;
+  if (what === 'arty') return (m.arty || []).filter((g) => g.built).length;
   return (m.coverSites || []).filter((s) => s.kind === 'built').length;
 }
-// Done: pay for it, put it up, and the squad stays to hold it. False (and the squad waits) if the credits are not there any more.
+// Done: the crate is deployed (it was paid for when ordered), and the squad stays to hold it. Upgrades from the armory decide how
+// good it is (data/kit.js buildStats).
 function finishBuild(m, q, o) {
-  const B = C.build[o.what];
-  if (m.wallet.bal < B.cost) { if (!o.broke) { o.broke = true; m.emit('deny', { reason: 'funds' }); } return false; }
-  m.wallet.bal -= B.cost; m.wallet.spent += B.cost;
+  const lvl = buildLevel(m.kit, o.what), B = buildStats(o.what, lvl);
+  if (o.crate) { o.crate.used = true; m.crates = m.crates.filter((c) => c !== o.crate); }
   if (o.what === 'wall') {
     // a ring of low walls, the open side toward the squad's own lines (the Helldivers), the walls toward the enemy
     const site = { x: o.x, y: o.y, R: B.R, pieces: [], kind: 'built' }, face = Math.atan2(m.hy - o.y, m.hx - o.x) + Math.PI;
+    const step = Math.min(0.75, (Math.PI * 1.6) / Math.max(1, B.n - 1));
     for (let k = 0; k < B.n; k++) {
-      const ang = face + (k - (B.n - 1) / 2) * 0.75, px = o.x + Math.cos(ang) * B.R, py = o.y + Math.sin(ang) * B.R;
+      const ang = face + (k - (B.n - 1) / 2) * step, px = o.x + Math.cos(ang) * B.R, py = o.y + Math.sin(ang) * B.R;
       if (m.terrain.blocked(px, py)) continue;
-      site.pieces.push({ x: px, y: py, nx: Math.cos(ang), ny: Math.sin(ang), ang, len: 6, style: k % 2 ? 0 : 2, k, built: true });
+      site.pieces.push({ x: px, y: py, nx: Math.cos(ang), ny: Math.sin(ang), ang, len: 6, style: k % 2 ? 0 : 2, k, built: true, mul: B.mul, lvl });
     }
     if (site.pieces.length) { m.coverSites.push(site); m.cover.push(...site.pieces); }
   } else if (o.what === 'mg') {
-    const p = { ...STRATS.mg_sentry.t, ammo: B.ammo };
+    const base = STRATS.mg_sentry.t, p = { ...base, ammo: B.ammo, dmg: base.dmg * B.dmg };
     const s = { id: m.nextId++, kind: 'turret', sid: 'seaf_mg', x: o.x, y: o.y, born: m.t, dead: false, hurtAt: -9, name: tr('build.mg'), hp: B.hp, maxHp: B.hp,
-      ammo: B.ammo, maxAmmo: B.ammo, p, cool: 0.6, scan: 0, tgt: null, face: Math.atan2(o.y - m.hy, o.x - m.hx), focus: null, r: 3.5, snd: 'mg', seaf: true };
+      ammo: B.ammo, maxAmmo: B.ammo, p, cool: 0.6, scan: 0, tgt: null, face: Math.atan2(o.y - m.hy, o.x - m.hx), focus: null, r: 3.5, snd: 'mg', seaf: true, lvl };
     m.assets.push(s);
     m.emit('asset_new', { kind: 'turret', sid: 'seaf_mg', x: o.x, y: o.y });
+  } else if (o.what === 'arty') {
+    m.arty.push({ id: m.nextId++, x: o.x, y: o.y, built: true, face: Math.atan2(m.hy - o.y, m.hx - o.x) + Math.PI, born: m.t });
+    m.radio(COMMS.artyUp, 'artyup', 0);
+    m.emit('arty_new', { x: o.x, y: o.y });
   } else {
     m.beacons.push({ id: m.nextId++, x: o.x, y: o.y, relit: true, built: true });
   }
@@ -242,6 +248,17 @@ export function rollRoles(m, n, st) {
   return roles;
 }
 
+// A cargo pelican: brings a crate for SEAF to deploy (a wall, an MG nest, a drop beacon, a howitzer), drops it and leaves.
+export function callCargo(m, x, y, crate) {
+  const P = C.pelican, base = (m.squad.dir || 0) + Math.PI + m.rng.range(-0.7, 0.7);
+  const dx = Math.cos(base + Math.PI), dy = Math.sin(base + Math.PI);
+  m.pelicans.push({
+    id: m.nextId++, x: x - dx * P.approach, y: y - dy * P.approach, tx: x, ty: y, dx, dy, state: 'in', alt: 1, cargo: crate,
+    roles: [], dropped: 0, dropT: 0, hoverT: Math.min(P.hover, 3), outT: 0, gunT: 0.4, squad: -1, born: m.t, vis: 0,
+  });
+  m.emit('cargo_call', { x, y, what: crate.what });
+}
+
 export function callPelican(m, x, y, n, squad) {
   const st = seafStats(m.kit), P = C.pelican;
   const base = (m.squad.dir || 0) + Math.PI + m.rng.range(-0.7, 0.7);   // comes in from behind the squad
@@ -282,6 +299,14 @@ export function updatePelicans(m, dt) {
     } else if (p.state === 'hover') {
       p.hoverT -= dt; p.dropT -= dt;
       pelicanGun(m, p, dt);
+      if (p.cargo && !p.cargo.landed && p.dropT <= 0) {           // a cargo pelican lowers its crate
+        p.cargo.landed = true; p.cargo.at = m.t;
+        m.emit('crate_drop', { x: p.cargo.x, y: p.cargo.y, what: p.cargo.what });
+      }
+      if (p.cargo) {
+        if (p.cargo.landed && p.hoverT <= 0) { p.state = 'out'; p.outT = 0; }
+        continue;
+      }
       if (p.dropped < p.roles.length && p.dropT <= 0) {
         const role = p.roles[p.dropped++], ang = m.rng.angle(), d = m.rng.range(4, 12);
         const a = m.addAlly('S', p.x + Math.cos(ang) * d, p.y + Math.sin(ang) * d, { role });
@@ -440,8 +465,10 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
 
   // Building: everyone goes to the spot; with nobody to fight they build it (faster with more hands).
   if (o.kind === 'build') {
-    const B = C.build[o.what], near = Math.hypot(cx - o.x, cy - o.y) < C.build.r;
-    if (near && !list.some((a) => a.engaged)) {
+    const B = buildStats(o.what, buildLevel(m.kit, o.what)), near = Math.hypot(cx - o.x, cy - o.y) < C.build.r;
+    const ready = !o.crate || o.crate.landed;                 // the crate has to be down before anything can be built
+    o.waiting = near && !ready;
+    if (near && ready && !list.some((a) => a.engaged)) {
       const at = list.filter((a) => Math.hypot(a.x - o.x, a.y - o.y) < C.build.r + 4).length;
       o.prog += dt * Math.min(4, Math.max(1, at)) / 2;
       o.building = true;

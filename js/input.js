@@ -68,7 +68,7 @@ export class Input {
       if (!this.active()) return;
       if (e.pointerType === 'touch') this.setTouch(true); else this.setTouch(false);
       try { cv.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
-      this.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType, btn: e.button });
+      this.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType, btn: e.button, sx: e.clientX, sy: e.clientY, t0: performance.now() });
       const draw = this.h.drawing();
       if (e.pointerType === 'mouse') {
         this.mx = e.clientX; this.my = e.clientY;
@@ -103,6 +103,8 @@ export class Input {
       const p = this.ptrs.get(e.pointerId);
       if (!p) return;
       this.ptrs.delete(e.pointerId);
+      // a tap (no drag, short) on the map closes panels that are open over it
+      if (e.type === 'pointerup' && this.stroke !== e.pointerId && this.h.tap && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) < 8 && performance.now() - p.t0 < 350 && this.ptrs.size === 0) this.h.tap(p.type);
       if (this.stroke === e.pointerId) { this.stroke = null; if (e.type === 'pointercancel') this.h.drawCancel(); else this.h.drawEnd(); if (p.type !== 'mouse') { if (this.ptrs.size < 2) this.pinch = null; return; } }
       if (p.type === 'mouse') { if (e.button === 0 || e.type === 'pointercancel') this.h.fire(false); if (this.panning === e.pointerId) this.panning = null; }
       if (this.ptrs.size < 2) this.pinch = null;
@@ -143,8 +145,9 @@ export class Input {
       if (e.code === 'Escape' && this.h.placing()) { this.h.cancelPlace(); return; }
       if (e.code === 'Escape') { this.h.pause(); return; }         // the menu
       if (e.code === 'KeyP') { this.h.soft(); return; }            // the soft pause: the game stops, the menu stays shut
+      if (e.code === 'Comma' && this.h.speed) { this.h.speed(); return; }   // half speed / normal speed
       if (!this.active()) return;
-      const dig = /^Digit([0-8])$/.exec(e.code);
+      const dig = /^Digit([0-9])$/.exec(e.code);
       if (dig && e.shiftKey) this.h.squad(Number(dig[1]) >= 1 && Number(dig[1]) <= 4 ? Number(dig[1]) - 1 : -1);   // Shift+1..4 pick a squad, Shift+0 all
       else if (dig && dig[1] !== '0') this.h.weapon(Number(dig[1]) - 1);
       else if (e.code === 'Backquote') this.h.squad(-1);

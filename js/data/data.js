@@ -79,6 +79,9 @@ export const COMMS = {
   get victory() { return t('c.victory'); },
   get defeat() { return t('c.defeat'); },
   get complete() { return t('c.complete'); },
+  baseMarked: (n) => t('c.baseMarked', { n }),
+  get baseGo() { return t('c.baseGo'); },
+  get baseSpotted() { return t('c.baseSpotted'); },
   get timeout() { return t('c.timeout'); },
   get hdWipe() { return t('c.hdWipe'); },
   get uavUp() { return t('c.uavUp'); },
@@ -100,6 +103,7 @@ export const COMMS = {
   get objFortress() { return t('c.objFortress'); },
   get objEvac() { return t('c.objEvac', { n: C.objective.evac.need }); },
   get nukeHold() { return t('c.nukeHold'); },
+  setup: (n) => t('c.setup', { n }),
   get nukeLost() { return t('c.nukeLost'); },
   get nukeArmed() { return t('c.nukeArmed'); },
   get nukeAuto() { return t('c.nukeAuto'); },
@@ -154,12 +158,17 @@ export const COMMS = {
   timeYes: (n) => t('c.timeYes', { n }),
   get timeNo() { return t('c.timeNo'); },
   get allClear() { return t('c.allClear'); },
-  sideNext: (k) => t('c.sideNext.' + (['radio', 'propaganda', 'rescue'].includes(k) ? k : 'base')),
+  sideNext: (k) => t('c.sideNext.' + (['radio', 'propaganda', 'rescue', 'arty'].includes(k) ? k : 'base')),
+  get artyUp() { return t('c.artyUp'); },
+  get artyStart() { return t('c.artyStart'); },
+  get artyFire() { return t('c.artyFire'); },
 };
 
 // Map labels for the operation (render/ops.js).
 export const OPS = {
   get squadOnIt() { return t('lab.squadOnIt'); }, get radio() { return t('lab.radio'); }, get radioOn() { return t('lab.radioOn'); },
+  get artySite() { return t('lab.artySite'); }, get arty() { return t('lab.arty'); }, get crate() { return t('lab.crate'); },
+  build: (w) => t('build.' + w), marked: (n) => t('lab.marked', { n }),
   get rescue() { return t('lab.rescue'); }, get rescueHot() { return t('lab.rescueHot'); }, get rescueLost() { return t('lab.rescueLost'); },
   get beacon() { return t('lab.beacon'); }, get beaconDark() { return t('lab.beaconDark'); },
 };

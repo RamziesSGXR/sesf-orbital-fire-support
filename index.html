@@ -45,6 +45,7 @@
         <button id="btn-info" class="btn icon" data-ta="hud.infoAria" data-tt="hud.infoTitle" data-t="hud.info">INFO</button>
         <button id="btn-shop" class="btn icon" data-ta="hud.armory" data-t="hud.armory">ARMORY</button>
         <button id="btn-menu" class="btn icon" data-ta="hud.menu" data-t="hud.menu">MENU</button>
+        <button id="btn-speed" class="btn icon" type="button" data-ta="hud.speedAria" data-tt="hud.speedTitle">1×</button>
         <button id="btn-pause" class="btn icon" data-ta="hud.pause">II</button>
       </div>
       <div id="menu" class="panel hidden">
@@ -54,10 +55,16 @@
         <button class="mn" data-mn="strats" data-t="hud.stratagems">STRATAGEMS</button>
         <button class="mn" data-mn="roster" data-t="hud.roster">SQUAD STATUS</button>
         <button class="mn" data-mn="cam"><span data-t="hud.camera">CAMERA</span> <b id="mn-cam"></b></button>
+        <button class="mn" data-mn="settings" data-t="ui.settings">SETTINGS</button>
+        <button class="mn" data-mn="controls" data-t="ui.controls">CONTROLS</button>
+        <button class="mn" data-mn="manual" data-t="ui.manual">FIELD MANUAL</button>
+        <button class="mn" data-mn="pause" data-t="ui.pauseMenu">PAUSE MENU</button>
+        <p class="mn-note fine" data-t="hud.menuPaused"></p>
       </div>
     </div>
     <div id="radio"></div>
     <div id="tray">
+    <button class="x-close tray-x" type="button" data-close="tray" data-ta="hud.closeTray">✕</button>
     <div id="hdbar" class="panel" data-tt="hud.hdbarTitle"></div>
     <div id="squads" class="panel">
       <button class="sqb" data-sq="-1"><span class="n" data-t="hud.all">ALL</span><span class="s">0</span></button>
@@ -83,6 +90,7 @@
       <button class="bld" data-b="wall" type="button"><span class="n" data-t="build.wall">WALL</span><span class="s"></span></button>
       <button class="bld" data-b="mg" type="button"><span class="n" data-t="build.mg">MG NEST</span><span class="s"></span></button>
       <button class="bld" data-b="beacon" type="button"><span class="n" data-t="build.beacon">DROP BEACON</span><span class="s"></span></button>
+      <button class="bld" data-b="arty" type="button"><span class="n" data-t="build.arty">HOWITZER</span><span class="s"></span></button>
     </div>
     </div>
     <div id="dock">
@@ -153,6 +161,8 @@
       <div class="btns shop-go">
         <button id="shop-go" class="btn primary big"></button>
         <button id="shop-names" class="btn" data-t="ui.names">SQUAD NAMES</button>
+        <button id="btn-ctl-s" class="btn" type="button" data-t="ui.controls">CONTROLS</button>
+        <button id="btn-man-s" class="btn" type="button" data-t="ui.manual">FIELD MANUAL</button>
       </div>
     </div>
   </section>
@@ -175,6 +185,8 @@
           <div id="b-status" class="fine"></div>
           <div class="btns">
             <button id="b-continue" class="btn primary big" disabled></button>
+            <button id="btn-ctl-b" class="btn" type="button" data-t="ui.controls">CONTROLS</button>
+            <button id="btn-man-b" class="btn" type="button" data-t="ui.manual">FIELD MANUAL</button>
             <button id="btn-end" class="btn" data-t="ui.endSession">END SESSION</button>
           </div>
         </div>
@@ -182,9 +194,6 @@
           <h2 data-t="brief.situation">THE SITUATION</h2>
           <div id="b-story" class="b-story"></div>
           <button id="b-tipbox" class="b-tip" type="button" aria-live="polite" data-tt="brief.nextTip"><span class="tip-tag" data-t="brief.tip">TIP</span><span id="b-tip"></span><span class="tip-next" data-t="brief.next">NEXT ›</span></button>
-          <h2 data-t="brief.controls">CONTROLS</h2>
-          <div id="controls-desktop" class="ctl" data-th="ctl.desktop"></div>
-          <div id="controls-touch" class="ctl" data-th="ctl.touch"></div>
         </div>
       </div>
     </div>
@@ -247,6 +256,8 @@
         <button id="btn-info-m" class="btn" data-t="ui.missionInfo">MISSION INFO</button>
         <button id="btn-armory-m" class="btn" data-t="hud.armory">ARMORY</button>
         <button id="btn-names-m" class="btn" data-t="ui.names">SQUAD NAMES</button>
+        <button id="btn-ctl-m" class="btn" type="button" data-t="ui.controls">CONTROLS</button>
+        <button id="btn-man-m" class="btn" type="button" data-t="ui.manual">FIELD MANUAL</button>
         <button id="btn-settings-m" class="btn" data-t="ui.settings">SETTINGS</button>
         <button id="btn-about-m" class="btn" data-t="ui.about">ABOUT</button>
         <a id="lnk-fb-m" class="btn fb" target="_blank" rel="noopener" data-t="ui.feedback">FEEDBACK</a>
@@ -325,6 +336,28 @@
         <a id="lnk-proj" class="btn" target="_blank" rel="noopener" data-t="about.project">PROJECT PAGE</a>
         <button id="about-close" class="btn" data-t="ui.closeBtn">CLOSE</button>
       </div>
+    </div>
+  </section>
+
+  <section id="s-controls" class="screen overlay">
+    <div class="card wide">
+      <button class="x-close" data-close="s-controls" data-ta="ui.close">✕</button>
+      <h2 data-t="ui.controls">CONTROLS</h2>
+      <div class="tabs" role="tablist"><button id="ctl-tab-d" class="btn tab" type="button" data-t="ctl.tabDesk">COMPUTER</button><button id="ctl-tab-t" class="btn tab" type="button" data-t="ctl.tabTouch">PHONE AND TABLET</button></div>
+      <div id="controls-desktop" class="ctl" data-th="ctl.desktop"></div>
+      <div id="controls-touch" class="ctl hidden" data-th="ctl.touch"></div>
+      <div class="btns"><button id="ctl-close" class="btn primary" type="button" data-t="ui.backBtn">BACK</button></div>
+    </div>
+  </section>
+
+  <section id="s-manual" class="screen overlay">
+    <div class="card wide">
+      <button class="x-close" data-close="s-manual" data-ta="ui.close">✕</button>
+      <div class="eyebrow" data-t="man.eyebrow">Super Destroyer gunner</div>
+      <h2 data-t="ui.manual">FIELD MANUAL</h2>
+      <p class="man-intro" data-t="man.intro"></p>
+      <div id="manual-body" class="manual"></div>
+      <div class="btns"><button id="man-close" class="btn primary" type="button" data-t="ui.backBtn">BACK</button></div>
     </div>
   </section>
 

@@ -43,9 +43,38 @@ export function coverSlot(s, i, n, side = 0) {
   const tx = -p.ny, ty = p.nx;      // along the wall
   return { x: p.x - p.nx * 1.6 + tx * side, y: p.y - p.ny * 1.6 + ty * side };
 }
-// Is (x, y) in cover?
-export function inCover(m, x, y) {
+// Is (x, y) in cover? The share of enemy fire that still gets through (1 = none stopped). Walls SEAF build can be better than the
+// sites' own (an upgraded wall stops more).
+export function coverMul(m, x, y) {
   const r2 = C.cover.r * C.cover.r;
-  for (const p of m.cover || []) if ((p.x - x) ** 2 + (p.y - y) ** 2 <= r2) return true;
-  return false;
+  let best = 1;
+  for (const p of m.cover || []) if ((p.x - x) ** 2 + (p.y - y) ** 2 <= r2) best = Math.min(best, p.mul || C.cover.mul);
+  return best;
+}
+export const inCover = (m, x, y) => coverMul(m, x, y) < 1;
+
+// Where the threat to a site comes from: enemies near it (heavies count more) and the bases round it. A unit vector, or null.
+// Cached for a few seconds.
+export function threatDir(m, s) {
+  if (s.threat && m.t - s.threat.t < 3) return s.threat.v;
+  let vx = 0, vy = 0;
+  m.eGrid.near(s.x, s.y, 320, (e, d2) => { const d = Math.sqrt(d2) || 1, w = (e.kind === 'H' ? 4 : e.kind === 'M' ? 2 : 1) / (d + 30); vx += ((e.x - s.x) / d) * w; vy += ((e.y - s.y) / d) * w; });
+  for (const b of m.bases) {
+    if (b.destroyed) continue;
+    const d = Math.hypot(b.x - s.x, b.y - s.y);
+    if (d > 700) continue;
+    const w = 0.6 / (d + 60); vx += ((b.x - s.x) / d) * w; vy += ((b.y - s.y) / d) * w;
+  }
+  const L = Math.hypot(vx, vy), v = L > 1e-6 ? { x: vx / L, y: vy / L } : null;
+  s.threat = { t: m.t, v };
+  return v;
+}
+// Where Helldiver i of n stands at a site: the walls facing the threat first, one each; spread round the ring when it is
+// not known yet. (SEAF take coverSlot: round the whole ring.)
+export function threatSlot(m, s, i, n) {
+  const v = threatDir(m, s), P = s.pieces;
+  if (!v || P.length < 2) return coverSlot(s, i, n);
+  if (!s.rank || s.rank.t !== s.threat.t) s.rank = { t: s.threat.t, list: P.map((p, k) => ({ k, dot: p.nx * v.x + p.ny * v.y })).sort((a, b) => b.dot - a.dot) };
+  const p = P[s.rank.list[i % s.rank.list.length].k];
+  return { x: p.x - p.nx * 1.6, y: p.y - p.ny * 1.6 };
 }

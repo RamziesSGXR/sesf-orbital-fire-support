@@ -71,7 +71,7 @@ const away = (m, a, d, ang = 0) => ({ x: a.x + Math.cos(ang) * d, y: a.y + Math.
   // turning: a light enemy swings round much faster than a heavy, so a heavy can be caught from behind
   const m = quiet('bots'), a = m.hdAlive[0];
   const p = away(m, a, 70), g = inert(spawnGroup(m, p.x, p.y, 'hunt'));
-  const L = g.members.find((q) => q.kind === 'L') || g.members[0], H = g.members[1];
+  const L = g.members.find((q) => q.kind === 'L') || g.members[0], H = g.members.find((q) => q !== L);
   H.kind = 'H';
   for (const q of [L, H]) { q.face = 0; q.aimA = Math.PI; q.aimUntil = 1e9; }
   run(m, 0.3);
@@ -309,7 +309,7 @@ check('the nuke covers a much wider area', C.objective.nuke.blastR >= 200, `${C.
   const kit = newKit(), w = newWallet(); w.bal = 1e9;
   let total = 0; const by = {};
   for (let g = 0; g < 1000; g++) {
-    const it = shopItems(kit).find((i) => i.cost !== null && !i.locked);
+    const it = shopItems(kit).find((i) => i.cost !== null && !i.locked && !i.endless);   // (the endless SEAF Barracks is not 'maxed')
     if (!it) break;
     if (!buy(kit, w, it.id, false).ok) break;
     total += it.cost; by[it.section] = (by[it.section] || 0) + it.cost;
