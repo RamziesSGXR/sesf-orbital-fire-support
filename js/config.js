@@ -321,7 +321,7 @@ export const CONFIG = {
   // Optional: set channelUrl to your community's score channel (Discord channel link, forum thread, form).
   // When set, the final screen shows a button that copies the score block and opens that link.
   share:    { channelUrl: '',
-              // Where the FEEDBACK buttons go: a short form on the project's GitHub page (a free GitHub account is needed to post).
+              // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.17.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives; the score block ends with it so pasted scores bring players in
