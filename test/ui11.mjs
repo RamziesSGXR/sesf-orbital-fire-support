@@ -15,7 +15,7 @@ const page = await ctx.newPage();
 const errs = []; page.on('pageerror', (e) => errs.push(e.message));
 const ev = (f, a) => page.evaluate(f, a);
 const tap = (sel) => (touch ? page.tap(sel) : page.click(sel));
-const PAGE = `file://${ROOT}/dist/orbital-fire-support.html?faction=bots&biome=grass&seed=12`;
+const PAGE = `file://${ROOT}/dist/orbital-fury.html?faction=bots&biome=grass&seed=12`;
 
 await page.goto(PAGE); await page.waitForTimeout(600);
 const start = await ev(() => document.querySelector('#diff-row .btn.dl.on')?.textContent);

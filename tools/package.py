@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Builds the two release zips into release/ (needs Node for the bundle step, Python 3 standard library only).
 
-  Orbital-Fire-Support-PC.zip           one self-contained HTML file plus launchers for Windows, Mac and Linux
-  orbital-fire-support-web.zip          the repository to push to GitHub and serve with GitHub Pages
+  Orbital-Fury-PC.zip           one self-contained HTML file plus launchers for Windows, Mac and Linux
+  orbital-fury-web.zip          the repository to push to GitHub and serve with GitHub Pages
 """
 import pathlib, subprocess, zipfile
 
@@ -23,17 +23,17 @@ def add(z, src, name, mode=0o644, crlf=False):
 
 
 # ---- PC ----
-pc = rel / 'Orbital-Fire-Support-PC.zip'
-folder = 'Orbital-Fire-Support'
+pc = rel / 'Orbital-Fury-PC.zip'
+folder = 'Orbital-Fury'
 with zipfile.ZipFile(pc, 'w') as z:
-    add(z, root / 'dist' / 'orbital-fire-support.html', f'{folder}/Orbital-Fire-Support.html')
+    add(z, root / 'dist' / 'orbital-fury.html', f'{folder}/Orbital-Fury.html')
     add(z, root / 'tools/pc/Play-Windows.bat', f'{folder}/Play-Windows.bat', crlf=True)
     add(z, root / 'tools/pc/Play-Mac.command', f'{folder}/Play-Mac.command', 0o755)
     add(z, root / 'tools/pc/Play-Linux.sh', f'{folder}/Play-Linux.sh', 0o755)
     add(z, root / 'tools/pc/README-PC.txt', f'{folder}/README-PC.txt', crlf=True)
 
 # ---- Web (GitHub Pages) ----
-web = rel / 'orbital-fire-support-web.zip'
+web = rel / 'orbital-fury-web.zip'
 skip_dirs = {'node_modules', 'dist', 'release', 'shots', '.git'}
 with zipfile.ZipFile(web, 'w') as z:
     for p in sorted(root.rglob('*')):

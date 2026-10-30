@@ -1,11 +1,11 @@
 @echo off
 setlocal
-rem Orbital Fire Support - double-click to play.
+rem Orbital Fury - double-click to play.
 rem Opens the game in its own window using Microsoft Edge (built into Windows) or Google Chrome.
 rem If neither is found it opens the game in your default browser instead.
 
-set "GAME=%~dp0Orbital-Fire-Support.html"
-if not exist "%GAME%" echo Could not find Orbital-Fire-Support.html next to this file. Unzip the whole folder first.
+set "GAME=%~dp0Orbital-Fury.html"
+if not exist "%GAME%" echo Could not find Orbital-Fury.html next to this file. Unzip the whole folder first.
 if not exist "%GAME%" pause
 if not exist "%GAME%" exit /b 1
 

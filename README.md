@@ -1,8 +1,8 @@
-# Orbital Fire Support
+# Orbital Fury
 
 A Super Destroyer targeting minigame for the **Super Earth Special Forces** community. You are the gunner in orbit, watching four Helldivers and their SEAF troops fight across the map below through a thermal view. The Helldivers move, fight and call their own stratagems. Your job is to cover them: scan with the UAV, drop orbital strikes, fire the ship gun and send in SEAF.
 
-## ▶ [Play Orbital Fire Support](https://ramziessgxr.github.io/sesf-orbital-fire-support/)
+## ▶ [Play Orbital Fury](https://orbitalfury.com/)
 
 It runs in your browser on a computer, phone or tablet. There is nothing to install. Turn the sound on. Your progress and best scores stay on your own device.
 
@@ -136,13 +136,15 @@ The war gets worse every minute: tougher enemies, harder hits and more heavies, 
 After every mission the debrief shows your **session score so far**. Press **COPY SCORE** to paste it in the community channel without ending the session. When your session ends, the final screen shows your **score block** and a **session ID**. Press **COPY** and paste it in the community channel:
 
 ```
-ORBITAL FIRE SUPPORT | SUPER EARTH SPECIAL FORCES
+ORBITAL FURY | SUPER EARTH SPECIAL FORCES
 SESSION 20261027-030146Z
 CALLSIGN ANON
 FINAL SCORE 38,959
 MISSIONS 3 (3 won) | TIME 33:43
 ...
 3. Operation Iron Harvest | BOTS Tall-grass highlands | VICTORY | 21,590 | 1,204 KILLS | SIEGE WALKER KILLED
+---
+PLAY AT ORBITALFURY.COM
 ```
 
 ## Give feedback

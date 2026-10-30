@@ -1,7 +1,7 @@
 {
-  "name": "orbital-fire-support",
-  "version": "0.13.1",
-  "description": "Orbital Fire Support - a Super Destroyer targeting minigame (unofficial fan project)",
+  "name": "orbital-fury",
+  "version": "0.14.0",
+  "description": "Orbital Fury - a Super Destroyer targeting minigame (unofficial fan project)",
   "main": "js/main.js",
   "scripts": {
     "start": "python3 -m http.server 8080",

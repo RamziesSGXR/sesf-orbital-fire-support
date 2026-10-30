@@ -17,7 +17,7 @@ const page = await ctx.newPage();
 const errs = []; page.on('pageerror', (e) => errs.push(e.message)); page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
 const tap = (sel) => (touch ? page.tap(sel) : page.click(sel));
 const ev = (f, a) => page.evaluate(f, a);
-await page.goto(`file://${root}/dist/orbital-fire-support.html?faction=bugs&biome=grass&seed=12&tod=11&objective=nuke`);
+await page.goto(`file://${root}/dist/orbital-fury.html?faction=bugs&biome=grass&seed=12&tod=11&objective=nuke`);
 await page.waitForTimeout(500); await page.click('#btn-play'); await page.waitForTimeout(200);
 if (await page.isVisible('#btn-notice')) await page.click('#btn-notice');
 await page.waitForTimeout(250); if (await page.isVisible('#btn-lock')) await page.click('#btn-lock');   // 0.13: the difficulty lock-in

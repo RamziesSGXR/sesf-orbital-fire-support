@@ -1,12 +1,12 @@
 name: Playtest feedback
-description: Tell us how Orbital Fire Support played for you. Every report is read.
+description: Tell us how Orbital Fury played for you. Every report is read.
 title: "[Feedback] "
 labels: ["feedback"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for playing **Orbital Fire Support**, the unofficial Super Earth Special Forces fan minigame.
+        Thanks for playing **Orbital Fury**, the unofficial Super Earth Special Forces fan minigame.
         A few short answers help a lot. Only the first two questions are required.
   - type: dropdown
     id: device

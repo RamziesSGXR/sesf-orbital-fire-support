@@ -16,7 +16,7 @@ page.on('console', (m) => { if (m.type() === 'error') errs.push('CONSOLE ' + m.t
 let fails = 0;
 const check = (name, ok, extra = '') => { console.log(ok ? 'ok  ' : 'FAIL', name, extra); if (!ok) fails++; };
 const tap = async (sel) => { const b = await page.locator(sel).first().boundingBox(); if (!b) throw new Error('no box ' + sel); await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); };
-await page.goto('file://' + path.join(root, 'dist/orbital-fire-support.html') + '?seed=9&faction=bugs&biome=grass');
+await page.goto('file://' + path.join(root, 'dist/orbital-fury.html') + '?seed=9&faction=bugs&biome=grass');
 await page.waitForTimeout(500);
 await tap('#btn-play'); await page.waitForTimeout(300);
 await tap('#btn-notice'); await page.waitForTimeout(400);

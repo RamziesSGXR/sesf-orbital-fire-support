@@ -16,7 +16,7 @@ const errs = [];
 page.on('pageerror', (e) => errs.push('PAGEERROR ' + e.message + '\n' + (e.stack || '').split('\n').slice(0, 4).join('\n')));
 page.on('console', (m) => { if (m.type() === 'error') errs.push('CONSOLE ' + m.text()); });
 const out = (n) => path.join(root, 'test/shots', `s4-${vp}-${n}.png`);
-await page.goto('file://' + path.join(root, 'dist/orbital-fire-support.html') + `?bot=1&fast=${fast}&seed=5`);
+await page.goto('file://' + path.join(root, 'dist/orbital-fury.html') + `?bot=1&fast=${fast}&seed=5`);
 await page.waitForTimeout(500);
 await page.click('#btn-play'); await page.waitForTimeout(200);
 if (await page.isVisible('#btn-notice')) await page.click('#btn-notice');

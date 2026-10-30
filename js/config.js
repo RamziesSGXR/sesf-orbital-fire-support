@@ -1,4 +1,4 @@
-// Every tuning number for Orbital Fire Support lives here.
+// Every tuning number for Orbital Fury lives here.
 // Values are starting points from the design doc; change them here, never in game logic.
 export const CONFIG = {
   // missionSec is the clock for the whole mission. The objective has to be done before it runs out.
@@ -275,5 +275,6 @@ export const CONFIG = {
   share:    { channelUrl: '',
               // Where the FEEDBACK buttons go: a short form on the project's GitHub page (a free GitHub account is needed to post).
               feedbackUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support/issues/new?template=feedback.yml',
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.13.1' },
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.14.0',
+              playUrl: 'https://orbitalfury.com/' },   // where the game lives; the score block ends with it so pasted scores bring players in
 };

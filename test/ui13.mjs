@@ -20,7 +20,7 @@ const errs = []; page.on('pageerror', (e) => errs.push(e.message));
 const ev = (f, a) => page.evaluate(f, a);
 const tap = (sel) => (touch ? page.tap(sel) : page.click(sel));
 const shot = (n) => page.screenshot({ path: path.join(SHOTS, `ui13_${mode}_${n}.png`) });
-const PAGE = `file://${ROOT}/dist/orbital-fire-support.html?faction=bots&biome=grass&seed=1313&tod=11&difficulty=7`;
+const PAGE = `file://${ROOT}/dist/orbital-fury.html?faction=bots&biome=grass&seed=1313&tod=11&difficulty=7`;
 const on = (id) => ev((i) => document.getElementById(i).classList.contains('on'), id);
 const sig = () => ev(() => { const m = window.__game.mission; return JSON.stringify({ lz: [Math.round(m.lz.x), Math.round(m.lz.y)], b: m.bases.map((b) => [Math.round(b.x), Math.round(b.y)]), o: m.objectives.map((o) => o.type) }); });
 const debrief = () => page.waitForFunction(() => window.__game.state === 'debrief', null, { timeout: 20000 });

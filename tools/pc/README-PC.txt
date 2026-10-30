@@ -1,4 +1,4 @@
-ORBITAL FIRE SUPPORT - PC VERSION
+ORBITAL FURY - PC VERSION
 Super Earth Special Forces fan project (unofficial; no game assets, text or audio)
 
 HOW TO PLAY
@@ -6,7 +6,7 @@ HOW TO PLAY
 2. Windows: double-click Play-Windows.bat
    Mac:     double-click Play-Mac.command
    Linux:   run ./Play-Linux.sh
-   Any system: just double-click Orbital-Fire-Support.html and it opens in your browser.
+   Any system: just double-click Orbital-Fury.html and it opens in your browser.
 3. Press PLAY, wait for the loading bar, then click CONTINUE.
 
 It is one self-contained file. No install, no internet, no server.

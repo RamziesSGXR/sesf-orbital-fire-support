@@ -16,7 +16,7 @@ const errs = [];
 page.on('pageerror', (e) => errs.push('PAGEERROR ' + e.message + '\n' + (e.stack || '').split('\n').slice(0, 4).join('\n')));
 page.on('console', (m) => { if (m.type() === 'error') errs.push('CONSOLE ' + m.text()); });
 const out = (n) => path.join(root, 'test/shots', `p4-${vp}-${n}.png`);
-const url = 'file://' + path.join(root, 'dist/orbital-fire-support.html') + `?faction=${faction}&biome=${biome}&seed=77&fast=1&debug=1`;
+const url = 'file://' + path.join(root, 'dist/orbital-fury.html') + `?faction=${faction}&biome=${biome}&seed=77&fast=1&debug=1`;
 await page.goto(url);
 await page.waitForTimeout(600);
 await page.screenshot({ path: out('1-title') });

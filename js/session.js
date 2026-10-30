@@ -115,7 +115,7 @@ export function sessionTotals(s) {
 export function scoreBlock(s, fin) {
   const lines = [], t = sessionTotals(s), live = !fin;
   const wins = live ? s.missions.filter((m) => carriesOn(m.outcome)).length : fin.wins;
-  lines.push('ORBITAL FIRE SUPPORT | SUPER EARTH SPECIAL FORCES');
+  lines.push('ORBITAL FURY | SUPER EARTH SPECIAL FORCES');
   lines.push(live ? `SESSION IN PROGRESS | STARTED ${sessionId(new Date(s.startedAt || Date.now()))}` : `SESSION ${fin.id}`);
   lines.push(`CALLSIGN ${live ? s.callsign || 'ANON' : fin.callsign}`);
   const dl = s.difficulty || LEVELS;
@@ -131,5 +131,7 @@ export function scoreBlock(s, fin) {
     const boss = m.boss ? ` | ${bossName} ${m.boss.killed ? 'KILLED' : 'ESCAPED'}` : '';
     lines.push(`${i + 1}. ${m.op} | ${tEn('fac.' + m.faction)} ${tEn('biome.' + m.biome)} | ${tEn('out.' + m.outcome)} | ${fmtNum(m.score)} | ${fmtNum(m.kills || 0)} KILLS${boss}`);
   });
+  if (s.missions.length) lines.push('---');
+  lines.push(`PLAY AT ${C.share.playUrl.replace(/^https?:\/\//, '').replace(/\/$/, '').toUpperCase()}`);
   return lines.join('\n');
 }

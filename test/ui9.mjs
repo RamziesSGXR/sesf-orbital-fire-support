@@ -19,7 +19,7 @@ const tap = (sel) => (touch ? page.tap(sel) : page.click(sel));
 const ev = (f, a) => page.evaluate(f, a);
 const rect = (sel) => page.evaluate((s) => { const e = document.querySelector(s); if (!e || getComputedStyle(e).display === 'none' || getComputedStyle(e).visibility === 'hidden') return null; const r = e.getBoundingClientRect(); return r.width && r.height ? { l: r.left, t: r.top, r: r.right, b: r.bottom } : null; }, sel);
 const overlap = (a, b) => !!(a && b && a.l < b.r - 1 && a.r > b.l + 1 && a.t < b.b - 1 && a.b > b.t + 1);
-await page.goto(`file://${root}/dist/orbital-fire-support.html?faction=bots&biome=grass&seed=21&tod=11&objective=nuke`);
+await page.goto(`file://${root}/dist/orbital-fury.html?faction=bots&biome=grass&seed=21&tod=11&objective=nuke`);
 await page.waitForTimeout(500); await page.click('#btn-play'); await page.waitForTimeout(200);
 if (await page.isVisible('#btn-notice')) await page.click('#btn-notice');
 await page.waitForTimeout(250); if (await page.isVisible('#btn-lock')) await page.click('#btn-lock');   // 0.13: the difficulty lock-in

@@ -18,7 +18,7 @@ const errs = []; page.on('pageerror', (e) => errs.push(e.message));
 const ev = (f, a) => page.evaluate(f, a);
 const tap = (sel) => (touch ? page.tap(sel) : page.click(sel));
 const shot = (n) => page.screenshot({ path: path.join(SHOTS, `ui12_${mode}_${n}.png`) });
-const PAGE = `file://${ROOT}/dist/orbital-fire-support.html?faction=bots&biome=grass&seed=12&tod=11&objectives=nuke`;
+const PAGE = `file://${ROOT}/dist/orbital-fury.html?faction=bots&biome=grass&seed=12&tod=11&objectives=nuke`;
 
 await page.goto(PAGE); await page.waitForTimeout(600);
 await tap('#btn-play'); await page.waitForTimeout(250);
