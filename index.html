@@ -84,17 +84,21 @@
         <!-- (0.18) four modes, a square of icons: the troops, building, the ship's weapons, the armory -->
         <div class="tc-tabs" role="tablist">
           <button class="tct" type="button" data-tab="units" role="tab"><i>⛨</i><span data-t="tac.tUnits">TROOPS</span></button>
+          <button class="tct" type="button" data-tab="hd" role="tab"><i>◈</i><span data-t="tac.tHd">HELLDIVERS</span></button>
           <button class="tct" type="button" data-tab="build" role="tab"><i>⚒</i><span data-t="tac.tBuild">BUILD</span></button>
           <button class="tct" type="button" data-tab="ship" role="tab"><i>✦</i><span data-t="tac.tShip">SHIP</span></button>
           <button class="tct" type="button" data-tab="armory" role="tab"><i>⬢</i><span data-t="tac.tArmory">ARMORY</span></button>
         </div>
         <div id="tc-sel" class="tc-sel"></div>
         <div class="tc-sec tc-u">
+          <div class="tc-sqs"></div>
           <div class="tc-l" data-t="tac.orders">ORDERS</div><div class="tc-grid tac-ord"></div>
           <div class="tc-l" data-t="tac.squadTo">INTO SQUAD (ALT + 1-9)</div><div class="tc-grid tac-sq"></div>
         </div>
         <div class="tc-sec tc-b"><div id="tc-list" class="tc-list"></div><div class="tc-l" data-t="tac.build">BUILD</div><div class="tc-grid tac-build"></div></div>
         <div class="tc-sec tc-s"><div class="tc-l" data-t="tac.ship">SHIP WEAPONS</div><div class="tc-grid tac-ship"></div><p class="fine" data-t="tac.shipHint"></p></div>
+        <div class="tc-sec tc-d"></div>
+        <div class="tc-sec tc-a"><p class="fine" data-t="arm.noteLive"></p><div id="tc-arm"></div></div>
         <div class="tc-sec tc-f"><div class="tc-l" data-t="tac.form">FORMATION</div><div class="tc-grid tac-form"></div></div>
       </div>
     </div>
@@ -102,13 +106,15 @@
     <div id="tut" class="panel hidden" role="dialog" aria-live="polite">
       <div class="tut-top"><span id="tut-k" class="tut-k"></span><button id="tut-x" class="tut-x" type="button" aria-label="Fold">▾</button></div>
       <h3 id="tut-h"></h3><p id="tut-b"></p>
-      <div class="tut-btns"><button id="tut-next" class="btn primary" type="button"></button><button id="tut-skip" class="btn" type="button" data-t="tut.skip">SKIP</button><button id="tut-go" class="btn" type="button" data-t="tut.go">START THE EVACUATION</button></div>
+      <div class="tut-btns"><button id="tut-next" class="btn primary" type="button"></button><button id="tut-ok" class="btn primary" type="button" data-t="tut.ok">GOT IT</button><button id="tut-skip" class="btn" type="button" data-t="tut.skip">SKIP</button><button id="tut-go" class="btn" type="button" data-t="tut.go">START THE EVACUATION</button></div>
     </div>
+    <div id="tut-spot" class="hidden" aria-hidden="true"></div>
     <div id="glassfx" aria-hidden="true"></div>
     <div id="dropcd" class="hidden" role="status"><div class="dc-t"><small data-t="hud.dropIn">HELLDIVERS DROP IN</small><b id="dropcd-n">0:30</b></div><button id="dropcd-go" class="btn primary" type="button"><span data-t="hud.deployNow">DEPLOY NOW</span> <kbd>ENTER</kbd></button></div>
     <!-- what is selected on the map (a post, a sentry or a defence site): its name, level and health, just above it -->
     <div id="selpop" class="hidden" role="dialog"></div>
     <div id="dock">
+      <button id="dk-hd" class="dkb dkh" type="button" data-ta="tac.tHd"><span class="hdc"></span></button>
       <button id="dk-sq" class="dkb"><span class="n"></span><span class="s">--</span></button>
       <button id="dk-drop" class="dkb"><span class="n" data-t="hud.seafDrop">SEAF DROP</span><span class="s">--</span></button>
       <button id="btn-follow" class="dkb"><span class="n"></span></button>
@@ -232,6 +238,13 @@
     </div>
   </section>
 
+  <!-- (0.19) the tutorial's cinematics: Mars from space before the last stand and after it (render/cinema.js) -->
+  <div id="cine" class="hidden" role="dialog" aria-live="polite">
+    <canvas id="cine-cv"></canvas>
+    <div id="cine-text"></div>
+    <button id="cine-skip" class="btn" type="button"><span data-t="cine.skip">SKIP</span> ▸▸</button>
+  </div>
+
   <!-- (0.19) the end of the tutorial: Mars is glassed -->
   <section id="s-glass" class="screen">
     <div class="card wide glass-card">
@@ -317,15 +330,6 @@
     </div>
   </section>
 
-  <section id="s-armory" class="screen overlay">
-    <div class="card wide3">
-      <button class="x-close" data-close="s-armory" data-ta="arm.close">✕</button>
-      <h2 data-t="hud.armory">ARMORY</h2>
-      <p class="fine" data-t="arm.note"></p>
-      <div id="arm-root"></div>
-      <div class="btns"><button id="arm-close" class="btn primary big" data-t="ui.back">BACK TO THE MISSION</button></div>
-    </div>
-  </section>
 
   <section id="s-names" class="screen overlay">
     <div class="card">

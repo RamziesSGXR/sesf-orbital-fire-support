@@ -147,6 +147,13 @@ export class Renderer {
         this.shake = Math.min(12, this.shake + 3);
         break;
       }
+      case 'glassbeam': {      // (0.19) the Great Host glasses the plain: a beam from high above, and the ground left burnt glass
+        fx.push({ k: 'gbeam', x: ev.x, y: ev.y, r: ev.r, t0: now, life: 1.1, lean: 0.2 + Math.random() * 0.15 });
+        const black = this.settings.polarity === 'black';
+        this._scorch(ev.x, ev.y, ev.r * 1.15, black); this._scorch(ev.x, ev.y, ev.r * 0.6, black);
+        this.shake = Math.min(14, this.shake + 1.2);
+        break;
+      }
       case 'flyby': fx.push({ k: 'fly', x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, t0: now + Math.max(0, ev.at - m.t), life: ev.dur }); break;
       case 'strat_call': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 26, t0: now, life: 0.8, a: 1, col: '#ffe600' }); break;
       case 'strike_call':
@@ -252,7 +259,8 @@ export class Renderer {
   updateView(cam, now) {
     const scale = this.W / cam.view;
     const camX = cam.x + Math.sin(now * 0.314) * 3, camY = cam.y + Math.cos(now * 0.314) * 2; // gentle gunship sway
-    this.view = { scale, tx: this.W / 2 - camX * scale, ty: this.H / 2 - camY * scale, camX, camY };
+    // (0.19.1) the camera's point sits in the middle of the room left above the sheet (focusY: a fraction of the height)
+    this.view = { scale, tx: this.W / 2 - camX * scale, ty: this.H * (this.focusY || 0.5) - camY * scale, camX, camY };
     return this.view;
   }
   screenToWorld(cssX, cssY, cv) {
@@ -678,6 +686,17 @@ export class Renderer {
         ctx.strokeStyle = this._rgba(f.col, 0.35 * (1 - p)); ctx.lineWidth = wd * 2.2; ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(f.x2, f.y2); ctx.stroke();
         ctx.strokeStyle = `rgba(255,255,255,${0.95 * (1 - p)})`; ctx.lineWidth = wd * 0.7; ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(f.x2, f.y2); ctx.stroke();
         ctx.lineCap = 'butt';
+      } else if (f.k === 'gbeam') {
+        // a column of light out of the sky (leaning, as from a ship far off), white at the core, the host's violet round it; a hot
+        // orange disc where it lands, fading to a glow
+        const on = p < 0.55 ? 1 : (1 - p) / 0.45, top = 900, x0 = f.x + top * f.lean, y0 = f.y - top, w = f.r * (0.55 + 0.2 * Math.sin(now * 40));
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = `rgba(180,120,255,${0.32 * on})`; ctx.lineWidth = w * 2.4; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(f.x, f.y); ctx.stroke();
+        ctx.strokeStyle = `rgba(255,248,255,${0.9 * on})`; ctx.lineWidth = w * 0.7; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(f.x, f.y); ctx.stroke();
+        ctx.lineCap = 'butt';
+        const R = f.r * (1.2 + 1.3 * p), g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, R);
+        g.addColorStop(0, `rgba(255,250,230,${0.95 * on})`); g.addColorStop(0.4, `rgba(255,170,70,${0.75 * (1 - p)})`); g.addColorStop(1, 'rgba(255,90,20,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, R, 0, TAU); ctx.fill();
       } else if (f.k === 'fly') {
         const x = f.x + (f.x2 - f.x) * p, y = f.y + (f.y2 - f.y) * p, ang = Math.atan2(f.y2 - f.y, f.x2 - f.x), s = Math.max(10, px(14));
         ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
@@ -823,7 +842,7 @@ export class Renderer {
     try {
       const cv = this.cv || document.getElementById('view');
       const cr = cv.getBoundingClientRect(), k = this.W / cr.width;
-      for (const sel of ['#weapons', '#orders', '#squads', '#hdbar', '#strats', '#objective', '#touch-ctl', '.hud-tl', '#notices', '.hud-tr']) {
+      for (const sel of ['#weapons', '#dock', '#objective', '#touch-ctl', '.tl-btns', '#bigcr', '#feed', '.hud-tr', '.hud-br', '#dropcd']) {
         const el = document.querySelector(sel);
         if (!el || el.offsetParent === null) continue;
         const r = el.getBoundingClientRect();
@@ -868,19 +887,19 @@ export class Renderer {
     if (SU && SU.state === 'ask') { const a = m.allies.find((x) => x.id === SU.ask.by && !x.dead); if (a) items.push({ x: a.x, y: a.y, col: '#9dffb8', label: tr('hud.co.supAsk', { who: SU.ask.tag }) }); }
     for (const p of m.pelicans) if (p.state !== 'out') items.push({ x: p.x, y: p.y, col: this.allyColor(), label: tr(p.evac ? 'lab.evacShip' : 'lab.pelican') });
     ctx.font = `${Math.round(10 * d)}px ui-monospace, Menlo, Consolas, monospace`;
-    const obs = this._hudRects(), placed = [];
+    const obs = this._hudRects(), placed = [], Hv = Math.max(H * 0.4, H - (this.insetB || 0) * d);
     for (const it of items) {
       const sx = w2sx(it.x), sy = w2sy(it.y);
-      if (sx > pad && sx < W - pad && sy > pad && sy < H - pad) continue;
-      const cx = W / 2, cy = H / 2, dx = sx - cx, dy = sy - cy;
-      const k = Math.min((W / 2 - pad) / Math.abs(dx || 1e-6), (H / 2 - pad) / Math.abs(dy || 1e-6));
+      if (sx > pad && sx < W - pad && sy > pad && sy < Hv - pad) continue;
+      const cx = W / 2, cy = Hv / 2, dx = sx - cx, dy = sy - cy;
+      const k = Math.min((W / 2 - pad) / Math.abs(dx || 1e-6), (Hv / 2 - pad) / Math.abs(dy || 1e-6));
       let ax = cx + dx * k, ay = cy + dy * k;
       const ang = Math.atan2(dy, dx);
       // Slide the marker along the screen edge until it clears the HUD panels.
       for (let pass = 0; pass < 3; pass++) {
         for (const r of obs) {
           if (ax > r.l - 70 * d && ax < r.r + 70 * d && ay > r.t - 14 * d && ay < r.b + 14 * d) {
-            if (ay > H / 2) ay = r.t - 18 * d; else ay = r.b + 18 * d;
+            if (ay > Hv / 2) ay = r.t - 18 * d; else ay = r.b + 18 * d;
           }
         }
       }
@@ -889,9 +908,9 @@ export class Renderer {
         let hit = null;
         for (const q of placed) if (Math.abs(ax - q.x) < 150 * d && Math.abs(ay - q.y) < 15 * d) { hit = q; break; }
         if (!hit) break;
-        ay = hit.y + (ay > H / 2 ? -16 * d : 16 * d);
+        ay = hit.y + (ay > Hv / 2 ? -16 * d : 16 * d);
       }
-      ay = Math.max(pad * 0.6, Math.min(H - pad * 0.6, ay));
+      ay = Math.max(pad * 0.6, Math.min(Hv - pad * 0.6, ay));
       placed.push({ x: ax, y: ay });
       ctx.save(); ctx.translate(ax, ay); ctx.rotate(ang);
       ctx.fillStyle = it.col; ctx.globalAlpha = 0.9;

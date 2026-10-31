@@ -982,7 +982,6 @@ body.touch #callouts { top: calc(max(8px, env(safe-area-inset-top)) + 110px); }
 .shop-tabs .tab.can::after { content: ''; position: absolute; top: 5px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: #7dff9b; box-shadow: 0 0 6px #7dff9b; }
 .tabpane { display: none; } .tabpane.on { display: block; }
 /* phones: with the tactical menu open, the Helldiver rows step aside so the tray does not cover the map */
-body.touch.tac-open #sqpanel { display: none; }
 /* (restored for the new HUD pieces) */
 .tl-btns #btn-info { color: var(--yellow); border-color: rgba(255, 230, 0, 0.5); }
 body.touch #mbox, body.touch #objective, body.touch .tl-btns { transition: opacity 0.6s; }
@@ -1121,7 +1120,7 @@ body.tac-open #tray { bottom: calc(var(--tch) + 18px); }
 body.tac-open #tray .tray-x, body.tac-open #tray #sqpanel, body.tac-open #tray #squads, body.tac-open #tray #orders { display: none !important; }
 body.tac-open.tac-hd #tray #sqpanel { display: block !important; }
 body.tac-open.tac-sf #tray #squads, body.tac-open.tac-sf #tray #orders { display: grid !important; }
-body.tac-open #weapons, body.tac-open #dock, body.tac-open #touch-ctl, body.tac-open #infocard { display: none !important; }
+body.tac-open #dock, body.tac-open #touch-ctl, body.tac-open #infocard { display: none !important; }
 body.tac-open #toast { bottom: calc(var(--tch) + 22px); }
 body.tacpause #hud::after { content: ''; position: absolute; inset: 0; border: 2px solid rgba(255, 230, 0, 0.42); box-shadow: inset 0 0 40px rgba(255, 230, 0, 0.1); pointer-events: none; }
 /* phones */
@@ -1277,7 +1276,6 @@ body.touch #dock > .dkb .n, body.touch #dock > .dkb .s { white-space: nowrap; ov
 body.touch #dock > #dk-tac { flex: 1.1 1 0; }
 body.touch.lefty #dock { left: calc(max(10px, env(safe-area-inset-left)) + 90px); right: max(6px, env(safe-area-inset-right)); }
 body.touch #dock > #dk-tac { flex: 0 0 auto; padding: 0 10px; }
-body.touch.tac-open #feed { display: none; }
 body.touch #dock > #btn-follow { flex: 0 0 44px; } body.touch #btn-follow .n { font-size: 20px !important; line-height: 1; }
 /* (0.18) up to nine squads: only the ones with troops show */
 #squads { grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)) !important; }
@@ -1391,3 +1389,189 @@ body.ls-warn #view { filter: sepia(0.35) saturate(1.4) hue-rotate(-12deg); trans
 .glass-card td { padding: 3px 4px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
 .glass-card td:last-child { text-align: right; color: var(--yellow); }
 .glass-card .g-lore { line-height: 1.5; }
+/* the cinematics (render/cinema.js): full screen over everything, the story a line at a time near the bottom */
+#cine { position: fixed; inset: 0; z-index: 60; background: #000; cursor: pointer; }
+#cine.hidden { display: none; }
+#cine-cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#cine-text { position: absolute; left: 50%; bottom: max(9vh, 54px); transform: translateX(-50%); width: min(760px, calc(100vw - 40px)); text-align: center; pointer-events: none; }
+#cine-text p { margin: 0; color: #f2e6d8; font-size: clamp(14px, 2.1vw, 19px); line-height: 1.5; letter-spacing: 0.06em; text-shadow: 0 0 12px #000, 0 0 3px #000;
+  animation: cineIn 0.9s ease-out both; }
+#cine-text p.last { color: var(--yellow); font-size: clamp(16px, 2.6vw, 24px); letter-spacing: 0.16em; }
+#cine.outro #cine-text p.last { color: #ffb070; }
+@keyframes cineIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+#cine-skip { position: absolute; right: max(14px, env(safe-area-inset-right)); top: max(14px, env(safe-area-inset-top)); min-height: 34px; padding: 4px 14px; font-size: 11px; opacity: 0.75; }
+@media (prefers-reduced-motion: reduce) { #cine-text p { animation: none; } }
+@media (max-height: 520px) { #cine-text { bottom: 14px; } #cine-text p { font-size: 13px; line-height: 1.4; } #cine-text p.last { font-size: 16px; } }
+/* the glassing on the map: the HUD steps back while the plain burns */
+body.ls-glass #hud > :not(#glassfx):not(#tut) { opacity: 0.12; transition: opacity 1.4s; pointer-events: none; }
+#glassfx.white { animation: none; opacity: 1; transition: opacity 1.3s ease-in; background: #fff8ee; }
+#glassfx.white.soft { background: #f0d8c0; }
+
+/* ======================= 0.19.1: one sheet, and nothing on top of anything ======================= */
+/* Fixed places: the top corners; the feed under the top left; the minimap (bottom right on a computer, top right on a touch
+   screen); and two rows along the bottom: the dock (the Helldivers' health, the squads, SEAF DROP, TACTICAL) over the weapon bar,
+   with CALL beside them on a touch screen. TACTICAL, the squads, the Helldivers and the armory all open one sheet over the bottom
+   third, the same height for every tab: the dock folds into it, the weapon bar rides on top of it (not on a short screen), the
+   minimap shrinks, and the camera's point moves up into the room left above it. ui.js layout() trims what has to give: the
+   sheet's height on a short screen, the feed's length, and where the big message, the toasts and the drop countdown go. */
+body {
+  --u: var(--ui, 1);
+  --L: max(8px, env(safe-area-inset-left)); --R: max(8px, env(safe-area-inset-right)); --B: max(8px, env(safe-area-inset-bottom));
+  --g: 8px; --wbh: 54px; --dkh: 38px; --callw: 0px;
+  --mmc: var(--mmw); --mmcol: calc(var(--mmc) + var(--g));
+  --sheet: clamp(200px, 34vh, 340px); --cut: 0px; --sh: calc(var(--sheet) - var(--cut));
+  --rowR: calc(var(--R) + var(--mmcol));      /* where the bottom rows stop on the right */
+  --rowL: var(--L);
+}
+body.tac-open:not(.touch) { --mmc: min(var(--mmw), 190px); }
+body.touch { --g: 6px; --wbh: 44px; --dkh: 36px; --callw: calc(var(--wbh) * var(--u) + var(--g) + var(--dkh) * var(--u)); --mmcol: 0px;
+  --rowR: calc(var(--R) + var(--callw) + var(--g)); }
+body.touch.lefty { --rowL: calc(var(--L) + var(--callw) + var(--g)); --rowR: var(--R); }
+@media (max-height: 520px) { body { --sheet: clamp(140px, 46vh, 200px); } }
+
+/* the old bottom-left column and the touch tray: their parts moved into the sheet (the squads, the Helldivers) */
+#hud #tray, #hud #btn-tac, #hud #tac-drops, #hud .tray-x { display: none !important; }
+
+/* the bottom rows */
+#hud #weapons { position: absolute; zoom: var(--u); left: calc(var(--rowL) / var(--u)); right: calc(var(--rowR) / var(--u)); bottom: calc(var(--B) / var(--u));
+  top: auto; height: var(--wbh); transform: none; display: flex; justify-content: center; gap: 5px; }
+#hud #weapons .wbtn { flex: 1 1 0; min-width: 0; max-width: 132px; height: 100%; }
+#hud #dock { position: absolute; zoom: var(--u); display: flex; gap: 5px; pointer-events: none; left: calc(var(--rowL) / var(--u)); right: calc(var(--rowR) / var(--u));
+  bottom: calc((var(--B) + var(--wbh) * var(--u) + var(--g)) / var(--u)); top: auto; height: var(--dkh); }
+#hud #dock > .dkb { position: relative; left: auto; right: auto; top: auto; bottom: auto; height: 100%; min-height: 0; flex: 1 1 0; min-width: 0; max-width: 190px; width: auto;
+  padding: 2px 8px; background: rgba(8, 30, 16, 0.62); }
+#hud #dock > .dkb .n, #hud #dock > .dkb .s { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#hud #dock > #btn-follow { flex: 0 0 auto; display: flex; } #hud #dock > #btn-follow:not(.free) { display: none; }
+#hud #dock > #dk-tac { flex: 0 0 auto; max-width: none; padding: 0 14px; color: #7fd8ff; border-color: rgba(127, 216, 255, 0.6); background: rgba(10, 40, 60, 0.6); }
+#hud #dock > #dk-tac .n { font-size: 11px; color: #7fd8ff; letter-spacing: 0.16em; }
+body:not(.touch) #hud #dock > #dk-tac .n::after { content: ' TAB'; font-size: 9px; color: var(--g-dim); letter-spacing: 0.04em; }
+/* the Helldivers' chips: a letter and a bar each */
+#hud #dock > #dk-hd { flex: 0 1 auto; max-width: 230px; padding: 3px 6px; }
+#dk-hd .hdc { display: flex; gap: 6px; height: 100%; align-items: center; }
+#dk-hd .hc { --tc: var(--g); display: flex; flex-direction: column; justify-content: center; gap: 3px; width: 36px; }
+#dk-hd .hc b { font-size: 11px; line-height: 1; color: var(--tc); }
+#dk-hd .hc i { display: block; height: 5px; background: rgba(157, 255, 184, 0.14); border-radius: 2px; overflow: hidden; }
+#dk-hd .hc u { display: block; height: 100%; width: 0; background: var(--tc); text-decoration: none; }
+#dk-hd .hc.hurt u { background: var(--red); } #dk-hd .hc.drop b, #dk-hd .hc.wait b { opacity: 0.6; } #dk-hd .hc.lost { opacity: 0.35; }
+body.touch #hud #fire-btn { position: absolute; zoom: 1; right: var(--R); left: auto; bottom: var(--B); top: auto; width: var(--callw); height: var(--callw); font-size: 14px; }
+body.touch.lefty #hud #fire-btn { right: auto; left: var(--L); }
+
+/* the minimap on a computer: the bottom right, smaller with the sheet open */
+body:not(.touch) #hud .hud-br { right: var(--R); bottom: var(--B); top: auto; }
+body:not(.touch) #hud #minimap { width: var(--mmc); height: var(--mmc); transition: width 0.2s, height 0.2s; }
+body.tac-open:not(.touch) #hud #flavor { display: none; }
+
+/* the sheet */
+#hud #tactical { position: absolute; zoom: 1; display: flex; flex-direction: column; left: var(--rowL); right: var(--rowR); bottom: var(--B); top: auto; height: var(--sh); max-height: none;
+  padding: 5px 8px 6px; background: rgba(3, 16, 9, 0.8); border: 1px solid rgba(127, 216, 255, 0.5); border-radius: 9px; box-shadow: 0 0 22px rgba(0, 0, 0, 0.35); overflow: hidden; }
+body.touch #hud #tactical { left: var(--L); right: var(--R); }
+#hud #tactical.hidden { display: none; }
+#tactical .tc-h { flex: none; margin-bottom: 5px; padding-bottom: 4px; }
+#tactical .tc-x { top: -4px; }
+#tactical .tc-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; display: grid; gap: 8px; align-items: start;
+  grid-template-columns: 62px minmax(150px, 220px) minmax(0, 1fr) !important; grid-auto-rows: min-content; }
+#tactical .tc-tabs { grid-column: 1; grid-row: 1 / span 6; position: sticky; top: 0; display: flex; flex-direction: column; gap: 4px; }
+#tactical .tct { height: 36px; flex: none; }
+#tactical .tct span { font-size: 7px; }
+#tactical .tc-sel { grid-column: 2; grid-row: 1 / span 6; position: sticky; top: 0; min-height: 0; }
+#tactical .tc-sec { grid-column: 3; }
+#tactical[data-tab="hd"] .tc-sel, #tactical[data-tab="ship"] .tc-sel, #tactical[data-tab="armory"] .tc-sel { display: none; }
+#tactical[data-tab="hd"] .tc-sec, #tactical[data-tab="ship"] .tc-sec, #tactical[data-tab="armory"] .tc-sec { grid-column: 2 / span 2; }
+#tactical[data-tab="hd"] .tc-d, #tactical[data-tab="armory"] .tc-a { display: block; }
+.tct[data-tab="hd"] { color: #ffe27a; }
+/* the troops: the squad bar on top */
+#tactical .tc-sqs { margin-bottom: 6px; }
+#hud #tactical #squads { position: static; left: auto; right: auto; bottom: auto; top: auto; width: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)) !important;
+  gap: 4px; padding: 0; background: none; border: 0; }
+#hud #tactical #squads .sqb, #hud #tactical #squads .sqa { height: 34px; }
+/* the Helldivers: their rows and the supply */
+#hud #tactical #sqpanel { position: static; left: auto; right: auto; bottom: auto; top: auto; width: auto; max-height: none; padding: 0; background: none; border: 0; display: block; }
+#tactical #hdrows { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 4px 12px; }
+#tactical .hr { grid-template-columns: 14px minmax(0, 1fr); }
+/* the armory: live; the loadout waits for the next briefing */
+#tactical .tc-a > .fine { margin: 0 0 4px; font-size: 10px; }
+#tc-arm .shop-lo { display: none; }
+#tc-arm .shop-cr { margin: 0 0 4px; font-size: 11px; }
+#tc-arm .shop-scroll { max-height: none; overflow: visible; }
+
+/* the rest steps aside while the sheet is open: the dock folds into it, the weapon bar rides on it */
+body.tac-open #hud #dock { display: none; }
+body.tac-open #hud #weapons { bottom: calc((var(--B) + var(--sh) + var(--g)) / var(--u)); }
+body.tac-open.touch #hud #weapons { left: calc(var(--L) / var(--u)); right: calc(var(--R) / var(--u)); }
+body.tac-open.touch #hud #fire-btn { display: none; }
+@media (max-height: 520px) { body.tac-open #hud #weapons { display: none; } }
+
+/* phones held upright: the weapon bar across the whole width; the dock and CALL over it */
+@media (orientation: portrait) {
+  body.touch { --callw: 64px; --rowR: var(--R); }
+  body.touch #hud #dock { right: calc((var(--R) + var(--callw) + var(--g)) / var(--u)); bottom: calc((var(--B) + var(--wbh) * var(--u) + var(--g)) / var(--u)); }
+  body.touch.lefty #hud #dock { left: calc((var(--L) + var(--callw) + var(--g)) / var(--u)); right: calc(var(--R) / var(--u)); }
+  body.touch.lefty { --rowL: var(--L); }
+  body.touch #hud #fire-btn { bottom: calc(var(--B) + var(--wbh) * var(--u) + var(--g)); }
+  body.touch #hud #dock > #dk-hd { display: none; }
+  #tactical .tc-body { grid-template-columns: minmax(0, 1fr) !important; gap: 6px; scroll-padding-top: 48px; }
+  #tactical .tc-tabs { grid-column: 1; grid-row: 1; flex-direction: row; z-index: 2; background: rgba(3, 16, 9, 0.96); padding-bottom: 3px; }
+  #tactical .tct { flex: 1 1 0; min-width: 0; height: 38px; }
+  #tactical .tc-sel { grid-column: 1; grid-row: 2; position: static; }
+  #tactical .tc-sec, #tactical[data-tab] .tc-sec { grid-column: 1 !important; }
+  #tactical[data-tab="units"] .tc-f { grid-column: 1; }
+  #tactical #hdrows { grid-template-columns: 1fr; }
+}
+/* phones held sideways */
+@media (max-height: 520px) and (orientation: landscape) {
+  #tactical .tc-body { grid-template-columns: 46px minmax(120px, 160px) minmax(0, 1fr) !important; gap: 6px; }
+  #tactical .tct { height: 25px; } #tactical .tct span { display: none; } #tactical .tct i { font-size: 14px; }
+  #tactical .tc-tabs { gap: 3px; }
+  #tactical .tc-h { margin-bottom: 3px; padding-bottom: 2px; } #tactical .tc-h b { font-size: 11px; }
+}
+
+/* the drop countdown, the toasts and the big message: layout() puts them where nothing else is */
+#hud #dropcd { position: absolute; top: auto; transform: none; left: var(--cl, 50%); bottom: var(--cb, 120px); margin-left: calc(var(--cw, 0px) * -0.5); }
+#hud #toast { top: auto; left: var(--cl, 50%); bottom: var(--tb, 120px); transform: translateX(-50%); max-width: var(--cww, 92vw); white-space: normal; text-align: center; }
+#hud #center-msg { left: var(--ml, 0px); right: var(--mr, 0px); }
+#hud #feed { max-height: var(--fh, none); overflow: hidden; }
+
+/* more see-through: the map shows through the panels, and they step back further when nothing is new */
+#hud .panel { background: rgba(3, 16, 9, 0.58); }
+#hud .fadeable { opacity: 0.74; }
+#hud .wbtn { background: rgba(8, 30, 16, 0.6); }
+body.touch #hud .fadeable { opacity: 0.62; }
+body.tac-open #hud .fadeable:not(.hot) { opacity: 0.5; }
+body.touch #hud #feed { top: var(--ft, 72px); }
+body.touch #hud .wbtn .k { display: none; }
+body.touch #hud .wbtn .n { padding-right: 0; letter-spacing: -0.03em; }
+@media (orientation: portrait) { body.touch #hud .wbtn { padding: 3px 3px; } body.touch #hud .wbtn .n { font-size: 8px; } }
+#hud #center-msg.tight { font-size: clamp(11px, 2.4vw, 15px); letter-spacing: 0.1em; }
+body.msg-over #hud #feed { visibility: hidden; }
+#hud #toast.wait { opacity: 0; }
+#hud #dock > #dk-tac { display: flex; align-items: center; justify-content: center; }
+/* the armory in the sheet: compact (the credits are on the HUD; the loadout waits for the briefing) */
+#tc-arm .shop-cr { padding: 0 2px 4px; font-size: 10px; letter-spacing: 0.12em; }
+#tc-arm .shop-cr b { font-size: 14px; }
+#tc-arm .shop-tabs { margin-top: 2px; padding: 0 4px; }
+#hud #tc-arm .shop-tabs .tab { min-height: 30px; padding: 5px 6px 4px; font-size: 10px; }
+#tc-arm .shop-scroll { padding: 6px; background: rgba(9, 30, 16, 0.6); }
+@media (max-height: 520px) { #tactical .tc-a > .fine { display: none; } }
+#tactical[data-tab="hd"] .tc-help, #tactical[data-tab="armory"] .tc-help { visibility: hidden; }
+body.feed-off #hud #feed { visibility: hidden; }
+body.touch #hud #dropcd kbd { display: none; }
+
+/* (0.19.1) the tutorial's card: beside what it points at (tutorial.js place()), with an arrow to it; the thing itself lit and the
+   rest dimmed while the card holds the game. Folded to its heading at the top while the player does it. */
+#hud #tut { right: auto; transform: none; z-index: 9; max-height: none; overflow: visible; }
+body.touch #hud #tut { width: min(62vw, 420px); }
+@media (orientation: portrait) { body.touch #hud #tut { width: calc(100vw - 16px); max-height: none; } }
+#hud #tut.fold { width: auto; min-width: 220px; max-width: min(420px, calc(100vw - 16px)); padding: 5px 12px; opacity: 0.92; }
+#hud #tut.fold h3 { font-size: 12px; margin: 2px 0 0; }
+#hud #tut::after { content: ''; display: none; position: absolute; width: 12px; height: 12px; background: rgba(3, 16, 9, 0.94); border: 1px solid rgba(255, 230, 0, 0.6); transform: rotate(45deg); }
+#hud #tut.held[data-side="up"]::after { display: block; left: calc(var(--ax) - 7px); bottom: -7px; border-width: 0 1px 1px 0; }
+#hud #tut.held[data-side="down"]::after { display: block; left: calc(var(--ax) - 7px); top: -7px; border-width: 1px 0 0 1px; }
+#hud #tut.held[data-side="right"]::after { display: block; top: calc(var(--ay) - 7px); left: -7px; border-width: 0 0 1px 1px; }
+#hud #tut.held[data-side="left"]::after { display: block; top: calc(var(--ay) - 7px); right: -7px; border-width: 1px 1px 0 0; }
+#tut-spot { position: absolute; z-index: 8; pointer-events: none; border-radius: 8px; border: 2px solid var(--yellow);
+  box-shadow: 0 0 0 200vmax rgba(0, 5, 2, 0.5), 0 0 18px rgba(255, 230, 0, 0.55); transition: left 0.2s, top 0.2s, width 0.2s, height 0.2s; }
+#tut-spot.hidden { display: none; }
+body.tut-dim #hud::before { content: ''; position: absolute; inset: 0; z-index: 8; background: rgba(0, 5, 2, 0.35); pointer-events: none; }
+/* the pause strip: just above the bottom rows (and the drop countdown), where layout() says */
+#hud #softpause .sp-bar { top: auto; bottom: var(--spb, 120px); }
+#hud .fadeable.hot, #hud .fadeable:hover, body.touch #hud .fadeable.hot { opacity: 1; }

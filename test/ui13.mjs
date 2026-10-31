@@ -124,7 +124,7 @@ check('the strip\'s RESUME plays on', !(await ev(() => window.__game.soft)) && (
 // ---------------------------------------------------------------- a failed mission: RETRY
 await ev(() => window.__game.openArmory());
 await page.waitForTimeout(300);
-const bought = await ev(() => { const b = [...document.querySelectorAll('#arm-root .btn.buy')].find((x) => !x.disabled); if (b) b.click(); return !!b; });
+const bought = await ev(() => { const b = [...document.querySelectorAll('#tc-arm .btn.buy')].find((x) => !x.disabled); if (b) b.click(); return !!b; });
 await page.waitForTimeout(200);
 await ev(() => window.__game.closeArmory()); await page.waitForTimeout(200);
 const crSpent = await ev(() => window.__game.session.wallet.bal);

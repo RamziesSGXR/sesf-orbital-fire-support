@@ -19,7 +19,7 @@ const dt = 1 / 30;
 const run = (m, sec, each) => { for (let i = 0, n = Math.round(sec / dt); i < n && !m.over; i++) { m.step(dt); if (each && each(m) === true) break; } };
 
 // ---------------------------------------------------------------- the version
-check('version 0.19.0', C.share.version === '0.19.0' && JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url))).version === '0.19.0', C.share.version);
+check('version 0.19.1', C.share.version === '0.19.1' && JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url))).version === '0.19.1', C.share.version);
 
 // ---------------------------------------------------------------- the climb
 {
@@ -70,33 +70,39 @@ check('version 0.19.0', C.share.version === '0.19.0' && JSON.parse(fs.readFileSy
   check('the heavy lesson: a Harvester with drones, from the west', h.members.some((e) => e.kind === 'H') && h.cx < o.x - 100);
   run(m, 60, (mm) => g.members.every((e) => e.dead) && h.members.every((e) => e.dead));
   check('the base\'s defences, troops and Helldivers put them down', g.members.every((e) => e.dead), `${g.members.filter((e) => !e.dead).length} left`);
-  check('the evacuation opens when the lessons end', m.lsBegin() === true && o.state === 'run' && m.ls.stage === 'hold' && m.ls.glassAt === m.t + C.lastStand.holdSec && m.lsBegin() === false);
-  let waves = 0, lifted = 0;
-  run(m, 120, (mm) => { for (const e of mm.events) { if (e.type === 'reinf_spawn' && e.src === 'ls') waves++; if (e.type === 'shuttle') lifted++; } mm.events.length = 0; });
-  check('the Illuminate come in waves', waves >= 3, `${waves} waves in two minutes`);
+  check('the evacuation opens when the lessons end', m.lsBegin() === true && o.state === 'run' && m.ls.stage === 'hold' && m.lsBegin() === false);
+  check('the Helldivers have the last stand\'s lives', m.hd.lives <= C.lastStand.lives && m.hd.max === C.lastStand.lives, `${m.hd.lives}/${m.hd.max}`);
+  let waves = 0, lifted = 0, gaps = [], lastW = null;
+  run(m, 100, (mm) => { for (const e of mm.events) { if (e.type === 'reinf_spawn' && e.src === 'ls') { waves++; if (lastW !== null) gaps.push(mm.t - lastW); lastW = mm.t; } if (e.type === 'shuttle') lifted++; } mm.events.length = 0; });
+  check('the Great Host comes in waves, closer together as it goes on', waves >= 6 && gaps[gaps.length - 1] < gaps[0], `${waves} waves, ${gaps[0] && gaps[0].toFixed(1)} s apart at first, ${gaps.length && gaps[gaps.length - 1].toFixed(1)} s later`);
+  check('and it hits harder and comes in tougher every minute', m.ls.dmg > 1.5 && m.hpMul > m.ls.hp0, `x${m.ls.dmg.toFixed(2)} damage`);
   check('personnel run for the hangar and Pelicans lift them off', o.saved > 0 && lifted > 0 && m.ls.lifted === lifted, `${o.saved} saved, ${lifted} lifts`);
-  check('the clock says how long to the glassing', m.ls.glassAt - m.t > 100 && m.ls.glassAt - m.t < C.lastStand.holdSec);
-  let warned = false, glassed = false;
-  run(m, C.lastStand.holdSec, (mm) => { for (const e of mm.events) { if (e.type === 'ls_stage' && e.stage === 'warn') warned = true; if (e.type === 'glass') glassed = true; } mm.events.length = 0; });
-  run(m, C.lastStand.glassSec + 2);
+  const s0 = objectiveStatus(m);
+  check('the HUD counts who is off Mars and the waves', /OFF MARS/.test(s0.text) && /WAVE/.test(s0.text), s0.text);
+  // it never stops: the waves grow until the last Helldiver falls, then the Great Host glasses the plain
+  let broke = false, glassed = null, beams = 0, maxEnemies = 0;
+  run(m, C.lastStand.maxHold + C.lastStand.glassSec + 10, (mm) => {
+    for (const e of mm.events) { if (e.type === 'ls_stage' && e.stage === 'breaking') broke = true; if (e.type === 'ls_stage' && e.stage === 'glass') glassed = e.why; if (e.type === 'glassbeam') beams++; }
+    mm.events.length = 0; maxEnemies = Math.max(maxEnemies, mm.enemies.length);
+  });
   const r = m.result();
-  check('a warning before the glassing, then the glass', warned && glassed);
-  check('it ends glassed: it cannot be won, and it says how it went', m.over && r.outcome === 'glassed' && r.lastStand && r.lastStand.held >= C.lastStand.holdSec - 1 && r.lastStand.lifted >= lifted && !r.objDone,
-    `${r.outcome}, ${r.civSaved} saved`);
+  check('the radio says when the line is breaking', broke);
+  check('it ends when the last Helldiver falls, not on a clock', glassed === 'fallen' && r.lastStand.fallen && r.lastStand.held < C.lastStand.maxHold, `${glassed}, held ${r.lastStand.held} s`);
+  check('then beams rain across the map and nobody is left standing', beams > 50 && !m.hdAlive.length && m.hd.lives === 0, `${beams} beams`);
+  check('it ends glassed: it cannot be won, and it says how it went', m.over && r.outcome === 'glassed' && r.lastStand && r.lastStand.lifted >= lifted && !r.objDone, `${r.outcome}, ${r.civSaved} saved, ${maxEnemies} enemies at most`);
   check('not everyone gets out', r.civSaved < C.lastStand.personnel, `${r.civSaved}/${C.lastStand.personnel}`);
-  // the base falls: with no Helldivers left the glassing comes early
+  // whatever happens, the fleet does not wait for ever
   const f = mk();
   f.deployNow(); run(f, 15); f.lsBegin();
-  f.hd.lives = 0;
-  for (const a of f.hdAlive) f.killAlly(a, 'enemy');
-  run(f, C.lastStand.warnSec + C.lastStand.glassSec + 5);
-  check('if the base falls (no Helldivers, no lives) Mars is glassed early', f.over && f.outcome === 'glassed' && f.ls.fallen && f.t < 60 + C.lastStand.holdSec / 2, `${Math.round(f.t)}s`);
+  f.ls.holdT = C.lastStand.maxHold - 1; f.hd.lives = 20;
+  run(f, C.lastStand.glassSec + 4);
+  check('after maxHold the fleet glasses the plain anyway, and the Helldivers go with it', f.over && f.outcome === 'glassed' && !f.hdAlive.length && f.hd.lives === 0, `${Math.round(f.t)} s`);
   // with the bot at the controls it still cannot be won
   const w = mk(), bot = makeBot();
   w.deployNow();
   let i = 0;
   while (!w.over && i++ < 30 * 900) { botStep(w, bot); if (w.t > 20 && w.ls.stage === 'lessons') w.lsBegin(); w.step(dt); }
-  check('even a sharp gunner only buys time: the mission ends glassed', w.over && w.outcome === 'glassed', `${w.result().civSaved} saved`);
+  check('even a sharp gunner only buys time: the mission ends glassed, every Helldiver lost', w.over && w.outcome === 'glassed' && w.ls.fallen && !w.hdAlive.length, `held ${Math.round(w.ls.holdT)} s, ${w.result().civSaved} saved`);
 }
 
 // ---------------------------------------------------------------- Mars is the tutorial's alone

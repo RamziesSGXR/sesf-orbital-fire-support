@@ -21,7 +21,7 @@ import { LEVELS, levelFactors, reward, levelName } from './difficulty.js';
 
 const $ = (id) => document.getElementById(id);
 const SCREENS = ['s-title', 's-glass', 's-shop', 's-brief', 's-debrief', 's-final'];
-const OVERLAYS = ['s-pause', 's-lock', 's-controls', 's-manual', 's-armory', 's-names', 's-settings', 's-notice', 's-info', 's-about', 's-map'];
+const OVERLAYS = ['s-pause', 's-lock', 's-controls', 's-manual', 's-names', 's-settings', 's-notice', 's-info', 's-about', 's-map'];
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ROLE_GLYPH = { rifle: '•', medic: '+', rocket: '/', gren: '◆', spotter: '▲' };
@@ -104,11 +104,13 @@ export class Hud {
       tf.appendChild(e); this.frm[f] = { el: e, n: e.querySelector('.n'), key: '' };
     });
     $('dropcd-go').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onDeployNow && this.onDeployNow(); });
-    // (0.18) the console's four modes
-    this.tcTab = 'build';
+    // (0.19.1) one bottom sheet, five tabs: the troops (with the squad bar), the Helldivers (their rows and the supply), building,
+    // the ship's weapons, and the armory (live: the war goes on while you shop)
+    this.tcTab = 'units';
+    document.querySelector('#tactical .tc-sqs').appendChild($('squads'));
+    document.querySelector('#tactical .tc-d').appendChild($('sqpanel'));
     document.querySelectorAll('#tactical .tct').forEach((b) => b.addEventListener('pointerdown', (ev) => {
       ev.preventDefault(); ev.stopPropagation();
-      if (b.dataset.tab === 'armory') { this.onArmory && this.onArmory(); return; }
       this.setTcTab(b.dataset.tab);
     }));
     const ordBox = document.querySelector('#tactical .tac-ord');
@@ -142,7 +144,8 @@ export class Hud {
     $('showui').addEventListener('click', () => this.onHideUi && this.onHideUi(false));
     // Compact (touch) HUD: the dock under the weapon bar, the squad and orders tray it opens, and the idle fade.
     this.dkSq = $('dk-sq'); this.dkDrop = $('dk-drop');
-    this.dkSq.addEventListener('pointerdown', (e) => { e.preventDefault(); if (this.drawing) this.onSquadAct && this.onSquadAct('draw'); else this.trayToggle(); });
+    this.dkSq.addEventListener('pointerdown', (e) => { e.preventDefault(); if (this.drawing) this.onSquadAct && this.onSquadAct('draw'); else this.onTac && this.onTac(true, 'units'); });
+    $('dk-hd').addEventListener('pointerdown', (e) => { e.preventDefault(); this.onTac && this.onTac(true, 'hd'); });
     this.dkDrop.addEventListener('pointerdown', (e) => { e.preventDefault(); this.onOrder && this.onOrder('seaf'); });
     $('tray').addEventListener('pointerdown', () => this.trayBump());
     document.querySelector('.tray-x').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); this.trayToggle(false); });
@@ -269,11 +272,92 @@ export class Hud {
   // ---- info cards
   // They sit in a fixed spot that covers no controls (Settings > Info cards): down the right side on a computer (left with the
   // left-handed layout), or across the top under the callouts. Off hides them.
-  placeCard(now = false) {
-    const msg = $('center-msg'), t = performance.now();
-    if (!now && t - (this._pcT || 0) < 250) return;
-    this._pcT = t;
-    if (msg.classList.contains('show')) msg.style.top = `${Math.round(topBelow() + 10)}px`;   // callouts come and go under it
+  placeCard(now = false) { this.layout(now); }
+  // (0.19.1) Nothing on top of anything (the tutorial's card aside). The corners and the bottom rows have fixed places (css); this
+  // trims what has to give, from where things are now: the sheet's height (it gives way to the top corners on a short screen),
+  // the feed's length (it ends above the bottom rows, and above the toasts when they have to go under it), and the places of the
+  // drop countdown and the toasts (just above the bottom rows: in the gap between the feed and the minimap when it is wide
+  // enough, else across the middle) and of the big message (under whatever is at the top in the room it has).
+  layout(force = false) {
+    const now = performance.now();
+    if (!force && now - (this._lyT || 0) < 250) return;
+    this._lyT = now;
+    const b = document.body, W = window.innerWidth, H = window.innerHeight, G = 8, touch = b.classList.contains('touch');
+    const box = (e) => { if (!e || e.classList.contains('hidden')) return null; const r = e.getBoundingClientRect(); return r.width > 1 && r.height > 1 ? r : null; };
+    const q = (s) => document.querySelector(s), px = (n) => `${Math.round(n)}px`;
+    const set = (k, v) => { if (this._ly[k] !== v) { this._ly[k] = v; b.style.setProperty(k, v); } };
+    if (!this._ly) this._ly = {};
+    const tops = ['#mbox', '#objective', '.tl-btns', '#bigcr', '#place-hint'].concat(touch ? ['#minimap'] : []).map((s) => box(q(s))).filter(Boolean);
+    // the sheet gives way to the corners (twice: the weapon bar over it moves with it)
+    for (let k = 0; k < 2; k++) {
+      const sh = box($('tactical'));
+      if (!sh) break;
+      let band = 0; for (const r of tops) if (r.right > sh.left && r.left < sh.right) band = Math.max(band, r.bottom);
+      const wb = box($('weapons')), over = wb && wb.bottom <= sh.top + 2 ? sh.top - wb.top : 0;
+      const cut = Math.max(0, Math.min(sh.height + (this._cut || 0) - 110, (this._cut || 0) - (sh.top - over - band - G)));
+      if (Math.abs(cut - (this._cut || 0)) < 1) break;
+      this._cut = cut; set('--cut', px(cut));
+    }
+    // the feed (touch: it has a place of its own) starts under whatever is above it at the top
+    let fr = $('feed').getBoundingClientRect();
+    if (touch) {
+      let ft = 0; for (const r of tops) if (r.left < fr.right && r.right > fr.left) ft = Math.max(ft, r.bottom);
+      set('--ft', px(ft + G));
+      fr = $('feed').getBoundingClientRect();
+    }
+    // the top of the bottom rows
+    let bot = H;
+    for (const e of [$('tactical'), $('weapons'), $('dock'), $('fire-btn')]) { const r = box(e); if (r && r.top > H * 0.25) bot = Math.min(bot, r.top); }
+    // the drop countdown and the toasts, just above the bottom rows: in the gap between the feed and what is on the right when it
+    // is wide enough, else from the left edge (and the feed ends above them)
+    const dc = box($('dropcd')), tst = $('toast'), cw = dc ? dc.width : 0, th = tst.classList.contains('show') ? tst.offsetHeight + G : 0;
+    const sp = !$('softpause').classList.contains('hidden') ? box(q('#softpause .sp-bar')) : null, sph = sp ? sp.height + G : 0;   // (the pause strip)
+    const zoneTop = bot - G - (dc ? dc.height + G : 0) - sph - th - 30;
+    const br = !touch ? box(q('.hud-br')) : null;
+    let colR = W - G;
+    for (const r of tops.concat(br ? [br] : [])) if (r.left > W * 0.4 && r.bottom > zoneTop) colR = Math.min(colR, r.left - G);
+    const colL = fr.left + fr.width + G, need = Math.max(300, cw + 2 * G), wide = colR - colL >= need;
+    const lo = wide ? colL : Math.max(G, Math.min(fr.left, colR - need)), cx = (lo + colR) / 2;
+    set('--cl', px(cx)); set('--cw', px(cw)); set('--cb', px(H - bot + G)); set('--cww', px(Math.max(200, colR - lo)));
+    set('--spb', px((H - bot + G + (dc ? dc.height + G : 0)) / (parseFloat(getComputedStyle(b).getPropertyValue('--ui')) || 1)));
+    set('--tb', px(H - bot + G + (dc ? dc.height + G : 0) + sph));
+    const fh = (wide ? bot - G : zoneTop) - fr.top;
+    set('--fh', px(Math.max(0, fh))); b.classList.toggle('feed-off', fh < 30);      // (no room at all: it waits)
+    // the big message: under the top in the middle, between the feed (or the clock) and the right-hand corner; smaller if it
+    // would run into the countdown
+    const msg = $('center-msg');
+    if (msg.classList.contains('show') || force) {
+      // where it can go, best first: between the feed and the right-hand corner; across, under the feed; left of the right-hand
+      // corner, over the feed's place (the feed steps out while it shows); across, over the feed's place. Smaller if need be;
+      // a toast under it waits.
+      const right = Math.min(W, ...tops.filter((r) => r.left > W * 0.55).map((r) => r.left));
+      const left = Math.max(0, ...tops.filter((r) => r.right < W * 0.45).map((r) => r.right));
+      const feedOn = fr.height > 2 && fr.width > 2;
+      const cands = [[Math.max(fr.left + fr.width, left) + G, W - right + G, false, false], [G, G, true, false], [G, W - right + G, false, true], [G, G, false, true]];
+      const lim = bot - G - (dc ? dc.height + G : 0) - sph, rg = document.createRange(), low = () => { rg.selectNodeContents(msg); return rg.getBoundingClientRect(); };
+      let over = false, done = false;
+      for (const [ml, mr, under, ovr] of cands) {
+        if (W - ml - mr < 240) continue;
+        let top = 0;
+        for (const r of tops) if (r.right > ml && r.left < W - mr) top = Math.max(top, r.bottom);
+        if (under && feedOn) top = Math.max(top, fr.bottom);
+        top = Math.max(top + G, touch ? 0 : H * 0.16);
+        set('--ml', px(ml)); set('--mr', px(mr)); msg.style.top = px(top);
+        if (!msg.classList.contains('show')) { done = true; break; }
+        for (const tight of [false, true]) {
+          msg.classList.toggle('tight', tight);
+          const m = low();
+          if (m.bottom <= lim) { done = true; over = ovr && feedOn && m.top < fr.bottom && m.bottom > fr.top && m.left < fr.right && m.right > fr.left; break; }
+        }
+        if (done) break;
+      }
+      if (!done) over = feedOn;
+      if (msg.classList.contains('show')) {
+        const tr = tst.classList.contains('show') ? tst.getBoundingClientRect() : null, mr2 = low();
+        tst.classList.toggle('wait', !!(tr && tr.top < mr2.bottom && tr.bottom > mr2.top && tr.left < mr2.right && tr.right > mr2.left));
+      }
+      b.classList.toggle('msg-over', over);
+    } else { b.classList.remove('msg-over'); tst.classList.remove('wait'); }
   }
   // ---- tips
   // A tip over anchor: short() is the one line (live: it is redrawn while the tip shows), full() the card ⓘ opens (null: no ⓘ).
@@ -333,6 +417,19 @@ export class Hud {
     clearTimeout(this._wt); this._wt = setTimeout(() => h.classList.add('idle'), ms);
   }
 
+  // (0.19.1) Where the camera's point goes: the middle of the room between the top corners and the sheet (0.5 with it shut).
+  // insetB: how much of the bottom the sheet (and the weapon bar over it) takes, for the arrows at the edge.
+  focusY() {
+    const H = window.innerHeight || 1;
+    if (!document.body.classList.contains('tac-open')) { this.insetB = 0; return 0.5; }
+    let bot = $('tactical').getBoundingClientRect().top, top = 0;
+    const wb = $('weapons').getBoundingClientRect(); if (wb.height && wb.top < bot) bot = wb.top;
+    for (const e of [$('mbox'), $('objective'), document.querySelector('.tl-btns'), $('bigcr')]) {
+      const r = e && e.getBoundingClientRect(); if (r && r.height && r.bottom < bot - 60) top = Math.max(top, r.bottom);
+    }
+    this.insetB = Math.max(0, H - bot);
+    return Math.max(0.2, Math.min(0.5, (top + bot) / 2 / H));
+  }
   // A faded panel comes up to full strength for a moment when it is touched or has news.
   hot(node, ms = 2600) {
     if (!node) return;
@@ -413,10 +510,7 @@ export class Hud {
     if (on) this.placeSoft();
   }
   // The strip goes just under whatever is across the top (nothing moves while the game is stopped, so once is enough).
-  placeSoft() {
-    const bar = document.querySelector('#softpause .sp-bar');
-    if (bar) bar.style.top = `${Math.round(topBelow() + 8)}px`;
-  }
+  placeSoft() { const bar = document.querySelector('#softpause .sp-bar'); if (bar) bar.style.top = ''; this.layout(true); }
   // Placement mode (desktop): the next click on the map drops or sends.
   setPlacing(kind) {
     this.placing = kind;
@@ -475,6 +569,12 @@ export class Hud {
       rows.appendChild(r);
       this.rr.push({ el: r, t: r.querySelector('.t'), ship: r.querySelector('.ship'), hp: r.querySelector('.hp u'), st: r.querySelector('.st'), key: '' });
     });
+    // (0.19.1) the dock's chips: a letter and a health bar each, so the Helldivers can be watched with the sheet shut
+    const hc = document.querySelector('#dk-hd .hdc'); hc.innerHTML = ''; this.hc = [];
+    m.teams.forEach((tm) => {
+      const c = el('span', 'hc', `<b>${tm.letter}</b><i><u></u></i>`); c.style.setProperty('--tc', tm.color);
+      hc.appendChild(c); this.hc.push({ el: c, u: c.querySelector('u'), key: '' });
+    });
     this.hb = [];
     $('mb-num').textContent = m.ls ? t('ls.tag') : t('hud.missionN', { n: m.missionN || 1 });
     $('mb-diff').textContent = t('hud.diffN', { n: m.difficulty ?? LEVELS, name: t(...levelName(m.difficulty ?? LEVELS)).toUpperCase() });
@@ -483,10 +583,10 @@ export class Hud {
   }
 
   update(m, cam, session) {
-    // (0.19: on Mars the clock is the time to the glassing, once the evacuation is open)
-    const left = m.ls ? (m.ls.glassAt < Infinity ? Math.max(0, m.ls.glassAt - m.t) : null) : Math.max(0, m.limitSec - m.t);
+    // (0.19: on Mars the clock counts how long the base has held, once the evacuation is open)
+    const left = m.ls ? (m.ls.stage === 'lessons' ? null : m.ls.holdT) : Math.max(0, m.limitSec - m.t);
     this._set('timer', $('timer'), left === null ? '--:--' : fmtTime(left));
-    $('timer').classList.toggle('low', left !== null && left < 120);
+    $('timer').classList.toggle('low', m.ls ? m.ls.broke : left < 120);
 
     let obj, prog = null, urgent = false;
     if (m.phase === 'objective' || m.phase === 'clear') {
@@ -534,7 +634,10 @@ export class Hud {
     this.tipTick();
     // a squad picked: its tip over its button (when the button is on screen)
     if (this.last.selS !== m.seaf.sel) {
-      if (this.last.selS !== undefined) { const b = this.sqb.find((q) => q.i === m.seaf.sel); if (b && b.el.offsetParent) this.tip(b.el, () => squadShort(m, m.seaf.sel), () => squadInfo(m, m.seaf.sel)); }
+      if (this.last.selS !== undefined) {     // (0.19.1: over the dock's squads chip while the sheet is shut)
+        const b = this.sqb.find((q) => q.i === m.seaf.sel), at = b && b.el.offsetParent ? b.el : this.dkSq.offsetParent ? this.dkSq : null;
+        if (at) this.tip(at, () => squadShort(m, m.seaf.sel), () => squadInfo(m, m.seaf.sel));
+      }
       this.last.selS = m.seaf.sel;
     }
 
@@ -567,7 +670,8 @@ export class Hud {
         else if (m.hd.lives <= 0) { st = t('hud.r.lost'); cls = 'lost'; }
         else { st = t('hud.r.call', { n: Math.ceil(Math.max(0, tm.respawnAt - m.t)) }); cls = 'wait'; }
       }
-      const ship = tm.ship;
+      const ship = tm.ship, hc = this.hc && this.hc[i];
+      if (hc) { const k = `${Math.round(f * 30)}|${cls}`; if (hc.key !== k) { hc.key = k; hc.u.style.width = `${Math.max(0, Math.min(1, f)) * 100}%`; hc.el.className = 'hc ' + cls; } }
       const key = `${name}|${st}|${Math.round(f * 24)}|${cls}|${ship}`;
       if (r.key === key) return;
       r.key = key; r.t.textContent = name; r.st.textContent = st; r.hp.style.width = `${Math.max(0, Math.min(1, f)) * 100}%`; r.ship.textContent = ship;
@@ -634,12 +738,15 @@ export class Hud {
   // The tactical build screen: what is selected, each build's picture, name, level and cost (or LOCKED), and the selected squad's
   // formation.
   setTcTab(tab) {
-    if (!['units', 'build', 'ship'].includes(tab)) return;
+    if (!TC_TABS[tab]) return;
+    const was = this.tcTab;
     this.tcTab = tab;
     const tc = $('tactical'); tc.dataset.tab = tab;
     document.querySelectorAll('#tactical .tct').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
-    const hb = document.querySelector('#tactical .tc-h b'); if (hb) hb.textContent = t(tab === 'units' ? 'tac.tUnitsH' : tab === 'ship' ? 'tac.tShipH' : 'tac.title');
+    const hb = document.querySelector('#tactical .tc-h b'); if (hb) hb.textContent = t(TC_TABS[tab]);
     if (this.m) this.fillTactical(this.m);
+    if (tab === 'armory' && this.onArmoryTab) this.onArmoryTab();
+    if (tab !== was && this.onTabChange) this.onTabChange(tab);
   }
   fillTactical(m, sel = this.selObj) {
     if (!m) return;
@@ -881,7 +988,7 @@ export class Hud {
     const kinds = new Set(tq.map((q) => q.order.kind));
     const who = sf.sel >= 0 ? `S${sf.sel + 1}` : t('hud.all');
     const what = !total ? t('hud.o.noSeaf') : !tq.length ? t('hud.d.empty') : kinds.size === 1 ? t('hud.d.' + tq[0].order.kind) : t('hud.d.mixed');
-    const open = $('hud').classList.contains('tray-open');
+    const open = document.body.classList.contains('tac-open') && this.tcTab === 'units';
     const n1 = t(this.drawing ? 'hud.d.drawing' : 'hud.squads'), n2 = this.drawing ? t('hud.d.finish') : `${who} ${total ? tq.reduce((a, q) => a + q.n, 0) : ''} ${what}`.replace(/\s+/g, ' ');
     const key = `${n1}|${n2}|${this.drawing}|${open}`;
     if (this.dkKey === key) return;
@@ -1450,7 +1557,7 @@ export function fillGlass(res) {
   const L = res.lastStand || { lifted: 0, held: 0, fallen: false, pop: 0 }, s = res.stats || {};
   const mm = Math.floor((L.held || 0) / 60), ss = String((L.held || 0) % 60).padStart(2, '0');
   $('g-title').textContent = t(res.outcome === 'retired' ? 'glass.titleLeft' : 'glass.title');
-  $('g-lede').textContent = t(res.outcome === 'retired' ? 'glass.ledeLeft' : L.fallen ? 'glass.ledeFell' : 'glass.lede', { saved: res.civSaved || 0, lifts: L.lifted || 0, t: `${mm}:${ss}` });
+  $('g-lede').textContent = t(res.outcome === 'retired' ? 'glass.ledeLeft' : 'glass.lede', { saved: res.civSaved || 0, lifts: L.lifted || 0, t: `${mm}:${ss}` });
   const rows = [
     [t('glass.r.saved'), `${res.civSaved || 0} / ${L.pop || 0}`],
     [t('glass.r.lifts'), String(L.lifted || 0)],
@@ -1493,6 +1600,7 @@ export function fillLock(level) {
 }
 
 // The field manual: everything the gunner can do, and the tips, by section (lists in the language tables).
+const TC_TABS = { units: 'tac.tUnitsH', hd: 'tac.tHdH', build: 'tac.title', ship: 'tac.tShipH', armory: 'tac.tArmH' };
 export const MANUAL = ['you', 'seaf', 'build', 'hd', 'enemy', 'armory', 'session'];
 export function fillManual() {
   const body = $('manual-body');

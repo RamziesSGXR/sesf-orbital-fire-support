@@ -45,12 +45,13 @@ check('a supply drop does not pull the camera', Math.hypot(c2.x - c1.x, c2.y - c
 // the Helldivers (0.16: one panel, a row each, above the SEAF squads)
 const hb = await ev(() => [...document.querySelectorAll('#hdrows .hr')].map((b) => b.textContent));
 check('a Helldiver row for each group', hb.length === 4 && /A/.test(hb[0]), hb.join(' | '));
-if (touch) { await tap('#dk-sq'); await page.waitForTimeout(300); }
+// (0.19.1) their health on the dock; their rows on the sheet's HELLDIVERS tab
+if (await page.isVisible('#dk-hd')) await tap('#dk-hd'); else { await tap('#dk-tac'); await page.waitForTimeout(250); await tap('#tactical .tct[data-tab="hd"]'); }   // (upright: the tab)
+await page.waitForTimeout(300);
 const vis = await page.isVisible('#sqpanel');
-check('it is on screen beside the SEAF squads', vis);
-const geo = await ev(() => { const a = document.getElementById('sqpanel').getBoundingClientRect(), b = document.getElementById('squads').getBoundingClientRect(); return { a: [a.left, a.top, a.right, a.bottom], b: [b.left, b.top, b.right, b.bottom], W: innerWidth }; });
-const overlap = !(geo.a[2] <= geo.b[0] || geo.a[0] >= geo.b[2] || geo.a[3] <= geo.b[1] || geo.a[1] >= geo.b[3]);
-check('without covering them, and on the screen', !overlap && geo.a[0] >= 0 && geo.a[2] <= geo.W + 1, JSON.stringify(geo));
+check('the sheet\'s HELLDIVERS tab has their rows', vis && (await ev(() => window.__game.hud.tcTab)) === 'hd');
+const geo = await ev(() => { const a = document.getElementById('sqpanel').getBoundingClientRect(), b = document.getElementById('tactical').getBoundingClientRect(); return { a: [a.left, a.top, a.right, a.bottom], b: [b.left, b.top, b.right, b.bottom], W: innerWidth }; });
+check('inside the sheet, and on the screen', geo.a[0] >= geo.b[0] - 1 && geo.a[2] <= geo.b[2] + 1 && geo.a[1] >= geo.b[1] - 1 && geo.a[2] <= geo.W + 1, JSON.stringify(geo));
 await shot('bars');
 // double tap a Helldiver: the camera goes there
 const target = await ev(() => { const m = window.__game.mission, a = m.teams[2].hd; return a && !a.dead ? { x: a.x, y: a.y } : null; });
@@ -67,7 +68,7 @@ await page.waitForTimeout(400);
 const sq = await ev(() => { const m = window.__game.mission, q = m.seaf.squads.find((x) => x.n); return q ? { i: q.i, x: q.cx, y: q.cy } : null; });
 if (sq) {
   await ev(() => { window.__game.cam.x -= 300; });
-  if (touch && !(await page.isVisible('#tray'))) { await tap('#dk-sq'); await page.waitForTimeout(300); }
+  if (!(await page.isVisible('#squads'))) { await ev(() => { window.__game.hud.setTcTab('units'); window.__game.setTac(true); }); await page.waitForTimeout(300); }
   await dbl(`#squads .sqb[data-sq="${sq.i}"]`); await page.waitForTimeout(1900);
   const c4 = await ev(() => ({ x: window.__game.cam.x, y: window.__game.cam.y }));
   const sq2 = await ev((i) => { const q = window.__game.mission.seaf.squads[i]; return { x: q.cx, y: q.cy }; }, sq.i);
@@ -79,8 +80,9 @@ if (sq) {
   check('an escort order shows no timer and is still on after 70 s', /ACTIVE/i.test(esc), esc);
   // the build menu
   // (0.17: TACTICAL is its own screen, from the button at the top left)
-  if (touch && (await page.isVisible('#tray'))) { await tap('#tray .tray-x'); await page.waitForTimeout(300); }
-  await tap(touch ? '#dk-tac' : '#btn-tac'); await page.waitForTimeout(300);
+  await ev(() => window.__game.setTac(false)); await page.waitForTimeout(300);
+  await tap('#dk-tac'); await page.waitForTimeout(300);
+  await tap('#tactical .tct[data-tab="build"]'); await page.waitForTimeout(300);
   const menu = await page.isVisible('#tactical');
   const items = await ev(() => [...document.querySelectorAll('#tactical .bld')].map((b) => b.textContent));
   check('TACTICAL opens its screen: eight builds with their prices (the SAM site and the cannon unlocked in the armory)', menu && items.length === 8 && /FREE/.test(items[0]) && items.slice(1, 6).every((x) => /CR/.test(x)) && /UNLOCK/.test(items[6]) && /UNLOCK/.test(items[7]), items.join(' | '));

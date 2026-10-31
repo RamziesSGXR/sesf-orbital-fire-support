@@ -1,6 +1,8 @@
-// 0.19 in the browser: the tutorial (the last stand on Mars) from the title screen to the glassing: its card walks through every
-// step (each one done the way a player would, or by the sim where a real aim would be needed), the clock to the glassing, the end
-// screen, and back to the title with a saved session untouched; the climbing level on the briefing; no page errors.
+// 0.19 in the browser: the tutorial (the last stand on Mars) from the title screen to the glassing: the opening cinematic (Mars,
+// the Great Host's story a line at a time; SKIP), its card through every step (each one done the way a player would, or by the
+// sim where a real aim would be needed), the endless waves, the line breaking, the base falling, the beams across the map and the
+// camera pulling back, the closing cinematic (Mars burning, the host's ships), the end screen, and back to the title with a saved
+// session untouched; the climbing level on the briefing; no page errors.
 // Run: node test/ui19.mjs desktop|phone   (needs: npm run bundle)
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -21,7 +23,17 @@ const ev = (f, a) => page.evaluate(f, a);
 const tap = (sel) => (touch ? page.tap(sel) : page.click(sel));
 const shot = (n) => page.screenshot({ path: path.join(SHOTS, `ui19_${mode}_${n}.png`) });
 const card = () => ev(() => ({ k: document.getElementById('tut-k').textContent, h: document.getElementById('tut-h').textContent, b: document.getElementById('tut-b').textContent,
-  hidden: document.getElementById('tut').classList.contains('hidden'), fold: document.getElementById('tut').classList.contains('fold'), hl: document.querySelectorAll('.tut-hl').length }));
+  hidden: document.getElementById('tut').classList.contains('hidden'), fold: document.getElementById('tut').classList.contains('fold'), hl: document.querySelectorAll('.tut-hl').length,
+  held: document.body.classList.contains('tut-held'), spot: !document.getElementById('tut-spot').classList.contains('hidden') }));
+// (0.19.1) the card sits beside what it points at, never on it, and inside the screen
+const beside = (sel) => ev((q) => {
+  const a = document.getElementById('tut').getBoundingClientRect(), t = document.querySelector(q); if (!t) return 'no ' + q;
+  const b = t.getBoundingClientRect(), on = a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+  const inside = a.left >= 0 && a.top >= 0 && a.right <= innerWidth + 1 && a.bottom <= innerHeight + 1;
+  const gap = Math.max(b.left - a.right, a.left - b.right, b.top - a.bottom, a.top - b.bottom);
+  return !on && inside && gap < 40 ? true : JSON.stringify({ on, inside, gap, a: [a.left, a.top, a.right, a.bottom].map(Math.round), b: [b.left, b.top, b.right, b.bottom].map(Math.round) });
+}, sel);
+const frozen = async () => { const t0 = await ev(() => window.__game.mission.t); await page.waitForTimeout(500); return (await ev(() => window.__game.mission.t)) === t0; };
 const waitStep = async (h, ms = 8000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if ((await card()).h === h) return true; await page.waitForTimeout(150); } return false; };
 const saved = { startedAt: Date.now(), callsign: 'KEEP', difficulty: 5, missions: [{ op: 'Operation Keep', faction: 'bots', biome: 'grass', outcome: 'victory', score: 999, seconds: 600 }], score: 999, seconds: 600 };
 await page.addInitScript((s) => { try { if (!sessionStorage.getItem('ui19')) { localStorage.clear(); localStorage.setItem('ofs.session', JSON.stringify(s)); sessionStorage.setItem('ui19', '1'); } } catch (e) { /* */ } }, saved);
@@ -31,35 +43,60 @@ await page.goto(`file://${ROOT}/dist/orbital-fury.html`); await page.waitForTime
 check('the title has the tutorial, marked NEW until it has been opened', await page.isVisible('#btn-tutorial') && await page.isVisible('#tut-new') && /LAST STAND ON MARS/.test(await page.textContent('#btn-tutorial')));
 check('RESUME shows the saved session\'s next level (started at 5, one flown: 6)', /DIFFICULTY 6/.test(await page.textContent('#btn-resume')), await page.textContent('#btn-resume'));
 await shot('title');
-await tap('#btn-tutorial'); await page.waitForTimeout(1500);
+await tap('#btn-tutorial'); await page.waitForTimeout(2500);
+const ci = await ev(() => ({ on: !document.getElementById('cine').classList.contains('hidden'), txt: document.getElementById('cine-text').textContent, t: window.__game.mission.t, card: document.getElementById('tut').classList.contains('hidden') }));
+check('a cinematic opens it: Mars, and the story of the Great Host, while the game waits', ci.on && /Great Host/.test(ci.txt) && /2185/.test(ci.txt) && ci.t === 0 && ci.card, JSON.stringify(ci));
+await shot('cine-in');
+await page.waitForTimeout(4500);
+check('the story goes on a line at a time', await ev(() => /New Haven|Sol System/.test(document.getElementById('cine-text').textContent)), await ev(() => document.getElementById('cine-text').textContent));
+await tap('#cine-skip'); await page.waitForTimeout(900);
+check('SKIP ends it and the lessons begin', (await ev(() => document.getElementById('cine').classList.contains('hidden'))) && !(await card()).hidden);
 const s0 = await ev(() => ({ state: window.__game.state, biome: window.__game.mission.biome.id, fac: window.__game.mission.faction.id, ls: !!window.__game.mission.ls, tac: window.__game.tac,
   mb: document.getElementById('mb-num').textContent, timer: document.getElementById('timer').textContent, obj: document.getElementById('obj-main').textContent, cd: document.getElementById('dropcd-n').textContent }));
-check('TUTORIAL starts the last stand: Mars, the Illuminate, the tactical screen open', s0.state === 'play' && s0.biome === 'mars' && s0.fac === 'squids' && s0.ls && s0.tac, JSON.stringify(s0));
+check('TUTORIAL starts the last stand: Mars, the Illuminate, the panels shut', s0.state === 'play' && s0.biome === 'mars' && s0.fac === 'squids' && s0.ls && !s0.tac, JSON.stringify(s0));
 check('the HUD says TUTORIAL, no mission clock yet, and to get ready', s0.mb === 'TUTORIAL' && s0.timer === '--:--' && /GET READY/.test(s0.obj));
 check('the drop countdown reads in minutes', /^\d+:\d\d$/.test(s0.cd), s0.cd);
 let c = await card();
-check('the card: step 1, the date, the story', !c.hidden && /STEP 1 OF 15/.test(c.k) && /20 MAY 2185/.test(c.h) && /Illuminate/.test(c.b), c.h);
+check('the card: step 1, the base, the Great Host', !c.hidden && /STEP 1 OF 15/.test(c.k) && /THARSIS/.test(c.h) && /Great Host/.test(c.b), c.h);
+check('a card holds the game until it is read (nothing to point at: no spotlight)', c.held && !c.spot && await frozen());
+check('...and sits under the top corners, clear of the middle of the screen', await ev(() => { const a = document.getElementById('tut').getBoundingClientRect(); return a.bottom < innerHeight * 0.5 && a.top > 0; }));
 await shot('intro');
 
 // ---------------------------------------------------------------- the steps, one by one
 await tap('#tut-next');
 check('NEXT: look around', await waitStep('LOOK AROUND'));
+c = await card();
+check('a lesson card holds the game too, with GOT IT', c.held && await page.isVisible('#tut-ok') && await frozen());
+await tap('#tut-ok'); await page.waitForTimeout(300);
+check('GOT IT: the game runs again, the card stays, folded to its heading', !(await card()).held && !(await frozen()) && !(await card()).hidden && (await card()).fold);
+check('...at the top, out of the way', await ev(() => document.getElementById('tut').getBoundingClientRect().bottom < innerHeight * 0.35));
 if (touch) { await page.touchscreen.tap(W / 2, H / 3); await ev(() => { window.__game.cam.x += 50; }); }
 else { await page.mouse.move(W / 2, H / 3); await page.mouse.down({ button: 'right' }); await page.mouse.move(W / 2 - 260, H / 3 + 60, { steps: 10 }); await page.mouse.up({ button: 'right' }); }
-check('moving the map (a right-button drag on the tactical screen) does it', await waitStep('THE TACTICAL SCREEN'));
+check('moving the map does it', await waitStep('THE TACTICAL PANEL'));
 c = await card();
-check('the tactical screen\'s tabs are pointed out', c.hl > 0);
-await tap('#tut-next');
-check('then the pause', await waitStep('STOP THE CLOCK'));
+check('TACTICAL is pointed out and lit, the rest dimmed, the game held', c.hl > 0 && c.spot && c.held && await ev(() => document.getElementById('dk-tac').classList.contains('tut-hl')));
+check('the card sits beside TACTICAL', await beside('#dk-tac'));
+await shot('tac-card');
+if (touch) await tap('#dk-tac'); else await page.keyboard.press('Tab');
+check('opening the sheet (with the card up) lets the game go, and the card goes on: the pause', await waitStep('STOP THE CLOCK'));
 if (touch) { await tap('#btn-pause'); await page.waitForTimeout(300); await tap('#btn-pause'); } else { await page.keyboard.press('Space'); await page.waitForTimeout(300); await page.keyboard.press('Space'); }
 check('pausing and going on does it', await waitStep('PICK YOUR TROOPS'));
+{ const hl = await ev(() => [...document.querySelectorAll('.tut-hl')].map((e) => e.id || e.className).join(',')), bs = await beside('#squads');
+  check('the squad bar (in the sheet\'s TROOPS tab) is pointed out, the card beside it', /^squads$|,squads|squads,/.test(hl) && bs === true, hl + ' ' + bs); }
+await shot('select-card');
+await tap('#tut-ok'); await page.waitForTimeout(200);
 if (touch) await ev(() => window.__game.selectSquad(0)); else await page.keyboard.press('Shift+Digit1');
 check('picking a squad does it', await waitStep('GIVE AN ORDER'), JSON.stringify(await card()));
 if (touch) await ev(([x, y]) => window.__game.commandAt(x, y), [W / 2, H * 0.3]); else await page.mouse.click(W / 2, H * 0.35, { button: 'right' });
 check('an order on the map (right-click; a tap on the tactical screen) does it', await waitStep('BUILD A DEFENCE'), (await card()).h);
 if ((await card()).h === 'GIVE AN ORDER') { await ev(() => { const m = window.__game.mission, o = m.objectives[0]; m.seafOrder('move', o.sx + 6, o.sy + 6); }); await waitStep('BUILD A DEFENCE'); }
+check('the build lesson points at the sheet\'s BUILD tab first', await ev(() => document.querySelector('#tactical .tct[data-tab="build"]').classList.contains('tut-hl')));
+await tap('#tut-ok'); await page.waitForTimeout(200);
+await ev(() => window.__game.hud.setTcTab('build')); await page.waitForTimeout(400);
+check('...then, on that tab, at the builds', await ev(() => document.querySelector('#tactical .tac-build').classList.contains('tut-hl')));
 await ev(() => { const m = window.__game.mission, o = m.objectives[0]; m.seafBuild('foxhole', o.x + 22, o.y - 18); });
 check('a build does it', await waitStep('DROP THE HELLDIVERS'));
+check('the card sits beside DEPLOY NOW', await beside('#dropcd-go'));
 c = await card();
 check('the card points at DEPLOY NOW', await ev(() => document.getElementById('dropcd-go').classList.contains('tut-hl')));
 await shot('deploy');
@@ -99,23 +136,38 @@ await shot('begin');
 await tap('#tut-next'); await page.waitForTimeout(1500);
 const h1 = await ev(() => ({ stage: window.__game.mission.ls.stage, timer: document.getElementById('timer').textContent, obj: document.getElementById('obj-main').textContent }));
 c = await card();
-check('the evacuation opens: the clock to the glassing, the count on the objective line', h1.stage === 'hold' && /^0[45]:\d\d$/.test(h1.timer) && /OFF MARS/.test(h1.obj), JSON.stringify(h1));
-check('the card folds away', c.fold && !c.hidden);
-await ev(() => { const m = window.__game.mission; for (let i = 0; i < 30 * 70; i++) m.step(1 / 30); }); await page.waitForTimeout(800);
-const h2 = await ev(() => ({ saved: window.__game.mission.objectives[0].saved, waves: window.__game.mission.ls.waves }));
-check('waves come and personnel get out', h2.waves >= 2 && h2.saved > 0, JSON.stringify(h2));
-await shot('hold');
-await ev(() => { const m = window.__game.mission; m.ls.glassAt = m.t + 44.5; }); await page.waitForTimeout(1200);
+check('the evacuation opens: the clock counts the hold, the objective line who is off Mars and the waves', h1.stage === 'hold' && /^00:0\d$/.test(h1.timer) && /OFF MARS/.test(h1.obj) && /WAVE/.test(h1.obj), JSON.stringify(h1));
+check('one more card, holding the game', c.held && !c.hidden && /HOLD/.test(c.h));
+await tap('#tut-ok'); await page.waitForTimeout(300);
 c = await card();
-check('the warning before the glassing: the card comes back, the screen goes orange', /GLASSING IN 45/.test(c.h) && !c.fold && await ev(() => document.body.classList.contains('ls-warn')));
-await shot('warn');
-await ev(() => { const m = window.__game.mission; m.ls.glassAt = m.t + 0.3; }); await page.waitForTimeout(2500);
-check('the glass: a white-out over the map', await ev(() => document.getElementById('glassfx').classList.contains('on')));
+check('GOT IT folds it away and the hold begins', c.fold && !c.hidden && !c.held);
+await ev(() => { const m = window.__game.mission; for (let i = 0; i < 30 * 70; i++) m.step(1 / 30); }); await page.waitForTimeout(800);
+const h2 = await ev(() => ({ saved: window.__game.mission.objectives[0].saved, waves: window.__game.mission.ls.waves, dmg: window.__game.mission.ls.dmg }));
+check('the waves come faster and stronger, and personnel get out', h2.waves >= 6 && h2.dmg > 1.5 && h2.saved > 0, JSON.stringify(h2));
+await shot('hold');
+await ev(() => { const m = window.__game.mission; m.hd.lives = 3; for (let i = 0; i < 3; i++) m.step(1 / 30); }); await page.waitForTimeout(1000);
+c = await card();
+check('the line breaking: the card comes back, the screen goes orange', /BREAKING/.test(c.h) && !c.fold && await ev(() => document.body.classList.contains('ls-warn')), c.h);
+await shot('breaking');
+await tap('#tut-ok'); await page.waitForTimeout(200);
+// the last Helldiver falls
+await ev(() => { const m = window.__game.mission; m.hd.lives = 0; for (const a of m.hdAlive) m.killAlly(a, 'enemy'); }); await page.waitForTimeout(3500);
+const gl = await ev(() => ({ stage: window.__game.mission.ls.stage, view: window.__game.cam.view, glass: document.body.classList.contains('ls-glass'), card: document.getElementById('tut').classList.contains('hidden'), obj: document.getElementById('obj-main').textContent }));
+check('the base falls with the last Helldiver: the Great Host glasses the plain, the HUD steps back, the card goes', gl.stage === 'glass' && gl.glass && gl.card && /GLASSING/.test(gl.obj), JSON.stringify(gl));
+check('beams fall across the map', await ev(() => window.__game.renderer.fx.some((f) => f.k === 'gbeam')));
 await shot('glass');
-await page.waitForTimeout(8000);
+await page.waitForTimeout(4000);
+check('and the camera pulls back over the whole plain', (await ev(() => window.__game.cam.view)) > Math.max(800, gl.view), String(await ev(() => window.__game.cam.view)));
+await shot('glass2');
+await page.waitForFunction(() => !document.getElementById('cine').classList.contains('hidden'), null, { timeout: 15000 });
+check('then a white-out and the closing cinematic: Mars burning, and the Great Host', await ev(() => document.getElementById('glassfx').classList.contains('white') && document.getElementById('cine').classList.contains('outro')));
+await page.waitForTimeout(3000);
+check('it says what happened to Mars', /Great Host razes Mars|held to the last/.test(await ev(() => document.getElementById('cine-text').textContent)), await ev(() => document.getElementById('cine-text').textContent));
+await shot('cine-out');
+await page.waitForFunction(() => window.__game.state === 'glass' && document.getElementById('s-glass').classList.contains('on'), null, { timeout: 40000 });
 const end = await ev(() => ({ state: window.__game.state, on: document.getElementById('s-glass').classList.contains('on'), t: document.getElementById('g-title').textContent, lede: document.getElementById('g-lede').textContent,
-  rows: document.querySelectorAll('#g-table tr').length }));
-check('the end screen: MARS IS GLASS, how long it held and how many got out', end.state === 'glass' && end.on && end.t === 'MARS IS GLASS' && /held for/.test(end.lede) && end.rows === 6, JSON.stringify(end));
+  rows: document.querySelectorAll('#g-table tr').length, lore: document.querySelector('.g-lore').textContent }));
+check('the end screen: MARS IS GLASS, how long it held against the Great Host and how many got out', end.state === 'glass' && end.on && end.t === 'MARS IS GLASS' && /held for/.test(end.lede) && /Great Host/.test(end.lede) && end.rows === 6 && /New Haven/.test(end.lore), JSON.stringify(end));
 await shot('end');
 await tap('#glass-title'); await page.waitForTimeout(800);
 const back = await ev(() => ({ state: window.__game.state, s: JSON.parse(localStorage.getItem('ofs.session') || 'null'), seen: localStorage.getItem('ofs.tutSeen') }));
@@ -124,6 +176,7 @@ check('the tutorial is no longer NEW', !(await page.isVisible('#tut-new')));
 
 // ---------------------------------------------------------------- the menu leaves the tutorial too
 await tap('#btn-tutorial'); await page.waitForTimeout(1200);
+await tap('#cine-skip'); await page.waitForTimeout(700);
 await ev(() => { document.getElementById('btn-home-m').click(); document.getElementById('btn-home-m').click(); }); await page.waitForTimeout(600);
 check('MAIN MENU (twice) leaves the tutorial for the title', (await ev(() => window.__game.state)) === 'title' && await page.isHidden('#tut'));
 

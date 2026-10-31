@@ -41,9 +41,9 @@ if (touch) { await tap('#dk-sq'); await page.waitForTimeout(300); await tap('.sq
 else { await page.keyboard.press('Shift+Digit1'); }
 await page.waitForTimeout(300);
 let tipR = await rect('#hottip');
-check('picking a SEAF squad shows its tip just over its button', near(tipR, await rect('.sqb[data-sq="0"]')), tipR ? `${Math.round(tipR.l)},${Math.round(tipR.t)}-${Math.round(tipR.r)},${Math.round(tipR.b)}` : 'none');
+check('picking a SEAF squad shows its tip just over its button (0.19.1: the dock\'s squads chip with the sheet shut)', near(tipR, await rect(touch ? '.sqb[data-sq="0"]' : '#dk-sq')), tipR ? `${Math.round(tipR.l)},${Math.round(tipR.t)}-${Math.round(tipR.r)},${Math.round(tipR.b)}` : 'none');
 check('one short line: the squad, its troopers', /S1/.test(await ev(() => document.querySelector('#hottip .tt-l').textContent)) && (tipR.b - tipR.t) < 60);
-if (touch) { await tap('#tray .tray-x'); await page.waitForTimeout(250); await tap('#weapons .wbtn:nth-child(3)'); }
+if (touch) { await tap('#tactical .tc-x'); await page.waitForTimeout(250); await tap('#weapons .wbtn:nth-child(3)'); }
 else await page.keyboard.press('Digit3');
 await page.waitForTimeout(250);
 tipR = await rect('#hottip');

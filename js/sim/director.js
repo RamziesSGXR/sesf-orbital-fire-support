@@ -157,7 +157,7 @@ export function updateDirector(m, dt) {
   m.pressure = Math.max(C.pressure.floor, m.pressure + (C.pressure.perMissionMin / 60) * dt);
   // enemy damage climbs with the war (war minutes, difficulty.js) and, a little, with every minute of the mission
   const base = C.ramp.base * (C.ramp.fac[m.faction.id] || 1);
-  m.dmgMul = Math.min(C.ramp.dmgCap * base, base * (1 + C.ramp.dmg * (m.W ?? m.S ?? 0) + C.ramp.missionDmg * (m.t / 60)));
+  m.dmgMul = Math.min(C.ramp.dmgCap * base, base * (1 + C.ramp.dmg * (m.W ?? m.S ?? 0) + C.ramp.missionDmg * (m.t / 60))) * (m.ls ? m.ls.dmg : 1);     // (0.19: the last stand's Great Host keeps getting stronger)
 
   if (m.alive.length && m.phase !== 'over') {
     // Reinforcements that have lost the squad and wandered off for good are taken off the map once nobody can see them. (Patrols

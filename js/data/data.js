@@ -127,7 +127,7 @@ export const COMMS = {
   get evacStart() { return t('c.evacStart'); },
   // (0.19) the last stand on Mars
   get lsBegin() { return t('c.lsBegin'); },
-  get lsWarn() { return t('c.lsWarn'); },
+  get lsBreaking() { return t('c.lsBreaking'); },
   get lsGlass() { return t('c.lsGlass'); },
   get lsFallen() { return t('c.lsFallen'); },
   get evacPaused() { return t('c.evacPaused'); },

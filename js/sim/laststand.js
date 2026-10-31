@@ -1,14 +1,15 @@
 // (0.19) The tutorial: the last stand of the Super Earth Special Forces at their base on Mars, 20 May 2185, the day the Illuminate
-// glassed the planet on their way to Super Earth. One mission that cannot be won. The base holds the last Pelicans off Mars:
-// personnel run from the shelter to the hangar (the evacuation objective, civilians.js) and every Pelican that lifts takes a
-// load of them up to the fleet. The lessons (ui/tutorial.js) come first, against small scripted groups; then the evacuation
-// opens, the Illuminate come in waves, and after holdSec the fleet glasses the plain: the mission ends 'glassed' however it went.
-// If the base falls first (every Helldiver down, no lives left), the glassing comes early.
+// Great Host razed the planet on its way to Super Earth. One mission that cannot be won. The base holds the last Pelicans off Mars:
+// personnel run from the shelter to the hangar (the evacuation objective, civilians.js) and every Pelican that lifts takes a load
+// of them up to the fleet. The lessons (tutorial.js) come first, against small scripted groups; then the shelter opens and the
+// Great Host comes in waves that never stop, faster, bigger and stronger each time, until the last Helldiver falls. Then the fleet
+// glasses the plain (a rain of beams across the map) and the mission ends 'glassed'.
 import { CONFIG as C } from '../config.js';
 import { makePost } from './posts.js';
 import { rollRoles, setSquadOrder } from './seaf.js';
 import { seafStats } from '../data/kit.js';
 import { spawnGroup } from './director.js';
+import { damageArea } from './combat.js';
 import { COMMS } from '../data/data.js';
 import { t as tr } from '../i18n.js';
 
@@ -78,7 +79,8 @@ export function setupLastStand(m) {
   });
   // the lessons ask for the UAV and an orbital: they are ready from the start
   for (const sl of m.player.slots) if (sl.readyAt !== undefined) sl.readyAt = 0;
-  m.ls = { stage: 'lessons', glassAt: Infinity, glassT: 0, warned: false, fallen: false, waveT: K.waveFirst, waves: 0, lifted: 0, pop: K.personnel, holdT: 0 };
+  m.hd.lives = m.hd.max = K.lives;
+  m.ls = { stage: 'lessons', glassT: 0, broke: false, fallen: false, waveT: K.waveFirst, waves: 0, lifted: 0, pop: K.personnel, holdT: 0, beamT: 0, dmg: 1, hp0: m.hpMul };
   o.pop = K.personnel;
 }
 
@@ -95,15 +97,27 @@ export function lsSpawn(m, kind, ang) {
   return g;
 }
 
-// The evacuation opens: the shelter doors, the waves, and the clock to the glassing.
+// The evacuation opens: the shelter doors and the waves.
 export function lsBegin(m) {
   const ls = m.ls, o = m.objectives.find((q) => q.lastStand);
   if (!ls || !o || ls.stage !== 'lessons') return false;
-  ls.stage = 'hold'; ls.holdT = 0; ls.glassAt = m.t + L().holdSec;
+  ls.stage = 'hold'; ls.holdT = 0;
   o.wait = false; o.state = 'run'; o.batchT = 1; o.open = false;
   m.radio(COMMS.lsBegin, 'lsbegin', 0);
   m.emit('ls_stage', { stage: 'hold' });
   return true;
+}
+
+// The glassing: the Great Host burns the plain. Nobody is left to come back.
+function glass(m, why) {
+  const ls = m.ls, o = m.objectives.find((q) => q.lastStand);
+  ls.stage = 'glass'; ls.glassT = m.t; ls.fallen = why === 'fallen';
+  m.hd.lives = 0;
+  for (const p of m.pods) p.n = 0;
+  if (o && o.load > 0) { m.emit('shuttle', { x: o.hx, y: o.hy, n: o.load, ang: Math.atan2(o.hy - o.sy, o.hx - o.sx) }); ls.lifted++; o.load = 0; }   // the last Pelican
+  m.radio(why === 'fallen' ? COMMS.lsFallen : COMMS.lsGlass, 'lsglass', 0);
+  m.emit('ls_stage', { stage: 'glass', why });
+  m.emit('glass', { x: o ? o.x : m.cx, y: o ? o.y : m.cy });
 }
 
 // Every tick (mission.js step).
@@ -111,49 +125,61 @@ export function updateLastStand(m, dt) {
   const ls = m.ls, K = L();
   if (!ls || m.over) return;
   const o = m.objectives.find((q) => q.lastStand);
-  // the base falls: no Helldiver left and none to come
-  const hdLeft = m.hdAlive.length || m.pendingPods('H') > 0 || m.hd.lives > 0;
-  if (!hdLeft && ls.stage !== 'glass' && !ls.fallen && m.t > m.dropAt + 10) {
-    ls.fallen = true; ls.glassAt = Math.min(ls.glassAt, m.t + K.warnSec / 3);
-    m.radio(COMMS.lsFallen, 'lsfallen', 0);
-    m.emit('ls_stage', { stage: 'fallen' });
-  }
   if (ls.stage === 'hold') {
     ls.holdT += dt;
-    // the waves: more often and bigger as the hold goes on, a Harvester every few
+    const min = ls.holdT / 60, k = Math.min(1, ls.holdT / K.rampSec);
+    // each minute the Great Host hits harder (director.js multiplies the enemy's damage by ls.dmg) and comes in tougher
+    ls.dmg = 1 + K.dmgGrow * min;
+    m.hpMul = ls.hp0 * (1 + K.hpGrow * min);
     ls.waveT -= dt;
     if (ls.waveT <= 0) {
-      const k = Math.min(1, ls.holdT / K.holdSec), [e0, e1] = K.waveEvery, [s0, s1] = K.waveSize;
+      const [e0, e1] = K.waveEvery;
       ls.waveT = e0 + (e1 - e0) * k;
       ls.waves++;
-      const n = Math.round(s0 + (s1 - s0) * k), heavy = ls.waves % K.heavyEvery === 0, mediums = Math.round(n * (0.15 + 0.25 * k));
-      const kinds = [...(heavy ? ['H'] : []), ...Array(mediums).fill('M'), ...Array(Math.max(1, n - mediums)).fill('L')];
-      const a = m.rng.angle(), R = K.waveR;
-      let x = o.x + Math.cos(a) * R, y = o.y + Math.sin(a) * R;
-      if (!m.terrain.isLand(x, y)) { const l = m.terrain.nearestLand(x, y, 80); if (l) { x = l.x; y = l.y; } }
-      const g = spawnGroup(m, x, y, 'hunt', { kinds, alertT: 120 });
-      g.target = { x: o.x, y: o.y }; g.tp = { x: o.x, y: o.y };
-      m.emit('reinf_spawn', { x, y, kind: m.faction.id, src: 'ls' });
+      if (m.enemies.length < C.enemies.hardCap) {
+        const n = Math.round(K.waveSize[0] + K.waveGrow * min), heavies = k >= 1 ? 1 + Math.floor(min / 3) : ls.waves % K.heavyEvery === 0 ? 1 : 0;
+        const mediums = Math.round(n * (0.15 + 0.3 * k));
+        const kinds = [...Array(heavies).fill('H'), ...Array(mediums).fill('M'), ...Array(Math.max(1, n - mediums)).fill('L')];
+        const a = m.rng.angle(), R = K.waveR;
+        let x = o.x + Math.cos(a) * R, y = o.y + Math.sin(a) * R;
+        if (!m.terrain.isLand(x, y)) { const l = m.terrain.nearestLand(x, y, 80); if (l) { x = l.x; y = l.y; } }
+        const g = spawnGroup(m, x, y, 'hunt', { kinds, alertT: 120 });
+        g.target = { x: o.x, y: o.y }; g.tp = { x: o.x, y: o.y };
+        m.emit('reinf_spawn', { x, y, kind: m.faction.id, src: 'ls' });
+      }
     }
-    if (!ls.warned && m.t >= ls.glassAt - K.warnSec) { ls.warned = true; m.radio(COMMS.lsWarn, 'lswarn', 0); m.emit('ls_stage', { stage: 'warn' }); }
+    if (!ls.broke && m.hd.lives <= K.breakAt) { ls.broke = true; m.radio(COMMS.lsBreaking, 'lsbreak', 0); m.emit('ls_stage', { stage: 'breaking' }); }
+    // the base falls with the last Helldiver (or the fleet stops waiting)
+    const hdLeft = m.hdAlive.length || m.pendingPods('H') > 0 || m.hd.lives > 0;
+    if (!hdLeft) glass(m, 'fallen');
+    else if (ls.holdT >= K.maxHold) glass(m, 'time');
+  } else if (ls.stage === 'lessons') {
+    // (no Helldivers left in the lessons either: straight to the glassing)
+    if (m.t > m.dropAt + 10 && !m.hdAlive.length && m.pendingPods('H') === 0 && m.hd.lives <= 0) { lsBegin(m); glass(m, 'fallen'); }
   }
-  if (ls.stage !== 'glass' && m.t >= ls.glassAt) {
-    // the last Pelican lifts with whoever has reached the hangar, and the fleet fires
-    ls.stage = 'glass'; ls.glassT = m.t;
-    if (o && o.load > 0) { m.emit('shuttle', { x: o.hx, y: o.hy, n: o.load, ang: Math.atan2(o.hy - o.sy, o.hx - o.sx) }); ls.lifted++; o.load = 0; }
-    m.radio(COMMS.lsGlass, 'lsglass', 0);
-    m.emit('ls_stage', { stage: 'glass' });
-    m.emit('glass', { x: o ? o.x : m.cx, y: o ? o.y : m.cy });
+  if (ls.stage === 'glass') {
+    // beams across the map: at first round the base, then everywhere, and everything under one burns
+    ls.beamT -= dt;
+    const p = Math.min(1, (m.t - ls.glassT) / K.glassSec);
+    while (ls.beamT <= 0) {
+      ls.beamT += K.beamEvery;
+      const A = m.ao, near = m.rng.next() < 0.6 - 0.4 * p, R = near ? 60 + 260 * p : (A.R || A.size / 2) * Math.sqrt(m.rng.next());
+      const a = m.rng.angle(), cx = near && o ? o.x : A.cx, cy = near && o ? o.y : A.cy;
+      const x = cx + Math.cos(a) * R * (near ? m.rng.next() : 1), y = cy + Math.sin(a) * R * (near ? m.rng.next() : 1);
+      m.emit('glassbeam', { x, y, r: K.beamR });
+      damageArea(m, x, y, K.beamR, 1e5, { L: 1, M: 1, H: 1, B: 1 }, 'enemy', true);
+    }
+    // the last of the squad and the base go in the final seconds
+    if (p >= 0.75) for (const a of m.alive) if (!a.dead && a.type === 'H') { m.emit('glassbeam', { x: a.x, y: a.y, r: K.beamR }); damageArea(m, a.x, a.y, K.beamR, 1e5, { L: 1, M: 1, H: 1, B: 1 }, 'enemy', true); }
+    if (p >= 1) m.finish('glassed');
   }
-  if (ls.stage === 'glass' && m.t >= ls.glassT + K.glassSec) m.finish('glassed');
 }
 
 // What the HUD's objective line says during the hold.
 export function lsStatus(m, o) {
   const ls = m.ls;
   if (!ls) return null;
-  const left = Math.max(0, Math.ceil(ls.glassAt - m.t)), mm = Math.floor(left / 60), ss = String(left % 60).padStart(2, '0');
   if (ls.stage === 'lessons') return { text: tr('obj.ls.lessons'), p: 0 };
-  if (ls.stage === 'glass') return { text: tr('obj.ls.glass', { saved: o.saved }), p: 1 };
-  return { text: tr('obj.ls.hold', { saved: o.saved, pop: ls.pop, t: `${mm}:${ss}` }), p: Math.min(1, ls.holdT / L().holdSec) };
+  if (ls.stage === 'glass') return { text: tr('obj.ls.glass', { saved: o.saved }), p: 1, urgent: true };
+  return { text: tr('obj.ls.hold', { saved: o.saved, pop: ls.pop, w: ls.waves }), p: Math.min(1, o.saved / ls.pop), urgent: ls.broke };
 }

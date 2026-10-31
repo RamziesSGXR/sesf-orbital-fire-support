@@ -135,6 +135,11 @@ export class Audio {
   beam() { if (!this._ok('beam', 0.3)) return; this._tone(220, 880, 0.5, 0.14, 'sawtooth'); this._noise(0.4, 2400, 300, 0.18, 'bandpass', 2); }
   nukeBlast() { if (!this.ctx) return; this._noise(3.2, 1500, 30, 0.95); this._tone(60, 22, 2.8, 0.9); this._tone(120, 30, 1.8, 0.5, 'sawtooth'); }
   click() { if (!this.ctx) return; this._tone(900, 700, 0.04, 0.08, 'square'); }
+  // (0.19) The Mars cinematics: a long low swell under a line of text, a heavy hit, and the hiss and crack of a glassing beam.
+  cineSwell(sec = 6) { if (!this.ctx) return; this._tone(41, 55, sec, 0.22, 'sine'); this._tone(82, 98, sec, 0.06, 'triangle'); this._noise(sec, 180, 60, 0.08, 'lowpass', 0.5); }
+  cineHit() { if (!this.ctx) return; this._tone(70, 28, 2.4, 0.5, 'sine'); this._noise(1.6, 900, 40, 0.35); }
+  cineLine() { if (!this._ok('cline', 0.4)) return; this._tone(1320, 1320, 0.05, 0.03, 'square'); }
+  glassBeam(v = 1, pan = 0) { if (!this._ok('gbeam', 0.11)) return; this._pan = pan; this._noise(0.9, 3000, 120, 0.28 * v, 'bandpass', 0.9); this._tone(240, 50, 0.8, 0.22 * v, 'sawtooth'); this._pan = 0; }
   // Credits coming in: a small bright ping, rate limited so a kill streak is a trill and not a wall.
   coin() { if (!this._ok('coin', 0.09)) return; this._tone(1500, 2100, 0.07, 0.045, 'triangle'); }
   // The UAV scan: a rising sweep and two radar blips.

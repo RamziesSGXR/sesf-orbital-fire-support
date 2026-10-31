@@ -50,7 +50,8 @@ await tap('#b-continue'); await page.waitForTimeout(1200);
 await step(8);
 
 // ---------------------------------------------------------------- the tactical build screen: eight builds
-await tap(touch ? '#dk-tac' : '#btn-tac'); await page.waitForTimeout(300);
+await tap('#dk-tac'); await page.waitForTimeout(300);
+await tap('#tactical .tct[data-tab="build"]'); await page.waitForTimeout(300);     // (0.19.1: the sheet opens on its last tab)
 const tiles = await ev(() => [...document.querySelectorAll('#tactical .bld')].map((b) => b.dataset.b));
 const pics = await ev(() => [...document.querySelectorAll('#tactical .bld canvas')].map((c) => { const d = c.getContext('2d').getImageData(c.width / 2 - 10, c.height / 2 - 10, 20, 20).data; let v = 0; for (let i = 0; i < d.length; i += 4) v += d[i] + d[i + 1] + d[i + 2]; return v; }));
 check('eight builds, with the lookout and the light bridge and no bunker', tiles.length === 8 && tiles.includes('lookout') && tiles.includes('bridge') && !tiles.includes('bunker'), tiles.join(','));
@@ -105,12 +106,13 @@ check('outside the round area is dark', dark.outside < dark.inside * 0.7, JSON.s
   check('the briefing says when SEAF already hold the site', /ALREADY HOLDING/.test(await ev2(() => document.getElementById('r-obj').textContent)));
   await tap2('#b-continue'); await p2.waitForTimeout(1500);
   const s0 = await ev2(() => ({ tac: window.__game.tac, tab: document.getElementById('tactical').dataset.tab, cd: !document.getElementById('dropcd').classList.contains('hidden'), t: window.__game.mission.t, hd: window.__game.mission.hdAlive.length, sf: window.__game.mission.seafAlive.length }));
-  check('a mission starts on the tactical screen (troops), with the drop countdown and the defenders on the ground', s0.tac && s0.tab === 'units' && s0.cd && s0.hd === 0 && s0.sf === 5, JSON.stringify(s0));
+  check('a mission starts with the panels shut (TACTICAL opens on troops), the drop countdown and the defenders on the ground', !s0.tac && s0.tab === 'units' && s0.cd && s0.hd === 0 && s0.sf === 5, JSON.stringify(s0));
   await p2.waitForTimeout(1200);
-  check('the tactical screen runs in real time', (await ev2(() => window.__game.mission.t)) > s0.t + 0.5);
+  check('the countdown runs in real time', (await ev2(() => window.__game.mission.t)) > s0.t + 0.5);
   check('the first SEAF drop can be called at once', await ev2(() => { const m = window.__game.mission; return m.callSeaf(m.lz.x + 15, m.lz.y).ok; }));
   await p2.screenshot({ path: path.join(SHOTS, `ui18_${mode}_start.png`) });
   if (!touch) {
+    await p2.keyboard.press('Tab'); await p2.waitForTimeout(300);
     await p2.mouse.move(200, 200); await p2.keyboard.press('Space'); await p2.waitForTimeout(300);
     const ps = await ev2(() => ({ soft: window.__game.soft, t: window.__game.mission.t }));
     await p2.waitForTimeout(500);

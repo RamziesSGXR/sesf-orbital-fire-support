@@ -116,7 +116,7 @@ check('and back to full speed', await ev(() => window.__game.speed === 1 && docu
 
 // ---------------------------------------------------------------- building: the tactical menu, weapon 9 (the cannon needs a crew)
 await ev(() => { const m = window.__game.mission; m.seaf.readyAt = 0; m.callSeaf(m.hx + 20, m.hy + 10); for (let i = 0; i < 30 * 14; i++) m.step(1 / 30); });
-await tap(touch ? '#dk-tac' : '#btn-tac'); await page.waitForTimeout(300);
+await tap('#dk-tac'); await page.waitForTimeout(300);
 const bm = await ev(() => [...document.querySelectorAll('#tactical .bld')].map((b) => b.textContent));
 check('the tactical build screen has the artillery cannon, locked until the armory unlocks it', bm.length === 8 && /ARTILLERY CANNON/.test(bm[7]) && /UNLOCK/.test(bm[7]), bm.join(' | '));
 check('and (0.18) the game runs on while it is open', await ev(async () => { const g = window.__game, t0 = g.mission.t; await new Promise((r) => setTimeout(r, 300)); return g.tac && g.mission.t > t0; }));

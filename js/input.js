@@ -25,7 +25,7 @@ export class Input {
 
   // Where the reticle is on screen, in CSS pixels.
   screenAim() {
-    if (this.touch) return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    if (this.touch) return { x: window.innerWidth / 2, y: window.innerHeight * (this.focusY || 0.5) };   // (0.19.1: above the sheet)
     return { x: this.mx, y: this.my };
   }
 
