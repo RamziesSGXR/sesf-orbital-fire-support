@@ -39,6 +39,8 @@ export const BIOMES = {
   desert: { id: 'desert', speed: 1.0,  ping: 1.2, splash: 1.0 },
   jungle: { id: 'jungle', speed: 1.0,  ping: 0.7, splash: 1.0 },
   moon:   { id: 'moon',   speed: 1.15, ping: 1.0, splash: 1.2 },
+  // (0.19) Mars: rust, dust and old craters. Only the last stand (sim/laststand.js) is fought there: not in the session's pool.
+  mars:   { id: 'mars',   speed: 1.0,  ping: 1.1, splash: 1.1, pool: false },
 };
 for (const b of Object.values(BIOMES)) Object.defineProperty(b, 'name', { get: () => t(`biome.${b.id}`), enumerable: true });
 
@@ -49,7 +51,6 @@ export const ADJECTIVES = ['Crimson', 'Steel', 'Righteous', 'Eternal', 'Mighty',
 export const NOUNS = ['Liberty', 'Democracy', 'Thunder', 'Hammer', 'Dawn', 'Resolve', 'Verdict', 'Harvest', 'Lance', 'Bastion', 'Fury', 'Anthem'];
 
 // Radio lines (original to this project). The text lives in the language tables under c.<name>; these are the calls the sim makes.
-const T = (k) => () => t('c.' + k);
 export const COMMS = {
   get startDrop() { return t('c.startDrop'); },
   get landed() { return t('c.landed'); },
@@ -106,7 +107,7 @@ export const COMMS = {
   setup: (n) => t('c.setup', { n }),
   get nukeLost() { return t('c.nukeLost'); },
   get nukeArmed() { return t('c.nukeArmed'); },
-  get nukeAuto() { return t('c.nukeAuto'); },
+  get nukeMissed() { return t('c.nukeMissed'); },
   get nukeInbound() { return t('c.nukeInbound'); },
   get nukeDone() { return t('c.nukeDone'); },
   get vipFound() { return t('c.vipFound'); },
@@ -124,6 +125,11 @@ export const COMMS = {
   get dropshipDown() { return t('c.dropshipDown'); },
   get warpDown() { return t('c.warpDown'); },
   get evacStart() { return t('c.evacStart'); },
+  // (0.19) the last stand on Mars
+  get lsBegin() { return t('c.lsBegin'); },
+  get lsWarn() { return t('c.lsWarn'); },
+  get lsGlass() { return t('c.lsGlass'); },
+  get lsFallen() { return t('c.lsFallen'); },
   get evacPaused() { return t('c.evacPaused'); },
   get evacDone() { return t('c.evacDone', { n: C.objective.evac.need }); },
   get civFriendly() { return t('c.civFriendly'); },
@@ -160,7 +166,6 @@ export const COMMS = {
   get artyUp() { return t('c.artyUp'); },
   get artyStart() { return t('c.artyStart'); },
   get jammed() { return t('c.jammed'); },
-  get artyCrew() { return t('c.artyCrew'); },
   get seafMan() { return t('c.seafMan'); },
   postDown: (what) => t('c.postDown', { what }),
   get artyFire() { return t('c.artyFire'); },

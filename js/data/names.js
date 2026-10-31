@@ -1,6 +1,5 @@
 // Ship names, callsigns and the helpers for the lines Helldivers and SEAF call out. All text here is original to this fan project.
 // Ship names and callsigns are never translated.
-import { RNG } from '../util/rng.js';
 
 // Super Destroyer names, in the "SES <thing> of <ideal>" style.
 const SHIP_THINGS = ['Hammer', 'Spear', 'Shield', 'Fist', 'Beacon', 'Anthem', 'Banner', 'Vanguard', 'Bulwark', 'Torch', 'Gavel', 'Aegis',
@@ -35,4 +34,3 @@ export function seafName(rng, role) {
 // Short, readable name for a stratagem call in a bark.
 export const pickLine = (rng, list) => list[rng.int(list.length)];
 export const fill = (s, n) => s.replace('{n}', n);
-export const seededRng = (seed) => new RNG(seed >>> 0);

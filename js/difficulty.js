@@ -1,6 +1,8 @@
-// Difficulty, 1 to 10. It is picked on the title screen when a session starts and stays with that session: changing it means
-// starting over. Level 10 is the game exactly as tuned in config.js; every lower level scales the enemy down from there
-// (CONFIG.difficulty says by how much at level 1, and the levels in between step evenly):
+// Difficulty. A session starts at a level from 1 to 10, picked on the title screen, and climbs from there: each mission is
+// CONFIG.difficulty.ramp of a level harder than the one before (levelAt), with no ceiling, so a session started at 3 flies its
+// tenth mission at 10, what a session started at 10 flies first, and goes on past it. Level 10 is the game exactly as tuned in
+// config.js; every lower level scales the enemy down from there and every higher one up (CONFIG.difficulty says by how much at
+// level 1; the levels step evenly, and on past 10 at CONFIG.difficulty.beyond of that step):
 //   spawn   how many come: patrols out of each base and how fast they are replaced, intercepts, base garrisons, backup calls by
 //           flare, at sites and at extraction (how often, how big, the cap at a site), group sizes, the live cap, and how fast the
 //           pressure climbs
@@ -14,25 +16,50 @@
 // since (two missions of different levels in one process, as in tests).
 import { CONFIG as C } from './config.js';
 
-export const LEVELS = 10;
+export const LEVELS = 10;      // the levels a session can start at
+export const TOP = 40;         // (a ceiling for the climb, far past anything a session reaches)
 const D = () => C.difficulty;
-// A level from anything (a setting, a saved session, the address bar): a number from 1 to 10, or 10 when there is none.
+const num = (d) => (d === null || d === undefined || d === '' ? NaN : Number(d));
+// A starting level from anything (a setting, a saved session, the address bar): a number from 1 to 10, or 10 when there is none.
 export function clampLevel(d) {
-  const n = d === null || d === undefined || d === '' ? NaN : Number(d);
+  const n = num(d);
   return Number.isFinite(n) ? Math.max(1, Math.min(LEVELS, Math.round(n))) : LEVELS;
 }
+// A mission's level: from 1 up (past 10 once a session has climbed there), or 10 when there is none.
+export function clampAny(d) {
+  const n = num(d);
+  return Number.isFinite(n) ? Math.max(1, Math.min(TOP, Math.round(n))) : LEVELS;
+}
+// War minutes: how far the war has escalated, the clock the enemy's toughness, damage, numbers and heavies grow by (it used to be
+// the session's own minutes). A level stands for a point on it (CONFIG.difficulty.war, and warBeyond more a level past 10), and
+// the session's real minutes add sessionRamp of a minute each. Without a level (tests, tools: the config as tuned) it is the
+// session's minutes as they are.
+export function warAt(d) {
+  const W = D().war;
+  d = clampAny(d);
+  return d <= LEVELS ? W[d - 1] : W[LEVELS - 1] + D().warBeyond * (d - LEVELS);
+}
+export function warMinutes(d, S = 0) { return d === undefined || d === null ? S : warAt(d) + D().sessionRamp * S; }
+// A level's name in the language tables: diff.1 to diff.10, and past 10 'Super Helldive +n' (t(...levelName(d))).
+export const levelName = (d) => (clampAny(d) <= LEVELS ? ['diff.' + clampAny(d)] : ['diff.beyond', { n: clampAny(d) - LEVELS }]);
+// The level of mission n (1 = the first) of a session that started at `start`.
+export function levelAt(start, n) { return clampAny(clampLevel(start) + D().ramp * Math.max(0, (Number(n) || 1) - 1)); }
 
-// A factor for level d: `lo` at level 1 rising to 1 at level 10. The steps shrink toward the top (CONFIG.difficulty.curve): the
-// enemy gets much harder over the last stretch of numbers, so the top levels are spread finer.
-function factor(lo, d) { return 1 - (1 - lo) * Math.pow((LEVELS - clampLevel(d)) / (LEVELS - 1), D().curve); }
+// A factor for level d: `lo` at level 1 rising to 1 at level 10 (the steps shrink toward the top when CONFIG.difficulty.curve > 1),
+// and on up past 10, beyond x the average step a level.
+function factor(lo, d) {
+  d = clampAny(d);
+  if (d <= LEVELS) return 1 - (1 - lo) * Math.pow((LEVELS - d) / (LEVELS - 1), D().curve);
+  return 1 + (1 - lo) * D().beyond * (d - LEVELS) / (LEVELS - 1);
+}
 export function levelFactors(d) {
   const L = D();
   return { spawn: factor(L.spawn, d), medium: factor(L.medium, d), heavy: factor(L.heavy, d), boss: factor(L.boss, d), reward: reward(d) };
 }
-// Credits and score: reward[0] at level 1 up to reward[1] at level 10, the same step each level.
+// Credits and score: reward[0] at level 1 up to reward[1] at level 10, the same step each level, and on at that step past 10.
 export function reward(d) {
   const [a, b] = D().reward;
-  return Math.round((a + (b - a) * (clampLevel(d) - 1) / (LEVELS - 1)) * 100) / 100;
+  return Math.round((a + (b - a) * (clampAny(d) - 1) / (LEVELS - 1)) * 100) / 100;
 }
 
 // What each level scales. kind: mul (x f), div (/ f: an interval), int (x f rounded, at least min), grp (group size).
@@ -63,7 +90,7 @@ export const appliedLevel = () => applied;
 
 // Write level d's values into CONFIG. Level 10 puts the tuned values back.
 export function applyDifficulty(d) {
-  d = clampLevel(d);
+  d = clampAny(d);
   if (d === applied) return;
   const f = levelFactors(d);
   for (const [path, which, kind, min] of RULES) {

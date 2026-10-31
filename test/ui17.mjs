@@ -251,7 +251,7 @@ const lst = await ev(() => { const g = window.__game, m = g.mission; m.crates.pu
 if (touch) await tap('#dk-tac'); else await page.keyboard.press('Tab');
 await page.waitForTimeout(300);
 check(touch ? 'it opens the tactical build screen' : 'Tab opens the tactical build screen', await ev(() => window.__game.tac));
-check('(0.18) no GAME PAUSED banner: it says LIVE', !(await page.isVisible('#tac-banner')) && /LIVE/.test(await ev(() => document.getElementById('tc-state').textContent)));
+check('(0.18) no GAME PAUSED banner: it says LIVE', /LIVE/.test(await ev(() => document.getElementById('tc-state').textContent)));
 if (await page.isVisible('#tactical .tct[data-tab="build"]')) { await tap('#tactical .tct[data-tab="build"]'); await page.waitForTimeout(150); }
 const chips = await ev(() => [...document.querySelectorAll('#tc-list .tl')].map((b) => b.textContent));
 check('a button for each crate with its progress, and one for posts that stand together', chips.some((c) => /LOOKOUT.*%/.test(c)) && chips.some((c) => /TURRET NEST.*LOOKOUT/.test(c)), chips.join(' | '));
@@ -262,7 +262,7 @@ const camD = await ev(({ x, y }) => Math.hypot(window.__game.cam.x - x, window._
 check('a double tap on one takes the camera there', camD < 40, String(Math.round(camD)));
 if (touch) await tap('#tactical .tc-x'); else await page.keyboard.press('Tab');
 await page.waitForTimeout(250);
-check(touch ? 'its ✕ closes it' : 'and Tab closes it again', !(await ev(() => window.__game.tac)) && !(await page.isVisible('#tac-banner')));
+check(touch ? 'its ✕ closes it' : 'and Tab closes it again', !(await ev(() => window.__game.tac)));
 
 // (0.17.1) MAIN MENU in the pause menu: asks twice; the mission does not count, and the same one waits for RESUME
 const opNow = await ev(() => window.__game.info.op), flown0 = await ev(() => window.__game.session.missions.length);

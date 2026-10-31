@@ -2,9 +2,8 @@
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
 import { compass } from './enemies.js';
-import { onSpot, ringOf, baseAwake } from './director.js';
+import { ringOf, baseAwake } from './director.js';
 import { planGoal } from './planner.js';
-import { bark } from './chatter.js';
 import { updateSeaf } from './seaf.js';
 import { speedMul } from './helldiver.js';
 import { canStep } from './safety.js';
@@ -56,16 +55,9 @@ function ringAvoid(m, sq, x, y, wx, wy, gx, gy, target) {
   return { x: x + Math.cos(ang) * L, y: y + Math.sin(ang) * L };
 }
 
-function step(o, tx, ty, speed, dt) {
-  const dx = tx - o.x, dy = ty - o.y, d = Math.hypot(dx, dy);
-  if (d < 0.05) return 0;
-  const s = Math.min(speed * dt, d);
-  o.x += (dx / d) * s; o.y += (dy / d) * s;
-  return s;
-}
 
 export function updateSquad(m, dt) {
-  const sq = m.squad, t = m.t, size = C.world.size;
+  const sq = m.squad, t = m.t;
   const bm = m.biome.speed;
   // Stratagems and loads change how fast the squad moves: the recon vehicle is quick, jump packs help, a carried VIP slows them.
   let mod = 1, mounted = false;
@@ -107,7 +99,6 @@ export function updateSquad(m, dt) {
       sq.state = 'setup'; sq.setupT = C.squad.setupSec; sq.free = false; sq.spotG = spot.g;
       m.radio(COMMS.spotted(m.faction.name.toLowerCase(), compass(spot.x - m.hx, spot.y - m.hy)), 'spotted', 6);
       m.emit('spotted', { x: spot.g.cx, y: spot.g.cy });
-      onSpot(m, spot.g);
     }
     if (sq.state === 'attack') {
       sq.attackT -= dt;

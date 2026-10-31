@@ -22,21 +22,17 @@ import { turretStep } from './strat.js';
 import { damageDrop } from './reinforce.js';
 
 export const POSTS = ['foxhole', 'bastion', 'mg', 'lookout', 'bridge', 'tower', 'sam', 'arty'];      // the tactical menu's order (keys 1 to 8)
-export const ARMORY_POSTS = ['bastion', 'mg', 'lookout', 'bridge', 'tower', 'sam', 'arty'];         // the foxhole has no levels
 export const GARRISON = -2;                                                                // a.sq of a garrisoned trooper
 const TAU = Math.PI * 2;
 const B = () => C.build;
 
 // The level a post is built at (the foxhole is always 1; a captured cannon fires at level 1 at least).
 export const postLevel = (m, what) => (what === 'foxhole' ? 1 : Math.max(0, buildLevel(m.kit, what)));
-export const crewCap = (p) => p.cap || 0;
 // (0.18) Nothing needs a crew any more: the guns, towers and the cannon work on their own (they take longer to build), and a crew is a
 // bonus. The buildings (INSIDE) take their crew in: troopers sent to man one leave their squad and are hidden inside it (selecting
 // the post shows them); they fight from it, and the post takes the hits. Foxholes and bastions are cover: whoever stands in them
 // is the crew, in plain sight.
-export const needsCrew = () => false;
 export const INSIDE = new Set(['mg', 'lookout', 'tower', 'arty']);
-export const insidePost = (p) => !!p && INSIDE.has(p.what);
 // What a crew adds (0 to 1: none to full; full at cap).
 export const crewFrac = (p) => (p.cap ? Math.min(1, p.crew / p.cap) : 0);
 export const postName = (what) => tr('build.' + what);
@@ -133,7 +129,6 @@ export function releaseGarrison(m, p, to = -1) {
   p.garrison = 0;
   return n;
 }
-export const garrisonOf = (m, p) => m.seafAlive.filter((a) => a.post === p);
 
 // ---------------------------------------------------------------- every tick
 export function updatePosts(m, dt) {

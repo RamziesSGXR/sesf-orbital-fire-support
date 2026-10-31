@@ -1,7 +1,7 @@
 // A simple bot that plays the destroyer through the same input API as a human: UAV scans, orbital strikes, SEAF drops,
 // the nuke, and shopping between missions. Used by the headless balance test and the ?bot=1 demo.
 import { CONFIG as C } from '../config.js';
-import { buy, shopItems, seafStats, ORB_PRICE } from '../data/kit.js';
+import { buy, shopItems, seafStats } from '../data/kit.js';
 import { slotStats, aimGeom, UAV_REACH, ORB_SLOTS } from './player.js';
 import { pickNukeTarget } from './objectives.js';
 import { acceptSupply, fillSupply } from './supply.js';
@@ -99,6 +99,17 @@ function clearOfAllies(m, x, y, r) {
   return true;
 }
 
+// Half of the biggest squad (every other trooper, so each keeps a share of the specialists) moves to a squad of its own.
+export function splitHalf(m) {
+  const big = m.seafTargets().sort((a, b) => b.n - a.n)[0];
+  if (!big) return null;
+  const mem = m.seafAlive.filter((a) => a.sq === big.i).sort((a, b) => a.id - b.id).filter((_, k) => k % 2 === 1);
+  const free = m.seaf.squads.find((q) => q.i !== big.i && !m.seafAlive.some((a) => a.sq === q.i));
+  if (!mem.length || !free) return null;
+  m.pickSeaf(mem); const r = m.toSquad(free.i); m.selectSquad(-1);
+  return r;
+}
+
 // SEAF pods when there is room (at a lit drop beacon near where the squad is going, if there is one), and a UAV whenever it is ready.
 function orders(m, bot) {
   const t = m.t, dir = m.squad.dir, p = m.player;
@@ -110,7 +121,7 @@ function orders(m, bot) {
     else m.callSeaf(m.hx + Math.cos(dir) * 25, m.hy + Math.sin(dir) * 25);
   }
   // keep a pair of squads when there are enough troopers
-  if (bot.split && !bot.splitDone && m.seafAlive.length >= 6) { bot.splitDone = true; m.selectSquad(0); m.splitSeaf(); m.selectSquad(-1); }
+  if (bot.split && !bot.splitDone && m.seafAlive.length >= 6) { bot.splitDone = true; splitHalf(m); }
   const u = p.slots[0];
   if (u.type === 'uav' && t >= u.readyAt && m.hdAlive.length) {
     const reach = Math.min(120, m.hdAlive[0].zone + UAV_REACH - 20);

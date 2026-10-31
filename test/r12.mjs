@@ -37,11 +37,11 @@ const seafReady = (m, n = 5) => { m.seaf.readyAt = 0; m.callSeaf(m.hx + 10, m.hy
   const m = quiet('bots', 1201);
   seafReady(m);
   m.seafOrder('escort');
-  run(m, C.seaf.followSec + 60);
+  run(m, 105);
   const q = m.seaf.squads.find((x) => x.n);
   check('an escort order is still on long after the old 45 s limit', q && q.order.kind === 'escort', q && q.order.kind);
   m.seafOrder('attack', m.hx + 60, m.hy);
-  run(m, C.seaf.attackSec + 30);
+  run(m, 65);
   check('so is an attack order (they hold what they took)', q.order.kind === 'attack');
 }
 

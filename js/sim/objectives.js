@@ -8,6 +8,7 @@ import { COMMS } from '../data/data.js';
 import { spawnNear } from './director.js';
 import { callReinforcements } from './reinforce.js';
 import { updateEvac } from './civilians.js';
+import { lsStatus } from './laststand.js';
 import { openExtract } from './extract.js';
 import { aoX, aoY, aoScale } from './ao.js';
 import { spawnBoss } from './boss.js';
@@ -178,7 +179,7 @@ function squadAt(m, x, y, r) {
 }
 
 // ----- nuke -----
-// Densest cluster of enemies that is safely away from every ally. Used when the player does not fire in time.
+// Densest cluster of enemies that is safely away from every ally (the bot fires the nuke there).
 export function pickNukeTarget(m) {
   const R = O.nuke.blastR, safe = R + 14;
   const far = (x, y) => {
@@ -233,17 +234,19 @@ function updateNuke(m, o, dt) {
   }
   if (o.state === 'armed') {
     siege(m, o, o.x, o.y, dt, 1.4);
+    // (0.19) the nuke is the gunner's to fire: it never launches itself. A window that closes unfired sends the site back to
+    // holding, rearm of the way through, and the window opens again once it is held.
     if (t >= o.armedAt + O.nuke.armedSec) {
-      const p = pickNukeTarget(m);
-      m.radio(COMMS.nukeAuto, 'nukeauto', 0);
-      m.nukeFire(p.x, p.y, true);
+      o.state = 'hold'; o.holdT = O.nuke.holdSec * (1 - O.nuke.rearm); o.missed = (o.missed || 0) + 1;
+      m.radio(COMMS.nukeMissed, 'nukemissed', 0);
+      m.emit('obj_state', { type: 'nuke', state: 'hold', missed: true });
     }
   }
 }
 
 // ----- VIP -----
 function updateVip(m, o, dt) {
-  const t = m.t, v = o.vip, V = O.vip;
+  const v = o.vip, V = O.vip;
   if (!o.garrisoned && squadAt(m, o.x, o.y, 330)) {
     // two groups hold the VIP's compound; they appear out of sight and walk in
     if (o.owed === undefined) o.owed = 2;
@@ -360,6 +363,7 @@ export function objectiveStatus(m) {
     return { text: tr('obj.nuke.inbound'), p: 1, urgent: true };
   }
   if (o.type === 'evac') {
+    if (o.lastStand) return lsStatus(m, o);
     if (o.state === 'travel') return { text: tr('obj.evac.travel', { of }), p: 0 };
     if (o.state === 'setup') return { text: tr('obj.setup', { n: Math.max(0, Math.ceil(o.setupT)), of }), p: 1 - o.setupT / C.defense.setupSec, urgent: true };
     return { text: tr(o.open ? 'obj.evac.run' : 'obj.evac.shut', { saved: o.saved, need: O.evac.need, of }), p: o.saved / O.evac.need };

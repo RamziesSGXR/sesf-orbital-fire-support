@@ -19,7 +19,7 @@ const errs = []; page.on('pageerror', (e) => errs.push(e.message));
 const ev = (f, a) => page.evaluate(f, a);
 const tap = (sel) => (touch ? page.tap(sel) : page.click(sel));
 const shot = (n) => page.screenshot({ path: path.join(SHOTS, `ui12_${mode}_${n}.png`) });
-const PAGE = `file://${ROOT}/dist/orbital-fury.html?skipstart&faction=bots&biome=grass&seed=12&tod=11&objectives=nuke`;
+const PAGE = `file://${ROOT}/dist/orbital-fury.html?skipstart&faction=bots&biome=grass&seed=12&tod=11&objectives=nuke&difficulty=1`;     // (0.19: level 1, so the SEAF in the escort test live through it)
 
 await page.goto(PAGE); await page.waitForTimeout(600);
 await tap('#btn-play'); await page.waitForTimeout(250);
@@ -73,7 +73,7 @@ if (sq) {
   const sq2 = await ev((i) => { const q = window.__game.mission.seaf.squads[i]; return { x: q.cx, y: q.cy }; }, sq.i);
   check('a double tap on a SEAF squad moves the camera to it', Math.hypot(c4.x - sq2.x, c4.y - sq2.y) < 30, `${Math.hypot(c4.x - sq2.x, c4.y - sq2.y).toFixed(0)} m off`);
   await ev(() => window.__game.order('escort', true));
-  await ev(() => { const m = window.__game.mission; for (let i = 0; i < 30 * 70; i++) m.step(1 / 30); });
+  await ev(() => { const m = window.__game.mission; for (let i = 0; i < 30 * 70; i++) { for (const a of m.seafAlive) a.hp = a.maxHp; m.step(1 / 30); } });     // (kept alive: this checks the order's label)
   await page.waitForTimeout(400);
   const esc = await ev(() => document.querySelector('#orders .ord[data-o="escort"] .s').textContent);
   check('an escort order shows no timer and is still on after 70 s', /ACTIVE/i.test(esc), esc);
@@ -94,7 +94,8 @@ if (sq) {
   await page.keyboard.press('Escape'); await page.waitForTimeout(200);
   const bo = await ev(() => window.__game.mission.seaf.squads.some((q) => q.n && q.order.kind === 'build' && q.order.what === 'tower'));
   check('picking one sends a squad to build it', bo);
-  await ev(() => { const m = window.__game.mission; for (let i = 0; i < 30 * 110; i++) m.step(1 / 30); });
+  // (the builders are kept alive: this checks the build, not the fight; a build takes longer with few hands)
+  await ev(() => { const m = window.__game.mission; for (let i = 0; i < 30 * 160 && !m.beacons.some((b) => b.built); i++) { for (const a of m.seafAlive) a.hp = a.maxHp; m.step(1 / 30); } });
   check('and it gets built', await ev(() => window.__game.mission.beacons.some((b) => b.built)));
 }
 

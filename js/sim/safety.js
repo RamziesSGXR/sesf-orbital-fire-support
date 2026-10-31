@@ -2,11 +2,9 @@
 // steered laser) is a danger shape on the ground from the moment it is called until the last shell has landed; anyone standing
 // in one runs for the nearest edge, and nobody walks into one on purpose. Strikes the squad calls itself cannot hurt it, but
 // they are still explosions, so anyone caught inside the blast footprint steps out unless they are in the middle of a fight.
-import { CONFIG as C } from '../config.js';
 import { aoX, aoY } from './ao.js';
 import { bark } from './chatter.js';
 
-const SIZE = C.world.size;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // A shape is a capsule: a segment (x1,y1)-(x2,y2) and a radius r. A circle is a capsule whose ends are the same point.

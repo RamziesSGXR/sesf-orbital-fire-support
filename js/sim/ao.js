@@ -32,11 +32,6 @@ export function aoClamp(a, x, y, pad = 0) {
   return d <= R ? { x, y } : { x: a.cx + (dx / d) * R, y: a.cy + (dy / d) * R };
 }
 
-// A random point in the area, pad metres in from its edge.
-export function aoPoint(m, pad = 0) {
-  const a = m.ao, r = ((a.R || a.size / 2) - pad) * Math.sqrt(m.rng.next()), ang = m.rng.angle();
-  return { x: a.cx + Math.cos(ang) * r, y: a.cy + Math.sin(ang) * r };
-}
 export const aoX = (m, x, pad = 0) => Math.max(m.ao.x0 + pad, Math.min(m.ao.x1 - pad, x));
 export const aoY = (m, y, pad = 0) => Math.max(m.ao.y0 + pad, Math.min(m.ao.y1 - pad, y));
 export const inAO = (m, x, y, pad = 0) => (x - m.ao.cx) ** 2 + (y - m.ao.cy) ** 2 <= ((m.ao.R || m.ao.size / 2) - pad) ** 2;

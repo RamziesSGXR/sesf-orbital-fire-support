@@ -25,7 +25,7 @@ await page.addInitScript(() => { try { localStorage.clear(); } catch (e) { /* */
 await page.goto(`file://${ROOT}/dist/orbital-fury.html?skipstart&biome=grass&seed=1818&tod=11&difficulty=4&objective=fortress`); await page.waitForTimeout(600);
 
 // ---------------------------------------------------------------- the title: the version, the enemy picker
-check('the title screen shows version 0.18.0', /0\.18\.0/.test(await ev(() => document.getElementById('ver-t').textContent)));
+check('the title screen shows the version (0.18.0 or later)', /0\.(1[89]|[2-9]\d)\.\d/.test(await ev(() => document.getElementById('ver-t').textContent)));
 const en = await ev(() => [...document.querySelectorAll('#enemy-row .btn')].map((b) => ({ e: b.dataset.e, on: b.classList.contains('on'), t: b.textContent })));
 check('the title screen has an enemy picker: random (the default), terminids, automatons, illuminate', en.length === 4 && en[0].e === 'random' && en[0].on && en.filter((x) => x.on).length === 1, en.map((x) => x.t + (x.on ? '*' : '')).join(' '));
 await tap('#enemy-row .btn[data-e="squids"]'); await page.waitForTimeout(150);

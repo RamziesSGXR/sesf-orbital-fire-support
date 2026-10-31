@@ -43,8 +43,7 @@ export function drawAllyBody(ctx, a, r, col, team, strobe, now, px) {
 
 // ---------------------------------------------------------------- civilians
 export function drawCivBody(ctx, c, now, px) {
-  const r = Math.max(1.3, px(2.6)), hit = now !== undefined && false;
-  void hit;
+  const r = Math.max(1.3, px(2.6));
   ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.face || 0);
   ctx.fillStyle = 'rgba(0,0,0,0.55)'; circ(ctx, 0, 0, r * 1.3); ctx.fill();
   ctx.fillStyle = '#f2efe6'; ell(ctx, -0.1 * r, 0, 0.55 * r, 0.75 * r); ctx.fill();

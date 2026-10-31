@@ -11,8 +11,8 @@ import { newKit, newWallet, seafStats, maxLives, zoneExtra, buy, loadoutIds, bui
 import { seafName } from '../data/names.js';
 import { updateSquad } from './squad.js';
 import { setupDefenders } from './defenders.js';
-import { initSeaf, targetSquads, setSquadOrder, drawOrder, splitSquad, mergeSquad, assignNear, callPelican, pendingTroops, dropSquad, callCargo, boxSelect, setForm, pickTroops, toSquad, disband, PICKED } from './seaf.js';
-import { updatePosts, updateSam, garrisonPost, releaseGarrison, POSTS, GARRISON } from './posts.js';
+import { initSeaf, targetSquads, setSquadOrder, drawOrder, callPelican, pendingTroops, dropSquad, callCargo, boxSelect, setForm, pickTroops, toSquad, disband, PICKED } from './seaf.js';
+import { updatePosts, updateSam, garrisonPost, releaseGarrison, POSTS } from './posts.js';
 import { updateEnemies, updateAllies } from './enemies.js';
 import { updateDirector, alertBase } from './director.js';
 import { initPatrols, updatePatrols } from './patrols.js';
@@ -23,6 +23,7 @@ import { initPlan, updatePlan } from './planner.js';
 import { initPlayer, updatePlayer, syncSlots } from './player.js';
 import { initStrat, updateStrat, destroyAsset, mechDown } from './strat.js';
 import { setupObjectives, updateObjectives, completeObjective, startSetup } from './objectives.js';
+import { placeBase, setupLastStand, updateLastStand, lsBegin, lsSpawn } from './laststand.js';
 import { setupPois, updatePois, damagePoi, damageBreach } from './pois.js';
 import { setupCover } from './cover.js';
 import { updateChatter } from './chatter.js';
@@ -37,12 +38,10 @@ import { hurtCiv, updateCivs } from './civilians.js';
 import { initSupply, updateSupply } from './supply.js';
 import { initBoss, updateBoss } from './boss.js';
 import { pickAO, aoX, aoY, aoScale, aoClamp } from './ao.js';
-import { applyDifficulty, appliedLevel, clampLevel, reward, LEVELS } from '../difficulty.js';
+import { applyDifficulty, appliedLevel, clampAny, reward, warMinutes, LEVELS } from '../difficulty.js';
 
 const SIZE = C.world.size;
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const ORDER_KINDS = ['auto', 'move', 'protect', 'attack', 'escort'];
-export const BUILD_KINDS = POSTS;
 const ORDER_RADIO = { auto: 'seafAuto', move: 'seafMove', protect: 'seafProtect', attack: 'seafAttack', escort: 'seafEscort', path: 'seafPath', line: 'seafLine', ring: 'seafRing' };
 // What killed an ally, by faction and size, for the death report.
 
@@ -77,7 +76,7 @@ const SLIDE = [0.5, -0.5, 1.0, -1.0, 1.5, -1.5];   // how far (radians) a blocke
 export class Mission {
   constructor(opts) {
     // The session's difficulty (difficulty.js): applied before anything reads the numbers it scales. 10 when not given.
-    this.difficulty = clampLevel(opts.difficulty ?? LEVELS);
+    this.difficulty = clampAny(opts.difficulty ?? LEVELS);
     this.noDefenders = opts.defenders === false;      // (0.18: tests turn the SEAF already at the site off)
     applyDifficulty(this.difficulty);
     this.reward = reward(this.difficulty);     // credits and score multiplier
@@ -91,7 +90,9 @@ export class Mission {
     this.biome = BIOMES[opts.biome];
     this.terrain = getTerrain(opts.biome, this.seed);   // the ground: height, water depth, soft going (see terrain.js)
     this.terrain.clearDecks();                          // (light bridges from an earlier mission on the same ground come off)
-    this.S = opts.sessionMinutes || 0; // session minutes played before this mission
+    this.S = opts.sessionMinutes || 0; // session minutes played before this mission (the map grows with them)
+    // (0.19) war minutes: how far the war has escalated (difficulty.js): the enemy's toughness, damage, numbers and heavies
+    this.W = warMinutes(opts.difficulty ?? null, this.S);
     // Which mission of the session this is (1 = the first): it sets the size of the area of operations.
     this.missionN = opts.missionN ?? Math.max(1, 1 + Math.floor(this.S / 9));
     this.ao = pickAO(this, this.missionN);
@@ -137,10 +138,10 @@ export class Mission {
     this.cx = 0; this.cy = 0; // centroid of the Helldivers (or of everyone if none are alive)
     this.hx = 0; this.hy = 0;
     this.dirtyE = false; this.dirtyA = false;
-    this.pressure = Math.max(C.pressure.floor, C.pressure.start + C.pressure.perSessionMin * this.S);
-    this.hpMul = Math.min(C.ramp.hpCap, 1 + C.ramp.hp * this.S); // enemy toughness and damage grow with session time
+    this.pressure = Math.max(C.pressure.floor, C.pressure.start + C.pressure.perSessionMin * this.W);
+    this.hpMul = Math.min(C.ramp.hpCap, 1 + C.ramp.hp * this.W); // enemy toughness and damage grow with the war
     const dBase = C.ramp.base * (C.ramp.fac[opts.faction] || 1);
-    this.dmgMul = Math.min(C.ramp.dmgCap * dBase, dBase * (1 + C.ramp.dmg * this.S));
+    this.dmgMul = Math.min(C.ramp.dmgCap * dBase, dBase * (1 + C.ramp.dmg * this.W));
     this.bag = [];
     this.hd = { lives: maxLives(), max: maxLives() };    // a full set of lives every mission
     this.wiped = false;
@@ -219,7 +220,8 @@ export class Mission {
     this.limitSec = C.world.missionSec + C.world.extraSecPerBase * (nBases - C.bases.min);
 
     // Objectives (may add the citadel to the base list).
-    setupObjectives(this, opts.objectives);
+    setupObjectives(this, opts.lastStand ? ['evac'] : opts.objectives);
+    if (opts.lastStand) placeBase(this);      // (0.19: the tutorial's base, laststand.js)
     // Bases close together work as a cluster (director.js): each one knows its neighbours.
     for (const b of this.bases) b.nb = this.bases.filter((q) => q !== b && Math.hypot(q.x - b.x, q.y - b.y) <= C.bases.clusterR);
 
@@ -269,6 +271,7 @@ export class Mission {
     // (0.18) now and then SEAF are already holding the site the Helldivers are heading for
     setupDefenders(this);
     this.countdown = opts.countdown || 0; this.dropAt = this.countdown + C.helldivers.initialDropSec;    // (0.18) the drop countdown
+    if (opts.lastStand) setupLastStand(this);
     this._refreshAlive();               // (the mission starts paused on the tactical screen: who is on the ground already shows)
   }
 
@@ -479,30 +482,11 @@ export class Mission {
     this.emit('deploy_now', {});
     return { ok: true };
   }
+  // (0.19) the last stand (laststand.js): the evacuation opens; a lesson's group comes at the base
+  lsBegin() { return lsBegin(this); }
+  lsSpawn(kind, ang) { return lsSpawn(this, kind, ang); }
   get dropIn() { return Math.max(0, this.dropAt - C.helldivers.initialDropSec - this.t); }
   seafTargets() { return targetSquads(this).filter((q) => q.n > 0); }
-  splitSeaf() {
-    const i = this.seaf.sel >= 0 ? this.seaf.sel : this.seaf.squads.reduce((b, q) => (q.n > (b ? b.n : -1) ? q : b), null).i;
-    const r = splitSquad(this, i);
-    if (!r.ok) return this._deny('split' + r.reason);
-    this.notice(tr('n.split', { a: i + 1, n: r.n, b: r.to + 1 }), 'info');
-    return r;
-  }
-  mergeSeaf() {
-    const i = this.seaf.sel;
-    if (i < 0) return this._deny('mergesel');
-    const r = mergeSquad(this, i);
-    if (!r.ok) return this._deny('merge' + r.reason);
-    this.notice(tr('n.merged', { a: i + 1, b: r.to + 1 }), 'info');
-    return r;
-  }
-  assignSeaf(x, y, r = 18) {
-    if (this.seaf.sel < 0) return this._deny('assignsel');
-    const res = assignNear(this, x, y, r, this.seaf.sel);
-    if (!res.ok) return this._deny('assignnone');
-    this.notice(tr('n.assigned', { n: res.n, a: this.seaf.sel + 1 }), 'info');
-    return res;
-  }
 
   // ----- the armory: upgrades can be bought mid-mission, new orbitals and slots only between missions -----
   spend(id) {
@@ -625,7 +609,7 @@ export class Mission {
       // (below level 10 the medium and heavy counts are fractional: the remainder is a chance of one more)
       const whole = (x) => { const f = x - Math.floor(x); return Math.floor(x) + (f > 1e-9 && this.rng.next() < f ? 1 : 0); };
       for (let i = 0; i < b.light; i++) this.bag.push('L');
-      const nm = whole(b.medium + Math.floor(this.S / C.ramp.mediumEvery)), nh = whole(b.heavy + Math.floor(this.S / C.ramp.heavyEvery));
+      const nm = whole(b.medium + Math.floor(this.W / C.ramp.mediumEvery)), nh = whole(b.heavy + Math.floor(this.W / C.ramp.heavyEvery));
       for (let i = 0; i < nm; i++) this.bag.push('M');
       for (let i = 0; i < nh; i++) this.bag.push('H');
       this.rng.shuffle(this.bag);
@@ -633,8 +617,8 @@ export class Mission {
     const k = this.bag.pop();
     if (k === 'L') return k;
     // Keep the field mostly light: past the cap for live mediums and heavies, the draw comes out light instead.
-    const cap = C.enemies.kindCap, mm = this.t / 60;   // more mediums and heavies allowed as the session and the mission go on
-    const max = k === 'M' ? Math.min(cap.maxM, cap.M + cap.perMinM * this.S + cap.perMissionMinM * mm) : Math.min(cap.maxH, cap.H + cap.perMinH * this.S + cap.perMissionMinH * mm);
+    const cap = C.enemies.kindCap, mm = this.t / 60;   // more mediums and heavies allowed as the war and the mission go on
+    const max = k === 'M' ? Math.min(cap.maxM, cap.M + cap.perMinM * this.W + cap.perMissionMinM * mm) : Math.min(cap.maxH, cap.H + cap.perMinH * this.W + cap.perMissionMinH * mm);
     let n = 0;
     for (const e of this.enemies) if (!e.dead && e.kind === k) n++;
     return n >= max ? 'L' : k;
@@ -659,6 +643,21 @@ export class Mission {
   // An objective being worked makes noise the enemy hears from far off.
   siteNoise(x, y) { noise(this, x, y, C.noise.site); }
 
+  // Every enemy's visibility at once (the same answer as visLevel for each, but swept from the few who see rather than checked
+  // from the many who are seen): UAV circles and relays first, then each ally's sight and the player's vision past it, then a
+  // manned lookout's spotting ring (only inside the strike zone).
+  _visAll() {
+    const G = this.eGrid;
+    const two = (e) => { e.vis = 2; };
+    for (const u of this.uavs) G.near(u.x, u.y, u.r, two);
+    for (const u of this.relays) G.near(u.x, u.y, u.r, two);
+    for (const a of this.alive) {
+      const s2 = a.sight * a.sight;
+      G.near(a.x, a.y, a.vision, (e, d2) => { if (d2 <= s2) e.vis = 2; else if (e.vis < 1) e.vis = 1; });
+    }
+    // a lookout spots for the fire support: anything in its long ring and inside the strike zone shows on the map
+    for (const u of this.spotters) G.near(u.x, u.y, u.r, (e) => { if (e.vis < 1 && this.inZone(e.x, e.y)) { e.vis = 1; e.spotted = true; } });
+  }
   // What the squad can see (2), what only the player can see just beyond that (1), or nothing (0). A UAV circle counts as seen by all.
   visLevel(x, y) {
     for (const u of this.uavs) { const dx = u.x - x, dy = u.y - y; if (dx * dx + dy * dy <= u.r * u.r) return 2; }
@@ -907,6 +906,7 @@ export class Mission {
       bases: this.stats.bases, baseTotal: this.baseTotal, pois: this.stats.pois, poiTotal: this.pois.length, breaches: this.stats.breaches, sides: (this.sides || []).filter((q) => q.done).length, sideTotal: (this.sides || []).length, fullClear: !!(this.plan && this.plan.full),
       livesLeft: this.hd.lives, survivorsH: this.countAlly('H') + (this.extraction.boardedH || 0), survivorsS: this.countAlly('S') + (this.extraction.boardedS || 0),
       civSaved: this.stats.civSaved || 0, civLost: this.stats.civLost || 0,
+      lastStand: this.ls ? { lifted: this.ls.lifted, held: Math.round(this.ls.holdT), fallen: this.ls.fallen, pop: this.ls.pop } : null,
       objectives: this.objectives.map((o) => ({ type: o.type, done: o.done })), objDone: this.objDone, extracted: this.extracted,
       share: { player: d.player / tot, squad: d.squad / tot, strat: d.strat / tot },
       loadout: this.loadout.slice(), orbitals: loadoutIds(this.kit),
@@ -997,11 +997,8 @@ export class Mission {
     this._snap();
     this._refreshAlive();
     this.eGrid.clear(); this.aGrid.clear(); this.tGrid.clear();
-    for (const e of this.enemies) if (!e.dead) {
-      this.eGrid.insert(e); e.vis = this.visLevel(e.x, e.y); e.spotted = false;
-      // a manned lookout spots for the fire support: anything in its long ring and inside the strike zone shows on the map
-      if (e.vis < 1 && this.spotters.length) for (const u of this.spotters) if ((u.x - e.x) ** 2 + (u.y - e.y) ** 2 <= u.r * u.r && this.inZone(e.x, e.y)) { e.vis = 1; e.spotted = true; break; }
-    }
+    for (const e of this.enemies) if (!e.dead) { this.eGrid.insert(e); e.vis = 0; e.spotted = false; }
+    this._visAll();
     for (const a of this.alive) if (!a.mounted && !a.inside) this.aGrid.insert(a);     // (the crew inside a building are out of reach: posts.js)
     for (const s of this.assets) if (!s.dead && s.kind !== 'mines') this.tGrid.insert(s);
 
@@ -1028,6 +1025,7 @@ export class Mission {
     updateReinf(this, dt);
     updateCivs(this, dt);
     updateExtract(this, dt);
+    if (this.ls) updateLastStand(this, dt);
     updateChatter(this, dt);
     this._reinforce();
     this._walk(dt);
@@ -1046,7 +1044,8 @@ export class Mission {
     // mission is complete without extraction and the session goes on; not done, and the mission has failed.
     if (!this.over) {
       const hdAlive = this.allies.some((a) => !a.dead && a.type === 'H');
-      if (!hdAlive && this.pendingPods('H') === 0 && this.hd.lives <= 0) this.finish(this.objDone ? 'complete' : 'defeat');
+      if (this.ls) { /* the last stand ends only when Mars is glassed (laststand.js) */ }
+      else if (!hdAlive && this.pendingPods('H') === 0 && this.hd.lives <= 0) this.finish(this.objDone ? 'complete' : 'defeat');
       else if (this.t >= this.limitSec) this.finish(this.objDone ? 'complete' : 'timeout');
     }
   }

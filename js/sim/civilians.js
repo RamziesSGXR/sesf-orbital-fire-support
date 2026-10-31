@@ -7,11 +7,9 @@ import { CONFIG as C } from '../config.js';
 import { siege } from './objectives.js';
 import { COMMS } from '../data/data.js';
 import { steer } from './terrain.js';
-import { callReinforcements } from './reinforce.js';
 
 const E = C.objective.evac;
 
-export function evacObj(m) { return m.objectives.find((o) => o.type === 'evac' && !o.done) || null; }
 
 export function hurtCiv(m, c, dmg, by) {
   if (c.dead || c.safe || !(dmg > 0)) return;
@@ -35,6 +33,7 @@ function held(m, o) {
 
 export function updateEvac(m, o, dt) {
   const t = m.t;
+  if (o.wait) return;      // (0.19: the last stand's base waits for the lessons, laststand.js)
   if (o.state === 'travel') {
     if (held(m, o)) m.startSetup(o);
     return;
@@ -57,11 +56,11 @@ export function updateEvac(m, o, dt) {
   // reinforcements keep coming at the site while the evacuation runs
   siege(m, o, o.x, o.y, dt);
   // the shelter doors open while the squad holds the site
-  const walking = m.civs.filter((c) => !c.dead && !c.safe).length;
+  const walking = m.civs.filter((c) => !c.dead && !c.safe).length, need = o.need ?? E.need, left = (o.pop ?? Infinity) - o.released;
   o.batchT -= dt;
-  if (hold && o.batchT <= 0 && o.saved + walking < E.need && walking < E.maxOut) {
+  if (hold && o.batchT <= 0 && o.saved + walking < need && walking < E.maxOut && left > 0) {
     o.batchT = E.every;
-    const n = Math.min(E.batch, E.need - o.saved - walking);
+    const n = Math.min(E.batch, need - o.saved - walking, left);
     for (let i = 0; i < n; i++) {
       const [jx, jy] = m.rng.inDisc(3);
       m.civs.push({ civ: true, id: m.nextId++, x: o.sx + jx, y: o.sy + jy, hp: E.hp, maxHp: E.hp, dead: false, safe: false, hurtAt: -9,
@@ -70,7 +69,7 @@ export function updateEvac(m, o, dt) {
     }
     m.emit('civ_out', { x: o.sx, y: o.sy, n });
   }
-  if (o.saved >= E.need) {
+  if (o.saved >= need) {
     m.radio(COMMS.evacDone, 'evacdone', 0);
     m.completeObjective(o);
   }
@@ -100,8 +99,9 @@ export function updateCivs(m, dt) {
       c.safe = true; o.saved++; o.load++;
       m.sc.civ += C.score.civSaved; m.earn('civ', C.credits.civ, c.x, c.y);
       m.stats.civSaved = (m.stats.civSaved || 0) + 1;
-      if (o.load >= E.shuttle || o.saved >= E.need) {
-        m.notice(tr('n.shuttle', { n: o.load, saved: o.saved, need: E.need }), 'good');
+      if (o.load >= E.shuttle || o.saved >= (o.need ?? E.need)) {
+        if (o.lastStand) { m.notice(tr('n.lsLift', { n: o.load, saved: o.saved }), 'good'); if (m.ls) m.ls.lifted++; }
+        else m.notice(tr('n.shuttle', { n: o.load, saved: o.saved, need: E.need }), 'good');
         m.emit('shuttle', { x: o.hx, y: o.hy, n: o.load, ang: Math.atan2(o.hy - o.sy, o.hx - o.sx) });
         o.load = 0; o.shuttles++;
       }

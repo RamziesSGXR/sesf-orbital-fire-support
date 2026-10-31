@@ -29,7 +29,7 @@ await page.screenshot({ path: out('1-start') });
 await page.waitForTimeout(9000);
 await page.evaluate(() => { const m = window.__game.mission; m.callSeaf(m.hx + 28, m.hy + 22); });
 await page.waitForTimeout(9000);
-await page.evaluate(() => { const m = window.__game.mission; m.splitSeaf(); });
+await page.evaluate(() => { const m = window.__game.mission, q = m.seafTargets().sort((a, b) => b.n - a.n)[0]; if (!q) return null; const mem = m.seafAlive.filter((a) => a.sq === q.i).sort((a, b) => a.id - b.id).filter((_, k) => k % 2 === 1); const free = m.seaf.squads.find((s) => s.i !== q.i && !m.seafAlive.some((a) => a.sq === s.i)); m.pickSeaf(mem); const r = m.toSquad(free.i); m.selectSquad(-1); return r; });     // (0.19: half the troopers into a squad of their own)
 await page.waitForTimeout(3500);
 await page.screenshot({ path: out('2-busy-awake') });
 await page.waitForTimeout(3600);

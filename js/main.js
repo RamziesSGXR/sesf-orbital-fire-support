@@ -11,7 +11,7 @@ import { Input } from './input.js';
 import { Audio } from './audio.js';
 import * as S from './session.js';
 import * as UI from './ui.js';
-import { sunAt, todAt, todName, todClock } from './render/sky.js';
+import { sunAt, todName, todClock } from './render/sky.js';
 import { acceptSupply, declineSupply, fillSupply, launchSupply, supplyFilling } from './sim/supply.js';
 import { hbFilling, tapHellbomb } from './sim/ops.js';
 const handsBusy = (m) => !!m && (supplyFilling(m) || hbFilling(m));     // the supply loader or the Hellbomb is open
@@ -20,6 +20,8 @@ import { clampLevel, LEVELS } from './difficulty.js';
 import { answerTime } from './sim/planner.js';
 import { POSTS, makePost } from './sim/posts.js';
 import { FORMS } from './sim/seaf.js';
+import { LAST_STAND } from './sim/laststand.js';
+import { Tutorial } from './tutorial.js';
 
 const $ = (id) => document.getElementById(id);
 const qs = new URLSearchParams(location.search);
@@ -49,10 +51,10 @@ let speed = 1;                // game speed: 1, or 0.5 (half speed: everything s
 let session = null, info = null, mission = null, bot = null, lastRes = null;
 let firePending = false;
 let acc = 0, lastT = 0, overAt = 0, endHandled = false;
-let terrainKey = '', briefCtl = null, noticePending = false, settingsReturn = null, namesReturn = null, armoryFrom = null;
-let placing = null; // desktop placement mode for orders: 'seaf' | 'move' | 'protect' | 'attack' | 'assign' | 'build:<what>'
+let terrainKey = '', briefCtl = null, settingsReturn = null, namesReturn = null, armoryFrom = null;
+let placing = null; // desktop placement mode for orders: 'seaf' | 'move' | 'protect' | 'attack' | 'build:<what>'
 let sel = null;      // the selected post, sentry or defence site (posts.js): a panel over it shows, and its reach on the map
-let tac = false;     // the tactical build screen (builds, formations, box select) is open: the game waits (or runs slow, in Settings)
+let tac = false;     // the tactical screen (troops, builds, ship weapons, armory) is open; it runs in real time (0.18)
 let armed = false;   // a weapon is armed: the reticle shows and a click calls it. Otherwise the cursor selects things.
 let hideUi = false;  // F2: the HUD is hidden
 let box = null;      // a selection box being dragged: { x0, y0, x1, y1 } in screen pixels
@@ -100,10 +102,11 @@ function relang() {
   $('about-ver').textContent = t('about.ver', { v: C.share.version });
   UI.fillVersion();
   if (UI.isOn('s-settings')) UI.buildSettings(settings, onSettingChange);
-  if (tac && mission) { hud.fillTactical(mission, sel); hud.setTacState(settings.tacTime === 'slow', input.touch); }
+  if (tac && mission) { hud.fillTactical(mission, sel); hud.setTacState(input.touch); }
   if (state === 'title') toTitle();
   else if (state === 'shop') { const n = session.missions.length + 1; $('shop-eyebrow').textContent = n === 1 ? t('arm.eyebrow1') : t('arm.eyebrowN', { n }); $('shop-go').textContent = t('arm.deploy', { n }); drawShop(); }
   else if (state === 'debrief' && lastRes) UI.fillDebrief(info, lastRes, session, S.scoreBlock(session, null), startCredits());
+  else if (state === 'glass' && lastRes) UI.fillGlass(lastRes);
   else if (state === 'final' && lastFin) UI.fillFinal(session, lastFin.fin, lastFin.block);
   if (UI.isOn('s-info') && mission) UI.fillMissionInfo(mission, info);
   if (UI.isOn('s-armory') && mission) drawArmory();
@@ -221,8 +224,8 @@ hud.onArmory = () => { audio.unlock(); if (live()) openArmory(); };
 hud.onToSquad = (i) => input.h.toSquad(i);
 hud.onPickOne = (id) => { if (!live()) return; const a = mission.seafAlive.find((x) => x.id === id); if (!a) return; audio.click(); if (a.inside) { cam.follow = false; cam.x = a.x; cam.y = a.y; return; } deselect(); mission.pickSeaf([a]); hud.fillTactical(mission, sel); };
 // The tactical build screen (O, or TACTICAL at the top left): what is selected, the builds and the formations, and a box dragged on
-// the map picks troopers. The Helldivers and the SEAF squads fold away into two drop menus. The game waits while it is open
-// (Settings can make it only slow down instead).
+// the map picks troopers. The Helldivers and the SEAF squads fold away into two drop menus. It runs in real time (0.18): Space
+// pauses, to look round without giving orders.
 function setTac(on) {
   on = !!on && live();
   if (on === tac) return;
@@ -234,7 +237,7 @@ function setTac(on) {
   document.body.classList.toggle('tac-open', tac);
   document.body.classList.remove('tac-hd', 'tac-sf');
   $('btn-tac').classList.toggle('on', tac);
-  if (tac) { hud.fillTactical(mission, sel); hud.setTacState(settings.tacTime === 'slow', input.touch); }
+  if (tac) { hud.fillTactical(mission, sel); hud.setTacState(input.touch); }
   audio.click();
 }
 const buildMenu = (on) => setTac(on);     // (older name, still used by tests)
@@ -462,7 +465,7 @@ const live = () => state === 'play' && !paused && mission && !mission.over;
 // ---------------- orders: SEAF drop and SEAF orders ----------------
 // Why a call or a purchase was refused: deny.<reason> in the language tables.
 const DENY_KEYS = new Set(['artyrange', 'nocoverage', 'cooldown', 'full', 'noseaf', 'nohd', 'noallies', 'nomark', 'funds', 'between', 'maxed', 'locked', 'novisual', 'gundry',
-  'short', 'splitsmall', 'splitnosquad', 'splitunknown', 'mergesel', 'mergesmall', 'mergenosquad', 'assignsel', 'assignnone', 'water', 'jammed', 'artycrew', 'nocrew', 'nogarrison', 'boxnone', 'boxnosquad', 'noweapon', 'picksquad', 'postfull']);
+  'short', 'water', 'jammed', 'nocrew', 'nogarrison', 'boxnone', 'boxnosquad', 'noweapon', 'picksquad', 'postfull']);
 const deny = (r) => (DENY_KEYS.has(r) ? t('deny.' + r) : '');
 function setPlacing(kind) { if (kind) { setDrawing(false); disarm(); } placing = kind; hud.setPlacing(kind); document.body.classList.toggle('placing', !!kind); }
 function setDrawing(on) {
@@ -489,18 +492,11 @@ function squadAct(kind, viaKey) {
     if (!drawing && !mission.seafAlive.length) { audio.deny(); hud.toast(deny('noseaf')); return; }
     setDrawing(!drawing);
   } else if (kind === 'disband') { setDrawing(false); const r = mission.disbandSeaf(); if (r && r.ok) audio.ready(); else { audio.deny(); hud.toast(deny('disband'), 1400); } if (tac) hud.fillTactical(mission, sel); }
-  else if (kind === 'split') { setDrawing(false); const r = mission.splitSeaf(); if (r && r.ok) audio.ready(); }
-  else if (kind === 'merge') { setDrawing(false); const r = mission.mergeSeaf(); if (r && r.ok) audio.ready(); }
   else if (kind === 'box') {
     // SELECT: the next drag on the map draws a box round the troopers to pick (on a computer, Shift + drag does it any time)
     if (!mission.seafAlive.length) { audio.deny(); hud.toast(deny('noseaf')); return; }
     setDrawing(false); boxArm = !boxArm; hud.setBoxArm(boxArm);
     if (boxArm) hud.toast(t(input.touch ? 'hud.boxTouch' : 'hud.boxDesk'), 2200);
-  }
-  else if (kind === 'assign') {
-    if (mission.seaf.sel < 0) { audio.deny(); hud.toast(deny('assignsel')); return; }
-    if (!input.touch && !viaKey) { setPlacing(placing === 'assign' ? null : 'assign'); return; }
-    const w = aimWorld(); if (w) runOrder('assign', w.x, w.y);
   }
 }
 // ---- draw mode: a finger or the mouse traces a play on the map ----
@@ -537,7 +533,6 @@ function runOrder(kind, x, y) {
   if (kind.startsWith('build:')) return m.seafBuild(kind.slice(6), x, y);
   if (kind === 'seaf') return m.callSeaf(x, y);
   if (kind === 'auto' || kind === 'escort') return m.seafOrder(kind);
-  if (kind === 'assign') return m.assignSeaf(x, y, C.seaf.assignR);
   const p = snap(x, y);
   return m.seafOrder(kind, p.x, p.y);
 }
@@ -567,9 +562,12 @@ function toTitle() {
   const saved = S.load('session', null);
   const rb = $('btn-resume');
   rb.classList.toggle('hidden', !resumable(saved));
-  if (saved && saved.missions) rb.textContent = t('title.resume', { n: saved.missions.length, score: S.fmtNum(saved.score), d: clampLevel(saved.difficulty ?? LEVELS) });
+  if (saved && saved.missions) rb.textContent = t('title.resume', { n: saved.missions.length, score: S.fmtNum(saved.score), d: S.levelNow(saved) });
   UI.buildLangs(getLang(), pickLang);
   drawDiff();
+  $('tut-new').classList.toggle('hidden', !!S.load('tutSeen', false));      // (0.19) NEW on the tutorial until it has been opened
+  if (tut) { tut.close(); tut = null; }
+  document.body.classList.remove('ls-warn'); $('glassfx').classList.remove('on');
   if (!renderer.terrain) setTimeout(() => buildFor('ice', 4242), 30);
 }
 
@@ -601,7 +599,7 @@ function goShop() {
   if (BOT) botShop(session.kit, session.wallet);
   drawShop();
 }
-function persist() { S.save('session', session); }
+function persist() { if (session && !session.tutorial) S.save('session', session); }     // (the tutorial's session is never kept)
 function drawShop(note) {
   UI.renderShop($('shop-root'), {
     kit: session.kit, wallet: session.wallet, live: false, note,
@@ -634,7 +632,7 @@ function goBrief(again = false) {
   // ?loadout=id,id,... and ?objective=nuke|vip|fortress force a loadout or objective for testing.
   const ovLoad = (qs.get('loadout') || '').split(',').filter((id) => STRAT_IDS.includes(id)), ovObj = (qs.get('objective') || '').split(',').filter(Boolean);
   info.ovObj = ovObj;
-  const pre = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: false, missionN: n, difficulty: session.difficulty,
+  const pre = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: false, missionN: n, difficulty: S.levelNow(session),
     loadout: ovLoad.length ? ovLoad : undefined, objectives: ovObj, kit: session.kit, wallet: session.wallet, names: session.names, defenders: !qs.has('skipstart') });
   info.loadout = pre.loadout.slice();
   if (keep) { info.ovObj = keep.ovObj || []; info.loadout = keep.loadout.slice(); }
@@ -643,7 +641,7 @@ function goBrief(again = false) {
   if (briefCtl) briefCtl.cancel();
   const ctl = briefCtl = UI.runBriefing({
     info, mission: n, touch: input.touch, canEnd: session.missions.length > 0, again: !!keep,
-    pre: { objectives: pre.objectives.map((o) => o.type), defenders: pre.defenders, teams: pre.teams, ao: Math.round(pre.ao.size), difficulty: session.difficulty, lives: pre.hd.max },
+    pre: { objectives: pre.objectives.map((o) => o.type), defenders: pre.defenders, teams: pre.teams, ao: Math.round(pre.ao.size), difficulty: pre.difficulty, start: session.difficulty, lives: pre.hd.max },
     onReveal: () => audio.chirp(),
     onContinue: () => { briefCtl = null; audio.click(); deploy(); },
     onEnd: () => { briefCtl = null; endSession(); },
@@ -671,6 +669,10 @@ function holdMission() {
 // it was at the drop, and the same mission waits for RESUME (so it cannot be used to skip one).
 let wantHome = false;
 function goHome() {
+  if (session && session.tutorial) {
+    if (state === 'play' && mission && !mission.over && !wantHome) { wantHome = true; $('home-confirm').classList.remove('hidden'); audio.click(); return; }
+    audio.click(); wantHome = false; quitTutorial(); toTitle(); return;
+  }
   if (state === 'play' && mission && !mission.over) {
     if (!wantHome) { wantHome = true; $('home-confirm').classList.remove('hidden'); audio.click(); return; }
     if (startSnap) session = S.fixSession(JSON.parse(startSnap));
@@ -682,16 +684,20 @@ function goHome() {
   toTitle();
 }
 const FACTION_OK = (f) => ['bugs', 'bots', 'squids'].includes(f);
-const BIOME_OK = (b) => ['ice', 'grass', 'desert', 'jungle', 'moon'].includes(b);
+const BIOME_OK = (b) => ['ice', 'grass', 'desert', 'jungle', 'moon', 'mars'].includes(b);
 
 function deploy() {
   audio.unlock();
   startSnap = JSON.stringify(session);      // what RETRY MISSION puts back: credits, kit, score and time as they were at the drop
   if (terrainKey !== `${info.biome}|${info.seed}`) buildFor(info.biome, info.seed);
-  mission = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: true, missionN: session.missions.length + 1, difficulty: session.difficulty,
+  mission = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: true, missionN: session.missions.length + 1, difficulty: S.levelNow(session),
     loadout: info.loadout, keepOrder: true, objectives: info.ovObj, kit: session.kit, wallet: session.wallet, names: session.names, tod: info.tod,
     countdown: qs.has('skipstart') || BOT ? 0 : C.helldivers.countdown, defenders: !qs.has('skipstart') });
   bot = BOT ? makeBot() : null;
+  enterPlay();
+}
+// Into the mission just made: the camera on the landing zone, the HUD, and (0.18) the tactical screen open for the countdown.
+function enterPlay() {
   cam.x = mission.lz.x; cam.y = mission.lz.y; cam.follow = false; cam.ao = mission.ao;   // the camera is the player's: it only follows the squad when locked on
   cam.view = window.innerWidth >= window.innerHeight ? C.world.viewWidth : 280;
   firePending = false; acc = 0; endHandled = false; overAt = 0; wantAbort = false;
@@ -705,12 +711,56 @@ function deploy() {
   if (input.touch && window.innerHeight > window.innerWidth) { const r = $('rotate-hint'); r.classList.remove('hidden'); setTimeout(() => r.classList.add('hidden'), 5000); }
   // (0.18) every mission starts on the tactical screen, the game waiting: call SEAF in (the first drop is ready), give orders,
   // build, then go (Space, Tab or the ✕). ?skipstart (tests) drops straight in.
-  if (!qs.has('skipstart') && !BOT) {
+  if ((!qs.has('skipstart') && !BOT) || mission.ls) {
     setTac(true); hud.setTcTab('units');
     if (mission.defenders) { const d = mission.defenders; mission.notice(t('n.defenders', { n: d.n, place: t('place.' + (d.type === 'nuke' ? 'launch' : d.type === 'vip' ? 'pickup' : d.type)) }), 'good'); }
     cam.x = mission.lz.x; cam.y = mission.lz.y + cam.view * 0.16 * (window.innerHeight / Math.max(1, window.innerWidth));     // (the landing zone above the console)
-    hud.toast(t(input.touch ? 'tac.startTouch' : 'tac.startDesk'), 6000);
+    if (!mission.ls) hud.toast(t(input.touch ? 'tac.startTouch' : 'tac.startDesk'), 6000);
   }
+}
+
+// ---------------- (0.19) the tutorial: the last stand on Mars ----------------
+// A mission of its own, outside any session: a throwaway session holds its kit and credits (never saved), and a saved session is
+// left as it was. The card (tutorial.js) walks through the controls; the mission ends when Mars is glassed (finishLastStand).
+let tut = null;
+function startLastStand() {
+  audio.unlock(); audio.click();
+  if (briefCtl) { briefCtl.cancel(); briefCtl = null; }
+  const L = LAST_STAND;
+  session = S.newSession('', L.level); session.tutorial = true;
+  info = { seed: L.seed, faction: L.faction, biome: L.biome, op: t('ls.op'), tod: L.tod, ovObj: [], loadout: null };
+  buildFor(info.biome, info.seed);
+  startSnap = null;
+  mission = new Mission({ seed: L.seed, faction: L.faction, biome: L.biome, sessionMinutes: 0, events: true, missionN: 2, difficulty: L.level, kit: session.kit, wallet: session.wallet,
+    names: session.names, tod: L.tod, countdown: C.lastStand.countdown, lastStand: true, defenders: false, boss: false });
+  info.loadout = mission.loadout.slice();
+  bot = BOT ? makeBot() : null;
+  enterPlay();
+  if (tut) tut.close();
+  tut = new Tutorial({
+    get mission() { return mission; }, get touch() { return input.touch; }, get tac() { return tac; }, get soft() { return soft; }, cam,
+    look: (g) => { if (!g || !mission) return; const o = mission.objectives[0]; cam.follow = false; cam.x = o.x + (g.cx - o.x) * 0.65; cam.y = o.y + (g.cy - o.y) * 0.65; },     // (the group, and the base at the edge of the view)
+    onStep: (id) => { audio.chirp(); if (id === 'hold') hud.toast(t('tut.hold.h'), 2200); },
+  });
+  tut.start();
+  S.save('tutSeen', true);
+}
+function quitTutorial() {
+  if (tut) { tut.close(); tut = null; }
+  document.body.classList.remove('ls-warn'); $('glassfx').classList.remove('on');
+  session = null; mission = null;
+}
+function finishLastStand() {
+  endHandled = true; setPlacing(null); setDrawing(false); setTac(false); disarm(); setHideUi(false); deselect();
+  soft = false; hud.setSoft(false);
+  const res = lastRes = mission.result();
+  if (tut) { tut.close(); tut = null; }
+  S.save('tutDone', true);
+  UI.fillGlass(res, mission);
+  state = 'glass'; audio.humStop(); hud.reset();
+  document.body.classList.remove('ls-warn');
+  UI.showScreen('s-glass');
+  setTimeout(() => $('glassfx').classList.remove('on'), 400);
 }
 
 function finishMission() {
@@ -921,10 +971,10 @@ for (const b of document.querySelectorAll('.x-close[data-close]')) { const f = C
 // ---------------- buttons ----------------
 $('btn-play').onclick = () => {
   audio.unlock(); audio.click();
-  if (!S.load('notice', false)) { noticePending = true; UI.overlay('s-notice', true); return; }
+  if (!S.load('notice', false)) { UI.overlay('s-notice', true); return; }
   askLock();
 };
-$('btn-notice').onclick = () => { S.save('notice', true); noticePending = false; UI.overlay('s-notice', false); askLock(); };
+$('btn-notice').onclick = () => { S.save('notice', true); UI.overlay('s-notice', false); askLock(); };
 function closeLock() { UI.overlay('s-lock', false); audio.click(); }
 $('btn-lock').onclick = () => { UI.overlay('s-lock', false); beginSession(false); };
 $('btn-lock-change').onclick = () => { closeLock(); $('diff-row').scrollIntoView({ block: 'center', behavior: 'smooth' }); };
@@ -967,12 +1017,17 @@ $('arm-close').onclick = () => closeArmory();
 $('btn-abort').onclick = () => {
   if (!wantAbort) { wantAbort = true; $('abort-confirm').classList.remove('hidden'); return; }
   UI.overlay('s-pause', false); paused = false;
-  mission.retire(); finishMission();
+  mission.retire();
+  if (tut) finishLastStand(); else finishMission();
 };
 $('btn-continue').onclick = () => { audio.click(); if (lastRes && S.carriesOn(lastRes.outcome)) goShop(); else endSession(); };
 $('btn-retry').onclick = () => retryMission();
 $('btn-end-d').onclick = () => { audio.click(); endSession(); };
 $('btn-again').onclick = () => { audio.click(); session = null; toTitle(); };
+$('btn-tutorial').onclick = () => startLastStand();
+$('glass-title').onclick = () => { audio.click(); session = null; toTitle(); };
+$('glass-again').onclick = () => startLastStand();
+$('glass-play').onclick = () => { audio.click(); session = null; toTitle(); $('btn-play').click(); };
 // Copy a score block: the final one (f-text) or the session so far, after any mission (d-text).
 async function copyScore(box = 'f-text', out = 'f-msg') {
   const ta = $(box), text = ta.value, msg = $(out);
@@ -1015,6 +1070,9 @@ function ambient(m, dt) {
 }
 function onEvent(ev, now) {
   renderer.handle(ev, now, mission);
+  if (tut) tut.onEvent(ev);
+  if (ev.type === 'ls_stage' && (ev.stage === 'warn' || ev.stage === 'fallen')) { document.body.classList.add('ls-warn'); audio.siren(); }
+  if (ev.type === 'glass') { $('glassfx').classList.toggle('soft', !!settings.reduceFlash); $('glassfx').classList.add('on'); audio.nukeBlast(); }
   const L = ev.x !== undefined ? loudness(ev.x, ev.y) : 1, P = ev.x !== undefined ? pan(ev.x) : 0;
   switch (ev.type) {
     case 'boom':
@@ -1147,9 +1205,10 @@ function frame(ts) {
     hover(now);
     if (UI.isOn('s-map')) renderer.drawBigMap($('bigmap'), mission, cam);
     hud.update(mission, cam, session);
+    if (tut) tut.update(now);
     if (mission.over && !endHandled) {
       if (!overAt) overAt = now;
-      if (now - overAt > 3.2) finishMission();
+      if (now - overAt > (mission.ls ? 1.2 : 3.2)) { if (mission.ls) finishLastStand(); else finishMission(); }
     }
   } else {
     renderer.drawAttract(now);
@@ -1186,10 +1245,8 @@ function simulate(dt, now) {
     if (w && !bot) m.setAim(w.x, w.y);
     if (!bot && firePending) { m.fire(); firePending = false; }
   }
-  // half speed if picked; slow motion while the supply pod is loaded; the tactical build screen stops the game (or slows it)
-  const tacSlow = settings.tacTime === 'slow';
-  const slow = hbFilling(m) ? C.objective.hellbomb.slowmo : supplyFilling(m) ? C.supply.slowmo : 1;     // (0.18: the tactical screen runs in real time)
-  void tacSlow;
+  // half speed if picked; slow motion while the supply pod or the Hellbomb is loaded (the tactical screen runs in real time)
+  const slow = hbFilling(m) ? C.objective.hellbomb.slowmo : supplyFilling(m) ? C.supply.slowmo : 1;
   acc += dt * FAST * speed * slow;
   let n = 0;
   const cap = 6 * FAST + 2;

@@ -5,7 +5,7 @@ import { ADJECTIVES, NOUNS, FACTIONS, BIOMES } from './data/data.js';
 import { tEn } from './i18n.js';
 import { newKit, newWallet, fixKit, refundLives } from './data/kit.js';
 import { CONFIG as C } from './config.js';
-import { clampLevel, LEVELS } from './difficulty.js';
+import { clampLevel, levelAt, levelName, LEVELS } from './difficulty.js';
 
 const K = { settings: 'ofs.settings', session: 'ofs.session', history: 'ofs.history', callsign: 'ofs.callsign', notice: 'ofs.notice', names: 'ofs.names' };
 
@@ -22,7 +22,6 @@ export const DEFAULT_SETTINGS = {
   polarity: 'white', relief: false, quality: 'auto', reduceFlash: false, colorblind: false,
   volume: 0.6, muted: false, lefty: false, touchSens: 1, bubbles: true, cards: 'side', lang: 'en', uiScale: 1,
   mini: 2,           // the minimap's size (x its old size)
-  tacTime: 'pause',  // the tactical build screen: 'pause' stops the game while it is open, 'slow' only slows it
   difficulty: C.difficulty.start,     // the level the next new session starts at (a session keeps its own)
 };
 export const getSettings = () => ({ ...DEFAULT_SETTINGS, ...load('settings', {}) });
@@ -46,7 +45,7 @@ export function makeNames(rng = Math.random) {
 // enemy: 'random' or the faction every mission is against (Settings, and the title screen).
 export function rollMission(prev, rng = Math.random, enemy = 'random') {
   const names = makeNames(rng);
-  const fIds = Object.keys(FACTIONS), bIds = Object.keys(BIOMES);
+  const fIds = Object.keys(FACTIONS), bIds = Object.keys(BIOMES).filter((b) => BIOMES[b].pool !== false);
   let faction = pick(rng, fIds);
   if (fIds.includes(enemy)) faction = enemy;
   let biome = pick(rng, bIds);
@@ -55,7 +54,7 @@ export function rollMission(prev, rng = Math.random, enemy = 'random') {
 }
 
 // ---- session ----
-// difficulty: 1 to 10 (difficulty.js), fixed for the whole session.
+// difficulty: the level the session started at, 1 to 10 (difficulty.js). Each mission is a little harder: levelNow.
 export function newSession(callsign, difficulty = C.difficulty.start) {
   return { startedAt: Date.now(), callsign: callsign || '', difficulty: clampLevel(difficulty), missions: [], score: 0, seconds: 0, next: null, kit: newKit(), wallet: newWallet(), names: getNames() };
 }
@@ -71,6 +70,9 @@ export function fixSession(s) {
   return s;
 }
 export function sessionMinutes(s) { return s.seconds / 60; }
+// The level of the session's next mission (it climbs from the starting level, difficulty.js levelAt), and the highest flown.
+export const levelNow = (s) => levelAt(s.difficulty ?? LEVELS, (s.missions ? s.missions.length : 0) + 1);
+export const levelReached = (s) => levelAt(s.difficulty ?? LEVELS, Math.max(1, s.missions ? s.missions.length : 1));
 // The outcomes that let the session go on to the next mission: extracted, or the primary objective done even though the squad
 // did not make it out. Anything else (defeat, time up before the objective, retired) is a failed mission.
 export const carriesOn = (outcome) => outcome === 'victory' || outcome === 'complete';
@@ -100,7 +102,7 @@ export const fmtNum = (n) => Math.round(n).toLocaleString('en-US');
 export function finalise(s, endedAt = new Date()) {
   const id = sessionId(endedAt);
   const w = s.missions.filter((m) => carriesOn(m.outcome)).length;
-  const rec = { id, score: s.score, callsign: s.callsign || 'ANON', missions: s.missions.length, wins: w, seconds: Math.round(s.seconds), at: endedAt.toISOString(), difficulty: s.difficulty || LEVELS };
+  const rec = { id, score: s.score, callsign: s.callsign || 'ANON', missions: s.missions.length, wins: w, seconds: Math.round(s.seconds), at: endedAt.toISOString(), difficulty: s.difficulty || LEVELS, reached: levelReached(s) };
   const hist = load('history', []);
   const best = hist.reduce((a, h) => Math.max(a, h.score), 0);
   hist.push(rec); hist.sort((a, b) => b.score - a.score);
@@ -123,8 +125,8 @@ export function scoreBlock(s, fin) {
   lines.push('ORBITAL FURY | SUPER EARTH SPECIAL FORCES');
   lines.push(live ? `SESSION IN PROGRESS | STARTED ${sessionId(new Date(s.startedAt || Date.now()))}` : `SESSION ${fin.id}`);
   lines.push(`CALLSIGN ${live ? s.callsign || 'ANON' : fin.callsign}`);
-  const dl = s.difficulty || LEVELS;
-  lines.push(`DIFFICULTY ${dl} ${tEn('diff.' + dl).toUpperCase()}`);
+  const dl = s.difficulty || LEVELS, top = levelReached(s);
+  lines.push(`DIFFICULTY ${dl} ${tEn(...levelName(dl)).toUpperCase()}${top > dl ? ` | REACHED ${top} ${tEn(...levelName(top)).toUpperCase()}` : ''}`);
   lines.push(`${live ? `SCORE AFTER MISSION ${s.missions.length}` : 'FINAL SCORE'} ${fmtNum(s.score)}`);
   lines.push(`MISSIONS ${s.missions.length} (${wins} won) | TIME ${fmtTime(s.seconds)}`);
   lines.push(`CREDITS EARNED ${fmtNum(t.earned)} | SPENT ${fmtNum(t.spent)}`);

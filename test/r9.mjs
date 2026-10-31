@@ -15,9 +15,7 @@ let fails = 0;
 const check = (name, ok, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  (' + detail + ')' : ''}`); if (!ok) fails++; };
 const dt = 1 / 30;
 const run = (m, sec) => { for (let i = 0, n = Math.round(sec / dt); i < n && !m.over; i++) m.step(dt); };
-const MIN_LIVE = C.enemies.spawn.minLive;
 function quiet(faction = 'bugs', seed = 77, opts = {}) {
-  C.enemies.spawn.minLive = MIN_LIVE;
   const m = new Mission({ seed, faction, biome: 'grass', events: true, sessionMinutes: 0, boss: false, ...opts });
   run(m, 7);
   for (const e of m.enemies) e.dead = true;
@@ -25,7 +23,6 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
   m.support.spawnT = 1e9; m.support.scanT = 1e9; m.strat.callAt = 1e9; m.reinf.readyAt = 1e9;
   for (const b of m.bases) b.garrisoned = true;
   for (const p of m.pois) p.woke = true;
-  C.enemies.spawn.minLive = 0;
   return m;
 }
 
@@ -161,8 +158,7 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
   // a session's worth of missions with a boss forced in: a hard fight, but winnable
   let wins = 0, killed = 0;
   for (const [fac, seed] of [['bugs', 7101], ['bots', 7102], ['squids', 7103]]) {
-    C.enemies.spawn.minLive = MIN_LIVE;
-    const mm = new Mission({ seed, faction: fac, biome: 'grass', sessionMinutes: 20, boss: true, bossAt: 200 });
+      const mm = new Mission({ seed, faction: fac, biome: 'grass', sessionMinutes: 20, boss: true, bossAt: 200 });
     const { makeBot, botStep } = await import('../js/sim/bot.js');
     const bot = makeBot();
     for (let s = 0; !mm.over && s < 30 * 60 * 30; s++) { botStep(mm, bot); mm.step(dt); mm.events.length = 0; }
@@ -252,6 +248,5 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
   check('each mission starts with fewer enemies on the field and fills up as it goes', c15 > c0 + 50 && cLate >= 180, `cap ${Math.round(c0)} at the drop, ${Math.round(c15)} at 15 min, ${Math.round(cLate)} late in a session`);
 }
 
-C.enemies.spawn.minLive = MIN_LIVE;
 console.log(fails ? `\n${fails} FAILED` : '\nall passed');
 process.exit(fails ? 1 : 0);

@@ -1,15 +1,15 @@
 // DOM side: screens, HUD, briefing, armory, names editor, debrief, final screen and settings.
 import { CONFIG as C } from './config.js';
 import { FACTIONS, BIOMES } from './data/data.js';
-import { fmtTime, fmtNum, sessionTotals, MAX_NAME, carriesOn } from './session.js';
+import { fmtTime, fmtNum, sessionTotals, MAX_NAME, carriesOn, levelReached } from './session.js';
 import { STRATS, CAT_COLOR } from './data/strat.js';
 import { LETTERS, TEAM_COLOR } from './data/names.js';
-import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, barracksCost, BUILDS } from './data/kit.js';
+import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff } from './data/kit.js';
 import { stratReady, stratOnline } from './sim/strat.js';
 import { slotStats } from './sim/player.js';
 import { compass } from './sim/enemies.js';
 import { builtCount, FORMS } from './sim/seaf.js';
-import { POSTS, postReach, needsCrew, garrisonOf } from './sim/posts.js';
+import { POSTS } from './sim/posts.js';
 import { objectiveStatus, OBJ_NAME } from './sim/objectives.js';
 import { SQUAD_COLOR } from './sim/seaf.js';
 import { todAt, todName, todClock } from './render/sky.js';
@@ -17,10 +17,10 @@ import { situation, tipsFor } from './data/tips.js';
 import { t, tl, getLang, LANGS } from './i18n.js';
 import { postIcon } from './render/posts.js';
 import { squadColor } from './render/squads.js';
-import { LEVELS, levelFactors, reward } from './difficulty.js';
+import { LEVELS, levelFactors, reward, levelName } from './difficulty.js';
 
 const $ = (id) => document.getElementById(id);
-const SCREENS = ['s-title', 's-shop', 's-brief', 's-debrief', 's-final'];
+const SCREENS = ['s-title', 's-glass', 's-shop', 's-brief', 's-debrief', 's-final'];
 const OVERLAYS = ['s-pause', 's-lock', 's-controls', 's-manual', 's-armory', 's-names', 's-settings', 's-notice', 's-info', 's-about', 's-map'];
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -82,8 +82,8 @@ export class Hud {
       e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); this.onOrder && this.onOrder(kind); });
       this.ord[kind] = { el: e, sub: e.querySelector('.s'), key: '' };
     });
-    // The tactical build screen (main.js opens it): what is selected, a picture of everything SEAF can build (keys 1 to 7), and
-    // the formations for the selected squad (Z X C V B). The game waits while it is open.
+    // The tactical build screen (main.js opens it): what is selected, a picture of everything SEAF can build (keys 1 to 8), and
+    // the formations for the selected squad (Z X C V B). It runs in real time.
     this.bld = {}; this.frm = {};
     const tb = document.querySelector('#tactical .tac-build'), tf = document.querySelector('#tactical .tac-form');
     POSTS.forEach((what, i) => {
@@ -476,16 +476,17 @@ export class Hud {
       this.rr.push({ el: r, t: r.querySelector('.t'), ship: r.querySelector('.ship'), hp: r.querySelector('.hp u'), st: r.querySelector('.st'), key: '' });
     });
     this.hb = [];
-    $('mb-num').textContent = t('hud.missionN', { n: m.missionN || 1 });
-    $('mb-diff').textContent = t('hud.diffN', { n: m.difficulty ?? LEVELS, name: t('diff.' + (m.difficulty ?? LEVELS)).toUpperCase() });
+    $('mb-num').textContent = m.ls ? t('ls.tag') : t('hud.missionN', { n: m.missionN || 1 });
+    $('mb-diff').textContent = t('hud.diffN', { n: m.difficulty ?? LEVELS, name: t(...levelName(m.difficulty ?? LEVELS)).toUpperCase() });
     this.last.wslots = null;
     for (const w of this.wb) w.key = '';
   }
 
   update(m, cam, session) {
-    const left = Math.max(0, m.limitSec - m.t);
-    this._set('timer', $('timer'), fmtTime(left));
-    $('timer').classList.toggle('low', left < 120);
+    // (0.19: on Mars the clock is the time to the glassing, once the evacuation is open)
+    const left = m.ls ? (m.ls.glassAt < Infinity ? Math.max(0, m.ls.glassAt - m.t) : null) : Math.max(0, m.limitSec - m.t);
+    this._set('timer', $('timer'), left === null ? '--:--' : fmtTime(left));
+    $('timer').classList.toggle('low', left !== null && left < 120);
 
     let obj, prog = null, urgent = false;
     if (m.phase === 'objective' || m.phase === 'clear') {
@@ -516,7 +517,7 @@ export class Hud {
     this._set('ss', $('sc-session'), fmtNum(session.score + live));
     // (0.18) the drop countdown
     const din = m.countdown ? m.dropIn : 0, dc = $('dropcd');
-    if (din > 0) { dc.classList.remove('hidden'); this._set('dropcd', $('dropcd-n'), `0:${String(Math.ceil(din)).padStart(2, '0')}`); }
+    if (din > 0) { dc.classList.remove('hidden'); { const n = Math.ceil(din); this._set('dropcd', $('dropcd-n'), `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`); } }
     else if (!dc.classList.contains('hidden')) dc.classList.add('hidden');
     this._set('cr', $('sc-credits'), fmtNum(m.wallet.bal));
     // the big credits at the top left, with a flash of what just came in or went out
@@ -755,10 +756,9 @@ export class Hud {
       box.appendChild(b);
     }
   }
-  // The tactical build screen's header: whether the game waits or runs slow, and how to use it here.
-  setTacState(slow, touch) {
-    $('tc-state').textContent = t('tac.live');      // (0.18) it runs in real time
-    void slow;
+  // The tactical build screen's header: it runs in real time (0.18), and how to use it here.
+  setTacState(touch) {
+    $('tc-state').textContent = t('tac.live');
     $('tc-help').textContent = t(touch ? 'tac.helpTouch' : 'tac.helpDesk');
   }
   // A weapon is armed (picked on the bar or with its key): the reticle shows and a click calls it. Otherwise the cursor selects.
@@ -811,7 +811,7 @@ export class Hud {
       let name, sub = '', btns = '';
       if (post) {
         name = `${esc(t('build.' + post.what).toUpperCase())}${post.what !== 'foxhole' ? ` <i>${esc(t('card.lvShort', { n: post.lvl }))}</i>` : ''}`;
-        if (post.cap) sub = `${needsCrew(post) && !post.crew ? `<em>${esc(t('lab.noCrew'))}</em>` : `${esc(t('sel.crew'))} ${post.crew}/${post.cap}`}${post.garrison ? ` · ${esc(t('sel.garrison'))} ${post.garrison}` : ''}`;
+        if (post.cap) sub = `${esc(t('sel.crew'))} ${post.crew}/${post.cap}${post.garrison ? ` · ${esc(t('sel.garrison'))} ${post.garrison}` : ''}`;
         if (post.cap && post.garrison < post.cap) btns += `<button class="dr in" type="button" data-sa="in" title="${esc(t('sel.inT', { who }))}" aria-label="${esc(t('sel.inT', { who }))}">${DOOR_IN}</button>`;
         if (post.garrison) btns += `<button class="dr out" type="button" data-sa="out" title="${esc(t('sel.outT'))}" aria-label="${esc(t('sel.outT'))}">${DOOR_OUT}</button>`;
       } else if (sentry) {
@@ -854,7 +854,7 @@ export class Hud {
 
   // The squad bar: pick a squad, draw a play, split, merge, assign.
   _squads(m) {
-    const sf = m.seaf, total = m.countAlly('S'), free = sf.squads.some((q) => !q.n);
+    const sf = m.seaf, total = m.countAlly('S');
     for (const b of this.sqb) {
       const q = b.i < 0 ? null : sf.squads[b.i], n = q ? q.n : total, sel = sf.sel === b.i;
       let sub = n ? String(n) : '--';
@@ -872,9 +872,7 @@ export class Hud {
     this._dock(sf, total);
     const set = (kind, cls) => { const a = this.sqa[kind], key = cls; if (!a || a.key === key) return; a.key = key; a.el.className = 'sqa ' + cls; };
     set('draw', !total ? 'off' : this.drawing ? 'active' : 'ready');
-    const biggest = sf.sel >= 0 ? selN : Math.max(0, ...sf.squads.map((q) => q.n));
     set('disband', sf.sel === -2 || (sf.sel >= 0 && selN > 0) ? 'ready' : 'off');
-    void biggest; void free;
   }
 
   // The dock chip shows which squad is selected and what it is doing, so the tray can stay closed.
@@ -925,7 +923,7 @@ export class Hud {
           const cd = slotStats(m, i).cd;
           name = t('hud.w.artyBar');
           if (tt < s.readyAt) { sub = t('hud.o.sec', { n: Math.ceil(s.readyAt - tt) }); frac = Math.max(0, 1 - (s.readyAt - tt) / cd); cls = 'cd'; }
-          else if (sel && !p.aim.inZone) { sub = t(p.aim.artyWhy === 'range' ? 'hud.w.outRange' : p.aim.artyWhy === 'crew' ? 'hud.w.noCrew' : 'hud.w.noVisual'); cls = 'nomark'; }
+          else if (sel && !p.aim.inZone) { sub = t(p.aim.artyWhy === 'range' ? 'hud.w.outRange' : 'hud.w.noVisual'); cls = 'nomark'; }
           else { sub = t('hud.w.ready'); cls = 'ready'; }
         } else {
           name = t('hud.w.nuke');
@@ -1002,8 +1000,8 @@ export function runBriefing({ info, mission, touch, onContinue, onEnd, onCancel,
   $('r-biome').innerHTML = `${t('brief.biome')} <b>${b.name.toUpperCase()}</b> <span style="color:var(--g-dim)">· ${t('brief.area')} ${t('brief.areaVal', { n: pre.ao })}</span>`;
   $('r-obj').innerHTML = `${t('brief.objective')} <b style="color:var(--yellow)">${pre.objectives.map((o) => OBJ_NAME[o]).join(' + ')}</b>`
     + (pre.defenders ? `<br><b class="r-def">${esc(t('brief.defenders', { n: pre.defenders.n, place: t('place.' + (pre.defenders.type === 'nuke' ? 'launch' : pre.defenders.type === 'vip' ? 'pickup' : pre.defenders.type)) }))}</b>` : '');   // (0.18) SEAF already holding the site
-  const dl = pre.difficulty || LEVELS;
-  $('r-diff').innerHTML = `${t('brief.diff')} <b>${dl} · ${esc(t('diff.' + dl).toUpperCase())}</b> <span style="color:var(--g-dim)">· ${esc(t('brief.pay', { x: reward(dl).toFixed(2) }))}</span> <span class="lockchip">${esc(t('brief.locked'))}</span>`;
+  const dl = pre.difficulty || LEVELS, st = pre.start || dl;      // (0.19) the level climbs each mission from where the session started
+  $('r-diff').innerHTML = `${t('brief.diff')} <b>${dl} · ${esc(t(...levelName(dl)).toUpperCase())}</b> <span style="color:var(--g-dim)">· ${esc(t('brief.pay', { x: reward(dl).toFixed(2) }))}</span> <span class="lockchip">${esc(t(dl > st ? 'brief.climbed' : 'brief.climbs', { n: st }))}</span>`;
   $('r-fail').innerHTML = `${esc(t('brief.fail'))} <b>${esc(t('brief.failIf', { n: pre.lives || C.helldivers.lives }))}</b>`;
 
   // The squad's twelve stratagems appear group by group while the mission loads.
@@ -1186,7 +1184,6 @@ function upgradeLines(it, kit) {
 // The armory's tabs, and which sections each holds.
 export const SHOP_TABS = [{ id: 'orb', secs: ['loadout', 'orbitals', 'utilities'] }, { id: 'ship', secs: ['gun', 'uav', 'support'] }, { id: 'seaf', secs: ['seaf', 'specialists'] }, { id: 'build', secs: ['build'] }];
 let shopTab = 'orb';
-export function setShopTab(id) { if (SHOP_TABS.some((x) => x.id === id)) shopTab = id; }
 export function renderShop(root, opts) {
   const { kit, wallet, live } = opts, items = shopItems(kit);
   const scroll = root.querySelector('.shop-scroll'), keep = scroll ? scroll.scrollTop : 0;
@@ -1314,7 +1311,7 @@ export function fillDebrief(info, res, session, block = '', startCr = null) {
     [t('deb.r.lost', { n: s.lostH }), b.deaths],
     [t('deb.r.wipes', { n: s.wipes }), b.wipes],
     [t('deb.r.ff', { n: s.ff }), b.ff],
-    [t('deb.r.diff', { n: res.difficulty || LEVELS, name: t('diff.' + (res.difficulty || LEVELS)), x: (res.reward || 1).toFixed(2) }), (res.score || 0) - (res.base ?? res.score ?? 0)],
+    [t('deb.r.diff', { n: res.difficulty || LEVELS, name: t(...levelName(res.difficulty || LEVELS)), x: (res.reward || 1).toFixed(2) }), (res.score || 0) - (res.base ?? res.score ?? 0)],
   ].filter(([, v]) => v !== 0);
   if (!rows.length) rows.push([t('deb.r.nothing'), 0]);
   const tbl = (r) => r.map(([k, v, cls]) => `<tr${cls ? ` class="${cls}"` : ''}><td>${esc(k)}</td><td class="${v < 0 ? 'neg' : ''}">${v < 0 ? '-' : ''}${fmtNum(Math.abs(v))}</td></tr>`).join('');
@@ -1358,8 +1355,8 @@ export function fillFinal(session, fin, block) {
   $('f-score').textContent = fmtNum(session.score);
   $('f-id').textContent = fin.id;
   $('f-local').textContent = fin.isBest ? t('fin.best') : fin.bestBefore ? t('fin.bestWas', { n: fmtNum(Math.max(fin.bestBefore, session.score)) }) : '';
-  const dl = session.difficulty || LEVELS;
-  $('f-diff').textContent = t('fin.diff', { n: dl, name: t('diff.' + dl).toUpperCase() });
+  const dl = session.difficulty || LEVELS, top = levelReached(session);
+  $('f-diff').textContent = t('fin.diff', { n: dl, name: t(...levelName(dl)).toUpperCase() }) + (top > dl ? ' · ' + t('fin.reached', { n: top, name: t(...levelName(top)).toUpperCase() }) : '');
   $('f-totals').textContent = t('fin.totals', { e: fmtNum(tt.earned), s: fmtNum(tt.spent), k: fmtNum(tt.kills), h: tt.lostH, f: tt.lostS });
   $('f-table').innerHTML = session.missions.map((m, i) => {
     const boss = m.boss ? t('fin.boss', { name: bossName(m.boss), fate: t(m.boss.killed ? 'fin.killed' : 'fin.escaped') }) : '';
@@ -1448,6 +1445,23 @@ export function buildEnemy(cur, onPick) {
   }
   $('enemy-note').textContent = t('enemy.note');
 }
+// (0.19) The end of the tutorial: Mars is glassed. How long the base held, how many got off Mars, and what it cost.
+export function fillGlass(res) {
+  const L = res.lastStand || { lifted: 0, held: 0, fallen: false, pop: 0 }, s = res.stats || {};
+  const mm = Math.floor((L.held || 0) / 60), ss = String((L.held || 0) % 60).padStart(2, '0');
+  $('g-title').textContent = t(res.outcome === 'retired' ? 'glass.titleLeft' : 'glass.title');
+  $('g-lede').textContent = t(res.outcome === 'retired' ? 'glass.ledeLeft' : L.fallen ? 'glass.ledeFell' : 'glass.lede', { saved: res.civSaved || 0, lifts: L.lifted || 0, t: `${mm}:${ss}` });
+  const rows = [
+    [t('glass.r.saved'), `${res.civSaved || 0} / ${L.pop || 0}`],
+    [t('glass.r.lifts'), String(L.lifted || 0)],
+    [t('glass.r.held'), `${mm}:${ss}`],
+    [t('glass.r.kills'), fmtNum(res.kills || 0)],
+    [t('glass.r.lost'), `${s.lostH || 0} · ${s.lostS || 0}`],
+    [t('glass.r.civLost'), String(res.civLost || 0)],
+  ];
+  $('g-table').innerHTML = rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
+}
+
 // The difficulty picker on the title screen: ten levels, the chosen one's name, and what it does. saved: the level of a session
 // that can be resumed (it keeps its own level; a new one starts at the chosen level).
 export function buildDiff(cur, saved, onPick) {

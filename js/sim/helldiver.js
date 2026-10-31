@@ -11,8 +11,7 @@ import { fireShot, blocker } from './combat.js';
 import { bark } from './chatter.js';
 import { wakesBase } from './strat.js';
 
-const K = C.hd, R = K.retreat, SIZE = C.world.size;
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const K = C.hd, R = K.retreat;
 const EH = C.enemies.hp;
 // What a light, a medium and a heavy have now (the war toughens them as the session goes on).
 const hpNow = (m) => ({ L: EH.light * m.hpMul, M: EH.medium * m.hpMul, H: EH.heavy * m.hpMul });

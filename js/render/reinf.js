@@ -215,7 +215,7 @@ export function drawEvac(ctx, m, now, px, labels, scale) {
   for (const c of m.civs) if (c.dead) { ctx.strokeStyle = 'rgba(255,90,90,0.55)'; ctx.lineWidth = px(1.2); const r = Math.max(1, px(3)); ctx.beginPath(); ctx.moveTo(c.x - r, c.y - r); ctx.lineTo(c.x + r, c.y + r); ctx.moveTo(c.x + r, c.y - r); ctx.lineTo(c.x - r, c.y + r); ctx.stroke(); }
   if (!o.done) {
     labels.push({ x: o.sx, y: o.sy, dy: -26, text: tr(o.state === 'run' ? (o.open ? 'lab.shelterOpen' : 'lab.shelterShut') : 'lab.shelter'), col, pri: 2 });
-    labels.push({ x: o.hx + ux * 12, y: o.hy + uy * 12, dy: -26, text: tr(o.lost ? 'lab.hangarLost' : 'lab.hangar', { saved: o.saved, need: E.need, lost: o.lost }), col, pri: 2 });
+    labels.push({ x: o.hx + ux * 12, y: o.hy + uy * 12, dy: -26, text: o.lastStand ? tr('lab.lsHangar', { saved: o.saved }) : tr(o.lost ? 'lab.hangarLost' : 'lab.hangar', { saved: o.saved, need: E.need, lost: o.lost }), col, pri: 2 });
   }
 }
 

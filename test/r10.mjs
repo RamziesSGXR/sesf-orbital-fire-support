@@ -123,7 +123,7 @@ function quiet(faction = 'bots', seed = 77, opts = {}) {
   check('every point of interest and propaganda tower can be destroyed', pois === m.pois.length, `${pois}/${m.pois.length} (${[...new Set(m.pois.map((p) => p.kind))].join(', ')})`);
   const f = new Mission({ seed: 5310, faction: 'bots', biome: 'grass', events: false, sessionMinutes: 60, missionN: 6, boss: false });
   const fort = f.bases.find((b) => b.fortress);
-  if (fort) { for (let i = 0; i < 5; i++) damageArea(f, fort.x, fort.y, 40, 1e6, B(1), 'player', false); f.step(dt); }
+  if (fort) { fort.bombOnly = false; for (let i = 0; i < 5; i++) damageArea(f, fort.x, fort.y, 40, 1e6, B(1), 'player', false); f.step(dt); }     // (the keep takes a Hellbomb: r18)
   check('the citadel can be destroyed', !fort || fort.destroyed, fort ? `hp ${Math.round(fort.hp)}` : 'no citadel on this map');
 }
 

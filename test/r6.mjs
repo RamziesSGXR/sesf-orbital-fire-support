@@ -22,7 +22,6 @@ function quiet(faction = 'bugs', seed = 77, events = true) {
   for (const e of m.enemies) e.dead = true;
   m.enemies = []; m.groups = [];
   m.support.spawnT = 1e9; m.support.scanT = 1e9; m.strat.callAt = 1e9;
-  C.enemies.spawn.minLive = 0;
   return m;
 }
 const inert = (g) => { g.hold = 1e9; return g; };       // a group that stands where it is and does nothing
@@ -51,11 +50,12 @@ const nearHd = (m, a, d, ang = 0) => ({ x: a.x + Math.cos(ang) * d, y: a.y + Mat
   check('every group of four has a heavy-killer', noAnti === 0, ANTI_IDS.join(' '));
   check('no group holds two squad-wide items', shared === 0);
   const spear = STRATS.spear.sw, eat = STRATS.eat.sw, ac = STRATS.autocannon.sw;
-  check('spear has a lock-on period and can one-shot a medium', spear.lock >= 1.5 && spear.dmg * C.strat.dmgMul * (1 - spear.vary) >= C.enemies.hp.medium, `lock ${spear.lock}s`);
-  // (Revision 10 cut the Helldivers' stratagems to 40%: the heavy lifting is the gunner's job now)
-  const hits = (w, hp) => Math.ceil(hp / (w.dmg * C.strat.dmgMul));
-  check('spear takes two or three hits on a heavy', hits(spear, C.enemies.hp.heavy) >= 2 && hits(spear, C.enemies.hp.heavy) <= 3, `${hits(spear, C.enemies.hp.heavy)} hits`);
-  check('expendable anti-tank is one use and takes half a heavy or more', eat.ammo === 1 && eat.dmg * C.strat.dmgMul * (1 - eat.vary) >= C.enemies.hp.heavy * 0.5);
+  const SW = C.strat.swMul ?? C.strat.dmgMul;      // (0.19: the support weapons' own multiplier)
+  check('spear has a lock-on period and can one-shot a medium', spear.lock >= 1.5 && spear.dmg * SW * (1 - spear.vary) >= C.enemies.hp.medium, `lock ${spear.lock}s`);
+  // (Revision 10 cut the Helldivers' stratagems to 40%: the heavy lifting is the gunner's job now; 0.19 cut the weapons a little, to 37%)
+  const hits = (w, hp) => Math.ceil(hp / (w.dmg * SW));
+  check('spear takes two to four hits on a heavy', hits(spear, C.enemies.hp.heavy) >= 2 && hits(spear, C.enemies.hp.heavy) <= 4, `${hits(spear, C.enemies.hp.heavy)} hits`);
+  check('expendable anti-tank is one use and takes half a heavy or more', eat.ammo === 1 && eat.dmg * SW * (1 - eat.vary) >= C.enemies.hp.heavy * 0.5);
   check('autocannon is fast, heavy-penetration and takes several shots on a medium', ac.every <= 0.7 && ac.mult.H >= 0.75 && hits(ac, C.enemies.hp.medium) >= 2 && hits(ac, C.enemies.hp.medium) <= 7, `${hits(ac, C.enemies.hp.medium)} shots`);
 }
 

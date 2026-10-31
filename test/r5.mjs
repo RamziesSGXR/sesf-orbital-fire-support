@@ -64,7 +64,8 @@ const sf = await ev(() => window.__game.mission.seafAlive.length);
 check('troopers landed', sf >= 3, String(sf));
 
 // split into squads, pick one, draw a route with the mouse/finger
-const split = await ev(() => window.__game.mission.splitSeaf());
+// (0.19: no SPLIT button any more: half the troopers picked and moved to a squad of their own, as Alt+number does)
+const split = await ev(() => { const m = window.__game.mission, q = m.seafTargets().sort((a, b) => b.n - a.n)[0]; if (!q) return null; const mem = m.seafAlive.filter((a) => a.sq === q.i).sort((a, b) => a.id - b.id).filter((_, k) => k % 2 === 1); const free = m.seaf.squads.find((s) => s.i !== q.i && !m.seafAlive.some((a) => a.sq === s.i)); m.pickSeaf(mem); const r = m.toSquad(free.i); m.selectSquad(-1); return r; });
 check('split worked', split && split.ok, JSON.stringify(split));
 await page.waitForTimeout(500);
 await page.screenshot({ path: out('7-squads') });

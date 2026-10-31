@@ -15,7 +15,6 @@ import { damageArea } from './combat.js';
 
 const R = C.reinf;
 const ALL = { L: 1, M: 1, H: 0.6, B: 0.2 };
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 export function initReinf(m) {
   m.reinf = { readyAt: 20, active: 0, n: 0, siteAt: 0 };

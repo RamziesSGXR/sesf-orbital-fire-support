@@ -12,15 +12,24 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 ## Quick start
 
-1. Open the link above. Type a callsign if you want one on your score, pick a **difficulty** (start at 3 if you're new), and press **PLAY**. A screen shows the level you're locking in and how a session ends. Press **LOCK IN** to start, or **CHANGE DIFFICULTY** to go back.
+0. New here? Press **TUTORIAL: LAST STAND ON MARS** first. It walks you through every control in one short, doomed mission (see [the tutorial](#tutorial-last-stand-on-mars)).
+1. Open the link above. Type a callsign if you want one on your score, pick the **difficulty** your session starts at (3 if you're new), and press **PLAY**. A screen shows the starting level and how a session ends. Press **START AT LEVEL** to begin, or **CHANGE DIFFICULTY** to go back.
 2. The **armory** opens. You start with a UAV scan, three orbital strikes and the ship gun. Buy something or just press **DEPLOY**.
 3. Read the briefing while the mission loads, then press **CONTINUE**.
-4. The Helldivers drop in and head for the objective. The ship gun is ready at once; your UAV scan and orbital strikes are still charging for the first half minute or so. Aim, pick a weapon and call strikes on the enemy, not on your own squad.
+4. The Helldivers drop in and head for the objective. The ship gun is ready at once; your UAV scan and orbital strikes are still charging for the first twenty seconds or so. Aim, pick a weapon and call strikes on the enemy, not on your own squad.
 5. Not sure what to do? Press **INFO** (or `I`) at any time for the mission's steps and what the enemy does.
+
+## Tutorial: last stand on Mars
+
+**Mars, 20 May 2185.** The Illuminate fleet is on its way to Super Earth, and Mars is in the way. The Super Earth Special Forces hold **Base Tharsis** and the last Pelicans off the planet, and you are their fire control on the destroyer overhead.
+
+Press **TUTORIAL: LAST STAND ON MARS** on the title screen. A card walks you through the controls one at a time and waits until you've done each one (or press **SKIP**): looking around, the tactical screen, pausing, picking troops and giving them orders, building, dropping the Helldivers, the ship gun, the UAV, an orbital strike, a SEAF drop and a Harvester. Each lesson sends a small group at the base to practise on. Then the shelter opens. Personnel run for the hangar, and every Pelican that lifts takes ten of them off Mars, while the Illuminate come in waves, bigger every time.
+
+It can't be won. After five minutes the fleet glasses the plain, and the end screen tells you how long the base held and how many people got out. **START THE EVACUATION** skips the rest of the lessons at any point. The tutorial doesn't touch your saved session, and **PLAY A SESSION** on its end screen starts a real one.
 
 ## Your job
 
-On the higher difficulty levels the Helldivers can't win this alone. Left to themselves they take the objective, then run out of lives and the run ends. What you do from orbit decides whether they get out. Every minute you spend covering them is a minute you're not hitting something else, and that choice is the game.
+From difficulty 3 up the Helldivers can't win this alone. Left to themselves they run out of lives before the job is done, and the run ends. What you do from orbit decides whether they get out. Every minute you spend covering them is a minute you're not hitting something else, and that choice is the game.
 
 - **Select, then aim.** With no weapon armed, your cursor selects things: posts, sentries, defence sites and SEAF troopers. Press a weapon key (or tap the weapon bar) to arm it and the reticle appears; after one call the cursor goes back to selecting. Hold `Shift` while you click to keep it armed. A right click or `Esc` puts it down. The ship gun stays armed until you put it down.
 - **You run the sky.** You aim the UAV scan and the orbital strikes. Strikes can only land inside the **strike zone** around your allies or inside a UAV scan circle. Your strikes hurt friendlies, so watch where the squad is.
@@ -101,13 +110,13 @@ On the higher difficulty levels the Helldivers can't win this alone. Left to the
 
 **Screen layout on a computer:** the INFO, ARMORY, TACTICAL and MENU buttons, speed and pause are at the top left, with one feed of news under them: supply requests, the super heavy and requests for more time first, then the radio and the notices. The mission clock, number and difficulty are at the top right, with the current objective just below. The Helldivers (health, ship names, stratagems and what each one is doing) and the SEAF squads with their orders are at the bottom left, and the round minimap is at the bottom right. The minimap is twice as big as it was; **Settings > Minimap size** changes it.
 
-Every panel closes with its ✕ button or `Esc`. On a phone, the squad panel stays open until you close it with its ✕ or tap the map. In **Settings** you can make the in-mission controls bigger or smaller (**UI size**), turn the info tips off. **CONTROLS**, the **FIELD MANUAL** (everything you can do, with tips), **SQUAD NAMES** and **SETTINGS** are in the menu, which the armory and the briefing open with their **MENU** buttons too. The armory's **BACK** goes to the title screen, where you can change the difficulty before you lock in. The briefing's **CANCEL** goes back to the armory; the same mission waits for you when you deploy again.
+Every panel closes with its ✕ button or `Esc`. On a phone, the squad panel stays open until you close it with its ✕ or tap the map. In **Settings** you can make the in-mission controls bigger or smaller (**UI size**), turn the info tips off. **CONTROLS**, the **FIELD MANUAL** (everything you can do, with tips), **SQUAD NAMES** and **SETTINGS** are in the menu, which the armory and the briefing open with their **MENU** buttons too. The armory's **BACK** goes to the title screen, where you can change the starting difficulty before you begin. The briefing's **CANCEL** goes back to the armory; the same mission waits for you when you deploy again.
 
 ## Missions
 
 Each mission has a random operation name, enemy (Bugs, Bots or Squids), terrain and time of day. Each has one objective, and later missions have two:
 
-- **Nuclear Launch.** Hold the launch site until it is armed, then fire the nuke anywhere. It flattens everything within 230 m after a ten-second countdown, so give your allies time to clear.
+- **Nuclear Launch.** Hold the launch site until it is armed, then fire the nuke anywhere. It flattens everything within 230 m after a ten-second countdown, so give your allies time to clear. Firing it is your job: it never launches itself, and if the launch window closes the squad has to hold the site while it re-arms.
 - **VIP Rescue.** Find the VIP and get them to the pickup point.
 - **Destroy the Citadel.** A keep with a ring of bases round it, walled together and guarded by a super heavy that turns out when the squad arrives. Knock out the bases round it, then clear the keep: only a **Hellbomb** brings it down. When the squad calls one, a panel opens in slow motion and you put the bomb together: tap the part that lights up (`1`-`4`), in order, before the timer runs out. A wrong part costs time; too slow and it's a dud, and another can be called a little later. A Helldiver arms it, everyone runs, and ten seconds later the keep is gone.
 - **Evacuate Civilians.** Hold a site while forty-four civilians walk from the shelter to the hangar and fly out. Your strikes can kill them too.
@@ -133,7 +142,7 @@ The places the squad has to hold (the launch site, the shelter and the hangar, t
 
 Once the objective is done, the Helldivers decide what's next. With **more than three lives left** and the time for it, they go for a **full clear**: every base and side mission on the map, for a big bonus. If they have the lives but not the time, they **ask you for more minutes**: a callout says how many and what it costs in credits. Press **APPROVE** (or `K`) and they go for it; say nothing and they head out. If lives run down to three, they break it off. With fewer lives they head straight for the **extraction point**. A Helldiver calls the pelican and the squad holds the pad while the enemy throws reinforcements at it. When the pelican lands, everyone runs for the ramp, and SEAF squads get pelicans of their own. Extracting wins the mission with full pay. If the squad is lost or the clock runs out **after** the primary objective is done, the mission still counts (**OBJECTIVE COMPLETE**) and the session goes on, just without the extraction pay. If the squad runs out of lives with no Helldiver left standing **before** the objective is done, the mission fails, SEAF or not.
 
-**Maps grow with every mission.** Maps are round, like the minimap. The first is 760 m across, small enough for a full clear with your help. Each mission adds about 110 m, up to 1.5 km. Missions take ten to fifteen minutes. The extraction pad is on the map from the drop, locked until the objective is done, so SEAF can dig in round it early. A Helldiver there throws a blue beacon; when it lands the pelican is two minutes out, the enemy always comes for it (drop ships, or bugs breaching), and once it lands everyone has twenty seconds to get aboard. After about forty minutes of a session each mission has two objectives. Each mission has a 30-minute limit, and each gets harder the longer it runs: more enemies on the field and harder hits.
+**Maps grow with every mission.** Maps are round, like the minimap. The first is 760 m across, small enough for a full clear with your help. Each mission adds about 110 m, up to 1.5 km. Missions take ten to fifteen minutes. The extraction pad is on the map from the drop, locked until the objective is done, so SEAF can dig in round it early. A Helldiver there throws a blue beacon; when it lands the pelican is two minutes out, the enemy always comes for it (drop ships, or bugs breaching), and once it lands everyone has twenty seconds to get aboard. After about an hour of a session each mission has two objectives. Each mission has a 30-minute limit, and each gets harder the longer it runs: more enemies on the field and harder hits.
 
 ## Tips
 
@@ -157,22 +166,30 @@ Once the objective is done, the Helldivers decide what's next. With **more than 
 
 ## Difficulty
 
-Pick a level from 1 to 10 on the title screen before you press **PLAY**. **PLAY** then shows the level you're about to lock in. The level stays with the session: to change it, start a new one. **RESUME** carries on at the level the session was started at. Level 10 is the full war, as hard as the game gets. Every level below it sends fewer enemies, with fewer mediums and heavies among them and fewer super heavies. Higher levels pay more credits and more score, and your score block shows the level you played at.
+Pick the level your session **starts** at, from 1 to 10, on the title screen before you press **PLAY** (3 if you're new). From there **the level climbs every mission**, about three quarters of a level each time, with no ceiling. A session started at 3 flies its tenth mission at level 10, which is where a session started at 10 begins, and it keeps going past 10 (**Super Helldive +1**, **+2** and so on). The briefing and the HUD show the level of the mission you're on, and **RESUME** shows the level of the next one. To start at another level, start a new session.
 
-| Level | Name | Enemies | Mediums | Heavies | Super heavies | Credits and score |
-|---|---|---|---|---|---|---|
-| 1 | Trivial | 55% | 60% | 40% | 30% | ×0.75 |
-| 2 | Easy | 60% | 64% | 47% | 38% | ×0.80 |
-| 3 | Medium | 65% | 69% | 53% | 46% | ×0.85 |
-| 4 | Challenging | 70% | 73% | 60% | 53% | ×0.90 |
-| 5 | Hard | 75% | 78% | 67% | 61% | ×0.95 |
-| 6 | Extreme | 80% | 82% | 73% | 69% | ×1.00 |
-| 7 | Suicide Mission | 85% | 87% | 80% | 77% | ×1.05 |
-| 8 | Impossible | 90% | 91% | 87% | 84% | ×1.10 |
-| 9 | Helldive | 95% | 96% | 93% | 92% | ×1.15 |
-| 10 | Super Helldive | 100% | 100% | 100% | 100% | ×1.20 |
+Each level sets two things. **How many come**: patrols, backup, group sizes, how many can be on the field, and how often mediums, heavies and super heavies turn up. And **how far the war has gone** (the **War** column, in "war minutes"): the enemy's toughness, how hard it hits, how fast the pressure builds and how many heavies come out of the bases. The session's own minutes add a little more to that. Higher levels pay more credits and more score, and your score block shows the level you started at and the highest you reached.
 
-The percentages compare each level with level 10. "Enemies" covers everything that brings them in: patrols, backup calls, group sizes and how many can be on the field at once. "Mediums" and "heavies" are how often they turn up among those enemies.
+From level 3 up, the Helldivers can't win a mission on their own: left alone, they run out of lives. Your fire support is what gets them through.
+
+| Level | Name | Enemies | Mediums | Heavies | Super heavies | War | Credits and score |
+|---|---|---|---|---|---|---|---|
+| 1 | Trivial | 55% | 60% | 40% | 30% | 0 | ×0.75 |
+| 2 | Easy | 60% | 64% | 47% | 38% | 15 | ×0.80 |
+| 3 | Medium | 65% | 69% | 53% | 46% | 38 | ×0.85 |
+| 4 | Challenging | 70% | 73% | 60% | 53% | 41 | ×0.90 |
+| 5 | Hard | 75% | 78% | 67% | 61% | 44 | ×0.95 |
+| 6 | Extreme | 80% | 82% | 73% | 69% | 47 | ×1.00 |
+| 7 | Suicide Mission | 85% | 87% | 80% | 77% | 50 | ×1.05 |
+| 8 | Impossible | 90% | 91% | 87% | 84% | 53 | ×1.10 |
+| 9 | Helldive | 95% | 96% | 93% | 92% | 56 | ×1.15 |
+| 10 | Super Helldive | 100% | 100% | 100% | 100% | 60 | ×1.20 |
+| 12 | Super Helldive +2 | 110% | 109% | 113% | 116% | 80 | ×1.30 |
+| 15 | Super Helldive +5 | 125% | 122% | 133% | 139% | 110 | ×1.45 |
+
+The percentages compare each level with level 10 (past 10 they keep climbing: two rows show where). "Enemies" covers everything that brings them in: patrols, backup calls, group sizes and how many can be on the field at once. "Mediums" and "heavies" are how often they turn up among those enemies.
+
+**Testing the balance.** `node test/difficulty.mjs` runs whole missions headless at each level for three kinds of gunner: nobody at the controls, a new player (the bot with slow reactions) and a sharp one (the bot at full skill), one mission per objective type. It checks that with nobody at the controls every mission from level 3 up is lost, and that the sharp gunner wins most missions at levels 1 to 3. `node test/difficulty.mjs session 3 16` plays one whole session from level 3 with the bot shopping between missions (add `0` to play it without upgrades), so you can see how far a gunner gets and what upgrades are worth.
 
 ## How a session works
 
@@ -184,7 +201,7 @@ Missions follow one another until one fails. A mission fails when **all 20 Helld
 
 Between missions the **armory** opens. Credits from kills, bases, targets, super heavies, the objective and extraction buy new orbital strikes and utilities, more loadout slots and upgrades for your orbitals, the ship gun, the UAV scan, SEAF, the buildables and the strike zone. The armory is split into tabs (**ORBITALS**, **SHIP**, **SEAF**, **BUILDABLES**); a green dot on a tab means there is something in it you can afford. Every upgrade shows what it does **now**, what the **next** level adds, and its whole **path** level by level. The **SEAF Barracks** has no top level: each level puts more troops on the ground and costs a little more. A very long session earns enough to max out everything. (Sessions saved before version 0.13 that bought extra Helldiver lives get those credits back.)
 
-The war gets worse every minute: tougher enemies, harder hits and more heavies, on top of each mission's own climb. Every run ends eventually. A good gunner gets the squad through five to ten missions, an hour or two.
+The war gets worse every mission: the level climbs, so there are more enemies, tougher and harder-hitting, with more heavies, on top of each mission's own climb, and the maps grow. Upgrades are how you keep up. Every run ends eventually.
 
 ## Share your score
 

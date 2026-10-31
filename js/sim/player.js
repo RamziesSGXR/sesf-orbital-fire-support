@@ -10,7 +10,7 @@ import { damageArea, hurtEnemy, jammedAt } from './combat.js';
 import { domeAt } from './ops.js';
 import { strikeAt, queueZone, destroyAsset } from './strat.js';
 
-export const SLOT_UAV = 0, SLOT_NUKE = 6, SLOT_GUN = 7, SLOT_ARTY = 8, ORB_SLOTS = 5;
+export const SLOT_ARTY = 8, ORB_SLOTS = 5;
 export const UAV_REACH = 70;       // a UAV can be dropped this far beyond the strike zone of the allies
 const ALL = { L: 1, M: 1, H: 1, B: 1 };
 const GUN_MULT = { L: 1, M: 0.8, H: 0.2, B: C.gun.struct };
@@ -67,22 +67,21 @@ export function slotStats(m, i) {
 }
 // The cannon's numbers: the armory level (a captured gun fires at level 1 at least).
 export const artyStats = (m) => buildStats('arty', Math.max(1, buildLevel(m.kit, 'arty')));
-// The nearest manned artillery cannon to (x, y), and how far it is (crewless: one that has nobody on it, if that is all there is).
+// The nearest artillery cannon to (x, y), and how far it is (0.18: it fires with or without a crew; a crew loads it faster).
 export function nearestArty(m, x, y) {
-  let best = null, bd = Infinity, idle = null, id = Infinity;
+  let best = null, bd = Infinity;
   for (const g of m.arty || []) {
     const d = Math.hypot(g.x - x, g.y - y);
-    if (d < bd) { bd = d; best = g; }       // (0.18: it fires with or without a crew; a crew loads it faster)
+    if (d < bd) { bd = d; best = g; }
   }
-  return { g: best, d: bd, idle, idleD: id };
+  return { g: best, d: bd };
 }
 // A mini-nuke from the cannon: anywhere in its range that is in sight (or locked), on a slow recharge, while someone mans it.
 // It hurts allies too.
 function fireArty(m, s) {
   const p = m.player, t = m.t, a = artyStats(m), A = C.arty;
   if (t < s.readyAt) return deny(m, 'cooldown');
-  const { g, d, idle, idleD } = nearestArty(m, p.aimX, p.aimY);
-  if ((!g || d > a.range) && idle && idleD <= a.range) return deny(m, 'artycrew', COMMS.artyCrew);
+  const { g, d } = nearestArty(m, p.aimX, p.aimY);
   if (!g || d > a.range) return deny(m, 'artyrange');
   if (m.visLevel(p.aimX, p.aimY) <= 0 && !m.nearLock(p.aimX, p.aimY)) return deny(m, 'novisual');
   s.readyAt = t + a.cd * (g.crew >= (g.cap || 2) ? 1 : g.crew > 0 ? 1.25 : 1.6);     // crewless it reloads slowly
@@ -252,7 +251,7 @@ export function updatePlayer(m, dt) {
   } else if (s.type === 'arty') {
     const a = artyStats(m), near = nearestArty(m, p.aimX, p.aimY);
     info.lock = m.visLevel(p.aimX, p.aimY) <= 0 && !!m.nearLock(p.aimX, p.aimY);
-    info.artyWhy = !near.g || near.d > a.range ? (near.idle && near.idleD <= a.range ? 'crew' : 'range') : m.visLevel(p.aimX, p.aimY) > 0 || info.lock ? '' : 'vis';
+    info.artyWhy = !near.g || near.d > a.range ? 'range' : m.visLevel(p.aimX, p.aimY) > 0 || info.lock ? '' : 'vis';
     info.inZone = !info.artyWhy; info.splash = a.r; info.ready = info.inZone && t >= s.readyAt;
   } else if (s.type === 'gun') {
     // free fire: anywhere the player can see, no strike zone needed

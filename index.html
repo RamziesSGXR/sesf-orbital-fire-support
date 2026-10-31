@@ -76,7 +76,8 @@
       <button id="td-sf" class="btn tdb" type="button"><span data-t="tac.dropSf">SEAF SQUADS</span> <i>▴</i></button>
     </div>
     </div>
-    <!-- the tactical build screen (O): the game waits while it is open. What is selected, what SEAF can build, and formations. -->
+    <!-- the tactical screen (Tab or O; it runs in real time): what is selected, the orders, what SEAF can build, the ship's weapons,
+         the armory, and formations -->
     <div id="tactical" class="panel hidden" role="dialog">
       <div class="tc-h"><b data-t="tac.title">TACTICAL BUILD</b><span id="tc-state" class="tc-state"></span><span class="tc-help" id="tc-help"></span><button class="x-close tc-x" type="button" data-ta="hud.closeTac">✕</button></div>
       <div class="tc-body">
@@ -97,9 +98,14 @@
         <div class="tc-sec tc-f"><div class="tc-l" data-t="tac.form">FORMATION</div><div class="tc-grid tac-form"></div></div>
       </div>
     </div>
-    <!-- the tactical build screen says the game is waiting, high in the middle -->
+    <!-- (0.19) the tutorial's card, and the glassing of Mars -->
+    <div id="tut" class="panel hidden" role="dialog" aria-live="polite">
+      <div class="tut-top"><span id="tut-k" class="tut-k"></span><button id="tut-x" class="tut-x" type="button" aria-label="Fold">▾</button></div>
+      <h3 id="tut-h"></h3><p id="tut-b"></p>
+      <div class="tut-btns"><button id="tut-next" class="btn primary" type="button"></button><button id="tut-skip" class="btn" type="button" data-t="tut.skip">SKIP</button><button id="tut-go" class="btn" type="button" data-t="tut.go">START THE EVACUATION</button></div>
+    </div>
+    <div id="glassfx" aria-hidden="true"></div>
     <div id="dropcd" class="hidden" role="status"><div class="dc-t"><small data-t="hud.dropIn">HELLDIVERS DROP IN</small><b id="dropcd-n">0:30</b></div><button id="dropcd-go" class="btn primary" type="button"><span data-t="hud.deployNow">DEPLOY NOW</span> <kbd>ENTER</kbd></button></div>
-    <div id="tac-banner" role="status"><b data-t="tac.paused">GAME PAUSED</b><span data-t="tac.bannerSub">TACTICAL BUILD · TAB OR ESC TO GO ON</span></div>
     <!-- what is selected on the map (a post, a sentry or a defence site): its name, level and health, just above it -->
     <div id="selpop" class="hidden" role="dialog"></div>
     <div id="dock">
@@ -168,6 +174,7 @@
       <div class="btns">
         <button id="btn-play" class="btn primary big" data-t="title.play">PLAY</button>
         <button id="btn-resume" class="btn hidden"></button>
+        <button id="btn-tutorial" class="btn tut-b" type="button"><span data-t="title.tutorial">TUTORIAL: LAST STAND ON MARS</span><i id="tut-new" class="hidden" data-t="title.new">NEW</i></button>
         <button id="btn-names-t" class="btn" data-t="ui.names">SQUAD NAMES</button>
         <button id="btn-settings" class="btn" data-t="ui.settings">SETTINGS</button>
         <button id="btn-about-t" class="btn" data-t="ui.about">ABOUT</button>
@@ -221,6 +228,22 @@
           <div id="b-story" class="b-story"></div>
           <button id="b-tipbox" class="b-tip" type="button" aria-live="polite" data-tt="brief.nextTip"><span class="tip-tag" data-t="brief.tip">TIP</span><span id="b-tip"></span><span class="tip-next" data-t="brief.next">NEXT ›</span></button>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- (0.19) the end of the tutorial: Mars is glassed -->
+  <section id="s-glass" class="screen">
+    <div class="card wide glass-card">
+      <div class="eyebrow" data-t="glass.eyebrow">MARS · 20 MAY 2185</div>
+      <h2 id="g-title" data-t="glass.title">MARS IS GLASS</h2>
+      <p id="g-lede" class="g-lede"></p>
+      <table id="g-table"></table>
+      <p class="fine g-lore" data-t="glass.lore"></p>
+      <div class="btns">
+        <button id="glass-play" class="btn primary big" type="button" data-t="glass.play">PLAY A SESSION</button>
+        <button id="glass-again" class="btn" type="button" data-t="glass.again">HOLD MARS AGAIN</button>
+        <button id="glass-title" class="btn" type="button" data-t="glass.toTitle">TITLE SCREEN</button>
       </div>
     </div>
   </section>

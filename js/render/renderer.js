@@ -283,7 +283,6 @@ export class Renderer {
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
     ctx.setTransform(scale, 0, 0, scale, tx, ty);
     this._layers(ctx, scale, W, H, tx, ty, skyTint(Math.round(todAt(m) * 4) / 4).col);   // the tint moves in quarter-hour steps
-    this._sky(ctx, m, scale, W, H, tx, ty);
 
     // Everything the squad cannot see is dimmed, so what they can see reads as a bright pool around them.
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -414,16 +413,16 @@ export class Renderer {
       const covered = k === 'seaf' ? !!bc || m.inZone(ax, ay, -5) : true;
       const col = !covered ? '#ff4a4a' : pal.ally;
       const bk = k.startsWith('build:') ? k.slice(6) : null;
-      const R = bk === 'bastion' ? buildStats('bastion', Math.max(1, (m.kit.build || {}).bastion || 1)).R : bk ? C.build.r : k === 'protect' ? C.seaf.protectR : k === 'move' ? C.seaf.patrolRadius : k === 'attack' ? 24 : k === 'assign' ? C.seaf.assignR : 22;
+      const R = bk === 'bastion' ? buildStats('bastion', Math.max(1, (m.kit.build || {}).bastion || 1)).R : bk ? C.build.r : k === 'protect' ? C.seaf.protectR : k === 'move' ? C.seaf.patrolRadius : k === 'attack' ? 24 : 22;
       // a build that reaches out (the SAM site, the tower, the MG post, the cannon): its reach, faint
       const reach = bk === 'sam' || bk === 'tower' ? uavStats(m.kit.uav).r : bk === 'mg' ? 46 : 0;
       if (reach) { ctx.strokeStyle = 'rgba(255,230,0,0.4)'; ctx.lineWidth = px(1.2); ctx.setLineDash([px(4), px(6)]); ctx.beginPath(); ctx.arc(ax, ay, reach, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
-      if (bk === 'bastion' || k === 'assign') {       // (an area: the bastions' ring of walls, the troopers ASSIGN picks up)
+      if (bk === 'bastion') {       // (an area: the bastions' ring of walls)
         ctx.strokeStyle = col; ctx.lineWidth = px(2); ctx.setLineDash([px(6), px(5)]); ctx.lineDashOffset = -now * px(12);
         ctx.beginPath(); ctx.arc(ax, ay, R, 0, TAU); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
       }
       ctx.fillStyle = col; this._diamond(ctx, ax, ay, Math.max(px(6), 3.5));
-      labels.push({ x: ax, y: ay, dy: 38, text: !covered ? tr('ret.noCover') : bk ? tr('lab.place.build', { what: tr('build.' + bk) }) : k === 'assign' ? tr('lab.assign', { n: m.seaf.sel + 1 }) : k === 'seaf' ? tr(bc ? 'lab.dropBeacon' : 'lab.beacon') : tr('lab.place.' + k), col , pri: 3 });
+      labels.push({ x: ax, y: ay, dy: 38, text: !covered ? tr('ret.noCover') : bk ? tr('lab.place.build', { what: tr('build.' + bk) }) : k === 'seaf' ? tr(bc ? 'lab.dropBeacon' : 'lab.beacon') : tr('lab.place.' + k), col , pri: 3 });
     }
 
     // Effects, and the player's orbital shells coming down
@@ -442,7 +441,7 @@ export class Renderer {
     this._tags(ctx, m, w2sx, w2sy, scale, now);
     this._edgeArrows(ctx, m, w2sx, w2sy, scale, { cam });
     if (aim && ui.armed) this._reticle(ctx, m, aim, w2sx(aim.x), w2sy(aim.y), scale, now, ui);     // (only with a weapon armed: otherwise the cursor selects)
-    this._post(ctx, now);
+    this._post(ctx);
   }
 
   // Dims the map outside what the squad (and any UAV) can see, and outlines the strike zone: the ring in which strikes can be called.
@@ -504,15 +503,6 @@ export class Renderer {
       if (cur < TAU) { ctx.moveTo(x + R * Math.cos(base + cur), y + R * Math.sin(base + cur)); ctx.arc(x, y, R, base + cur, base + TAU); }
     }
     ctx.stroke();
-  }
-
-  // The hour of the day: a tint over the ground (warm at dawn and dusk, dark blue at night), and by day the shadows of the four
-  // destroyers crossing the map high above.
-  _sky(ctx, m, scale, W, H, tx, ty) {
-    const x0 = Math.max(0, -tx / scale), y0 = Math.max(0, -ty / scale), x1 = Math.min(SIZE, (W - tx) / scale), y1 = Math.min(SIZE, (H - ty) / scale);
-    if (x1 <= x0 || y1 <= y0) return;
-    const sk = skyTint(todAt(m));
-    void sk;      // (0.18: the destroyers' shadows are gone; the dropships and pelicans throw theirs)
   }
 
   _drawLabels(ctx, w2sx, w2sy) {
@@ -936,7 +926,7 @@ export class Renderer {
       else status = tr(info.lock ? 'ret.locked' : p.gun && p.gun.firing ? 'ret.firing' : 'ret.freeFire');
     } else if (isNuke) { if (!info.ready) { status = tr(s.uses <= 0 ? 'hud.w.launched' : 'ret.notArmed'); bad = true; } else status = tr('ret.armed'); }
     else if (s.type === 'empty') { status = tr('ret.empty'); bad = true; }
-    else if (s.type === 'arty' && t >= s.readyAt && !info.inZone) { status = tr(info.artyWhy === 'range' ? 'ret.artyRange' : info.artyWhy === 'crew' ? 'ret.artyCrew' : 'ret.gunNoVis'); bad = true; }
+    else if (s.type === 'arty' && t >= s.readyAt && !info.inZone) { status = tr(info.artyWhy === 'range' ? 'ret.artyRange' : 'ret.gunNoVis'); bad = true; }
     else if (t < s.readyAt) { status = tr('ret.cooldown', { n: Math.ceil(s.readyAt - t) }); bad = true; }
     else if (s.uses <= 0) { status = tr('ret.noUses'); bad = true; }
     else if (!info.inZone) { status = tr('ret.noCover'); bad = true; }
@@ -990,10 +980,9 @@ export class Renderer {
     ctx.restore();
   }
 
-  _post(ctx, now) {
+  _post(ctx) {
     ctx.globalAlpha = 1;
     if (!this.ov.parentNode) ctx.drawImage(this.ov, 0, 0);   // only when the overlay could not be layered over the view
-    void now;
   }
 
   // Slow-drifting terrain for the title and briefing screens.
@@ -1015,7 +1004,7 @@ export class Renderer {
     }
     ctx.globalAlpha = 1;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    this._post(ctx, now);
+    this._post(ctx);
   }
 
   // ---------- minimap ----------

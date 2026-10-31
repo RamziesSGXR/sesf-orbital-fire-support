@@ -57,8 +57,8 @@ if (!(await page.isVisible('#s-title'))) { await page.goto(PAGE); await page.wai
 check('the level is remembered for the next session', (await ev(() => document.querySelector('#diff-row .btn.dl.on')?.textContent)) === '4');
 await ev(() => localStorage.setItem('ofs.session', JSON.stringify({ startedAt: Date.now(), callsign: '', difficulty: 7, missions: [{ op: 'Operation Test', faction: 'bots', biome: 'grass', outcome: 'victory', score: 1234, seconds: 600 }], score: 1234, seconds: 600 })));
 await page.goto(PAGE); await page.waitForTimeout(600);
-check('a saved session shows its own level on RESUME', /DIFFICULTY 7/.test(await page.textContent('#btn-resume')), await page.textContent('#btn-resume'));
-check('and the note says a new session starts at the picked level', /stays at 7/.test(await page.textContent('#diff-note')));
+check('a saved session shows the level of its next mission on RESUME (0.19: started at 7, one flown: 8)', /DIFFICULTY 8/.test(await page.textContent('#btn-resume')), await page.textContent('#btn-resume'));
+check('and the note says a new session starts at the picked level', /started at 7/.test(await page.textContent('#diff-note')));
 await tap('#btn-resume'); await page.waitForTimeout(500);
 check('resuming keeps the saved level', (await ev(() => window.__game.session.difficulty)) === 7);
 

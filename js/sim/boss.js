@@ -17,7 +17,7 @@ export function initBoss(m, opts = {}) {
   const B = C.boss;
   m.boss = null; m.bossPlan = null; m.bossShells = [];
   if (opts.boss === false) return;
-  const chance = Math.min(B.maxChance, B.chance + B.perSessionMin * m.S);
+  const chance = Math.min(B.maxChance, B.chance + B.perSessionMin * m.W);
   const roll = m.rng.next();
   if (opts.boss === true || roll < chance) m.bossPlan = { at: opts.bossAt ?? m.rng.range(B.window[0], B.window[1]) };
 }
@@ -107,4 +107,3 @@ export function updateBoss(m, dt) {
 }
 
 // What the objective panel says while a super heavy blocks extraction.
-export function bossBlocking(m) { return bossAlive(m) ? m.boss.name : null; }

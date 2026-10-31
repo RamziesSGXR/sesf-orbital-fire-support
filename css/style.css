@@ -1258,14 +1258,6 @@ body.touch #dk-tac .n { font-size: 11px; color: #bfe9ff; letter-spacing: 0.12em;
 .set-acts { display: flex; gap: 8px; justify-content: center; margin: 4px 0 10px; flex-wrap: wrap; }
 .set-acts .btn { min-height: 38px; padding: 4px 14px; font-size: 11.5px; }
 .set-acts .hidden { display: none; }
-/* the tactical build screen: GAME PAUSED high in the middle */
-#tac-banner { display: none; position: absolute; left: 50%; top: max(14vh, 90px); transform: translateX(-50%); z-index: 6; pointer-events: none; text-align: center;
-  padding: 7px 22px 8px; background: rgba(2, 14, 7, 0.78); border: 1px solid rgba(255, 230, 0, 0.55); border-radius: 6px; box-shadow: 0 0 22px rgba(255, 230, 0, 0.12); }
-#tac-banner b { display: block; color: var(--yellow); font-size: 20px; letter-spacing: 0.32em; }
-#tac-banner span { display: block; margin-top: 2px; color: var(--g-dim); font-size: 10px; letter-spacing: 0.18em; }
-body.tac-open #tac-banner { display: block; }
-body.touch #tac-banner { top: calc(max(8px, env(safe-area-inset-top)) + var(--mmw) * var(--ui, 1) + 14px); padding: 4px 14px 5px; }
-body.touch #tac-banner b { font-size: 15px; } body.touch #tac-banner span { display: none; }
 /* the row of crates and finished posts over the builds */
 .tc-list { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
 .tc-list.empty { display: none; }
@@ -1285,8 +1277,6 @@ body.touch #dock > .dkb .n, body.touch #dock > .dkb .s { white-space: nowrap; ov
 body.touch #dock > #dk-tac { flex: 1.1 1 0; }
 body.touch.lefty #dock { left: calc(max(10px, env(safe-area-inset-left)) + 90px); right: max(6px, env(safe-area-inset-right)); }
 body.touch #dock > #dk-tac { flex: 0 0 auto; padding: 0 10px; }
-body.touch #tac-banner { top: calc(max(8px, env(safe-area-inset-top)) + var(--mmw) * var(--ui, 1) + 56px); }
-@media (max-height: 520px) and (orientation: landscape) { body.touch #tac-banner { top: 50px; } }
 body.touch.tac-open #feed { display: none; }
 body.touch #dock > #btn-follow { flex: 0 0 44px; } body.touch #btn-follow .n { font-size: 20px !important; line-height: 1; }
 /* (0.18) up to nine squads: only the ones with troops show */
@@ -1349,7 +1339,6 @@ body.touch .bigcr b { font-size: 22px; } body.touch .bigcr { padding: 1px 8px 2p
 #tactical[data-tab="units"] .tc-grid.tac-form { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 #tactical[data-tab="units"] .frm { height: 36px; }
 /* (0.18) the tactical screen runs in real time: no banner */
-body.tac-open #tac-banner { display: none; }
 /* the drop countdown at the start of a mission, with DEPLOY NOW */
 #dropcd { position: absolute; left: 50%; top: max(12vh, 80px); transform: translateX(-50%); z-index: 6; pointer-events: auto; display: flex; align-items: center; gap: 14px;
   padding: 8px 14px; background: rgba(3, 16, 9, 0.92); border: 1px solid rgba(255, 230, 0, 0.55); border-radius: 8px; box-shadow: 0 0 22px rgba(255, 230, 0, 0.15); }
@@ -1359,3 +1348,46 @@ body.tac-open #tac-banner { display: none; }
 #dropcd .btn { min-height: 40px; }
 body.touch #dropcd { top: calc(max(8px, env(safe-area-inset-top)) + var(--mmw) * var(--ui, 1) + 14px); gap: 8px; padding: 6px 10px; } body.touch #dropcd .dc-t b { font-size: 17px; }
 #dropcd .btn kbd { color: #1a1a00; border-color: rgba(0, 0, 0, 0.45); background: rgba(0, 0, 0, 0.12); }
+
+/* ---------- 0.19: the tutorial (the last stand on Mars) ---------- */
+#tut { position: absolute; right: 10px; top: 178px; z-index: 7; width: min(400px, calc(100vw - 24px));
+  padding: 10px 14px 12px; background: rgba(3, 16, 9, 0.94); border: 1px solid rgba(255, 230, 0, 0.6); border-radius: 8px;
+  box-shadow: 0 0 26px rgba(255, 230, 0, 0.14); pointer-events: auto; }
+#tut.hidden { display: none; }
+#tut .tut-top { display: flex; justify-content: space-between; align-items: center; }
+#tut .tut-k { color: var(--yellow); font-size: 10px; letter-spacing: 0.2em; }
+#tut .tut-x { background: none; border: 0; color: var(--g-dim); font: inherit; font-size: 14px; cursor: pointer; padding: 0 2px; }
+#tut h3 { margin: 4px 0 4px; font-size: 15px; letter-spacing: 0.12em; color: var(--g); }
+#tut p { margin: 0 0 8px; font-size: 12.5px; line-height: 1.45; color: var(--g); letter-spacing: 0.02em; }
+#tut .tut-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+#tut .tut-btns .btn { min-height: 32px; padding: 3px 12px; font-size: 11px; }
+#tut .tut-btns .hidden { display: none; }
+#tut.fold p, #tut.fold .tut-btns { display: none; }
+#tut.fold .tut-x { transform: rotate(180deg); }
+#tut.warn { border-color: rgba(255, 120, 40, 0.9); box-shadow: 0 0 30px rgba(255, 110, 30, 0.35); }
+#tut.warn h3 { color: #ffb070; }
+/* phones: a compact card across the top, over the objective line, clear of the drop countdown under it */
+body.touch #tut { right: auto; left: 50%; transform: translateX(-50%); top: max(6px, env(safe-area-inset-top)); width: min(58vw, 480px);
+  max-height: calc(var(--mmw) + 4px); overflow-y: auto; padding: 6px 10px 8px; }
+body.touch #tut h3 { font-size: 12.5px; margin: 2px 0; } body.touch #tut p { font-size: 11px; line-height: 1.35; margin-bottom: 6px; }
+body.touch #tut .tut-btns .btn { min-height: 26px; padding: 2px 10px; font-size: 10px; }
+@media (orientation: portrait) { body.touch #tut { width: calc(100vw - 16px); top: calc(max(8px, env(safe-area-inset-top)) + var(--mmw) * var(--ui, 1) + 70px); max-height: 30vh; } }
+.tut-hl { outline: 2px solid var(--yellow) !important; outline-offset: 2px; animation: tutPulse 1.1s ease-in-out infinite; }
+@keyframes tutPulse { 50% { outline-color: rgba(255, 230, 0, 0.25); } }
+@media (prefers-reduced-motion: reduce) { .tut-hl { animation: none; } }
+.tut-b i { margin-left: 8px; padding: 0 5px; font-style: normal; font-size: 9.5px; color: #1a1a00; background: var(--yellow); border-radius: 3px; vertical-align: 1px; }
+.tut-b i.hidden { display: none; }
+/* the glassing: an orange haze for the warning, then the sky goes white */
+body.ls-warn #view { filter: sepia(0.35) saturate(1.4) hue-rotate(-12deg); transition: filter 4s; }
+#glassfx { position: absolute; inset: 0; z-index: 8; pointer-events: none; opacity: 0;
+  background: radial-gradient(circle at 50% 45%, rgba(255, 255, 240, 1) 0%, rgba(255, 210, 140, 0.95) 35%, rgba(255, 120, 40, 0.85) 70%, rgba(120, 30, 10, 0.8) 100%); }
+#glassfx.on { animation: glassIn 6.5s ease-in forwards; }
+#glassfx.on.soft { animation: glassSoft 6.5s ease-in forwards; }
+@keyframes glassIn { 0% { opacity: 0; } 12% { opacity: 0.35; } 60% { opacity: 0.7; } 100% { opacity: 1; } }
+@keyframes glassSoft { 0% { opacity: 0; } 100% { opacity: 0.75; } }
+.glass-card h2 { color: #ffb070; letter-spacing: 0.16em; }
+.glass-card .g-lede { font-size: 13.5px; line-height: 1.5; }
+.glass-card table { width: 100%; border-collapse: collapse; margin: 6px 0 10px; }
+.glass-card td { padding: 3px 4px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+.glass-card td:last-child { text-align: right; color: var(--yellow); }
+.glass-card .g-lore { line-height: 1.5; }

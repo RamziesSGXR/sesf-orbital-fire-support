@@ -30,6 +30,15 @@ const SHADERS = {
   moon(n, x, y) {
     return 0.34 + 0.20 * n.fbm(x / 200, y / 200, 4) + 0.10 * (n.fbm(x / 9, y / 9, 2) - 0.5);
   },
+  // rust plains: wind streaks, darker basalt and dust
+  mars(n, x, y) {
+    const warp = n.fbm(x / 180, y / 180, 3);
+    const d = 0.5 + 0.5 * Math.sin((x * 0.5 + y * 0.8) / 46 + warp * 6);
+    let g = 0.50 + 0.12 * d + 0.14 * (n.fbm(x / 260, y / 260, 4) - 0.5) + 0.06 * (n.v(x / 4, y / 4) - 0.5);
+    const rock = n.fbm(x / 70 + 40, y / 70 + 40, 3);
+    if (rock > 0.64) g -= (0.24 * (rock - 0.64)) / 0.36 + 0.05;
+    return g;
+  },
 };
 
 // Each biome gets its own colour ramp (shadow, mid, highlight) so the map reads as ice, grass, sand, jungle or rock.
@@ -40,6 +49,7 @@ const RAMPS = {
   desert: { ramp: [[34, 22, 12], [128, 88, 50], [206, 164, 100]],  light: [240, 205, 150], dark: [24, 12, 4] },
   jungle: { ramp: [[2, 10, 6], [18, 64, 36], [84, 150, 86]],       light: [140, 210, 150], dark: [2, 8, 4] },
   moon:   { ramp: [[10, 10, 14], [96, 98, 106], [200, 202, 212]],  light: [226, 226, 236], dark: [6, 6, 10] },
+  mars:   { ramp: [[30, 10, 6], [142, 62, 34], [222, 148, 104]],   light: [246, 190, 150], dark: [22, 6, 2] },
 };
 function lut(ramp) {
   const out = new Uint8ClampedArray(256 * 3);
@@ -133,7 +143,7 @@ export function buildTerrain(biomeId, seed, { polarity = 'white', quality = 1, r
 
   // Light from the north west. Slopes are in metres of rise per metre along the ground.
   const REL = kd.relief, lx = sun ? sun.lx : -0.5, ly = sun ? sun.ly : -0.5, lz = sun ? sun.lz : 0.72, ln = Math.hypot(lx, ly, lz);
-  const flat = lz / ln, per = 1 / (2 * step), rim = [0, 0, 0], tint = [0, 0, 0];
+  const flat = lz / ln, per = 1 / (2 * step), tint = [0, 0, 0];
   const tmp = document.createElement('canvas');
   tmp.width = tmp.height = G;
   const tctx = tmp.getContext('2d');
@@ -164,7 +174,7 @@ export function buildTerrain(biomeId, seed, { polarity = 'white', quality = 1, r
       if (soft > 0) {
         const fine = n.v(x / 1.7, y / 1.7) - 0.5;
         if (biomeId === 'ice') g = lerp(g, 0.9, 0.5 * soft) + 0.05 * soft * Math.sin((x * 0.9 + y * 0.45) / 4.2 + n.fbm(x / 40, y / 40, 2) * 6);
-        else if (biomeId === 'desert') g = lerp(g, 0.86, 0.35 * soft) + 0.07 * soft * Math.sin((x * 0.85 + y * 0.35) / 5.5 + n.fbm(x / 60, y / 60, 2) * 4);
+        else if (biomeId === 'desert' || biomeId === 'mars') g = lerp(g, 0.86, 0.35 * soft) + 0.07 * soft * Math.sin((x * 0.85 + y * 0.35) / 5.5 + n.fbm(x / 60, y / 60, 2) * 4);
         else g = lerp(g, 0.74, 0.4 * soft) + 0.1 * soft * fine;
       }
       // water
@@ -236,7 +246,7 @@ export function buildTerrain(biomeId, seed, { polarity = 'white', quality = 1, r
       ctx.strokeStyle = dark(0.25); ctx.beginPath(); ctx.moveTo(x * k, y * k); ctx.lineTo((x + Math.cos(a) * l) * k, (y + Math.sin(a) * l) * k); ctx.stroke();
     }
     for (let i = 0; i < 140; i++) { const x = rng.range(0, SIZE), y = rng.range(0, SIZE), r = rng.range(3, 6); if (dry(x, y)) { dot(x + 1.5, y + 1.5, r, dark(0.3)); dot(x, y, r, light(0.35)); } }
-  } else if (biomeId === 'desert') {
+  } else if (biomeId === 'desert' || biomeId === 'mars') {
     for (let i = 0; i < 240; i++) { const x = rng.range(0, SIZE), y = rng.range(0, SIZE), r = rng.range(2, 8); if (dry(x, y)) { dot(x + 1.5, y + 1.5, r, dark(0.35)); dot(x, y, r * 0.85, light(0.25)); } }
   } else if (biomeId === 'jungle') {
     for (let i = 0; i < 1100; i++) {

@@ -119,7 +119,7 @@ function lone(m, kind, x, y) {
   }
   check('the squad stops outside a base\'s ring and marks it', markAt !== null && outside, markAt !== null ? `marked at ${markAt.toFixed(0)} s` : 'never');
   check('it waits the staging time, then goes in', goAt !== null && Math.abs(goAt - markAt - C.bases.stageSec) < 1, goAt ? `${(goAt - markAt).toFixed(1)} s` : 'never');
-  check('the base wakes only when the squad goes in', alertAt !== null && alertAt >= goAt - 0.1 && why === 'squad', `${why} at ${alertAt && alertAt.toFixed(0)} s`);
+  check('the base wakes only when the squad goes in (their entry, or their first shot at it)', alertAt !== null && alertAt >= goAt - 0.1 && (why === 'squad' || why === 'hit'), `${why} at ${alertAt && alertAt.toFixed(0)} s`);
 }
 
 // ---------------------------------------------------------------- defence set-up

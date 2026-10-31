@@ -6,7 +6,6 @@ import { CONFIG as C } from '../config.js';
 import { aoX, aoY } from './ao.js';
 import { COMMS } from '../data/data.js';
 import { seafStats, buildStats, buildLevel } from '../data/kit.js';
-import { STRATS } from '../data/strat.js';
 import { fireShot, jammedAt } from './combat.js';
 import { nearestObjective } from './pois.js';
 import { strikeAt } from './strat.js';
@@ -15,7 +14,7 @@ import { canStep } from './safety.js';
 import { steer } from './terrain.js';
 import { speedMul } from './helldiver.js';
 import { shoreToward } from './enemies.js';
-import { siteAt, coverSlot, threatSlot } from './cover.js';
+import { siteAt, coverSlot } from './cover.js';
 import { makePost, GARRISON } from './posts.js';
 
 const SIZE = C.world.size;
@@ -176,47 +175,6 @@ export function drawOrder(m, pts) {
   return { ok: true, kind: c.kind, c };
 }
 
-// ---- squads ----
-export function splitSquad(m, i) {
-  const q = m.seaf.squads[i];
-  if (!q) return { ok: false, reason: 'unknown' };
-  const mem = squadMembers(m, i);
-  if (mem.length < 2) return { ok: false, reason: 'small' };
-  const free = m.seaf.squads.find((o) => o.i !== i && squadCount(m, o.i) === 0 && pendingFor(m, o.i) === 0);
-  if (!free) return { ok: false, reason: 'nosquad' };
-  mem.sort((a, b) => a.id - b.id);
-  // alternate down the list so each half keeps a share of the specialists
-  const moved = mem.filter((_, k) => k % 2 === 1);
-  for (const a of moved) a.sq = free.i;
-  free.order = { ...q.order, path: q.order.path ? q.order.path.slice() : null };
-  free.tgt = null; free.stand = null; free.ax = q.ax; free.ay = q.ay;
-  m.seaf.sel = free.i;
-  return { ok: true, to: free.i, n: moved.length };
-}
-export function mergeSquad(m, i) {
-  const q = m.seaf.squads[i];
-  if (!q) return { ok: false, reason: 'unknown' };
-  const mem = squadMembers(m, i);
-  if (!mem.length) return { ok: false, reason: 'small' };
-  let best = null, bd = Infinity;
-  for (const o of m.seaf.squads) {
-    if (o.i === i || squadCount(m, o.i) === 0) continue;
-    const d = Math.hypot(o.cx - q.cx, o.cy - q.cy);
-    if (d < bd) { bd = d; best = o; }
-  }
-  if (!best) return { ok: false, reason: 'nosquad' };
-  for (const a of mem) a.sq = best.i;
-  m.seaf.sel = best.i;
-  return { ok: true, to: best.i, n: mem.length };
-}
-// Everyone within r of a point joins squad `to`.
-export function assignNear(m, x, y, r, to) {
-  if (to < 0 || to >= m.seaf.squads.length) return { ok: false, reason: 'unknown' };
-  let n = 0;
-  for (const a of m.seafAlive) if (a.sq !== to && Math.hypot(a.x - x, a.y - y) <= r) { a.sq = to; n++; }
-  return n ? { ok: true, n } : { ok: false, reason: 'none' };
-}
-
 // ---------------------------------------------------------------- the troop pelican
 export function rollRoles(m, n, st) {
   const rng = m.rng, roles = Array(Math.max(0, n)).fill('rifle');
@@ -322,7 +280,6 @@ const SPOT = () => {
   const K = C.spotter;
   return { name: tr('strat.fireMission'), cat: 'EAGLE', pat: 'scatter', n: K.n, len: K.len, span: K.span, delay: K.delay, dmg: K.dmg, splash: K.splash, mult: M4(1, 1, 0.6, 0.3), fly: true };
 };
-export function spotterBlast(m) { return SPOT(); }
 
 function updateSpecialists(m, dt) {
   const st = seafStats(m.kit), sf = m.seaf, t = m.t;
@@ -364,14 +321,13 @@ function updateSpecialists(m, dt) {
       void R2;
       if (best && !jammedAt(m, best.x, best.y, 4)) {
         sf.spotAt = t + st.spotCool;
-        const d = SPOT(), g = best.g;
+        const d = SPOT();
         d.n = st.spotN; d.dmg = K.dmg * st.spotDmg;
         strikeAt(m, d, { x: best.x, y: best.y }, { ox: a.x, oy: a.y, by: 'squad', friendly: false, dmgMul: 1 });
         m.stats.spotCalls = (m.stats.spotCalls || 0) + 1;
         m.emit('strat_call', { id: 'spot', x: best.x, y: best.y, delay: K.delay, team: -1 });
         m.notice(tr('n.spotter'), 'info');
         bark(m, a, 'spot', '', true);
-        void g;
       }
     }
   }
@@ -430,7 +386,7 @@ function buildSteps(m, by, dt) {
 }
 
 function stepSquad(m, q, list, dt, speed, bm, claimed) {
-  const t = m.t, sq = m.squad, eg = m.eGrid, ord = q.order;
+  const t = m.t, sq = m.squad, eg = m.eGrid;
   const chase = C.squad.chaseSpeed * bm;
   // Extraction: this squad's own pelican is down (or coming). Everyone heads for it.
   const ride = m.phase === 'extract' && m.pelicans.find((p) => p.evac && p.squad === q.i && p.state !== 'out');
@@ -438,7 +394,6 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
     for (const a of list) walk(m, a, ride.tx, ride.ty, chase * 1.1, dt);
     return;
   }
-  void ord;
   let o = q.order;
   const cx = q.cx, cy = q.cy;
   // a post that has come down: hold the ground it stood on

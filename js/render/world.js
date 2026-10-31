@@ -287,12 +287,12 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
       const r = Math.max(2.2, px(4));
       ctx.fillStyle = hit ? '#fff' : ac; ctx.beginPath(); ctx.moveTo(s.x, s.y - r); ctx.lineTo(s.x + r, s.y + r); ctx.lineTo(s.x - r, s.y + r); ctx.closePath(); ctx.fill();
     } else if (s.kind === 'vehicle') {
-      const L = 8, Wd = 4.2, c = Math.cos(s.face), n = Math.sin(s.face);
+      const L = 8, Wd = 4.2;
       ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.face);
       ctx.fillStyle = s.wreck ? 'rgba(255,120,60,0.8)' : 'rgba(61,169,255,0.9)'; ctx.strokeStyle = hit ? '#fff' : '#e8f6ff'; ctx.lineWidth = px(1.4);
       ctx.beginPath(); ctx.rect(-L / 2, -Wd / 2, L, Wd); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#e8f6ff'; ctx.lineWidth = px(2); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(L * 0.7, 0); ctx.stroke();
-      ctx.restore(); void c; void n;
+      ctx.restore();
       hpBar(ctx, s.x, s.y + 6, 10, px(3), s.hp / s.maxHp, s.hp > s.maxHp * 0.3 ? '#7dff9b' : '#ff4a4a');
       labels.push({ x: s.x, y: s.y, dy: -L * 0.5 * scale - 12, text: s.wreck ? tr('lab.burning') : tr('lab.frv', { n: s.seats.length }), col: ac , pri: 0 });
     }
@@ -493,29 +493,6 @@ function bracket(ctx, x, y, r, lw, col) {
   ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.beginPath();
   for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { ctx.moveTo(x + sx * r, y + sy * (r - l)); ctx.lineTo(x + sx * r, y + sy * r); ctx.lineTo(x + sx * (r - l), y + sy * r); }
   ctx.stroke();
-}
-
-// ---------- enemy breaches: temporary spawn points opened by enemy support calls ----------
-export function drawBreaches(ctx, m, now, px, labels, scale, pal) {
-  const t = m.t, col = pal.enemy, tgs = seafTargets(m);
-  for (const b of m.breaches) {
-    if (b.dead) continue;
-    const hit = t - b.hurtAt < 0.12, R = Math.max(b.r, px(10)), left = Math.max(0, b.until - t), f = left / (b.until - b.born);
-    const pulse = 0.5 + 0.5 * Math.sin(now * 6 + b.id);
-    const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, R * 1.5);
-    g.addColorStop(0, rgba(col, 0.55)); g.addColorStop(0.6, rgba(col, 0.18 + 0.1 * pulse)); g.addColorStop(1, rgba(col, 0));
-    ctx.fillStyle = g; ring(ctx, b.x, b.y, R * 1.5); ctx.fill();
-    ctx.strokeStyle = hit ? '#fff' : col; ctx.lineWidth = px(2);
-    ctx.setLineDash([px(5), px(4)]); ctx.lineDashOffset = now * px(14); ring(ctx, b.x, b.y, R); ctx.stroke();
-    ctx.lineDashOffset = -now * px(10); ring(ctx, b.x, b.y, R * 0.6); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
-    ctx.fillStyle = '#000'; ring(ctx, b.x, b.y, R * 0.28); ctx.fill();
-    // time left before it closes on its own
-    ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = px(3);
-    ctx.beginPath(); ctx.arc(b.x, b.y, R + px(5), -Math.PI / 2, -Math.PI / 2 + TAU * f); ctx.stroke();
-    if (tgs.has(b)) bracket(ctx, b.x, b.y, R * 1.7, px(1.8), pal.ally);
-    hpBar(ctx, b.x, b.y + R * 1.25, R * 2, px(4), b.hp / b.maxHp, col);
-    labels.push({ x: b.x, y: b.y, dy: -R * scale - 8, text: tr('lab.breachTime', { n: Math.ceil(left), cr: b.reward }), col , pri: 2 });
-  }
 }
 
 // ---------- UAV circles ----------

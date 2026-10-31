@@ -45,7 +45,7 @@ export function makeRoute(m, b) {
 export function patrolCap(m, b) {
   const Q = P();
   if (b.part || b.node || b.domed) return 0;           // the citadel's outer bases keep their troops at home (the keep sends the patrols)
-  return Math.min(Q.maxPerBase, Q.perBase + (b.fortress ? Q.fortressExtra : 0) + Math.floor(m.S / Q.perSessionMin) + Math.floor(m.t / 60 / Q.perMissionMin));
+  return Math.min(Q.maxPerBase, Q.perBase + (b.fortress ? Q.fortressExtra : 0) + Math.floor((m.W ?? m.S ?? 0) / Q.perSessionMin) + Math.floor(m.t / 60 / Q.perMissionMin));
 }
 
 function launch(m, b, opts = {}) {

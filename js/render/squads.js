@@ -54,7 +54,7 @@ export function drawSeafMark(ctx, m, a, r, px, multi, on) {
 // the colour of each order on the map
 export const ORDER_COL = { move: '#5ec4ff', attack: '#ff5050', protect: '#7dff9b', build: '#ffd24a' };
 export function drawSquadOrders(ctx, m, now, px, labels, scale, pal) {
-  const sf = m.seaf, multi = squadsInUse(m) > 1 || sf.sel >= 0, S = C.seaf, seen = new Set();
+  const sf = m.seaf, multi = squadsInUse(m) > 1 || sf.sel >= 0, seen = new Set();
   for (const q of sf.squads) {
     if (!q.n) continue;
     const col = multi ? squadColor(q.i) : pal.ally, lit = sf.sel < 0 || sf.sel === q.i, o = q.order, nm = multi ? `S${q.i + 1}` : 'SEAF';

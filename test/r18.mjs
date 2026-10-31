@@ -35,7 +35,7 @@ function one(m, kind, x, y) {
   return e;
 }
 
-check('the version is 0.18.0', C.share.version === '0.18.0', C.share.version);
+check('the version is 0.18.0 or later', /^0\.(1[89]|[2-9]\d)\./.test(C.share.version), C.share.version);
 
 // ---------------------------------------------------------------- round maps, no natural bridges
 {

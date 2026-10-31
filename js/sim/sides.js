@@ -11,7 +11,6 @@ import { CONFIG as C } from '../config.js';
 import { makePost } from './posts.js';
 import { buildLevel } from '../data/kit.js';
 import { COMMS } from '../data/data.js';
-import { hiddenSpot, spawnGroup } from './director.js';
 import { callReinforcements } from './reinforce.js';
 import { rollRoles, dropSquad } from './seaf.js';
 import { seafStats } from '../data/kit.js';
@@ -95,7 +94,7 @@ function finish(m, s, ok) {
 export function sideDestroyed(m, p) { if (!p.failed) finish(m, p, true); }
 
 export function updateSides(m, dt) {
-  const t = m.t, S = SD();
+  const S = SD();
   for (const s of m.sides || []) {
     if (s.done || s.failed) continue;
     if (s.kind === 'radio') {
@@ -178,13 +177,4 @@ function siteActivity(m, s, dt) {
   if (s.callT <= 0) { s.callT = C.reinf.siteEvery * S.callMul; callReinforcements(m, s.x, s.y, 'site', { dist: [55, 100] }); }
   s.noiseT = (s.noiseT || 0) - dt;
   if (s.noiseT <= 0) { s.noiseT = C.noise.siteEvery; m.siteNoise(s.x, s.y); }
-}
-
-// Short HUD text for a side mission.
-export function sideStatus(m, s) {
-  const S = SD();
-  if (s.kind === 'radio') return s.state === 'active' ? { p: s.holdT / S.radio.holdSec } : { p: 0 };
-  if (s.kind === 'arty') return s.state === 'active' ? { p: s.holdT / S.arty.holdSec } : { p: 0 };
-  if (s.kind === 'propaganda') return { p: 1 - s.hp / s.maxHp };
-  return { p: 0, n: s.troops.filter((a) => !a.dead).length };
 }

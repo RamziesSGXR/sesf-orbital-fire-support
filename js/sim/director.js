@@ -3,9 +3,8 @@
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { SUBTYPES, COMMS, attackProfile } from '../data/data.js';
-import { compass, alertGroup } from './enemies.js';
+import { alertGroup } from './enemies.js';
 import { damageArea } from './combat.js';
-import { seafStats } from '../data/kit.js';
 import { bark } from './chatter.js';
 import { aoX, aoY, inAO } from './ao.js';
 
@@ -27,7 +26,7 @@ function wantSpecial(m) {
   if (m.srng.next() >= S.share) return false;
   let n = 0;
   for (const e of m.enemies) if (!e.dead && e.sub) n++;
-  return n < Math.min(S.max, S.cap + S.perMin * (m.S || 0));
+  return n < Math.min(S.max, S.cap + S.perMin * (m.W ?? m.S ?? 0));
 }
 function specialKit(fid, e) {
   const P = C.special[fid];
@@ -44,8 +43,9 @@ export function spawnGroup(m, x, y, state = 'patrol', opts = {}) {
     alertT: opts.alertT ?? (state === 'hunt' ? C.enemies.alert.loseSec : 0), senseT: rng.next() * 0.25,
     home: { x, y }, pt: null, patrolT: 0, base: opts.base || null, garrison: !!opts.base, engaged: false, faceT: 0, ux: 1, uy: 0,
   };
-  for (let i = 0; i < m.groupSize; i++) {
-    const kind = m.drawToken(), st = SUBTYPES[kind];
+  // opts.kinds: exactly these (the last stand's scripted groups), not drawn from the bag
+  for (let i = 0, n = opts.kinds ? opts.kinds.length : m.groupSize; i < n; i++) {
+    const kind = opts.kinds ? opts.kinds[i] : m.drawToken(), st = SUBTYPES[kind];
     const [ox, oy] = rng.inDisc(opts.emerge ? Math.min(4, fac.spread) : fac.spread);   // out of a hole or off a ship: bunched up
     let px = aoX(m, x + ox, 3), py = aoY(m, y + oy, 3);
     if (m.terrain.blocked(px, py)) { const l = m.terrain.nearestLand(px, py); px = l.x; py = l.y; }   // never in deep water
@@ -117,10 +117,6 @@ export function pickSpawn(m, extra = 0) {
   return null;
 }
 
-// The squad spotted a group that has not noticed them. (Whether the enemy calls for help is up to the group itself once it is alerted
-// or shot at: see reinforce.js.)
-export function onSpot(m, g) { void m; void g; }
-
 function garrisonCount(m, b) { let n = 0; for (const e of m.enemies) if (!e.dead && e.g.base === b && e.g.garrison) n++; return n; }
 
 // How many enemies may be alive right now: fewer at the drop, more as the mission (and the session) goes on.
@@ -151,17 +147,17 @@ export function alertBase(m, b, why = 'squad') {
 
 export function liveCap(m) {
   const E = C.enemies;
-  return Math.min(E.maxLive, E.liveCap + E.capPerMissionMin * (m.t / 60) + E.capPerSessionMin * m.S);
+  return Math.min(E.maxLive, E.liveCap + E.capPerMissionMin * (m.t / 60) + E.capPerSessionMin * (m.W ?? m.S ?? 0));
 }
 
 export function updateDirector(m, dt) {
-  const t = m.t, rng = m.rng, sp = m.support;
+  const t = m.t, sp = m.support;
 
   // Pressure rises with mission time (and is halved when a base falls).
   m.pressure = Math.max(C.pressure.floor, m.pressure + (C.pressure.perMissionMin / 60) * dt);
-  // enemy damage climbs with the session and, a little, with every minute of the mission
+  // enemy damage climbs with the war (war minutes, difficulty.js) and, a little, with every minute of the mission
   const base = C.ramp.base * (C.ramp.fac[m.faction.id] || 1);
-  m.dmgMul = Math.min(C.ramp.dmgCap * base, base * (1 + C.ramp.dmg * m.S + C.ramp.missionDmg * (m.t / 60)));
+  m.dmgMul = Math.min(C.ramp.dmgCap * base, base * (1 + C.ramp.dmg * (m.W ?? m.S ?? 0) + C.ramp.missionDmg * (m.t / 60)));
 
   if (m.alive.length && m.phase !== 'over') {
     // Reinforcements that have lost the squad and wandered off for good are taken off the map once nobody can see them. (Patrols
@@ -231,6 +227,4 @@ export function updateDirector(m, dt) {
     }
   }
   m._refreshAlive();
-
-  void rng;
 }

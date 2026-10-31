@@ -462,7 +462,7 @@ function turretTarget(m, s) {
 
 // (a manned MG post runs the same gun: s.rate is how fast its crew keep it firing, and it never runs dry)
 export function turretStep(m, s, dt) {
-  const p = s.p, t = m.t;
+  const p = s.p;
   s.cool -= dt; s.scan -= dt;
   if (s.scan <= 0) { s.scan = 0.2; s.tgt = turretTarget(m, s); }
   if (s.tgt && s.tgt.dead) s.tgt = null;
@@ -488,7 +488,6 @@ export function turretStep(m, s, dt) {
     fireShot(m, s, e, { dmg: p.dmg * k, acc: p.acc, splash: p.splash, mult, flight: p.flight || 0 }, 'strat', 't', s.snd);
   }
   if (s.ammo !== Infinity) { s.ammo -= 1; if (s.ammo <= 0) destroyAsset(m, s, 'spent'); }
-  void t;
 }
 
 function minesStep(m, s, dt) {
@@ -601,7 +600,7 @@ function lockedOn(m, w, e, dt) {
 }
 
 function updateWeapons(m, dt) {
-  const sq = m.squad, k = mul();
+  const sq = m.squad, k = C.strat.swMul ?? mul();      // (0.19: the support weapons have their own multiplier)
   for (const a of m.hdAlive) {
     if (a.mounted) continue;
     const ok = (e) => e.drop || sq.free || e.g.state === 'hunt';
@@ -715,7 +714,7 @@ export function updateStrat(m, dt) {
     if (jammedAt(m, tgt.x, tgt.y, 4) || (caller && jammedAt(m, caller.x, caller.y))) { m.stats.jammed = (m.stats.jammed || 0) + 1; continue; }
     if (!ctx.panic && m.rng.next() > 0.7) continue;   // not every opportunity gets taken the instant it appears (but a runner calls at once)
     execute(m, g, tgt, ctx);
-    g.readyAt = t + d.cd; g.uses++;
+    g.readyAt = t + d.cd * (C.strat.cdMul ?? 1); g.uses++;
     team.callAt = t + C.strat.callGapSec; S.callAt = t + 0.5;
     S.rot = (S.rot + i + 1) % n;
     break;

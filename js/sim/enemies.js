@@ -2,8 +2,7 @@
 // Enemy damage depends on size and faction (CONFIG.combat.atk): light enemies nibble, mediums hurt, heavies are special.
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
-import { aoClamp } from './ao.js';
-import { ALLY, COMMS } from '../data/data.js';
+import { ALLY } from '../data/data.js';
 import { fireShot, hurtTarget, hurtAlly, nearestTarget, inZoneKind, pickClear, bandOf, bandAcc, bandDmg, reveal } from './combat.js';
 import { steer } from './terrain.js';
 import { softNear, baseNear } from './pois.js';
@@ -156,7 +155,10 @@ export function shoreToward(tr, tx, ty, x, y) {
   return tr.nearestLand(tx, ty);
 }
 function moveToward(o, tx, ty, speed, dt, size) {
-  if (AOB) { const c = aoClamp(AOB, tx, ty, 3); tx = c.x; ty = c.y; }      // (the round area: nobody goes out of it)
+  if (AOB) {      // (the round area: nobody goes out of it; done in place, this runs for every enemy every tick)
+    const R = (AOB.R || AOB.size / 2) - 3, dx = tx - AOB.cx, dy = ty - AOB.cy, d2 = dx * dx + dy * dy;
+    if (d2 > R * R) { const k = R / Math.sqrt(d2); tx = AOB.cx + dx * k; ty = AOB.cy + dy * k; }
+  }
   if (NAV && NAV.blocked(tx, ty)) {
     const c = o.nlc;
     if (c && Math.abs(c.tx - tx) + Math.abs(c.ty - ty) < 3) { tx = c.x; ty = c.y; }
@@ -185,7 +187,7 @@ function moveToward(o, tx, ty, speed, dt, size) {
   const s = Math.min(speed * dt, d);
   o.vx = (dx / d) * (s / dt); o.vy = (dy / d) * (s / dt);
   let nx = o.x + (dx / d) * s, ny = o.y + (dy / d) * s;
-  if (AOB) { const c = aoClamp(AOB, nx, ny, 1); nx = c.x; ny = c.y; } else { nx = Math.max(0, Math.min(size, nx)); ny = Math.max(0, Math.min(size, ny)); }
+  if (AOB) { const R = (AOB.R || AOB.size / 2) - 1, dx = nx - AOB.cx, dy = ny - AOB.cy, d2 = dx * dx + dy * dy; if (d2 > R * R) { const k = R / Math.sqrt(d2); nx = AOB.cx + dx * k; ny = AOB.cy + dy * k; } } else { nx = Math.max(0, Math.min(size, nx)); ny = Math.max(0, Math.min(size, ny)); }
   o.x = nx; o.y = ny;
 }
 

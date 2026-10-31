@@ -27,6 +27,7 @@ const RECIPE = {
   ice:    { gain: 2.0, hill: 340, rivers: [{ s: 430, W: 11, ford: 0.57 }], lakes: { s: 190, thr: 0.72, hmax: 0.5 }, bank: 0, soft: { s: 90, thr: 0.6, ax: 1.0, ay: 0.55 }, bridge: 'ice' },
   desert: { gain: 2.3, hill: 330, terrace: true, rivers: [], lakes: { s: 120, thr: 0.75, hmax: 0.3 }, bank: 1, soft: { s: 70, thr: 0.53, dune: true } },
   moon:   { gain: 2.0, hill: 260, rivers: [], lakes: null, bank: 0, craters: 26, soft: { s: 55, thr: 0.56, ax: 1, ay: 1, low: 0.5 } },
+  mars:   { gain: 2.1, hill: 320, terrace: true, rivers: [], lakes: null, bank: 0, craters: 9, soft: { s: 80, thr: 0.58, dune: true } },
 };
 
 const terrainCache = new Map();

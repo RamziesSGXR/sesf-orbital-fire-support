@@ -15,7 +15,6 @@ import { orbStats, newKit, newWallet, shopItems, buy } from '../js/data/kit.js';
 let fails = 0;
 const check = (name, ok, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  (' + detail + ')' : ''}`); if (!ok) fails++; };
 const dt = 1 / C.world.tickHz;
-const MIN_LIVE = C.enemies.spawn.minLive;
 const run = (m, sec, f) => { for (let i = 0, n = Math.round(sec / dt); i < n && !m.over; i++) { m.step(dt); if (f && f(m)) return true; } return false; };
 const CR = { ...C.combat.crit };
 const noCrit = () => { for (const k of ['player', 'gun', 'ally', 'enemy']) C.combat.crit[k] = 0; };
@@ -31,7 +30,6 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
   if (m.intercept) m.intercept.nextAt = 1e9;
   m.sides = [];                                                                // no side missions calling the enemy in
   for (const p of m.pois) p.woke = true;
-  C.enemies.spawn.minLive = 0;
   return m;
 }
 const inert = (g) => { g.hold = 1e9; return g; };
@@ -194,7 +192,7 @@ for (const fac of ['bugs', 'bots', 'squids']) {
   // (0.18: an evacuation is won about half the time by the bot on its own, so the first seed of a few that it wins is the one checked)
   let m, o, maxOut = 0, shuttles = 0, ranRun = false;
   for (const seed of [4322, 4324, 4326, 4328]) {
-  m = new Mission({ seed, faction: 'bugs', biome: 'grass', events: true, sessionMinutes: 0, objectives: ['evac'] }); maxOut = 0; shuttles = 0; ranRun = false;
+  m = new Mission({ seed, faction: 'bugs', biome: 'grass', events: true, sessionMinutes: 0, difficulty: 3, objectives: ['evac'] }); maxOut = 0; shuttles = 0; ranRun = false;     // (0.19: at level 3, the level a new gunner starts at)
   o = m.objectives[0];
   check('the evacuation site has a shelter and a hangar on dry ground', o.type === 'evac' && m.terrain.isLand(o.sx, o.sy) && m.terrain.isLand(o.hx, o.hy) && Math.hypot(o.hx - o.sx, o.hy - o.sy) > 60);
   const bot = makeBot();
@@ -224,7 +222,6 @@ for (const fac of ['bugs', 'bots', 'squids']) {
 
 // ---------------------------------------------------------------- Helldiver calls: own zone, delay, lead
 {
-  C.enemies.spawn.minLive = MIN_LIVE;   // whole missions below: the normal spawning, not the quiet test setup
   let total = 0, outside = 0, short = 0, misses = [];
   for (const [f, seed] of [['bugs', 501], ['bots', 502], ['squids', 503]]) {
     const m = new Mission({ seed, faction: f, biome: 'grass', events: true, sessionMinutes: 20 });

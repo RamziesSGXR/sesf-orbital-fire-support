@@ -2,8 +2,7 @@
 // a crew and has none), its health when hurt, a wrench while it is being patched up, and, when selected, its reach and brackets.
 // Turrets the Helldivers called (sentries) show their reach only when selected too.
 import { t as tr } from '../i18n.js';
-import { CONFIG as C } from '../config.js';
-import { postReach, needsCrew } from '../sim/posts.js';
+import { postReach } from '../sim/posts.js';
 
 const TAU = Math.PI * 2;
 function ring(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, Math.max(0.01, r), 0, TAU); }
@@ -17,18 +16,6 @@ function bracket(ctx, x, y, r, lw, col) {
   for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { ctx.moveTo(x + sx * r, y + sy * (r - l)); ctx.lineTo(x + sx * r, y + sy * r); ctx.lineTo(x + sx * (r - l), y + sy * r); }
   ctx.stroke();
 }
-// a sandbag ring (open on one side when gap > 0)
-function sandbags(ctx, x, y, R, from, to, px) {
-  const n = Math.max(5, Math.round(((to - from) * R) / 1.3));
-  for (let i = 0; i < n; i++) {
-    const a = from + ((i + 0.5) / n) * (to - from);
-    ctx.save(); ctx.translate(x + Math.cos(a) * R, y + Math.sin(a) * R); ctx.rotate(a + Math.PI / 2);
-    ctx.fillStyle = i % 2 ? '#9c8c62' : '#8a7b55'; ctx.beginPath(); ctx.ellipse(0, 0, ((to - from) * R) / n / 2 + 0.2, 0.75, 0, 0, TAU); ctx.fill();
-    ctx.restore();
-  }
-  ctx.strokeStyle = 'rgba(30,25,15,0.55)'; ctx.lineWidth = px(0.7); ctx.beginPath(); ctx.arc(x, y, R + 0.75, from, to); ctx.stroke();
-}
-
 // The artillery cannon (also the abandoned ones out on the map, see ops.js): a dug-in pit, the carriage and a long barrel.
 export function cannonArt(ctx, x, y, face, px, live) {
   const s = Math.max(px(9), 6);
@@ -232,10 +219,9 @@ export function drawPosts(ctx, m, now, px, labels, scale, sel) {
     const R = p.what === 'bastion' ? p.r : p.what === 'bridge' ? 3 : Math.max(4, px(9));
     if (p.maxHp > 0 && p.hp < p.maxHp) hpBar(ctx, p.x, p.y + R + px(4), Math.max(8, px(26)), px(3), p.hp / p.maxHp, p.hp > p.maxHp * 0.35 ? '#7dff9b' : '#ff4a4a');
     if (p.repairing) { const k = (now * 2) % 1; ctx.strokeStyle = `rgba(125,255,155,${1 - k})`; ctx.lineWidth = px(1.5); ring(ctx, p.x, p.y, R + px(4 + 6 * k)); ctx.stroke(); }
-    const crewless = needsCrew(p) && !p.crew;
     const crew = p.cap ? ` ${p.crew}/${p.cap}` : '';
     const gar = p.garrison ? ' ' + tr('lab.garrisoned') : '';
-    if (sel !== p) labels.push({ x: p.x, y: p.y, dy: -R * scale - 8, text: (crewless ? `${p.name.toUpperCase()} · ${tr('lab.noCrew')}` : `${p.name.toUpperCase()}${crew}${gar}`), col: crewless ? '#ffb020' : '#6fc0ff', pri: 1 });   // (selected: the panel over it says it)
+    if (sel !== p) labels.push({ x: p.x, y: p.y, dy: -R * scale - 8, text: `${p.name.toUpperCase()}${crew}${gar}`, col: '#6fc0ff', pri: 1 });   // (selected: the panel over it says it)
   }
   if (!sel || sel.dead) return;
   // the selection: brackets and the reach of whatever it is
@@ -250,4 +236,3 @@ export function drawPosts(ctx, m, now, px, labels, scale, sel) {
     labels.push({ x: sel.x, y: sel.y - reach, dy: -6, text: tr('lab.reach', { n: Math.round(reach) }), col: '#ffe600', pri: 2 });
   }
 }
-void C;
