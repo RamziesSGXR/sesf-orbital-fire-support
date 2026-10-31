@@ -12,13 +12,13 @@ import { OPS } from '../data/data.js';
 import { t as tr } from '../i18n.js';
 import { beaconAt } from '../sim/sides.js';
 import { drawFlares, drawHoles, drawDrops, drawEvac, drawExtraction, critText, drawSupply } from './reinf.js';
-import { drawBaseArt, drawBaseRuin, drawCover, drawCitadelWalls } from './sites.js';
+import { drawBaseArt, drawBaseRuin, drawCover, drawCitadelWalls, drawCannonArt, drawNodeArt } from './sites.js';
 import { drawPosts } from './posts.js';
 import { buildStats, uavStats } from '../data/kit.js';
-import { todAt, skyTint, destroyerShadows, drawDestroyerShadow } from './sky.js';
+import { todAt, skyTint } from './sky.js';
 
 const SIZE = C.world.size;
-export const MINI_Q = 0.72;     // the share of the round minimap's width the area of operations fills
+export const MINI_Q = 0.9;      // the share of the round minimap's width the (round) area of operations fills
 const TAU = Math.PI * 2;
 const TASK_LABEL = { base: 'lab.base', radio: 'lab.radio', propaganda: 'lab.prop', rescue: 'lab.rescue', arty: 'lab.artySite' };
 const slotCd = (m, i) => { const st = slotStats(m, i); return st ? st.cd : 0; };
@@ -313,10 +313,13 @@ export class Renderer {
       const r = Math.max(b.r || C.bases.radius, px(9));
       if (b.destroyed) { drawBaseRuin(ctx, b, now, px); continue; }
       const inZ = m.inZone(b.x, b.y, 0);
-      drawBaseArt(ctx, b, m.faction.id, pal.enemy, inZ, now, px);
+      if (b.cannon) drawCannonArt(ctx, b, pal.enemy, now, px, t);
+      else if (b.node) drawNodeArt(ctx, b, pal.enemy, now, px);
+      else drawBaseArt(ctx, b, m.faction.id, pal.enemy, inZ, now, px);
       if (t - (b.lastHit ?? -99) < 0.12) { ctx.strokeStyle = '#fff'; ctx.lineWidth = px(2); ctx.beginPath(); ctx.arc(b.x, b.y, r * 1.1, 0, TAU); ctx.stroke(); }
       if (tgBs.has(b)) this._bracket(ctx, b.x, b.y, r * 1.5, px(1.8), pal.ally);
-      if (b === sqBase && !b.fortress) labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 4, text: tr('lab.base'), col: 'rgba(215,230,220,0.9)' });
+      if (b.cannon && !b.destroyed) labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 18, text: tr('lab.cannon'), col: pal.enemy, pri: 2 });
+      if (b === sqBase && !b.fortress && !b.cannon) labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 4, text: tr('lab.base'), col: 'rgba(215,230,220,0.9)' });
       if (b.hp < b.maxHp || b.fortress) {
         const bw = r * 2.2, f = b.hp / b.maxHp;
         ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(b.x - bw / 2, b.y + r * 1.25, bw, px(4));
@@ -366,7 +369,7 @@ export class Renderer {
     // Allies: blue infrared strobes. Helldivers wear a ring in their group's color; SEAF wear their squad's color and a role mark.
     const seafMulti = squadsInUse(m) > 1 || m.seaf.sel >= 0;
     for (const a of m.alive) {
-      if (a.dead) continue;
+      if (a.dead || a.inside) continue;               // (inside a building: hidden; selecting it shows them)
       const H_ = a.type === 'H', tm = H_ ? m.teams[a.team] : null;
       const phase = this.settings.reduceFlash ? ((now + a.id * 0.13) % 2) / 2 : ((now + (a.id % 5) * 0.07) % 1);
       const on = this.settings.reduceFlash ? phase < 0.15 : phase < 0.18;
@@ -509,13 +512,7 @@ export class Renderer {
     const x0 = Math.max(0, -tx / scale), y0 = Math.max(0, -ty / scale), x1 = Math.min(SIZE, (W - tx) / scale), y1 = Math.min(SIZE, (H - ty) / scale);
     if (x1 <= x0 || y1 <= y0) return;
     const sk = skyTint(todAt(m));
-    if (sk.shadow > 0.02) {
-      for (const d of destroyerShadows(m, SIZE)) {
-        if (d.x + d.len < x0 || d.x - d.len > x1 || d.y + d.len < y0 || d.y - d.len > y1) continue;
-        drawDestroyerShadow(ctx, d, 0.3 * sk.shadow);
-      }
-    }
-
+    void sk;      // (0.18: the destroyers' shadows are gone; the dropships and pelicans throw theirs)
   }
 
   _drawLabels(ctx, w2sx, w2sy) {
@@ -597,6 +594,7 @@ export class Renderer {
     if (scale / d >= 1.35 && !document.body.classList.contains('touch')) {   // phones: squad labels stand in for the individual SEAF name tags
       ctx.font = mono(8.5);
       for (const a of m.seafAlive) {
+        if (a.inside) continue;
         const { x, y } = spot(a);
         if (x < -20 || y < -20 || x > W + 20 || y > H + 20) continue;
         const text = m.tag(a), ty = y + 3.2 * scale + 10 * d, w = ctx.measureText(text).width + 6 * d;
@@ -867,7 +865,7 @@ export class Renderer {
     if (task && task.kind !== 'main') items.push({ x: task.x, y: task.y, col: task.kind === 'base' ? '#c8d2cc' : '#7fd8ff', label: tr(TASK_LABEL[task.kind] || 'lab.base') });
     if (m.phase === 'objective' && ao) {
       const g = ao.type === 'vip' ? (ao.state === 'carry' || ao.state === 'deliver' ? { x: ao.dx, y: ao.dy } : { x: ao.vip.x, y: ao.vip.y }) : { x: ao.x, y: ao.y };
-      items.push({ x: g.x, y: g.y, col: '#ffe600', obj: true, label: tr(ao.type === 'nuke' ? 'lab.launch' : ao.type === 'vip' ? (ao.state === 'carry' || ao.state === 'deliver' ? 'lab.pickup' : 'lab.vip') : ao.type === 'evac' ? 'lab.evac' : 'lab.citadel') });
+      items.push({ x: g.x, y: g.y, col: '#ffe600', obj: true, label: tr(ao.type === 'nuke' ? 'lab.launch' : ao.type === 'vip' ? (ao.state === 'carry' || ao.state === 'deliver' ? 'lab.pickup' : 'lab.vip') : ao.type === 'evac' ? 'lab.evac' : ao.type === 'oil' ? 'lab.oil' : ao.type === 'cannon' ? 'lab.cannon' : ao.type === 'dome' ? 'lab.dome' : 'lab.citadel') });
     }
     if (m.extraction.revealed && m.phase === 'extract') items.push({ x: m.extraction.x, y: m.extraction.y, col: '#ffe600', obj: true, label: tr('lab.extract') });   // (an arrow only once it is live)
     for (const p of m.pods) if (p.type === 'H' && !p.start) items.push({ x: p.x, y: p.y, col: '#ffe600', label: tr('lab.drop') });
@@ -1058,8 +1056,9 @@ export class Renderer {
     c.clearRect(0, 0, S, S);
     c.save(); c.beginPath(); c.arc(R, R, R - 1, 0, TAU); c.clip();
     c.fillStyle = 'rgba(2,10,5,0.92)'; c.fillRect(0, 0, S, S);
-    c.drawImage(this._mapBg(S, 'mini', a), o, o, S * q, S * q);
-    c.strokeStyle = 'rgba(157,255,184,0.22)'; c.lineWidth = 1; c.strokeRect(o, o, S * q, S * q);      // the edge of the area of operations
+    c.save(); c.beginPath(); c.arc(R, R, (S * q) / 2, 0, TAU); c.clip();                              // the round area of operations
+    c.drawImage(this._mapBg(S, 'mini', a), o, o, S * q, S * q); c.restore();
+    c.strokeStyle = 'rgba(255,200,40,0.45)'; c.lineWidth = 1.2; c.beginPath(); c.arc(R, R, (S * q) / 2, 0, TAU); c.stroke();
     c.setTransform(1, 0, 0, 1, o - a.x0 * k, o - a.y0 * k);
     this._mapMarks(c, m, k, t, ac, ec);
     // Camera view rectangle
@@ -1077,7 +1076,9 @@ export class Renderer {
   drawBigMap(cv, m, cam) {
     const a = m.ao, c = cv.getContext('2d'), S = cv.width, t = m.t, ac = this.allyColor(), ec = this.enemyColor(m);
     c.setTransform(1, 0, 0, 1, 0, 0);
-    c.drawImage(this._mapBg(S, 'big', a), 0, 0);
+    c.fillStyle = '#020a05'; c.fillRect(0, 0, S, S);
+    c.save(); c.beginPath(); c.arc(S / 2, S / 2, S / 2, 0, TAU); c.clip(); c.drawImage(this._mapBg(S, 'big', a), 0, 0); c.restore();   // (round)
+    c.strokeStyle = 'rgba(255,200,40,0.5)'; c.lineWidth = 2; c.beginPath(); c.arc(S / 2, S / 2, S / 2 - 1, 0, TAU); c.stroke();
     // a 100 m grid with sector letters (columns) and numbers (rows)
     const cells = Math.max(4, Math.round(a.size / 100)), cw = S / cells, fs = Math.max(12, S / 44);
     c.strokeStyle = 'rgba(157,255,184,0.16)'; c.lineWidth = 1; c.beginPath();
@@ -1103,10 +1104,11 @@ export class Renderer {
       if (o.type === 'vip') { lab(o.vip.x, o.vip.y, tr('lab.vip'), '#ffe600'); lab(o.dx, o.dy, tr('lab.pickup'), '#ffe600'); }
       else if (o.type === 'evac') lab(o.x, o.y, tr('lab.evac'), '#ffe600');
       else if (o.type === 'nuke') lab(o.x, o.y, tr('lab.launchSite'), '#ffe600');
+      else if (o.type === 'oil' || o.type === 'cannon' || o.type === 'dome') lab(o.x, o.y, tr('lab.' + o.type), '#ffe600');
       else lab(o.x, o.y, tr('lab.citadel'), '#ffe600');
     }
     if (m.extraction.revealed) lab(m.extraction.x, m.extraction.y, tr(m.extraction.state === 'open' ? 'lab.extract' : 'lab.extractCalled'), '#ffe600');
-    for (const q of m.sides || []) if (!q.done && !q.failed) lab(q.x, q.y, q.kind === 'radio' ? OPS.radio : q.kind === 'rescue' ? OPS.rescue : q.kind === 'arty' ? OPS.artySite : q.name, q.kind === 'propaganda' ? '#ffb020' : '#7fd8ff');
+    for (const q of m.sides || []) if (!q.done && !q.failed && !q.hidden) lab(q.x, q.y, q.kind === 'radio' ? OPS.radio : q.kind === 'rescue' ? OPS.rescue : q.kind === 'arty' ? OPS.artySite : q.name, q.kind === 'propaganda' ? '#ffb020' : '#7fd8ff');
     for (const bc of m.beacons || []) if (bc.relit || t < C.beacons.darkSec) lab(bc.x, bc.y, OPS.beacon, '#6fc0ff', 2.2);
     if (m.supply && m.supply.drop) lab(m.supply.drop.x, m.supply.drop.y, tr('lab.supply'), '#9dffb8');
     if (m.hdAlive.length) lab(m.hx, m.hy, tr('lab.squad'), '#e8f6ff', 2.4);
@@ -1149,6 +1151,8 @@ export class Renderer {
       if (p.done) continue;
       c.strokeStyle = '#ffb020'; c.strokeRect(p.x * k - 3.5, p.y * k - 3.5, 7, 7);
     }
+    c.fillStyle = '#d9e8b0';
+    for (const q of m.loot || []) if (!q.done) { c.beginPath(); c.moveTo(q.x * k, q.y * k - 3); c.lineTo(q.x * k + 3, q.y * k); c.lineTo(q.x * k, q.y * k + 3); c.lineTo(q.x * k - 3, q.y * k); c.closePath(); c.fill(); }
     for (const b of m.breaches) {
       if (b.dead) continue;
       c.strokeStyle = ec; c.fillStyle = ec; c.lineWidth = 2; c.beginPath(); c.arc(b.x * k, b.y * k, 5, 0, TAU); c.stroke();
@@ -1172,6 +1176,9 @@ export class Renderer {
       if (o.done) continue;
       c.strokeStyle = '#ffe600'; c.fillStyle = '#ffe600'; c.lineWidth = 2;
       if (o.type === 'nuke') { c.beginPath(); c.arc(o.x * k, o.y * k, 6, 0, TAU); c.stroke(); c.beginPath(); c.arc(o.x * k, o.y * k, 2.5, 0, TAU); c.fill(); }
+      else if (o.type === 'oil') { c.beginPath(); c.arc(o.x * k, o.y * k, 5, 0, TAU); c.stroke(); c.fillRect(o.x * k - 1, o.y * k - 5, 2, 5); }
+      else if (o.type === 'dome') { if (o.dome.up) { c.strokeStyle = 'rgba(170,225,255,0.9)'; c.beginPath(); c.arc(o.x * k, o.y * k, Math.max(6, o.dome.r * k), 0, TAU); c.stroke(); } }
+      else if (o.type === 'cannon') { c.beginPath(); c.arc(o.x * k, o.y * k, 7, 0, TAU); c.stroke(); }
       else if (o.type === 'evac') {
         c.strokeRect(o.sx * k - 3.5, o.sy * k - 3.5, 7, 7);
         c.beginPath(); c.moveTo(o.hx * k - 5, o.hy * k + 3); c.lineTo(o.hx * k - 5, o.hy * k - 1); c.lineTo(o.hx * k, o.hy * k - 4); c.lineTo(o.hx * k + 5, o.hy * k - 1); c.lineTo(o.hx * k + 5, o.hy * k + 3); c.closePath(); c.stroke();

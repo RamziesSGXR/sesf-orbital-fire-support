@@ -286,6 +286,7 @@ export class Terrain {
   // What is under a unit, for the HUD and the barks: 'deep' | 'shallows' | 'mud' | 'soft' | 'firm'.
   groundName(x, y) {
     const k = this._i(x, y);
+    if (this.br[k]) return 'firm';
     return this.d[k] >= K.deep ? 'deep' : this.d[k] > K.wet ? 'shallows' : this.kind[k] === MUD ? 'mud' : this.kind[k] === SOFT ? 'soft' : 'firm';
   }
   // More sight from a rise: nothing below the hill line, the full bonus at the top.
@@ -349,6 +350,72 @@ export class Terrain {
     this.navCost = cost;
     this._coarse = mk(NV, NAVC, cost, NV * NV * 6);
     this._fine = mk(N, CELL, fine, N * N * 6);
+  }
+  // ------------------------------------------------------------------ light bridges (built in a mission)
+  // The shortest way across the water through (x, y): from dry ground to dry ground, at most maxSpan metres of it, tried in 24
+  // directions. null when there is no water there to cross (or it is too wide). The ends are on dry ground, end a nearer (ox, oy).
+  findSpan(x, y, maxSpan, ox = x, oy = y) {
+    const wet = (px, py) => px < 0 || py < 0 || px >= SIZE || py >= SIZE || this.spd[this._i(px, py)] === 0 || this.d[this._i(px, py)] > K.wet;
+    const dry = (px, py) => !wet(px, py) && !this.br[this._i(px, py)];
+    let best = null;
+    for (let k = 0; k < 24; k++) {
+      const a = (k / 24) * Math.PI, ux = Math.cos(a), uy = Math.sin(a);
+      // walk out each way from the spot to the first dry ground (the spot itself may be on the bank)
+      const out = (sign) => { let seen = false; for (let m = 0; m <= maxSpan + 20; m += 2) { const px = x + ux * m * sign, py = y + uy * m * sign; if (wet(px, py)) seen = true; else if (seen || m > 24) return seen ? m : -1; } return -1; };
+      const o1 = out(1), o2 = out(-1);
+      let e1, e2;
+      if (o1 > 0 && o2 > 0) { e1 = o1; e2 = -o2; }
+      else if (o1 > 0) { e1 = o1; e2 = 0; if (wet(x, y)) continue; }
+      else if (o2 > 0) { e1 = 0; e2 = -o2; if (wet(x, y)) continue; }
+      else continue;
+      // the dry ends, a little way onto the banks
+      const x1 = x + ux * (e2 - 4), y1 = y + uy * (e2 - 4), x2 = x + ux * (e1 + 4), y2 = y + uy * (e1 + 4);
+      const L = Math.hypot(x2 - x1, y2 - y1);
+      if (L - 8 > maxSpan || L < 14 || !dry(x1, y1) || !dry(x2, y2)) continue;
+      // something must be wet in between (a deep channel or the shallows)
+      let water = 0; for (let m = 0; m <= L; m += 3) if (wet(x1 + ((x2 - x1) * m) / L, y1 + ((y2 - y1) * m) / L)) water++;
+      if (water < 3) continue;
+      if (!best || L < best.L) best = { x1, y1, x2, y2, L };
+    }
+    if (!best) return null;
+    if ((best.x2 - ox) ** 2 + (best.y2 - oy) ** 2 < (best.x1 - ox) ** 2 + (best.y1 - oy) ** 2) best = { x1: best.x2, y1: best.y2, x2: best.x1, y2: best.y1, L: best.L };
+    return best;
+  }
+  // Lay a deck: the cells under it walk at full pace, and the routes are worked out again. Taken off by clearDecks (the ground is
+  // shared between missions on the same seed).
+  addDeck(s, w) {
+    if (!this._deckSave) this._deckSave = { spd: Float32Array.from(this.spd), br: Uint8Array.from(this.br), cost: Float32Array.from(this.navCost), fine: Float32Array.from(this._fine.cost) };
+    const L = Math.hypot(s.x2 - s.x1, s.y2 - s.y1) || 1, ux = (s.x2 - s.x1) / L, uy = (s.y2 - s.y1) / L, hw = w / 2, touched = new Set();
+    for (let m = -2; m <= L + 2; m += CELL / 2) for (let q = -hw; q <= hw; q += CELL / 2) {
+      const px = s.x1 + ux * m - uy * q, py = s.y1 + uy * m + ux * q;
+      if (px < 0 || py < 0 || px >= SIZE || py >= SIZE) continue;
+      const k = this._i(px, py);
+      this.br[k] = 1; this.spd[k] = 1; this._fine.cost[k] = 1;
+      touched.add(clamp((py / NAVC) | 0, 0, NV - 1) * NV + clamp((px / NAVC) | 0, 0, NV - 1));
+    }
+    // a coarse cell the deck runs through is open if the deck crosses its middle or it has no water left in it
+    for (const c of touched) {
+      const a = c % NV, b = (c / NV) | 0;
+      let sum = 0, blocked = false;
+      for (let dj = 0; dj < SUB; dj++) for (let di = 0; di < SUB; di++) { const v = this.spd[(b * SUB + dj) * N + a * SUB + di]; if (!v) blocked = true; sum += v; }
+      const mid = this.br[(b * SUB + (SUB >> 1)) * N + a * SUB + (SUB >> 1)];
+      if (!blocked || mid) this.navCost[c] = 1 / Math.max(0.3, sum / (SUB * SUB));
+    }
+    this.decks = this.decks || [];
+    this.decks.push({ ...s, w });
+    this._reroute();
+  }
+  clearDecks() {
+    if (!this._deckSave) return;
+    const S = this._deckSave;
+    this.spd.set(S.spd); this.br.set(S.br); this.navCost.set(S.cost); this._fine.cost.set(S.fine);
+    this._deckSave = null; this.decks = [];
+    this._reroute();
+  }
+  _reroute() {
+    if (this._pcC) { this._pcC.clear(); this._pcF.clear(); }
+    this._acCache = null;
+    if (this.bnd) this.ac = this._aoMain(this.bnd);
   }
   _openNear(G, x, y) {
     const { W, cs, cost } = G;

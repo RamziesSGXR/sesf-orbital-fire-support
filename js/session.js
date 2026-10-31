@@ -18,6 +18,7 @@ export function save(key, val) {
 export function drop(key) { try { localStorage.removeItem(K[key]); } catch { /* ignore */ } }
 
 export const DEFAULT_SETTINGS = {
+  enemy: 'random',        // (0.18) the enemy for the session's missions: 'random' or a faction id; a change counts from the next mission
   polarity: 'white', relief: false, quality: 'auto', reduceFlash: false, colorblind: false,
   volume: 0.6, muted: false, lefty: false, touchSens: 1, bubbles: true, cards: 'side', lang: 'en', uiScale: 1,
   mini: 2,           // the minimap's size (x its old size)
@@ -42,10 +43,12 @@ export function makeNames(rng = Math.random) {
   return { op: `Operation ${pick(rng, ADJECTIVES)} ${pick(rng, NOUNS)}` };
 }
 
-export function rollMission(prev, rng = Math.random) {
+// enemy: 'random' or the faction every mission is against (Settings, and the title screen).
+export function rollMission(prev, rng = Math.random, enemy = 'random') {
   const names = makeNames(rng);
   const fIds = Object.keys(FACTIONS), bIds = Object.keys(BIOMES);
-  const faction = pick(rng, fIds);
+  let faction = pick(rng, fIds);
+  if (fIds.includes(enemy)) faction = enemy;
   let biome = pick(rng, bIds);
   if (prev && biome === prev.biome) biome = pick(rng, bIds.filter((b) => b !== prev.biome)); // avoid back-to-back repeats
   return { ...names, faction, biome, seed: Math.floor(rng() * 0xffffffff) >>> 0 };

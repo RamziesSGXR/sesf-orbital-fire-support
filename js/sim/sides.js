@@ -2,8 +2,9 @@
 //   radio tower:       stand by it while it powers up (holdSec); once active it relights the SEAF drop beacons around it.
 //   propaganda tower:  an enemy structure (a point of interest of its own kind, see pois.js) that rallies nearby patrols onto the
 //                      squad while it stands. Destroy it.
-//   SEAF under fire:   a SEAF squad dug in and pinned down. When the Helldivers come near, the enemy closes in on it; clear them off
-//                      with a Helldiver at hand and the survivors join the player's SEAF.
+//   hidden SEAF:       a SEAF squad lying low (the sheep of an old strategy game): nobody sees them or anything round them, and
+//                      they see nothing for the player, until a Helldiver or a SEAF trooper walks close by. Then they join.
+//                      (Nobody goes looking for them: they are near the ways the squad is likely to walk.)
 // Drop beacons: places the player can send a SEAF drop to without a strike zone. SEAF build them (seaf.js); a radio tower powered
 // up keeps the ground round it in view for the rest of the mission (a relay, mission.js visLevel).
 import { CONFIG as C } from '../config.js';
@@ -14,7 +15,7 @@ import { hiddenSpot, spawnGroup } from './director.js';
 import { callReinforcements } from './reinforce.js';
 import { rollRoles, dropSquad } from './seaf.js';
 import { seafStats } from '../data/kit.js';
-import { aoScale } from './ao.js';
+import { aoScale, inAO } from './ao.js';
 import { findSpot } from './objectives.js';
 import { alertGroup } from './enemies.js';
 
@@ -39,8 +40,11 @@ export function setupSides(m) {
     ...m.bases.map((b) => ({ x: b.x, y: b.y, r: 110 })), ...m.objectives.map((o) => ({ x: o.x, y: o.y, r: 150 })),
     ...m.pois.map((p) => ({ x: p.x, y: p.y, r: 80 })), ...m.sides.map((s) => ({ x: s.x, y: s.y, r: aoScale(m, 260) })),
   ];
+  // (0.18: the drop is at the rim of the round map, so every other side mission is put round the way to the main objective)
+  const o0 = m.objectives[0], way = o0 ? { x: (m.lz.x + o0.x) / 2, y: (m.lz.y + o0.y) / 2, r: Math.hypot(o0.x - m.lz.x, o0.y - m.lz.y) * 0.5 + aoScale(m, 160) } : null;
+  let si = 0;
   for (const kind of kindsFor(m)) {
-    const p = findSpot(m, avoid(), 70);
+    const p = kind === 'rescue' ? (alongTheWay(m, avoid()) || findSpot(m, avoid(), 70)) : findSpot(m, avoid(), 70, si++ % 2 === 0 ? way : null);
     if (kind === 'radio' || kind === 'arty') {
       m.sides.push({ id: m.nextId++, side: true, kind, x: p.x, y: p.y, r: kind === 'arty' ? 10 : 9, state: 'idle', holdT: 0, done: false, failed: false, callT: 0, face: m.rng.angle() });
     } else if (kind === 'propaganda') {
@@ -50,11 +54,11 @@ export function setupSides(m) {
         hp: S.propaganda.hp, maxHp: S.propaganda.hp, reward: S.propaganda.reward, guards: S.propaganda.guards, woke: false, done: false, hurtAt: -9, by: null, rallyT: S.propaganda.every };
       m.pois.push(poi); m.sides.push(poi);
     } else {
-      const s = { id: m.nextId++, side: true, kind: 'rescue', x: p.x, y: p.y, r: 14, state: 'pinned', troops: [], done: false, failed: false, callT: 0 };
+      const s = { id: m.nextId++, side: true, kind: 'rescue', x: p.x, y: p.y, r: 14, state: 'hidden', troops: [], done: false, failed: false, callT: 0, hidden: true };
       const st = seafStats(m.kit), roles = rollRoles(m, S.rescue.n, st);
       for (const role of roles) {
         const a = m.addAlly('S', p.x + m.rng.range(-7, 7), p.y + m.rng.range(-7, 7), { role });
-        a.pinned = s.id; a.armorMul = S.rescue.armor;           // dug in: they take far less than troops in the open
+        a.pinned = s.id; a.hidden = true; a.face = m.rng.angle();     // lying low: not on the map for anyone until found
         s.troops.push(a);
       }
       m.sides.push(s);
@@ -137,39 +141,34 @@ export function updateSides(m, dt) {
         }
       }
     } else if (s.kind === 'rescue') {
+      // found: a Helldiver or a SEAF trooper walks close by, and they join the player's SEAF (the finder's squad, for a trooper)
+      const R2 = S.rescue.claimR * S.rescue.claimR;
+      let by = null;
+      for (const a of m.alive) if (!a.mounted && !a.hidden && (a.x - s.x) ** 2 + (a.y - s.y) ** 2 <= R2) { by = a; break; }
+      if (!by) continue;
       const alive = s.troops.filter((a) => !a.dead);
-      if (!alive.length) { finish(m, s, false); continue; }
-      if (s.state === 'pinned' && (hdNear(m, s.x, s.y, aoScale(m, S.rescue.wakeR)) || t >= S.rescue.wakeSec)) {
-        // the enemy closes in on them
-        s.state = 'siege';
-        const n = S.rescue.groups + Math.floor(m.S / S.rescue.perSessionMin);
-        for (let i = 0; i < n; i++) {
-          const sp = hiddenSpot(m, s.x, s.y, 70, 120);
-          if (!sp) continue;
-          const g = spawnGroup(m, sp.x, sp.y, 'hunt', { alertT: 60 });
-          g.siege = s.id; g.tp = { x: s.x, y: s.y }; g.target = alive[0];
-        }
-        m.radio(COMMS.rescueSiege, 'rescuesiege', 0);
-        m.emit('side_state', { kind: 'rescue', state: 'siege', x: s.x, y: s.y });
-      }
-      if (s.state !== 'siege') continue;
-      siteActivity(m, s, dt);
-      // rescued: a Helldiver with them and nothing left close by
-      const a = hdNear(m, s.x, s.y, S.rescue.reachR);
-      let enemies = 0;
-      if (a) m.eGrid.near(s.x, s.y, S.rescue.clearR, () => { enemies++; });
-      if (a && enemies === 0) {
-        s.holdT = (s.holdT || 0) + dt;
-        if (s.holdT >= S.rescue.holdSec) {
-          const sq = dropSquad(m);
-          for (const q of alive) { q.pinned = 0; q.armorMul = 1; q.sq = sq; }
-          s.joined = alive.length;
-          m.radio(COMMS.rescueDone(alive.length, sq + 1), 'rescuedone', 0);
-          finish(m, s, true);
-        }
-      } else s.holdT = 0;
+      const sq = by.type === 'S' && by.sq >= 0 ? by.sq : dropSquad(m);
+      for (const q of alive) { q.pinned = 0; q.hidden = false; q.sq = sq; }
+      s.joined = alive.length; s.hidden = false;
+      m.radio(COMMS.rescueDone(alive.length, sq + 1), 'rescuedone', 0);
+      finish(m, s, true);
     }
   }
+}
+
+// A spot for hidden SEAF near a way the squad is likely to walk: part way from the drop to an objective (or the pad), a little
+// to one side. null if nothing there will do.
+function alongTheWay(m, avoid) {
+  const goals = [...m.objectives, m.extraction].filter(Boolean);
+  for (let k = 0; k < 24; k++) {
+    const g = goals[m.rng.int(goals.length)], f = m.rng.range(0.3, 0.75), off = m.rng.range(-1, 1) * SD().rescue.offR;
+    const dx = g.x - m.lz.x, dy = g.y - m.lz.y, L = Math.hypot(dx, dy) || 1;
+    const x = m.lz.x + dx * f - (dy / L) * off, y = m.lz.y + dy * f + (dx / L) * off;
+    if (!m.terrain.isLand(x, y) || !inAO(m, x, y, 30)) continue;
+    if (avoid.some((a) => (a.x - x) ** 2 + (a.y - y) ** 2 < (a.r * 0.6) ** 2)) continue;
+    return { x, y };
+  }
+  return null;
 }
 
 // An objective being worked is loud, and the enemy keeps calling in help there.
@@ -187,5 +186,5 @@ export function sideStatus(m, s) {
   if (s.kind === 'radio') return s.state === 'active' ? { p: s.holdT / S.radio.holdSec } : { p: 0 };
   if (s.kind === 'arty') return s.state === 'active' ? { p: s.holdT / S.arty.holdSec } : { p: 0 };
   if (s.kind === 'propaganda') return { p: 1 - s.hp / s.maxHp };
-  return { p: s.state === 'siege' ? Math.min(1, (s.holdT || 0) / S.rescue.holdSec) : 0, n: s.troops.filter((a) => !a.dead).length };
+  return { p: 0, n: s.troops.filter((a) => !a.dead).length };
 }

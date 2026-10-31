@@ -36,6 +36,7 @@ export function goalName(m) {
   if (o.type === 'fortress') return { x: o.base.x, y: o.base.y, name: tr('place.citadel') };
   if (o.type === 'nuke') return { x: o.x, y: o.y, name: tr('place.launch') };
   if (o.type === 'evac') return { x: o.x, y: o.y, name: tr('place.evac') };
+  if (o.type === 'oil' || o.type === 'cannon' || o.type === 'dome') return { x: o.x, y: o.y, name: tr('place.' + o.type) };
   const going = o.state === 'carry' || o.state === 'deliver';
   return { x: g.x, y: g.y, name: tr(going ? 'place.pickup' : 'place.vip') };
 }

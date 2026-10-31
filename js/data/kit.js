@@ -25,7 +25,7 @@ export function newKit() {
   const loadout = Array(C.kit.slotsMax).fill('');
   C.kit.startLoadout.forEach((id, i) => { loadout[i] = id; });
   return { slots: C.kit.slotsStart, loadout, owned, uav: 1, uavb: { speed: 0, dodge: 0 }, seaf: { cap: 0, drop: 0, hp: 0, gren: 0, rocket: 0, medic: 0, spot: 0, build: 0 }, sup: { lives: 0, zone: 0 }, gun: { dmg: 0, ammo: 0, regen: 0, spread: 0 },
-    build: { bastion: 1, mg: 1, bunker: 1, tower: 1, sam: 0, arty: 0 } };
+    build: { bastion: 1, mg: 1, lookout: 1, bridge: 1, tower: 1, sam: 0, arty: 0 } };
 }
 // Old or partial saves are filled in rather than thrown away.
 export function fixKit(k) {
@@ -35,7 +35,9 @@ export function fixKit(k) {
   const kb = { ...(k.build || {}) };
   if (kb.wall !== undefined && kb.bastion === undefined) kb.bastion = kb.wall;
   if (kb.beacon !== undefined && kb.tower === undefined) kb.tower = kb.beacon;
-  delete kb.wall; delete kb.beacon;
+  // (0.18: the bunker went; its levels carry over to the Lookout Tower)
+  if (kb.bunker !== undefined && kb.lookout === undefined) kb.lookout = Math.max(1, kb.bunker);
+  delete kb.wall; delete kb.beacon; delete kb.bunker;
   const out = { ...base, ...k, uavb: { ...base.uavb, ...(k.uavb || {}) }, seaf: { ...base.seaf, ...(k.seaf || {}) }, sup: { ...base.sup, ...(k.sup || {}) }, gun: { ...base.gun, ...(k.gun || {}) }, owned: { ...base.owned, ...(k.owned || {}) },
     build: { ...base.build, ...kb } };
   // Anything the catalog no longer has (the old Orbital Gatling Barrage) is dropped from a save rather than carried around.
@@ -122,13 +124,14 @@ export function buildStats(what, level = 1) {
   if (what === 'foxhole') return { cost: B.cost, sec: B.sec, cap: B.cap, mul: B.mul, rof: B.rof };
   if (what === 'bastion') return { cost: B.cost, sec: B.sec, n: B.n + 2 * k, R: B.R + 0.75 * k, mul: Math.max(0.35, B.mul - 0.05 * k) };
   if (what === 'mg') return { cost: B.cost, sec: B.sec, cap: B.cap, hp: hp(0.25), dmg: 1 + 0.15 * k, crewMul: Math.max(0.2, B.crewMul - 0.03 * k) };
-  if (what === 'bunker') return { cost: B.cost, sec: B.sec, cap: B.cap + k, hp: hp(0.3), take: B.take, ff: B.ff };
+  if (what === 'lookout') return { cost: B.cost, sec: B.sec, cap: B.cap, hp: hp(0.25), reach: +(B.reach * (1 + 0.08 * k)).toFixed(2), spot: B.spot };
+  if (what === 'bridge') return { cost: B.cost, sec: Math.max(8, B.sec - 2 * k), span: Math.round(B.span * (1 + 0.15 * k)), w: B.w + 2 * k };
   if (what === 'tower') return { cost: B.cost, sec: Math.max(24, B.sec - 4 * k), cap: B.cap, hp: hp(0.25), reachUp: 0.05 * k };
   if (what === 'sam') return { cost: B.cost, sec: B.sec, hp: hp(0.25), dmg: Math.round(B.dmg * (1 + 0.2 * k)), every: +(B.every * (1 - 0.08 * k)).toFixed(2) };
   return { cost: B.cost, sec: B.sec, cap: B.cap, hp: hp(0.25), cd: Math.round(A.cd * (1 - A.cdUp * k)), r: Math.round(A.r * (1 + A.rUp * k)), dmg: Math.round(A.dmg * (1 + A.dmgUp * k)), range: A.range + A.rangeUp * k };
 }
 export const buildLevel = (kit, what) => (what === 'foxhole' ? 1 : ((kit && kit.build) || {})[what] || 0);
-export const BUILDS = ['bastion', 'mg', 'bunker', 'tower', 'sam', 'arty'];       // in the armory (the foxhole is free and has no levels)
+export const BUILDS = ['bastion', 'mg', 'lookout', 'bridge', 'tower', 'sam', 'arty'];       // in the armory (the foxhole is free and has no levels)
 // The SEAF Barracks has no top level: each level adds troops and costs a little more than the last.
 export const barracksCost = (lvl) => price(300 * (lvl + 1) ** 1.4);
 export const zoneExtra = (kit) => C.kit.zonePer * kit.sup.zone;
@@ -179,7 +182,7 @@ export function shopItems(kit) {
     items.push({ id: `seaf.${k}`, section: k === 'medic' || k === 'spot' || k === 'gren' || k === 'rocket' ? 'specialists' : 'seaf', ...named(`seaf.${k}`), level: lvl, max: u.max,
       cost: lvl >= u.max ? null : u.endless ? barracksCost(lvl) : price(u.price * (lvl + 1)), live: true, endless: !!u.endless });
   }
-  // Buildables: what SEAF can put up. Bastions, MG nests, bunkers and propaganda towers come at level 1; the SAM site and the
+  // Buildables: what SEAF can put up. Bastions, heavy turret nests, lookouts, light bridges and propaganda towers come at level 1; the SAM site and the
   // artillery cannon are unlocked here.
   for (const k of BUILDS) {
     const lvl = buildLevel(kit, k), B = C.build[k], mx = C.build.levels;

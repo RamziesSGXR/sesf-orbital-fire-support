@@ -7,6 +7,7 @@ import { COMMS } from '../data/data.js';
 import { orbStats, uavStats, gunStats, buildStats, buildLevel } from '../data/kit.js';
 import { noise } from './enemies.js';
 import { damageArea, hurtEnemy, jammedAt } from './combat.js';
+import { domeAt } from './ops.js';
 import { strikeAt, queueZone, destroyAsset } from './strat.js';
 
 export const SLOT_UAV = 0, SLOT_NUKE = 6, SLOT_GUN = 7, SLOT_ARTY = 8, ORB_SLOTS = 5;
@@ -71,7 +72,7 @@ export function nearestArty(m, x, y) {
   let best = null, bd = Infinity, idle = null, id = Infinity;
   for (const g of m.arty || []) {
     const d = Math.hypot(g.x - x, g.y - y);
-    if (g.crew > 0 || g.manned) { if (d < bd) { bd = d; best = g; } } else if (d < id) { id = d; idle = g; }
+    if (d < bd) { bd = d; best = g; }       // (0.18: it fires with or without a crew; a crew loads it faster)
   }
   return { g: best, d: bd, idle, idleD: id };
 }
@@ -84,7 +85,7 @@ function fireArty(m, s) {
   if ((!g || d > a.range) && idle && idleD <= a.range) return deny(m, 'artycrew', COMMS.artyCrew);
   if (!g || d > a.range) return deny(m, 'artyrange');
   if (m.visLevel(p.aimX, p.aimY) <= 0 && !m.nearLock(p.aimX, p.aimY)) return deny(m, 'novisual');
-  s.readyAt = t + a.cd;
+  s.readyAt = t + a.cd * (g.crew >= (g.cap || 2) ? 1 : g.crew > 0 ? 1.25 : 1.6);     // crewless it reloads slowly
   g.face = Math.atan2(p.aimY - g.y, p.aimX - g.x); g.firedAt = t;
   m.shells.push({ x: p.aimX, y: p.aimY, at: t + A.flight, dmg: a.dmg, splash: a.r, mult: A.mult, by: 'player', friendly: true, big: true, mini: true, fx: g.x, fy: g.y, above: true });   // (a high arc: it comes down from above)
   m.markers.push({ type: 'strat', x: p.aimX, y: p.aimY, r: a.r, start: t, end: t + A.flight, impact: t + A.flight, id: tr('hud.w.arty'), cat: 'ORBITAL', by: 'player' });
@@ -146,6 +147,8 @@ function fireOrbital(m, idx) {
     m.eGrid.near(p.aimX, p.aimY, 26, (e, d2) => { if ((e.vis > 0 || m.locked.includes(e)) && (e.kind === 'H' || !best) && d2 < bd) { bd = d2; best = e; } });
     if (best) tgt = { x: best.x, y: best.y, e: best };
   }
+  // an orbital defence cannon has the ship dodging (ops.js): the strike lands wide
+  if (m.evading && !tgt.e) { const [dx, dy] = m.rng.inDisc(C.objective.cannon.scatter); tgt = { x: tgt.x + dx, y: tgt.y + dy }; }
   if (st.k === 'strike') strikeAt(m, st, tgt, { ox: m.hx, oy: m.hy, by: 'player', friendly: true, dmgMul: 1 });
   else if (st.k === 'zone') queueZone(m, st.zone, tgt.x, tgt.y, t + st.delay, st.delay, st, 'player');
   else if (st.k === 'beam') {
@@ -208,6 +211,7 @@ export function fireSlot(m, idx) {
   const p = m.player, s = p.slots[idx];
   if (!s || s.type === 'empty') return false;
   if (s.type !== 'nuke' && jammedAt(m, p.aimX, p.aimY)) return deny(m, 'jammed', COMMS.jammed);   // a commander jams the ground round it
+  if (s.type !== 'uav' && s.type !== 'nuke' && domeAt(m, p.aimX, p.aimY)) return deny(m, 'shielded', tr('c.shielded'));   // a shield dome (ops.js)
   if (s.type === 'uav') return fireUav(m, s);
   if (s.type === 'nuke') {   // works anywhere on the map, once the launch site is armed
     if (!m.nukeReady() || s.uses <= 0) return deny(m, 'nomark', COMMS.holdFire);
@@ -238,7 +242,7 @@ export function updatePlayer(m, dt) {
     const g = aimGeom(m, st);
     info.lock = st.k !== 'util' && !m.inZone(p.aimX, p.aimY) ? !!m.nearLock(p.aimX, p.aimY) : false;
     info.inZone = m.inZone(p.aimX, p.aimY) || info.lock;
-    info.splash = g.splash; info.spread = g.spread;
+    info.splash = g.splash; info.spread = g.spread + (m.evading && st.k !== 'util' ? C.objective.cannon.scatter : 0);     // (the ship dodging a cannon: wider)
     info.ready = info.inZone && t >= s.readyAt && s.uses > 0;
   } else if (s.type === 'uav') {
     info.inZone = m.inAllyZone(p.aimX, p.aimY, UAV_REACH);
@@ -255,10 +259,11 @@ export function updatePlayer(m, dt) {
     const gs = gunStats(m.kit), g = p.gun;
     info.lock = m.visLevel(p.aimX, p.aimY) <= 0 && !!m.nearLock(p.aimX, p.aimY);
     info.inZone = m.visLevel(p.aimX, p.aimY) > 0 || info.lock;
-    info.splash = gs.spread + gs.bloom * g.bloom; info.ready = info.inZone && g.ammo >= 1 && !g.dry;
+    info.splash = (gs.spread + gs.bloom * g.bloom) * (m.evading ? C.objective.cannon.gunMul : 1); info.ready = info.inZone && g.ammo >= 1 && !g.dry;
     info.gun = { ammo: g.ammo, max: g.max, dry: g.dry };
   } else { info.inZone = false; info.ready = false; }
   info.jammed = s.type !== 'nuke' && !!jammedAt(m, p.aimX, p.aimY);
+  info.shielded = s.type !== 'nuke' && s.type !== 'uav' && !!domeAt(m, p.aimX, p.aimY);
   if (info.jammed) info.ready = false;
   info.ok = info.ready;
   info.util = s.type === 'orb' && st.k === 'util' ? st.util : null;      // help for the squad: no danger-close warning
@@ -319,7 +324,7 @@ export function updatePlayer(m, dt) {
 function updateGun(m, dt, pressed) {
   const p = m.player, g = p.gun, G = C.gun, gs = gunStats(m.kit), t = m.t;
   const holding = p.slots[p.weapon].type === 'gun' && p.firing && t >= p.swapUntil;
-  const jam = holding && !!jammedAt(m, p.aimX, p.aimY);
+  const jam = holding && (!!jammedAt(m, p.aimX, p.aimY) || !!domeAt(m, p.aimX, p.aimY));
   const seen = holding && !jam && (m.visLevel(p.aimX, p.aimY) > 0 || !!m.nearLock(p.aimX, p.aimY));   // a locked enemy can be shot unseen
   if (g.dry && g.ammo >= 45) g.dry = false;
   if (holding && pressed) {
@@ -331,7 +336,7 @@ function updateGun(m, dt, pressed) {
     g.idle = 0; g.firing = true;
     g.bloom = Math.min(1, g.bloom + G.bloomUp * dt / 3);
     g.acc += G.rps * dt;
-    const pts = [], spread = gs.spread + gs.bloom * g.bloom;
+    const pts = [], spread = (gs.spread + gs.bloom * g.bloom) * (m.evading ? C.objective.cannon.gunMul : 1);
     while (g.acc >= 1 && g.ammo >= 1) {
       g.acc -= 1; g.ammo -= 1;
       const [ox, oy] = m.rng.inDisc(spread), x = p.aimX + ox, y = p.aimY + oy;

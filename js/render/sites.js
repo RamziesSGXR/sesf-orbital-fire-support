@@ -231,3 +231,166 @@ export function drawCitadelWalls(ctx, m, col, px) {
     void px;
   }
 }
+
+// ---------------------------------------------------------------- finds (sim/pois.js loot)
+// A crashed pelican, a lost hellpod, a Super Earth strongbox, a SEAF supply cache: each drawn as a small scene, with a beacon light
+// that blinks while it has not been found. Found: the wreck stays, burnt out; the rest are gone.
+export function drawLootArt(ctx, q, now, px) {
+  const f = Math.max(1, px(2)) * 0.6, id = q.id || 1, blink = 0.5 + 0.5 * Math.sin(now * 3 + id);
+  ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.face || 0); ctx.scale(f, f);
+  if (q.kind === 'wreck') {
+    // scorched ground, the broken hull in two pieces, ammo crates thrown out of it, smoke
+    ctx.fillStyle = 'rgba(20,16,12,0.55)'; ctx.beginPath(); ctx.ellipse(0, 0, 9, 5.5, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = q.done ? '#4a4d4a' : '#7d8780';
+    ctx.beginPath(); ctx.moveTo(-6, -1.8); ctx.lineTo(0.5, -2.2); ctx.lineTo(1.2, 2); ctx.lineTo(-6, 1.8); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(2.2, -2.4); ctx.lineTo(6.5, -1.2); ctx.lineTo(6.8, 1); ctx.lineTo(2.6, 2.3); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = q.done ? '#3a3c3a' : '#a9b3ac'; ctx.fillRect(-4, -5.5, 2.2, 3.6); ctx.fillRect(-3.6, 2, 2, 3.4);      // the wings
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 0.25; ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(0.8, 0); ctx.stroke();
+    if (!q.done) {
+      ctx.fillStyle = '#b3922e'; ctx.fillRect(3, 3.2, 1.6, 1.2); ctx.fillRect(5, 2.6, 1.4, 1.1); ctx.fillRect(-1, -4.2, 1.5, 1.1);
+      for (let k = 0; k < 3; k++) { const u = ((now * 0.25 + k / 3) % 1); ctx.fillStyle = `rgba(90,90,90,${0.35 * (1 - u)})`; ctx.beginPath(); ctx.arc(1.5 + u * 5, -u * 4, 1.2 + u * 2.5, 0, TAU); ctx.fill(); }
+    }
+  } else if (q.kind === 'pod') {
+    // a hellpod half buried, its hatch open, a yellow and black ring and its blue beacon
+    ctx.fillStyle = 'rgba(30,24,16,0.5)'; ctx.beginPath(); ctx.ellipse(0, 0, 4.6, 3.6, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#2b2f2d'; ctx.beginPath(); ctx.arc(0, 0, 2.6, 0, TAU); ctx.fill();
+    for (let k = 0; k < 8; k++) { ctx.fillStyle = k % 2 ? '#1a1a1a' : '#ffe600'; ctx.beginPath(); ctx.arc(0, 0, 2.6, (k / 8) * TAU, ((k + 1) / 8) * TAU); ctx.arc(0, 0, 2.0, ((k + 1) / 8) * TAU, (k / 8) * TAU, true); ctx.fill(); }
+    ctx.fillStyle = '#5b6560'; ctx.fillRect(1.6, -1, 2.6, 2);      // the hatch, swung open
+    ctx.fillStyle = '#c8d3cc'; ctx.fillRect(-1.3, -0.25, 2.6, 0.5);  // the weapon inside
+    ctx.fillStyle = `rgba(90,180,255,${0.4 + 0.6 * blink})`; ctx.beginPath(); ctx.arc(0, 0, 0.6, 0, TAU); ctx.fill();
+  } else if (q.kind === 'vault') {
+    // a Super Earth strongbox on a concrete pad, the eagle-and-globe seal on the lid and a glint of gold
+    ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(-4.2, -3.2, 8.8, 7);
+    ctx.fillStyle = '#8e9590'; ctx.fillRect(-4, -3.4, 8, 6.6);
+    ctx.fillStyle = '#5b625e'; ctx.fillRect(-3.2, -2.6, 6.4, 5);
+    ctx.strokeStyle = '#ffe600'; ctx.lineWidth = 0.35; ctx.beginPath(); ctx.arc(0, -0.1, 1.5, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-1.5, -0.1); ctx.lineTo(1.5, -0.1); ctx.moveTo(0, -1.6); ctx.lineTo(0, 1.4); ctx.stroke();
+    ctx.fillStyle = `rgba(255,220,90,${0.3 + 0.6 * blink})`; ctx.fillRect(2.3, -2.3, 0.7, 0.7);
+  } else {
+    // a SEAF supply cache: green crates stacked under a tarp, white crosses, a stake with a pennant
+    for (const [x, y, w, h] of [[-3, -2, 3, 2.4], [0.4, -2.4, 2.8, 2.2], [-2.2, 0.8, 3.4, 2.2], [1.6, 0.4, 2.2, 2]]) {
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(x + 0.3, y + 0.3, w, h);
+      ctx.fillStyle = '#4f6a46'; ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 0.2; ctx.strokeRect(x, y, w, h);
+      ctx.fillStyle = '#e8efe6'; ctx.fillRect(x + w / 2 - 0.15, y + h / 2 - 0.55, 0.3, 1.1); ctx.fillRect(x + w / 2 - 0.55, y + h / 2 - 0.15, 1.1, 0.3);
+    }
+    ctx.fillStyle = `rgba(125,255,155,${0.3 + 0.6 * blink})`; ctx.fillRect(-4.2, -3.6, 1.6, 0.9);
+  }
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------- the operations (0.18, sim/ops.js)
+// The oil pump: a nodding-donkey derrick on a concrete pad, a tank beside it that fills, pipes to the pelican's pad.
+export function drawOilSite(ctx, o, now, px) {
+  const f = Math.max(1, px(2)), pump = o.state === 'pump' && o.fill < 1;
+  ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.face || 0); ctx.scale(f, f);
+  ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(-7.5, -5.5, 15.5, 11.5);
+  ctx.fillStyle = '#6d726c'; ctx.fillRect(-7, -5, 14, 10);
+  ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 0.3; ctx.strokeRect(-7, -5, 14, 10);
+  // the beam rocking on its post
+  const rock = pump ? Math.sin(now * 2.4) * 0.35 : 0;
+  ctx.fillStyle = '#3c403c'; ctx.fillRect(-0.6, -0.6, 1.2, 1.2);
+  ctx.save(); ctx.rotate(rock);
+  ctx.fillStyle = '#ffb020'; ctx.fillRect(-5.5, -0.5, 9, 1);
+  ctx.fillStyle = '#2b2f2b'; ctx.beginPath(); ctx.moveTo(3.5, -1.2); ctx.lineTo(5.6, 0); ctx.lineTo(3.5, 1.2); ctx.closePath(); ctx.fill();   // the horse's head
+  ctx.restore();
+  ctx.fillStyle = '#2b2f2b'; ctx.fillRect(-6.4, -1.6, 2, 3.2);         // the counterweight
+  // the tank and its gauge
+  ctx.fillStyle = '#4e5650'; ctx.beginPath(); ctx.arc(0, -8.5, 3.2, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#a5aea7'; ctx.lineWidth = 0.35; ctx.stroke();
+  ctx.fillStyle = '#121212'; ctx.beginPath(); ctx.moveTo(0, -8.5); ctx.arc(0, -8.5, 2.6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0.001, o.fill || 0)); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#a5aea7'; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(0, -5.3); ctx.stroke();
+  ctx.restore();
+  // the pipe to the pad, and the pad's H
+  ctx.strokeStyle = 'rgba(160,165,160,0.7)'; ctx.lineWidth = Math.max(0.5, px(1.4)); ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.px, o.py); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,230,0,0.7)'; ctx.lineWidth = Math.max(0.4, px(1.2)); ctx.beginPath(); ctx.arc(o.px, o.py, 6, 0, Math.PI * 2); ctx.stroke();
+  ctx.lineWidth = Math.max(0.5, px(1.6)); ctx.beginPath(); ctx.moveTo(o.px - 2, o.py - 2.5); ctx.lineTo(o.px - 2, o.py + 2.5); ctx.moveTo(o.px + 2, o.py - 2.5); ctx.lineTo(o.px + 2, o.py + 2.5); ctx.moveTo(o.px - 2, o.py); ctx.lineTo(o.px + 2, o.py); ctx.stroke();
+}
+// The orbital defence cannon: a huge turret on a round armoured base, its barrel raised to the sky (seen from above: foreshortened,
+// with the muzzle glowing), turning slowly; a flash and a streak up when it fires.
+export function drawCannonArt(ctx, b, col, now, px, t) {
+  const r = b.r, a = b.aim || 0, fired = b.firedAt !== undefined ? t - b.firedAt : 99;
+  ctx.save(); ctx.translate(b.x, b.y);
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; circ(ctx, 0, 0, r * 1.25); ctx.fill();
+  ctx.fillStyle = '#4b4f4e'; circ(ctx, 0, 0, r); ctx.fill();
+  ctx.strokeStyle = rgba(col, 0.8); ctx.lineWidth = px(1.6); circ(ctx, 0, 0, r); ctx.stroke();
+  for (let k = 0; k < 8; k++) { const q = (k / 8) * TAU; ctx.fillStyle = '#2c2f2e'; ctx.fillRect(Math.cos(q) * r * 0.82 - 1, Math.sin(q) * r * 0.82 - 1, 2, 2); }
+  ctx.rotate(a);
+  ctx.fillStyle = '#6a6e6c'; ctx.fillRect(-r * 0.5, -r * 0.45, r * 0.95, r * 0.9);
+  ctx.fillStyle = '#7d8280'; ctx.fillRect(r * 0.35, -r * 0.16, r * 0.95, r * 0.32);           // the barrel, raised (short from above)
+  ctx.fillStyle = '#7d8280'; ctx.fillRect(r * 0.35, -r * 0.42, r * 0.7, r * 0.14); ctx.fillRect(r * 0.35, r * 0.28, r * 0.7, r * 0.14);
+  const glow = fired < 0.4 ? 1 - fired / 0.4 : 0.35 + 0.2 * Math.sin(now * 3);
+  ctx.fillStyle = `rgba(255,${120 + 100 * glow},80,${0.5 + 0.5 * glow})`; circ(ctx, r * 1.3, 0, r * 0.18 * (1 + glow)); ctx.fill();
+  ctx.fillStyle = rgba(col, 0.9); circ(ctx, -r * 0.1, 0, r * 0.16); ctx.fill();
+  ctx.restore();
+  if (fired < 0.6) {
+    const k = fired / 0.6;
+    ctx.strokeStyle = `rgba(255,200,120,${1 - k})`; ctx.lineWidth = px(3 * (1 - k) + 1);
+    ctx.beginPath(); ctx.moveTo(b.x + Math.cos(a) * r * 1.3, b.y + Math.sin(a) * r * 1.3); ctx.lineTo(b.x + Math.cos(a) * r * (1.3 + 14 * k), b.y + Math.sin(a) * r * (1.3 + 14 * k) - 40 * k); ctx.stroke();
+  }
+}
+// A shield node: a squat pylon with a glowing crystal, a beam to the tower while the dome is up.
+export function drawNodeArt(ctx, b, col, now, px) {
+  const r = b.r, up = b.dome && b.dome.up, p = 0.6 + 0.4 * Math.sin(now * 5 + b.id);
+  ctx.save(); ctx.translate(b.x, b.y);
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; circ(ctx, 0, 0, r * 1.2); ctx.fill();
+  ctx.fillStyle = '#3b3550'; ctx.beginPath(); for (let k = 0; k < 6; k++) { const q = (k / 6) * TAU; ctx[k ? 'lineTo' : 'moveTo'](Math.cos(q) * r, Math.sin(q) * r); } ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = rgba(col, 0.9); ctx.lineWidth = px(1.2); ctx.stroke();
+  ctx.fillStyle = up ? `rgba(160,220,255,${0.6 + 0.4 * p})` : 'rgba(90,90,110,0.8)'; circ(ctx, 0, 0, r * 0.45); ctx.fill();
+  ctx.restore();
+  if (up) { ctx.strokeStyle = `rgba(160,220,255,${0.25 + 0.25 * p})`; ctx.lineWidth = px(1.4); ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.dome.x, b.dome.y); ctx.stroke(); }
+}
+// The dome itself and the generator tower at its middle: a big pale bubble with a hex shimmer, flaring where it is hit.
+export function drawDome(ctx, o, col, now, px) {
+  const d = o.dome, t = now;
+  // the tower
+  ctx.save(); ctx.translate(d.x, d.y);
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; circ(ctx, 0, 0, 8); ctx.fill();
+  ctx.fillStyle = '#463e5e'; circ(ctx, 0, 0, 6.5); ctx.fill();
+  ctx.strokeStyle = rgba(col, 0.9); ctx.lineWidth = px(1.4); circ(ctx, 0, 0, 6.5); ctx.stroke();
+  ctx.fillStyle = d.up ? `rgba(170,225,255,${0.7 + 0.3 * Math.sin(t * 3)})` : 'rgba(80,80,95,0.9)'; circ(ctx, 0, 0, 2.8); ctx.fill();
+  ctx.restore();
+  if (!d.up) return;
+  const hit = (o.domeHitAt !== undefined ? 0 : 0) || 0; void hit;
+  const g = ctx.createRadialGradient(d.x, d.y, d.r * 0.6, d.x, d.y, d.r);
+  g.addColorStop(0, 'rgba(140,200,255,0.03)'); g.addColorStop(1, 'rgba(140,200,255,0.16)');
+  ctx.fillStyle = g; circ(ctx, d.x, d.y, d.r); ctx.fill();
+  ctx.strokeStyle = 'rgba(180,225,255,0.12)'; ctx.lineWidth = px(1);
+  for (let k = 0; k < 6; k++) { const q = (k / 6) * Math.PI + t * 0.05; ctx.beginPath(); ctx.ellipse(d.x, d.y, d.r, d.r * Math.abs(Math.cos(q)), q, 0, TAU); ctx.stroke(); }
+  ctx.strokeStyle = 'rgba(190,230,255,0.75)'; ctx.lineWidth = px(2); circ(ctx, d.x, d.y, d.r); ctx.stroke();
+}
+// The dome flaring: a bright ring for a moment after anything from outside hits it.
+export function drawDomeHit(ctx, d, nowSim, px) {
+  const k = (nowSim - (d.hitAt || -9)) / 0.35;
+  if (!d.up || k < 0 || k > 1) return;
+  ctx.strokeStyle = `rgba(220,245,255,${0.8 * (1 - k)})`; ctx.lineWidth = px(4 * (1 - k) + 1); circ(ctx, d.x, d.y, d.r); ctx.stroke();
+  ctx.fillStyle = `rgba(200,235,255,${0.12 * (1 - k)})`; circ(ctx, d.x, d.y, d.r); ctx.fill();
+}
+// The Hellbomb from above: a fat yellow-and-black cylinder with its arming panel; an arming ring, then a pulsing blast ring.
+export function drawHellbomb(ctx, hb, K, now, px, t) {
+  if (!hb || !['inbound', 'landed', 'armed'].includes(hb.state)) return;
+  const f = Math.max(1, px(2));
+  if (hb.state === 'inbound') {
+    const k = Math.max(0, (hb.landAt - t) / K.dropSec);
+    ctx.fillStyle = `rgba(0,0,0,${0.5 * (1 - k)})`; circ(ctx, hb.x, hb.y, 3 * f + 10 * k); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,90,60,0.9)'; ctx.lineWidth = px(2); circ(ctx, hb.x, hb.y, 4 + 18 * k); ctx.stroke();
+    return;
+  }
+  ctx.save(); ctx.translate(hb.x, hb.y); ctx.scale(f, f);
+  ctx.fillStyle = 'rgba(0,0,0,0.45)'; circ(ctx, 0.4, 0.4, 3.4); ctx.fill();
+  for (let k = 0; k < 10; k++) { ctx.fillStyle = k % 2 ? '#1b1b1b' : '#ffe600'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 3, (k / 10) * TAU, ((k + 1) / 10) * TAU); ctx.closePath(); ctx.fill(); }
+  ctx.fillStyle = '#2f3431'; circ(ctx, 0, 0, 1.9); ctx.fill();
+  const blink = hb.state === 'armed' ? (Math.sin(now * (6 + 14 * Math.max(0, 1 - (hb.fuseAt - t) / K.fuseSec))) > 0 ? 1 : 0.2) : 0.5 + 0.5 * Math.sin(now * 2);
+  ctx.fillStyle = hb.state === 'armed' ? `rgba(255,60,40,${blink})` : `rgba(120,220,255,${blink})`; circ(ctx, 0, 0, 0.8); ctx.fill();
+  ctx.restore();
+  if (hb.state === 'landed') {
+    ctx.strokeStyle = 'rgba(125,255,155,0.9)'; ctx.lineWidth = px(3);
+    ctx.beginPath(); ctx.arc(hb.x, hb.y, K.armR, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, hb.armT / K.armSec)); ctx.stroke();
+    ctx.strokeStyle = 'rgba(125,255,155,0.35)'; ctx.lineWidth = px(1.2); circ(ctx, hb.x, hb.y, K.armR); ctx.stroke();
+  } else {
+    const p = 0.5 + 0.5 * Math.sin(now * 8);
+    ctx.strokeStyle = `rgba(255,70,50,${0.45 + 0.4 * p})`; ctx.lineWidth = px(2.2); ctx.setLineDash([px(10), px(6)]); ctx.lineDashOffset = -now * px(20);
+    circ(ctx, hb.x, hb.y, K.blastR); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+    ctx.fillStyle = `rgba(255,60,40,${0.05 + 0.05 * p})`; circ(ctx, hb.x, hb.y, K.blastR); ctx.fill();
+  }
+}

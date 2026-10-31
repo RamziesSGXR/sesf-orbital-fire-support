@@ -2,10 +2,14 @@
 // the enemy opens when it calls for support). Both are soft targets that anyone can shoot and any real explosion hurts.
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
+import { aoClamp } from './ao.js';
 import { COMMS } from '../data/data.js';
 import { spawnGroup, spawnNear } from './director.js';
 import { aoScale } from './ao.js';
 import { sideDestroyed } from './sides.js';
+import { RNG } from '../util/rng.js';
+import { STRATS } from '../data/strat.js';
+import { inAO } from './ao.js';
 
 const P = C.poi;
 
@@ -22,20 +26,87 @@ export function setupPois(m) {
     for (let tries = 1; tries <= 400; tries++) {
       if (tries % 100 === 0) k *= 0.8;
       x = rng.range(A.x0 + 50, A.x1 - 50); y = rng.range(A.y0 + 50, A.y1 - 50);
+      if ((x - A.cx) ** 2 + (y - A.cy) ** 2 > (A.R - 50) ** 2) continue;          // (the round area)
       if (!m.terrain.isLand(x, y)) continue;
       if (avoid.every((a) => Math.hypot(x - a.x, y - a.y) >= a.r * k) && m.pois.every((p) => Math.hypot(x - p.x, y - p.y) >= aoScale(m, P.spacing) * k)) break;
     }
     if (!m.terrain.isLand(x, y)) { const l = m.terrain.nearestLand(x, y); x = l.x; y = l.y; }
+    { const c = aoClamp(A, x, y, 30); x = c.x; y = c.y; }
     const kind = kinds[rng.int(kinds.length)], def = P.kinds[kind];
     const fac = m.faction.id;
     m.pois.push({ id: m.nextId++, isPoi: true, kind, get name() { return tr(`poi.${fac}.${kind}`); }, x, y, r: P.r, hp: def.hp, maxHp: def.hp, reward: def.reward, guards: def.guards, woke: false, done: false, hurtAt: -9, by: null });
   }
   m.breaches = [];
+  setupLoot(m);
+}
+
+// ---------------------------------------------------------------- finds (CONFIG.loot)
+// Placed from a stream of their own, so the rest of the map is laid out the same with or without them.
+const LOOT_W = ['recoilless', 'autocannon', 'flamethrower', 'railgun', 'mg43', 'spear', 'eat'];
+function setupLoot(m) {
+  const L = C.loot, rng = new RNG((m.seed ^ 0x2c1b3c6d) >>> 0), A = m.ao, kinds = Object.keys(L.kinds);
+  const n = Math.max(L.min, Math.round(L.n * Math.min(1, (A.size / C.world.size) * 1.3)));
+  const goals = [...m.objectives, m.extraction].filter(Boolean);
+  const avoid = [{ x: m.lz.x, y: m.lz.y, r: aoScale(m, L.minFromLz) }, ...m.bases.map((b) => ({ x: b.x, y: b.y, r: b.r + 50 })), ...m.objectives.map((o) => ({ x: o.x, y: o.y, r: 60 })),
+    ...m.pois.map((p) => ({ x: p.x, y: p.y, r: 50 }))];
+  const bag = []; for (const k of kinds) for (let i = 0; i < L.kinds[k].w; i++) bag.push(k);
+  m.loot = [];
+  for (let i = 0; i < n; i++) {
+    let spot = null;
+    for (let tries = 0; tries < 80 && !spot; tries++) {
+      let x, y;
+      if (i % 3 !== 2 && goals.length) {        // two in three near a way the squad will walk
+        const g = goals[rng.int(goals.length)], f = rng.range(0.2, 0.85), off = rng.range(-1, 1) * L.offR;
+        const dx = g.x - m.lz.x, dy = g.y - m.lz.y, D = Math.hypot(dx, dy) || 1;
+        x = m.lz.x + dx * f - (dy / D) * off; y = m.lz.y + dy * f + (dx / D) * off;
+      } else { const a = rng.angle(), r = Math.sqrt(rng.next()) * (A.R - 60); x = A.cx + Math.cos(a) * r; y = A.cy + Math.sin(a) * r; }
+      if (!m.terrain.isLand(x, y) || !inAO(m, x, y, 30)) continue;
+      if (avoid.some((a) => (a.x - x) ** 2 + (a.y - y) ** 2 < a.r * a.r)) continue;
+      if (m.loot.some((q) => (q.x - x) ** 2 + (q.y - y) ** 2 < aoScale(m, L.spacing) ** 2)) continue;
+      spot = { x, y };
+    }
+    if (!spot) continue;
+    const kind = bag[rng.int(bag.length)];
+    m.loot.push({ id: m.nextId++, kind, x: spot.x, y: spot.y, r: L.r, face: rng.angle(), w: kind === 'pod' ? LOOT_W[rng.int(LOOT_W.length)] : null, done: false, by: null, at: -9 });
+  }
+}
+// Anyone walking into one takes what is in it.
+function updateLoot(m) {
+  for (const q of m.loot || []) {
+    if (q.done) continue;
+    let by = null;
+    for (const a of m.alive) if (!a.mounted && (a.x - q.x) ** 2 + (a.y - q.y) ** 2 <= q.r * q.r) { by = a; break; }
+    if (by) takeLoot(m, q, by);
+  }
+}
+export function takeLoot(m, q, by) {
+  const K = C.loot.kinds[q.kind];
+  q.done = true; q.by = by.type; q.at = m.t;
+  let what = '';
+  if (q.kind === 'wreck') {
+    const g = m.player && m.player.gun; if (g) { g.ammo = g.max; g.dry = false; }
+    for (const a of m.hdAlive) if (a.sw) a.sw.left = Math.max(a.sw.left, STRATS[a.sw.id] && STRATS[a.sw.id].sw ? STRATS[a.sw.id].sw.ammo : a.sw.left);
+    what = tr('loot.got.wreck');
+  } else if (q.kind === 'pod') {
+    const d = STRATS[q.w];
+    let h = by.type === 'H' && !by.sw && !(by.mech && by.mech.hp > 0) ? by : null;
+    if (!h) { let bd = Infinity; for (const a of m.hdAlive) { if (a.sw || a.mounted || (a.mech && a.mech.hp > 0)) continue; const dd = (a.x - q.x) ** 2 + (a.y - q.y) ** 2; if (dd < bd) { bd = dd; h = a; } } }
+    if (h && d && d.sw) { h.sw = { id: q.w, ...d.sw, left: d.sw.ammo, t: 0.8, snd: 'ac', lockE: null, lockT: 0 }; m.emit('asset_new', { kind: 'weapon', sid: q.w, x: h.x, y: h.y }); }
+    what = tr('loot.got.pod', { w: d ? d.name : '' });
+  } else if (q.kind === 'cache') {
+    for (const a of m.alive) if ((a.x - q.x) ** 2 + (a.y - q.y) ** 2 <= K.heal * K.heal) a.hp = a.maxHp;
+    what = tr('loot.got.cache');
+  } else what = tr('loot.got.vault');
+  m.stats.loot = (m.stats.loot || 0) + 1;
+  if (K.cr) m.earn('loot', K.cr, q.x, q.y);
+  m.notice(tr('n.loot', { what, cr: K.cr }), 'good');
+  m.emit('loot', { kind: q.kind, x: q.x, y: q.y, by: by.type });
 }
 
 // Wake the guards when allies come close, and remove wrecks. Breaches spawn groups until they are destroyed or run dry.
 export function updatePois(m, dt) {
   const t = m.t, rng = m.rng;
+  updateLoot(m);
   for (const p of m.pois) {
     if (p.done || p.woke) continue;
     let near = false;
@@ -132,7 +203,7 @@ export function nearestObjective(m, x, y, skip) {
     if (s < bs) { bs = s; best = { kind: 'poi', obj: p, x: p.x, y: p.y, stand: 24, name: p.name }; }
   }
   for (const b of m.bases) {
-    if (b.destroyed || b.fortress || !ok(b.id)) continue;
+    if (b.destroyed || b.fortress || b.op || !ok(b.id)) continue;
     const s = Math.hypot(b.x - x, b.y - y) * 1.4;
     if (s < bs) { bs = s; best = { kind: 'base', obj: b, x: b.x, y: b.y, stand: 40, name: tr(`fac.${m.faction.id}.baseThe`) }; }
   }

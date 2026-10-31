@@ -39,6 +39,7 @@ export class Input {
   // The camera stays over the mission's area of operations (cam.ao), or the whole world when there is none.
   _clamp() {
     const a = this.cam.ao || { x0: 0, y0: 0, x1: C.world.size, y1: C.world.size };
+    if (a.R) { const dx = this.cam.x - a.cx, dy = this.cam.y - a.cy, d = Math.hypot(dx, dy); if (d > a.R) { this.cam.x = a.cx + (dx / d) * a.R; this.cam.y = a.cy + (dy / d) * a.R; } return; }   // (round)
     this.cam.x = Math.max(a.x0, Math.min(a.x1, this.cam.x)); this.cam.y = Math.max(a.y0, Math.min(a.y1, this.cam.y));
   }
   zoom(f) {
@@ -151,7 +152,7 @@ export class Input {
     // Minimap: a tap opens the tactical map; a drag moves the camera.
     const jump = (e) => {
       const r = this.mini.getBoundingClientRect();
-      const a = this.cam.ao || { x0: 0, y0: 0, size: C.world.size }, q = 0.72, o = (1 - q) / 2;     // (the round minimap: render/renderer.js MINI_Q)
+      const a = this.cam.ao || { x0: 0, y0: 0, size: C.world.size }, q = 0.9, o = (1 - q) / 2;     // (the round minimap: render/renderer.js MINI_Q)
       this.cam.x = a.x0 + (((e.clientX - r.left) / r.width - o) / q) * a.size; this.cam.y = a.y0 + (((e.clientY - r.top) / r.height - o) / q) * a.size;
       this.cam.follow = false; this._clamp();
     };
@@ -173,24 +174,27 @@ export class Input {
       if (e.code === 'Escape') { this.h.escape(); return; }
       if (e.code === 'F2') { e.preventDefault(); if (this.h.hideUi) this.h.hideUi(); return; }     // hide the HUD, and back
       if (e.code === 'Tab' && this.h.tac && this.h.tac()) { e.preventDefault(); this.h.order('build', true); return; }   // Tab closes it again
+      // (0.18) Space: the tactical screen (and its pause) on and off; Alt+1..9: the selected troopers join that squad
+      if (e.code === 'Space') { e.preventDefault(); if (this.h.supplyTap && this.h.supplyTap()) return; this.h.soft(); return; }   // (0.18) Space pauses (look around, no orders) and goes on
+      if (e.code === 'Enter' && this.h.deployNow) { this.h.deployNow(); return; }
+      { const ad = /^Digit([1-9])$/.exec(e.code); if (ad && e.altKey && this.h.toSquad) { e.preventDefault(); this.h.toSquad(Number(ad[1]) - 1); return; } }
       // the tactical build screen is open: 1 to 7 build, Z X C V B pick a formation (and no weapon keys)
       if (this.h.tac && this.h.tac() && !e.shiftKey) {
         const d = /^Digit([0-9])$/.exec(e.code), f = ['KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB'].indexOf(e.code);
-        if (d) { if (Number(d[1]) >= 1 && Number(d[1]) <= 7) this.h.tacBuild(Number(d[1]) - 1); return; }
+        if (d) { if (Number(d[1]) >= 1 && Number(d[1]) <= 8) this.h.tacBuild(Number(d[1]) - 1); return; }
         if (f >= 0) { this.h.tacForm(f); return; }
       }
       if (e.code === 'KeyP') { this.h.soft(); return; }            // the soft pause: the game stops, the menu stays shut
       if (e.code === 'Comma' && this.h.speed) { this.h.speed(); return; }   // half speed / normal speed
       if (!this.active()) return;
       const dig = /^Digit([0-9])$/.exec(e.code);
-      if (dig && e.shiftKey) this.h.squad(Number(dig[1]) >= 1 && Number(dig[1]) <= 4 ? Number(dig[1]) - 1 : -1);   // Shift+1..4 pick a squad, Shift+0 all
+      if (dig && e.shiftKey) this.h.squad(Number(dig[1]) >= 1 ? Number(dig[1]) - 1 : -1);   // Shift+1..9 pick a squad, Shift+0 all
       else if (dig && dig[1] !== '0') this.h.weapon(Number(dig[1]) - 1);
       else if (e.code === 'Backquote') this.h.squad(-1);
       else if (e.code === 'Tab') { e.preventDefault(); this.h.order('build', true); }      // the tactical build screen (as O)
       else if (e.code === 'KeyR') this.h.squadAct('draw');
-      else if (e.code === 'KeyF') this.h.squadAct('split');
-      else if (e.code === 'KeyM') this.h.squadAct('merge');
-      else if (e.code === 'KeyY') this.h.squadAct('assign');
+      else if (e.code === 'KeyF') this.h.follow();
+      else if (e.code === 'KeyM') this.h.squadAct('disband');
       else if (e.code === 'KeyQ') this.h.cycle(-1);
       else if (e.code === 'KeyE') this.h.cycle(1);
       else if (e.code === 'KeyG') this.h.order('seaf', true);
@@ -208,7 +212,6 @@ export class Input {
       else if (e.code === 'KeyU') this.h.supply();
       else if (e.code === 'KeyK' && this.h.timeYes) this.h.timeYes();
       else if (e.code === 'KeyJ') this.h.look();
-      else if (e.code === 'Space') { e.preventDefault(); this.h.follow(); }
       else if (e.code === 'Equal' || e.code === 'NumpadAdd') this.zoom(1 / 1.15);
       else if (e.code === 'Minus' || e.code === 'NumpadSubtract') this.zoom(1.15);
     });

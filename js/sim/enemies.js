@@ -2,6 +2,7 @@
 // Enemy damage depends on size and faction (CONFIG.combat.atk): light enemies nibble, mediums hurt, heavies are special.
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
+import { aoClamp } from './ao.js';
 import { ALLY, COMMS } from '../data/data.js';
 import { fireShot, hurtTarget, hurtAlly, nearestTarget, inZoneKind, pickClear, bandOf, bandAcc, bandDmg, reveal } from './combat.js';
 import { steer } from './terrain.js';
@@ -99,7 +100,7 @@ export function updateAllies(m, dt) {
             a.atk += RIFLE[a.type].burst;
             const hit = m.rng.next() < RIFLE[a.type].acc, dx = a.x - bs.x, dy = a.y - bs.y, d = Math.hypot(dx, dy) || 1, k = bs.r * 0.7 / d;
             m.emit('tracer', { x: a.x, y: a.y, tx: bs.x + dx * k, ty: bs.y + dy * k, s: 'a', hit, big: false, fl: 0, snd: H ? 'rifle' : 'smg' });
-            if (hit) m.damageBase(bs, RIFLE[a.type].dmg * (a.dmgMul || 1) * (H ? C.structure.rifleH : C.structure.rifleS), 'squad');
+            if (hit) m.damageBase(bs, RIFLE[a.type].dmg * (a.dmgMul || 1) * (H ? C.structure.rifleH : C.structure.rifleS), 'squad', a.x, a.y);
           } else a.atk = 0;
         }
       }
@@ -155,7 +156,7 @@ export function shoreToward(tr, tx, ty, x, y) {
   return tr.nearestLand(tx, ty);
 }
 function moveToward(o, tx, ty, speed, dt, size) {
-  if (AOB) { tx = Math.max(AOB.x0 + 3, Math.min(AOB.x1 - 3, tx)); ty = Math.max(AOB.y0 + 3, Math.min(AOB.y1 - 3, ty)); }
+  if (AOB) { const c = aoClamp(AOB, tx, ty, 3); tx = c.x; ty = c.y; }      // (the round area: nobody goes out of it)
   if (NAV && NAV.blocked(tx, ty)) {
     const c = o.nlc;
     if (c && Math.abs(c.tx - tx) + Math.abs(c.ty - ty) < 3) { tx = c.x; ty = c.y; }
@@ -183,9 +184,9 @@ function moveToward(o, tx, ty, speed, dt, size) {
   if (d <= 0.4) { o.vx = 0; o.vy = 0; return; }
   const s = Math.min(speed * dt, d);
   o.vx = (dx / d) * (s / dt); o.vy = (dy / d) * (s / dt);
-  const lo = AOB ? AOB.x0 + 1 : 0, hi = AOB ? AOB.x1 - 1 : size, lo2 = AOB ? AOB.y0 + 1 : 0, hi2 = AOB ? AOB.y1 - 1 : size;
-  o.x = Math.max(lo, Math.min(hi, o.x + (dx / d) * s));
-  o.y = Math.max(lo2, Math.min(hi2, o.y + (dy / d) * s));
+  let nx = o.x + (dx / d) * s, ny = o.y + (dy / d) * s;
+  if (AOB) { const c = aoClamp(AOB, nx, ny, 1); nx = c.x; ny = c.y; } else { nx = Math.max(0, Math.min(size, nx)); ny = Math.max(0, Math.min(size, ny)); }
+  o.x = nx; o.y = ny;
 }
 
 // Distance from point (px, py) to the segment (x1, y1)-(x2, y2).
@@ -381,9 +382,11 @@ export function updateEnemies(m, dt) {
   // Commanders jam the ground round them (see jammedAt); a heavy's shield comes back once it has been left alone a while.
   const jam = m.jammers || (m.jammers = []);
   jam.length = 0;
+  m.bubbles = (m.bubbles || []).filter((b) => b.dome);     // (the domes of a shield-generator mission stay; the harvesters' are rebuilt)
   for (const e of m.enemies) {
     if (e.dead) continue;
     if (e.jamR) jam.push(e);
+    if (e.bubR && e.shield > 0) m.bubbles.push({ x: e.x, y: e.y, r: e.bubR, src: e });
     if (e.maxShield && !e.boss && e.shield < e.maxShield && t - e.shieldAt > e.regenDelay) e.shield = Math.min(e.maxShield, e.shield + e.regen * dt);
   }
   for (const g of m.groups) {

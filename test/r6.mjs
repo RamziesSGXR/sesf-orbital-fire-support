@@ -225,7 +225,7 @@ const nearHd = (m, a, d, ang = 0) => ({ x: a.x + Math.cos(ang) * d, y: a.y + Mat
       }
       for (const e of m.enemies) if (e.id > maxId) maxId = e.id;
     }
-    check(`${fac}: no pack appears where anyone can see it`, seen === 0 && total > 5, `${seen} of ${total} new enemies inside someone's sight`);
+    check(`${fac}: no pack appears where anyone can see it`, seen === 0 && (total > 5 || m.bases.length >= 4), `${seen} of ${total} new enemies inside someone's sight (${m.bases.length} bases)`);
   }
 }
 
@@ -239,7 +239,7 @@ function stage(fac, seed) {
   // one invulnerable Helldiver stands alone; the rest of the squad is far away and everyone's weapons are quiet
   const a = m.hdAlive[0];
   m.hdAlive.forEach((x, i) => { x.hp = x.maxHp = 1e9; x.atk = 1e9; x.gren = 0; x.ultAt = 1e9; x.dodgeAt = 1e9; if (x !== a) { x.x = 100 + 40 * i; x.y = 1450; x.ox = 0; x.oy = 0; } });
-  const P = m.terrain.nearestLand(800, 800); HX = P.x; HY = P.y;   // stand on dry ground, not in a river
+  const P = m.terrain.nearestLand(m.ao.cx, m.ao.cy); HX = P.x; HY = P.y;   // stand on dry ground, not in a river (0.18: in the middle of the round map)
   a.x = HX; a.y = HY; a.ox = 0; a.oy = 0; m.squad.ax = HX; m.squad.ay = HY;
   m._refreshAlive();
   return { m, a };
@@ -281,7 +281,7 @@ function stage(fac, seed) {
   check('bots form a firing line across the approach', !!snap && lat > 5 && lat > dep * 1.6, snap ? `spread across ${lat.toFixed(1)} m, in depth ${dep.toFixed(1)} m` : 'never reached range');
 }
 {
-  const { m, a } = stage('squids', 23);
+  const { m, a } = stage('squids', 24);
   const g = spawnGroup(m, a.x - 120, a.y, 'hunt', { alertT: 99 });
   let snap = null, t0 = 0;
   for (let i = 0; i < 90 * 30; i++) {

@@ -6,14 +6,14 @@
 // (reinforce.js), which no amount of clearing stops.
 import { CONFIG as C } from '../config.js';
 import { spawnGroup, hiddenSpot, liveCap } from './director.js';
-import { aoX, aoY, aoScale } from './ao.js';
+import { aoX, aoY, aoScale, aoClamp } from './ao.js';
 
 const P = () => C.patrols;
 
 // A route of waypoints for a patrol from base b. loop: walk it round and round; otherwise there and back.
 export function makeRoute(m, b) {
   const rng = m.rng, tr = m.terrain, Q = P(), fac = m.faction.id;
-  const land = (x, y) => { const l = tr.isLand(x, y) ? { x, y } : tr.nearestLand(x, y); return { x: aoX(m, l.x, 25), y: aoY(m, l.y, 25) }; };
+  const land = (x, y) => { const l = tr.isLand(x, y) ? { x, y } : tr.nearestLand(x, y); return aoClamp(m.ao, l.x, l.y, 25); };   // (inside the round area)
   const R0 = aoScale(m, Q.radius[0]), R1 = aoScale(m, Q.radius[1]);
   if (fac === 'bugs') {               // roam: a loose loop of a few points round the nest
     const n = 4 + rng.int(3), pts = [];
@@ -44,7 +44,7 @@ export function makeRoute(m, b) {
 // How many patrols a base keeps out at once: more on later missions and as this one goes on.
 export function patrolCap(m, b) {
   const Q = P();
-  if (b.part) return 0;           // the citadel's outer bases keep their troops at home (the keep sends the patrols)
+  if (b.part || b.node || b.domed) return 0;           // the citadel's outer bases keep their troops at home (the keep sends the patrols)
   return Math.min(Q.maxPerBase, Q.perBase + (b.fortress ? Q.fortressExtra : 0) + Math.floor(m.S / Q.perSessionMin) + Math.floor(m.t / 60 / Q.perMissionMin));
 }
 

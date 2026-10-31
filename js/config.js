@@ -14,7 +14,8 @@ export const CONFIG = {
 
   // Four Helldivers, one per stratagem group. When one dies a replacement pod is called in by itself and costs one life.
   // When the last one falls with no lives left the mission is lost: there is no free recall.
-  helldivers: { start: 4, max: 4, lives: 20, reinforceSec: 8, dropDelaySec: 5, initialDropSec: 3, podRadius: 10, podDmg: 500 },
+  // countdown (0.18): seconds of real time the player gets before the Helldivers drop (the game runs; DEPLOY NOW sends them early)
+  helldivers: { start: 4, max: 4, lives: 20, reinforceSec: 8, dropDelaySec: 5, initialDropSec: 3, podRadius: 10, podDmg: 500, countdown: 30 },
   // The Helldiver kit. Primary: the Liberator (CONFIG.combat.helldiver). Secondary: the Ultimatum, a slow-loading, short-range,
   // heavy-penetration pistol that hits very hard. Four stims (heal over a few seconds and a burst of speed), three
   // heavy-penetration grenades (six to kill a medium), and a dodge that comes round every so often. A resupply restocks all of it.
@@ -35,12 +36,17 @@ export const CONFIG = {
               // trigger discipline: a shot is held when a friendly stands in the line of fire; now and then it is taken anyway
               fire: { lane: 1.9, collateral: 0.1, ffMul: 0.5 } },
   // SEAF arrive when the player calls a pod. By default they go and clear the nearest objective on their own.
-  seaf:     { max: 12, dropSize: 5, dropCooldownSec: 45, firstDropSec: 20, dropDelaySec: 6, patrolRadius: 30, patrolSpeed: 2.5,
+  // (0.18) the first drop is ready at once (the mission starts on the tactical screen); until startSec a drop can go anywhere
+  // within startR of the landing zone, before the Helldivers are down.
+  seaf:     { max: 12, dropSize: 5, dropCooldownSec: 45, firstDropSec: 0, startSec: 25, startR: 140, dropDelaySec: 6, patrolRadius: 30, patrolSpeed: 2.5,
               followSec: 45, followSpread: 28, protectR: 36, protectLeash: 80, clearR: 55, clearMaxSec: 70, clearQuietSec: 5,
-              grenChance: 0.3, rocketChance: 0.6, attackSec: 35, squads: 4, medicChance: 0.45, spotChance: 0.3,
+              grenChance: 0.3, rocketChance: 0.6, attackSec: 35, squads: 9, medicChance: 0.45, spotChance: 0.3,
               formationSpacing: 5, pathReach: 9, assignR: 22,
               // every SEAF trooper lost is replaced (paid at the end of the mission): lifeCost CR for the first, lifeStep more for each after
-              lifeCost: 8, lifeStep: 0.25 },
+              lifeCost: 8, lifeStep: 0.25,
+              // (0.18) now and then a SEAF squad of defend troopers is already holding the site the Helldivers are heading for (a
+              // launch site, an evacuation site, an oil pump, a VIP's pickup point), under your orders from the start
+              defendChance: 0.4, defendN: 5 },
   // The troop pelican: flies in, hovers a moment while the troops fast-rope down, then climbs away. Its belly autocannon
   // shoots any enemy it can see while it is on station.
   pelican:  { speed: 92, approach: 330, hover: 1.6, climb: 4.5, dropEvery: 0.22, gunRange: 66, gunEvery: 0.3, gunDmg: 30, gunSplash: 2.4, gunAcc: 0.85 },
@@ -57,7 +63,7 @@ export const CONFIG = {
   // crossed on foot; shallows, mud and soft ground (snow, sand, dust) slow everyone. A rise gives whoever stands on it more sight and
   // harder hits on whoever is below.
   // Bridges: at most max a map, at least spacing metres apart along the rivers, w metres wide, where both banks are within reach.
-  terrain:  { on: true, cell: 8, navCell: 16, relief: 70, deep: 0.5, wet: 0.03, bridge: { max: 6, spacing: 240, w: 22, reach: 70 },
+  terrain:  { on: true, cell: 8, navCell: 16, relief: 70, deep: 0.5, wet: 0.03, bridge: { max: 0, spacing: 240, w: 22, reach: 70 },
               speed: { shallow: 0.5, mud: 0.62, soft: 0.74 },
               hill: 0.5, sight: 0.32, attack: 0.25, top: 0.08, minLandShare: 0.55 },
 
@@ -69,17 +75,24 @@ export const CONFIG = {
   // four). The foxhole is free and dug on the spot. Levels 1 to 5 come from the armory's BUILDABLES (unlock: the price of level 1,
   // 0 = owned from the start; up: the price scale for the next level); the per-level numbers are in data/kit.js buildStats().
   // cap: how many crew fit. Troopers at a post patch it up (repair health a second each, up to four) once it has not been hit for
-  // repairQuiet seconds and no enemy is within repairClear metres.
+  // repairQuiet seconds and no enemy is within repairClear metres. (0.18: nothing needs a crew; the guns and towers work on their own
+  // and take longer to build, and a crew makes them better: posts.js.)
   // perHand: how much of a second of build time one trooper does in a second (two do one second; more hands, faster; up to maxHands).
   // builderR: troopers this close to a crate work on it. The four stages a build shows: crate, open crate, parts going up, built.
   build:    { r: 12, perHand: 0.5, maxHands: 12, builderR: 20, levels: 5, crateR: 16, repair: 14, repairQuiet: 4, repairClear: 40, slowmo: 0.3,
               foxhole: { cost: 0,   sec: 6,  cap: 3, mul: 0.8, rof: 1.3 },
               bastion: { cost: 100, sec: 14, n: 8, R: 10, mul: 0.55, unlock: 0, up: 120 },
-              mg:      { cost: 300, sec: 18, cap: 2, hp: 1800, dmg: 1, crewMul: 0.35, unlock: 0, up: 200 },
-              bunker:  { cost: 450, sec: 24, cap: 6, hp: 3000, take: 0.6, ff: 0.15, unlock: 0, up: 220 },
-              tower:   { cost: 700, sec: 40, cap: 1, hp: 1400, unlock: 0, up: 220 },
-              sam:     { cost: 550, sec: 26, hp: 1600, dmg: 320, every: 2.4, unlock: 700, up: 260 },
-              arty:    { cost: 1100, sec: 32, cap: 2, hp: 2200, unlock: 2200, up: 600 } },
+              mg:      { cost: 380, sec: 28, cap: 2, hp: 5400, dmg: 1, crewMul: 0.3, unlock: 0, up: 220,
+                         gun: { range: 60, every: 0.32, dmg: 70, acc: 0.85, splash: 1.6, style: 'heavy', prefer: 'MH' } },
+              // lookout: while someone is up it, the ground round it stays in view and strikes can be called there (reach, times the
+              // UAV's circle), and any enemy within spot (times reach) that is inside the strike zone is shown on the map.
+              lookout: { cost: 400, sec: 30, cap: 2, hp: 1500, reach: 1.35, spot: 1.6, unlock: 0, up: 200 },
+              // bridge: a hard-light span across water (at most span metres of it), built from a crate on the near bank. Anyone
+              // walks it: Helldivers, SEAF and the enemy.
+              bridge:  { cost: 250, sec: 16, span: 110, w: 14, unlock: 0, up: 160 },
+              tower:   { cost: 700, sec: 50, cap: 1, hp: 1400, unlock: 0, up: 220 },
+              sam:     { cost: 550, sec: 34, hp: 1600, dmg: 320, every: 2.4, unlock: 700, up: 260 },
+              arty:    { cost: 1100, sec: 44, cap: 2, hp: 2200, unlock: 2200, up: 600 } },
   // The Artillery Cannon: a SEAF gun the player fires like a stratagem (weapon 9) while someone mans it, anywhere on the map that an
   // ally can see (or locked), on a slow recharge. Each round is a mini-nuke. Built from the armory unlock, or captured on the map (a side
   // mission). By level.
@@ -152,8 +165,9 @@ export const CONFIG = {
   // Heavies by faction: a bug heavy's armoured front lets through only `front` of a hit from ahead (within the arc cos > frontCos);
   // a bot heavy has hp x the health but weak points that crit more often (crit, added to the attacker's chance); a squid heavy
   // carries a shield (shield x its health) that soaks hits first and comes back at regen a second once it has not been hit for
-  // regenDelay seconds. The Ultimatum's round goes through plates and shields alike.
-  heavies:  { bugs: { front: 0.62, frontCos: 0.6 }, bots: { hp: 1.5, crit: 0.14 }, squids: { shield: 0.6, regen: 70, regenDelay: 6 } },
+  // regenDelay seconds. The harvester's shield is a bubble bubR metres round it, like the commander's jammer ring: any hit from
+  // outside on a squid inside it (strikes from above too) hits the shield first. The Ultimatum's round goes through plates and shields alike.
+  heavies:  { bugs: { front: 0.62, frontCos: 0.6 }, bots: { hp: 1.5, crit: 0.14 }, squids: { shield: 0.8, regen: 70, regenDelay: 6, bubR: 17 } },
   // Special mediums, alongside the others: `share` of the medium draws come out as the faction's own, no more than cap alive
   // (plus perMin a session minute, up to max). hp, speed and r scale or set the medium's; atk is its own attack. reward: kill
   // credits and score times this.
@@ -177,12 +191,12 @@ export const CONFIG = {
   // Side missions for the Helldivers: min on the first maps, one more per perAoM metres of area, up to max.
   //   radio: stand within holdR for holdSec; then it relights the SEAF drop beacons within relightR.
   //   propaganda: a structure (hp); while it stands, every `every` seconds it sends the patrols within reach onto a squad nearby.
-  //   rescue: n SEAF dug in (armor multiplies what they take); the enemy closes in (groups, more later) once a Helldiver is within
-  //   wakeR (or after wakeSec anyway); a Helldiver within reachR with nothing within clearR for holdSec frees them.
+  //   rescue: hidden SEAF, n of them lying low within offR metres of a way the squad is likely to walk; any Helldiver or SEAF
+  //   trooper within claimR finds them and they join.
   sides:    { min: 2, perAoM: 250, max: 5, callMul: 1.1,
               radio: { holdR: 16, holdSec: 25, relightR: 520, reward: 220 },
               propaganda: { hp: 1400, reward: 200, guards: 1, every: 22, reach: 320 },
-              rescue: { n: 5, armor: 0.35, wakeR: 300, wakeSec: 600, groups: 2, perSessionMin: 45, reachR: 30, clearR: 45, holdSec: 4, reward: 200 },
+              rescue: { n: 5, claimR: 26, offR: 45, reward: 200 },
               // an abandoned SEAF artillery cannon: a Helldiver stands by it for holdSec and it is ours (weapon 9, once someone mans it)
               arty: { holdR: 16, holdSec: 18, reward: 250 } },
   // The Helldivers' plan (planner.js): side tasks within `detour` extra metres of the way to the main objective, if there is time to
@@ -190,9 +204,9 @@ export const CONFIG = {
   // lives left and the time for it. Time is estimated at pace x squad speed plus `work` seconds per task. Re-planned every `every` s.
   // ask: once the objective is done, a squad with lives to spare but too little time for a full clear asks the gunner for more
   // (minutes rounded up, at most maxMin, costing perMin credits a minute; the player has askSec to answer; asks per mission).
-  plan:     { detour: 260, reserve: 150, clearLives: 3, every: 6, keepR: 70, pace: 0.5, extractPad: 30,
+  plan:     { detour: 320, reserve: 150, clearLives: 3, every: 6, keepR: 70, pace: 0.5, extractPad: 30,
               ask: { maxMin: 10, perMin: 40, askSec: 30, asks: 2 },
-              work: { base: 70, radio: 45, propaganda: 35, rescue: 60, arty: 40, nuke: 150, vip: 100, evac: 220, fortress: 200 } },
+              work: { base: 70, radio: 45, propaganda: 35, rescue: 60, arty: 40, nuke: 150, vip: 100, evac: 220, fortress: 240, oil: 260, cannon: 120, dome: 220 } },
   // An enemy that fires on an ally gives itself away: it shows for `sec` seconds after each shot, and once it has shown for lockSec
   // without a break it is locked: orbitals and the ship gun can hit it (within lockR of it) even outside the strike zone.
   reveal:   { sec: 5, lockSec: 3, lockR: 12 },
@@ -244,8 +258,18 @@ export const CONFIG = {
               bots:   { speed: 75, approach: 460, hover: 1.2, every: 0.9, hp: 1100, r: 9, lowR: 110, reward: 160, crash: 380 },
               squids: { speed: 55, approach: 420, hover: 1.6, every: 1.1, hp: 1700, r: 12, lowR: 90, reward: 220, crash: 420 } },
   // Points of interest: random spots SEAF can take out for credits. Guarded by an enemy group that wakes when allies come close.
-  poi:      { min: 6, max: 9, hp: 520, r: 18, minFromLz: 260, spacing: 130, guardR: 130, rifleMul: 0.8,
+  // (0.18: fewer of these; the finds below are the rest)
+  poi:      { min: 2, max: 4, hp: 520, r: 18, minFromLz: 260, spacing: 160, guardR: 130, rifleMul: 0.8,
               kinds: { relay: { hp: 520, reward: 110, guards: 1 }, cache: { hp: 380, reward: 90, guards: 1 }, battery: { hp: 900, reward: 220, guards: 2 } } },
+  // Finds: places worth a look that pay out small things to whoever walks into them (within r), Helldiver or SEAF. Nobody goes out
+  // of their way for them: they lie near the ways the squad walks (within offR of the line from the drop to an objective or the
+  // pad) or anywhere. n: how many on a full-size map (fewer on the small ones). By kind:
+  //   wreck:  a crashed pelican: the ship gun's ammo filled up and every Helldiver's support weapon topped up, and cr credits.
+  //   pod:    a lost hellpod with a support weapon in it (the finder carries it, or the nearest Helldiver with free hands), and cr.
+  //   vault:  an abandoned Super Earth strongbox: cr credits.
+  //   cache:  a SEAF supply cache: every ally within heal metres healed to full, and cr.
+  loot:     { n: 6, min: 3, r: 10, offR: 70, spacing: 140, minFromLz: 120,
+              kinds: { wreck: { cr: 60, w: 3 }, pod: { cr: 40, w: 3 }, vault: { cr: 160, w: 2 }, cache: { cr: 50, heal: 30, w: 2 } } },
   // Extraction: the squad reaches the point and calls the pelican (callSec to arrive). They hold the zone against reinforcements
   // until it lands (they do not have to clear the map), then run for the ramp. SEAF squads get pelicans of their own wherever they
   // are bunched up. The pelican leaves once every Helldiver is aboard, or after boardSec.
@@ -271,7 +295,7 @@ export const CONFIG = {
   // Credits: earned from kills, bases, POIs, breaches and the objective, with a bonus at extraction. Spent in the armory.
   // One multiplier on every armory price. Bot sessions earn about 520 credits a minute, so three hours earns roughly what the whole
   // armory costs at 0.9 (about 97,000 credits). test/r7.mjs checks the two stay together.
-  econ:     { priceMul: 1.1, earnPerMin: 640, maxAtMin: 230 },     // (0.17.3: prices up about a quarter)
+  econ:     { priceMul: 1.1, earnPerMin: 640, maxAtMin: 240 },     // (0.17.3: prices up about a quarter; 0.18: two more buildables)
   credits:  { start: 1200, kill: { L: 2, M: 8, H: 45 }, base: 150, objective: 500, extraction: 800, perMission: 0, civ: 8, fullClear: 400 },
 
   // Mission objectives. The squad does these before anything else.
@@ -283,6 +307,24 @@ export const CONFIG = {
     // Evacuation: one big site with a shelter and a hangar. While a Helldiver holds the site the shelter sends civilians out a few
     // at a time; they walk to the hangar and board shuttles (one leaves for every `shuttle` aboard). Done when `need` are out.
     evac: { r: 95, gap: 84, need: 44, batch: 4, every: 11, maxOut: 14, speed: 3.6, hp: 45, shuttle: 10, hdR: 75, door: 4 },
+    // (0.18) One operation of each faction's own, in the pool with the others for that faction (sim/ops.js):
+    // oil (bugs): hold an oil pump while it fills a tank (fillSec while the squad holds it; slowRate with the enemy on the pump,
+    //   within r), then a pelican comes for the tank (inSec, loadSec, outSec). trips loads and it is done.
+    oil:    { r: 22, trips: 3, fillSec: 55, slowRate: 0.3, inSec: 6, loadSec: 9, outSec: 6, pad: 16 },
+    // cannon (bots): an orbital defence cannon firing at the destroyer every `every` seconds. While it stands the ship keeps
+    //   dodging: the player's strikes land up to scatter metres off, the ship gun spreads gunMul times as wide. Destroy it (hp).
+    cannon: { hp: 6500, r: 14, every: 6, scatter: 16, gunMul: 1.8 },
+    // dome (squids): a shield dome (R) over a couple of warp-ship bases (bases, baseR from the middle) and the generator tower at
+    //   its middle, with nodes beside the tower (nodeR from it, nodeHp). The dome stops every hit from outside it (strikes, the ship
+    //   gun, fire from outside); anyone inside can fight. Knock out every node and the dome falls; then destroy the bases.
+    dome:   { R: 82, nodes: 4, nodeR: 15, nodeHp: 1500, bases: 2, baseR: 48 },
+    // The citadel's keep (fortress) only falls to a Hellbomb. Once its outer bases are down and the keep is clear (fewer than
+    //   clearN enemies within clearR of it, with a Helldiver close), the squad calls one: the player puts it together (the parts in
+    //   the order they light up, cells taps each, fillSec of real time in slow motion), it comes down beside the keep (dropSec), a
+    //   Helldiver arms it (armSec within armR), and everyone runs: after fuseSec it goes off (blastR, everything in it).
+    //   Not put together in time: a dud; another can be called after retrySec.
+    hellbomb: { cells: 2, fillSec: 12, slowmo: 0.3, wrongSec: 0.6, dropSec: 3, armSec: 5, armR: 6, fuseSec: 10, blastR: 48, dmg: 30000, retrySec: 15,
+                clearR: 45, clearN: 4, off: 18 },
   },
 
   // Stratagems. Sixteen distinct picks, dealt into four groups of four. Each group belongs to one Helldiver.
@@ -329,6 +371,6 @@ export const CONFIG = {
   share:    { channelUrl: '',
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.17.3',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.18.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives; the score block ends with it so pasted scores bring players in
 };

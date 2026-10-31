@@ -68,7 +68,6 @@ export function updateEvade(m, dt) {
   if (!list || !list.length) return;
   for (const a of m.alive) {
     if (a.dead || a.mounted) continue;
-    if (a.inPost && a.inPost.what === 'bunker' && !a.inPost.dead) continue;     // safe inside a bunker: nobody runs from it
     let worst = null, wd = 0;
     for (const s of list) {
       const sp = spine(s, a.x, a.y), pad = s.hard ? 2.5 : 0;

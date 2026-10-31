@@ -30,7 +30,7 @@ function troops(m, n, sq = 0, x = m.hx + 10, y = m.hy + 6) {
 
 // ---------------------------------------------------------------- the meta: Discord, version
 check('feedback goes to the SESF Helldivers Discord', C.share.feedbackUrl === 'https://discord.com/invite/qruRY4nkEz', C.share.feedbackUrl);
-check('the version is 0.17.x', /^0\.17\.\d+$/.test(C.share.version), C.share.version);
+check('the version is 0.17 or later', /^0\.(1[7-9]|[2-9]\d)\.\d+$/.test(C.share.version), C.share.version);
 
 // ---------------------------------------------------------------- Combat Engineers
 {
@@ -99,7 +99,7 @@ check('the version is 0.17.x', /^0\.17\.\d+$/.test(C.share.version), C.share.ver
   // a crate keeps its progress; another squad sent to it (a right click on it) carries on
   const m = quiet(1732); m.wallet.bal = 9999;
   troops(m, 3, 0, m.hx + 30, m.hy + 4); m.selectSquad(0);
-  m.seafBuild('bunker', m.hx + 34, m.hy + 4);
+  m.seafBuild('lookout', m.hx + 34, m.hy + 4);
   const c = m.crates[m.crates.length - 1]; c.landed = true;
   run(m, 6);
   const p1 = c.prog || 0;

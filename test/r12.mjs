@@ -92,6 +92,8 @@ const seafReady = (m, n = 5) => { m.seaf.readyAt = 0; m.callSeaf(m.hx + 10, m.hy
   m.step(dt);
   check('it is not done until the keep is down too', !o.done);
   m.damageBase(o.base, 1e9); m.step(dt);
+  check('(0.18) the keep does not fall to strikes', !o.base.destroyed && !o.done);
+  m.destroyBase(o.base); m.step(dt);                    // (r18 brings it down with a Hellbomb)
   check('and done once every part is down', o.done);
   // the guardian
   const g = new Mission({ seed: 1205, faction: 'bugs', biome: 'grass', events: false, missionN: 2, objectives: ['fortress'], boss: false });

@@ -248,7 +248,9 @@ export function updateSquad(m, dt) {
       let tx = sq.ax + a.ox, ty = sq.ay + a.oy;
       const hi = hds.indexOf(a), hn = hds.length;
       const site = m.phase !== 'clear' ? siteAt(m, sq.ax, sq.ay) : null;
-      if (site) { const p = threatSlot(m, site, hi, hn); tx = p.x; ty = p.y; }     // holding a site: the walls that face the threat
+      const job = m.hellbomb && m.hellbomb.state === 'landed' && m.hellbomb.armer === a ? m.hellbomb : null;
+      if (job) { tx = job.x; ty = job.y; }                                      // the one arming the Hellbomb goes right to it
+      else if (site) { const p = threatSlot(m, site, hi, hn); tx = p.x; ty = p.y; }     // holding a site: the walls that face the threat
       else if (sq.base && !sq.base.destroyed) {
         // at a base: fan out round it on the near side instead of shooting from one spot
         const b = sq.base, d = Math.hypot(sq.ax - b.x, sq.ay - b.y);

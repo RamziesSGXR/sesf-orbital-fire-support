@@ -19,7 +19,7 @@ const errs = []; page.on('pageerror', (e) => errs.push(e.message));
 const ev = (f, a) => page.evaluate(f, a);
 const tap = (sel) => (touch ? page.tap(sel) : page.click(sel));
 const shot = (n) => page.screenshot({ path: path.join(SHOTS, `ui12_${mode}_${n}.png`) });
-const PAGE = `file://${ROOT}/dist/orbital-fury.html?faction=bots&biome=grass&seed=12&tod=11&objectives=nuke`;
+const PAGE = `file://${ROOT}/dist/orbital-fury.html?skipstart&faction=bots&biome=grass&seed=12&tod=11&objectives=nuke`;
 
 await page.goto(PAGE); await page.waitForTimeout(600);
 await tap('#btn-play'); await page.waitForTimeout(250);
@@ -83,7 +83,7 @@ if (sq) {
   await tap(touch ? '#dk-tac' : '#btn-tac'); await page.waitForTimeout(300);
   const menu = await page.isVisible('#tactical');
   const items = await ev(() => [...document.querySelectorAll('#tactical .bld')].map((b) => b.textContent));
-  check('TACTICAL opens its screen: seven builds with their prices (the SAM site and the cannon unlocked in the armory)', menu && items.length === 7 && /FREE/.test(items[0]) && items.slice(1, 5).every((x) => /CR/.test(x)) && /UNLOCK/.test(items[5]) && /UNLOCK/.test(items[6]), items.join(' | '));
+  check('TACTICAL opens its screen: eight builds with their prices (the SAM site and the cannon unlocked in the armory)', menu && items.length === 8 && /FREE/.test(items[0]) && items.slice(1, 6).every((x) => /CR/.test(x)) && /UNLOCK/.test(items[6]) && /UNLOCK/.test(items[7]), items.join(' | '));
   await shot('buildmenu');
   const fit = await ev(() => { const r = document.getElementById('tactical').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth + 1 && r.top >= 0 && r.bottom <= innerHeight + 1; });
   check('the screen fits', fit);
@@ -94,7 +94,7 @@ if (sq) {
   await page.keyboard.press('Escape'); await page.waitForTimeout(200);
   const bo = await ev(() => window.__game.mission.seaf.squads.some((q) => q.n && q.order.kind === 'build' && q.order.what === 'tower'));
   check('picking one sends a squad to build it', bo);
-  await ev(() => { const m = window.__game.mission; for (let i = 0; i < 30 * 70; i++) m.step(1 / 30); });
+  await ev(() => { const m = window.__game.mission; for (let i = 0; i < 30 * 110; i++) m.step(1 / 30); });
   check('and it gets built', await ev(() => window.__game.mission.beacons.some((b) => b.built)));
 }
 

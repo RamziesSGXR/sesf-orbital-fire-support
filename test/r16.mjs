@@ -126,7 +126,7 @@ function troops(m, n, sq = 0, x = m.hx + 10, y = m.hy + 6) {
 // ---------------------------------------------------------------- posts: the armory, costs and no limit
 {
   const items = shopItems(newKit()).filter((x) => x.section === 'build');
-  check('the armory lists the buildables (not the foxhole)', items.map((x) => x.build).join(',') === 'bastion,mg,bunker,tower,sam,arty', items.map((x) => x.build).join(','));
+  check('the armory lists the buildables (not the foxhole)', items.map((x) => x.build).join(',') === 'bastion,mg,lookout,bridge,tower,sam,arty', items.map((x) => x.build).join(','));
   check('bastions, MG posts, bunkers and towers start at level 1; SAM and cannon are unlocked there',
     items.filter((x) => x.build !== 'arty' && x.build !== 'sam').every((x) => x.level === 1) && items.find((x) => x.build === 'sam').level === 0 && items.find((x) => x.build === 'arty').level === 0);
   const old = fixKit({ slots: 3, loadout: ['orb_airburst'], owned: { orb_airburst: 1 }, build: { wall: 3, mg: 2, beacon: 4, arty: 1 } });
@@ -139,7 +139,13 @@ function troops(m, n, sq = 0, x = m.hx + 10, y = m.hy + 6) {
   troops(m, 6, 0);
   m.selectSquad(0);
   let ok = true;
-  for (let k = 0; k < 5; k++) ok = ok && m.seafBuild('mg', m.hx - 40 + k * 12, m.hy + 60).ok;
+  // (0.18: the drop is at the rim of the round map; the posts go in toward the middle, on dry ground)
+  const toC = Math.atan2(m.ao.cy - m.hy, m.ao.cx - m.hx), spots = [];
+  for (let r = 50; r < 200 && spots.length < 5; r += 8) for (let k = -3; k <= 3 && spots.length < 5; k++) {
+    const x = m.hx + Math.cos(toC) * r - Math.sin(toC) * k * 12, y = m.hy + Math.sin(toC) * r + Math.cos(toC) * k * 12;
+    if (m.terrain.isLand(x, y) && spots.every((q) => Math.hypot(q.x - x, q.y - y) > 10)) spots.push({ x, y });
+  }
+  for (const q of spots) ok = ok && m.seafBuild('mg', q.x, q.y).ok;
   check('no limit: five MG posts can be ordered at once', ok, `${m.crates.length} crates`);
 }
 
@@ -162,22 +168,26 @@ function troops(m, n, sq = 0, x = m.hx + 10, y = m.hy + 6) {
   check('a trooper pushed off his post goes back to it', a0.inPost === fox, `${Math.hypot(a0.x - fox.x, a0.y - fox.y).toFixed(1)} m off`);
 
   // an MG post: no crew, no fire
-  const mg = makePost(m, 'mg', m.hx - 60, m.hy - 60);
+  const toC = Math.atan2(m.ao.cy - m.hy, m.ao.cx - m.hx);
+  let mp = { x: m.hx - Math.sin(toC) * 70, y: m.hy + Math.cos(toC) * 70 };     // (0.18: beside the drop, along the rim, on dry ground)
+  for (let k = 0; k < 40 && !m.terrain.isLand(mp.x, mp.y); k++) mp = { x: m.hx + Math.cos(toC + k * 0.3) * (60 + k), y: m.hy + Math.sin(toC + k * 0.3) * (60 + k) };
+  const mg = makePost(m, 'mg', mp.x, mp.y);
   const e = one(m, 'L', mg.x + 25, mg.y); e.hp = e.maxHp = 1e6;
   m.uavs.push({ x: mg.x, y: mg.y, r: 200, born: m.t, until: m.t + 200 });
   run(m, 3);
-  check('an MG post with nobody on it does not fire', e.hp === e.maxHp && mg.manned === false);
+  const hpSolo = e.maxHp - e.hp;
+  check('(0.18) a turret nest with nobody in it fires on its own', hpSolo > 0, `${Math.round(hpSolo)} damage`);
   m.selectSquad(0); m.seafMan(mg); run(m, 30);
   check('sent to man it, the squad takes its places', mg.crew === mg.cap, `crew ${mg.crew}/${mg.cap}`);
-  check('manned, it fires', e.hp < e.maxHp);
+  check('manned, it fires (and the crew are inside it, out of sight)', e.hp < e.maxHp && m.seafAlive.filter((a) => a.inside === mg).length === mg.cap);
   check('and it is tough', mg.maxHp >= 1500);
   e.dead = true; m.dirtyE = true;
   // repairs
   mg.hp = mg.maxHp * 0.5; mg.hurtAt = -99; run(m, 6);
   check('troopers at a post patch it up when nothing is shooting', mg.hp > mg.maxHp * 0.5 && mg.repairing !== undefined, `${Math.round(100 * mg.hp / mg.maxHp)}%`);
   // garrison: they leave the squad and stay
-  const g = m.garrison(mg);
-  check('the crew can be garrisoned at the post', g.ok && g.n === mg.cap && m.seafAlive.filter((a) => a.sq === GARRISON).length === mg.cap);
+  // (0.18) sent to man a building, the crew go in for good: they are its garrison already
+  check('the crew are garrisoned at the post', mg.garrison === mg.cap && m.seafAlive.filter((a) => a.sq === GARRISON).length === mg.cap);
   const left = m.seafAlive.filter((a) => a.sq === 0);
   m.selectSquad(0); m.seafOrder('move', m.hx + 120, m.hy + 120); run(m, 15);
   check('a garrison stays when its old squad is moved off', mg.crew === mg.cap && m.seafAlive.filter((a) => a.sq === GARRISON).every((a) => a.inPost === mg), `crew ${mg.crew}`);
@@ -185,27 +195,17 @@ function troops(m, n, sq = 0, x = m.hx + 10, y = m.hy + 6) {
   const u = m.ungarrison(mg);
   check('and can be released back to a squad', u.ok && m.seafAlive.every((a) => a.sq !== GARRISON));
 
-  // a bunker: whoever is inside takes nothing while it stands
-  const bk = makePost(m, 'bunker', m.hx + 70, m.hy - 40);
-  const t1 = m.addAlly('S', bk.slots[0].x, bk.slots[0].y, { role: 'rifle' }); t1.sq = 1; t1.x = bk.slots[0].x; t1.y = bk.slots[0].y; m._refreshAlive(); m.selectSquad(1); m.seafMan(bk); run(m, 1);
-  const h0 = t1.hp, b0 = bk.hp;
-  for (let k = 0; k < 20; k++) m.step(0);
-  const shooter = one(m, 'L', bk.x + 22, bk.y, '', true); shooter.hp = shooter.maxHp = 1e6;
-  run(m, 6);
-  check('in a bunker the bunker takes the hits, not the trooper', t1.hp === h0 && bk.hp < b0, `trooper ${Math.round(h0 - t1.hp)}, bunker ${Math.round(b0 - bk.hp)}`);
-  shooter.dead = true; m.dirtyE = true;
-  // a strike on a bunker: the troops inside stay put
-  m.markers.push({ type: 'strat', x: bk.x, y: bk.y, r: 12, start: m.t, end: m.t + 5, impact: m.t + 5, by: 'player', pat: 'point', rad: 10, len: 0, ux: 1, uy: 0 });
-  const p0 = { x: t1.x, y: t1.y }; run(m, 2);
-  check('troops in a bunker do not run from a strike on it', Math.hypot(t1.x - p0.x, t1.y - p0.y) < 2 && t1.inPost === bk);
+  // (0.18: the bunker is gone; r18 checks the Heavy Turret Nest and the Lookout Tower)
 
   // the propaganda tower: manned, its ground is in view and allies under it get the UAV's lift
   const tw = makePost(m, 'tower', m.hx + 120, m.hy - 90);
   run(m, 0.2);
-  check('an unmanned tower does nothing yet', !m.relays.some((u2) => u2.tower));
-  const t2 = m.addAlly('S', tw.slots[0].x, tw.slots[0].y, { role: 'rifle' }); t2.sq = 2; t2.x = tw.slots[0].x; t2.y = tw.slots[0].y; m._refreshAlive(); run(m, 0.2);
-  check('manned, it keeps the ground round it in view (as far as the UAV reaches)', m.relays.some((u2) => u2.tower && u2.r >= C.uav.r[0]) && m.visLevel(tw.x + 60, tw.y) > 0);
-  check('allies under it get the UAV\'s lift', m.t - t2.uavAt < 0.1);
+  const r0 = (m.relays.find((u2) => u2.tower) || {}).r || 0;
+  check('(0.18) with nobody in it, it already keeps some ground in view', r0 > 0 && r0 < C.uav.r[0], `${r0} m`);
+  const t2 = m.addAlly('S', tw.x + 2, tw.y, { role: 'rifle' }); t2.sq = 2; m._refreshAlive(); m.selectSquad(2); m.seafMan(tw); run(m, 3, () => { if (!t2.inside) { t2.x = tw.x + 1; t2.y = tw.y; } });
+  check('manned, it keeps the ground round it in view (as far as the UAV reaches)', t2.inside === tw && m.relays.some((u2) => u2.tower && u2.r >= C.uav.r[0]) && m.visLevel(tw.x + 60, tw.y) > 0);
+  const t2b = m.addAlly('S', tw.x + 20, tw.y, { role: 'rifle' }); t2b.sq = 3; m._refreshAlive(); run(m, 0.2);
+  check('allies under it get the UAV\'s lift', m.t - t2b.uavAt < 0.3);
   check('it is a SEAF drop point', m.beacons.some((b) => b.post === tw));
 
   // the SAM site brings dropships down
@@ -224,11 +224,12 @@ function troops(m, n, sq = 0, x = m.hx + 10, y = m.hy + 6) {
   run(m, 0.1);
   const tgt = { x: gun.x + 80, y: gun.y }; m.uavs.push({ x: tgt.x, y: tgt.y, r: 100, born: m.t, until: m.t + 100 });
   m.setAim(tgt.x, tgt.y); run(m, 0.1);
-  const sh0 = m.shells.length; if (!gun.crew) { m.fire(); run(m, 0.1); }
-  check('with nobody on it, it will not fire', gun.crew > 0 || m.shells.length === sh0, m.player.aim.artyWhy);
-  const t3 = m.addAlly('S', gun.slots[0].x, gun.slots[0].y, { role: 'rifle' }); t3.sq = 3; t3.x = gun.slots[0].x; t3.y = gun.slots[0].y; m._refreshAlive(); run(m, 0.2);
-  m.player.slots[8].readyAt = 0; m.fire(); run(m, 0.1);
-  check('manned, it fires', m.shells.length > sh0, `crew ${gun.crew}, ${m.player.aim.artyWhy || ''}`);
+  const sh0 = m.shells.length; m.fire(); run(m, 0.1);
+  const cdSolo = m.player.slots[8].readyAt - m.t;
+  check('(0.18) with nobody on it, it fires, and reloads slowly', m.shells.length > sh0 && gun.crew === 0, `${Math.round(cdSolo)} s`);
+  const t3 = m.addAlly('S', gun.x + 2, gun.y, { role: 'rifle' }); const t4 = m.addAlly('S', gun.x + 3, gun.y, { role: 'rifle' }); t3.sq = t4.sq = 4; m._refreshAlive(); m.selectSquad(4); m.seafMan(gun); run(m, 3);
+  m.player.slots[8].readyAt = 0; const sh1 = m.shells.length; m.fire(); run(m, 0.1);
+  check('manned, it fires and reloads faster', m.shells.length > sh1 && m.player.slots[8].readyAt - m.t < cdSolo - 5, `crew ${gun.crew}, ${Math.round(m.player.slots[8].readyAt - m.t)} s`);
 }
 
 // ---------------------------------------------------------------- bastions: a full ring; SEAF hold walls without leaving cover
@@ -271,7 +272,16 @@ function troops(m, n, sq = 0, x = m.hx + 10, y = m.hy + 6) {
   const list = troops(m, 8, 0, m.hx + 20, m.hy + 20);
   list.forEach((x, k) => { x.x = m.hx + 20 + k * 4; x.y = m.hy + 20; });
   const r = m.seafBox(m.hx + 18, m.hy + 15, m.hx + 33, m.hy + 25);
-  check('a box round part of a squad makes them a squad of their own, selected', r.ok && r.split && m.seaf.sel === r.to && list.filter((x) => x.sq === r.to).length === r.n && r.n >= 3, JSON.stringify(r));
+  check('(0.18) a box round part of a squad picks them (they stay in their squad until an order)', r.ok && m.seaf.sel === -2 && m.seaf.pick.length === r.n && r.n >= 3 && list.every((x) => x.sq === 0), JSON.stringify(r));
+  m.seafOrder('move', m.hx + 60, m.hy);
+  const ns = m.seaf.sel;
+  check('an order to them makes them a squad of their own', ns >= 1 && list.filter((x) => x.sq === ns).length === r.n && list.filter((x) => x.sq === 0).length === list.length - r.n, `squad ${ns}`);
+  const r3 = m.toSquad(0);
+  check('Alt+number puts the selection into that squad', r3.ok && list.every((x) => x.sq === 0) && m.seaf.sel === 0);
+  m.selectSquad(0); const d = m.disbandSeaf();
+  check('disbanded, they are in no squad and stay where they are', d.ok && list.every((x) => x.sq === -3) && m.seaf.squads.every((q) => q.n === 0));
+  const at = list.map((x) => ({ x: x.x, y: x.y })); run(m, 5);
+  check('(they hold their ground)', list.every((x, k) => Math.hypot(x.x - at[k].x, x.y - at[k].y) < 3));
   const r2 = m.seafBox(m.hx - 500, m.hy - 500, m.hx - 480, m.hy - 480);
   check('an empty box selects nobody', !r2.ok);
 }

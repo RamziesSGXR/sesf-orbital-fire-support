@@ -21,7 +21,7 @@ const fails = [];
 const check = (name, ok, extra = '') => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${extra ? '  ' + extra : ''}`); if (!ok) fails.push(name); };
 const ev = (fn, arg) => page.evaluate(fn, arg);
 
-await page.goto('file://' + path.join(root, 'dist/orbital-fury.html') + `?faction=${faction}&biome=${biome}&seed=31&fast=1`);
+await page.goto('file://' + path.join(root, 'dist/orbital-fury.html') + `?skipstart&faction=${faction}&biome=${biome}&seed=31&fast=1`);
 await page.waitForTimeout(500);
 await page.click('#btn-play'); await page.waitForTimeout(200);
 if (await page.isVisible('#btn-notice')) await page.click('#btn-notice');

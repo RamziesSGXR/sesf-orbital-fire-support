@@ -6,7 +6,9 @@ import { CONFIG as C } from '../config.js';
 import { STRATS } from '../data/strat.js';
 import { seafTargets } from './squads.js';
 import { TEAM_COLOR } from '../data/names.js';
-import { drawPoiArt, drawNukeSite, drawCrash, drawPad } from './sites.js';
+import { drawPoiArt, drawNukeSite, drawCrash, drawPad, drawLootArt, drawOilSite, drawDome, drawDomeHit, drawHellbomb } from './sites.js';
+import { pelicanBody } from './squads.js';
+import { sentryArt } from './posts.js';
 
 const TAU = Math.PI * 2;
 const O = C.objective;
@@ -222,6 +224,37 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
       if (!o.done) labels.push({ x: v.x, y: v.y, dy: v.state === 'carried' ? -16 : -Math.max(O.vip.pickR * scale, 12) - 6, text: v.state === 'carried' || (v.state === 'down' && o.state !== 'travel') ? tr('lab.vip') : tr('lab.crash'), col: '#ffe600' , pri: 2 });
     } else if (o.type === 'fortress' && !o.done) {
       labels.push({ x: o.x, y: o.y, dy: -o.base.r * scale - 20, text: tr('lab.citadelOf', { base: m.faction.baseName }).toUpperCase(), col: pal.enemy , pri: 2 });
+      const hb = m.hellbomb;
+      if (hb && hb.o === o) {
+        drawHellbomb(ctx, hb, O.hellbomb, now, px, m.t);
+        if (hb.state === 'landed') labels.push({ x: hb.x, y: hb.y, dy: -14, text: tr('lab.hbArm'), col: '#7dff9b', pri: 3 });
+        if (hb.state === 'armed') labels.push({ x: hb.x, y: hb.y, dy: -14, text: tr('lab.hbRun', { n: Math.max(0, Math.ceil(hb.fuseAt - m.t)) }), col: '#ff6a4a', pri: 3 });
+      }
+    } else if (o.type === 'oil') {
+      drawOilSite(ctx, o, now, px);
+      ctx.strokeStyle = col; ctx.lineWidth = px(active ? 2.2 : 1.4);
+      ctx.setLineDash([px(8), px(6)]); ctx.lineDashOffset = -now * px(8); ring(ctx, o.x, o.y, o.r); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      if (!o.done && o.state !== 'travel' && o.state !== 'setup') {
+        ctx.strokeStyle = o.onPump ? '#ff6a4a' : '#7dff9b'; ctx.lineWidth = px(4);
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r + px(6), -Math.PI / 2, -Math.PI / 2 + TAU * (o.state === 'load' ? 1 : o.fill)); ctx.stroke();
+      }
+      // the pelican coming for the tank: in, down on the pad, away
+      if (o.pel) {
+        const K = O.oil, k = m.t - o.pel.at, sx = o.px - 140, sy = o.py - 90;
+        let x = o.px, y = o.py, alt = 0;
+        if (o.pel.state === 'in') { const u = Math.min(1, k / K.inSec), e = 1 - (1 - u) * (1 - u); x = sx + (o.px - sx) * e; y = sy + (o.py - sy) * e; alt = 1 - e; }
+        else if (o.pel.state === 'out') { const u = Math.min(1, k / K.outSec), e = u * u; x = o.px + 160 * e; y = o.py - 110 * e; alt = e; }
+        const s = 14 * (1 + 0.3 * alt), off = 4 + alt * 26, ang = Math.atan2(o.py - sy, o.px - sx);
+        ctx.fillStyle = 'rgba(0,0,0,0.38)'; pelicanBody(ctx, x + off * 0.6, y + off, ang, s * 0.92); ctx.fill();
+        pelicanBody(ctx, x, y, ang, s); ctx.fillStyle = '#d8e8f2'; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = px(2); ctx.stroke();
+      }
+      const K = O.oil;
+      const txt = o.done ? tr('lab.oilDone') : o.state === 'load' ? tr('lab.oilLoad', { n: o.trips + 1, of: K.trips }) : o.state === 'pump' ? tr('lab.oilPump', { p: Math.round(o.fill * 100), n: o.trips + 1, of: K.trips }) : tr('lab.oil');
+      labels.push({ x: o.x, y: o.y, dy: -Math.max(o.r * scale, 12) - 6, text: txt, col: o.onPump ? '#ff6a4a' : o.done ? '#7dff9b' : '#ffe600', pri: 2 });
+    } else if (o.type === 'dome') {
+      drawDome(ctx, o, pal.enemy, now, px);
+      drawDomeHit(ctx, o.dome, m.t, px);
+      if (!o.done) labels.push({ x: o.x, y: o.y, dy: -o.dome.r * scale - 8, text: o.dome.up ? tr('lab.domeUp', { n: o.nodes.filter((b) => !b.destroyed).length }) : tr('lab.domeDown', { n: o.bases.filter((b) => !b.destroyed).length }), col: o.dome.up ? '#a9dcff' : '#ffe600', pri: 2 });
     }
   }
 }
@@ -233,14 +266,10 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
     if (s.dead) continue;
     const hit = t - s.hurtAt < 0.12;
     if (s.kind === 'turret') {
-      const r = Math.max(3.4, px(6));
-      ctx.fillStyle = ac; ctx.strokeStyle = hit ? '#fff' : '#06210f'; ctx.lineWidth = px(1.2);
-      ctx.fillRect(s.x - r, s.y - r, r * 2, r * 2); ctx.strokeRect(s.x - r, s.y - r, r * 2, r * 2);
-      ctx.strokeStyle = '#e8f6ff'; ctx.lineWidth = px(2.2); ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x + Math.cos(s.face) * r * 2.1, s.y + Math.sin(s.face) * r * 2.1); ctx.stroke();
+      const r = sentryArt(ctx, s, now, px, hit, ac);
       const f = s.hp / s.maxHp;
-      if (f < 0.999) hpBar(ctx, s.x, s.y + r + px(3), r * 3, px(3), f, f > 0.35 ? '#7dff9b' : '#ff4a4a');
-      hpBar(ctx, s.x, s.y + r + px(7.5), r * 3, px(2), s.ammo / s.maxAmmo, '#ffb020');
-      labels.push({ x: s.x, y: s.y, dy: -r * scale - 8, text: tr(`strat.${s.sid}.tag`), col: ac , pri: 0 });
+      if (f < 0.999) hpBar(ctx, s.x, s.y + r * 2 + px(2), r * 2.6, px(2.4), f, f > 0.35 ? '#7dff9b' : '#ff4a4a');
+      labels.push({ x: s.x, y: s.y, dy: -r * 1.8 * scale - 8, text: tr(`strat.${s.sid}.tag`), col: ac , pri: 0 });
     } else if (s.kind === 'mines') {
       ctx.strokeStyle = 'rgba(61,169,255,0.55)'; ctx.lineWidth = px(1);
       for (const mn of s.mines) {
@@ -321,6 +350,12 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal) {
       const r = Math.max(e.r, px(e.kind === 'L' ? 3.5 : e.kind === 'M' ? 5.5 : 8.5));
       ring(ctx, e.x, e.y, r + px(1)); ctx.stroke();
     }
+    // spotted by a lookout (out of sight, inside the strike zone): a red caret over it
+    if (e.spotted) {
+      const r = Math.max(e.r, px(5)) + px(4), y0 = e.y - r;
+      ctx.strokeStyle = 'rgba(255,90,60,0.95)'; ctx.lineWidth = px(1.6);
+      ctx.beginPath(); ctx.moveTo(e.x - px(4), y0 - px(5)); ctx.lineTo(e.x, y0); ctx.lineTo(e.x + px(4), y0 - px(5)); ctx.stroke();
+    }
     if (e.stunUntil > t) { ctx.strokeStyle = 'rgba(190,225,255,0.9)'; ctx.lineWidth = px(1); ring(ctx, e.x, e.y, Math.max(e.r, px(5)) + px(3)); ctx.stroke(); }
     // a lock-on (Spear, Expendable Anti-Tank): brackets that close in as the missile acquires, a hard white square once locked
     if (e.lockedUntil > t) {
@@ -368,8 +403,9 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal) {
     // a squid heavy's shield: a bubble that flares when hit
     if (e.maxShield && e.shield > 0) {
       const f = e.shield / e.maxShield, hit = t - (e.shieldAt || -9) < 0.15;
-      ctx.fillStyle = `rgba(150,200,255,${(hit ? 0.22 : 0.07) + 0.07 * f})`; ring(ctx, e.x, e.y, r * 1.7); ctx.fill();
-      ctx.strokeStyle = `rgba(190,225,255,${hit ? 0.95 : 0.3 + 0.4 * f})`; ctx.lineWidth = px(hit ? 2 : 1.2); ring(ctx, e.x, e.y, r * 1.7); ctx.stroke();
+      const R = e.bubR || r * 1.7;     // the harvester's bubble reaches out past it, over the squids round it
+      ctx.fillStyle = `rgba(150,200,255,${(hit ? 0.16 : 0.05) + 0.05 * f})`; ring(ctx, e.x, e.y, R); ctx.fill();
+      ctx.strokeStyle = `rgba(190,225,255,${hit ? 0.95 : 0.3 + 0.4 * f})`; ctx.lineWidth = px(hit ? 2 : 1.2); ring(ctx, e.x, e.y, R); ctx.stroke();
     }
     if (e.vis >= 2) {
       if (e.maxShield) hpBar(ctx, e.x, e.y - r * 1.9 - px(4), r * 2.6, px(2), e.shield / e.maxShield, '#8fd0ff');
@@ -425,9 +461,14 @@ function drawBossExtras(ctx, m, e, now, px, labels, scale, col) {
   labels.push({ x: e.x, y: e.y, dy: -(r * 2.1) * scale - 26, text: e.name, col: '#ff8a6a', pri: 3 });
 }
 
-// ---------- points of interest: random targets worth credits ----------
+// ---------- points of interest: random targets worth credits, and the finds ----------
 export function drawPois(ctx, m, now, px, labels, scale, pal) {
   const t = m.t, tgs = seafTargets(m);
+  for (const q of m.loot || []) {
+    if (q.done && q.kind !== 'wreck') { if (t - q.at < 2) { const k = (t - q.at) / 2; ctx.strokeStyle = `rgba(255,230,0,${1 - k})`; ctx.lineWidth = px(2); ring(ctx, q.x, q.y, q.r * (1 + k)); ctx.stroke(); } continue; }
+    drawLootArt(ctx, q, now, px);
+    if (!q.done && m.visLevel(q.x, q.y) > 0) labels.push({ x: q.x, y: q.y, dy: -Math.max(q.r * 0.8, px(10)) * scale - 6, text: tr('loot.' + q.kind), col: '#d9e8b0', pri: 0 });
+  }
   for (const p of m.pois) {
     if (p.done) {
       const r = Math.max(p.r * 0.5, px(6));

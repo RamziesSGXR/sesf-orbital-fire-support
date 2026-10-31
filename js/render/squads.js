@@ -30,12 +30,14 @@ export const squadColor = (i) => SQUAD_COLOR[i] || '#9dd8ff';
 
 // ---------- the ring and the role mark drawn on every SEAF trooper ----------
 export function drawSeafMark(ctx, m, a, r, px, multi, on) {
-  const sel = m.seaf.sel;
-  if (multi) {
-    const col = squadColor(a.sq), lit = sel < 0 || sel === a.sq;
+  const sel = m.seaf.sel, pk = sel === -2 && m.seaf.pick ? m.seaf.pick.includes(a.id) : false;
+  if (multi && a.sq >= 0) {
+    const col = squadColor(a.sq), lit = sel === -1 || sel === a.sq || pk;
     ctx.strokeStyle = col; ctx.globalAlpha = lit ? 0.95 : 0.4; ctx.lineWidth = px(lit ? 1.7 : 1.1);
     ring(ctx, a.x, a.y, r * 1.75); ctx.stroke(); ctx.globalAlpha = 1;
   }
+  // picked (0.18): a bright white ring, the way a selected unit shows in Age of Empires
+  if (pk || (sel >= 0 && sel === a.sq)) { ctx.strokeStyle = '#ffffff'; ctx.lineWidth = px(1.4); ctx.globalAlpha = 0.9; ring(ctx, a.x, a.y, r * 2.2); ctx.stroke(); ctx.globalAlpha = 1; }
   if (a.role === 'medic') {
     const s = r * 1.15;
     ctx.strokeStyle = '#7dff9b'; ctx.lineWidth = px(2.2); ctx.globalAlpha = on ? 1 : 0.8;
@@ -184,9 +186,9 @@ export function drawPelicans(ctx, m, now, px, labels, scale, pal) {
       ctx.setLineDash([]); ctx.lineDashOffset = 0;
     }
     // shadow on the ground, further from the craft the higher it is
-    const off = alt * 16;
-    ctx.fillStyle = 'rgba(0,0,0,0.38)';
-    pelicanBody(ctx, p.x + off * 0.6, p.y + off, ang, s * 0.92); ctx.fill();
+    const off = 4 + alt * 26;
+    ctx.fillStyle = 'rgba(0,0,0,0.18)'; pelicanBody(ctx, p.x + off * 0.6, p.y + off, ang, s * 1.08); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.42)'; pelicanBody(ctx, p.x + off * 0.6, p.y + off, ang, s * 0.92); ctx.fill();
     // the craft: dark halo, then a bright thermal body
     pelicanBody(ctx, p.x, p.y, ang, s);
     ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = px(4); ctx.stroke();
@@ -249,6 +251,7 @@ export function drawMiniSeaf(c, m, k, ac, ec) {
   // troopers: dark-edged dots, and a ring in the squad colour around each squad
   const ctr = new Map();
   for (const a of m.seafAlive) {
+    if (a.inside) continue;
     const r = a.role === 'medic' || a.role === 'spotter' ? 3.4 : 2.8;
     c.fillStyle = 'rgba(0,0,0,0.8)'; c.beginPath(); c.arc(a.x * k, a.y * k, r + 1.3, 0, TAU); c.fill();
     c.fillStyle = multi ? squadColor(a.sq) : ac;

@@ -91,6 +91,10 @@ h2 { margin: 4px 0 10px; font-size: clamp(20px, 5vw, 28px); letter-spacing: 0.14
 .diff-row .btn.dl { min-height: 34px; padding: 0; font-size: 13px; letter-spacing: 0; opacity: 0.7; }
 .diff-row .btn.dl.on { opacity: 1; border-color: var(--yellow); color: var(--yellow); box-shadow: inset 0 0 0 1px var(--yellow); }
 .diff-row .btn.dl.hot { border-color: color-mix(in srgb, var(--red, #ff5a4a) 70%, transparent); }
+.enemy-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; max-width: 360px; margin: 0 auto; }
+.enemy-row .btn.el { min-height: 32px; padding: 0 2px; font-size: 11px; letter-spacing: 0.04em; opacity: 0.7; }
+.enemy-row .btn.el.on { opacity: 1; border-color: var(--yellow); color: var(--yellow); box-shadow: inset 0 0 0 1px var(--yellow); }
+.enemy-row .btn.el-bugs.on { color: #ffb020; border-color: #ffb020; box-shadow: inset 0 0 0 1px #ffb020; } .enemy-row .btn.el-bots.on { color: #ff5a4a; border-color: #ff5a4a; box-shadow: inset 0 0 0 1px #ff5a4a; } .enemy-row .btn.el-squids.on { color: #c58bff; border-color: #c58bff; box-shadow: inset 0 0 0 1px #c58bff; }
 .diff-note { margin: 6px auto 0; max-width: 360px; min-height: 2.6em; }
 .f-diff { font-size: 12px; letter-spacing: 0.1em; color: var(--yellow); margin: 2px 0 6px; text-align: center; }
 
@@ -714,6 +718,23 @@ body.touch .callout .co-b kbd { display: none; }
 #supgame .sg-foot .fine { margin: 0; font-size: 10.5px; }
 body.touch #supgame { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); transform: translateX(-50%); }
 body.touch .sg-slot .sg-cells i { height: 22px; }
+/* (0.18) the Hellbomb: four parts, put in in the order they light up */
+#hbgame { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -38%); width: min(520px, 96vw); z-index: 8; pointer-events: auto; padding: 12px 14px; text-align: center;
+  border-color: rgba(255, 90, 60, 0.7); }
+#hbgame .sg-h { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 12px; letter-spacing: 0.1em; }
+#hbgame .sg-h b { color: #ff7a4a; } #hbgame .sg-h span { font-size: 11px; letter-spacing: 0.1em; color: var(--g-dim); }
+#hbgame .sg-bars { margin: 8px 0 10px; } #hbgame .sg-time { position: relative; height: 6px; background: rgba(255, 120, 80, 0.15); border-radius: 3px; overflow: hidden; }
+#hbgame .sg-time i { position: absolute; inset: 0 auto 0 0; background: #ff7a4a; }
+#hbgame .hb-pod { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 10px; border: 2px solid rgba(255, 210, 120, 0.45); border-radius: 26px;
+  background: repeating-linear-gradient(135deg, rgba(255, 230, 0, 0.08) 0 10px, rgba(0, 0, 0, 0.2) 10px 20px), rgba(16, 18, 16, 0.95); }
+.hb-slot { --c: #8a948e; opacity: 0.55; }
+.hb-slot.lit { --c: #ffe600; opacity: 1; box-shadow: 0 0 14px rgba(255, 230, 0, 0.55); animation: hbpulse 0.6s ease-in-out infinite alternate; }
+.hb-slot.done { --c: #7dff9b; opacity: 0.9; }
+.hb-slot.wrong { animation: hbshake 0.25s; border-color: #ff4a4a; }
+@keyframes hbpulse { from { transform: scale(1); } to { transform: scale(1.04); } }
+@keyframes hbshake { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(-4px); } 70% { transform: translateX(4px); } }
+#hbgame .sg-foot { margin-top: 8px; justify-content: center; text-align: center; }
+body.touch #hbgame { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); transform: translateX(-50%); }
 body.slowmo #supgame .sg-h b::after { content: "  · SLOW MOTION"; color: var(--g-dim); font-weight: 400; }
 /* Phones: callouts sit just under the top row of buttons, across the screen */
 body.touch #callouts { position: fixed; left: max(8px, env(safe-area-inset-left)); right: max(8px, env(safe-area-inset-right)); top: calc(max(8px, env(safe-area-inset-top)) + 100px); z-index: 6; margin: 0; }
@@ -765,7 +786,7 @@ body.softpaused #center-msg, body.softpaused #toast { opacity: 0; }
 
 /* ---------- 0.15: armory paths, menu, speed, UI size, tray close, controls and field manual ---------- */
 /* UI size (Settings): the HUD's groups scale together */
-#hud .hud-l, #hud .hud-tr, #hud #tray, #hud #dock, #hud #weapons, #hud #touch-ctl, #hud #radio, #hud #infocard, #hud #supgame, #hud #flavor, #hud #softpause .sp-bar { zoom: var(--ui, 1); }
+#hud .hud-l, #hud .hud-tr, #hud #tray, #hud #dock, #hud #weapons, #hud #touch-ctl, #hud #radio, #hud #infocard, #hud #supgame, #hud #hbgame, #hud #flavor, #hud #softpause .sp-bar { zoom: var(--ui, 1); }
 body.touch #hud .hud-tr { zoom: 1; }
 body.touch #hud #minimap { zoom: var(--ui, 1); }
 
@@ -869,7 +890,7 @@ body.touch #tray #buildmenu { grid-template-columns: repeat(4, minmax(0, 1fr)); 
 .tac-x { position: absolute; top: -2px; right: -2px; width: 28px; height: 26px; font-size: 13px; }
 .tac-l { font-size: 9.5px; letter-spacing: 0.2em; color: var(--g-dim); margin-top: 2px; }
 .tac-row { display: grid; gap: 4px; }
-.tac-build { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.tac-build { grid-template-columns: repeat(8, minmax(0, 1fr)); }
 .tac-form { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .bld { position: relative; height: 52px; padding: 5px 3px 3px; }
 .bld .k, .frm .k { position: absolute; top: 2px; right: 4px; color: var(--g-dim); font-size: 8.5px; }
@@ -1077,7 +1098,7 @@ body.touch #objective { right: calc(max(8px, env(safe-area-inset-right)) + var(-
 .tp { width: 9px; height: 9px; border-radius: 50%; background: #9dd8ff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5); }
 .tp.r-medic { background: #7dff9b; } .tp.r-rocket { background: #ff8a4a; } .tp.r-gren { background: #ffd34a; } .tp.r-spotter { background: #c58bff; }
 .tc-l { font-size: 9.5px; letter-spacing: 0.24em; color: #7fd8ff; margin-bottom: 5px; }
-.tc-grid.tac-build { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.tc-grid.tac-build { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
 .tc-grid.tac-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
 #tactical .bld { position: relative; height: auto; min-width: 0; padding: 5px 4px 6px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
 #tactical .bld .ic { display: block; width: 100%; max-width: 66px; aspect-ratio: 1; height: auto; border-radius: 6px; border: 1px solid rgba(157, 255, 184, 0.28); }
@@ -1157,7 +1178,7 @@ body.touch .tl-btns .tacb kbd { display: none; }
 body.touch #tactical .bld .ic { max-width: 50px; }
 /* phones held sideways: a low console, one row of builds */
 @media (max-height: 520px) and (orientation: landscape) {
-  body.touch .tc-grid.tac-build { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+  body.touch .tc-grid.tac-build { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 3px; }
   body.touch #tactical .bld { padding: 2px 2px 3px; gap: 1px; }
   body.touch #tactical .bld .ic { max-width: 36px; }
   body.touch #tactical .bld .n { font-size: 7.5px; min-height: 17px; }
@@ -1268,3 +1289,73 @@ body.touch #tac-banner { top: calc(max(8px, env(safe-area-inset-top)) + var(--mm
 @media (max-height: 520px) and (orientation: landscape) { body.touch #tac-banner { top: 50px; } }
 body.touch.tac-open #feed { display: none; }
 body.touch #dock > #btn-follow { flex: 0 0 44px; } body.touch #btn-follow .n { font-size: 20px !important; line-height: 1; }
+/* (0.18) up to nine squads: only the ones with troops show */
+#squads { grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)) !important; }
+#squads .sqbs { display: contents; }
+.sqb.gone { display: none; }
+/* (0.18) the credits, big, at the top left */
+.bigcr { display: flex; align-items: baseline; gap: 6px; pointer-events: auto; padding: 2px 10px 4px; border-radius: 8px; background: rgba(2, 14, 7, 0.78); border: 1px solid rgba(255, 230, 0, 0.35); width: max-content; position: relative; }
+.bigcr b { font-size: 30px; line-height: 1.05; color: var(--yellow); letter-spacing: 0.02em; text-shadow: 0 0 12px rgba(255, 230, 0, 0.35); }
+.bigcr span { font-size: 13px; color: var(--yellow); letter-spacing: 0.12em; opacity: 0.85; }
+.bigcr i { font-style: normal; font-size: 13px; font-weight: 700; opacity: 0; margin-left: 4px; }
+.bigcr i.up { color: #7dff9b; } .bigcr i.down { color: #ff7a5a; }
+.bigcr i.go { animation: crpop 1.6s ease-out; }
+@keyframes crpop { 0% { opacity: 1; transform: translateY(0); } 70% { opacity: 1; } 100% { opacity: 0; transform: translateY(-6px); } }
+body.touch .bigcr b { font-size: 22px; } body.touch .bigcr { padding: 1px 8px 2px; }
+/* (0.18) the tactical console's four modes: a square of icons at its left; one pane at a time */
+.tc-body { grid-template-columns: 96px minmax(170px, 240px) minmax(0, 1fr) !important; }
+.tc-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; align-self: start; }
+.tct { height: 44px; padding: 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font: inherit; color: var(--g); background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(127, 216, 255, 0.35); border-radius: 6px; cursor: pointer; }
+.tct i { font-style: normal; font-size: 17px; line-height: 1; }
+.tct span { font-size: 7.5px; letter-spacing: 0.08em; }
+.tct.on { color: var(--yellow); border-color: var(--yellow); background: rgba(70, 60, 0, 0.55); box-shadow: 0 0 10px rgba(255, 230, 0, 0.3); }
+.tct[data-tab="armory"] { color: #ffd24a; }
+#tactical .tc-sec { display: none; grid-column: 3; }
+#tactical[data-tab="units"] .tc-u, #tactical[data-tab="units"] .tc-f, #tactical[data-tab="build"] .tc-b, #tactical[data-tab="ship"] .tc-s { display: block; }
+#tactical[data-tab="units"] .tc-f { grid-column: 3; margin-top: 6px; }
+.tc-grid.tac-ord { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; margin-bottom: 6px; }
+.tco { position: relative; height: 42px; padding: 3px 2px; font: inherit; color: var(--g); background: rgba(0, 0, 0, 0.35); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+.tco .k { position: absolute; top: 1px; right: 3px; font-size: 8px; color: var(--g-dim); }
+.tco .n { display: block; font-size: 9.5px; margin-top: 7px; } .tco .s { display: block; font-size: 8.5px; color: #fff; }
+.tco.off { opacity: 0.45; } .tco.seaf .n { color: #7fd8ff; } .tco.disband .n { color: #ffb36a; }
+.tc-grid.tac-sq { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; }
+.tcq { height: 28px; padding: 0; font: inherit; font-size: 9.5px; color: var(--sc); background: rgba(0, 0, 0, 0.35); border: 1px solid color-mix(in srgb, var(--sc) 45%, transparent); border-radius: 5px; cursor: pointer; }
+.tcq.has { background: color-mix(in srgb, var(--sc) 14%, rgba(0, 0, 0, 0.4)); } .tcq.sel { border-color: var(--sc); box-shadow: 0 0 8px color-mix(in srgb, var(--sc) 50%, transparent); } .tcq.off { opacity: 0.45; }
+.tc-grid.tac-ship { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.tcw { position: relative; height: 50px; padding: 4px; font: inherit; color: var(--g); text-align: left; background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 176, 32, 0.45); border-radius: 6px; cursor: pointer; }
+.tcw .k { position: absolute; top: 2px; right: 4px; font-size: 9px; color: var(--g-dim); } .tcw .n { display: block; font-size: 10px; color: #fff; } .tcw .s { display: block; font-size: 10px; color: #ffb020; margin-top: 4px; }
+.tc-s .fine { margin: 6px 0 0; font-size: 10px; }
+/* the selection: a tile for each trooper (role and health), and a building's doors */
+.ts-tiles { display: flex; flex-wrap: wrap; gap: 3px; margin: 6px 0 3px; }
+.tt { position: relative; width: 24px; height: 26px; padding: 0; font: inherit; color: #fff; background: rgba(0, 0, 0, 0.5); border: 1px solid var(--sc); border-radius: 4px; cursor: pointer; overflow: hidden; }
+.tt b { display: block; font-size: 12px; line-height: 20px; } .tt u { position: absolute; left: 0; bottom: 0; height: 3px; background: #7dff9b; }
+.tt.r-medic b { color: #7dff9b; } .tt.r-rocket b { color: #ff8a4a; } .tt.r-gren b { color: #ffd34a; } .tt.r-spotter b { color: #c58bff; }
+.tt-more { font-size: 10px; color: var(--g-dim); align-self: center; }
+.ts-doors { display: flex; gap: 4px; margin-top: 5px; } .tsd { min-height: 26px; padding: 2px 8px; font-size: 9.5px; }
+.ts-solo { color: var(--g-dim); font-style: normal; }
+@media (max-width: 700px) {
+  .tc-body { grid-template-columns: 1fr !important; }
+  .tc-tabs { grid-template-columns: repeat(4, 1fr); } .tct { height: 34px; }
+  #tactical .tc-sec { grid-column: 1; }
+  #tactical[data-tab="units"] .tc-f { grid-column: 1; }
+  .tc-grid.tac-ord { grid-template-columns: repeat(4, minmax(0, 1fr)); } .tc-grid.tac-ship { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  body.touch .tc-body { grid-template-columns: 70px 140px minmax(0, 1fr) !important; }
+  body.touch .tct { height: 30px; } body.touch .tct span { display: none; }
+}
+.r-def { color: #7fd8ff; font-weight: 700; letter-spacing: 0.04em; }
+#tactical[data-tab="units"] .tc-grid.tac-form { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+#tactical[data-tab="units"] .frm { height: 36px; }
+/* (0.18) the tactical screen runs in real time: no banner */
+body.tac-open #tac-banner { display: none; }
+/* the drop countdown at the start of a mission, with DEPLOY NOW */
+#dropcd { position: absolute; left: 50%; top: max(12vh, 80px); transform: translateX(-50%); z-index: 6; pointer-events: auto; display: flex; align-items: center; gap: 14px;
+  padding: 8px 14px; background: rgba(3, 16, 9, 0.92); border: 1px solid rgba(255, 230, 0, 0.55); border-radius: 8px; box-shadow: 0 0 22px rgba(255, 230, 0, 0.15); }
+#dropcd.hidden { display: none; }
+#dropcd .dc-t { display: flex; flex-direction: column; } #dropcd .dc-t small { color: var(--g-dim); font-size: 10px; letter-spacing: 0.16em; }
+#dropcd .dc-t b { color: var(--yellow); font-size: 22px; letter-spacing: 0.12em; }
+#dropcd .btn { min-height: 40px; }
+body.touch #dropcd { top: calc(max(8px, env(safe-area-inset-top)) + var(--mmw) * var(--ui, 1) + 14px); gap: 8px; padding: 6px 10px; } body.touch #dropcd .dc-t b { font-size: 17px; }
+#dropcd .btn kbd { color: #1a1a00; border-color: rgba(0, 0, 0, 0.45); background: rgba(0, 0, 0, 0.12); }

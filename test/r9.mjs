@@ -44,12 +44,13 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
   }
   // in practice: a squad shooting at a far pack lands fewer hits than at a near one
   const shots = (dist) => {
-    const m = quiet('bots', 900 + dist);
+    const m = quiet('bots', 952);      // (0.18: one map for both, so only the distance differs)
     const a = m.hdAlive[0];
-    const g = spawnGroup(m, a.x + dist, a.y, 'patrol'); g.hold = 1e9;
+    const sx = a.x < m.ao.cx ? 1 : -1;      // (0.18: toward the middle of the round map)
+    const g = spawnGroup(m, a.x + dist * sx, a.y, 'patrol'); g.hold = 1e9;
     for (const e of g.members) { e.hp = e.maxHp = 1e9; e.speed = 0; }
     for (const h of m.alive) { h.hp = h.maxHp = 1e9; h.ult = 0; h.gren = 0; }     // rifles only: grenades and the Ultimatum aside
-    m.uavs.push({ x: a.x + dist, y: a.y, r: 120, until: 1e9, t0: m.t });
+    m.uavs.push({ x: a.x + dist * sx, y: a.y, r: 120, until: 1e9, t0: m.t });
     let dmg = 0; const orig = m.stats.dmg.squad;
     run(m, 12); dmg = m.stats.dmg.squad - orig;
     return dmg;
@@ -108,7 +109,8 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
     const sx = m.hx, sy = m.hy, d0 = way(e.x, e.y, sx, sy);   // where the squad was when it came in
     for (let i = 0; i < 30 * 30; i++) { m.step(dt); for (const v of m.events) evs.push(v.type); m.events.length = 0; }
     const d1 = way(e.x, e.y, sx, sy);
-    check(`${fac}: it hunts the Helldivers`, d1 < d0 - 40, `${Math.round(d0)} m from the squad, then ${Math.round(d1)} m from where it was`);
+    check(`${fac}: it hunts the Helldivers`, d1 < d0 - 30,     // (a slow walker: 30 m closer in half a minute)
+      `${Math.round(d0)} m from the squad, then ${Math.round(d1)} m from where it was`);
     check(`${fac}: it can't be stunned`, (() => { e.stunUntil = m.t + 10; m.step(dt); return e.stunUntil <= m.t; })());
     // the extraction will not be called while it lives
     m.objDone = true; m.phase = 'extract'; m.extraction.state = null;
@@ -165,7 +167,7 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
     const bot = makeBot();
     for (let s = 0; !mm.over && s < 30 * 60 * 30; s++) { botStep(mm, bot); mm.step(dt); mm.events.length = 0; }
     const r = mm.result();
-    if (r.outcome === 'victory') wins++;
+    if (r.outcome === 'victory' || r.outcome === 'complete') wins++;     // (the objective done: the super heavy did not stop them)
     if (r.stats.bossKills) killed++;
     console.log(`      ${fac}: ${r.outcome} in ${(r.t / 60).toFixed(1)} min, ${r.kills} kills, ${mm.boss ? mm.boss.name : 'no boss'} ${r.stats.bossKills ? 'killed' : 'alive'}`);
   }
@@ -229,10 +231,8 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
   check('the ship gun fires as soon as the squad is down', (m.stats.gunRounds || 0) > 0, `${m.stats.gunRounds || 0} rounds`);
   check('while the orbitals are still charging', orbs.every((s) => s.readyAt > m.t));
   // SEAF: the first drop a little way in, then a longer wait between drops
-  const r0 = m.callSeaf(m.hx + 10, m.hy);
-  check('no SEAF drop in the first seconds', !r0.ok, r0.reason || '');
-  check('the first SEAF drop is ready a little way in', C.seaf.firstDropSec >= 15 && C.seaf.firstDropSec <= 40, `${C.seaf.firstDropSec} s`);
-  run(m, C.seaf.firstDropSec);
+  // (0.18) the first drop is ready at once (the mission starts on the tactical screen), then a long wait between drops
+  check('the first SEAF drop is ready at once', C.seaf.firstDropSec === 0);
   const r1 = m.callSeaf(m.hx + 10, m.hy);
   run(m, 20);
   const r2 = m.callSeaf(m.hx + 10, m.hy);

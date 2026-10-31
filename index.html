@@ -23,6 +23,8 @@
         <button id="btn-speed" class="btn icon" type="button" data-ta="hud.speedAria" data-tt="hud.speedTitle">1×</button>
         <button id="btn-pause" class="btn icon" data-ta="hud.pause">II</button>
       </div>
+      <!-- (0.18) the credits, big, where the eye goes first -->
+      <div id="bigcr" class="bigcr" data-tt="hud.crTitle"><b id="bigcr-v">0</b><span data-t="hud.cr">CR</span><i id="bigcr-d"></i></div>
       <div id="feed">
         <div id="callouts">
           <div id="co-sup" class="callout sup hidden"><span class="co-i">⬢</span><span class="co-t"></span><button class="co-b primary" data-co="accept"><span data-t="hud.loadPod">LOAD POD</span> <kbd>U</kbd></button><button class="co-b" data-co="look-sup"><span data-t="hud.look">LOOK</span> <kbd>J</kbd></button><button class="co-b x" data-co="decline" data-ta="hud.declineSup" aria-label="Turn down the supply request">✕</button><i class="co-bar"></i></div>
@@ -55,14 +57,9 @@
     <div id="sqpanel" class="panel" data-tt="hud.hdbarTitle"><div id="hdrows"></div><div id="supply"></div></div>
     <div id="squads" class="panel">
       <button class="sqb" data-sq="-1"><span class="n" data-t="hud.all">ALL</span><span class="s">0</span></button>
-      <button class="sqb" data-sq="0" style="--sc:#5fa8ff"><span class="n">S1</span><span class="s">--</span></button>
-      <button class="sqb" data-sq="1" style="--sc:#ff9d4a"><span class="n">S2</span><span class="s">--</span></button>
-      <button class="sqb" data-sq="2" style="--sc:#c58bff"><span class="n">S3</span><span class="s">--</span></button>
-      <button class="sqb" data-sq="3" style="--sc:#3fe0c4"><span class="n">S4</span><span class="s">--</span></button>
+      <span class="sqbs"><!-- S1 to S9: only the squads with troops in them (ui.js) --></span>
       <button class="sqa" data-a="draw"><span class="k">R</span><span class="n" data-t="hud.draw">DRAW</span></button>
-      <button class="sqa" data-a="split"><span class="k">F</span><span class="n" data-t="hud.split">SPLIT</span></button>
-      <button class="sqa" data-a="merge"><span class="k">M</span><span class="n" data-t="hud.merge">MERGE</span></button>
-      <button class="sqa" data-a="assign"><span class="k">Y</span><span class="n" data-t="hud.assign">ASSIGN</span></button>
+      <button class="sqa" data-a="disband"><span class="k">M</span><span class="n" data-t="hud.disband">DISBAND</span></button>
     </div>
     <div id="orders" class="panel">
       <button class="ord" data-o="seaf"><span class="k">G</span><span class="n" data-t="hud.seafDrop">SEAF DROP</span><span class="s">--</span></button>
@@ -83,12 +80,25 @@
     <div id="tactical" class="panel hidden" role="dialog">
       <div class="tc-h"><b data-t="tac.title">TACTICAL BUILD</b><span id="tc-state" class="tc-state"></span><span class="tc-help" id="tc-help"></span><button class="x-close tc-x" type="button" data-ta="hud.closeTac">✕</button></div>
       <div class="tc-body">
+        <!-- (0.18) four modes, a square of icons: the troops, building, the ship's weapons, the armory -->
+        <div class="tc-tabs" role="tablist">
+          <button class="tct" type="button" data-tab="units" role="tab"><i>⛨</i><span data-t="tac.tUnits">TROOPS</span></button>
+          <button class="tct" type="button" data-tab="build" role="tab"><i>⚒</i><span data-t="tac.tBuild">BUILD</span></button>
+          <button class="tct" type="button" data-tab="ship" role="tab"><i>✦</i><span data-t="tac.tShip">SHIP</span></button>
+          <button class="tct" type="button" data-tab="armory" role="tab"><i>⬢</i><span data-t="tac.tArmory">ARMORY</span></button>
+        </div>
         <div id="tc-sel" class="tc-sel"></div>
+        <div class="tc-sec tc-u">
+          <div class="tc-l" data-t="tac.orders">ORDERS</div><div class="tc-grid tac-ord"></div>
+          <div class="tc-l" data-t="tac.squadTo">INTO SQUAD (ALT + 1-9)</div><div class="tc-grid tac-sq"></div>
+        </div>
         <div class="tc-sec tc-b"><div id="tc-list" class="tc-list"></div><div class="tc-l" data-t="tac.build">BUILD</div><div class="tc-grid tac-build"></div></div>
+        <div class="tc-sec tc-s"><div class="tc-l" data-t="tac.ship">SHIP WEAPONS</div><div class="tc-grid tac-ship"></div><p class="fine" data-t="tac.shipHint"></p></div>
         <div class="tc-sec tc-f"><div class="tc-l" data-t="tac.form">FORMATION</div><div class="tc-grid tac-form"></div></div>
       </div>
     </div>
     <!-- the tactical build screen says the game is waiting, high in the middle -->
+    <div id="dropcd" class="hidden" role="status"><div class="dc-t"><small data-t="hud.dropIn">HELLDIVERS DROP IN</small><b id="dropcd-n">0:30</b></div><button id="dropcd-go" class="btn primary" type="button"><span data-t="hud.deployNow">DEPLOY NOW</span> <kbd>ENTER</kbd></button></div>
     <div id="tac-banner" role="status"><b data-t="tac.paused">GAME PAUSED</b><span data-t="tac.bannerSub">TACTICAL BUILD · TAB OR ESC TO GO ON</span></div>
     <!-- what is selected on the map (a post, a sentry or a defence site): its name, level and health, just above it -->
     <div id="selpop" class="hidden" role="dialog"></div>
@@ -109,6 +119,17 @@
         <button class="sg-slot ammo" data-i="2" type="button"><span class="sg-k">3</span><span class="sg-cells"></span><span class="sg-n" data-t="sg.ammo">AMMO</span></button>
       </div>
       <div class="sg-foot"><span class="fine" id="sg-hint" data-t="sg.hint"></span><button id="sg-launch" class="btn primary" type="button" data-t="sg.launch">LAUNCH NOW</button></div>
+    </div>
+    <div id="hbgame" class="panel hidden" role="dialog" data-ta="hb.title">
+      <div class="sg-h"><b data-t="hb.title">ASSEMBLE THE HELLBOMB</b><span id="hb-sub" data-t="hb.sub">BEFORE IT DROPS</span></div>
+      <div class="sg-bars"><div class="sg-time"><i id="hb-time"></i></div></div>
+      <div class="hb-pod">
+        <button class="sg-slot hb-slot" data-i="0" type="button"><span class="sg-k">1</span><span class="sg-cells"></span><span class="sg-n" data-t="hb.casing">CASING</span></button>
+        <button class="sg-slot hb-slot" data-i="1" type="button"><span class="sg-k">2</span><span class="sg-cells"></span><span class="sg-n" data-t="hb.core">CORE</span></button>
+        <button class="sg-slot hb-slot" data-i="2" type="button"><span class="sg-k">3</span><span class="sg-cells"></span><span class="sg-n" data-t="hb.detonator">DETONATOR</span></button>
+        <button class="sg-slot hb-slot" data-i="3" type="button"><span class="sg-k">4</span><span class="sg-cells"></span><span class="sg-n" data-t="hb.fuse">FUSE</span></button>
+      </div>
+      <div class="sg-foot"><span class="fine" id="hb-hint" data-t="hb.hint"></span></div>
     </div>
     <div id="weapons"></div>
     <div id="touch-ctl">
@@ -138,6 +159,11 @@
         <div class="diff-h"><span data-t="title.diff">DIFFICULTY</span> <b id="diff-name"></b></div>
         <div id="diff-row" class="diff-row" role="group" data-ta="title.diff"></div>
         <p id="diff-note" class="fine diff-note"></p>
+      </div>
+      <div id="enemy" class="diff">
+        <div class="diff-h"><span data-t="title.enemy">ENEMY</span></div>
+        <div id="enemy-row" class="enemy-row" role="group" data-ta="title.enemy"></div>
+        <p id="enemy-note" class="fine diff-note"></p>
       </div>
       <div class="btns">
         <button id="btn-play" class="btn primary big" data-t="title.play">PLAY</button>

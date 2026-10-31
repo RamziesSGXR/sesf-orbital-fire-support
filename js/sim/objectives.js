@@ -2,6 +2,7 @@
 // Everything else on the map (the ordinary bases) is bonus points once the objective is done.
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
+import { OP_OF, OP_TYPES, setupOil, setupCannon, setupDome, setupKeep, updateOil, updateCannon, updateDome, updateKeep, hellbombGoal, keepStatus } from './ops.js';
 import { openTasks } from './planner.js';
 import { COMMS } from '../data/data.js';
 import { spawnNear } from './director.js';
@@ -17,7 +18,7 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
 // The name of each objective type, in the current language (obj.name.<type>).
 export const OBJ_NAME = {};
-for (const k of ['nuke', 'vip', 'fortress', 'evac']) Object.defineProperty(OBJ_NAME, k, { get: () => tr('obj.name.' + k), enumerable: true });
+for (const k of ['nuke', 'vip', 'fortress', 'evac', 'oil', 'cannon', 'dome']) Object.defineProperty(OBJ_NAME, k, { get: () => tr('obj.name.' + k), enumerable: true });
 
 // A random point that keeps its distance from everything in avoids ({x, y, r}). Relaxes if the map is crowded.
 // near ({x, y, r}), when given, keeps the point within reach of the landing zone (early missions keep their objectives close).
@@ -28,6 +29,7 @@ export function findSpot(m, avoids, margin = 130, near = null) {
   for (let i = 1; i <= 600; i++) {
     if (i % 120 === 0) k *= 0.85;
     const x = rng.range(A.x0 + margin, A.x1 - margin), y = rng.range(A.y0 + margin, A.y1 - margin);
+    if ((x - A.cx) ** 2 + (y - A.cy) ** 2 > (A.R - margin) ** 2) continue;      // (the round area)
     if (!m.terrain.isLand(x, y)) continue;
     if (near && Math.hypot(x - near.x, y - near.y) > near.r / k) continue;
     if (avoids.every((a) => Math.hypot(x - a.x, y - a.y) >= a.r * k)) return { x, y };
@@ -38,8 +40,9 @@ export function findSpot(m, avoids, margin = 130, near = null) {
 
 export function setupObjectives(m, forced) {
   const rng = m.rng, lz = { x: m.lz.x, y: m.lz.y, r: aoScale(m, O.minFromLz) };
-  let types = rng.shuffle(TYPES.slice());
-  if (forced && forced.length) types = [...forced.filter((t) => TYPES.includes(t)), ...types.filter((t) => !forced.includes(t))];   // test hook
+  const pool = [...TYPES, OP_OF[m.faction.id]].filter(Boolean);       // (0.18: each faction has an operation of its own too)
+  let types = rng.shuffle(pool.slice());
+  if (forced && forced.length) types = [...forced.filter((t) => pool.includes(t) || OP_TYPES.includes(t)), ...types.filter((t) => !forced.includes(t))];   // test hook
   const count = m.S >= C.mission.secondObjectiveAtMin ? 2 : 1;
   // How far from the landing zone the objectives may be: close on the first missions, the whole map later.
   const near = { x: m.lz.x, y: m.lz.y, r: O.reach.start + O.reach.perMin * m.S };
@@ -50,7 +53,10 @@ export function setupObjectives(m, forced) {
     const av = [lz, ...baseAv, ...used.map((u) => ({ x: u.x, y: u.y, r: aoScale(m, 380) }))];
     let o;
     if (type === 'nuke') {
-      const p = findSpot(m, av, 130, near);
+      // dry ground all round it, for the walls (cover.js)
+      const dryRing = (q) => { let n = 0; for (let k = 0; k < 12; k++) { const a = (k / 12) * Math.PI * 2; if (m.terrain.isLand(q.x + Math.cos(a) * C.cover.nukeR, q.y + Math.sin(a) * C.cover.nukeR)) n++; } return n; };
+      let p = findSpot(m, av, 130, near);
+      for (let k = 0; k < 8 && dryRing(p) < 10; k++) p = findSpot(m, av, 130, near);
       o = { type, state: 'travel', x: p.x, y: p.y, r: O.nuke.r, holdT: 0, armedAt: 0, target: null, get text() { return COMMS.objNuke; } };
     } else if (type === 'vip') {
       const p = findSpot(m, av, 130, near);
@@ -69,6 +75,12 @@ export function setupObjectives(m, forced) {
       }
       o = { type, state: 'travel', x: site.p.x, y: site.p.y, r: E.r, sx: site.s.x, sy: site.s.y, hx: site.h.x, hy: site.h.y,
             released: 0, saved: 0, lost: 0, load: 0, shuttles: 0, batchT: 0, open: false, get text() { return COMMS.objEvac; } };
+    } else if (type === 'oil') {
+      o = setupOil(m, findSpot(m, av, 150, near));
+    } else if (type === 'cannon') {
+      o = setupCannon(m, findSpot(m, [...av, ...baseAv.map((b) => ({ ...b, r: aoScale(m, C.bases.spacing) }))], 150, near));
+    } else if (type === 'dome') {
+      o = setupDome(m, findSpot(m, [...av, ...baseAv.map((b) => ({ ...b, r: aoScale(m, C.bases.spacing) + O.dome.R }))], O.dome.R + 40, { ...near, r: near.r + 150 }));
     } else {
       const p = findSpot(m, [lz, { x: m.lz.x, y: m.lz.y, r: aoScale(m, C.fortress.minFromLz) }, ...baseAv.map((b) => ({ ...b, r: aoScale(m, C.bases.spacing) })), ...used.map((u) => ({ x: u.x, y: u.y, r: aoScale(m, 380) }))], 160,
                          { ...near, r: Math.max(near.r, aoScale(m, C.fortress.minFromLz) + 200) });
@@ -89,6 +101,7 @@ export function setupObjectives(m, forced) {
         }
       }
       o = { type, state: 'travel', x: p.x, y: p.y, base: b, parts, guarded: false, get text() { return COMMS.objFortress; } };
+      setupKeep(m, o);
     }
     o.done = false;
     used.push(o);
@@ -98,12 +111,20 @@ export function setupObjectives(m, forced) {
 }
 
 export const activeObjective = (m) => m.objectives.find((o) => !o.done) || null;
+// Under a dome: the nearest node while it is up, then the nearest warp-ship base.
+function nextDomePart(m, o) {
+  const from = m.squad ? { x: m.squad.ax, y: m.squad.ay } : m.lz, list = (o.dome.up ? o.nodes : o.bases).filter((b) => !b.destroyed);
+  let best = null, bd = Infinity;
+  for (const b of list.length ? list : o.parts.filter((q) => !q.destroyed)) { const d = Math.hypot(b.x - from.x, b.y - from.y); if (d < bd) { bd = d; best = b; } }
+  return best || o.parts[0];
+}
 // The citadel's part the squad should knock down next: the nearest one standing (the keep last of all, once it is alone or nearest).
 export function nextPart(m, o) {
   const from = m.squad ? { x: m.squad.ax, y: m.squad.ay } : m.lz;
   let best = null, bd = Infinity;
+  const outerUp = (o.parts || []).some((q) => !q.destroyed && !q.fortress);
   for (const b of o.parts || [o.base]) {
-    if (b.destroyed) continue;
+    if (b.destroyed || (b.bombOnly && outerUp)) continue;      // (the keep only falls to a Hellbomb: the outer bases first)
     const d = Math.hypot(b.x - from.x, b.y - from.y) + (b.fortress ? 40 : 0);
     if (d < bd) { bd = d; best = b; }
   }
@@ -114,7 +135,10 @@ export function nextPart(m, o) {
 export function objectiveGoal(m) {
   const o = activeObjective(m);
   if (!o) return null;
-  if (o.type === 'fortress') return { o, base: nextPart(m, o) };
+  if (o.type === 'fortress') { const hg = hellbombGoal(m, o); return hg ? { o, ...hg } : { o, base: nextPart(m, o) }; }
+  if (o.type === 'oil') return { o, x: o.x, y: o.y, stop: 12 };
+  if (o.type === 'cannon') return { o, base: o.base };
+  if (o.type === 'dome') return { o, base: nextDomePart(m, o) };
   if (o.type === 'nuke') return { o, x: o.x, y: o.y, stop: 14 };
   if (o.type === 'evac') return { o, x: o.x, y: o.y, stop: 16 };
   const going = o.state === 'carry' || o.state === 'deliver';
@@ -273,6 +297,7 @@ export function completeObjective(m, o) {
   m.emit('objective_done', { type: o.type, x: o.x, y: o.y });
   if (o.type === 'nuke') m.radio(COMMS.nukeDone, 'nukedone', 0);
   if (o.type === 'fortress') m.radio(COMMS.fortressDone, 'fortressdone', 0);
+  if (OP_TYPES.includes(o.type)) m.radio(tr('c.done.' + o.type), 'opdone', 0);
   const next = activeObjective(m);
   if (next) { m.radio(next.text, 'objnext', 0); return; }
   // All objectives done: the mission is banked. The squad clears the rest of the map if it can afford to (planner.js), then pulls out.
@@ -293,6 +318,7 @@ export function startExtract(m) {
   m.emit('extract_live', {});
 }
 
+const FNS = { siege: (m, o, x, y, dt, mul) => siege(m, o, x, y, dt, mul), startSetup: (m, o) => startSetup(m, o), complete: (m, o) => completeObjective(m, o) };
 export function updateObjectives(m, dt) {
   if (m.phase === 'objective') {
     const o = activeObjective(m);
@@ -300,12 +326,16 @@ export function updateObjectives(m, dt) {
     if (o.type === 'nuke') updateNuke(m, o, dt);
     else if (o.type === 'vip') updateVip(m, o, dt);
     else if (o.type === 'evac') updateEvac(m, o, dt);
+    else if (o.type === 'oil') updateOil(m, o, dt, FNS);
+    else if (o.type === 'cannon') updateCannon(m, o, dt, FNS);
+    else if (o.type === 'dome') updateDome(m, o, dt, FNS);
     else if (o.type === 'fortress') {
+      updateKeep(m, o, dt, FNS);
       if ((o.parts || [o.base]).every((b) => b.destroyed)) completeObjective(m, o);
       else if ((o.parts || [o.base]).some((b) => b.alert) && squadAt(m, o.base.x, o.base.y, C.siege.fortressR + C.fortress.partR + C.fortress.detectR)) {
         // once the citadel is awake: its guardian, a super heavy, turns out (unless one is already out)
         if (!o.guarded) { o.guarded = true; if (!(m.boss && !m.boss.dead)) { m.bossPlan = null; spawnBoss(m, { at: o.base, guard: true }); } }
-        siege(m, o, o.base.x, o.base.y, dt);   // the citadel calls for help while it is attacked
+        if (!o.outerDown) siege(m, o, o.base.x, o.base.y, dt);   // the citadel calls for help while it is attacked (not once only the keep is left)
       }
     }
   }
@@ -340,7 +370,21 @@ export function objectiveStatus(m) {
     if (o.state === 'carry') return { text: tr('obj.vip.carry', { of }), p: 0.5 };
     return { text: tr('obj.vip.deliver', { of }), p: o.delT / O.vip.deliverSec };
   }
+  if (o.type === 'oil') {
+    const K = O.oil;
+    if (o.state === 'travel') return { text: tr('obj.oil.travel', { of }), p: 0 };
+    if (o.state === 'setup') return { text: tr('obj.setup', { n: Math.max(0, Math.ceil(o.setupT)), of }), p: 1 - o.setupT / C.defense.setupSec, urgent: true };
+    if (o.state === 'load') return { text: tr('obj.oil.load', { n: o.trips + 1, of: K.trips }), p: (o.trips + 1) / K.trips, urgent: true };
+    return { text: tr(o.onPump ? 'obj.oil.onPump' : 'obj.oil.pump', { p: Math.round(o.fill * 100), n: o.trips + 1, of: K.trips }), p: (o.trips + o.fill) / K.trips, urgent: !!o.onPump };
+  }
+  if (o.type === 'cannon') return { text: tr('obj.cannon', { n: Math.max(0, Math.ceil((o.base.hp / o.base.maxHp) * 100)), of }), p: 1 - o.base.hp / o.base.maxHp };
+  if (o.type === 'dome') {
+    if (o.dome.up) { const n = o.nodes.filter((b) => !b.destroyed).length; return { text: tr('obj.dome.nodes', { n, of }), p: 1 - n / o.nodes.length }; }
+    const n = o.bases.filter((b) => !b.destroyed).length;
+    return { text: tr('obj.dome.bases', { n, of }), p: 1 - n / Math.max(1, o.bases.length), urgent: false };
+  }
   const b = o.base;
+  if ((o.parts || []).every((q) => q === b || q.destroyed)) return keepStatus(m, o);
   // the whole cluster: what is left of every part's health together
   const P = o.parts || [b], hp = P.reduce((v, q) => v + Math.max(0, q.hp), 0), max = P.reduce((v, q) => v + q.maxHp, 0) || 1;
   return { text: tr('obj.fort', { n: Math.max(0, Math.ceil((hp / max) * 100)), of }), p: 1 - hp / max };

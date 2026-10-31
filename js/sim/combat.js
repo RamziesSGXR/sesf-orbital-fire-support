@@ -56,10 +56,35 @@ export function covered(e) {
   return true;
 }
 
+// Shield bubbles (a harvester's, or a shield generator's dome): the one that keeps a hit from (fx, fy) off a target at (x, y), or
+// null. A hit with no source point comes from above (a strike) and is outside every bubble.
+export function bubbleFor(m, x, y, fx, fy) {
+  const B = m.bubbles;
+  if (!B || !B.length) return null;
+  for (const b of B) {
+    const r2 = b.r * b.r;
+    if ((x - b.x) ** 2 + (y - b.y) ** 2 > r2) continue;
+    if (fx !== undefined && fy !== undefined && (fx - b.x) ** 2 + (fy - b.y) ** 2 <= r2) continue;    // fired from inside: through
+    if (b.dome ? b.dome.up : b.src.shield > 0) return b;
+  }
+  return null;
+}
+// A hit on a bubble: a harvester's shield soaks it (what is left goes through); a dome takes it all. Returns what gets through.
+export function soakBubble(m, b, dmg) {
+  if (b.dome) { b.dome.hitAt = m.t; return 0; }
+  const h = b.src, soak = Math.min(h.shield, dmg);
+  h.shield -= soak; h.shieldAt = m.t;
+  return dmg - soak;
+}
+
 // pierce: the hit goes through armour and shields (the Ultimatum's round).
 export function hurtEnemy(m, e, dmg, by, fx, fy, cs, pierce = false) {
   if (e.dead || !(dmg > 0)) return 0;
   if (e.cover && covered(e)) return 0;
+  if (!pierce && m.bubbles && m.bubbles.length) {
+    const b = ABOVE ? bubbleFor(m, e.x, e.y) : bubbleFor(m, e.x, e.y, fx, fy);
+    if (b && b.src !== e) { dmg = soakBubble(m, b, dmg); if (dmg <= 0) { e.hurtAt = m.t; return 0; } }
+  }
   const k = hitMul(m, e, fx, fy, cs === undefined ? (by === 'player' ? 'player' : 'ally') : cs, pierce);
   dmg *= k * (e.soak && !pierce ? e.soak : 1);     // the fleshmob takes only part of every hit
   if (e.shield > 0 && !pierce) {         // a shield (a squid heavy, the Warp Colossus) soaks up damage first
@@ -99,7 +124,7 @@ export function damageArea(m, x, y, rad, dmg, mult, by = 'player', friendly = tr
   const sm = by === 'strat' || by === 'squad' ? C.structure.stratMul : 1;   // anything the squad calls hits structures harder
   for (const b of m.bases) {
     if (b.destroyed) continue;
-    if (Math.hypot(b.x - x, b.y - y) <= rad + b.r) m.damageBase(b, dmg * mult.B * sm, by);
+    if (Math.hypot(b.x - x, b.y - y) <= rad + b.r) m.damageBase(b, dmg * mult.B * sm, by, ABOVE ? undefined : fx, ABOVE ? undefined : fy);
   }
   // Points of interest and breaches are soft: any real explosion hurts them.
   const pm = Math.max(mult.B, 0.25);
@@ -142,13 +167,8 @@ function tryDodge(m, a, dmg) {
 // shot in the back hurts more; enemy hits can crit too.
 export function hurtAlly(m, a, rawDmg, by, raw = false, src = null, fx, fy) {
   if (a.dead || !(rawDmg > 0)) return;
-  // inside a bunker: the bunker takes it (only a share of the destroyer's own fire), whoever is inside takes nothing
-  const bk = a.inPost;
-  if (bk && bk.what === 'bunker' && !bk.dead && bk.hp > 0) {
-    hurtAsset(m, bk, rawDmg * (by === 'enemy' ? C.build.bunker.take : C.build.bunker.ff));
-    if (by === 'enemy') a.hurtAt = m.t;
-    return;
-  }
+  // inside a building (posts.js): the building takes it
+  if (a.inside && !a.inside.dead && a.inside.hp > 0) { if (by === 'enemy') hurtAsset(m, a.inside, rawDmg * 0.5); return; }
   if ((a.type === 'H' || a.type === 'S') && !raw && by === 'enemy' && tryDodge(m, a, rawDmg)) return;
   if (by === 'enemy' && !raw) rawDmg *= hitMul(m, a, fx, fy, 'enemy') * coverMul(m, a.x, a.y);   // behind a wall: less
   a.hurtAt = m.t;

@@ -17,17 +17,15 @@ function rgba(hex, a) {
 const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 // Everything outside the area of operations is dark, with a hazard line along its edge.
+// (0.18: the area is round, like the minimap: everything outside the circle is darkened)
 export function drawAoEdge(ctx, m, px, x0, y0, x1, y1) {
-  const a = m.ao;
+  const a = m.ao, R = a.R || a.size / 2;
   ctx.fillStyle = 'rgba(6,4,0,0.8)';
-  if (y0 < a.y0) ctx.fillRect(x0, y0, x1 - x0, a.y0 - y0);
-  if (y1 > a.y1) ctx.fillRect(x0, a.y1, x1 - x0, y1 - a.y1);
-  const yy0 = Math.max(y0, a.y0), yy1 = Math.min(y1, a.y1);
-  if (yy1 > yy0) { if (x0 < a.x0) ctx.fillRect(x0, yy0, a.x0 - x0, yy1 - yy0); if (x1 > a.x1) ctx.fillRect(a.x1, yy0, x1 - a.x1, yy1 - yy0); }
+  ctx.beginPath(); ctx.rect(x0, y0, x1 - x0, y1 - y0); ctx.arc(a.cx, a.cy, R, 0, Math.PI * 2, true); ctx.fill('evenodd');
   ctx.strokeStyle = 'rgba(255,200,40,0.12)'; ctx.lineWidth = px(14);
-  ctx.strokeRect(a.x0 + px(7), a.y0 + px(7), a.size - px(14), a.size - px(14));
+  ring(ctx, a.cx, a.cy, R - px(7)); ctx.stroke();
   ctx.strokeStyle = 'rgba(255,200,40,0.75)'; ctx.lineWidth = px(2); ctx.setLineDash([px(14), px(8)]);
-  ctx.strokeRect(a.x0, a.y0, a.size, a.size); ctx.setLineDash([]);
+  ring(ctx, a.cx, a.cy, R); ctx.stroke(); ctx.setLineDash([]);
 }
 
 // A radio tower: a lattice mast; once the squad is powering it, a ring fills; online, it pulses blue.
@@ -66,6 +64,7 @@ export function drawSides(ctx, m, now, px, labels, scale) {
     }
     // SEAF under fire: a dug-in ring of sandbags; pulsing red while they are under siege
     const alive = s.troops.filter((a) => !a.dead).length;
+    if (s.hidden) continue;           // hidden SEAF: nothing shows until they are found
     if (s.done || s.failed) { if (s.failed) labels.push({ x: s.x, y: s.y, dy: -14, text: OPS.rescueLost, col: 'rgba(255,120,100,0.6)', pri: 0 }); continue; }
     const R = Math.max(s.r, px(10)), hot = s.state === 'siege';
     ctx.strokeStyle = 'rgba(190,170,120,0.9)'; ctx.lineWidth = Math.max(px(3), 1.6);

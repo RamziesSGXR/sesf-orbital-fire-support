@@ -19,7 +19,7 @@ function heavyKit(fid, e) {
   if (H.front) { e.front = H.front; e.frontCos = H.frontCos; }
   if (H.hp) { e.hp = e.maxHp = Math.round(e.maxHp * H.hp); }
   if (H.crit) e.critUp = H.crit;
-  if (H.shield) { e.shield = e.maxShield = Math.round(e.maxHp * H.shield); e.shieldAt = -99; e.regen = H.regen; e.regenDelay = H.regenDelay; }
+  if (H.shield) { e.shield = e.maxShield = Math.round(e.maxHp * H.shield); e.shieldAt = -99; e.regen = H.regen; e.regenDelay = H.regenDelay; if (H.bubR) e.bubR = H.bubR; }
 }
 // Is this medium draw one of the faction's specials? (its own random stream, so the rest of the mission is unchanged)
 function wantSpecial(m) {
@@ -196,7 +196,7 @@ export function updateDirector(m, dt) {
       }
     }
     for (const b of m.bases) {
-      if (b.destroyed) continue;
+      if (b.destroyed || b.node || b.quiet) continue;          // (a dome's nodes have no troops of their own; a keep on its own sends no more)
       const nb = (b.nb || []).filter((q) => !q.destroyed);
       if (!b.near && !b.alert) continue;
       const cfg = b.fortress || b.part ? C.fortress : C.bases, every = cfg.spawnSec / m.pressure / (1 + C.bases.clusterSpawn * nb.length);

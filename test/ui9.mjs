@@ -19,7 +19,7 @@ const tap = (sel) => (touch ? page.tap(sel) : page.click(sel));
 const ev = (f, a) => page.evaluate(f, a);
 const rect = (sel) => page.evaluate((s) => { const e = document.querySelector(s); if (!e || getComputedStyle(e).display === 'none' || getComputedStyle(e).visibility === 'hidden') return null; const r = e.getBoundingClientRect(); return r.width && r.height ? { l: r.left, t: r.top, r: r.right, b: r.bottom } : null; }, sel);
 const overlap = (a, b) => !!(a && b && a.l < b.r - 1 && a.r > b.l + 1 && a.t < b.b - 1 && a.b > b.t + 1);
-await page.goto(`file://${root}/dist/orbital-fury.html?faction=bots&biome=grass&seed=21&tod=11&objective=nuke`);
+await page.goto(`file://${root}/dist/orbital-fury.html?skipstart&faction=bots&biome=grass&seed=21&tod=11&objective=nuke`);
 await page.waitForTimeout(500); await page.click('#btn-play'); await page.waitForTimeout(200);
 if (await page.isVisible('#btn-notice')) await page.click('#btn-notice');
 await page.waitForTimeout(250); if (await page.isVisible('#btn-lock')) await page.click('#btn-lock');   // 0.13: the difficulty lock-in
@@ -35,6 +35,8 @@ await page.waitForTimeout(4000);
 
 // ---- (0.17.2) tips: one line just over whatever was picked on a bar, ⓘ for the rest, gone after a moment or a tap elsewhere
 const near = (tip, b) => tip && b && tip.b <= b.t + 2 && tip.b >= b.t - 30 && tip.l < b.r && tip.r > b.l;
+await ev(() => { const m = window.__game.mission; if (!m.seaf.squads[0].n) { for (let k = 0; k < 3; k++) { const a = m.addAlly('S', m.hx + 8 + k, m.hy + 4, { role: 'rifle' }); a.sq = 0; } m._refreshAlive(); m.step(0); } });   // (0.18: only squads with troops show)
+await page.waitForTimeout(150);
 if (touch) { await tap('#dk-sq'); await page.waitForTimeout(300); await tap('.sqb[data-sq="0"]'); }
 else { await page.keyboard.press('Shift+Digit1'); }
 await page.waitForTimeout(300);

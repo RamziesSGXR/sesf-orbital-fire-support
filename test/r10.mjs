@@ -55,7 +55,7 @@ function quiet(faction = 'bots', seed = 77, opts = {}) {
     const fromBase = pats.every((g) => g.from && m.bases.includes(g.from) && g.route && g.route.pts.length >= 2);
     const inside = pats.every((g) => g.route.pts.every((p) => inAO(m, p.x, p.y)));
     shapes[fac] = pats.length ? `${pats[0].route.loop ? 'loop' : 'out-and-back'} of ${pats[0].route.pts.length}` : '-';
-    check(`${fac}: every base has patrols out at the drop, each on its own route inside the map`, m.bases.every((b) => b.patrols.length >= 1) && fromBase && inside,
+    check(`${fac}: every base has patrols out at the drop, each on its own route inside the map`, m.bases.every((b) => b.part || b.patrols.length >= 1) && fromBase && inside,     // (a citadel's outer bases keep their troops at home)
       `${pats.length} patrols from ${m.bases.length} bases; ${shapes[fac]}`);
   }
   check('each faction patrols its own way (bugs roam, bots march out and back, squids sweep a circle)',
@@ -89,7 +89,7 @@ function quiet(faction = 'bots', seed = 77, opts = {}) {
 // ---------------------------------------------------------------- backup at an objective site
 {
   const m = quiet('bots', 5100);
-  const o = { type: 'test' }, x = m.hx + 40, y = m.hy;
+  const P = m.terrain.nearestLand(m.ao.cx, m.ao.cy), o = { type: 'test' }, x = P.x, y = P.y;     // (0.18: the drop is at the rim of the round map; the site is in the middle)
   let calls = 0;
   const n0 = m.stats.reinf || 0;
   for (let i = 0; i < 30 * 60; i++) { siege(m, o, x, y, dt); m.step(dt); }
@@ -115,7 +115,7 @@ function quiet(faction = 'bots', seed = 77, opts = {}) {
 {
   const m = new Mission({ seed: 5300, faction: 'bugs', biome: 'grass', events: false, sessionMinutes: 0, missionN: 3, boss: false });
   const hit = (x, y) => damageArea(m, x, y, 30, 1e6, B(1), 'player', false);
-  for (const b of m.bases) hit(b.x, b.y);
+  for (const b of m.bases) { if (b.bombOnly) b.bombOnly = false; if (b.dome) b.dome.up = false; hit(b.x, b.y); }     // (0.18: a citadel's keep takes a Hellbomb and a dome its nodes first: r18)
   for (const p of m.pois) hit(p.x, p.y);
   m.step(dt);
   const bases = m.bases.filter((b) => b.destroyed).length, pois = m.pois.filter((p) => p.done).length;
@@ -161,16 +161,18 @@ function quiet(faction = 'bots', seed = 77, opts = {}) {
   pm.step(dt);
   check('destroying the propaganda tower completes the side mission', p.done && pm.sides.find((q) => q === p).done);
 
-  // SEAF under fire: rescued, they join the player's SEAF
+  // hidden SEAF (0.18): nobody's until a Helldiver or a trooper walks by them, then they join
   let r = null, rm = null;
   for (let k = 0; k < 20 && !r; k++) { rm = quiet('bots', 6400 + k); r = rm.sides.find((q) => q.kind === 'rescue'); }
-  check('pinned SEAF are not under the player\'s orders yet', r.troops.every((t) => t.pinned));
-  r.state = 'siege';
-  for (const e of rm.enemies) e.dead = true;
-  run(rm, C.sides.rescue.holdSec + 2, (mm) => { for (const h of mm.hdAlive) { h.x = r.x + 5; h.y = r.y; h.hp = h.maxHp; } for (const e of mm.enemies) e.dead = true; });
+  rm._refreshAlive();
+  check('hidden SEAF are not the player\'s, and give no sight', r.hidden && r.troops.every((t) => t.pinned && t.hidden && !rm.alive.includes(t)));
+  run(rm, 3);
+  check('they stay hidden while nobody comes near', r.hidden && !r.done);
+  const finder = rm.addAlly('S', r.x + 40, r.y, { role: 'rifle' }); finder.sq = 2;
+  run(rm, 3, (mm) => { finder.x = r.x + 6; finder.y = r.y; for (const e of mm.enemies) e.dead = true; });
   const freed = r.troops.filter((t) => !t.dead);
-  check('SEAF under fire, cleared with a Helldiver at hand, are rescued', r.done, `state ${r.state}`);
-  check('and the survivors join the player\'s SEAF', freed.length > 0 && freed.every((t) => !t.pinned && t.sq !== undefined && rm.seaf.squads[t.sq]), `${freed.length} joined squad ${freed[0] && freed[0].sq + 1}`);
+  check('a SEAF trooper walking by finds them', r.done && !r.hidden, `state ${r.state}`);
+  check('and they join the finder\'s squad', freed.length > 0 && freed.every((t) => !t.pinned && !t.hidden && t.sq === 2 && rm.alive.includes(t)), `${freed.length} joined squad ${freed[0] && freed[0].sq + 1}`);
 }
 
 // ---------------------------------------------------------------- SEAF drop beacons (built by SEAF since revision 12)

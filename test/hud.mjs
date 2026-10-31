@@ -16,7 +16,7 @@ page.on('pageerror', (e) => errs.push('PAGEERROR ' + e.message));
 page.on('console', (m) => { if (m.type() === 'error') errs.push('CONSOLE ' + m.text()); });
 const out = (n) => path.join(root, 'test/shots', `hud-${vp}-${n}.png`);
 const tap = async (sel) => { const l = page.locator(sel).first(); await l.scrollIntoViewIfNeeded().catch(() => {}); const b = await l.boundingBox(); if (!b) throw new Error('no box ' + sel); await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); };
-await page.goto('file://' + path.join(root, 'dist/orbital-fury.html') + '?seed=31&faction=bugs&biome=grass&fast=1');
+await page.goto('file://' + path.join(root, 'dist/orbital-fury.html') + '?skipstart&seed=31&faction=bugs&biome=grass&fast=1');
 await page.waitForTimeout(500);
 await tap('#btn-play'); await page.waitForTimeout(300);
 if (await page.isVisible('#btn-notice')) await tap('#btn-notice');

@@ -55,7 +55,7 @@ const TUNED = snap();
 // ---------------------------------------------------------------- fewer enemies on the field
 {
   const field = (d, fac) => {
-    const m = new Mission({ seed: 31 + fac.length, faction: fac, biome: 'grass', events: false, missionN: 1, difficulty: d });
+    const m = new Mission({ seed: 31 + fac.length, faction: fac, biome: 'grass', events: false, missionN: 1, difficulty: d, objectives: ['vip'] });   // (0.18: the same objective at both levels, as before the round maps)
     let peak = 0, heavy = 0, med = 0;
     run(m, 300, (mm) => {
       let n = 0, h = 0, md = 0;

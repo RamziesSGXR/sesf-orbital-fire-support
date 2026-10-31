@@ -13,6 +13,8 @@ import * as S from './session.js';
 import * as UI from './ui.js';
 import { sunAt, todAt, todName, todClock } from './render/sky.js';
 import { acceptSupply, declineSupply, fillSupply, launchSupply, supplyFilling } from './sim/supply.js';
+import { hbFilling, tapHellbomb } from './sim/ops.js';
+const handsBusy = (m) => !!m && (supplyFilling(m) || hbFilling(m));     // the supply loader or the Hellbomb is open
 import { t, setLang, getLang, applyDom, startLang } from './i18n.js';
 import { clampLevel, LEVELS } from './difficulty.js';
 import { answerTime } from './sim/planner.js';
@@ -116,13 +118,16 @@ const resumable = (s) => !!(s && s.missions && (s.missions.length || s.held));
 function drawDiff() {
   const saved = S.load('session', null);
   UI.buildDiff(chosenDiff(), resumable(saved) ? clampLevel(saved.difficulty ?? LEVELS) : null, pickDiff);
+  UI.buildEnemy(settings.enemy || 'random', pickEnemy);
 }
+// The enemy for the session's missions (0.18): random, or one faction. Changed in Settings later, it counts from the next mission.
+function pickEnemy(e) { audio.unlock(); audio.click(); settings.enemy = e; S.save('settings', settings); UI.buildEnemy(e, pickEnemy); }
 
 // ---------------- input hooks ----------------
 const input = new Input(canvas, $('minimap'), cam, {
-  weapon: (i) => { if (!live()) return; if (supplyFilling(mission)) { supTap(i); return; } setDrawing(false); arm(i); },
+  weapon: (i) => { if (!live()) return; if (hbFilling(mission)) { hbTap(i); return; } if (supplyFilling(mission)) { supTap(i); return; } setDrawing(false); arm(i); },
   cycle: (d) => {
-    if (!live() || supplyFilling(mission) || tac) return;
+    if (!live() || handsBusy(mission) || tac) return;
     const p = mission.player, n = p.slots.length;
     let i = armed ? p.weapon : d > 0 ? n - 1 : 0;
     for (let k = 0; k < n; k++) {
@@ -133,7 +138,7 @@ const input = new Input(canvas, $('minimap'), cam, {
     }
   },
   fire: (b) => {
-    if (mission && supplyFilling(mission)) { if (mission) mission.setFiring(false); return; }   // hands on the supply loader
+    if (mission && handsBusy(mission)) { if (mission) mission.setFiring(false); return; }   // hands on the supply loader (or the Hellbomb)
     if (b && (!armed || tac)) { if (live() && input.touch) { audio.deny(); hud.toast(deny('noweapon'), 1600); } return; }   // nothing armed: CALL has nothing to call
     if (b && live()) { audio.unlock(); firePending = true; keepArmed = shiftHeld(); }      // (Shift at the click keeps it armed after the call)
     if (mission && !bot) mission.setFiring(b && live() && armed);   // the ship gun fires for as long as the trigger is held
@@ -166,6 +171,10 @@ const input = new Input(canvas, $('minimap'), cam, {
   info: () => openInfo(),
   map: () => openMap(),
   follow: () => { if (live() && supplyFilling(mission)) { supTap(-1); return; } cam.follow = !cam.follow; },
+  deployNow: () => hud.onDeployNow(),
+  supplyTap: () => { if (live() && supplyFilling(mission)) { supTap(-1); return true; } return false; },
+  tacToggle: () => { if (!live()) return; if (supplyFilling(mission)) { supTap(-1); return; } if (hbFilling(mission)) return; setTac(!tac); },
+  toSquad: (i) => { if (!live()) return; audio.unlock(); const r = mission.toSquad(i); if (r && r.ok) audio.chirp(); else { audio.deny(); hud.toast(deny('tosquad'), 1400); } if (tac) hud.fillTactical(mission, sel); },
   supply: () => supplyCall('accept'),
   timeYes: () => supplyCall('time-yes'),
   look: () => lookLatest(),
@@ -184,19 +193,33 @@ hud.onWeapon = (i) => { audio.unlock(); if (live()) { if (tac) setTac(false); ar
 hud.onTac = (on) => { audio.unlock(); setTac(on === undefined ? !tac : on); };
 hud.onHideUi = (on) => setHideUi(on);
 hud.onOrder = (kind) => order(kind, false);
-hud.onSquad = (i) => { audio.unlock(); selectSquad(i); };
+let sqPrev = null;      // what was selected before the last tap on a squad button (a double tap moves it into that squad)
+hud.onSquad = (i) => { audio.unlock(); if (mission) sqPrev = { sel: mission.seaf.sel, pick: mission.seaf.pick && mission.seaf.pick.slice() }; selectSquad(i); };
+hud.onSquadDbl = (i) => {
+  if (!live() || !sqPrev || sqPrev.sel === i || sqPrev.sel === -1) return false;
+  const sf = mission.seaf; sf.sel = sqPrev.sel; sf.pick = sqPrev.pick; sqPrev = null;
+  const r = mission.toSquad(i);
+  if (r && r.ok) { audio.chirp(); if (tac) hud.fillTactical(mission, sel); return true; }
+  return false;
+};
 hud.onSquadAct = (kind) => { audio.unlock(); squadAct(kind, false); };
 hud.onHd = () => { audio.unlock(); };
 hud.onFocus = (kind, i) => focusTeam(kind, i);
 hud.onFocusAt = (x, y) => { if (!mission) return; cam.follow = false; camPan = null; cam.x = x; cam.y = y; audio.click(); };     // (a double tap on a build in the tactical screen's list)
 // A build picked on the tactical screen: the next click (or tap) on the map puts it there. The screen stays open.
 hud.onBuild = (what) => {
+  if (hud.tcTab !== 'build') hud.setTcTab('build');
   audio.unlock();
   if (!live()) return;
   if (!tac) setTac(true);
   audio.click(); setPlacing(placing === 'build:' + what ? null : 'build:' + what);
 };
 hud.onForm = (f) => setForm(f);
+hud.onDeployNow = () => { audio.unlock(); if (live() && mission.deployNow().ok) audio.ready(); };
+// (0.18) the tactical console's modes
+hud.onArmory = () => { audio.unlock(); if (live()) openArmory(); };
+hud.onToSquad = (i) => input.h.toSquad(i);
+hud.onPickOne = (id) => { if (!live()) return; const a = mission.seafAlive.find((x) => x.id === id); if (!a) return; audio.click(); if (a.inside) { cam.follow = false; cam.x = a.x; cam.y = a.y; return; } deselect(); mission.pickSeaf([a]); hud.fillTactical(mission, sel); };
 // The tactical build screen (O, or TACTICAL at the top left): what is selected, the builds and the formations, and a box dragged on
 // the map picks troopers. The Helldivers and the SEAF squads fold away into two drop menus. The game waits while it is open
 // (Settings can make it only slow down instead).
@@ -253,7 +276,7 @@ function setHideUi(on) {
 }
 function setForm(f) {
   if (!live() || !f) return;
-  const sq = mission.seaf.sel >= 0 ? [mission.seaf.squads[mission.seaf.sel]] : mission.seaf.squads.filter((q) => q.n > 0);
+  const sq = mission.seafTargets();
   if (!sq.length) { audio.deny(); hud.toast(deny('noseaf')); return; }
   for (const q of sq) mission.setForm(q.i, f);
   audio.chirp(); hud.toast(t('hud.formSet', { f: t('form.' + f) }), 1200);
@@ -271,7 +294,7 @@ function pickAt(sx, sy) {
   for (const s of m.assets) if (!s.dead && s.kind === 'turret') take(s, Math.hypot(s.x - w.x, s.y - w.y), r);
   for (const s of m.coverSites) if (s.kind !== 'built') take(s, Math.hypot(s.x - w.x, s.y - w.y), Math.max(r, s.R * 0.4));
   if (best) return best;
-  for (const a of m.seafAlive) if (a.sq >= 0) take(a, Math.hypot(a.x - w.x, a.y - w.y), Math.max(3, r * 0.6));
+  for (const a of m.seafAlive) if ((a.sq >= 0 || a.sq === -3) && !a.inside) take(a, Math.hypot(a.x - w.x, a.y - w.y), Math.max(3, r * 0.6));
   return best;
 }
 function select(o) { sel = o; audio.click(); placeSel(true); if (tac) hud.fillTactical(mission, sel); }
@@ -281,7 +304,17 @@ function clickAt(sx, sy) {
   if (!mission || mission.over || !(live() || soft)) return;
   const o = pickAt(sx, sy);
   if (!o) { deselect(); return; }
-  if (o.type === 'S') { deselect(); if (mission.seaf.sel !== o.sq) selectSquad(o.sq); return; }
+  if (o.type === 'S') {
+    // (0.18) a click picks the trooper; a second click on him (a double click) picks his whole squad
+    deselect(); audio.click();
+    const again = mission.seaf.sel === -2 && mission.seaf.pick && mission.seaf.pick.length === 1 && mission.seaf.pick[0] === o.id && performance.now() - (clickAt.t || 0) < 450;
+    clickAt.t = performance.now();
+    if (again && o.sq >= 0) selectSquad(o.sq);
+    else if (shiftHeld() && mission.seaf.sel === -2 && mission.seaf.pick) mission.pickSeaf([...mission.seafAlive.filter((a) => mission.seaf.pick.includes(a.id)), o]);
+    else mission.pickSeaf([o]);
+    if (tac) hud.fillTactical(mission, sel);
+    return;
+  }
   select(o);
 }
 // A right click (or, on the tactical screen, a tap) with a SEAF squad selected: an order where it lands. On a post or a defence site
@@ -295,7 +328,7 @@ function crateAt(x, y) {
 }
 function commandAt(sx, sy) {
   if (!live()) return;
-  if (mission.seaf.sel < 0) { if (mission.seafAlive.length) { audio.deny(); hud.toast(deny('picksquad'), 1600); } return; }
+  if (mission.seaf.sel === -1) { if (mission.seafAlive.length) { audio.deny(); hud.toast(deny('picksquad'), 1600); } return; }
   const w = renderer.screenToWorld(sx, sy, canvas); if (!w) return;
   const m = mission, o = pickAt(sx, sy), r = Math.max(5, cam.view * 0.025), cr = crateAt(w.x, w.y);
   let res;
@@ -348,8 +381,8 @@ function tapAt(type, x, y) {
   }
   if (!tac && $('hud').classList.contains('tray-open')) { hud.trayToggle(false); return; }
   const o = pickAt(x, y), w = renderer.screenToWorld(x, y, canvas);
-  if (tac && mission.seaf.sel >= 0 && w && crateAt(w.x, w.y)) { commandAt(x, y); return; }   // a crate: the selected squad builds it
-  if (o || !tac || mission.seaf.sel < 0) { clickAt(x, y); return; }
+  if (tac && mission.seaf.sel !== -1 && w && crateAt(w.x, w.y)) { commandAt(x, y); return; }   // a crate: the selected squad builds it
+  if (o || !tac || mission.seaf.sel === -1) { clickAt(x, y); return; }
   commandAt(x, y);
 }
 // Half speed: the whole game runs at half speed; every control works as normal.
@@ -382,6 +415,8 @@ function fillControls(tab) {
 }
 hud.onSupTap = (i) => { audio.unlock(); supTap(i); };
 hud.onSupLaunch = () => { if (live() && launchSupply(mission)) audio.click(); };
+hud.onHbTap = (i) => { audio.unlock(); hbTap(i); };
+function hbTap(i) { if (live() && i >= 0 && i < 4) tapHellbomb(mission, i); }
 
 // ---------------- supply requests, the loading game and pulling the camera to a callout ----------------
 let camPan = null;     // { x, y, w (how much of the way from the squad), untilT (mission time), track() (a moving target) }
@@ -453,7 +488,8 @@ function squadAct(kind, viaKey) {
   if (kind === 'draw') {
     if (!drawing && !mission.seafAlive.length) { audio.deny(); hud.toast(deny('noseaf')); return; }
     setDrawing(!drawing);
-  } else if (kind === 'split') { setDrawing(false); const r = mission.splitSeaf(); if (r && r.ok) audio.ready(); }
+  } else if (kind === 'disband') { setDrawing(false); const r = mission.disbandSeaf(); if (r && r.ok) audio.ready(); else { audio.deny(); hud.toast(deny('disband'), 1400); } if (tac) hud.fillTactical(mission, sel); }
+  else if (kind === 'split') { setDrawing(false); const r = mission.splitSeaf(); if (r && r.ok) audio.ready(); }
   else if (kind === 'merge') { setDrawing(false); const r = mission.mergeSeaf(); if (r && r.ok) audio.ready(); }
   else if (kind === 'box') {
     // SELECT: the next drag on the map draws a box round the troopers to pick (on a computer, Shift + drag does it any time)
@@ -587,7 +623,7 @@ function goBrief(again = false) {
   const held = session.held;
   const back = !keep && held && held.n === session.missions.length + 1 ? held.info : null;     // CANCEL (or MAIN MENU) left this one waiting
   session.held = null;
-  info = keep ? { op: keep.op, faction: keep.faction, biome: keep.biome, seed: keep.seed, tod: keep.tod } : back ? { ...back } : S.rollMission(prev);
+  info = keep ? { op: keep.op, faction: keep.faction, biome: keep.biome, seed: keep.seed, tod: keep.tod } : back ? { ...back } : S.rollMission(prev, Math.random, settings.enemy);   // (the enemy picked on the title screen or in Settings)
   if (!keep && !back && session.missions.length === 0) { // URL overrides for testing: ?seed= ?faction= ?biome= (first mission only)
     if (qs.get('seed')) info.seed = Number(qs.get('seed')) >>> 0;
     if (FACTION_OK(qs.get('faction'))) info.faction = qs.get('faction');
@@ -599,7 +635,7 @@ function goBrief(again = false) {
   const ovLoad = (qs.get('loadout') || '').split(',').filter((id) => STRAT_IDS.includes(id)), ovObj = (qs.get('objective') || '').split(',').filter(Boolean);
   info.ovObj = ovObj;
   const pre = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: false, missionN: n, difficulty: session.difficulty,
-    loadout: ovLoad.length ? ovLoad : undefined, objectives: ovObj, kit: session.kit, wallet: session.wallet, names: session.names });
+    loadout: ovLoad.length ? ovLoad : undefined, objectives: ovObj, kit: session.kit, wallet: session.wallet, names: session.names, defenders: !qs.has('skipstart') });
   info.loadout = pre.loadout.slice();
   if (keep) { info.ovObj = keep.ovObj || []; info.loadout = keep.loadout.slice(); }
   else if (!back) info.tod = qs.has('tod') ? ((Number(qs.get('tod')) % 24) + 24) % 24 : pre.tod0;   // ?tod=14 forces the hour (testing)
@@ -607,7 +643,7 @@ function goBrief(again = false) {
   if (briefCtl) briefCtl.cancel();
   const ctl = briefCtl = UI.runBriefing({
     info, mission: n, touch: input.touch, canEnd: session.missions.length > 0, again: !!keep,
-    pre: { objectives: pre.objectives.map((o) => o.type), teams: pre.teams, ao: Math.round(pre.ao.size), difficulty: session.difficulty, lives: pre.hd.max },
+    pre: { objectives: pre.objectives.map((o) => o.type), defenders: pre.defenders, teams: pre.teams, ao: Math.round(pre.ao.size), difficulty: session.difficulty, lives: pre.hd.max },
     onReveal: () => audio.chirp(),
     onContinue: () => { briefCtl = null; audio.click(); deploy(); },
     onEnd: () => { briefCtl = null; endSession(); },
@@ -653,7 +689,8 @@ function deploy() {
   startSnap = JSON.stringify(session);      // what RETRY MISSION puts back: credits, kit, score and time as they were at the drop
   if (terrainKey !== `${info.biome}|${info.seed}`) buildFor(info.biome, info.seed);
   mission = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: true, missionN: session.missions.length + 1, difficulty: session.difficulty,
-    loadout: info.loadout, keepOrder: true, objectives: info.ovObj, kit: session.kit, wallet: session.wallet, names: session.names, tod: info.tod });
+    loadout: info.loadout, keepOrder: true, objectives: info.ovObj, kit: session.kit, wallet: session.wallet, names: session.names, tod: info.tod,
+    countdown: qs.has('skipstart') || BOT ? 0 : C.helldivers.countdown, defenders: !qs.has('skipstart') });
   bot = BOT ? makeBot() : null;
   cam.x = mission.lz.x; cam.y = mission.lz.y; cam.follow = false; cam.ao = mission.ao;   // the camera is the player's: it only follows the squad when locked on
   cam.view = window.innerWidth >= window.innerHeight ? C.world.viewWidth : 280;
@@ -666,6 +703,14 @@ function deploy() {
   hud.message(t('msg.start', { op: info.op.toUpperCase(), tod: todName(info.tod), clock: todClock(info.tod) }), 2600);
   hud.radio(COMMS.startDrop);
   if (input.touch && window.innerHeight > window.innerWidth) { const r = $('rotate-hint'); r.classList.remove('hidden'); setTimeout(() => r.classList.add('hidden'), 5000); }
+  // (0.18) every mission starts on the tactical screen, the game waiting: call SEAF in (the first drop is ready), give orders,
+  // build, then go (Space, Tab or the ✕). ?skipstart (tests) drops straight in.
+  if (!qs.has('skipstart') && !BOT) {
+    setTac(true); hud.setTcTab('units');
+    if (mission.defenders) { const d = mission.defenders; mission.notice(t('n.defenders', { n: d.n, place: t('place.' + (d.type === 'nuke' ? 'launch' : d.type === 'vip' ? 'pickup' : d.type)) }), 'good'); }
+    cam.x = mission.lz.x; cam.y = mission.lz.y + cam.view * 0.16 * (window.innerHeight / Math.max(1, window.innerWidth));     // (the landing zone above the console)
+    hud.toast(t(input.touch ? 'tac.startTouch' : 'tac.startDesk'), 6000);
+  }
 }
 
 function finishMission() {
@@ -732,7 +777,7 @@ function softPause(force) {
   if (on === soft) return;
   if (!on) menuSoft = false;
   soft = on; paused = on;
-  firePending = false; setPlacing(null); setDrawing(false); buildMenu(false); mission.setFiring(false); camPan = null;
+  firePending = false; setPlacing(null); setDrawing(false); mission.setFiring(false); camPan = null;   // (0.18: the tactical screen stays open to look at; no orders while paused)
   hud.setSoft(on);
   if (on) { audio.humStop(); audio.click(); } else { audio.unlock(); audio.humStart(); audio.click(); }
 }
@@ -999,6 +1044,11 @@ function onEvent(ev, now) {
     case 'supply_ask': audio.supAsk(); hud.wake(6000); break;
     case 'supply_fill': audio.slowIn(); break;
     case 'supply_tap': audio.supTap(ev.i); if (ev.full) audio.supFull(ev.i); break;
+    case 'hellbomb_tap': audio.supTap(ev.i % 3); break;
+    case 'hellbomb_wrong': audio.deny(); break;
+    case 'hellbomb_fill': audio.chirp(); break;
+    case 'hellbomb_armed': audio.chirp(); break;
+    case 'cannon_fire': renderer.shake = Math.min(10, renderer.shake + 4); audio.chirp(); break;
     case 'supply_launch': audio.slowOut(); audio.supLaunch(ev.fast); break;
     case 'supply_down': audio.supDown(L, P); break;
     case 'supply_no': audio.deny(); break;
@@ -1138,9 +1188,8 @@ function simulate(dt, now) {
   }
   // half speed if picked; slow motion while the supply pod is loaded; the tactical build screen stops the game (or slows it)
   const tacSlow = settings.tacTime === 'slow';
-  const slow = supplyFilling(m) ? C.supply.slowmo : tac ? (tacSlow ? C.build.slowmo : 0) : 1;
-  document.body.classList.toggle('slowtac', tac && tacSlow && !supplyFilling(m));
-  document.body.classList.toggle('tacpause', tac && !tacSlow && !supplyFilling(m));
+  const slow = hbFilling(m) ? C.objective.hellbomb.slowmo : supplyFilling(m) ? C.supply.slowmo : 1;     // (0.18: the tactical screen runs in real time)
+  void tacSlow;
   acc += dt * FAST * speed * slow;
   let n = 0;
   const cap = 6 * FAST + 2;

@@ -21,7 +21,7 @@ const ev = (f, a) => page.evaluate(f, a);
 const tap = (sel) => (touch ? page.tap(sel) : page.click(sel));
 const shot = (n) => page.screenshot({ path: path.join(SHOTS, `ui15_${mode}_${n}.png`) });
 const on = (id) => ev((i) => document.getElementById(i).classList.contains('on'), id);
-const PAGE = `file://${ROOT}/dist/orbital-fury.html?faction=bots&biome=grass&seed=1515&tod=11&difficulty=4`;
+const PAGE = `file://${ROOT}/dist/orbital-fury.html?skipstart&faction=bots&biome=grass&seed=1515&tod=11&difficulty=4`;
 
 await page.goto(PAGE); await page.waitForTimeout(600);
 await tap('#btn-play'); await page.waitForTimeout(250);
@@ -118,15 +118,15 @@ check('and back to full speed', await ev(() => window.__game.speed === 1 && docu
 await ev(() => { const m = window.__game.mission; m.seaf.readyAt = 0; m.callSeaf(m.hx + 20, m.hy + 10); for (let i = 0; i < 30 * 14; i++) m.step(1 / 30); });
 await tap(touch ? '#dk-tac' : '#btn-tac'); await page.waitForTimeout(300);
 const bm = await ev(() => [...document.querySelectorAll('#tactical .bld')].map((b) => b.textContent));
-check('the tactical build screen has the artillery cannon, locked until the armory unlocks it', bm.length === 7 && /ARTILLERY CANNON/.test(bm[6]) && /UNLOCK/.test(bm[6]), bm.join(' | '));
-check('and the game waits while it is open (0.17)', await ev(async () => { const g = window.__game, t0 = g.mission.t; await new Promise((r) => setTimeout(r, 300)); return g.tac && g.mission.t === t0 && document.body.classList.contains('tacpause'); }));
+check('the tactical build screen has the artillery cannon, locked until the armory unlocks it', bm.length === 8 && /ARTILLERY CANNON/.test(bm[7]) && /UNLOCK/.test(bm[7]), bm.join(' | '));
+check('and (0.18) the game runs on while it is open', await ev(async () => { const g = window.__game, t0 = g.mission.t; await new Promise((r) => setTimeout(r, 300)); return g.tac && g.mission.t > t0; }));
 await shot('buildmenu');
 await tap('#tactical .tc-x'); await page.waitForTimeout(250);
 check('its ✕ closes it', !(await page.isVisible('#tactical')) && await ev(() => !window.__game.tac));
 await ev(() => { const g = window.__game, m = g.mission; g.makePost('arty', m.hx + 40, m.hy + 20); m.step(1 / 30); m.step(1 / 30); });
 await page.waitForTimeout(300);
 const w9 = await ev(() => { const b = document.querySelectorAll('#weapons .wbtn')[8]; return { shown: b && b.style.display !== 'none', txt: b ? b.textContent : '' }; });
-check('an artillery cannon puts weapon 9 on the bar, and says when nobody mans it', w9.shown && /ARTILLERY/.test(w9.txt) && /NO CREW/.test(w9.txt), w9.txt);
+check('an artillery cannon puts weapon 9 on the bar (0.18: it works with nobody on it)', w9.shown && /ARTILLERY/.test(w9.txt), w9.txt);
 // a marked base, and a crate on the ground
 await ev(() => { const m = window.__game.mission, b = m.bases.find((q) => !q.destroyed); b.marked = { at: m.t, until: m.t + 15 }; window.__game.cam.x = b.x; window.__game.cam.y = b.y + 30; window.__game.cam.follow = false; m.crates.push({ id: m.nextId++, what: 'mg', x: b.x - 60, y: b.y + 40, landed: true, used: false }); });
 await page.waitForTimeout(600);

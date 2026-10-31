@@ -14,8 +14,8 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 // Every optional task still open: enemy bases (not the citadel) and side missions.
 export function openTasks(m) {
   const out = [];
-  for (const b of m.bases) if (!b.destroyed && !b.fortress && !b.part) out.push({ kind: 'base', ref: b, x: b.x, y: b.y });   // the citadel's bases are the objective
-  for (const s of m.sides || []) if (!s.done && !s.failed) out.push({ kind: s.kind, ref: s, x: s.x, y: s.y });
+  for (const b of m.bases) if (!b.destroyed && !b.fortress && !b.part && !b.op) out.push({ kind: 'base', ref: b, x: b.x, y: b.y });   // the citadel's bases are the objective
+  for (const s of m.sides || []) if (!s.done && !s.failed && !s.hidden) out.push({ kind: s.kind, ref: s, x: s.x, y: s.y });
   return out;
 }
 const taskOpen = (k) => (k.kind === 'base' ? !k.ref.destroyed : !k.ref.done && !k.ref.failed);
@@ -25,7 +25,7 @@ function work(m, k) {
   const W = PL().work;
   if (k.kind === 'main') {
     const o = k.ref;
-    return o.type === 'fortress' ? W.fortress : o.type === 'evac' ? W.evac : o.type === 'nuke' ? W.nuke : W.vip;
+    return W[o.type] || W.vip;
   }
   return W[k.kind] || 60;
 }
@@ -46,7 +46,7 @@ function mainBusy(m) {
   const o = activeObjective(m);
   if (!o) return false;
   // a VIP once picked up stays the job until delivered, even when dropped: nobody wanders off to a base and leaves them lying there
-  return (o.type === 'nuke' && o.state !== 'travel') || (o.type === 'vip' && (o.state !== 'travel' || o.picked)) || (o.type === 'evac' && o.state !== 'travel');
+  return (o.type === 'nuke' && o.state !== 'travel') || (o.type === 'vip' && (o.state !== 'travel' || o.picked)) || (o.type === 'evac' && o.state !== 'travel') || (o.type === 'oil' && o.state !== 'travel') || (o.type === 'fortress' && !!m.hellbomb && m.hellbomb.o === o);
 }
 
 // A rough tour of the open tasks from p, nearest first: total seconds and where it ends.

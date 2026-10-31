@@ -20,7 +20,7 @@ import { makePost, GARRISON } from './posts.js';
 
 const SIZE = C.world.size;
 const S = C.seaf;
-export const SQUAD_COLOR = ['#5fa8ff', '#ff9d4a', '#c58bff', '#3fe0c4'];
+export const SQUAD_COLOR = ['#5fa8ff', '#ff9d4a', '#c58bff', '#3fe0c4', '#ffd24a', '#ff6fa8', '#9dff6a', '#6ae0ff', '#e0a070'];
 const M4 = (L, Mm, H, B) => ({ L, M: Mm, H, B });
 const PEL_MULT = M4(1, 1, 0.4, 0.05);
 
@@ -56,20 +56,24 @@ function walk(m, a, tx, ty, speed, dt) {
 export function newOrder(kind = 'auto', x = 0, y = 0, until = 0) {
   return { kind, x, y, until, path: null, pi: 0, p0: null, p1: null, R: 0, fid: 0 };
 }
+// (0.18) Troopers do not have to be in a squad: a disbanded squad's troopers are LOOSE (they hold where they stand). The player can
+// pick single troopers or a box of them (PICKED: sel is PICKED and pick lists them); an order to them forms them into a squad.
+export const LOOSE = -3, PICKED = -2;
 export function initSeaf() {
   return {
-    readyAt: C.seaf.firstDropSec, sel: -1, spotAt: 0, fid: 0,      // the first troop drop is a little way into the mission
+    readyAt: C.seaf.firstDropSec, sel: -1, pick: null, spotAt: 0, fid: 0,      // the first troop drop is a little way into the mission
     squads: Array.from({ length: S.squads }, (_, i) => ({ i, order: newOrder(), tgt: null, tgtT: 0, clearT: 0, skip: new Map(), stand: null, ax: 0, ay: 0, n: 0, cx: 0, cy: 0 })),
   };
 }
 // Squads an order applies to: the selected one, or every squad that has troops.
 function recount(m) {
   for (const q of m.seaf.squads) q.n = 0;
-  for (const a of m.seafAlive) { if (a.sq === GARRISON) continue; if (!(a.sq >= 0 && a.sq < m.seaf.squads.length)) a.sq = 0; m.seaf.squads[a.sq].n++; }
+  for (const a of m.seafAlive) { if (a.sq === GARRISON || a.sq === LOOSE) continue; if (!(a.sq >= 0 && a.sq < m.seaf.squads.length)) a.sq = 0; m.seaf.squads[a.sq].n++; }
 }
 export function targetSquads(m) {
   const sf = m.seaf;
   recount(m);
+  if (sf.sel === PICKED) { const q = adopt(m); return q ? [q] : []; }
   if (sf.sel >= 0) return [sf.squads[sf.sel]];
   return sf.squads.filter((q) => q.n > 0);
 }
@@ -80,6 +84,9 @@ export function squadMembers(m, i) { return m.seafAlive.filter((a) => a.sq === i
 export function dropSquad(m) {
   const sf = m.seaf;
   if (sf.sel >= 0) return sf.sel;
+  // (0.18) a drop comes down as a squad of its own while there is a free one
+  const free = sf.squads.find((q) => squadCount(m, q.i) === 0 && pendingFor(m, q.i) === 0);
+  if (free) { free.order = newOrder(); free.form = null; return free.i; }
   let best = 0, bn = Infinity;
   for (const q of sf.squads) { const n = squadCount(m, q.i) + pendingFor(m, q.i); if (n < bn || (n === bn && q.i < best)) { bn = n; best = q.i; } }
   return best;
@@ -104,12 +111,13 @@ export function builtCount(m, what) { return (m.posts || []).filter((p) => !p.de
 // built it stays on it. Upgrades from the armory decide how good it is (data/kit.js buildStats).
 function finishBuild(m, q, o) {
   if (o.crate) { o.crate.used = true; m.crates = m.crates.filter((c) => c !== o.crate); }
-  const p = makePost(m, o.what, o.x, o.y);
+  const p = makePost(m, o.what, o.x, o.y, o.crate && o.crate.span ? { span: o.crate.span } : {});
   if (o.what === 'arty') m.radio(COMMS.artyUp, 'artyup', 0);
   m.stats.built = (m.stats.built || 0) + 1;
   m.notice(tr(o.what === 'foxhole' ? 'n.dug' : 'n.built', { what: tr('build.' + o.what), cr: buildStats(o.what, p.lvl).cost }), 'good');
   m.emit('built', { what: o.what, x: o.x, y: o.y });
-  setSquadOrder(m, q, 'post', p.x, p.y, { post: p, site: p.site });
+  if (o.what === 'bridge') setSquadOrder(m, q, 'protect', o.x, o.y);       // (nothing to man on a bridge)
+  else setSquadOrder(m, q, 'post', p.x, p.y, { post: p, site: p.site });
   return true;
 }
 
@@ -376,7 +384,8 @@ export function updateSeaf(m, dt, speed, bm) {
   updatePelicans(m, dt);
   const by = sf.squads.map(() => []), held = [];
   for (const a of m.seafAlive) {
-    if (a.sq === GARRISON) { if (a.post && !a.post.dead) { held.push(a); continue; } a.post = null; a.sq = a.sqWas >= 0 ? a.sqWas : 0; }
+    if (a.sq === LOOSE) continue;            // in no squad: they hold where they stand (and fight from there)
+    if (a.sq === GARRISON) { if (a.post && !a.post.dead) { held.push(a); continue; } a.post = null; a.sq = a.sqWas >= 0 ? a.sqWas : LOOSE; if (a.sq === LOOSE) continue; }
     if (!(a.sq >= 0 && a.sq < by.length)) a.sq = 0;
     by[a.sq].push(a);
   }
@@ -603,24 +612,71 @@ function stepGarrisons(m, held, dt, speed) {
   }
 }
 
-// ---- box select: the troopers inside a box on the map become one squad, selected. If they are all of one squad already, that
-// squad is selected; otherwise they move to a free squad slot, or to the slot of a squad that is entirely inside the box.
+// ---- picking troopers (0.18, the way Age of Empires II does it): the troopers picked are selected as they are, squad or not. If
+// they are exactly one whole squad, that squad is selected. An order to a pick forms it into a squad (adopt).
+export function pickTroops(m, list) {
+  const sf = m.seaf;
+  list = list.filter((a) => a && !a.dead && a.type === 'S' && a.sq !== GARRISON);
+  if (!list.length) { sf.pick = null; if (sf.sel === PICKED) sf.sel = -1; return { ok: false, reason: 'none' }; }
+  recount(m);
+  const from = new Set(list.map((a) => a.sq));
+  if (from.size === 1) { const i = list[0].sq; if (i >= 0 && squadCount(m, i) === list.length) { sf.sel = i; sf.pick = null; return { ok: true, to: i, n: list.length }; } }
+  sf.pick = list.map((a) => a.id); sf.sel = PICKED;
+  return { ok: true, to: PICKED, n: list.length };
+}
+export const picked = (m) => (m.seaf.sel === PICKED && m.seaf.pick ? m.seafAlive.filter((a) => m.seaf.pick.includes(a.id)) : []);
+// The troopers the selection stands for: a pick, a squad, or (ALL) every one not in a building.
+export function selectedTroops(m) {
+  const sf = m.seaf;
+  if (sf.sel === PICKED) return picked(m);
+  if (sf.sel >= 0) return squadMembers(m, sf.sel);
+  return m.seafAlive.filter((a) => a.sq !== GARRISON);
+}
+// A pick given an order becomes a squad: a free one (with the order its troopers' squad had), or the squad most of them are in.
+function adopt(m) {
+  const sf = m.seaf, list = picked(m);
+  if (!list.length) { sf.sel = -1; sf.pick = null; return null; }
+  const free = sf.squads.find((q) => squadCount(m, q.i) === 0 && pendingFor(m, q.i) === 0);
+  let to;
+  if (free) to = free.i;
+  else { const cnt = new Map(); for (const a of list) if (a.sq >= 0) cnt.set(a.sq, (cnt.get(a.sq) || 0) + 1); to = [...cnt.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0; }
+  moveTo(m, list, to);
+  return sf.squads[to];
+}
+function moveTo(m, list, to) {
+  const sf = m.seaf, dst = sf.squads[to], src = list.find((a) => a.sq >= 0 && a.sq !== to);
+  if (squadCount(m, to) === 0) {
+    if (src) { const q = sf.squads[src.sq]; dst.order = { ...q.order, path: q.order.path ? q.order.path.slice() : null }; dst.ax = q.ax; dst.ay = q.ay; dst.form = q.form; }
+    else { let x = 0, y = 0; for (const a of list) { x += a.x; y += a.y; } dst.order = newOrder('protect', x / list.length, y / list.length); }
+    dst.tgt = null; dst.stand = null;
+  }
+  for (const a of list) a.sq = to;
+  sf.sel = to; sf.pick = null;
+  recount(m);
+}
+// Alt+number, or a double tap on a squad's button: the selection joins squad `to` (0 to 8).
+export function toSquad(m, to) {
+  if (!(to >= 0 && to < m.seaf.squads.length)) return { ok: false, reason: 'unknown' };
+  const list = selectedTroops(m).filter((a) => a.sq !== to && a.sq !== GARRISON);
+  if (!list.length) return { ok: false, reason: 'none' };
+  moveTo(m, list, to);
+  return { ok: true, to, n: list.length };
+}
+// Out of their squad: the selected troopers hold where they stand, in no squad.
+export function disband(m) {
+  const sf = m.seaf, list = sf.sel === -1 ? [] : selectedTroops(m);
+  if (!list.length) return { ok: false, reason: 'none' };
+  for (const a of list) a.sq = LOOSE;
+  sf.sel = -1; sf.pick = null;
+  recount(m);
+  return { ok: true, n: list.length };
+}
+
+// ---- box select: the troopers inside a box on the map are picked (0.18: they stay in their squads until they get an order).
 export function boxSelect(m, x0, y0, x1, y1) {
   const inside = m.seafAlive.filter((a) => a.sq !== GARRISON && a.x >= x0 && a.x <= x1 && a.y >= y0 && a.y <= y1);
   if (!inside.length) return { ok: false, reason: 'none' };
-  recount(m);
-  const from = new Set(inside.map((a) => a.sq));
-  const whole = [...from].filter((i) => squadCount(m, i) === inside.filter((a) => a.sq === i).length);
-  if (from.size === 1 && whole.length === 1) { m.seaf.sel = whole[0]; return { ok: true, to: whole[0], n: inside.length, split: false }; }
-  const free = m.seaf.squads.find((o) => squadCount(m, o.i) === 0 && pendingFor(m, o.i) === 0);
-  const to = free ? free.i : whole.length ? whole[0] : -1;
-  if (to < 0) return { ok: false, reason: 'nosquad' };
-  const src = m.seaf.squads[inside[0].sq], dst = m.seaf.squads[to];
-  if (free) { dst.order = { ...src.order, path: src.order.path ? src.order.path.slice() : null }; dst.tgt = null; dst.stand = null; dst.ax = src.ax; dst.ay = src.ay; dst.form = src.form; }
-  for (const a of inside) a.sq = to;
-  m.seaf.sel = to;
-  recount(m);
-  return { ok: true, to, n: inside.length, split: true };
+  return pickTroops(m, inside);
 }
 
 // Lines and rings: everyone sharing the formation takes a slot, and stays there to fight.

@@ -158,7 +158,7 @@ function lone(m, kind, x, y) {
 {
   const items = shopItems(newKit()).filter((x) => x.section === 'build');
   // (0.16: walls became the Defilade Bastions, the drop beacon the Propaganda Tower, the howitzer the Artillery Cannon; r16 has more)
-  check('the armory has a BUILDABLES section', items.map((x) => x.build).join(',') === 'bastion,mg,bunker,tower,sam,arty');
+  check('the armory has a BUILDABLES section', items.map((x) => x.build).join(',') === 'bastion,mg,lookout,bridge,tower,sam,arty');
   check('bastions, MG posts, bunkers and towers start at level 1; the cannon must be unlocked', items.filter((x) => x.build !== 'arty' && x.build !== 'sam').every((x) => x.level === 1) && items.find((x) => x.build === 'arty').level === 0);
   const old = fixKit({ slots: 3, loadout: ['orb_airburst'], owned: { orb_airburst: 1 } });
   check('an old save gets the buildables too', old.build && old.build.bastion === 1 && old.build.arty === 0);
@@ -181,6 +181,8 @@ function lone(m, kind, x, y) {
   check('the bastions are built at their armory level', site && site.pieces.length === buildStats('bastion', 3).n && site.pieces[0].mul === buildStats('bastion', 3).mul, site ? `${site.pieces.length} walls` : '');
   check('nothing more is charged when it is finished', m.wallet.bal >= bal - buildStats('bastion', 3).cost);
   // an order changed before the crate is used: the crate stays, and the next build there costs nothing
+  // (0.18: troopers found on the way may have joined a squad; split them in two again)
+  m.seafAlive.forEach((a, i) => { a.sq = i % 2; }); m.step(0);
   m.selectSquad(1);
   // (0.16: a spot on dry land: a river near here may have a bridge over it now, and nothing is built on a bridge)
   let sp = { x: m.hx - 40, y: m.hy }; for (let k = 0; k < 24 && !m.terrain.isLand(sp.x, sp.y); k++) sp = { x: m.hx - 40 + (k % 5) * 8, y: m.hy + Math.floor(k / 5) * 8 };

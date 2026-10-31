@@ -11,6 +11,7 @@ import { compass } from './sim/enemies.js';
 import { builtCount, FORMS } from './sim/seaf.js';
 import { POSTS, postReach, needsCrew, garrisonOf } from './sim/posts.js';
 import { objectiveStatus, OBJ_NAME } from './sim/objectives.js';
+import { SQUAD_COLOR } from './sim/seaf.js';
 import { todAt, todName, todClock } from './render/sky.js';
 import { situation, tipsFor } from './data/tips.js';
 import { t, tl, getLang, LANGS } from './i18n.js';
@@ -23,7 +24,8 @@ const SCREENS = ['s-title', 's-shop', 's-brief', 's-debrief', 's-final'];
 const OVERLAYS = ['s-pause', 's-lock', 's-controls', 's-manual', 's-armory', 's-names', 's-settings', 's-notice', 's-info', 's-about', 's-map'];
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const SQUAD_COL = [0, 1, 2, 3].map(squadColor);
+const ROLE_GLYPH = { rifle: '•', medic: '+', rocket: '/', gren: '◆', spotter: '▲' };
+const SQUAD_COL = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(squadColor);
 // The doors on a selected post (Age of Empires style): go in (garrison it) and come out (release the garrison).
 const DOOR = '<path d="M4 21V4.5L12 3v18M12 3h6v18h-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="9.6" cy="12.5" r="1" fill="currentColor"/>';
 const DOOR_IN = `<svg viewBox="0 0 24 24" aria-hidden="true">${DOOR}<path d="M23 12h-8.5m3-3-3 3 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -56,9 +58,17 @@ export class Hud {
     // a double tap (or double click) on a team, Helldiver or SEAF, moves the camera to it
     this._taps = {};
     this.dbl = (key) => { const now = performance.now(), last = this._taps[key] || 0; this._taps[key] = now; if (now - last < 400) { this._taps[key] = 0; return true; } return false; };
+    // (0.18) nine squads; only those with troops show. A double tap on one moves what was selected before into it (or, when that
+    // was the squad itself, looks at it).
+    const sqbs = document.querySelector('#squads .sqbs');
+    for (let i = 0; i < C.seaf.squads; i++) {
+      const e = el('button', 'sqb', `<span class="n">S${i + 1}</span><span class="s">--</span>`);
+      e.dataset.sq = String(i); e.style.setProperty('--sc', SQUAD_COLOR[i] || '#9dd8ff'); e.type = 'button';
+      sqbs.appendChild(e);
+    }
     document.querySelectorAll('#squads .sqb').forEach((e) => {
       const i = Number(e.dataset.sq);
-      e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); this.onSquad && this.onSquad(i); if (this.dbl('s' + i)) this.onFocus && this.onFocus('seaf', i); });
+      e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); const d = this.dbl('s' + i); if (d && i >= 0 && this.onSquadDbl && this.onSquadDbl(i)) return; this.onSquad && this.onSquad(i); if (d) this.onFocus && this.onFocus('seaf', i); });
       this.sqb.push({ i, el: e, s: e.querySelector('.s'), key: '' });
     });
     document.querySelectorAll('#squads .sqa').forEach((e) => {
@@ -92,6 +102,32 @@ export class Hud {
       e.addEventListener('pointerenter', (ev) => { if (ev.pointerType === 'mouse' && this.m) this.tip(e, () => formShort(this.m, f), null, 0); });
       e.addEventListener('pointerleave', (ev) => { if (ev.pointerType === 'mouse') this.tipLeave(); });
       tf.appendChild(e); this.frm[f] = { el: e, n: e.querySelector('.n'), key: '' };
+    });
+    $('dropcd-go').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onDeployNow && this.onDeployNow(); });
+    // (0.18) the console's four modes
+    this.tcTab = 'build';
+    document.querySelectorAll('#tactical .tct').forEach((b) => b.addEventListener('pointerdown', (ev) => {
+      ev.preventDefault(); ev.stopPropagation();
+      if (b.dataset.tab === 'armory') { this.onArmory && this.onArmory(); return; }
+      this.setTcTab(b.dataset.tab);
+    }));
+    const ordBox = document.querySelector('#tactical .tac-ord');
+    for (const [o, k] of [['seaf', 'G'], ['auto', 'X'], ['move', 'V'], ['protect', 'Z'], ['attack', 'N'], ['escort', 'C'], ['disband', 'M']]) {
+      const e = el('button', 'tco ' + o, `<span class="k">${k}</span><span class="n"></span><span class="s"></span>`);
+      e.type = 'button'; e.dataset.o = o;
+      e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); if (o === 'disband') this.onSquadAct && this.onSquadAct('disband'); else this.onOrder && this.onOrder(o); });
+      ordBox.appendChild(e);
+    }
+    const sqBox = document.querySelector('#tactical .tac-sq');
+    for (let i = 0; i < C.seaf.squads; i++) {
+      const e = el('button', 'tcq', `S${i + 1}`); e.type = 'button'; e.style.setProperty('--sc', SQUAD_COLOR[i] || '#9dd8ff');
+      e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onToSquad && this.onToSquad(i); });
+      sqBox.appendChild(e);
+    }
+    document.getElementById('tc-sel').addEventListener('pointerdown', (ev) => {
+      const tile = ev.target.closest('[data-pick]'), door = ev.target.closest('[data-sa]');
+      if (tile) { ev.preventDefault(); ev.stopPropagation(); this.onPickOne && this.onPickOne(Number(tile.dataset.pick)); }
+      else if (door) { ev.preventDefault(); ev.stopPropagation(); this.onSelAct && this.onSelAct(door.dataset.sa); }
     });
     document.querySelector('#tactical .tc-x').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onTac && this.onTac(false); });
     $('btn-tac').addEventListener('click', () => this.onTac && this.onTac());
@@ -137,6 +173,33 @@ export class Hud {
       this.sg.slots.push({ el: b, cells: [...cells.children], key: '' });
     });
     $('sg-launch').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); this.onSupLaunch && this.onSupLaunch(); });
+    // (0.18) the Hellbomb's parts
+    this.hbg = { el: $('hbgame'), slots: [], key: '', wrongAt: -9 };
+    document.querySelectorAll('#hbgame .hb-slot').forEach((b) => {
+      const i = Number(b.dataset.i), cells = b.querySelector('.sg-cells');
+      cells.innerHTML = '<i></i>'.repeat(C.objective.hellbomb.cells);
+      b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); this.onHbTap && this.onHbTap(i); });
+      this.hbg.slots.push({ el: b, cells: [...cells.children] });
+    });
+  }
+  _hbgame(m) {
+    const H = m.hellbomb, on = !!(H && H.state === 'fill'), g = this.hbg;
+    g.el.classList.toggle('hidden', !on);
+    document.body.classList.toggle('slowmo', on || !!(m.supply && m.supply.state === 'fill'));
+    if (!on) { g.key = ''; return; }
+    const f = H.fill, K = C.objective.hellbomb, real = f.t / K.slowmo;
+    $('hb-time').style.width = `${Math.max(0, 1 - real / K.fillSec) * 100}%`;
+    const key = `${f.i}|${f.n}|${f.wrong}`;
+    if (g.key === key) return;
+    const wrong = g.key && Number(g.key.split('|')[2]) < f.wrong;
+    g.key = key;
+    f.order.forEach((part, k) => {
+      const sl = g.slots[part], done = k < f.i, lit = k === f.i;
+      sl.el.classList.toggle('done', done); sl.el.classList.toggle('lit', lit);
+      sl.cells.forEach((c, j) => c.classList.toggle('on', done || (lit && j < f.n)));
+      if (wrong && !lit) { sl.el.classList.remove('wrong'); void sl.el.offsetWidth; }
+    });
+    if (wrong) for (const sl of g.slots) if (!sl.el.classList.contains('lit') && !sl.el.classList.contains('done')) { sl.el.classList.add('wrong'); setTimeout(() => sl.el.classList.remove('wrong'), 260); }
   }
 
   // ---- callouts under the objective: a free-fire zone to saturate, and supply requests
@@ -451,11 +514,21 @@ export class Hud {
     const live = m.liveScore();
     this._set('sm', $('sc-mission'), fmtNum(live));
     this._set('ss', $('sc-session'), fmtNum(session.score + live));
+    // (0.18) the drop countdown
+    const din = m.countdown ? m.dropIn : 0, dc = $('dropcd');
+    if (din > 0) { dc.classList.remove('hidden'); this._set('dropcd', $('dropcd-n'), `0:${String(Math.ceil(din)).padStart(2, '0')}`); }
+    else if (!dc.classList.contains('hidden')) dc.classList.add('hidden');
     this._set('cr', $('sc-credits'), fmtNum(m.wallet.bal));
+    // the big credits at the top left, with a flash of what just came in or went out
+    if (this.last.bigcr !== m.wallet.bal) {
+      const d = this.last.bigcr === undefined ? 0 : m.wallet.bal - this.last.bigcr;
+      this.last.bigcr = m.wallet.bal; $('bigcr-v').textContent = fmtNum(m.wallet.bal);
+      if (d) { const e = $('bigcr-d'); e.textContent = (d > 0 ? '+' : '−') + fmtNum(Math.abs(d)); e.className = d > 0 ? 'up' : 'down'; void e.offsetWidth; e.classList.add('go'); }
+    }
     const cb = m.combo.mult > 1.05 && m.t - m.combo.last < C.score.comboResetSec ? t('hud.combo', { n: m.combo.mult.toFixed(1) }) : '';
     this._set('combo', $('combo'), cb);
 
-    this._roster(m); this._supply(m); this._strats(m); this._orders(m); this._squads(m); this._weapons(m); this._callouts(m); this._supgame(m);
+    this._roster(m); this._supply(m); this._strats(m); this._orders(m); this._squads(m); this._weapons(m); this._callouts(m); this._supgame(m); this._hbgame(m);
     this.placeCard();
     this.tipTick();
     // a squad picked: its tip over its button (when the button is on screen)
@@ -559,10 +632,21 @@ export class Hud {
   }
   // The tactical build screen: what is selected, each build's picture, name, level and cost (or LOCKED), and the selected squad's
   // formation.
+  setTcTab(tab) {
+    if (!['units', 'build', 'ship'].includes(tab)) return;
+    this.tcTab = tab;
+    const tc = $('tactical'); tc.dataset.tab = tab;
+    document.querySelectorAll('#tactical .tct').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
+    const hb = document.querySelector('#tactical .tc-h b'); if (hb) hb.textContent = t(tab === 'units' ? 'tac.tUnitsH' : tab === 'ship' ? 'tac.tShipH' : 'tac.title');
+    if (this.m) this.fillTactical(this.m);
+  }
   fillTactical(m, sel = this.selObj) {
     if (!m) return;
+    if ($('tactical').dataset.tab !== this.tcTab) this.setTcTab(this.tcTab);
     this._tacSel(m, sel);
     this._tacList(m);
+    this._tacUnits(m);
+    this._tacShip(m);
     for (const [what, b] of Object.entries(this.bld)) {
       const lvl = buildLevel(m.kit, what), B = buildStats(what, lvl), n = builtCount(m, what);
       const cls = !lvl ? 'off' : m.wallet.bal < B.cost ? 'poor' : 'ready';
@@ -579,6 +663,47 @@ export class Hud {
     // how tall the console is, so the drop menus sit just above it
     const h = $('tactical').offsetHeight;
     if (h && h !== this.last.tch) { this.last.tch = h; document.body.style.setProperty('--tch', `${h}px`); }
+  }
+  // (0.18) the troops mode: the orders (as the HUD's, with what each squad is doing), and the squads the selection can join
+  _tacUnits(m) {
+    const sf = m.seaf, any = m.seafAlive.length > 0, selN = sf.sel === -2 ? (sf.pick || []).length : sf.sel >= 0 ? sf.squads[sf.sel].n : 0;
+    document.querySelectorAll('#tactical .tco').forEach((b) => {
+      const o = b.dataset.o, src = this.ord[o];
+      const n = o === 'disband' ? t('hud.disband') : src ? src.el.querySelector('.n').textContent : o;
+      const s = o === 'disband' ? '' : src ? src.sub.textContent : '';
+      const off = o === 'disband' ? !selN : o !== 'seaf' && !any;
+      const key = `${n}|${s}|${off}|${src ? src.el.className : ''}`;
+      if (b._k === key) return; b._k = key;
+      b.querySelector('.n').textContent = n; b.querySelector('.s').textContent = s;
+      b.className = 'tco ' + o + (off ? ' off' : '') + (src && /\bcd\b/.test(src.el.className) ? ' cd' : '');
+    });
+    document.querySelectorAll('#tactical .tcq').forEach((b, i) => {
+      const n = sf.squads[i] ? sf.squads[i].n : 0, key = `${n}|${sf.sel === i}|${selN > 0}`;
+      if (b._k === key) return; b._k = key;
+      b.textContent = n ? `S${i + 1} · ${n}` : `S${i + 1}`;
+      b.className = 'tcq' + (sf.sel === i ? ' sel' : '') + (n ? ' has' : '') + (selN ? '' : ' off');
+    });
+  }
+  // (0.18) the ship mode: the destroyer's weapons; picking one closes the console with it armed
+  _tacShip(m) {
+    const box = document.querySelector('#tactical .tac-ship'), p = m.player;
+    const key = p.slots.map((s) => s.type + (s.id || '')).join(',') + getLang();
+    if (box._k !== key) {
+      box._k = key; box.innerHTML = '';
+      p.slots.forEach((s, i) => {
+        if (s.type === 'empty' || (s.type === 'nuke' && !m.objectives.some((o) => o.type === 'nuke'))) return;
+        const e = el('button', 'tcw', `<span class="k">${i === 9 ? 0 : i + 1}</span><span class="n"></span><span class="s"></span>`);
+        e.type = 'button'; e.dataset.i = String(i);
+        e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onWeapon && this.onWeapon(i); });
+        box.appendChild(e);
+      });
+    }
+    box.querySelectorAll('.tcw').forEach((e) => {
+      const w = this.wb[Number(e.dataset.i)]; if (!w) return;
+      const n = w.n.textContent, s = w.sub.textContent, k2 = n + '|' + s;
+      if (e._k === k2) return; e._k = k2;
+      e.querySelector('.n').textContent = n; e.querySelector('.s').textContent = s;
+    });
   }
   // Touch: SELECT is armed (the next drag on the map draws a selection box).
   setBoxArm(on) { this.boxArm = !!on; document.body.classList.toggle('boxing', !!on); if (this.sqa && this.sqa.box) this.sqa.box.key = ''; }
@@ -606,8 +731,13 @@ export class Hud {
       const hp = Math.min(...g.list.map((p) => (p.maxHp ? p.hp / p.maxHp : 1)));
       items.push({ key: 'g' + g.list.map((p) => p.id).join('.'), x, y, f: 1, built: true, list: g.list, name, sub: hp < 0.995 ? `${Math.round(hp * 100)}%` : '' });
     }
-    const box = $('tc-list'), key = items.map((i) => `${i.key}:${i.sub}:${i.hands || 0}`).join('|') + getLang();
-    if (this.last.tcl === key) return;
+    const box = $('tc-list'), key = items.map((i) => `${i.key}:${i.crate && !i.crate.landed ? 'in' : ''}`).join('|') + getLang();
+    // (0.18: the screen runs in real time) the same chips: their progress changes in place, so a tap on one is never lost to a redraw
+    if (this.last.tcl === key) {
+      [...box.children].forEach((b, k) => { const it = items[k]; if (!it) return; const f = b.querySelector('.tl-f'), sEl = b.querySelector('.tl-s');
+        f.style.width = `${Math.round(it.f * 100)}%`; if (sEl) { if (sEl.textContent !== it.sub) sEl.textContent = it.sub; } else if (it.sub) b.insertAdjacentHTML('beforeend', `<span class="tl-s">${esc(it.sub)}</span>`); });
+      return;
+    }
     this.last.tcl = key;
     box.innerHTML = '';
     box.classList.toggle('empty', !items.length);
@@ -627,8 +757,8 @@ export class Hud {
   }
   // The tactical build screen's header: whether the game waits or runs slow, and how to use it here.
   setTacState(slow, touch) {
-    $('tc-state').textContent = t(slow ? 'tac.slowed' : 'tac.paused');
-    document.querySelector('#tac-banner b').textContent = t(slow ? 'tac.slowed' : 'tac.paused');
+    $('tc-state').textContent = t('tac.live');      // (0.18) it runs in real time
+    void slow;
     $('tc-help').textContent = t(touch ? 'tac.helpTouch' : 'tac.helpDesk');
   }
   // A weapon is armed (picked on the bar or with its key): the reticle shows and a click calls it. Otherwise the cursor selects.
@@ -636,24 +766,33 @@ export class Hud {
   // The tactical screen's left panel: the selected post (or site, or sentry), or the selected squad and what it is made of.
   _tacSel(m, sel) {
     const sf = m.seaf, q = sf.sel >= 0 ? sf.squads[sf.sel] : null;
+    // (0.18) like Age of Empires II: a tile for each trooper selected (his role, his health); tap one to pick him alone
+    const tiles = (list, max = 24) => `<div class="ts-tiles">${list.slice(0, max).map((a) => {
+      const hp = Math.max(0, Math.min(1, a.hp / a.maxHp));
+      return `<button type="button" class="tt r-${a.role || 'rifle'}" data-pick="${a.id}" title="${esc(m.tag(a))}" style="--sc:${a.sq >= 0 ? (SQUAD_COL[a.sq] || '#9dd8ff') : '#c8d2cc'}"><b>${ROLE_GLYPH[a.role || 'rifle'] || '•'}</b><u style="width:${Math.round(hp * 100)}%"></u></button>`;
+    }).join('')}${list.length > max ? `<span class="tt-more">+${list.length - max}</span>` : ''}</div>`;
     let h;
     if (sel && !sel.dead) {
       const post = sel.kind === 'post' ? sel : null, hp = sel.maxHp ? Math.round((100 * sel.hp) / sel.maxHp) : null;
       const name = post ? t('build.' + post.what) : sel.kind === 'turret' ? sel.name || t('lab.sentry') : t('sel.site');
+      const crew = post ? m.seafAlive.filter((a) => a.post === post) : [];
+      const who = sf.sel >= 0 ? `S${sf.sel + 1}` : sf.sel === -2 ? t('tac.picked') : t('hud.all');
       h = `<div class="ts-h">${esc(name.toUpperCase())}${post && post.what !== 'foxhole' ? ` <i>${esc(t('card.level', { n: post.lvl }))}</i>` : ''}</div>`
         + (hp !== null ? `<i class="ts-hp"><u style="width:${hp}%"></u></i>` : '')
-        + (post && post.cap ? `<div class="ts-r">${esc(t('sel.crew'))} <b>${post.crew}/${post.cap}</b>${post.garrison ? ` · ${esc(t('sel.garrison'))} <b>${post.garrison}</b>` : ''}</div>` : '')
+        + (post && post.cap ? `<div class="ts-r">${esc(t('sel.crew'))} <b>${post.crew}/${post.cap}</b>${post.crew ? '' : ` · <em class="ts-solo">${esc(t('sel.solo'))}</em>`}</div>` : '')
+        + (crew.length ? tiles(crew) : '')
+        + (post && post.cap ? `<div class="ts-doors">${post.garrison < post.cap ? `<button type="button" class="btn tsd" data-sa="in">${esc(t('sel.inBtn', { who }))}</button>` : ''}${post.garrison ? `<button type="button" class="btn tsd" data-sa="out">${esc(t('sel.outBtn'))}</button>` : ''}</div>` : '')
         + `<div class="ts-b">${esc(post ? t('sel.' + post.what) : sel.kind === 'turret' ? t('sel.sentry') : t('sel.siteB'))}</div>`;
+    } else if (sf.sel === -2 && sf.pick) {
+      const list = m.seafAlive.filter((a) => sf.pick.includes(a.id));
+      h = `<div class="ts-h">${esc(t('tac.picked'))} <i>${esc(t('tac.troopers', { n: list.length }))}</i></div>${tiles(list)}<div class="ts-b">${esc(t('tac.pickHint'))}</div>`;
     } else if (q && q.n) {
-      const list = m.seafAlive.filter((a) => a.sq === q.i), roles = {};
-      for (const a of list) { const r = a.role || 'rifle'; roles[r] = (roles[r] || 0) + 1; }
-      const pip = list.map((a) => `<i class="tp r-${a.role || 'rifle'}"></i>`).join('');
-      h = `<div class="ts-h" style="color:${SQUAD_COL[q.i] || '#fff'}">S${q.i + 1} <i>${esc(t('tac.troopers', { n: q.n }))}</i></div><div class="ts-pips">${pip}</div>`
-        + `<div class="ts-r">${esc(t('card.ord.' + (q.order.kind === 'post' ? 'post' : q.order.kind === 'build' ? 'build' : q.order.kind)) || q.order.kind)} · ${esc(t('form.' + (q.form || 'loose')))}</div>`
-        + `<div class="ts-b">${esc(t('tac.cmdHint'))}</div>`;
+      const list = m.seafAlive.filter((a) => a.sq === q.i);
+      h = `<div class="ts-h" style="color:${SQUAD_COL[q.i] || '#fff'}">S${q.i + 1} <i>${esc(t('tac.troopers', { n: q.n }))}</i></div>${tiles(list)}`
+        + `<div class="ts-r">${esc(t('card.ord.' + (q.order.kind === 'post' ? 'post' : q.order.kind === 'build' ? 'build' : q.order.kind)) || q.order.kind)} · ${esc(t('form.' + (q.form || 'loose')))}</div>`;
     } else {
-      const n = m.countAlly('S');
-      h = `<div class="ts-h">${esc(t('hud.all'))} <i>${esc(t('tac.troopers', { n }))}</i></div><div class="ts-b">${esc(t(n ? 'tac.selHint' : 'tac.noSeaf'))}</div>`;
+      const n = m.countAlly('S'), loose = m.seafAlive.filter((a) => a.sq === -3).length;
+      h = `<div class="ts-h">${esc(t('hud.all'))} <i>${esc(t('tac.troopers', { n }))}</i></div>${loose ? `<div class="ts-r">${esc(t('tac.loose', { n: loose }))}</div>` : ''}<div class="ts-b">${esc(t(n ? 'tac.selHint' : 'tac.noSeaf'))}</div>`;
     }
     this._set('tacsel', $('tc-sel'), h, 'innerHTML');
   }
@@ -723,18 +862,19 @@ export class Hud {
         const k = q.order.kind;
         sub = k === 'auto' ? String(n) : `${n} ${t('hud.q.' + k)}`;
       }
-      const key = `${sub}|${sel}|${n > 0}`;
+      const pend = q ? m.pelicans.some((p) => p.squad === q.i && p.roles.length > p.dropped) : false;
+      const show = !q || n > 0 || sel || pend;            // (0.18) empty squads are not shown
+      const key = `${sub}|${sel}|${n > 0}|${show}`;
       if (b.key === key) continue;
-      b.key = key; b.s.textContent = sub; b.el.className = 'sqb' + (sel ? ' sel' : '') + (n ? '' : ' empty');
+      b.key = key; b.s.textContent = sub; b.el.className = 'sqb' + (sel ? ' sel' : '') + (n ? '' : ' empty') + (show ? '' : ' gone');
     }
     const selN = sf.sel >= 0 ? sf.squads[sf.sel].n : 0;
     this._dock(sf, total);
     const set = (kind, cls) => { const a = this.sqa[kind], key = cls; if (!a || a.key === key) return; a.key = key; a.el.className = 'sqa ' + cls; };
     set('draw', !total ? 'off' : this.drawing ? 'active' : 'ready');
     const biggest = sf.sel >= 0 ? selN : Math.max(0, ...sf.squads.map((q) => q.n));
-    set('split', biggest >= 2 && free ? 'ready' : 'off');
-    set('merge', sf.sel >= 0 && selN > 0 && sf.squads.some((q) => q.i !== sf.sel && q.n) ? 'ready' : 'off');
-    set('assign', sf.sel < 0 || !total ? 'off' : this.placing === 'assign' ? 'active' : 'ready');
+    set('disband', sf.sel === -2 || (sf.sel >= 0 && selN > 0) ? 'ready' : 'off');
+    void biggest; void free;
   }
 
   // The dock chip shows which squad is selected and what it is doing, so the tray can stay closed.
@@ -784,8 +924,7 @@ export class Hud {
         } else if (s.type === 'arty') {
           const cd = slotStats(m, i).cd;
           name = t('hud.w.artyBar');
-          if (!(m.arty || []).some((g) => g.crew > 0)) { sub = t('hud.w.noCrew'); cls = 'nomark'; frac = tt < s.readyAt ? Math.max(0, 1 - (s.readyAt - tt) / cd) : 1; }      // nobody on any cannon
-          else if (tt < s.readyAt) { sub = t('hud.o.sec', { n: Math.ceil(s.readyAt - tt) }); frac = Math.max(0, 1 - (s.readyAt - tt) / cd); cls = 'cd'; }
+          if (tt < s.readyAt) { sub = t('hud.o.sec', { n: Math.ceil(s.readyAt - tt) }); frac = Math.max(0, 1 - (s.readyAt - tt) / cd); cls = 'cd'; }
           else if (sel && !p.aim.inZone) { sub = t(p.aim.artyWhy === 'range' ? 'hud.w.outRange' : p.aim.artyWhy === 'crew' ? 'hud.w.noCrew' : 'hud.w.noVisual'); cls = 'nomark'; }
           else { sub = t('hud.w.ready'); cls = 'ready'; }
         } else {
@@ -821,13 +960,16 @@ export function squadStatus(m) {
     if (ao.type === 'vip' && ao.state === 'pick') return t('sq.pickVip');
     if (ao.type === 'vip' && ao.state === 'deliver') return t('sq.holdPad');
     if (ao.type === 'evac' && ao.state === 'run') return t('sq.holdEvac');
+    if (ao.type === 'oil' && (ao.state === 'pump' || ao.state === 'load')) return t('sq.holdOil');
+    const hb = m.hellbomb;
+    if (ao.type === 'fortress' && hb && hb.o === ao && hb.state === 'landed') return t('sq.armHb');
+    if (ao.type === 'fortress' && hb && hb.o === ao && hb.state === 'armed') return t('sq.runHb');
   }
   const k = m.plan && m.plan.task;
   if (k && k.kind !== 'main' && k.kind !== 'base' && !sq.engaged) {
     const near = Math.hypot(sq.ax - k.x, sq.ay - k.y) < 40, s = k.ref;
     if (k.kind === 'radio') return t(near && s.state === 'active' ? 'sq.radioOn' : 'sq.radioGo');
     if (k.kind === 'propaganda') return t(near ? 'sq.propOn' : 'sq.propGo');
-    if (k.kind === 'rescue') return t(near ? 'sq.rescueOn' : 'sq.rescueGo');
     if (k.kind === 'arty') return t(near && s.state === 'active' ? 'sq.artyOn' : 'sq.artyGo');
   }
   if (sq.staging && sq.stage === 'mark') return t('sq.staged', { n: Math.max(0, Math.ceil(sq.stageT || 0)) });
@@ -858,7 +1000,8 @@ export function runBriefing({ info, mission, touch, onContinue, onEnd, onCancel,
   $('r-op').textContent = info.op.toUpperCase();
   $('r-enemy').innerHTML = `${t('brief.enemy')} <b style="color:${f.color}">${f.name}</b> <span style="color:var(--g-dim)">(${f.full})</span>`;
   $('r-biome').innerHTML = `${t('brief.biome')} <b>${b.name.toUpperCase()}</b> <span style="color:var(--g-dim)">· ${t('brief.area')} ${t('brief.areaVal', { n: pre.ao })}</span>`;
-  $('r-obj').innerHTML = `${t('brief.objective')} <b style="color:var(--yellow)">${pre.objectives.map((o) => OBJ_NAME[o]).join(' + ')}</b>`;
+  $('r-obj').innerHTML = `${t('brief.objective')} <b style="color:var(--yellow)">${pre.objectives.map((o) => OBJ_NAME[o]).join(' + ')}</b>`
+    + (pre.defenders ? `<br><b class="r-def">${esc(t('brief.defenders', { n: pre.defenders.n, place: t('place.' + (pre.defenders.type === 'nuke' ? 'launch' : pre.defenders.type === 'vip' ? 'pickup' : pre.defenders.type)) }))}</b>` : '');   // (0.18) SEAF already holding the site
   const dl = pre.difficulty || LEVELS;
   $('r-diff').innerHTML = `${t('brief.diff')} <b>${dl} · ${esc(t('diff.' + dl).toUpperCase())}</b> <span style="color:var(--g-dim)">· ${esc(t('brief.pay', { x: reward(dl).toFixed(2) }))}</span> <span class="lockchip">${esc(t('brief.locked'))}</span>`;
   $('r-fail').innerHTML = `${esc(t('brief.fail'))} <b>${esc(t('brief.failIf', { n: pre.lives || C.helldivers.lives }))}</b>`;
@@ -960,7 +1103,8 @@ function statLine(it, kit) {
     const B = buildStats(it.build, Math.max(1, buildLevel(kit, it.build)));
     if (it.build === 'bastion') return t('st.bBastion', { n: B.n, p: Math.round((1 - B.mul) * 100), cr: B.cost });
     if (it.build === 'mg') return t('st.bMg', { hp: fmtNum(B.hp), d: B.dmg.toFixed(2), p: Math.round((1 - B.crewMul) * 100), cr: B.cost });
-    if (it.build === 'bunker') return t('st.bBunker', { hp: fmtNum(B.hp), n: B.cap, cr: B.cost });
+    if (it.build === 'lookout') return t('st.bLookout', { hp: fmtNum(B.hp), r: Math.round(uavStats(kit.uav).r * B.reach), sp: Math.round(uavStats(kit.uav).r * B.reach * B.spot), cr: B.cost });
+    if (it.build === 'bridge') return t('st.bBridge', { m: B.span, w: B.w, s: B.sec, cr: B.cost });
     if (it.build === 'tower') return t('st.bTower', { hp: fmtNum(B.hp), s: B.sec, p: Math.round(B.reachUp * 100), cr: B.cost });
     if (it.build === 'sam') return t('st.bSam', { hp: fmtNum(B.hp), dmg: B.dmg, s: B.every, cr: B.cost });
     return t('st.bArty', { dmg: fmtNum(B.dmg), r: B.r, s: B.cd, m: B.range, cr: B.cost });
@@ -1008,7 +1152,7 @@ function keyAt(it, kit, L) {
   if (id === 'sup.zone') return t('st.k.m', { n: C.sight.strikeBonus + zoneExtra(k) });
   if (it.build) {
     const B = buildStats(it.build, Math.max(1, L));
-    return it.build === 'bastion' ? pc(1 - B.mul) : it.build === 'mg' || it.build === 'bunker' || it.build === 'tower' ? t('st.k.hp', { n: B.hp }) : it.build === 'sam' ? String(B.dmg) : t('st.k.s', { n: B.cd });
+    return it.build === 'bastion' ? pc(1 - B.mul) : it.build === 'mg' || it.build === 'lookout' || it.build === 'tower' ? t('st.k.hp', { n: B.hp }) : it.build === 'bridge' ? t('st.k.m', { n: B.span }) : it.build === 'sam' ? String(B.dmg) : t('st.k.s', { n: B.cd });
   }
   return '';
 }
@@ -1276,9 +1420,9 @@ export function buildSettings(settings, onChange) {
     r.oninput = () => { settings[key] = Number(r.value); onChange(key); }; return r;
   };
   row(t('set.lang'), t('set.langHint'), select('lang', Object.entries(LANGS).map(([k, v]) => [k, v.name])));
+  row(t('set.enemy'), t('set.enemyHint'), select('enemy', ENEMIES.map((e) => [e, t('enemy.' + e)])));
   row(t('set.ui'), t('set.uiHint'), select('uiScale', [['0.8', '80%'], ['0.9', '90%'], ['1', '100%'], ['1.15', '115%'], ['1.3', '130%']]));
   row(t('set.mini'), t('set.miniHint'), select('mini', [['1', '1×'], ['1.5', '1.5×'], ['2', '2×'], ['2.5', '2.5×']]));
-  row(t('set.tac'), t('set.tacHint'), select('tacTime', [['pause', t('set.tacPause')], ['slow', t('set.tacSlow')]]));
   row(t('set.thermal'), t('set.thermalHint'), select('polarity', [['white', t('set.white')], ['black', t('set.black')]]));
   row(t('set.relief'), t('set.reliefHint'), toggle('relief'));
   row(t('set.volume'), '', range('volume', 0, 1, 0.05));
@@ -1290,6 +1434,19 @@ export function buildSettings(settings, onChange) {
   row(t('set.cards'), t('set.cardsHint'), select('cards', [['side', t('set.on')], ['off', t('set.off')]]));
   row(t('set.touch'), '', range('touchSens', 0.5, 2, 0.1));
   row(t('set.gfx'), t('set.gfxHint'), select('quality', [['auto', t('set.auto')], ['high', t('set.high')], ['low', t('set.low')]]));
+}
+// The enemy picker on the title screen (0.18): random (the default) or one faction for every mission.
+export const ENEMIES = ['random', 'bugs', 'bots', 'squids'];
+export function buildEnemy(cur, onPick) {
+  const box = $('enemy-row'); if (!box) return;
+  box.innerHTML = '';
+  for (const e of ENEMIES) {
+    const b = el('button', 'btn el el-' + e + (e === cur ? ' on' : ''), esc(t('enemy.' + e)));
+    b.type = 'button'; b.dataset.e = e; b.setAttribute('aria-pressed', String(e === cur));
+    b.onclick = () => onPick(e);
+    box.appendChild(b);
+  }
+  $('enemy-note').textContent = t('enemy.note');
 }
 // The difficulty picker on the title screen: ten levels, the chosen one's name, and what it does. saved: the level of a session
 // that can be resumed (it keeps its own level; a new one starts at the chosen level).
@@ -1471,8 +1628,12 @@ export function squadShort(m, i) {
 }
 
 // The steps of each objective, in order; the text comes from info.<type>.<step>.
-const STEPS = { nuke: ['travel', 'hold', 'armed'], vip: ['travel', 'pick', 'carry', 'deliver'], fortress: ['travel'], evac: ['travel', 'run', 'done'] };
-const ORDER = { nuke: ['travel', 'hold', 'armed', 'inbound', 'done'], vip: ['travel', 'pick', 'carry', 'deliver', 'done'], fortress: ['travel', 'done'], evac: ['travel', 'run', 'done'] };
+const STEPS = { nuke: ['travel', 'hold', 'armed'], vip: ['travel', 'pick', 'carry', 'deliver'], fortress: ['travel', 'bomb'], evac: ['travel', 'run', 'done'],
+  oil: ['travel', 'pump', 'load'], cannon: ['travel', 'attack'], dome: ['travel', 'nodes', 'bases'] };
+const ORDER = { nuke: ['travel', 'hold', 'armed', 'inbound', 'done'], vip: ['travel', 'pick', 'carry', 'deliver', 'done'], fortress: ['travel', 'bomb', 'done'], evac: ['travel', 'run', 'done'],
+  oil: ['travel', 'setup', 'pump', 'load', 'done'], cannon: ['travel', 'attack', 'done'], dome: ['travel', 'nodes', 'bases', 'done'] };
+// The step an objective is on, for the list (a few are worked out rather than stored).
+const stepOf = (m, o) => (o.type === 'dome' && o.state !== 'travel' ? (o.dome.up ? 'nodes' : 'bases') : o.type === 'fortress' && m.hellbomb && m.hellbomb.o === o ? 'bomb' : o.state);
 export function fillMissionInfo(m, info) {
   const f = FACTIONS[m.faction.id], h = todAt(m), E = C.objective.evac;
   $('info-eyebrow').textContent = `${info ? info.op : t('info.op')} · ${f.name} · ${m.biome.name} · ${todName(h)} ${todClock(h)}`;
@@ -1480,10 +1641,10 @@ export function fillMissionInfo(m, info) {
   const vals = { r: C.objective.nuke.blastR, n: E.need, s: E.shuttle };
   const parts = [];
   m.objectives.forEach((o, n) => {
-    const order = ORDER[o.type], cur = o.done ? order.length : Math.max(0, order.indexOf(o.state));
+    const order = ORDER[o.type], cur = o.done ? order.length : Math.max(0, order.indexOf(stepOf(m, o)));
     const steps = STEPS[o.type].map((st) => {
       const k = order.indexOf(st), cls = o.done || k < cur ? 'done' : k === cur || (k > cur && k === cur + 1 && st === 'done') ? 'now' : '';
-      const v = o.type === 'evac' && st === 'run' ? { r: E.hdR } : vals;
+      const v = o.type === 'evac' && st === 'run' ? { r: E.hdR } : o.type === 'oil' ? { n: C.objective.oil.trips } : o.type === 'fortress' ? { n: C.objective.hellbomb.fuseSec, r: C.objective.hellbomb.blastR } : vals;
       return `<li class="${cls}">${esc(t(`info.${o.type}.${st}`, v))}</li>`;
     }).join('');
     parts.push(`<h3>${m.objectives.length > 1 ? `${n + 1}. ` : ''}${OBJ_NAME[o.type]}${o.done ? ` <span class="ok">${t('info.done')}</span>` : ''}</h3><ol class="steps">${steps}</ol>`);

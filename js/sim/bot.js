@@ -5,6 +5,7 @@ import { buy, shopItems, seafStats, ORB_PRICE } from '../data/kit.js';
 import { slotStats, aimGeom, UAV_REACH, ORB_SLOTS } from './player.js';
 import { pickNukeTarget } from './objectives.js';
 import { acceptSupply, fillSupply } from './supply.js';
+import { tapHellbomb } from './ops.js';
 import { covered } from './combat.js';
 import { beaconLit } from './sides.js';
 import { answerTime } from './planner.js';
@@ -257,6 +258,14 @@ export function botStep(m, bot) {
     if (f.tapEvery === undefined) f.tapEvery = C.supply.slowmo * (0.28 + ((S.n * 7 + m.seed) % 5) * 0.06);   // 3.6 down to 1.9 taps a second
     if (f.t >= (f.nextTap || 0)) { fillSupply(m, -1); f.nextTap = f.t + f.tapEvery; }
     return;    // the player's hands are on the loader
+  }
+  // The Hellbomb: the lit part each time, at about the same rate (and now and then a wrong one, like a player in a hurry)
+  const HBm = m.hellbomb;
+  if (HBm && HBm.state === 'fill') {
+    const f = HBm.fill, K = C.objective.hellbomb;
+    if (f.tapEvery === undefined) f.tapEvery = K.slowmo * (0.3 + ((HBm.n * 5 + m.seed) % 4) * 0.06);
+    if (f.t >= (f.nextTap || 0)) { tapHellbomb(m, ((f.taps * 7 + m.seed) % 9) === 0 ? (f.order[f.i] + 1) % 4 : -1); f.nextTap = f.t + f.tapEvery; }
+    return;
   }
 
   // The launch site is armed: pick a clear spot with the most enemies after a moment, like a player would.

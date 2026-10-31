@@ -16,7 +16,7 @@ import { dropNear } from './reinforce.js';
 import { postDown } from './posts.js';
 
 const M = (L, Mm, H, B) => ({ L, M: Mm, H, B });
-const TMULT = { bullet: M(1, 0.8, 0.2, 0.03), shell: M(1, 1, 0.6, 0.15), arc: M(1, 1, 0.5, 0.15), 'arc-zap': M(1, 1, 0.4, 0) };
+const TMULT = { bullet: M(1, 0.8, 0.2, 0.03), shell: M(1, 1, 0.6, 0.15), heavy: M(1, 1, 0.85, 0.25), arc: M(1, 1, 0.5, 0.15), 'arc-zap': M(1, 1, 0.4, 0) };
 const RK_MULT = M(1, 1, 0.85, 0.2);
 const MINE_MULT = M(1, 1, 0.7, 0.1);
 const MECH_GAT = M(1, 0.7, 0.25, 0.05);
@@ -630,7 +630,7 @@ function updateWeapons(m, dt) {
             w.t = w.every;
             const dx = a.x - bs.x, dy = a.y - bs.y, d = Math.hypot(dx, dy) || 1, kk = bs.r * 0.7 / d;
             m.emit('tracer', { x: a.x, y: a.y, tx: bs.x + dx * kk, ty: bs.y + dy * kk, s: 'a', hit: true, big: true, fl: w.splash > 0 && w.range > 40 ? 0.35 : 0, snd: w.snd });
-            m.damageBase(bs, w.dmg * k * w.mult.B * C.structure.stratMul, 'strat');
+            m.damageBase(bs, w.dmg * k * w.mult.B * C.structure.stratMul, 'strat', a.x, a.y);
             if (w.splash >= 3) m.emit('boom', { x: bs.x + dx * kk, y: bs.y + dy * kk, r: w.splash, dmg: w.dmg, by: 'strat' });
             w.left--;
             if (w.left <= 0) { a.sw = null; m.radio(COMMS.assetSpent(STRATS[w.id].name), 'aspent', 2); m.emit('asset_down', { kind: 'weapon', sid: w.id, x: a.x, y: a.y, why: 'spent' }); }
