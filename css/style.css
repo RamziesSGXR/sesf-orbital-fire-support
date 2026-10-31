@@ -1532,9 +1532,7 @@ body.tac-open.touch #hud #fire-btn { display: none; }
 #hud #feed { max-height: var(--fh, none); overflow: hidden; }
 
 /* more see-through: the map shows through the panels, and they step back further when nothing is new */
-#hud .panel { background: rgba(3, 16, 9, 0.58); }
 #hud .fadeable { opacity: 0.74; }
-#hud .wbtn { background: rgba(8, 30, 16, 0.6); }
 body.touch #hud .fadeable { opacity: 0.62; }
 body.tac-open #hud .fadeable:not(.hot) { opacity: 0.5; }
 body.touch #hud #feed { top: var(--ft, 72px); }
@@ -1575,3 +1573,53 @@ body.tut-dim #hud::before { content: ''; position: absolute; inset: 0; z-index: 
 /* the pause strip: just above the bottom rows (and the drop countdown), where layout() says */
 #hud #softpause .sp-bar { top: auto; bottom: var(--spb, 120px); }
 #hud .fadeable.hot, #hud .fadeable:hover, body.touch #hud .fadeable.hot { opacity: 1; }
+
+/* ======================= 0.19.2: lighter and smaller ======================= */
+/* Everything on the HUD is see-through: the map shows behind every panel and button, and the text keeps a dark shadow to stay
+   readable. On a computer the pieces are smaller too (the minimap, the clock, the credits, the two bottom rows and the sheet), and
+   the HUD steps back when the mouse has been off it for a few seconds (anything new, or the mouse on it, brings it back). */
+#hud { --see: rgba(2, 14, 7, 0.34); --see2: rgba(2, 14, 7, 0.5); }
+#hud .panel, #hud .wbtn, #hud .dkb, #hud .tl-btns .btn, #hud .bigcr, #hud .nt, #hud #dropcd { background: var(--see); backdrop-filter: none; }
+#hud .panel, #hud .wbtn, #hud .dkb, #hud .tl-btns .btn, #hud .bigcr, #hud .nt, #hud #tactical { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 6px rgba(0, 0, 0, 0.6); }
+#hud .wbtn, #hud .dkb, #hud .tl-btns .btn, #hud .panel { border-color: rgba(157, 255, 184, 0.22); }
+#hud #dock > #dk-tac { background: rgba(10, 40, 60, 0.45); }
+#hud .wbtn { background: var(--see2); }   /* (the cooldowns: a little more behind them, to read on a bright map) */
+#hud #tactical { background: rgba(3, 16, 9, 0.6); border-color: rgba(127, 216, 255, 0.4); box-shadow: none; }
+#hud #tactical .tco, #hud #tactical .tcq, #hud #tactical .bld, #hud #tactical .frm, #hud #tactical .tct, #hud #tactical .sqb, #hud #tactical .sqa, #hud #tactical .tcw,
+#hud #tactical .tc-sel, #hud #tactical .tl { background: rgba(0, 0, 0, 0.22); }
+#hud #tactical .tct.on { background: rgba(70, 60, 0, 0.4); }
+#hud #tactical .sqb.sel { background: color-mix(in srgb, var(--sc) 22%, rgba(0, 0, 0, 0.25)); }
+#hud #tc-arm .shop-scroll { background: rgba(9, 30, 16, 0.35); }
+@media (orientation: portrait) { #hud #tactical .tc-tabs { background: rgba(3, 16, 9, 0.85); } }
+
+/* a computer: smaller pieces */
+body:not(.touch) { --wbh: 46px; --dkh: 32px; --sheet: clamp(180px, 28vh, 270px); --mmw: min(calc(118px * var(--mm)), 30vh, 22vw); }
+body.tac-open:not(.touch) { --mmc: min(var(--mmw), 170px); }
+body:not(.touch) #hud #tactical { right: max(var(--rowR), calc(100vw - var(--L) - 1080px)); }   /* (no wider than it needs to be) */
+body:not(.touch) #hud #weapons .wbtn { max-width: 118px; padding: 3px 6px 3px; }
+body:not(.touch) #hud .wbtn .sub { margin-top: 1px; font-size: 11px; }
+body:not(.touch) #hud .wbtn .bar { height: 3px; }
+body:not(.touch) #hud #dock > .dkb { max-width: 170px; padding: 1px 8px; }
+body:not(.touch) #hud #dock > #dk-hd { padding: 2px 6px; }
+body:not(.touch) #hud .dkb .n { font-size: 7.5px; } body:not(.touch) #hud .dkb .s { margin-top: 0; font-size: 10.5px; }
+body:not(.touch) #hud .tl-btns .btn { min-height: 30px; padding: 2px 9px; font-size: 10.5px; }
+body:not(.touch) #hud .bigcr { padding: 0 8px 2px; } body:not(.touch) #hud .bigcr b { font-size: 22px; } body:not(.touch) #hud .bigcr span { font-size: 11px; }
+body:not(.touch) #hud .hud-tr { width: 248px; }
+body:not(.touch) #hud #mbox { padding: 4px 8px 5px; }
+body:not(.touch) #hud #timer { font-size: 20px; }
+body:not(.touch) #hud #objective { padding: 4px 8px; }
+body:not(.touch) #hud .hud-l { width: min(380px, 34vw); }
+body:not(.touch) #hud #tactical .tct { height: 34px; }
+body:not(.touch) #hud #tactical .tco { height: 36px; } body:not(.touch) #hud #tactical .tco .n { margin-top: 4px; }
+body:not(.touch) #hud #tactical .tcq { height: 24px; }
+body:not(.touch) #hud #tactical[data-tab="units"] .frm { height: 30px; }
+body:not(.touch) #hud #tactical #squads .sqb, body:not(.touch) #hud #tactical #squads .sqa { height: 30px; }
+body:not(.touch) #hud #tactical .bld .ic { max-width: 52px; }
+/* a computer: the HUD steps back while the mouse is off it */
+body:not(.touch) #hud .tl-btns, body:not(.touch) #hud .bigcr, body:not(.touch) #hud #dock, body:not(.touch) #hud .wbtn, body:not(.touch) #hud #minimap, body:not(.touch) #hud #flavor { transition: opacity 0.6s; }
+body:not(.touch) #hud.idle .fadeable:not(.hot) { opacity: 0.5; }
+body:not(.touch) #hud.idle .tl-btns, body:not(.touch) #hud.idle #dock { opacity: 0.65; }
+body:not(.touch) #hud.idle .bigcr { opacity: 0.75; }
+body:not(.touch) #hud.idle .wbtn:not(.sel) { opacity: 0.85; }
+body:not(.touch) #hud.idle #minimap:not(.hot) { opacity: 0.6; }
+body:not(.touch) #hud.idle #flavor { opacity: 0.4; }

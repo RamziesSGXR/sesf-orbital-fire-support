@@ -135,7 +135,7 @@ await shot('feed');
 await ev(() => { const S = window.__game.mission.supply; if (S) { S.state = 'idle'; S.ask = null; } });
 // the minimap: twice as big, with a setting
 const mm0 = (await box('#minimap')).w;
-check('the minimap is twice as big as it was', touch ? mm0 >= 110 : mm0 >= 300, Math.round(mm0) + ' px');
+check('the minimap is big enough to read (0.19.2: smaller on a computer, a quarter of the height or so)', touch ? mm0 >= 110 : mm0 >= 200 && mm0 <= 270, Math.round(mm0) + ' px');
 await ev(() => window.__game.setSetting('mini', 1)); await page.waitForTimeout(150);
 const mm1 = (await box('#minimap')).w;
 check('Settings > Minimap size makes it smaller (and bigger)', mm1 < mm0 * 0.65, `${Math.round(mm0)} -> ${Math.round(mm1)} px`);

@@ -91,7 +91,9 @@ if (sq) {
   check('the screen fits', fit);
   await ev(() => { window.__game.mission.wallet.bal = 9999; });
   await tap('#tactical .bld[data-b="tower"]'); await page.waitForTimeout(300);
-  if (!touch) { await page.mouse.move(640, 300); await page.waitForTimeout(100); await page.mouse.click(640, 300); await page.waitForTimeout(300); }
+  // (a little above the camera's point, which sits higher with the sheet open: 0.19.1)
+  const cy = await ev(() => Math.round(innerHeight * (window.__game.renderer.focusY || 0.5)) - 60);
+  if (!touch) { await page.mouse.move(640, cy); await page.waitForTimeout(100); await page.mouse.click(640, cy); await page.waitForTimeout(300); }
   else { await page.touchscreen.tap(W / 2, H * 0.45); await page.waitForTimeout(300); }
   await page.keyboard.press('Escape'); await page.waitForTimeout(200);
   const bo = await ev(() => window.__game.mission.seaf.squads.some((q) => q.n && q.order.kind === 'build' && q.order.what === 'tower'));

@@ -154,6 +154,8 @@ export class Hud {
     $('btn-menu').addEventListener('click', () => this.onMenu && this.onMenu());
     // Idle fade (touch): the HUD steps back a few seconds after the last touch on it, so the map stays readable.
     $('hud').addEventListener('pointerdown', () => this.wake(), true);
+    // (0.19.2) a computer: the mouse moving over any of it wakes it too
+    $('hud').addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' && performance.now() - (this._wm || 0) > 400) { this._wm = performance.now(); this.wake(); } }, true);
     this.wake(5000);
     // Tips: one line over whatever was just picked on a bar, ⓘ for the full card. They go by themselves after a moment, or at a tap
     // anywhere else, or when something else is picked. Hovering a button on a computer shows its tip too.
