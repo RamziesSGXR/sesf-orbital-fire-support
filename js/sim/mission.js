@@ -229,7 +229,7 @@ export class Mission {
       if (d < exD) { exD = d; ex = p; }
       if (d <= exReach) break;
     }
-    this.extraction = { x: ex.x, y: ex.y, revealed: false, holdT: 0, nextWave: Infinity };
+    this.extraction = { x: ex.x, y: ex.y, revealed: true, holdT: 0, nextWave: Infinity };     // (on the map from the drop; locked until the objective is done)
     // Cover round the sites the squad will have to hold.
     setupCover(this);
 
@@ -331,19 +331,32 @@ export class Mission {
     x = aoX(this, x, 20); y = aoY(this, y, 20);
     if (!this.terrain.isLand(x, y) || this.terrain.blocked(x, y)) return this._deny('water', COMMS.noWater);
     // a crate of this kind already on the ground near the spot (from an order that was changed) is used again, at no charge
-    let crate = what === 'foxhole' ? { what, x, y, landed: true, used: false, dig: true } : this.crates.find((c) => c.what === what && !c.used && Math.hypot(c.x - x, c.y - y) < C.build.crateR);
+    let crate = this.crates.find((c) => c.what === what && !c.used && Math.hypot(c.x - x, c.y - y) < C.build.crateR);
+    if (!crate && what === 'foxhole') { crate = { id: this.nextId++, what, x, y, landed: true, used: false, dig: true, prog: 0, born: this.t }; this.crates.push(crate); }
     if (!crate) {
       if (this.wallet.bal < st.cost) return this._deny('funds');
       this.wallet.bal -= st.cost; this.wallet.spent += st.cost;     // paid now: a cargo pelican brings the crate
-      crate = { id: this.nextId++, what, x, y, landed: false, used: false, born: this.t };
+      crate = { id: this.nextId++, what, x, y, landed: false, used: false, prog: 0, born: this.t };
       this.crates.push(crate);
       callCargo(this, x, y, crate);
       this.notice(tr('n.crateIn', { what: tr('build.' + what), cr: st.cost }), 'info');
     }
     const q = sq.slice().sort((a, b) => Math.hypot(a.cx - x, a.cy - y) - Math.hypot(b.cx - x, b.cy - y))[0];
-    setSquadOrder(this, q, 'build', crate.x, crate.y, { what, prog: 0, crate });
+    setSquadOrder(this, q, 'build', crate.x, crate.y, { what, crate });
     this.radio(COMMS.seafBuild(what), 'seafbuild', 1);
     this.emit('seaf_order', { kind: 'build', what, x, y, sq: q.i });
+    return { ok: true, squad: q.i };
+  }
+  // A crate on the ground (or a foxhole being dug): the selected squad (or the nearest) goes and builds it. Its progress is the crate's,
+  // so it carries on where the last squad left off.
+  seafBuildCrate(crate) {
+    if (this.over || !crate || crate.used) return { ok: false, reason: 'over' };
+    const sq = targetSquads(this).filter((q) => q.n > 0);
+    if (!sq.length) return this._deny('noseaf');
+    const q = sq.slice().sort((a, b) => Math.hypot(a.cx - crate.x, a.cy - crate.y) - Math.hypot(b.cx - crate.x, b.cy - crate.y))[0];
+    setSquadOrder(this, q, 'build', crate.x, crate.y, { what: crate.what, crate });
+    this.radio(COMMS.seafBuild(crate.what), 'seafbuild', 1);
+    this.emit('seaf_order', { kind: 'build', what: crate.what, x: crate.x, y: crate.y, sq: q.i });
     return { ok: true, squad: q.i };
   }
   // A freehand stroke on the map becomes a route, a line or a ring for the selected squad(s).
@@ -804,6 +817,11 @@ export class Mission {
       const ex = this.extraction;
       this.sc.survivor = (this.countAlly('H') + (ex.boardedH || 0)) * s.survivorHelldiver + (this.countAlly('S') + (ex.boardedS || 0)) * s.survivorSeaf;
     }
+    // every SEAF trooper lost is replaced for the next mission, each one dearer than the last
+    const lost = this.stats.lostS || 0, L = C.seaf;
+    const rep = Math.round(lost * L.lifeCost + (L.lifeStep * lost * (lost - 1)) / 2), paid = Math.min(rep, Math.max(0, this.wallet.bal));
+    this.wallet.bal -= paid; this.cr.seafLives = paid;
+    if (paid) this.notice(tr('n.seafLives', { n: lost, cr: paid }), 'warn');
     this.radio(outcome === 'victory' ? COMMS.victory : outcome === 'complete' ? COMMS.complete : outcome === 'timeout' ? COMMS.timeout : COMMS.defeat, 'end', 0);
     this.emit('end', { outcome });
   }
@@ -835,7 +853,7 @@ export class Mission {
       share: { player: d.player / tot, squad: d.squad / tot, strat: d.strat / tot },
       loadout: this.loadout.slice(), orbitals: loadoutIds(this.kit),
       credits: { kills: cr.kills, bases: cr.bases, pois: cr.pois, breaches: cr.breaches, objective: cr.objective, extraction: cr.extraction, drops: cr.drops, civ: cr.civ, boss: cr.boss, sides: cr.sides,
-        total: cr.total, spent: this.wallet.spent - cr.spent0, start: cr.start, balance: this.wallet.bal },
+        total: cr.total, spent: this.wallet.spent - cr.spent0, start: cr.start, balance: this.wallet.bal, seafLives: cr.seafLives || 0, seafLost: this.stats.lostS || 0 },
       deaths: this.deaths.map((x) => ({ ...x })),
       teams: this.teams.map((tm) => ({ letter: tm.letter, ship: tm.ship, deaths: tm.deaths, ids: tm.ids.slice() })),
     };

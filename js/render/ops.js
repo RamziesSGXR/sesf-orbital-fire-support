@@ -3,6 +3,9 @@
 // Labels are plain text from data/data.js (OPS); every function draws in metres, px(n) converts screen pixels to metres.
 import { CONFIG as C } from '../config.js';
 import { OPS } from '../data/data.js';
+import { buildStats, buildLevel } from '../data/kit.js';
+import { postArt } from './posts.js';
+import { t as tr } from '../i18n.js';
 
 const TAU = Math.PI * 2;
 function ring(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); }
@@ -104,18 +107,54 @@ export function drawArty(ctx, m, now, px, labels, scale) {
   }
 }
 
-// Supply crates on the ground, waiting for SEAF to deploy them.
+// How far along a crate is (0 to 1), and which of the four stages it shows: 0 the closed crate, 1 the crate opened, 2 the parts
+// going up, 3 nearly built (the post itself follows).
+export function crateStage(m, c) {
+  const f = Math.min(1, (c.prog || 0) / buildStats(c.what, Math.max(1, buildLevel(m.kit, c.what))).sec);
+  return { f, stage: f <= 0 ? 0 : f < 0.35 ? 1 : f < 0.75 ? 2 : 3 };
+}
+// Crates on the ground (and foxholes being dug), drawn at their stage, with a progress bar while SEAF work on them.
 export function drawCrates(ctx, m, now, px, labels) {
   for (const c of m.crates || []) {
     if (!c.landed || c.used) continue;
-    const s = Math.max(px(6), 3.5);
-    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(c.x - s * 1.25, c.y - s * 1.25, s * 2.5, s * 2.5);
-    ctx.fillStyle = 'rgba(255,214,120,0.95)'; ctx.fillRect(c.x - s, c.y - s, s * 2, s * 2);
-    ctx.strokeStyle = 'rgba(80,50,10,0.9)'; ctx.lineWidth = px(1.2);
-    ctx.beginPath(); ctx.moveTo(c.x - s, c.y - s); ctx.lineTo(c.x + s, c.y + s); ctx.moveTo(c.x + s, c.y - s); ctx.lineTo(c.x - s, c.y + s); ctx.stroke();
-    const blink = Math.floor(now * 2 + c.id) % 2;
-    ctx.fillStyle = blink ? '#7fd8ff' : 'rgba(127,216,255,0.35)'; ring(ctx, c.x + s, c.y - s, px(2)); ctx.fill();
-    labels.push({ x: c.x, y: c.y, dy: 22, text: `${OPS.crate}: ${OPS.build(c.what)}`, col: '#ffd27a', pri: 1 });
+    const { f, stage } = crateStage(m, c), s = Math.max(px(6), 3.5), t = m.t;
+    if (c.dig) {
+      // a foxhole: a marked square, then the pit opening up as it is dug
+      ctx.strokeStyle = 'rgba(255,210,120,0.7)'; ctx.lineWidth = px(1.2); ctx.setLineDash([px(3), px(3)]); ctx.strokeRect(c.x - 3.5, c.y - 3, 7, 6); ctx.setLineDash([]);
+      if (f > 0) {
+        ctx.fillStyle = `rgba(20,14,8,${0.35 + 0.5 * f})`; ctx.beginPath(); ctx.ellipse(c.x, c.y, 1 + 2.2 * f, 0.8 + 1.8 * f, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = `rgba(120,96,60,${0.4 + 0.5 * f})`; ctx.lineWidth = Math.max(px(2), 0.8); ctx.beginPath(); ctx.ellipse(c.x, c.y, 1.4 + 2.2 * f, 1.2 + 1.8 * f, 0, 0, Math.PI * 2); ctx.stroke();
+      }
+    } else if (stage <= 1) {
+      // the crate: shut, or with its lid off beside it and the parts showing
+      ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(c.x - s * 1.25, c.y - s * 1.25, s * 2.5, s * 2.5);
+      ctx.fillStyle = 'rgba(255,214,120,0.95)'; ctx.fillRect(c.x - s, c.y - s, s * 2, s * 2);
+      ctx.strokeStyle = 'rgba(80,50,10,0.9)'; ctx.lineWidth = px(1.2);
+      if (stage === 0) { ctx.beginPath(); ctx.moveTo(c.x - s, c.y - s); ctx.lineTo(c.x + s, c.y + s); ctx.moveTo(c.x + s, c.y - s); ctx.lineTo(c.x - s, c.y + s); ctx.stroke(); }
+      else {
+        ctx.fillStyle = 'rgba(60,40,14,0.95)'; ctx.fillRect(c.x - s * 0.8, c.y - s * 0.8, s * 1.6, s * 1.6);       // open: the dark inside
+        ctx.fillStyle = '#c9d4cd'; ctx.fillRect(c.x - s * 0.6, c.y - s * 0.3, s * 1.2, s * 0.25); ctx.fillRect(c.x - s * 0.2, c.y - s * 0.6, s * 0.25, s * 1.2);
+        ctx.save(); ctx.translate(c.x + s * 1.6, c.y + s * 0.4); ctx.rotate(0.35);                                     // the lid, off to one side
+        ctx.fillStyle = 'rgba(255,214,120,0.85)'; ctx.fillRect(-s * 0.9, -s * 0.9, s * 1.8, s * 1.8); ctx.strokeRect(-s * 0.9, -s * 0.9, s * 1.8, s * 1.8); ctx.restore();
+      }
+    } else {
+      // the post going up: its outline in parts, then nearly whole, with the empty crate beside it
+      ctx.fillStyle = 'rgba(255,214,120,0.55)'; ctx.fillRect(c.x + s * 1.2, c.y + s * 0.6, s * 1.4, s * 1.4);
+      ctx.save(); ctx.globalAlpha *= stage === 2 ? 0.45 : 0.8;
+      postArt(ctx, { what: c.what, x: c.x, y: c.y, face: -Math.PI / 2, hurtAt: -99, manned: false, r: 5 }, now, px, t);
+      ctx.restore();
+      ctx.strokeStyle = 'rgba(255,214,120,0.8)'; ctx.lineWidth = px(1.2); ctx.setLineDash([px(3), px(3)]);
+      ctx.strokeRect(c.x - 6, c.y - 6, 12, 12); ctx.setLineDash([]);                                                       // the scaffold
+    }
+    // progress, and a light blinking while nobody is on it
+    if (f > 0) {
+      const w = Math.max(px(26), 8), y = c.y + Math.max(px(12), 7);
+      ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(c.x - w / 2 - 0.3, y - 0.3, w + 0.6, px(3.6));
+      ctx.fillStyle = '#ffd24a'; ctx.fillRect(c.x - w / 2, y, w * f, px(3));
+    }
+    if (!c.hands) { const blink = Math.floor(now * 2 + c.id) % 2; ctx.fillStyle = blink ? '#7fd8ff' : 'rgba(127,216,255,0.35)'; ring(ctx, c.x + s, c.y - s, px(2)); ctx.fill(); }
+    const text = f > 0 ? tr('lab.building', { what: OPS.build(c.what), n: Math.floor(f * 100), h: c.hands || 0 }) : `${OPS.crate}: ${OPS.build(c.what)}`;
+    labels.push({ x: c.x, y: c.y, dy: 26, text, col: '#ffd27a', pri: f > 0 ? 2 : 1 });
   }
 }
 

@@ -57,11 +57,11 @@ console.log('mission t:', await page.evaluate(() => window.__game.mission && win
 // pause menus
 await page.keyboard.press('Escape'); await page.waitForTimeout(300);
 await page.screenshot({ path: out('8-pause') });
-await page.click('#btn-names-m'); await page.waitForTimeout(300);
+await page.click('#btn-settings-m'); await page.waitForTimeout(300); await page.click('#btn-names-m'); await page.waitForTimeout(300);   // (0.17.3: squad names are in Settings)
 await page.fill('#names-body .nhd >> nth=0', 'Rex');
 await page.fill('#names-body .nship >> nth=1', 'Spear of Truth');
 await page.screenshot({ path: out('9-names') });
-await page.click('#names-save'); await page.waitForTimeout(300);
+await page.click('#names-save'); await page.waitForTimeout(300); await page.click('#btn-settings-close'); await page.waitForTimeout(300);
 await page.click('#btn-armory-m'); await page.waitForTimeout(300);
 await page.screenshot({ path: out('10-armory') });
 await page.click('#arm-close'); await page.waitForTimeout(300);

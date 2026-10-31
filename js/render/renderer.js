@@ -413,10 +413,12 @@ export class Renderer {
       const bk = k.startsWith('build:') ? k.slice(6) : null;
       const R = bk === 'bastion' ? buildStats('bastion', Math.max(1, (m.kit.build || {}).bastion || 1)).R : bk ? C.build.r : k === 'protect' ? C.seaf.protectR : k === 'move' ? C.seaf.patrolRadius : k === 'attack' ? 24 : k === 'assign' ? C.seaf.assignR : 22;
       // a build that reaches out (the SAM site, the tower, the MG post, the cannon): its reach, faint
-      const reach = bk === 'sam' || bk === 'tower' ? uavStats(m.kit.uav).r : bk === 'mg' ? 46 : bk === 'arty' ? buildStats('arty', Math.max(1, (m.kit.build || {}).arty || 1)).range : 0;
+      const reach = bk === 'sam' || bk === 'tower' ? uavStats(m.kit.uav).r : bk === 'mg' ? 46 : 0;
       if (reach) { ctx.strokeStyle = 'rgba(255,230,0,0.4)'; ctx.lineWidth = px(1.2); ctx.setLineDash([px(4), px(6)]); ctx.beginPath(); ctx.arc(ax, ay, reach, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
-      ctx.strokeStyle = col; ctx.lineWidth = px(2); ctx.setLineDash([px(6), px(5)]); ctx.lineDashOffset = -now * px(12);
-      ctx.beginPath(); ctx.arc(ax, ay, R, 0, TAU); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      if (bk === 'bastion' || k === 'assign') {       // (an area: the bastions' ring of walls, the troopers ASSIGN picks up)
+        ctx.strokeStyle = col; ctx.lineWidth = px(2); ctx.setLineDash([px(6), px(5)]); ctx.lineDashOffset = -now * px(12);
+        ctx.beginPath(); ctx.arc(ax, ay, R, 0, TAU); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      }
       ctx.fillStyle = col; this._diamond(ctx, ax, ay, Math.max(px(6), 3.5));
       labels.push({ x: ax, y: ay, dy: 38, text: !covered ? tr('ret.noCover') : bk ? tr('lab.place.build', { what: tr('build.' + bk) }) : k === 'assign' ? tr('lab.assign', { n: m.seaf.sel + 1 }) : k === 'seaf' ? tr(bc ? 'lab.dropBeacon' : 'lab.beacon') : tr('lab.place.' + k), col , pri: 3 });
     }
@@ -867,7 +869,7 @@ export class Renderer {
       const g = ao.type === 'vip' ? (ao.state === 'carry' || ao.state === 'deliver' ? { x: ao.dx, y: ao.dy } : { x: ao.vip.x, y: ao.vip.y }) : { x: ao.x, y: ao.y };
       items.push({ x: g.x, y: g.y, col: '#ffe600', obj: true, label: tr(ao.type === 'nuke' ? 'lab.launch' : ao.type === 'vip' ? (ao.state === 'carry' || ao.state === 'deliver' ? 'lab.pickup' : 'lab.vip') : ao.type === 'evac' ? 'lab.evac' : 'lab.citadel') });
     }
-    if (m.extraction.revealed) items.push({ x: m.extraction.x, y: m.extraction.y, col: '#ffe600', obj: true, label: tr('lab.extract') });
+    if (m.extraction.revealed && m.phase === 'extract') items.push({ x: m.extraction.x, y: m.extraction.y, col: '#ffe600', obj: true, label: tr('lab.extract') });   // (an arrow only once it is live)
     for (const p of m.pods) if (p.type === 'H' && !p.start) items.push({ x: p.x, y: p.y, col: '#ffe600', label: tr('lab.drop') });
     for (const b of m.breaches) if (!b.dead && !b.kind) items.push({ x: b.x, y: b.y, col: this.enemyColor(m), label: tr('lab.breach') });
     for (const b of m.breaches) if (!b.dead && b.kind === 'hole') items.push({ x: b.x, y: b.y, col: this.enemyColor(m), label: tr('lab.bugHole') });
@@ -1153,7 +1155,7 @@ export class Renderer {
       c.beginPath(); c.arc(b.x * k, b.y * k, 2, 0, TAU); c.fill();
     }
     if (m.extraction.revealed) {
-      const ex = m.extraction, on = ex.state === 'called' || ex.state === 'landing' || ex.state === 'boarding';
+      const ex = m.extraction, on = ex.state === 'called' || ex.state === 'landing' || ex.state === 'boarding' || ex.state === 'beacon';
       c.fillStyle = '#ffe600'; this._diamond(c, ex.x * k, ex.y * k, 7);
       if (on) { c.strokeStyle = '#ffe600'; c.lineWidth = 1.5; c.globalAlpha = 0.5 + 0.5 * Math.sin(t * 6); c.beginPath(); c.arc(ex.x * k, ex.y * k, 11, 0, TAU); c.stroke(); c.globalAlpha = 1; }
     }

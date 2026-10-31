@@ -1209,3 +1209,62 @@ body.touch .tt-i { width: 28px; height: 28px; font-size: 14px; }
 body.hide-ui #hottip { display: none !important; }
 /* the tip never takes a tap meant for what is under it: only ⓘ and the open details are live */
 #hottip { pointer-events: none; } #hottip .tt-i, #hottip .tt-more, #hottip.open { pointer-events: auto; }
+
+/* ======================= 0.17.3 ======================= */
+/* TACTICAL BUILD: a big blue button under the SEAF orders (on a phone, in the dock) */
+#btn-tac { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 42px; padding: 6px 12px; pointer-events: auto; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 700; letter-spacing: 0.22em; color: #bfe9ff; background: rgba(10, 46, 70, 0.92);
+  border: 1px solid rgba(127, 216, 255, 0.75); border-radius: 6px; box-shadow: 0 0 14px rgba(127, 216, 255, 0.18); }
+#btn-tac:hover { background: rgba(18, 66, 96, 0.95); color: #fff; }
+#btn-tac kbd { font-size: 10px; letter-spacing: 0; padding: 0 4px; border: 1px solid currentColor; border-radius: 3px; opacity: 0.8; }
+body.tac-open #btn-tac { display: none !important; }
+body.touch #tray #btn-tac { display: none; }
+#dk-tac { display: none; }
+body.touch #dk-tac { display: flex; align-items: center; justify-content: center; padding: 0 12px; color: #bfe9ff; background: rgba(10, 46, 70, 0.92); border-color: rgba(127, 216, 255, 0.75); }
+body.touch #dk-tac .n { font-size: 11px; color: #bfe9ff; letter-spacing: 0.12em; font-weight: 700; }
+/* the pause menu: RESUME, two short rows, the way out; small links under it */
+#s-pause .card { width: min(92vw, 400px); }
+.pm { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.pm .btn { min-height: 44px; padding: 6px 8px; }
+.pm .pm-w { grid-column: 1 / -1; }
+.pm .pm-out { margin-top: 8px; }
+.pm .hidden { display: none; }
+#s-pause.out .pm #btn-home-m { grid-column: 1 / -1; }
+.pm-foot { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 14px; font-size: 11px; letter-spacing: 0.12em; color: var(--g-dim); }
+.pm-foot a, .pm-foot button { color: var(--g-dim); background: none; border: 0; padding: 4px 2px; font: inherit; letter-spacing: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.pm-foot a:hover, .pm-foot button:hover { color: var(--g); }
+/* settings: squad names and hiding the HUD at the top */
+.set-acts { display: flex; gap: 8px; justify-content: center; margin: 4px 0 10px; flex-wrap: wrap; }
+.set-acts .btn { min-height: 38px; padding: 4px 14px; font-size: 11.5px; }
+.set-acts .hidden { display: none; }
+/* the tactical build screen: GAME PAUSED high in the middle */
+#tac-banner { display: none; position: absolute; left: 50%; top: max(14vh, 90px); transform: translateX(-50%); z-index: 6; pointer-events: none; text-align: center;
+  padding: 7px 22px 8px; background: rgba(2, 14, 7, 0.78); border: 1px solid rgba(255, 230, 0, 0.55); border-radius: 6px; box-shadow: 0 0 22px rgba(255, 230, 0, 0.12); }
+#tac-banner b { display: block; color: var(--yellow); font-size: 20px; letter-spacing: 0.32em; }
+#tac-banner span { display: block; margin-top: 2px; color: var(--g-dim); font-size: 10px; letter-spacing: 0.18em; }
+body.tac-open #tac-banner { display: block; }
+body.touch #tac-banner { top: calc(max(8px, env(safe-area-inset-top)) + var(--mmw) * var(--ui, 1) + 14px); padding: 4px 14px 5px; }
+body.touch #tac-banner b { font-size: 15px; } body.touch #tac-banner span { display: none; }
+/* the row of crates and finished posts over the builds */
+.tc-list { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.tc-list.empty { display: none; }
+.tl { position: relative; overflow: hidden; display: flex; align-items: baseline; gap: 6px; min-height: 26px; max-width: 260px; padding: 3px 9px; font: inherit; font-size: 10px; letter-spacing: 0.06em;
+  color: #ffe9b0; background: rgba(40, 30, 6, 0.85); border: 1px solid rgba(255, 210, 74, 0.6); border-radius: 13px; cursor: pointer; touch-action: manipulation; }
+.tl .tl-f { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(255, 210, 74, 0.22); pointer-events: none; }
+.tl .tl-n, .tl .tl-s { position: relative; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl .tl-s { color: #ffd24a; font-weight: 700; }
+.tl.inbound { border-style: dashed; opacity: 0.8; }
+.tl.built { color: #bfe9ff; background: rgba(10, 40, 60, 0.85); border-color: rgba(127, 216, 255, 0.55); }
+.tl.built .tl-f { display: none; } .tl.built .tl-s { color: var(--amber); }
+body.touch .tl { min-height: 30px; font-size: 9.5px; }
+/* phones: the dock stops short of CALL; its buttons share the room (TACTICAL is one of them) */
+body.touch #dock { right: calc(max(10px, env(safe-area-inset-right)) + 90px); }
+body.touch #dock > .dkb { flex: 1 1 0; min-width: 0; width: auto; padding-left: 6px; padding-right: 6px; }
+body.touch #dock > .dkb .n, body.touch #dock > .dkb .s { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.touch #dock > #dk-tac { flex: 1.1 1 0; }
+body.touch.lefty #dock { left: calc(max(10px, env(safe-area-inset-left)) + 90px); right: max(6px, env(safe-area-inset-right)); }
+body.touch #dock > #dk-tac { flex: 0 0 auto; padding: 0 10px; }
+body.touch #tac-banner { top: calc(max(8px, env(safe-area-inset-top)) + var(--mmw) * var(--ui, 1) + 56px); }
+@media (max-height: 520px) and (orientation: landscape) { body.touch #tac-banner { top: 50px; } }
+body.touch.tac-open #feed { display: none; }
+body.touch #dock > #btn-follow { flex: 0 0 44px; } body.touch #btn-follow .n { font-size: 20px !important; line-height: 1; }

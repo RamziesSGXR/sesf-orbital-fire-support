@@ -135,7 +135,7 @@ const input = new Input(canvas, $('minimap'), cam, {
   fire: (b) => {
     if (mission && supplyFilling(mission)) { if (mission) mission.setFiring(false); return; }   // hands on the supply loader
     if (b && (!armed || tac)) { if (live() && input.touch) { audio.deny(); hud.toast(deny('noweapon'), 1600); } return; }   // nothing armed: CALL has nothing to call
-    if (b && live()) { audio.unlock(); firePending = true; }
+    if (b && live()) { audio.unlock(); firePending = true; keepArmed = shiftHeld(); }      // (Shift at the click keeps it armed after the call)
     if (mission && !bot) mission.setFiring(b && live() && armed);   // the ship gun fires for as long as the trigger is held
   },
   armed: () => armed && live() && !tac,
@@ -188,6 +188,7 @@ hud.onSquad = (i) => { audio.unlock(); selectSquad(i); };
 hud.onSquadAct = (kind) => { audio.unlock(); squadAct(kind, false); };
 hud.onHd = () => { audio.unlock(); };
 hud.onFocus = (kind, i) => focusTeam(kind, i);
+hud.onFocusAt = (x, y) => { if (!mission) return; cam.follow = false; camPan = null; cam.x = x; cam.y = y; audio.click(); };     // (a double tap on a build in the tactical screen's list)
 // A build picked on the tactical screen: the next click (or tap) on the map puts it there. The screen stays open.
 hud.onBuild = (what) => {
   audio.unlock();
@@ -230,7 +231,8 @@ function disarm() {
   if (mission) { mission.setFiring(false); mission.player.queued = -1; }
 }
 const shiftHeld = () => input.keys.has('ShiftLeft') || input.keys.has('ShiftRight');
-function afterCall() { if (armed && !shiftHeld() && mission.player.slots[mission.player.weapon].type !== 'gun') disarm(); }
+let keepArmed = false;
+function afterCall() { if (armed && !keepArmed && !shiftHeld() && mission.player.slots[mission.player.weapon].type !== 'gun') disarm(); keepArmed = false; }
 // Esc steps back one thing at a time: a play being drawn, a placement, the tactical screen, an armed weapon, then the menu.
 function escapeKey() {
   if (UI.anyOverlay() || state !== 'play') { togglePause(); return; }
@@ -244,7 +246,10 @@ function escapeKey() {
 function setHideUi(on) {
   hideUi = !!on && state === 'play';
   document.body.classList.toggle('hide-ui', hideUi);
-  if (hideUi && UI.isOn('s-pause')) togglePause(false);
+  if (hideUi && UI.isOn('s-settings')) {           // (HIDE UI is in Settings): close it, and play on
+    const from = settingsReturn; UI.overlay('s-settings', false); settingsReturn = null;
+    if (from === 'soft') afterPanel(); else if (paused && !soft) togglePause(false);
+  } else if (hideUi && UI.isOn('s-pause')) togglePause(false);
 }
 function setForm(f) {
   if (!live() || !f) return;
@@ -281,13 +286,21 @@ function clickAt(sx, sy) {
 }
 // A right click (or, on the tactical screen, a tap) with a SEAF squad selected: an order where it lands. On a post or a defence site
 // they man it, on an enemy, a bug hole or a target they attack it, anywhere else they move there.
+// A crate on the ground (or a foxhole being dug) at (x, y) in the world, or null.
+function crateAt(x, y) {
+  const r = Math.max(6, cam.view * 0.03);
+  let best = null, bd = r;
+  for (const c of mission.crates) { if (c.used || !c.landed) continue; const d = Math.hypot(c.x - x, c.y - y); if (d < bd) { bd = d; best = c; } }
+  return best;
+}
 function commandAt(sx, sy) {
   if (!live()) return;
   if (mission.seaf.sel < 0) { if (mission.seafAlive.length) { audio.deny(); hud.toast(deny('picksquad'), 1600); } return; }
   const w = renderer.screenToWorld(sx, sy, canvas); if (!w) return;
-  const m = mission, o = pickAt(sx, sy), r = Math.max(5, cam.view * 0.025);
+  const m = mission, o = pickAt(sx, sy), r = Math.max(5, cam.view * 0.025), cr = crateAt(w.x, w.y);
   let res;
-  if (o && o.type !== 'S' && o.kind !== 'turret') res = m.seafMan(o);
+  if (cr) res = m.seafBuildCrate(cr);                                  // a crate (or a foxhole being dug): they go and build it
+  else if (o && o.type !== 'S' && o.kind !== 'turret') res = m.seafMan(o);
   else {
     const e = m.eGrid.nearest(w.x, w.y, r), p = snap(w.x, w.y), hit = e || (p.x !== w.x || p.y !== w.y);
     res = hit ? m.seafOrder('attack', e ? e.x : p.x, e ? e.y : p.y) : m.seafOrder('move', w.x, w.y);
@@ -334,7 +347,8 @@ function tapAt(type, x, y) {
     return;
   }
   if (!tac && $('hud').classList.contains('tray-open')) { hud.trayToggle(false); return; }
-  const o = pickAt(x, y);
+  const o = pickAt(x, y), w = renderer.screenToWorld(x, y, canvas);
+  if (tac && mission.seaf.sel >= 0 && w && crateAt(w.x, w.y)) { commandAt(x, y); return; }   // a crate: the selected squad builds it
   if (o || !tac || mission.seaf.sel < 0) { clickAt(x, y); return; }
   commandAt(x, y);
 }
@@ -726,6 +740,7 @@ function softPause(force) {
 function openSettings(from) {
   settingsReturn = from;
   UI.buildSettings(settings, onSettingChange);
+  $('btn-hideui-m').classList.toggle('hidden', state !== 'play');
   if (from === 'pause') UI.overlay('s-pause', false);
   if (from === 'notice') UI.overlay('s-notice', false);
   UI.overlay('s-settings', true);
@@ -743,6 +758,7 @@ function openNames(from) {
   namesReturn = from;
   UI.buildNames(session ? session.names : S.getNames());
   if (from === 'pause') UI.overlay('s-pause', false);
+  if (from === 'settings') UI.overlay('s-settings', false);
   UI.overlay('s-names', true);
 }
 function closeNames(saveIt) {
@@ -755,6 +771,7 @@ function closeNames(saveIt) {
   }
   UI.overlay('s-names', false);
   if (namesReturn === 'pause') UI.overlay('s-pause', true);
+  if (namesReturn === 'settings') UI.overlay('s-settings', true);
   namesReturn = null;
 }
 
@@ -875,7 +892,7 @@ $('btn-names-t').onclick = () => openNames('title');
 $('shop-menu').onclick = () => { audio.unlock(); audio.click(); outMenu(true); };
 $('shop-back').onclick = () => { audio.unlock(); goHome(); };
 $('btn-home-m').onclick = () => goHome();
-$('btn-names-m').onclick = () => openNames('pause');
+$('btn-names-m').onclick = () => openNames('settings');
 $('names-save').onclick = () => closeNames(true);
 $('names-cancel').onclick = () => closeNames(false);
 $('names-clear').onclick = () => UI.clearNames();
@@ -889,7 +906,9 @@ $('btn-hideui-m').onclick = () => { audio.click(); setHideUi(true); };
 $('btn-speed').onclick = () => toggleSpeed();
 // Controls and the field manual: from the briefing, the armory, the pause menu (and the HUD menu, above)
 const where = () => (UI.isOn('s-pause') ? 'pause' : state === 'play' ? (soft ? 'soft' : 'pause') : state);
-for (const [b, id, fill] of [['btn-ctl-m', 's-controls', fillControls], ['btn-man-m', 's-manual', () => UI.fillManual()]]) {
+// FIELD MANUAL is on the controls panel (HELP): it takes the controls' place, and BACK goes where the controls would have
+$('btn-man-m').onclick = () => { audio.click(); const f = panelFrom['s-controls']; UI.overlay('s-controls', false); panelFrom['s-controls'] = null; openPanel('s-manual', f, () => UI.fillManual()); };
+for (const [b, id, fill] of [['btn-ctl-m', 's-controls', fillControls]]) {
   $(b).onclick = () => { audio.unlock(); audio.click(); openPanel(id, where(), fill); };
 }
 $('ctl-close').onclick = () => closePanel('s-controls');

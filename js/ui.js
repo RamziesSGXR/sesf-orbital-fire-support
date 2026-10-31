@@ -95,6 +95,7 @@ export class Hud {
     });
     document.querySelector('#tactical .tc-x').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onTac && this.onTac(false); });
     $('btn-tac').addEventListener('click', () => this.onTac && this.onTac());
+    $('dk-tac').addEventListener('pointerdown', (e) => { e.preventDefault(); this.onTac && this.onTac(); });
     // its two drop menus: the Helldivers, and the SEAF squads with their orders
     for (const [id, cls] of [['td-hd', 'tac-hd'], ['td-sf', 'tac-sf']]) {
       $(id).addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); const b = document.body, on = !b.classList.contains(cls); b.classList.remove('tac-hd', 'tac-sf'); b.classList.toggle(cls, on); });
@@ -429,7 +430,8 @@ export class Hud {
       obj = st ? st.text : t('hud.over'); prog = st ? st.p : null; urgent = !!(st && st.urgent);
     } else if (m.phase === 'extract') {
       const ex = m.extraction;
-      if (ex.state === 'called') { obj = t('obj.ex.called', { n: Math.max(0, Math.ceil(ex.landAt - m.t)) }); prog = 1 - Math.max(0, ex.landAt - m.t) / Math.max(1, ex.wait || 60); }
+      if (ex.state === 'beacon') { obj = t('obj.ex.beacon'); prog = 0; }
+      else if (ex.state === 'called') { obj = t('obj.ex.called', { n: Math.max(0, Math.ceil(ex.landAt - m.t)) }); prog = 1 - Math.max(0, ex.landAt - m.t) / Math.max(1, ex.wait || 60); }
       else if (ex.state === 'landing') { obj = t('obj.ex.landing'); prog = 1; }
       else if (ex.state === 'boarding') { obj = t('obj.ex.boarding', { on: ex.boardedH || 0, n: Math.max(0, Math.ceil(ex.leaveBy - m.t)) }); prog = 1; urgent = true; }
       else if (ex.state === 'away') obj = t('obj.ex.away');
@@ -466,7 +468,8 @@ export class Hud {
     const h = todAt(m);
     this._set('flavor', $('flavor'), t('hud.flavor', { fac: f.name, biome: m.biome.name.toUpperCase(), tod: todName(h), clock: todClock(h), view: Math.round(cam.view), cam: t(cam.follow ? 'hud.camLockedLong' : 'hud.camFreeLong') }));
     const touch = document.body.classList.contains('touch');
-    this._set('follow', $('btn-follow').firstElementChild, t(touch ? 'hud.recenter' : cam.follow ? 'hud.camLock' : 'hud.camFreeBtn'));
+    this._set('follow', $('btn-follow').firstElementChild, touch ? '⌖' : t(cam.follow ? 'hud.camLock' : 'hud.camFreeBtn'));   // (phones: a crosshair; the dock is crowded)
+    if (touch) $('btn-follow').setAttribute('aria-label', t('hud.recenter'));
     $('btn-follow').classList.toggle('free', !cam.follow);   // phones: the button only shows once the camera has been moved off the squad
   }
 
@@ -559,6 +562,7 @@ export class Hud {
   fillTactical(m, sel = this.selObj) {
     if (!m) return;
     this._tacSel(m, sel);
+    this._tacList(m);
     for (const [what, b] of Object.entries(this.bld)) {
       const lvl = buildLevel(m.kit, what), B = buildStats(what, lvl), n = builtCount(m, what);
       const cls = !lvl ? 'off' : m.wallet.bal < B.cost ? 'poor' : 'ready';
@@ -578,9 +582,53 @@ export class Hud {
   }
   // Touch: SELECT is armed (the next drag on the map draws a selection box).
   setBoxArm(on) { this.boxArm = !!on; document.body.classList.toggle('boxing', !!on); if (this.sqa && this.sqa.box) this.sqa.box.key = ''; }
+  // The row over the builds: a button for every crate on the ground (and foxhole being dug) with its progress, and one for each
+  // group of finished posts close together. A tap says what it is; a double tap takes the camera there.
+  _tacList(m) {
+    const items = [];
+    for (const c of m.crates || []) {
+      if (c.used) continue;
+      const B = buildStats(c.what, Math.max(1, buildLevel(m.kit, c.what))), f = Math.min(1, (c.prog || 0) / B.sec);
+      items.push({ key: 'c' + c.id, x: c.x, y: c.y, f, crate: c, name: t('build.' + c.what),
+        sub: !c.landed ? t('tac.l.inbound') : f > 0 ? `${Math.floor(f * 100)}%` : t('tac.l.waiting'), hands: c.hands || 0 });
+    }
+    // finished posts: lumped together when they stand within 45 m of each other
+    const posts = (m.posts || []).filter((p) => !p.dead && p.built !== false && !p.captured), groups = [];
+    for (const p of posts) {
+      let g = groups.find((q) => q.list.some((o) => Math.hypot(o.x - p.x, o.y - p.y) < 45));
+      if (!g) groups.push(g = { list: [] });
+      g.list.push(p);
+    }
+    for (const g of groups) {
+      const n = g.list.length, x = g.list.reduce((a, p) => a + p.x, 0) / n, y = g.list.reduce((a, p) => a + p.y, 0) / n;
+      const kinds = {}; for (const p of g.list) kinds[p.what] = (kinds[p.what] || 0) + 1;
+      const name = Object.entries(kinds).map(([w, k]) => `${t('build.' + w)}${k > 1 ? ` ×${k}` : ''}`).join(', ');
+      const hp = Math.min(...g.list.map((p) => (p.maxHp ? p.hp / p.maxHp : 1)));
+      items.push({ key: 'g' + g.list.map((p) => p.id).join('.'), x, y, f: 1, built: true, list: g.list, name, sub: hp < 0.995 ? `${Math.round(hp * 100)}%` : '' });
+    }
+    const box = $('tc-list'), key = items.map((i) => `${i.key}:${i.sub}:${i.hands || 0}`).join('|') + getLang();
+    if (this.last.tcl === key) return;
+    this.last.tcl = key;
+    box.innerHTML = '';
+    box.classList.toggle('empty', !items.length);
+    for (const it of items) {
+      const b = el('button', 'tl' + (it.built ? ' built' : '') + (it.crate && !it.crate.landed ? ' inbound' : ''), `<i class="tl-f" style="width:${Math.round(it.f * 100)}%"></i><span class="tl-n">${esc(it.name)}</span>${it.sub ? `<span class="tl-s">${esc(it.sub)}</span>` : ''}`);
+      b.type = 'button';
+      const short = () => (it.built
+        ? tl1(it.name, '', it.list.map((p) => `${t('build.' + p.what)} ${p.maxHp ? Math.round((100 * p.hp) / p.maxHp) + '%' : ''}${p.cap ? ` · ${t('sel.crew')} ${p.crew}/${p.cap}` : ''}`), '')
+        : tl1(it.name, '', [it.crate.landed ? (it.f > 0 ? `${Math.floor(it.f * 100)}%` : t('tac.l.waiting')) : t('tac.l.inbound'), it.crate.landed ? t('tac.l.hands', { n: it.crate.hands || 0 }) : ''], ''));
+      b.addEventListener('pointerdown', (ev) => {
+        ev.preventDefault(); ev.stopPropagation();
+        this.tip(b, short, null, 2600);
+        if (this.dbl('tl' + it.key)) this.onFocusAt && this.onFocusAt(it.x, it.y);
+      });
+      box.appendChild(b);
+    }
+  }
   // The tactical build screen's header: whether the game waits or runs slow, and how to use it here.
   setTacState(slow, touch) {
     $('tc-state').textContent = t(slow ? 'tac.slowed' : 'tac.paused');
+    document.querySelector('#tac-banner b').textContent = t(slow ? 'tac.slowed' : 'tac.paused');
     $('tc-help').textContent = t(touch ? 'tac.helpTouch' : 'tac.helpDesk');
   }
   // A weapon is armed (picked on the bar or with its key): the reticle shows and a click calls it. Otherwise the cursor selects.
@@ -766,7 +814,7 @@ export function squadStatus(m) {
   const sq = m.squad;
   if (sq.mounted) return t('sq.frv');
   if (m.vip && m.vip.carrier) return t('sq.vip');
-  if (m.phase === 'extract') { const s = m.extraction.state; return t(s === 'boarding' ? 'sq.board' : s === 'called' || s === 'landing' ? 'sq.holdEx' : 'sq.toEx'); }
+  if (m.phase === 'extract') { const s = m.extraction.state; return t(s === 'boarding' ? 'sq.board' : s === 'called' || s === 'landing' || s === 'beacon' ? 'sq.holdEx' : 'sq.toEx'); }
   const ao = m.objectives.find((o) => !o.done);
   if (m.phase === 'objective' && ao && !sq.engaged && sq.state !== 'setup') {
     if (ao.type === 'nuke' && (ao.state === 'hold' || ao.state === 'armed')) return t('sq.holdNuke');
@@ -1131,7 +1179,7 @@ export function fillDebrief(info, res, session, block = '', startCr = null) {
   $('d-credits').innerHTML = tbl([
     [t('deb.c.kills'), c.kills], [t('deb.c.bases'), c.bases], [t('deb.c.pois'), c.pois], [t('deb.c.sides'), c.sides || 0], [t('deb.r.clear'), c.clear || 0], [t('deb.c.breaches'), c.breaches],
     [t('deb.c.drops'), c.drops || 0], [t('deb.c.civ'), c.civ || 0], [t('deb.c.boss'), c.boss || 0], [t('deb.c.objective'), c.objective], [t('deb.c.extraction'), c.extraction],
-    [t('deb.c.earned'), c.total, 'sum'], [t('deb.c.spent'), -c.spent], [t('deb.c.balance'), c.balance, 'sum', true],
+    [t('deb.c.earned'), c.total, 'sum'], [t('deb.c.spent'), -c.spent], [t('deb.c.seafLives', { n: c.seafLost || 0 }), -(c.seafLives || 0)], [t('deb.c.balance'), c.balance, 'sum', true],
   ].filter(([, v, , keep]) => v !== 0 || keep));
   $('d-deaths').innerHTML = deathList(res);
   const top = Object.entries(s.stratBy).sort((a, q) => q[1] - a[1]).slice(0, 3).map(([id, n]) => `${STRATS[id].name} x${n}`).join(', ');
@@ -1316,7 +1364,7 @@ export function weaponInfo(m, i) {
   if (s.type === 'arty') {
     const a = slotStats(m, i), n = (m.arty || []).length;
     return `<div class="ic-h">${t('hud.w.arty')} <i>${t('card.level', { n: Math.max(1, (m.kit.build || {}).arty || 0) })}</i></div>` + row(t('card.dmg'), fmtNum(a.dmg)) + row(t('card.blast'), M(a.r))
-      + row(t('card.range'), M(a.range)) + row(t('card.impact'), S(a.delay)) + row(t('card.recharge'), S(a.cd)) + row(t('card.guns'), String(n))
+      + row(t('card.range'), t('tip.wholeMap')) + row(t('card.impact'), S(a.delay)) + row(t('card.recharge'), S(a.cd)) + row(t('card.guns'), String(n))
       + `<div class="ic-b">${esc(t('card.arty.b'))}</div>`;
   }
   if (s.type === 'nuke') {
@@ -1390,7 +1438,7 @@ export function weaponShort(m, i, state = '') {
     const g = gunStats(m.kit), G = m.player.gun;
     return tl1(t('hud.w.gun'), '', [t('tip.dmg', { n: g.dmg.toFixed(0) }) + ' ' + t('tip.perSec', { n: C.gun.rps }), t('tip.rounds', { a: Math.floor(G.ammo), b: Math.round(g.ammo) })], G.dry ? state : '', bad);
   }
-  if (s.type === 'arty') { const a = slotStats(m, i); return tl1(t('hud.w.arty'), '', [t('tip.dmg', { n: fmtNum(a.dmg) }), t('tip.blast', { n: Math.round(a.r) }), t('tip.range', { n: Math.round(a.range) })], state, bad); }
+  if (s.type === 'arty') { const a = slotStats(m, i); return tl1(t('hud.w.arty'), '', [t('tip.dmg', { n: fmtNum(a.dmg) }), t('tip.blast', { n: Math.round(a.r) }), t('tip.wholeMap')], state, bad); }
   if (s.type === 'nuke') return tl1(t('card.nuke.h'), '', [t('tip.blast', { n: C.objective.nuke.blastR })], state, bad);
   const st = orbStats(s.id, s.level), f0 = (v) => Math.round(v);
   let parts;

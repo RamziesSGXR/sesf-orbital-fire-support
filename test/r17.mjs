@@ -82,5 +82,48 @@ check('the version is 0.17.x', /^0\.17\.\d+$/.test(C.share.version), C.share.ver
   check('a post without places has no door', !no.ok && no.reason === 'nogarrison', no.reason);
 }
 
+// ---------------------------------------------------------------- 0.17.3: building, SEAF replacements, the cannon, prices
+{
+  // more hands, faster: the same MG nest with two troopers and with eight
+  const time = (n) => {
+    const m = quiet(1731); m.wallet.bal = 9999;
+    troops(m, n, 0, m.hx + 30, m.hy + 4); m.selectSquad(0);
+    const r = m.seafBuild('mg', m.hx + 34, m.hy + 4); if (!r.ok) return Infinity;
+    const c = m.crates[m.crates.length - 1]; c.landed = true;
+    let at = Infinity;
+    run(m, 80, (mm) => { if (at === Infinity && mm.posts.some((p) => p.what === 'mg' && !p.dead)) at = mm.t; });
+    return at - 7;
+  };
+  const t2 = time(2), t8 = time(8);
+  check('the more troopers build, the faster it goes', t8 < t2 * 0.4, `2 troopers ${t2.toFixed(1)} s, 8 troopers ${t8.toFixed(1)} s`);
+  // a crate keeps its progress; another squad sent to it (a right click on it) carries on
+  const m = quiet(1732); m.wallet.bal = 9999;
+  troops(m, 3, 0, m.hx + 30, m.hy + 4); m.selectSquad(0);
+  m.seafBuild('bunker', m.hx + 34, m.hy + 4);
+  const c = m.crates[m.crates.length - 1]; c.landed = true;
+  run(m, 6);
+  const p1 = c.prog || 0;
+  m.selectSquad(0); m.seafOrder('move', m.hx - 60, m.hy - 40);                  // pulled away
+  run(m, 3);
+  check('a crate keeps its progress when the squad is pulled away', p1 > 0 && Math.abs((c.prog || 0) - p1) < 1e-6, `${p1.toFixed(1)} s done`);
+  troops(m, 4, 1, c.x + 8, c.y + 6); m.selectSquad(1);
+  const r = m.seafBuildCrate(c);
+  run(m, 4);
+  check('another squad sent to the crate carries on from there', r.ok && (c.prog || 0) > p1, `${p1.toFixed(1)} -> ${(c.prog || 0).toFixed(1)} s`);
+}
+{
+  const m = quiet(1733); m.wallet.bal = 5000;
+  m.stats.lostS = 20; m.finish('victory');
+  const r = m.result();
+  const want = Math.round(20 * C.seaf.lifeCost + (C.seaf.lifeStep * 20 * 19) / 2);
+  check('lost SEAF troopers are paid for at the end of the mission, each dearer than the last', r.credits.seafLives === want && want > 20 * C.seaf.lifeCost, `${r.credits.seafLives} CR for 20`);
+}
+check('the artillery cannon reaches the whole map (only where an ally can see)', C.arty.range >= 1e4);
+check('the bot commander jams twice as far', C.special.bots.jamR >= 22, C.special.bots.jamR);
+{
+  const it = shopItems(newKit()).find((x) => x.id === 'bld:arty');
+  check('the cannon costs more to unlock, and prices are up', it.cost >= 2000 && C.econ.priceMul >= 1.05, `${it.cost} CR`);
+}
+
 console.log(fails ? `\n${fails} FAILED` : '\nall passed');
 process.exit(fails ? 1 : 0);

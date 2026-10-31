@@ -169,7 +169,11 @@ for (const fac of ['bugs', 'bots', 'squids']) {
   for (const a of m.hdAlive) { a.x = ex.x + (Math.random() - 0.5) * 6; a.y = ex.y + (Math.random() - 0.5) * 6; }
   m.squad.ax = ex.x; m.squad.ay = ex.y;
   run(m, 1);
-  check('a Helldiver on the pad calls the pelican', ex.state === 'called' && Math.abs(ex.landAt - m.t - ex.wait) < 2 && ex.wait >= C.extract.callMin, `lands in ${(ex.landAt - m.t).toFixed(0)} s`);
+  check('a Helldiver on the pad throws the blue beacon (0.17.3)', ex.state === 'beacon', ex.state);
+  const w0 = m.stats.reinf || 0;
+  run(m, C.extract.beaconSec + 0.5);
+  check('when it lands the pelican is called: two minutes out', ex.state === 'called' && Math.abs(ex.landAt - m.t - ex.wait) < 2 && ex.wait === 120, `lands in ${(ex.landAt - m.t).toFixed(0)} s`);
+  check('and the enemy always answers the beacon', (m.stats.reinf || 0) > w0 || m.drops.length > 0 || m.breaches.some((b) => !b.dead), `${(m.stats.reinf || 0) - w0} calls`);
   m.reinf.readyAt = 0;
   const r0 = m.stats.reinf || 0;
   run(m, ex.wait * 0.6);
@@ -180,6 +184,7 @@ for (const fac of ['bugs', 'bots', 'squids']) {
   const sp = m.pelicans.filter((p) => p.evac).length;
   run(m, C.extract.boardSec + 12);
   check('every Helldiver boards and the mission ends extracted', m.over && m.extracted && ex.boardedH >= 1, `${ex.boardedH} aboard, ${m.outcome}`);
+  check('the boarding window is 20 seconds', C.extract.boardSec === 20);
   check('SEAF squads get pelicans of their own and board them', sp >= 1 && (ex.boardedS || 0) >= 1, `${sp} SEAF pelicans, ${ex.boardedS || 0} troopers aboard`);
 }
 

@@ -42,7 +42,7 @@ function placeSlots(p) {
 export function postReach(m, p) {
   if (p.what === 'mg') return p.p.range;
   if (p.what === 'sam' || p.what === 'tower') return p.reach || towerReach(m, p);
-  if (p.what === 'arty') return buildStats('arty', p.lvl).range;
+  if (p.what === 'arty') return 0;      // (the whole map)
   return 0;
 }
 const towerReach = (m, p) => Math.round(uavStats(m.kit.uav).r * (p.what === 'tower' ? 1 + 0.05 * (p.lvl - 1) : 1));

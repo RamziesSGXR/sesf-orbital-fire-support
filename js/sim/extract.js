@@ -1,7 +1,9 @@
 // Extraction. Once the objective is done (and the bonus bases are cleared or their time is up) the extraction point goes live:
 //   open      the squad heads for it
-//   called    a Helldiver reached it and called the pelican; it arrives in CONFIG.extract.callSec. The squad holds the zone while
-//             reinforcements come in waves. Nobody has to clear the map to leave.
+//   beacon    a Helldiver reached it and threw the blue extraction beacon; it falls for CONFIG.extract.beaconSec
+//   called    the beacon is down: the pelican arrives in CONFIG.extract.callSec. The enemy always answers: a first wave the moment
+//             the beacon lands (drop ships, or bugs breaching), then more every so often. Nobody has to clear the map to leave.
+// (The pad is on the map from the drop, locked until the objective is done, so SEAF can dig in round it early.)
 //   landing   the pelican comes down on the pad
 //   boarding  every Helldiver runs for the ramp and boards; SEAF squads get pelicans of their own wherever they are bunched up
 //   away      the pelican climbs out; the mission ends
@@ -64,14 +66,23 @@ export function updateExtract(m, dt) {
         if (t >= (ex.blockSaid || 0)) { ex.blockSaid = t + 15; m.radio(COMMS.bossBlock(m.boss.name), 'bossblock', 0); m.emit('boss_block', {}); }
         break;
       }
-      const wait = Math.round(Math.min(X.callSec, X.callMin + X.callPerMin * m.S));   // longer waits later in the session
-      ex.state = 'called'; ex.landAt = t + wait; ex.waveAt = t + 6; ex.wait = wait;
-      m.radio(COMMS.extractCalled(wait), 'excall', 0);
-      m.notice(tr('n.exCalled', { n: wait }), 'warn');
-      m.emit('extract_call', { x: ex.x, y: ex.y });
+      // the blue beacon: thrown, it falls to the pad; the pelican is called when it lands
+      ex.state = 'beacon'; ex.beaconAt = t; ex.beaconDown = t + X.beaconSec; ex.wait = X.callSec;
+      m.emit('extract_beacon', { x: ex.x, y: ex.y });
       bark(m, a, 'extract', '', true);
       break;
     }
+    return;
+  }
+  if (ex.state === 'beacon') {
+    if (t < ex.beaconDown) return;
+    const wait = X.callSec;
+    ex.state = 'called'; ex.landAt = t + wait; ex.wait = wait;
+    ex.waveAt = t + C.reinf.extractEvery / Math.max(0.8, Math.min(1.5, m.pressure));
+    m.radio(COMMS.extractCalled(wait), 'excall', 0);
+    m.notice(tr('n.exCalled', { n: wait }), 'warn');
+    m.emit('extract_call', { x: ex.x, y: ex.y });
+    callReinforcements(m, ex.x, ex.y, 'extract', { dist: [55, 105], extra: 1 });      // the enemy always comes for an extraction
     return;
   }
   if (ex.state === 'called') {

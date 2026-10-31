@@ -151,7 +151,7 @@ function troops(m, n, sq = 0, x = m.hx + 10, y = m.hy + 6) {
   m.selectSquad(0);
   // a foxhole: free, dug without a crate, and the squad gets in
   const bal = m.wallet.bal, r = m.seafBuild('foxhole', m.hx + 30, m.hy + 20);
-  check('a foxhole is dug for free, with no crate', r.ok && m.wallet.bal === bal && !m.crates.length);
+  check('a foxhole is dug for free, with no crate (0.17.3: a dig site that shows its progress)', r.ok && m.wallet.bal === bal && m.crates.every((c) => c.dig));
   run(m, 25);
   const fox = m.posts.find((p) => p.what === 'foxhole');
   check('it goes up and the squad mans it', fox && fox.crew === C.build.foxhole.cap && m.seaf.squads[0].order.kind === 'post', fox ? `crew ${fox.crew}` : 'none');

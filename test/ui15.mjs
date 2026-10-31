@@ -61,8 +61,7 @@ await tap(touch ? '#ctl-tab-d' : '#ctl-tab-t'); await page.waitForTimeout(150);
 check('and the other tab shows the other device', await ev(() => !document.getElementById('controls-desktop').classList.contains('hidden')) === touch);
 check('the computer controls list the cannon, pause, half speed, the tactical menu and box select', await ev(() => { const s = document.getElementById('controls-desktop').textContent; return /artillery cannon/.test(s) && /half speed/.test(s) && /pause/.test(s) && /TACTICAL/.test(s) && /box/.test(s); }));
 await shot('controls');
-await tap('#ctl-close'); await page.waitForTimeout(200);
-await tap('#btn-man-m'); await page.waitForTimeout(300);
+await tap('#btn-man-m'); await page.waitForTimeout(300);   // (0.17.3: FIELD MANUAL is on the HELP panel)
 const man = await ev(() => ({ secs: document.querySelectorAll('#manual-body .man-sec').length, items: document.querySelectorAll('#manual-body li').length, text: document.getElementById('manual-body').textContent }));
 check('the FIELD MANUAL lists what the gunner can do, by section', man.secs === 7 && man.items >= 35, `${man.secs} sections, ${man.items} items`);
 check('it covers building, drawing plays, drops and the armory', /build/i.test(man.text) && /DRAW/.test(man.text) && /SEAF DROP/.test(man.text) && /Barracks/.test(man.text));
@@ -84,7 +83,7 @@ const t0 = await ev(() => window.__game.mission.t); await page.waitForTimeout(70
 const mp = await ev(() => ({ t: window.__game.mission.t, paused: window.__game.paused, pm: document.getElementById('s-pause').classList.contains('on'), drop: !!document.getElementById('menu') }));
 check('MENU opens the pause menu straight away, and the game stops', mp.pm && mp.paused && mp.t === t0, JSON.stringify(mp));
 check('there is no second menu under the MENU button any more', !mp.drop);
-check('the pause menu has SETTINGS, CONTROLS and FIELD MANUAL', await ev(() => ['btn-settings-m', 'btn-ctl-m', 'btn-man-m'].every((id) => { const b = document.getElementById(id); return b && b.offsetParent; })));
+check('the pause menu has SETTINGS and HELP (0.17.3: the controls, with the field manual behind them)', await ev(() => ['btn-settings-m', 'btn-ctl-m'].every((id) => { const b = document.getElementById(id); return b && b.offsetParent; })));
 await shot('menu');
 await tap('#btn-settings-m'); await page.waitForTimeout(300);
 check('SETTINGS opens from it, still paused', (await on('s-settings')) && await ev(() => window.__game.paused));
@@ -117,7 +116,7 @@ check('and back to full speed', await ev(() => window.__game.speed === 1 && docu
 
 // ---------------------------------------------------------------- building: the tactical menu, weapon 9 (the cannon needs a crew)
 await ev(() => { const m = window.__game.mission; m.seaf.readyAt = 0; m.callSeaf(m.hx + 20, m.hy + 10); for (let i = 0; i < 30 * 14; i++) m.step(1 / 30); });
-await tap('#btn-tac'); await page.waitForTimeout(300);
+await tap(touch ? '#dk-tac' : '#btn-tac'); await page.waitForTimeout(300);
 const bm = await ev(() => [...document.querySelectorAll('#tactical .bld')].map((b) => b.textContent));
 check('the tactical build screen has the artillery cannon, locked until the armory unlocks it', bm.length === 7 && /ARTILLERY CANNON/.test(bm[6]) && /UNLOCK/.test(bm[6]), bm.join(' | '));
 check('and the game waits while it is open (0.17)', await ev(async () => { const g = window.__game, t0 = g.mission.t; await new Promise((r) => setTimeout(r, 300)); return g.tac && g.mission.t === t0 && document.body.classList.contains('tacpause'); }));

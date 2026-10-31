@@ -172,6 +172,7 @@ export class Input {
       // Esc steps back one thing at a time (main.js): drawing, a placement, the tactical screen, an armed weapon, then the menu
       if (e.code === 'Escape') { this.h.escape(); return; }
       if (e.code === 'F2') { e.preventDefault(); if (this.h.hideUi) this.h.hideUi(); return; }     // hide the HUD, and back
+      if (e.code === 'Tab' && this.h.tac && this.h.tac()) { e.preventDefault(); this.h.order('build', true); return; }   // Tab closes it again
       // the tactical build screen is open: 1 to 7 build, Z X C V B pick a formation (and no weapon keys)
       if (this.h.tac && this.h.tac() && !e.shiftKey) {
         const d = /^Digit([0-9])$/.exec(e.code), f = ['KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB'].indexOf(e.code);
@@ -185,7 +186,7 @@ export class Input {
       if (dig && e.shiftKey) this.h.squad(Number(dig[1]) >= 1 && Number(dig[1]) <= 4 ? Number(dig[1]) - 1 : -1);   // Shift+1..4 pick a squad, Shift+0 all
       else if (dig && dig[1] !== '0') this.h.weapon(Number(dig[1]) - 1);
       else if (e.code === 'Backquote') this.h.squad(-1);
-      else if (e.code === 'Tab') { e.preventDefault(); this.h.squadCycle(e.shiftKey ? -1 : 1); }
+      else if (e.code === 'Tab') { e.preventDefault(); this.h.order('build', true); }      // the tactical build screen (as O)
       else if (e.code === 'KeyR') this.h.squadAct('draw');
       else if (e.code === 'KeyF') this.h.squadAct('split');
       else if (e.code === 'KeyM') this.h.squadAct('merge');

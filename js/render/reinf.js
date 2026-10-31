@@ -223,6 +223,15 @@ export function drawExtraction(ctx, m, now, px, labels, scale) {
   const ex = m.extraction;
   if (!ex.revealed) return;
   const t = m.t, R = C.extract.radius, pulse = 0.6 + 0.4 * Math.sin(now * 3);
+  // before the objective is done the pad is there but locked: dim, no zone, no lights
+  if (m.phase !== 'extract') {
+    ctx.fillStyle = 'rgba(190,195,185,0.14)'; ctx.fillRect(ex.x - 11, ex.y - 11, 22, 22);
+    ctx.strokeStyle = 'rgba(255,230,0,0.35)'; ctx.lineWidth = px(1.2); ctx.setLineDash([px(4), px(4)]); ctx.strokeRect(ex.x - 11, ex.y - 11, 22, 22); ctx.setLineDash([]);
+    ctx.strokeStyle = 'rgba(255,230,0,0.35)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(ex.x - 4, ex.y - 5); ctx.lineTo(ex.x - 4, ex.y + 5); ctx.moveTo(ex.x + 4, ex.y - 5); ctx.lineTo(ex.x + 4, ex.y + 5); ctx.moveTo(ex.x - 4, ex.y); ctx.lineTo(ex.x + 4, ex.y); ctx.stroke();
+    labels.push({ x: ex.x, y: ex.y, dy: -11 * scale - 10, text: tr('lab.extractLocked'), col: 'rgba(255,230,0,0.65)', pri: 1 });
+    return;
+  }
   // the pad and its corner lights
   ctx.fillStyle = 'rgba(190,195,185,0.22)'; ctx.fillRect(ex.x - 11, ex.y - 11, 22, 22);
   ctx.strokeStyle = 'rgba(255,230,0,0.75)'; ctx.lineWidth = px(1.4); ctx.strokeRect(ex.x - 11, ex.y - 11, 22, 22);
@@ -235,6 +244,27 @@ export function drawExtraction(ctx, m, now, px, labels, scale) {
   ctx.strokeStyle = `rgba(255,230,0,${0.45 + pulse * 0.4})`; ctx.lineWidth = px(2);
   ctx.setLineDash([px(8), px(6)]); ring(ctx, ex.x, ex.y, R); ctx.stroke(); ctx.setLineDash([]);
   let text = tr('lab.extraction');
+  // the blue extraction beacon: thrown, it falls to the pad (a streak and a shadow closing in), then stands with its light blinking
+  if (ex.beaconAt !== undefined) {
+    const bx = ex.x + 8, by = ex.y - 8, k = Math.min(1, (t - ex.beaconAt) / C.extract.beaconSec);
+    if (k < 1) {
+      const h = (1 - k) * (1 - k) * 90;
+      ctx.fillStyle = `rgba(0,0,0,${0.15 + 0.4 * k})`; ring(ctx, bx, by, 1.2 + (1 - k) * 4); ctx.fill();
+      const g = ctx.createLinearGradient(bx, by - h - 26, bx, by - h);
+      g.addColorStop(0, 'rgba(90,180,255,0)'); g.addColorStop(1, 'rgba(120,200,255,0.9)');
+      ctx.strokeStyle = g; ctx.lineWidth = Math.max(px(3), 1); ctx.beginPath(); ctx.moveTo(bx, by - h - 26); ctx.lineTo(bx, by - h); ctx.stroke();
+      ctx.fillStyle = '#3da9ff'; ring(ctx, bx, by - h, Math.max(px(4), 1.6)); ctx.fill();
+      text = tr('lab.beaconFalling');
+    } else {
+      const land = t - ex.beaconAt - C.extract.beaconSec, burst = Math.max(0, 1 - land / 0.6);
+      if (burst > 0) { ctx.strokeStyle = `rgba(120,200,255,${burst})`; ctx.lineWidth = px(2); ring(ctx, bx, by, 2 + (1 - burst) * 12); ctx.stroke(); }
+      ctx.fillStyle = 'rgba(0,0,0,0.5)'; ring(ctx, bx, by, 2); ctx.fill();
+      ctx.fillStyle = '#9fb6c8'; ctx.fillRect(bx - 0.5, by - 3.5, 1, 4);
+      const on = Math.floor(now * 2.5) % 2 === 0;
+      ctx.fillStyle = on ? '#5ec4ff' : 'rgba(61,169,255,0.4)'; ring(ctx, bx, by - 3.5, Math.max(px(3.2), 1.3)); ctx.fill();
+      if (on) { ctx.fillStyle = 'rgba(61,169,255,0.18)'; ring(ctx, bx, by - 3.5, Math.max(px(12), 4)); ctx.fill(); }
+    }
+  }
   if (ex.state === 'called') {
     const left = Math.max(0, ex.landAt - t), f = 1 - left / Math.max(1, ex.wait || C.extract.callSec);
     ctx.strokeStyle = '#7dff9b'; ctx.lineWidth = px(4); ctx.beginPath(); ctx.arc(ex.x, ex.y, R + px(6), -Math.PI / 2, -Math.PI / 2 + TAU * f); ctx.stroke();

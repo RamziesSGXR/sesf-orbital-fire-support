@@ -44,6 +44,7 @@ export function cannonArt(ctx, x, y, face, px, live) {
   ctx.restore();
 }
 
+export function postArt(ctx, p, now, px, t) { art(ctx, p, now, px, t); }
 function art(ctx, p, now, px, t) {
   const x = p.x, y = p.y, hit = t - p.hurtAt < 0.12;
   if (p.what === 'foxhole') {

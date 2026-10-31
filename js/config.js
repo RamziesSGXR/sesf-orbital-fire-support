@@ -38,7 +38,9 @@ export const CONFIG = {
   seaf:     { max: 12, dropSize: 5, dropCooldownSec: 45, firstDropSec: 20, dropDelaySec: 6, patrolRadius: 30, patrolSpeed: 2.5,
               followSec: 45, followSpread: 28, protectR: 36, protectLeash: 80, clearR: 55, clearMaxSec: 70, clearQuietSec: 5,
               grenChance: 0.3, rocketChance: 0.6, attackSec: 35, squads: 4, medicChance: 0.45, spotChance: 0.3,
-              formationSpacing: 5, pathReach: 9, assignR: 22 },
+              formationSpacing: 5, pathReach: 9, assignR: 22,
+              // every SEAF trooper lost is replaced (paid at the end of the mission): lifeCost CR for the first, lifeStep more for each after
+              lifeCost: 8, lifeStep: 0.25 },
   // The troop pelican: flies in, hovers a moment while the troops fast-rope down, then climbs away. Its belly autocannon
   // shoots any enemy it can see while it is on station.
   pelican:  { speed: 92, approach: 330, hover: 1.6, climb: 4.5, dropEvery: 0.22, gunRange: 66, gunEvery: 0.3, gunDmg: 30, gunSplash: 2.4, gunAcc: 0.85 },
@@ -68,18 +70,20 @@ export const CONFIG = {
   // 0 = owned from the start; up: the price scale for the next level); the per-level numbers are in data/kit.js buildStats().
   // cap: how many crew fit. Troopers at a post patch it up (repair health a second each, up to four) once it has not been hit for
   // repairQuiet seconds and no enemy is within repairClear metres.
-  build:    { r: 12, levels: 5, crateR: 16, repair: 14, repairQuiet: 4, repairClear: 40, slowmo: 0.3,
+  // perHand: how much of a second of build time one trooper does in a second (two do one second; more hands, faster; up to maxHands).
+  // builderR: troopers this close to a crate work on it. The four stages a build shows: crate, open crate, parts going up, built.
+  build:    { r: 12, perHand: 0.5, maxHands: 12, builderR: 20, levels: 5, crateR: 16, repair: 14, repairQuiet: 4, repairClear: 40, slowmo: 0.3,
               foxhole: { cost: 0,   sec: 6,  cap: 3, mul: 0.8, rof: 1.3 },
               bastion: { cost: 100, sec: 14, n: 8, R: 10, mul: 0.55, unlock: 0, up: 120 },
               mg:      { cost: 300, sec: 18, cap: 2, hp: 1800, dmg: 1, crewMul: 0.35, unlock: 0, up: 200 },
               bunker:  { cost: 450, sec: 24, cap: 6, hp: 3000, take: 0.6, ff: 0.15, unlock: 0, up: 220 },
               tower:   { cost: 700, sec: 40, cap: 1, hp: 1400, unlock: 0, up: 220 },
               sam:     { cost: 550, sec: 26, hp: 1600, dmg: 320, every: 2.4, unlock: 700, up: 260 },
-              arty:    { cost: 650, sec: 28, cap: 2, hp: 2200, unlock: 1000, up: 380 } },
-  // The Artillery Cannon: a SEAF gun the player fires like a stratagem (weapon 9) while someone mans it, anywhere in range that is in
-  // sight (or locked), on a slow recharge. Each round is a mini-nuke. Built from the armory unlock, or captured on the map (a side
+              arty:    { cost: 1100, sec: 32, cap: 2, hp: 2200, unlock: 2200, up: 600 } },
+  // The Artillery Cannon: a SEAF gun the player fires like a stratagem (weapon 9) while someone mans it, anywhere on the map that an
+  // ally can see (or locked), on a slow recharge. Each round is a mini-nuke. Built from the armory unlock, or captured on the map (a side
   // mission). By level.
-  arty:     { range: 480, rangeUp: 30, cd: 90, cdUp: 0.1, r: 20, rUp: 0.08, dmg: 2400, dmgUp: 0.15, flight: 5, capture: 18, captureR: 16,
+  arty:     { range: 1e5, rangeUp: 0, cd: 90, cdUp: 0.1, r: 20, rUp: 0.08, dmg: 2400, dmgUp: 0.15, flight: 5, capture: 18, captureR: 16,
               chance: 0.45, fromMission: 2, mult: { L: 1, M: 1, H: 1, B: 0.5 } },
   // Cover at the sites the squad holds (cover.js): n walls in a ring of the given radius; standing within r of one, an ally takes
   // mul of what enemy fire would do.
@@ -159,7 +163,7 @@ export const CONFIG = {
   //   squids: the Fleshmob, a slow melee mass that soaks damage (soak: the share of each hit it takes).
   special:  { share: 0.25, cap: 2, perMin: 0.03, max: 6, reward: 3,
               bugs:   { id: 'guard', hp: 1.7, speed: 1.25, r: 4.8, front: 0.55, frontCos: 0.5, atk: { range: 5.5, dmg: 22, every: 1.2, acc: 1 } },
-              bots:   { id: 'cmd',   hp: 1.4, speed: 0.9,  r: 4.3, jamR: 11, atk: { range: 44, dmg: 14, every: 1.1, acc: 0.65 } },
+              bots:   { id: 'cmd',   hp: 1.4, speed: 0.9,  r: 4.3, jamR: 22, atk: { range: 44, dmg: 14, every: 1.1, acc: 0.65 } },
               squids: { id: 'soak',  hp: 3,   speed: 1.1,  r: 5.2, soak: 0.6, atk: { range: 5.5, dmg: 38, every: 1.5, acc: 1 } } },
   // Patrols: every base keeps perBase (more later in the session and the mission, up to maxPerBase) out on a route of its own, radius
   // metres out, replacing a lost one every `every` seconds while it stands; atStart are out at the drop. An intercept is a patrol
@@ -245,7 +249,9 @@ export const CONFIG = {
   // Extraction: the squad reaches the point and calls the pelican (callSec to arrive). They hold the zone against reinforcements
   // until it lands (they do not have to clear the map), then run for the ramp. SEAF squads get pelicans of their own wherever they
   // are bunched up. The pelican leaves once every Helldiver is aboard, or after boardSec.
-  extract:  { minFromLz: 600, minFromBase: 150, radius: 25, callSec: 75, callMin: 35, callPerMin: 0.35, landSec: 3.5, boardSec: 25, boardR: 6, seafBoardSec: 16, seafR: 30 },
+  // The extraction pad is on the map from the drop (locked until the objective is done). A Helldiver on it throws the blue beacon
+  // (it falls for beaconSec); then the pelican takes callSec to arrive, waits boardSec on the pad, and the enemy comes in waves.
+  extract:  { minFromLz: 600, minFromBase: 150, radius: 25, callSec: 120, beaconSec: 2.2, landSec: 3.5, boardSec: 20, boardR: 6, seafBoardSec: 16, seafR: 30 },
   // At the start of a mission the ship gun is ready and selected; the UAV and every orbital start part-way through a cooldown.
   weapons:  { swapSec: 0.3, warmupSec: 8, startCdFrac: 0.5, startCdMin: 12 },
   // The destroyer's free-fire Ship Gun (its one gatling). It fires wherever the player can see, so it is not tied to the strike zone, and it is the
@@ -265,7 +271,7 @@ export const CONFIG = {
   // Credits: earned from kills, bases, POIs, breaches and the objective, with a bonus at extraction. Spent in the armory.
   // One multiplier on every armory price. Bot sessions earn about 520 credits a minute, so three hours earns roughly what the whole
   // armory costs at 0.9 (about 97,000 credits). test/r7.mjs checks the two stay together.
-  econ:     { priceMul: 0.88, earnPerMin: 640, maxAtMin: 180 },
+  econ:     { priceMul: 1.1, earnPerMin: 640, maxAtMin: 230 },     // (0.17.3: prices up about a quarter)
   credits:  { start: 1200, kill: { L: 2, M: 8, H: 45 }, base: 150, objective: 500, extraction: 800, perMission: 0, civ: 8, fullClear: 400 },
 
   // Mission objectives. The squad does these before anything else.
@@ -323,6 +329,6 @@ export const CONFIG = {
   share:    { channelUrl: '',
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.17.2',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.17.3',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives; the score block ends with it so pasted scores bring players in
 };

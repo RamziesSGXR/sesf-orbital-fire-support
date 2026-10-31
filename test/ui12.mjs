@@ -80,7 +80,7 @@ if (sq) {
   // the build menu
   // (0.17: TACTICAL is its own screen, from the button at the top left)
   if (touch && (await page.isVisible('#tray'))) { await tap('#tray .tray-x'); await page.waitForTimeout(300); }
-  await tap('#btn-tac'); await page.waitForTimeout(300);
+  await tap(touch ? '#dk-tac' : '#btn-tac'); await page.waitForTimeout(300);
   const menu = await page.isVisible('#tactical');
   const items = await ev(() => [...document.querySelectorAll('#tactical .bld')].map((b) => b.textContent));
   check('TACTICAL opens its screen: seven builds with their prices (the SAM site and the cannon unlocked in the armory)', menu && items.length === 7 && /FREE/.test(items[0]) && items.slice(1, 5).every((x) => /CR/.test(x)) && /UNLOCK/.test(items[5]) && /UNLOCK/.test(items[6]), items.join(' | '));

@@ -103,7 +103,7 @@ export function builtCount(m, what) { return (m.posts || []).filter((p) => !p.de
 // Done: the crate is deployed (it was paid for when ordered; a foxhole is dug), the post goes up (posts.js) and the squad that
 // built it stays on it. Upgrades from the armory decide how good it is (data/kit.js buildStats).
 function finishBuild(m, q, o) {
-  if (o.crate && !o.crate.dig) { o.crate.used = true; m.crates = m.crates.filter((c) => c !== o.crate); }
+  if (o.crate) { o.crate.used = true; m.crates = m.crates.filter((c) => c !== o.crate); }
   const p = makePost(m, o.what, o.x, o.y);
   if (o.what === 'arty') m.radio(COMMS.artyUp, 'artyup', 0);
   m.stats.built = (m.stats.built || 0) + 1;
@@ -391,9 +391,33 @@ export function updateSeaf(m, dt, speed, bm) {
   const claimed = new Set();
   for (const q of sf.squads) if (q.n && q.tgt && q.order.kind === 'auto') claimed.add(q.tgt.obj.id);
   for (const q of sf.squads) if (q.n) stepSquad(m, q, by[q.i], dt, speed, bm, claimed);
+  buildSteps(m, by, dt);
   if (!(m.phase === 'extract' && m.pelicans.some((p) => p.evac))) stepFormations(m, by, dt, bm);
   stepGarrisons(m, held, dt, speed);
   updateSpecialists(m, dt);
+}
+
+// The work on every crate on the ground: each trooper of a squad sent to build it who is at it and not under fire works on it (an
+// engaged one only stops himself). Every pair of hands adds to the speed (CONFIG.build.perHand, up to maxHands); Combat Engineers
+// add more. The progress is the crate's, so another squad, or the same one later, carries on from where it was.
+function buildSteps(m, by, dt) {
+  const K = C.build, sp = seafStats(m.kit).buildSpeed;
+  for (const c of m.crates) {
+    if (c.used || !c.landed) { c.hands = 0; continue; }
+    let hands = 0, best = null, bestN = 0;
+    for (const q of m.seaf.squads) {
+      if (!q.n || q.order.kind !== 'build' || q.order.crate !== c) continue;
+      let n = 0;
+      for (const a of by[q.i]) if (!a.engaged && (a.x - c.x) ** 2 + (a.y - c.y) ** 2 <= K.builderR * K.builderR) n++;
+      hands += n; if (n > bestN) { bestN = n; best = q; }
+      q.order.building = n > 0; q.order.waiting = false;
+    }
+    c.hands = Math.min(K.maxHands, hands);
+    if (!c.hands) continue;
+    c.prog = (c.prog || 0) + dt * K.perHand * c.hands * sp;
+    if (c.prog >= buildStats(c.what, buildLevel(m.kit, c.what)).sec) finishBuild(m, best, best.order);
+  }
+  for (const q of m.seaf.squads) if (q.n && q.order.kind === 'build' && q.order.crate && !q.order.crate.landed) q.order.waiting = true;
 }
 
 function stepSquad(m, q, list, dt, speed, bm, claimed) {
@@ -448,18 +472,8 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
     } else q.stand = null;
   }
 
-  // Building: everyone goes to the spot; with nobody to fight they build it (faster with more hands).
-  if (o.kind === 'build') {
-    const B = buildStats(o.what, buildLevel(m.kit, o.what)), near = Math.hypot(cx - o.x, cy - o.y) < C.build.r;
-    const ready = !o.crate || o.crate.landed;                 // the crate has to be down before anything can be built
-    o.waiting = near && !ready;
-    if (near && ready && !list.some((a) => a.engaged)) {
-      const at = list.filter((a) => Math.hypot(a.x - o.x, a.y - o.y) < C.build.r + 4).length;
-      o.prog += (dt * Math.min(4, Math.max(1, at)) / 2) * seafStats(m.kit).buildSpeed;     // (Combat Engineers build faster)
-      o.building = true;
-      if (o.prog >= B.sec) { if (finishBuild(m, q, o)) return; }
-    } else o.building = false;
-  }
+  // Building: everyone goes to the crate (buildSteps, after the squads, does the work).
+  if (o.kind === 'build' && o.crate && o.crate.used) { setSquadOrder(m, q, 'protect', o.x, o.y); }
 
   // A drawn route: an anchor runs the waypoints and the squad follows it, stopping to fight when engaged.
   let anchorWait = false;
@@ -480,7 +494,8 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
   if (o.kind === 'post' || holdSite) list.sort((a, b) => a.id - b.id);     // (everyone keeps the same place)
   for (const a of list) {
     if (o.kind === 'line' || o.kind === 'ring') continue;   // formations are placed together afterwards
-    const en = eg.nearest(a.x, a.y, o.kind === 'attack' && !o.held ? 14 : C.squad.engageRange);
+    // (a squad sent to build only stops for an enemy right on top of it: it shoots from the crate and keeps working)
+    const en = eg.nearest(a.x, a.y, (o.kind === 'attack' && !o.held) || o.kind === 'build' ? 14 : C.squad.engageRange);
     a.engaged = !!en;
     // stand and fight, unless the order is a post or walls to hold: then they get back to their place and fight from it
     // (nobody leaves cover to chase a target)

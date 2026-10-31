@@ -49,6 +49,8 @@ export function drawSeafMark(ctx, m, a, r, px, multi, on) {
 }
 
 // ---------- each squad's standing order ----------
+// the colour of each order on the map
+export const ORDER_COL = { move: '#5ec4ff', attack: '#ff5050', protect: '#7dff9b', build: '#ffd24a' };
 export function drawSquadOrders(ctx, m, now, px, labels, scale, pal) {
   const sf = m.seaf, multi = squadsInUse(m) > 1 || sf.sel >= 0, S = C.seaf, seen = new Set();
   for (const q of sf.squads) {
@@ -60,10 +62,6 @@ export function drawSquadOrders(ctx, m, now, px, labels, scale, pal) {
     // the squad itself: a centre mark and a count
     if (multi) {
       labels.push({ x: q.cx, y: q.cy, dy: -20 - Math.min(14, q.n * 0.8) * scale * 0.5, text: `${nm} x${q.n}`, col , pri: 1 });
-      if (sf.sel === q.i) {
-        ctx.lineWidth = px(1.6); ctx.setLineDash([px(4), px(4)]); ctx.lineDashOffset = -now * px(8);
-        ring(ctx, q.cx, q.cy, 12 + Math.min(14, q.n * 1.4)); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
-      }
     }
 
     if (o.kind === 'auto') {
@@ -74,10 +72,14 @@ export function drawSquadOrders(ctx, m, now, px, labels, scale, pal) {
         labels.push({ x: q.tgt.x, y: q.tgt.y, dy: 26 + Math.max(0, (q.tgt.obj.r || 14) * scale), text: tr('lab.sq.target', { nm }), col , pri: 0 });
       }
     } else if (o.kind === 'move' || o.kind === 'protect' || o.kind === 'attack') {
-      const R = o.kind === 'protect' ? S.protectR : o.kind === 'move' ? S.patrolRadius : 24;
-      ctx.lineWidth = px(1.6); ctx.setLineDash([px(5), px(5)]); ctx.lineDashOffset = -now * px(8);
-      ring(ctx, o.x, o.y, R); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
-      const r = Math.max(px(7), 4);
+      // each order its own colour (move blue, attack red, protect green): a dashed line from the squad to the spot and a mark there
+      // (no ring: only things with an area of effect show one)
+      const oc = ORDER_COL[o.kind], r = Math.max(px(7), 4), R = r;
+      ctx.strokeStyle = oc; ctx.fillStyle = oc;
+      if (Math.hypot(o.x - q.cx, o.y - q.cy) > 6) {
+        ctx.lineWidth = px(1.4); ctx.globalAlpha *= 0.6; ctx.setLineDash([px(4), px(5)]); ctx.lineDashOffset = -now * px(10);
+        ctx.beginPath(); ctx.moveTo(q.cx, q.cy); ctx.lineTo(o.x, o.y); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0; ctx.globalAlpha = lit ? 1 : 0.5;
+      }
       if (o.kind === 'attack') {
         ctx.lineWidth = px(2); ctx.beginPath(); ctx.moveTo(o.x - r, o.y - r); ctx.lineTo(o.x + r, o.y + r); ctx.moveTo(o.x + r, o.y - r); ctx.lineTo(o.x - r, o.y + r); ctx.stroke();
       } else if (o.kind === 'protect') {
@@ -85,14 +87,14 @@ export function drawSquadOrders(ctx, m, now, px, labels, scale, pal) {
       } else {
         ctx.beginPath(); ctx.moveTo(o.x, o.y - r); ctx.lineTo(o.x + r * 0.85, o.y); ctx.lineTo(o.x, o.y + r); ctx.lineTo(o.x - r * 0.85, o.y); ctx.closePath(); ctx.fill();
       }
-      labels.push({ x: o.x, y: o.y, dy: -R * scale - 6, text: `${nm} ${o.kind.toUpperCase()}`, col , pri: 1 });
+      labels.push({ x: o.x, y: o.y, dy: -R * scale - 10, text: `${nm} ${o.kind.toUpperCase()}`, col: oc, pri: 1 });
+      ctx.strokeStyle = col; ctx.fillStyle = col;
     } else if (o.kind === 'build') {
-      // the building site: a square outline, filling as the work goes on
-      const B = C.build[o.what], f = Math.min(1, (o.prog || 0) / B.sec), r = 6;
-      ctx.lineWidth = px(1.6); ctx.setLineDash([px(4), px(4)]); ctx.lineDashOffset = -now * px(8);
-      ctx.strokeRect(o.x - r, o.y - r, r * 2, r * 2); ctx.setLineDash([]); ctx.lineDashOffset = 0;
-      ctx.globalAlpha *= 0.35; ctx.fillRect(o.x - r, o.y + r - r * 2 * f, r * 2, r * 2 * f); ctx.globalAlpha = lit ? 1 : 0.5;
-      labels.push({ x: o.x, y: o.y, dy: -r * scale - 8, text: tr('lab.sq.build', { nm, what: tr('build.' + o.what), n: Math.round(f * 100) }), col, pri: 2 });
+      // the crate draws its own progress (ops.js); a line from the squad to it, in the build colour
+      if (Math.hypot(o.x - q.cx, o.y - q.cy) > 8) {
+        ctx.strokeStyle = ORDER_COL.build; ctx.lineWidth = px(1.4); ctx.globalAlpha *= 0.6; ctx.setLineDash([px(4), px(5)]); ctx.lineDashOffset = -now * px(10);
+        ctx.beginPath(); ctx.moveTo(q.cx, q.cy); ctx.lineTo(o.x, o.y); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0; ctx.globalAlpha = lit ? 1 : 0.5; ctx.strokeStyle = col;
+      }
     } else if (o.kind === 'escort') {
       labels.push({ x: q.cx, y: q.cy, dy: multi ? -36 : -26, text: tr('lab.sq.escort', { nm }), col , pri: 1 });
     } else if (o.kind === 'path' && o.path) {
@@ -232,6 +234,7 @@ export function drawMiniSeaf(c, m, k, ac, ec) {
     const col = multi ? squadColor(q.i) : ac, o = q.order;
     c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 1.3;
     if (o.kind === 'move' || o.kind === 'protect' || o.kind === 'attack') {
+      c.fillStyle = ORDER_COL[o.kind];
       c.beginPath(); c.moveTo(o.x * k, o.y * k - 4); c.lineTo(o.x * k + 3.5, o.y * k); c.lineTo(o.x * k, o.y * k + 4); c.lineTo(o.x * k - 3.5, o.y * k); c.closePath(); c.fill();
     } else if (o.kind === 'path' && o.path) {
       c.beginPath(); c.moveTo(q.ax * k, q.ay * k); for (let i = o.pi; i < o.path.length; i++) c.lineTo(o.path[i].x * k, o.path[i].y * k); c.stroke();

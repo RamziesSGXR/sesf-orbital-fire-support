@@ -19,7 +19,6 @@
       <div class="tl-btns">
         <button id="btn-info" class="btn icon" data-ta="hud.infoAria" data-tt="hud.infoTitle" data-t="hud.info">INFO</button>
         <button id="btn-shop" class="btn icon" data-ta="hud.armory" data-t="hud.armory">ARMORY</button>
-        <button id="btn-tac" class="btn icon tacb" type="button" data-tt="hud.tacTitle"><span data-t="hud.tactical">TACTICAL</span> <kbd>O</kbd></button>
         <button id="btn-menu" class="btn icon" data-ta="hud.menu" data-t="hud.menu">MENU</button>
         <button id="btn-speed" class="btn icon" type="button" data-ta="hud.speedAria" data-tt="hud.speedTitle">1×</button>
         <button id="btn-pause" class="btn icon" data-ta="hud.pause">II</button>
@@ -73,6 +72,7 @@
       <button class="ord" data-o="attack"><span class="k">N</span><span class="n" data-t="hud.attack">ATTACK</span><span class="s">--</span></button>
       <button class="ord" data-o="escort"><span class="k">C</span><span class="n" data-t="hud.escort">ESCORT</span><span class="s">--</span></button>
     </div>
+    <button id="btn-tac" class="tacb" type="button" data-tt="hud.tacTitle"><span class="n" data-t="tac.title">TACTICAL BUILD</span><kbd>TAB</kbd></button>
     <!-- the tactical build screen: the Helldivers and the SEAF squads fold away into these two drop menus -->
     <div id="tac-drops">
       <button id="td-hd" class="btn tdb" type="button"><span data-t="tac.dropHd">HELLDIVERS</span> <i>▴</i></button>
@@ -84,16 +84,19 @@
       <div class="tc-h"><b data-t="tac.title">TACTICAL BUILD</b><span id="tc-state" class="tc-state"></span><span class="tc-help" id="tc-help"></span><button class="x-close tc-x" type="button" data-ta="hud.closeTac">✕</button></div>
       <div class="tc-body">
         <div id="tc-sel" class="tc-sel"></div>
-        <div class="tc-sec tc-b"><div class="tc-l" data-t="tac.build">BUILD</div><div class="tc-grid tac-build"></div></div>
+        <div class="tc-sec tc-b"><div id="tc-list" class="tc-list"></div><div class="tc-l" data-t="tac.build">BUILD</div><div class="tc-grid tac-build"></div></div>
         <div class="tc-sec tc-f"><div class="tc-l" data-t="tac.form">FORMATION</div><div class="tc-grid tac-form"></div></div>
       </div>
     </div>
+    <!-- the tactical build screen says the game is waiting, high in the middle -->
+    <div id="tac-banner" role="status"><b data-t="tac.paused">GAME PAUSED</b><span data-t="tac.bannerSub">TACTICAL BUILD · TAB OR ESC TO GO ON</span></div>
     <!-- what is selected on the map (a post, a sentry or a defence site): its name, level and health, just above it -->
     <div id="selpop" class="hidden" role="dialog"></div>
     <div id="dock">
       <button id="dk-sq" class="dkb"><span class="n"></span><span class="s">--</span></button>
       <button id="dk-drop" class="dkb"><span class="n" data-t="hud.seafDrop">SEAF DROP</span><span class="s">--</span></button>
       <button id="btn-follow" class="dkb"><span class="n"></span></button>
+      <button id="dk-tac" class="dkb tacb" type="button"><span class="n" data-t="hud.tactical">TACTICAL</span></button>
     </div>
     <!-- a tip over whatever was just picked on a bar (a weapon, a build, a formation, a stratagem, a squad): one line, and ⓘ for the rest -->
     <div id="hottip" class="hidden" role="status"><div class="tt-l"></div><button class="tt-i" type="button" aria-label="More">i</button><div class="tt-more hidden"></div></div>
@@ -250,23 +253,18 @@
     <div class="card">
       <button class="x-close" data-close="s-pause" data-ta="pause.close">✕</button>
       <h2 data-t="pause.title">PAUSED</h2>
-      <div class="btns col">
-        <button id="btn-resume-m" class="btn primary big"><span class="play-only" data-t="pause.resume">RESUME</span><span class="brief-only" data-t="ui.backBtn">BACK</span></button>
+      <div class="pm">
+        <button id="btn-resume-m" class="btn primary big pm-w"><span class="play-only" data-t="pause.resume">RESUME</span><span class="brief-only" data-t="ui.backBtn">BACK</span></button>
         <button id="btn-info-m" class="btn play-only" data-t="ui.missionInfo">MISSION INFO</button>
         <button id="btn-armory-m" class="btn play-only" data-t="hud.armory">ARMORY</button>
-        <button id="btn-names-m" class="btn" data-t="ui.names">SQUAD NAMES</button>
-        <button id="btn-ctl-m" class="btn" type="button" data-t="ui.controls">CONTROLS</button>
-        <button id="btn-man-m" class="btn" type="button" data-t="ui.manual">FIELD MANUAL</button>
         <button id="btn-settings-m" class="btn" data-t="ui.settings">SETTINGS</button>
-        <button id="btn-hideui-m" class="btn play-only" type="button"><span data-t="pause.hideUi">HIDE UI</span> <kbd>F2</kbd></button>
-        <button id="btn-about-m" class="btn" data-t="ui.about">ABOUT</button>
-        <a id="lnk-fb-m" class="btn fb" target="_blank" rel="noopener" data-t="ui.feedback">FEEDBACK</a>
-        <button id="btn-home-m" class="btn" type="button" data-t="pause.home">MAIN MENU</button>
-        <button id="btn-abort" class="btn danger play-only" data-t="pause.retire">RETIRE FROM MISSION</button>
+        <button id="btn-ctl-m" class="btn" type="button" data-t="pause.help">HELP</button>
+        <button id="btn-home-m" class="btn pm-out" type="button" data-t="pause.home">MAIN MENU</button>
+        <button id="btn-abort" class="btn danger pm-out play-only" data-t="pause.retire">RETIRE</button>
       </div>
-      <p class="fine fb-note" data-t="pause.fbNote"></p>
       <p id="abort-confirm" class="fine hidden" data-t="pause.confirm"></p>
       <p id="home-confirm" class="fine hidden" data-t="pause.homeConfirm"></p>
+      <div class="pm-foot"><a id="lnk-fb-m" class="fb" target="_blank" rel="noopener" data-t="ui.feedback">FEEDBACK</a><span>·</span><button id="btn-about-m" type="button" data-t="ui.about">ABOUT</button></div>
     </div>
   </section>
 
@@ -298,6 +296,7 @@
     <div class="card">
       <button class="x-close" data-close="s-settings" data-ta="set.close">✕</button>
       <h2 data-t="ui.settings">SETTINGS</h2>
+      <div class="set-acts"><button id="btn-names-m" class="btn" type="button" data-t="ui.names">SQUAD NAMES</button><button id="btn-hideui-m" class="btn" type="button"><span data-t="pause.hideUi">HIDE UI</span> <kbd>F2</kbd></button></div>
       <div id="settings-body"></div>
       <div class="btns"><button id="btn-settings-close" class="btn primary" data-t="set.done">DONE</button></div>
     </div>
@@ -348,7 +347,7 @@
       <div class="tabs" role="tablist"><button id="ctl-tab-d" class="btn tab" type="button" data-t="ctl.tabDesk">COMPUTER</button><button id="ctl-tab-t" class="btn tab" type="button" data-t="ctl.tabTouch">PHONE AND TABLET</button></div>
       <div id="controls-desktop" class="ctl" data-th="ctl.desktop"></div>
       <div id="controls-touch" class="ctl hidden" data-th="ctl.touch"></div>
-      <div class="btns"><button id="ctl-close" class="btn primary" type="button" data-t="ui.backBtn">BACK</button></div>
+      <div class="btns"><button id="ctl-close" class="btn primary" type="button" data-t="ui.backBtn">BACK</button><button id="btn-man-m" class="btn" type="button" data-t="ui.manual">FIELD MANUAL</button></div>
     </div>
   </section>
 

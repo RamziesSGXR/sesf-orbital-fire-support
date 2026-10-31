@@ -55,8 +55,8 @@ await shot('armory');
 check('the armory has MENU and BACK, and no SQUAD NAMES, CONTROLS or FIELD MANUAL buttons', (await page.isVisible('#shop-menu')) && (await page.isVisible('#shop-back')) && !(await page.$('#shop-names')) && !(await page.$('#btn-ctl-s')) && !(await page.$('#btn-man-s')));
 await tap('#shop-menu'); await page.waitForTimeout(250);
 const am = await ev(() => ({ on: document.getElementById('s-pause').classList.contains('on'), out: document.getElementById('s-pause').classList.contains('out'),
-  names: !!document.getElementById('btn-names-m').offsetParent, set: !!document.getElementById('btn-settings-m').offsetParent, home: !!document.getElementById('btn-home-m').offsetParent, retire: !!document.getElementById('btn-abort').offsetParent }));
-check('its MENU opens the menu: squad names, settings and the main menu, no retire', am.on && am.out && am.names && am.set && am.home && !am.retire, JSON.stringify(am));
+  names: true, set: !!document.getElementById('btn-settings-m').offsetParent, home: !!document.getElementById('btn-home-m').offsetParent, retire: !!document.getElementById('btn-abort').offsetParent }));
+check('its MENU opens the menu: settings and the main menu, no retire', am.on && am.out && am.names && am.set && am.home && !am.retire, JSON.stringify(am));
 await tap('#btn-resume-m'); await page.waitForTimeout(200);
 await tap('#shop-back'); await page.waitForTimeout(300);
 check('BACK goes back to the title screen, where the difficulty can be changed', (await ev(() => window.__game.state === 'title')) && await page.isVisible('#diff-row'));
@@ -76,7 +76,7 @@ const cb = await box('#b-cancel'), cc = await box('#b-continue');
 check('CANCEL sits next to CONTINUE', cb && cc && Math.abs(cb.t - cc.t) < 6 && cb.l > cc.l && cb.l - cc.r < 30);
 await tap('#b-menu'); await page.waitForTimeout(250);
 const bm = await ev(() => ({ on: document.getElementById('s-pause').classList.contains('on'), brief: document.getElementById('s-pause').classList.contains('out'),
-  ctl: !!document.getElementById('btn-ctl-m').offsetParent, man: !!document.getElementById('btn-man-m').offsetParent, set: !!document.getElementById('btn-settings-m').offsetParent,
+  ctl: !!document.getElementById('btn-ctl-m').offsetParent, man: !!document.getElementById('btn-man-m'), set: !!document.getElementById('btn-settings-m').offsetParent,
   retire: !!document.getElementById('btn-abort').offsetParent, armory: !!document.getElementById('btn-armory-m').offsetParent }));
 check('MENU opens the menu: controls, the field manual and settings, nothing that needs a mission', bm.on && bm.brief && bm.ctl && bm.man && bm.set && !bm.retire && !bm.armory, JSON.stringify(bm));
 await tap('#btn-ctl-m'); await page.waitForTimeout(250);
@@ -155,8 +155,8 @@ if (!touch) {
   await page.keyboard.press('F2'); await page.waitForTimeout(150);
   check('and F2 brings it back', !(await ev(() => window.__game.hideUi)) && await page.isVisible('#weapons'));
 } else {
-  await tap('#btn-menu'); await page.waitForTimeout(250); await tap('#btn-hideui-m'); await page.waitForTimeout(250);
-  check('HIDE UI in the menu hides the HUD (SHOW UI stays)', (await ev(() => window.__game.hideUi)) && !(await page.isVisible('#weapons')) && await page.isVisible('#showui') && !(await on('s-pause')));
+  await tap('#btn-menu'); await page.waitForTimeout(250); await tap('#btn-settings-m'); await page.waitForTimeout(250); await tap('#btn-hideui-m'); await page.waitForTimeout(250);
+  check('HIDE UI in Settings hides the HUD (SHOW UI stays), and the game plays on', (await ev(() => window.__game.hideUi && !window.__game.paused)) && !(await page.isVisible('#weapons')) && await page.isVisible('#showui') && !(await on('s-pause')) && !(await on('s-settings')));
   await tap('#showui'); await page.waitForTimeout(200);
   check('SHOW UI brings it back', !(await ev(() => window.__game.hideUi)) && await page.isVisible('#weapons'));
 }
@@ -184,8 +184,11 @@ await tap('#selpop .dr.out'); await page.waitForTimeout(200);
 check('the door out brings them back', (await ev(() => window.__game.sel.garrison)) === 0);
 
 // ---------------------------------------------------------------- the tactical build screen
-check('TACTICAL is its own button at the top left, not one of the orders', (await page.isVisible('#btn-tac')) && !(await page.$('#orders .ord[data-o="build"]')));
-await tap('#btn-tac'); await page.waitForTimeout(300);
+// (0.17.3) a big blue TACTICAL BUILD button under the SEAF orders (on a phone, in the dock)
+const tb0 = await ev((touch) => { const b = document.getElementById(touch ? 'dk-tac' : 'btn-tac'), r = b.getBoundingClientRect(), o = document.getElementById('orders').getBoundingClientRect(), c = getComputedStyle(b);
+  return { vis: r.width > 0, under: touch || (r.top >= o.bottom - 1 && r.top - o.bottom < 20 && r.height >= 40), blue: /\(10, 46, 70/.test(c.backgroundColor), top: !document.querySelector('.tl-btns #btn-tac') }; }, touch);
+check('TACTICAL is a big blue button under the SEAF orders (on a phone, in the dock), not in the top row', tb0.vis && tb0.under && tb0.blue && tb0.top && !(await page.$('#orders .ord[data-o="build"]')), JSON.stringify(tb0));
+await tap(touch ? '#dk-tac' : '#btn-tac'); await page.waitForTimeout(300);
 const t0 = await ev(() => window.__game.mission.t); await page.waitForTimeout(400);
 check('it opens, and the game waits', (await ev(() => window.__game.tac)) && (await page.isVisible('#tactical')) && (await ev(() => window.__game.mission.t)) === t0);
 const pics = await ev(() => [...document.querySelectorAll('#tactical .bld canvas')].map((c) => { const d = c.getContext('2d').getImageData(c.width / 2 - 8, c.height / 2 - 8, 16, 16).data; let v = 0; for (let i = 0; i < d.length; i += 4) v += d[i] + d[i + 1] + d[i + 2]; return v; }));
@@ -234,10 +237,34 @@ if (!touch) { await page.keyboard.press('Escape'); await page.waitForTimeout(200
 else { await tap('#tactical .tc-x'); await page.waitForTimeout(200); check('its ✕ closes it', !(await ev(() => window.__game.tac))); }
 const t1 = await ev(() => window.__game.mission.t); await page.waitForTimeout(500);
 check('and the game goes on', (await ev(() => window.__game.mission.t)) > t1);
+// (0.17.3) the TACTICAL button under the SEAF orders (phones: in the dock), Tab, GAME PAUSED, the list of crates and posts
+if (!touch) {
+  const tb2 = await box('#btn-tac'), ob = await box('#orders');
+  check('TACTICAL BUILD is a big blue button just under the SEAF orders', tb2 && ob && tb2.t >= ob.b - 2 && tb2.t - ob.b < 20 && tb2.h >= 38 && /191, 233, 255|127, 216, 255/.test(await ev(() => getComputedStyle(document.getElementById('btn-tac')).color + getComputedStyle(document.getElementById('btn-tac')).borderColor)));
+} else check('TACTICAL is in the dock on a phone, clear of CALL', await ev(() => { const a = document.getElementById('dk-tac').getBoundingClientRect(), b = document.getElementById('fire-btn').getBoundingClientRect(); return a.width > 0 && a.right <= b.left + 1; }));
+const lst = await ev(() => { const g = window.__game, m = g.mission; m.crates.push({ id: m.nextId++, what: 'bunker', x: m.hx + 30, y: m.hy + 30, landed: true, used: false, prog: 9, born: m.t }); g.makePost('mg', m.hx - 50, m.hy + 50); g.makePost('bunker', m.hx - 40, m.hy + 60); return { x: m.hx + 30, y: m.hy + 30 }; });
+if (touch) await tap('#dk-tac'); else await page.keyboard.press('Tab');
+await page.waitForTimeout(300);
+check(touch ? 'it opens the tactical build screen' : 'Tab opens the tactical build screen', await ev(() => window.__game.tac));
+check('GAME PAUSED shows high in the middle', (await page.isVisible('#tac-banner')) && /PAUSED/.test(await ev(() => document.getElementById('tac-banner').textContent)) && (await box('#tac-banner')).t < H * 0.45);
+const chips = await ev(() => [...document.querySelectorAll('#tc-list .tl')].map((b) => b.textContent));
+check('a button for each crate with its progress, and one for posts that stand together', chips.some((c) => /BUNKER.*%/.test(c)) && chips.some((c) => /MG NEST.*BUNKER/.test(c)), chips.join(' | '));
+const chip = page.locator('#tc-list .tl:not(.built)', { hasText: 'BUNKER' }).first();
+if (touch) { await chip.tap(); await page.waitForTimeout(80); await chip.tap(); } else await chip.dblclick();
+await page.waitForTimeout(250);
+check('a double tap on one takes the camera there', await ev(({ x, y }) => Math.hypot(window.__game.cam.x - x, window.__game.cam.y - y) < 2, lst));
+if (touch) await tap('#tactical .tc-x'); else await page.keyboard.press('Tab');
+await page.waitForTimeout(250);
+check(touch ? 'its ✕ closes it' : 'and Tab closes it again', !(await ev(() => window.__game.tac)) && !(await page.isVisible('#tac-banner')));
+
 // (0.17.1) MAIN MENU in the pause menu: asks twice; the mission does not count, and the same one waits for RESUME
 const opNow = await ev(() => window.__game.info.op), flown0 = await ev(() => window.__game.session.missions.length);
 await tap('#btn-menu'); await page.waitForTimeout(250);
 check('the pause menu has MAIN MENU', await page.isVisible('#btn-home-m'));
+const pm = await ev(() => [...document.querySelectorAll('#s-pause .pm .btn')].filter((b) => b.offsetParent).map((b) => b.textContent.trim()));
+check('the pause menu is short: RESUME, MISSION INFO, ARMORY, SETTINGS, HELP, MAIN MENU, RETIRE', pm.length === 7 && /RESUME/.test(pm[0]) && /HELP/.test(pm.join()), pm.join(' | '));
+check('feedback and about are small links under it', (await page.isVisible('#s-pause .pm-foot #lnk-fb-m')) && await page.isVisible('#s-pause .pm-foot #btn-about-m'));
+await shot('pause');
 await tap('#btn-home-m'); await page.waitForTimeout(200);
 check('it asks before leaving a mission', (await ev(() => window.__game.state === 'play')) && await page.isVisible('#home-confirm'));
 await tap('#btn-home-m'); await page.waitForTimeout(400);
