@@ -80,15 +80,17 @@ export class Hud {
       const e = el('button', 'bld', `<canvas class="ic" width="112" height="112"></canvas><span class="k">${i + 1}</span><span class="c"></span><span class="n"></span><span class="s"></span>`);
       e.type = 'button'; e.dataset.b = what;
       postIcon(e.querySelector('canvas'), what);
-      e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onBuild && this.onBuild(what); });
-      e.addEventListener('mouseenter', () => { if (this.m) this.showCard(buildInfo(this.m, what), 4000); });
-      e.addEventListener('mouseleave', () => this.hideCard(500));
+      e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onBuild && this.onBuild(what); if (this.m) this.tip(e, () => buildShort(this.m, what), () => buildInfo(this.m, what)); });
+      e.addEventListener('pointerenter', (ev) => { if (ev.pointerType === 'mouse' && this.m) this.tip(e, () => buildShort(this.m, what), () => buildInfo(this.m, what), 0); });
+      e.addEventListener('pointerleave', (ev) => { if (ev.pointerType === 'mouse') this.tipLeave(); });
       tb.appendChild(e); this.bld[what] = { el: e, n: e.querySelector('.n'), s: e.querySelector('.s'), c: e.querySelector('.c'), key: '' };
     });
     FORMS.forEach((f, i) => {
       const e = el('button', 'frm', `<span class="k">${'ZXCVB'[i]}</span><i class="fg fg-${f}"></i><span class="n"></span>`);
       e.type = 'button'; e.dataset.f = f;
-      e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onForm && this.onForm(f); });
+      e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onForm && this.onForm(f); if (this.m) this.tip(e, () => formShort(this.m, f), null); });
+      e.addEventListener('pointerenter', (ev) => { if (ev.pointerType === 'mouse' && this.m) this.tip(e, () => formShort(this.m, f), null, 0); });
+      e.addEventListener('pointerleave', (ev) => { if (ev.pointerType === 'mouse') this.tipLeave(); });
       tf.appendChild(e); this.frm[f] = { el: e, n: e.querySelector('.n'), key: '' };
     });
     document.querySelector('#tactical .tc-x').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onTac && this.onTac(false); });
@@ -113,10 +115,17 @@ export class Hud {
     // Idle fade (touch): the HUD steps back a few seconds after the last touch on it, so the map stays readable.
     $('hud').addEventListener('pointerdown', () => this.wake(), true);
     this.wake(5000);
-    // Info cards: what the selected weapon, squad or stratagem does. Hover (desktop) or select (anything) shows one.
-    this.card = $('infocard');
-    this.wb.forEach((w, i) => w.el.addEventListener('mouseenter', () => { if (this.m) this.showCard(weaponInfo(this.m, i), 3500); }));
-    $('weapons').addEventListener('mouseleave', () => this.hideCard(600));
+    // Tips: one line over whatever was just picked on a bar, ⓘ for the full card. They go by themselves after a moment, or at a tap
+    // anywhere else, or when something else is picked. Hovering a button on a computer shows its tip too.
+    this.tt = { el: $('hottip'), line: document.querySelector('#hottip .tt-l'), more: document.querySelector('#hottip .tt-more'), anchor: null, short: null, full: null, open: false, timer: 0 };
+    this.wb.forEach((w, i) => {
+      w.el.addEventListener('pointerenter', (ev) => { if (ev.pointerType === 'mouse' && this.m) this.weaponTip(i, 0); });
+      w.el.addEventListener('pointerleave', (ev) => { if (ev.pointerType === 'mouse') this.tipLeave(); });
+    });
+    this.tt.el.addEventListener('pointerdown', (e) => { e.stopPropagation(); const b = e.target.closest('.tt-i'); if (b) { e.preventDefault(); this.tipMore(); } });
+    this.tt.el.addEventListener('pointerenter', () => clearTimeout(this.tt.timer));
+    this.tt.el.addEventListener('pointerleave', (ev) => { if (ev.pointerType === 'mouse' && !this.tt.open) this.tipLeave(); });
+    document.addEventListener('pointerdown', (e) => { if (!this.tt.el.contains(e.target)) this.tipHide(); }, true);
     // Callouts (free-fire zone, supply requests) and the supply loading game.
     document.querySelectorAll('#callouts .co-b').forEach((b) => b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); this.onCallout && this.onCallout(b.dataset.co); }));
     this.sg = { el: $('supgame'), slots: [], key: '' };
@@ -196,27 +205,63 @@ export class Hud {
   // ---- info cards
   // They sit in a fixed spot that covers no controls (Settings > Info cards): down the right side on a computer (left with the
   // left-handed layout), or across the top under the callouts. Off hides them.
-  showCard(html, ms = 4200) {
-    const b = document.body;
-    if (!html || b.classList.contains('cards-off')) return;
-    const c = this.card;
-    c.innerHTML = html; c.classList.remove('hidden');
-    this.placeCard(true);
-    clearTimeout(this._ct); this._ct = setTimeout(() => c.classList.add('hidden'), ms);
-  }
   placeCard(now = false) {
-    const c = this.card, b = document.body, msg = $('center-msg');
-    const t = performance.now();
+    const msg = $('center-msg'), t = performance.now();
     if (!now && t - (this._pcT || 0) < 250) return;
     this._pcT = t;
     if (msg.classList.contains('show')) msg.style.top = `${Math.round(topBelow() + 10)}px`;   // callouts come and go under it
-    if (c.classList.contains('hidden')) return;
-    const top = b.classList.contains('touch') || b.classList.contains('cards-top');
-    c.classList.toggle('dock-top', top); c.classList.toggle('dock-side', !top);
-    if (!top) { c.style.top = ''; c.style.bottom = ''; return; }     // down the right side, above the minimap (style.css)
-    c.style.top = `${Math.round(topBelow(msg.classList.contains('show') ? msg : null) + 6)}px`;
   }
-  hideCard(ms = 0) { clearTimeout(this._ct); this._ct = setTimeout(() => this.card.classList.add('hidden'), ms); }
+  // ---- tips
+  // A tip over anchor: short() is the one line (live: it is redrawn while the tip shows), full() the card ⓘ opens (null: no ⓘ).
+  // ms: how long it stays (0: until the pointer leaves, for a hover). Settings > Info tips: Off turns them off.
+  tip(anchor, short, full, ms = 2200) {
+    const T = this.tt;
+    if (!anchor || document.body.classList.contains('cards-off')) return;
+    T.anchor = anchor; T.short = short; T.full = full; T.open = false; T.key = '';
+    T.more.classList.add('hidden'); T.more.innerHTML = '';
+    T.el.querySelector('.tt-i').classList.toggle('hidden', !full);
+    T.el.classList.remove('hidden', 'open');
+    this.tipTick(true);
+    clearTimeout(T.timer);
+    if (ms) T.timer = setTimeout(() => this.tipHide(), ms);
+  }
+  weaponTip(i, ms = 2200) { const b = this.wb[i]; if (b && this.m) this.tip(b.el, () => weaponShort(this.m, i, b.subText), () => weaponInfo(this.m, i), ms); }
+  // ⓘ: the full card under the line; it stays until a tap elsewhere (or ⓘ again)
+  tipMore() {
+    const T = this.tt;
+    if (!T.full) return;
+    T.open = !T.open;
+    T.more.innerHTML = T.open ? T.full() : '';
+    T.more.classList.toggle('hidden', !T.open); T.el.classList.toggle('open', T.open);
+    clearTimeout(T.timer);
+    if (!T.open) T.timer = setTimeout(() => this.tipHide(), 1600);
+    this._tipPlace();
+  }
+  tipLeave() { const T = this.tt; if (T.open) return; clearTimeout(T.timer); T.timer = setTimeout(() => this.tipHide(), 350); }
+  tipHide() { const T = this.tt; clearTimeout(T.timer); T.el.classList.add('hidden'); T.anchor = null; T.open = false; }
+  // redraw the line (the ship gun's rounds, a recharge counting down) and keep the tip over its button
+  tipTick(force = false) {
+    const T = this.tt;
+    if (!T.anchor || T.el.classList.contains('hidden')) return;
+    if (!T.anchor.offsetParent) { this.tipHide(); return; }
+    const h = T.short();
+    if (force || h !== T.key) { T.key = h; T.line.innerHTML = h; this._tipPlace(); }
+  }
+  _tipPlace() {
+    const T = this.tt, r = T.anchor.getBoundingClientRect(), e = T.el, pad = 6;
+    // (phones: never over the CALL button; the tip narrows and wraps to the left of it)
+    const fb = $('fire-btn'), fr = fb && fb.offsetParent ? fb.getBoundingClientRect() : null;
+    let maxR = innerWidth - pad;
+    if (fr && fr.width && fr.top < r.top && fr.bottom > r.top - 140) maxR = Math.min(maxR, fr.left - 6);
+    e.style.left = '0px'; e.style.top = '0px'; e.style.maxWidth = `${Math.max(160, maxR - pad)}px`;
+    const w = e.offsetWidth, h = e.offsetHeight;
+    const x = Math.max(pad, Math.min(maxR - w, r.left + r.width / 2 - w / 2));
+    let y = r.top - h - 8;
+    if (y < pad) y = Math.min(innerHeight - h - pad, r.bottom + 8);     // no room above: under it
+    e.style.left = `${Math.round(x)}px`; e.style.top = `${Math.round(y)}px`;
+    e.style.setProperty('--ax', `${Math.round(Math.max(12, Math.min(w - 12, r.left + r.width / 2 - x)))}px`);
+    e.classList.toggle('below', y > r.top);
+  }
 
   // Bring the HUD to full strength; it fades again after ms of no HUD touches.
   wake(ms = 3200) {
@@ -284,7 +329,7 @@ export class Hud {
 
   reset() {
     this.last = {}; this.clearRadio(); this.clearNotices(); $('center-msg').classList.remove('show'); $('toast').classList.remove('show'); this.setPlacing(null);
-    if (this.card) this.card.classList.add('hidden');
+    if (this.tt) this.tipHide();
     if (this.sg) { this.sg.el.classList.add('hidden'); for (const q of this.sg.slots) q.key = ''; }
     document.body.classList.remove('slowmo'); $('co-sup').classList.add('hidden'); $('co-boss').classList.add('hidden');
     for (const o of Object.values(this.ord)) o.key = '';
@@ -358,8 +403,9 @@ export class Hud {
         const sg = m.strat.groups[id], d = sg.def, c = el('div', 'sc', `<span class="g">${d.g}</span><i class="f"></i>`);
         c.style.setProperty('--c', CAT_COLOR[d.cat]);
         c.title = `${d.name}${d.shared ? ` (${t('card.squadItem')})` : ''}: ${d.blurb}`;
-        const show = (ev) => { if (ev) ev.stopPropagation(); this.showCard(stratInfo(m, id), 5000); };
-        c.addEventListener('mouseenter', () => show()); c.addEventListener('pointerdown', show);
+        c.addEventListener('pointerenter', (ev) => ev.pointerType === 'mouse' && this.tip(c, () => stratShort(m, id), () => stratInfo(m, id), 0));
+        c.addEventListener('pointerleave', (ev) => { if (ev.pointerType === 'mouse') this.tipLeave(); });
+        c.addEventListener('pointerdown', (ev) => { ev.stopPropagation(); this.tip(c, () => stratShort(m, id), () => stratInfo(m, id)); });
         cells.appendChild(c); this.sc.push({ el: c, f: c.querySelector('.f'), id, key: '' });
       }
       rows.appendChild(r);
@@ -409,9 +455,12 @@ export class Hud {
 
     this._roster(m); this._supply(m); this._strats(m); this._orders(m); this._squads(m); this._weapons(m); this._callouts(m); this._supgame(m);
     this.placeCard();
-    // a new weapon or squad selected: say what it is
-    if (this.last.selW !== m.player.weapon) { if (this.last.selW !== undefined) this.showCard(weaponInfo(m, m.player.weapon)); this.last.selW = m.player.weapon; }
-    if (this.last.selS !== m.seaf.sel) { if (this.last.selS !== undefined) this.showCard(squadInfo(m, m.seaf.sel)); this.last.selS = m.seaf.sel; }
+    this.tipTick();
+    // a squad picked: its tip over its button (when the button is on screen)
+    if (this.last.selS !== m.seaf.sel) {
+      if (this.last.selS !== undefined) { const b = this.sqb.find((q) => q.i === m.seaf.sel); if (b && b.el.offsetParent) this.tip(b.el, () => squadShort(m, m.seaf.sel), () => squadInfo(m, m.seaf.sel)); }
+      this.last.selS = m.seaf.sel;
+    }
 
     const f = FACTIONS[m.faction.id];
     const h = todAt(m);
@@ -702,7 +751,7 @@ export class Hud {
       const key = `${hidden}|${name}|${sub}|${cls}|${on}`;   // the gun's ammo changes the text a lot, which is fine
       if (w.key !== key) {
         w.key = key; w.el.style.display = hidden ? 'none' : '';
-        w.n.textContent = name; w.sub.textContent = sub;
+        w.n.textContent = name; w.sub.textContent = sub; w.subText = sub; w.cls = cls;
         w.el.className = 'wbtn' + (s.type === 'nuke' ? ' big-w obj-w' : s.type === 'arty' ? ' big-w arty-w' : s.type === 'uav' ? ' uav-w' : s.type === 'gun' ? ' gun-w' : ' orb-w') + (on ? ' sel' : '') + (cls ? ' ' + cls : '');
       }
       w.bar.style.width = `${Math.max(0, Math.min(1, frac)) * 100}%`;
@@ -1190,7 +1239,7 @@ export function buildSettings(settings, onChange) {
   row(t('set.flash'), t('set.flashHint'), toggle('reduceFlash'));
   row(t('set.color'), t('set.colorHint'), toggle('colorblind'));
   row(t('set.lefty'), t('set.leftyHint'), toggle('lefty'));
-  row(t('set.cards'), t('set.cardsHint'), select('cards', [['side', t('set.side')], ['top', t('set.top')], ['off', t('set.off')]]));
+  row(t('set.cards'), t('set.cardsHint'), select('cards', [['side', t('set.on')], ['off', t('set.off')]]));
   row(t('set.touch'), '', range('touchSens', 0.5, 2, 0.1));
   row(t('set.gfx'), t('set.gfxHint'), select('quality', [['auto', t('set.auto')], ['high', t('set.high')], ['low', t('set.low')]]));
 }
@@ -1327,6 +1376,50 @@ export function stratInfo(m, id) {
   h += row(t('card.recharge'), t('card.s', { n: d.cd }));
   if (d.anti) h += row(t('card.anti'), t('card.yes'));
   return h + `<div class="ic-b">${esc(t('card.strat.b', { b: d.blurb }))}</div>`;
+}
+
+// ---- the one-line tips (the full cards above are behind ⓘ): a name, the numbers that matter, and its state
+const tl1 = (name, lvl, parts, state, bad) => `<b>${esc(name)}</b>${lvl ? ` <i>${esc(lvl)}</i>` : ''}${parts.filter(Boolean).map((x) => ` <span>· ${esc(x)}</span>`).join('')}${state ? ` <em${bad ? ' class="bad"' : ''}>${esc(state)}</em>` : ''}`;
+const BAD = /^(NO |SPENT|LOCKED|RELOAD|OUT)/;
+export function weaponShort(m, i, state = '') {
+  const s = m.player.slots[i];
+  if (!s || s.type === 'empty') return '';
+  const bad = BAD.test(state) || /\d+S$/.test(state);
+  if (s.type === 'uav') { const u = uavStats(m.kit.uav); return tl1(t('hud.w.uav'), `L${m.kit.uav}`, [t('st.k.m', { n: u.r }), t('tip.lasts', { n: u.sec })], state, bad); }
+  if (s.type === 'gun') {
+    const g = gunStats(m.kit), G = m.player.gun;
+    return tl1(t('hud.w.gun'), '', [t('tip.dmg', { n: g.dmg.toFixed(0) }) + ' ' + t('tip.perSec', { n: C.gun.rps }), t('tip.rounds', { a: Math.floor(G.ammo), b: Math.round(g.ammo) })], G.dry ? state : '', bad);
+  }
+  if (s.type === 'arty') { const a = slotStats(m, i); return tl1(t('hud.w.arty'), '', [t('tip.dmg', { n: fmtNum(a.dmg) }), t('tip.blast', { n: Math.round(a.r) }), t('tip.range', { n: Math.round(a.range) })], state, bad); }
+  if (s.type === 'nuke') return tl1(t('card.nuke.h'), '', [t('tip.blast', { n: C.objective.nuke.blastR })], state, bad);
+  const st = orbStats(s.id, s.level), f0 = (v) => Math.round(v);
+  let parts;
+  if (st.k === 'util') {
+    parts = st.util === 'med' ? [t('tip.heals', { p: Math.round(st.heal * 100) }), t('st.k.m', { n: f0(st.r) })]
+      : st.util === 'smoke' ? [t('st.k.m', { n: f0(st.zone.r) }), t('tip.lasts', { n: f0(st.zone.sec) })]
+      : st.util === 'shield' ? [t('tip.soaks', { n: fmtNum(st.shield) }), t('tip.lasts', { n: f0(st.life) })]
+      : [t('tip.dmg', { n: Math.round(st.t.dmg) }), t('tip.hp', { n: st.t.hp })];
+  } else if (st.k === 'beam') parts = [t('tip.dps', { n: Math.round(st.beam.dps) }), t('tip.lasts', { n: f0(st.beam.dur) })];
+  else if (st.k === 'zone') parts = [t('st.k.m', { n: f0(st.zone.r) }), t('tip.lasts', { n: f0(st.zone.sec) })];
+  else parts = [t('tip.dmg', { n: st.n > 1 ? `${Math.round(st.dmg)}×${st.n}` : Math.round(st.dmg) }), t('tip.blast', { n: f0(st.splash) })];
+  return tl1(shortName(s.id), `L${s.level}`, parts, state, bad);
+}
+export function buildShort(m, what) {
+  const lvl = buildLevel(m.kit, what), B = buildStats(what, Math.max(1, lvl));
+  if (!lvl) return tl1(t('build.' + what), '', [], t('hud.b.locked'), true);
+  const parts = [B.cost ? t('hud.b.costN', { cr: B.cost }) : t('hud.b.freeShort'), t('tip.build', { n: Math.round(B.sec / seafStats(m.kit).buildSpeed) })];
+  if (B.cap) parts.push(t('tip.crew', { n: B.cap }));
+  return tl1(t('build.' + what), what !== 'foxhole' ? `L${lvl}` : '', parts, m.wallet.bal < B.cost ? t('tip.poor') : '', m.wallet.bal < B.cost);
+}
+export function formShort(m, f) { return tl1(t('form.' + f), '', [t('form.' + f + '.b')], ''); }
+export function stratShort(m, id) {
+  const g = m.strat.groups[id]; if (!g) return '';
+  const d = g.def, left = Math.max(0, g.readyAt - m.t), on = stratOnline(m, id);
+  return tl1(d.name, t('cat.' + d.cat), [], !on ? t('tip.offline') : left > 0 ? t('hud.o.sec', { n: Math.ceil(left) }) : t('hud.w.ready'), !on || left > 0);
+}
+export function squadShort(m, i) {
+  const list = i >= 0 ? m.seafAlive.filter((a) => a.sq === i) : m.seafAlive, q = i >= 0 ? m.seaf.squads[i] : null;
+  return tl1(i >= 0 ? `S${i + 1}` : t('hud.all'), '', [t('tac.troopers', { n: list.length }), q && q.n ? (q.order.kind === 'auto' ? t('hud.auto') : q.order.kind === 'build' ? t('card.ord.build') : t('hud.q.' + q.order.kind)) : '', q && q.n ? t('form.' + (q.form || 'loose')) : ''], '');
 }
 
 // The steps of each objective, in order; the text comes from info.<type>.<step>.

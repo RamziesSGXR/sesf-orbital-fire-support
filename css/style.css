@@ -1180,3 +1180,32 @@ body.touch .hr .h3 .st { white-space: nowrap; }
 @media (max-width: 520px) {
   body.touch #feed { top: calc(max(8px, env(safe-area-inset-top)) + var(--mmw) * var(--ui, 1) + 58px); width: calc(100vw - 16px); }
 }
+
+/* ======================= 0.17.2: tips over the picked button ======================= */
+#hottip { position: fixed; left: 0; top: 0; z-index: 30; max-width: min(380px, calc(100vw - 12px)); padding: 5px 6px 5px 9px; pointer-events: auto;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 8px;
+  font-size: 11px; line-height: 1.35; letter-spacing: 0.05em; color: var(--g);
+  background: rgba(2, 14, 7, 0.95); border: 1px solid rgba(157, 255, 184, 0.45); border-radius: 6px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55); animation: fadein .12s; }
+#hottip.hidden { display: none; }
+#hottip::after { content: ''; position: absolute; left: var(--ax, 50%); bottom: -5px; width: 8px; height: 8px; transform: translateX(-50%) rotate(45deg);
+  background: rgba(2, 14, 7, 0.95); border-right: 1px solid rgba(157, 255, 184, 0.45); border-bottom: 1px solid rgba(157, 255, 184, 0.45); }
+#hottip.below::after { bottom: auto; top: -5px; transform: translateX(-50%) rotate(225deg); }
+#hottip.open::after { display: none; }
+.tt-l b { color: var(--yellow); font-weight: 700; letter-spacing: 0.08em; }
+.tt-l i { font-style: normal; color: var(--g-dim); }
+.tt-l span { color: #e6fff0; white-space: nowrap; }
+.tt-l em { font-style: normal; color: #7dff9b; white-space: nowrap; margin-left: 2px; } .tt-l em.bad { color: var(--amber); }
+.tt-i { width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 1px solid currentColor; background: transparent; color: #7fd8ff; font: inherit; font-size: 12px; font-weight: 700; font-style: italic; font-family: Georgia, serif; cursor: pointer; touch-action: manipulation; }
+.tt-i.hidden { display: none; }
+#hottip.open .tt-i { background: rgba(127, 216, 255, 0.2); }
+.tt-more { grid-column: 1 / -1; margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(157, 255, 184, 0.2); max-height: 50vh; overflow-y: auto; }
+.tt-more.hidden { display: none; }
+.tt-more .ic-h { display: none; }
+.tt-more .ic-row { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px dotted rgba(157, 255, 184, 0.15); padding: 1px 0; }
+.tt-more .ic-row span { color: var(--g-dim); } .tt-more .ic-row b { text-align: right; font-weight: 600; }
+.tt-more .ic-b { margin-top: 5px; color: var(--g); opacity: 0.9; }
+body.touch #hottip { font-size: 10.5px; }
+body.touch .tt-i { width: 28px; height: 28px; font-size: 14px; }
+body.hide-ui #hottip { display: none !important; }
+/* the tip never takes a tap meant for what is under it: only ⓘ and the open details are live */
+#hottip { pointer-events: none; } #hottip .tt-i, #hottip .tt-more, #hottip.open { pointer-events: auto; }

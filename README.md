@@ -73,7 +73,7 @@ On the higher difficulty levels the Helldivers can't win this alone. Left to the
 | Tactical map | `L` or click the round minimap (bottom right). Click a spot on it to look there | Tap the minimap (top right), then tap a spot to look there |
 | Supply request | `U` (or **LOAD POD**), then `1`-`3` or click the compartments; `Space` loads the next one | **LOAD POD**, then tap the compartments |
 | Look at a callout | `J` or **LOOK**: the latest supply drop or super heavy | **LOOK** |
-| What does this do? | Hover or select a weapon, stratagem or squad to see its power, level and numbers. The card sits at the right side, clear of your controls | Select a weapon or squad, or tap a stratagem. The card shows across the top |
+| What does this do? | Hover or pick a weapon, build, formation, stratagem or squad: a one-line tip shows just above it (damage, rounds left, cost, ready or not). **ⓘ** opens the full details. It goes by itself, or at a click elsewhere | Tap it: the same tip over the button; **ⓘ** for the rest, a tap elsewhere closes it |
 | Look at a super heavy | **LOOK** on its callout | **LOOK** |
 | SEAF drop | `G` at the cursor, or click **SEAF DROP** then the map | **SEAF DROP** at the crosshair |
 | SEAF squads | `Tab` next squad, `` ` `` all squads, `Shift+1`-`4` pick one, `F` split, `M` merge, `Y` add nearby troops | S1-S4 buttons |
@@ -93,7 +93,7 @@ On the higher difficulty levels the Helldivers can't win this alone. Left to the
 
 **Screen layout on a computer:** the INFO, ARMORY, TACTICAL and MENU buttons, speed and pause are at the top left, with one feed of news under them: supply requests, the super heavy and requests for more time first, then the radio and the notices. The mission clock, number and difficulty are at the top right, with the current objective just below. The Helldivers (health, ship names, stratagems and what each one is doing) and the SEAF squads with their orders are at the bottom left, and the round minimap is at the bottom right. The minimap is twice as big as it was; **Settings > Minimap size** changes it.
 
-Every panel closes with its ✕ button or `Esc`. On a phone, the squad panel stays open until you close it with its ✕ or tap the map. In **Settings** you can make the in-mission controls bigger or smaller (**UI size**), move the info cards (side or top) or turn them off. **CONTROLS**, the **FIELD MANUAL** (everything you can do, with tips), **SQUAD NAMES** and **SETTINGS** are in the menu, which the armory and the briefing open with their **MENU** buttons too. The armory's **BACK** goes to the title screen, where you can change the difficulty before you lock in. The briefing's **CANCEL** goes back to the armory; the same mission waits for you when you deploy again.
+Every panel closes with its ✕ button or `Esc`. On a phone, the squad panel stays open until you close it with its ✕ or tap the map. In **Settings** you can make the in-mission controls bigger or smaller (**UI size**), turn the info tips off. **CONTROLS**, the **FIELD MANUAL** (everything you can do, with tips), **SQUAD NAMES** and **SETTINGS** are in the menu, which the armory and the briefing open with their **MENU** buttons too. The armory's **BACK** goes to the title screen, where you can change the difficulty before you lock in. The briefing's **CANCEL** goes back to the armory; the same mission waits for you when you deploy again.
 
 ## Missions
 

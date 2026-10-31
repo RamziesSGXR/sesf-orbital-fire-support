@@ -66,11 +66,11 @@ function applySettings() {
   renderer.quality = settings.quality === 'low' ? 'low' : 'high';
   audio.set(settings.volume, settings.muted);
   document.body.classList.toggle('lefty', !!settings.lefty);
-  document.body.classList.toggle('cards-top', settings.cards === 'top');
+  if (settings.cards !== 'off') settings.cards = 'side';     // (0.17.2: tips over the button, on or off)
   document.body.classList.toggle('cards-off', settings.cards === 'off');
   document.documentElement.style.setProperty('--ui', String(Number(settings.uiScale) || 1));
   document.documentElement.style.setProperty('--mm', String(Number(settings.mini) || 2));
-  if (settings.cards === 'off') $('infocard').classList.add('hidden');
+  if (settings.cards === 'off') hud.tipHide();
   input.sens = settings.touchSens;
   S.save('settings', settings);
 }
@@ -222,6 +222,7 @@ function arm(i) {
   mission.selectWeapon(i);
   if (mission.player.weapon !== i) return;      // (the nuke before it is armed, an empty slot)
   armed = true; hud.setArmed(true); setPlacing(null);
+  hud.weaponTip(i);
 }
 function disarm() {
   if (!armed) return;

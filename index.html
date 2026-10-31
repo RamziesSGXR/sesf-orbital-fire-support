@@ -95,7 +95,8 @@
       <button id="dk-drop" class="dkb"><span class="n" data-t="hud.seafDrop">SEAF DROP</span><span class="s">--</span></button>
       <button id="btn-follow" class="dkb"><span class="n"></span></button>
     </div>
-    <div id="infocard" class="panel hidden" role="status"></div>
+    <!-- a tip over whatever was just picked on a bar (a weapon, a build, a formation, a stratagem, a squad): one line, and ⓘ for the rest -->
+    <div id="hottip" class="hidden" role="status"><div class="tt-l"></div><button class="tt-i" type="button" aria-label="More">i</button><div class="tt-more hidden"></div></div>
     <div id="supgame" class="panel hidden" role="dialog" data-ta="sg.title">
       <div class="sg-h"><b data-t="sg.title">LOAD THE SUPPLY POD</b><span id="sg-for"></span></div>
       <div class="sg-bars"><div class="sg-time"><i id="sg-time"></i></div><div class="sg-fast"><i id="sg-fast"></i><span id="sg-fast-t"></span></div></div>

@@ -33,32 +33,40 @@ check('the ship gun is selected when the mission starts', open.gun === 'gun');
 check('the orbital strikes start on a cooldown', open.orb.length && open.orb.every((v) => v > 5), open.orb.map((v) => v.toFixed(0)).join(', '));
 await page.waitForTimeout(4000);
 
-// ---- an info card never covers the squad and order controls
-const controls = touch ? ['#tray', '#dock', '#weapons', '#fire-btn'] : ['#squads', '#orders', '#weapons', '.hud-tr', '.hud-l'];
+// ---- (0.17.2) tips: one line just over whatever was picked on a bar, ⓘ for the rest, gone after a moment or a tap elsewhere
+const near = (tip, b) => tip && b && tip.b <= b.t + 2 && tip.b >= b.t - 30 && tip.l < b.r && tip.r > b.l;
 if (touch) { await tap('#dk-sq'); await page.waitForTimeout(300); await tap('.sqb[data-sq="0"]'); }
 else { await page.keyboard.press('Shift+Digit1'); }
-await page.waitForTimeout(400);
-let card = await rect('#infocard');
-let hits = [];
-for (const c of controls) if (overlap(card, await rect(c))) hits.push(c);
-check('selecting a SEAF squad shows its info card', !!card);
-check('the card covers none of the controls', card && hits.length === 0, hits.join(' ') || (card ? `${Math.round(card.l)},${Math.round(card.t)} to ${Math.round(card.r)},${Math.round(card.b)}` : ''));
-if (!touch) {
-  await page.keyboard.press('Digit3'); await page.waitForTimeout(400);
-  card = await rect('#infocard'); hits = [];
-  for (const c of controls) if (overlap(card, await rect(c))) hits.push(c);
-  check('nor does a weapon\'s card', card && hits.length === 0, hits.join(' '));
-  // at the top: under the objective and callouts
-  await ev(() => window.__game.setSetting('cards', 'top'));
-  await page.keyboard.press('Digit2'); await page.waitForTimeout(400);
-  // (0.17: nothing is across the top middle any more: the radio joined the feed at the top left)
-  card = await rect('#infocard'); const tr = await rect('.hud-tr'), tl = await rect('.hud-l');
-  check('Settings > Info cards: At the top puts it across the top, in the middle, clear of both top corners', card && card.t >= 6 && card.t < 120 && !overlap(card, tr) && !overlap(card, tl), card ? `card ${Math.round(card.l)},${Math.round(card.t)} to ${Math.round(card.r)},${Math.round(card.b)}` : '');
-  await ev(() => window.__game.setSetting('cards', 'off'));
-  await page.keyboard.press('Digit3'); await page.waitForTimeout(400);
-  check('Off hides them', !(await page.isVisible('#infocard')));
-  await ev(() => window.__game.setSetting('cards', 'side'));
-}
+await page.waitForTimeout(300);
+let tipR = await rect('#hottip');
+check('picking a SEAF squad shows its tip just over its button', near(tipR, await rect('.sqb[data-sq="0"]')), tipR ? `${Math.round(tipR.l)},${Math.round(tipR.t)}-${Math.round(tipR.r)},${Math.round(tipR.b)}` : 'none');
+check('one short line: the squad, its troopers', /S1/.test(await ev(() => document.querySelector('#hottip .tt-l').textContent)) && (tipR.b - tipR.t) < 60);
+if (touch) { await tap('#tray .tray-x'); await page.waitForTimeout(250); await tap('#weapons .wbtn:nth-child(3)'); }
+else await page.keyboard.press('Digit3');
+await page.waitForTimeout(250);
+tipR = await rect('#hottip');
+const wb3 = await rect('#weapons .wbtn:nth-child(3)');
+check('arming a weapon shows its tip just over it (not a big card)', near(tipR, wb3) && (tipR.b - tipR.t) < 60 && !(await page.$('#infocard')), tipR ? `${Math.round(tipR.t)}-${Math.round(tipR.b)} over ${Math.round(wb3.t)}` : 'none');
+const line = await ev(() => document.querySelector('#hottip .tt-l').textContent);
+check('it says the weapon, its damage and its state', /HE/.test(line) && /DMG/.test(line), line);
+await (touch ? page.tap('#hottip .tt-i') : page.click('#hottip .tt-i')); await page.waitForTimeout(200);
+check('ⓘ opens the full details', await ev(() => !document.querySelector('#hottip .tt-more').classList.contains('hidden') && /RECHARGE/.test(document.querySelector('#hottip .tt-more').textContent)));
+await page.waitForTimeout(2600);
+check('which stay open until a tap elsewhere', await page.isVisible('#hottip'));
+if (touch) await page.touchscreen.tap(195, 420); else await page.mouse.click(700, 300);
+await page.waitForTimeout(200);
+check('a tap elsewhere closes it', !(await page.isVisible('#hottip')));
+if (touch) await tap('#weapons .wbtn:nth-child(8)'); else await page.keyboard.press('Digit8');
+await page.waitForTimeout(200);
+check('the ship gun tip shows its rounds left', /ROUNDS/.test(await ev(() => document.querySelector('#hottip .tt-l').textContent)));
+await page.waitForTimeout(2600);
+check('and goes by itself after a moment', !(await page.isVisible('#hottip')));
+await ev(() => window.__game.setSetting('cards', 'off'));
+if (touch) await tap('#weapons .wbtn:nth-child(2)'); else await page.keyboard.press('Digit2');
+await page.waitForTimeout(250);
+check('Settings > Info tips: Off turns them off', !(await page.isVisible('#hottip')));
+await ev(() => window.__game.setSetting('cards', 'side'));
+if (!touch) await page.keyboard.press('Escape');
 if (touch) { await page.waitForTimeout(300); }
 
 // ---- a refusal is a small toast, not the big message
