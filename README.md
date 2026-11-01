@@ -221,16 +221,18 @@ PLAY AT ORBITALFURY.COM
 
 ## Give feedback
 
-This is a work in progress, and feedback from players is how it gets better. Press **FEEDBACK (DISCORD)** on the title screen, the pause menu or the final screen, or join the **[SESF Helldivers Discord](https://discord.com/invite/qruRY4nkEz)**. Tell us what you played on, how far you got, what was fun, what was confusing or broken, and what you'd change. The version you played is on the title screen and under every mission's result.
+This is a work in progress, and feedback from players is how it gets better. Press **FEEDBACK (DISCORD)** on the title screen, the pause menu or the final screen, or join the **[SESF Helldivers Discord](https://discord.com/invite/qruRY4nkEz)**. It's run by Robert Troumbley, the head admin of Super Earth Special Forces, who made this game and reads the feedback there. Tell us what you played on, how far you got, what was fun, what was confusing or broken, and what you'd change. The version you played is on the title screen and under every mission's result.
 
-## Credits and disclaimer
+## About, credits and disclaimer
 
-The same text is on the **CREDITS** screen in the game (title screen and pause menu), in English, French and Spanish.
+The same text is on the **ABOUT & CREDITS** screen in the game (title screen and pause menu), in English, French and Spanish.
 
-- **Unofficial fan project.** Not affiliated with, endorsed by or sponsored by Arrowhead Game Studios or Sony Interactive Entertainment. Helldivers, Super Earth, Super Destroyer and the other names, factions and settings from the Helldivers games belong to their owners and are used only to refer to them. If an owner asks for something to change or come down, it will.
-- **Made by** RamziesSGXR for the Super Earth Special Forces (SESF) community, written with the help of Claude, an AI assistant made by Anthropic. Thanks to the SESF members who play it and send feedback.
+- **Unofficial fan project.** Not affiliated with, endorsed by or sponsored by Arrowhead Game Studios or Sony Interactive Entertainment. Helldivers, Super Earth, Super Destroyer, SEAF and the other names, phrases, factions and settings from the Helldivers games belong to their owners and are used only to refer to them. If an owner asks for something to change or come down, it will. The game is free, has no ads, sells nothing and collects nothing, and is provided as is, with no warranty.
+- **Made by** Robert Troumbley (RamziesSGXR), head admin of the Super Earth Special Forces (SESF) community. Written with the help of Claude, an AI assistant made by Anthropic: the design and decisions are Robert's, and Claude wrote much of the code, including the code that draws the art and makes the sound. Thanks to the SESF members who play it and send feedback.
+- **Art is drawn in code.** Terrain, troops, enemies, explosions, the HUD and the Mars cinematic are shapes the game draws on a canvas as you play. There are no image files, and none of it is an AI-generated picture.
+- **Sound is synthesised** live in the browser from tones and noise (Web Audio). No recordings, no music files.
+- **No one else's assets.** No images, fonts, music, sound files or code libraries made by anyone else. Text uses the fonts already on your device, and the game loads nothing from other sites while you play. Text is written for this project; names and phrases from the Helldivers games point back to those games.
 - **Inspired by** Helldivers 2 (Arrowhead Game Studios, published by Sony Interactive Entertainment) and the thermal gunship view of military shooters.
-- **In the game:** no images, fonts, music, sound files or code libraries made by anyone else. Art is drawn in code, sound is synthesised in the browser, text is original, and it uses the fonts already on your device. It loads nothing from other sites while you play.
 - **Build and test tools** (not part of the game): esbuild (MIT) and Playwright (Apache 2.0). Hosted on GitHub Pages.
 
-If you add an outside asset (a font, an image, a sound, a library), add it here and to the CREDITS screen with its author and licence.
+If you add an outside asset (a font, an image, a sound, a library), add it here and to the ABOUT & CREDITS screen with its author and licence.

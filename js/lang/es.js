@@ -5,7 +5,7 @@ export default {
   'ui.missionInfo': 'INFO DE MISIÓN',
   'ui.names': 'NOMBRES DEL ESCUADRÓN',
   'ui.settings': 'AJUSTES',
-  'ui.credits': 'CRÉDITOS',
+  'ui.credits': 'ACERCA DE Y CRÉDITOS',
   'ui.feedback': 'OPINIÓN (DISCORD)',
   'ui.endSession': 'TERMINAR SESIÓN',
   'ui.back': 'VOLVER A LA MISIÓN',
@@ -35,7 +35,7 @@ export default {
   'diff.8': 'Imposible',
   'diff.9': 'Helldive',
   'diff.10': 'Super Helldive',
-  'title.fbNote': 'OPINIÓN abre el Discord de SESF Helldivers. Cuéntanos tu dispositivo, qué pasó y qué cambiarías.',
+  'title.fbNote': 'OPINIÓN abre el Discord de SESF Helldivers, donde la lee Robert Troumbley, el administrador principal que creó este juego. Cuéntanos tu dispositivo, qué pasó y qué cambiarías.',
   'title.best': 'Mejor sesión en este dispositivo: {n}',
 
   // ---------- interfaz de misión ----------
@@ -349,7 +349,7 @@ export default {
   'fin.share': 'COMPARTIR',
   'fin.again': 'JUGAR DE NUEVO',
   'fin.post': 'COPIAR Y ABRIR EL CANAL',
-  'fin.fbNote': '¿Qué tal fue? OPINIÓN abre el Discord de SESF Helldivers. Pega allí tu bloque de puntuación si quieres.',
+  'fin.fbNote': '¿Qué tal fue? OPINIÓN abre el Discord de SESF Helldivers, donde la lee Robert Troumbley, su administrador principal. Pega allí tu bloque de puntuación si quieres.',
   'fin.best': 'NUEVO RÉCORD PERSONAL',
   'fin.bestWas': 'Récord personal en este dispositivo: {n}',
   'fin.totals': 'Créditos ganados {e}, gastados {s}. Bajas {k}. Helldivers perdidos {h}. SEAF perdidos {f}.',
@@ -396,14 +396,17 @@ export default {
   'map.note': 'Toca el mapa para mirar allí. El juego queda en pausa mientras el mapa está abierto.',
   'map.follow': 'SEGUIR AL ESCUADRÓN',
   'map.back': 'VOLVER',
-  'credits.eyebrow': 'Créditos y aviso legal',
+  'credits.eyebrow': 'Acerca de y créditos',
   'credits.project': 'CÓDIGO FUENTE',
   'credits.ver': 'Versión {v}. Hecho para la comunidad Super Earth Special Forces.',
-  'credits.body': '<h4>AVISO LEGAL</h4><p>Orbital Fury es un <b>proyecto de fans no oficial</b> y gratuito. No está afiliado, respaldado ni patrocinado por Arrowhead Game Studios ni por Sony Interactive Entertainment. Helldivers, Super Earth, Super Destroyer y los demás nombres, facciones y ambientaciones de los juegos Helldivers pertenecen a sus propietarios y se usan aquí solo para referirse a ellos, con respeto. Si un propietario pide cambiar o retirar algo, se hará.</p>'
+  'credits.body': '<h4>ACERCA DE</h4><p>Un minijuego gratuito hecho por fans para la comunidad <b>Super Earth Special Forces</b>. Eres el artillero de un Súper Destructor: escanea el terreno, pide ataques orbitales, maneja el cañón de la nave y despliega tropas SEAF mientras cuatro Helldivers se abren paso en la misión de abajo. Sin ti, no vuelven a casa.</p>'
+    + '<p>Funciona en el navegador, en el móvil o en el ordenador, sin instalar nada. Inglés, francés y español: ver Ajustes. Las misiones se suceden hasta que una falla, cada una más grande y dura que la anterior, y los créditos compran y mejoran tus orbitales, el cañón, el dron, los SEAF y el apoyo al escuadrón.</p>'
+    + '<h4>OPINIÓN</h4><p>OPINIÓN abre el <b>Discord de SESF Helldivers</b>. Lo dirige <b>Robert Troumbley</b>, administrador principal de Super Earth Special Forces, que creó este juego y lee lo que publicas. Cuenta en qué jugaste, qué pasó y qué cambiarías.</p>'
+    + '<h4>AVISO LEGAL</h4><p>Orbital Fury es un <b>proyecto de fans no oficial</b> y gratuito. No está afiliado, respaldado ni patrocinado por Arrowhead Game Studios ni por Sony Interactive Entertainment. Helldivers, Super Earth, Super Destroyer, SEAF y los demás nombres, frases, facciones y ambientaciones de los juegos Helldivers pertenecen a sus propietarios y se usan aquí solo para referirse a ellos, con respeto. Si un propietario pide cambiar o retirar algo, se hará.</p>'
     + '<p>El juego es gratis, no tiene anuncios, no vende nada y no recoge nada: el progreso y los récords se quedan en tu dispositivo. Se ofrece tal cual, sin garantía.</p>'
-    + '<h4>CREADO POR</h4><ul><li>Diseñado y dirigido por <b>RamziesSGXR</b> para la comunidad <b>Super Earth Special Forces</b> (SESF).</li><li>Escrito con la ayuda de <b>Claude</b>, un asistente de IA creado por Anthropic. El diseño y las decisiones son de la comunidad; Claude escribió buena parte del código.</li><li>Gracias a los miembros de SESF que lo juegan y envían su opinión.</li></ul>'
+    + '<h4>CREADO POR</h4><ul><li>Creado por <b>Robert Troumbley</b> (RamziesSGXR), administrador principal de la comunidad <b>Super Earth Special Forces</b> (SESF).</li><li>Escrito con la ayuda de <b>Claude</b>, un asistente de IA creado por Anthropic. El diseño y las decisiones son de Robert; Claude escribió buena parte del código, incluido el que dibuja el arte y genera el sonido.</li><li>Gracias a los miembros de SESF que lo juegan y envían su opinión.</li></ul>'
+    + '<h4>ARTE, SONIDO Y RECURSOS</h4><ul><li><b>El arte se dibuja con código.</b> El terreno, las tropas, los enemigos, las explosiones, la interfaz y la cinemática de Marte son formas que el juego dibuja en pantalla mientras juegas. El juego no contiene archivos de imagen, y nada en él es una imagen generada por IA.</li><li><b>El sonido es sintetizado.</b> Cada arma, ataque y pitido de radio se crea en directo en tu navegador a partir de tonos y ruido. No hay grabaciones ni archivos de música.</li><li><b>Ningún recurso ajeno.</b> No contiene imágenes, fuentes, música, archivos de sonido ni bibliotecas de código hechos por otras personas. Los textos usan las fuentes que ya tiene tu dispositivo, y no se carga nada de otros sitios mientras juegas.</li><li><b>Los textos</b> están escritos para este proyecto. Los nombres y frases de los juegos Helldivers remiten a esos juegos.</li></ul>'
     + '<h4>INSPIRADO EN</h4><ul><li><b>Helldivers 2</b> de Arrowhead Game Studios, publicado por Sony Interactive Entertainment: la ambientación, las facciones y el escuadrón a los que este juego rinde homenaje.</li><li>La vista térmica de las cañoneras de los juegos de disparos militares.</li></ul>'
-    + '<h4>QUÉ HAY EN EL JUEGO</h4><p>No contiene imágenes, fuentes, música, archivos de sonido ni bibliotecas de código hechos por otras personas. Todo el arte se dibuja con código, todo el sonido se genera en tu navegador mientras juegas y los textos están escritos para este proyecto. Los textos usan las fuentes que ya tiene tu dispositivo. No se carga nada de otros sitios mientras juegas.</p>'
     + '<h4>HERRAMIENTAS</h4><p>Se usaron para construirlo y probarlo, y no forman parte de lo que juegas: <b>esbuild</b> (licencia MIT) y <b>Playwright</b> (licencia Apache 2.0). Alojado en GitHub Pages.</p>',
   'flash.title': 'LUCES PARPADEANTES',
   'flash.text': 'Este juego usa estroboscopios infrarrojos parpadeantes y destellos de explosión intensos. Activa Reducir destellos en Ajustes si te molesta.',
