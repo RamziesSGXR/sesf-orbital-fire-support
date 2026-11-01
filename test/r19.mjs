@@ -19,13 +19,14 @@ const dt = 1 / 30;
 const run = (m, sec, each) => { for (let i = 0, n = Math.round(sec / dt); i < n && !m.over; i++) { m.step(dt); if (each && each(m) === true) break; } };
 
 // ---------------------------------------------------------------- the version
-check('version 0.19.2', C.share.version === '0.19.2' && JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url))).version === '0.19.2', C.share.version);
+check('version 0.19.3', C.share.version === '0.19.3' && JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url))).version === '0.19.3', C.share.version);
 
 // ---------------------------------------------------------------- the climb
 {
   const lv = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => levelAt(3, n));
-  check('a session started at 3 climbs about three quarters of a level a mission: its tenth is at 10', lv[0] === 3 && lv[9] === 10 && lv.every((v, i) => i === 0 || v >= lv[i - 1]), lv.join(' '));
-  check('started at 10, the first mission is at 10 and the climb goes on past it', levelAt(10, 1) === 10 && levelAt(10, 2) === 11 && levelAt(10, 6) === 14, `${levelAt(10, 2)} ${levelAt(10, 6)}`);
+  check('(0.19.2) a session started at 3 climbs about two fifths of a level a mission: its tenth is at 7, its nineteenth at 10', lv[0] === 3 && lv[9] === 7 && levelAt(3, 19) === 10 && lv.every((v, i) => i === 0 || v >= lv[i - 1]), lv.join(' '));
+  check('half the old climb', C.difficulty.ramp === 0.39 && C.difficulty.sessionRamp === 0.075);
+  check('started at 10, the first mission is at 10 and the climb goes on past it', levelAt(10, 1) === 10 && levelAt(10, 3) === 11 && levelAt(10, 6) === 12, `${levelAt(10, 3)} ${levelAt(10, 6)}`);
   check('starting levels stay 1 to 10; a mission\'s level does not', clampLevel(14) === 10 && clampAny(14) === 14 && clampAny(0) === 1);
   const f10 = levelFactors(10), f13 = levelFactors(13);
   check('past 10 there are more enemies, mediums and heavies, and more pay', f13.spawn > f10.spawn && f13.medium > f10.medium && f13.heavy > f10.heavy && reward(13) > reward(10), `${f13.spawn.toFixed(2)} ${f13.heavy.toFixed(2)} x${reward(13)}`);

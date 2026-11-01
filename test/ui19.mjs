@@ -35,13 +35,13 @@ const beside = (sel) => ev((q) => {
 }, sel);
 const frozen = async () => { const t0 = await ev(() => window.__game.mission.t); await page.waitForTimeout(500); return (await ev(() => window.__game.mission.t)) === t0; };
 const waitStep = async (h, ms = 8000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if ((await card()).h === h) return true; await page.waitForTimeout(150); } return false; };
-const saved = { startedAt: Date.now(), callsign: 'KEEP', difficulty: 5, missions: [{ op: 'Operation Keep', faction: 'bots', biome: 'grass', outcome: 'victory', score: 999, seconds: 600 }], score: 999, seconds: 600 };
+const saved = { startedAt: Date.now(), callsign: 'KEEP', difficulty: 5, missions: [{ op: 'Operation Keep', faction: 'bots', biome: 'grass', outcome: 'victory', score: 333, seconds: 200 }, { op: 'Operation Keep', faction: 'bots', biome: 'grass', outcome: 'victory', score: 333, seconds: 200 }, { op: 'Operation Keep', faction: 'bots', biome: 'grass', outcome: 'victory', score: 333, seconds: 200 }], score: 999, seconds: 600 };   // (0.19.2: three flown, the climb being two fifths of a level)
 await page.addInitScript((s) => { try { if (!sessionStorage.getItem('ui19')) { localStorage.clear(); localStorage.setItem('ofs.session', JSON.stringify(s)); sessionStorage.setItem('ui19', '1'); } } catch (e) { /* */ } }, saved);
 await page.goto(`file://${ROOT}/dist/orbital-fury.html`); await page.waitForTimeout(700);
 
 // ---------------------------------------------------------------- the title
 check('the title has the tutorial, marked NEW until it has been opened', await page.isVisible('#btn-tutorial') && await page.isVisible('#tut-new') && /LAST STAND ON MARS/.test(await page.textContent('#btn-tutorial')));
-check('RESUME shows the saved session\'s next level (started at 5, one flown: 6)', /DIFFICULTY 6/.test(await page.textContent('#btn-resume')), await page.textContent('#btn-resume'));
+check('RESUME shows the saved session\'s next level (started at 5, three flown: 6)', /DIFFICULTY 6/.test(await page.textContent('#btn-resume')), await page.textContent('#btn-resume'));
 await shot('title');
 await tap('#btn-tutorial'); await page.waitForTimeout(2500);
 const ci = await ev(() => ({ on: !document.getElementById('cine').classList.contains('hidden'), txt: document.getElementById('cine-text').textContent, t: window.__game.mission.t, card: document.getElementById('tut').classList.contains('hidden') }));
@@ -171,7 +171,7 @@ check('the end screen: MARS IS GLASS, how long it held against the Great Host an
 await shot('end');
 await tap('#glass-title'); await page.waitForTimeout(800);
 const back = await ev(() => ({ state: window.__game.state, s: JSON.parse(localStorage.getItem('ofs.session') || 'null'), seen: localStorage.getItem('ofs.tutSeen') }));
-check('TITLE SCREEN goes back, and the saved session is just as it was', back.state === 'title' && back.s && back.s.callsign === 'KEEP' && back.s.missions.length === 1 && back.s.score === 999, JSON.stringify(back.s && back.s.callsign));
+check('TITLE SCREEN goes back, and the saved session is just as it was', back.state === 'title' && back.s && back.s.callsign === 'KEEP' && back.s.missions.length === 3 && back.s.score === 999, JSON.stringify(back.s && back.s.callsign));
 check('the tutorial is no longer NEW', !(await page.isVisible('#tut-new')));
 
 // ---------------------------------------------------------------- the menu leaves the tutorial too

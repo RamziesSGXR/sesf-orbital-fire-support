@@ -1,6 +1,6 @@
 // Difficulty. A session starts at a level from 1 to 10, picked on the title screen, and climbs from there: each mission is
 // CONFIG.difficulty.ramp of a level harder than the one before (levelAt), with no ceiling, so a session started at 3 flies its
-// tenth mission at 10, what a session started at 10 flies first, and goes on past it. Level 10 is the game exactly as tuned in
+// nineteenth mission at 10, what a session started at 10 flies first, and goes on past it. Level 10 is the game exactly as tuned in
 // config.js; every lower level scales the enemy down from there and every higher one up (CONFIG.difficulty says by how much at
 // level 1; the levels step evenly, and on past 10 at CONFIG.difficulty.beyond of that step):
 //   spawn   how many come: patrols out of each base and how fast they are replaced, intercepts, base garrisons, backup calls by

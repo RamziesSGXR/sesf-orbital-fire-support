@@ -239,8 +239,8 @@ export const CONFIG = {
   // up. Each level also stands for a point on the war's clock (war, in minutes: see ramp below), and the clock runs on through the
   // session at sessionRamp. reward: the credits and score multiplier, from the first number at level 1 to the second at level 10
   // (and on at that step). start: the level a new player gets.
-  // ramp: the levels a session climbs each mission (from 3, mission 10 is at 10); beyond: past 10, the step a level as a share of
-  // the average step from 1 to 10.
+  // ramp: the levels a session climbs each mission (0.19.2: halved, so from 3, mission 10 is at 7 and mission 19 at 10); beyond:
+  // past 10, the step a level as a share of the average step from 1 to 10.
   // (0.19) The tutorial, the last stand on Mars (sim/laststand.js): personnel in the shelter; a Pelican lifts every evac.shuttle of
   // them. Once the lessons end the Great Host comes in waves that never stop, from waveR out: every waveEvery seconds (from the
   // first number down to the second over rampSec), from waveSize[0] strong and waveGrow more each minute, a Harvester in every
@@ -251,9 +251,9 @@ export const CONFIG = {
   // says the line is breaking.
   lastStand: { personnel: 160, squad: 6, lzOff: 46, lives: 10, breakAt: 3, waveFirst: 5, waveEvery: [12, 3.5], rampSec: 150, waveSize: [9, 9], waveGrow: 8,
                heavyEvery: 3, hpGrow: 0.6, dmgGrow: 0.9, maxHold: 480, glassSec: 10, beamEvery: 0.09, beamR: 13, waveR: 230, lessonR: 160, countdown: 900 },
-  difficulty: { start: 3, spawn: 0.55, medium: 0.6, heavy: 0.4, boss: 0.3, curve: 1, reward: [0.75, 1.2], ramp: 0.78, beyond: 1,
+  difficulty: { start: 3, spawn: 0.55, medium: 0.6, heavy: 0.4, boss: 0.3, curve: 1, reward: [0.75, 1.2], ramp: 0.39, beyond: 1,
                 // war minutes at each level (1 to 10), war minutes a level past 10, and the share of each real session minute that counts
-                war: [0, 15, 38, 41, 44, 47, 50, 53, 56, 60], warBeyond: 10, sessionRamp: 0.15 },
+                war: [0, 15, 38, 41, 44, 47, 50, 53, 56, 60], warBeyond: 10, sessionRamp: 0.075 },     // (0.19.2: ramp and sessionRamp halved)
   // Pressure drives how fast the field fills: it climbs through the session and, faster, through each mission.
   pressure: { start: 1, perSessionMin: 0.035, perMissionMin: 0.12, onBaseKill: 0.6, floor: 0.5 },
   // The war escalates with every minute of the session, so the run only ends in failure: tougher, harder-hitting enemies and more heavies.
@@ -387,6 +387,6 @@ export const CONFIG = {
   share:    { channelUrl: '',
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.19.2',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.19.3',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives; the score block ends with it so pasted scores bring players in
 };
