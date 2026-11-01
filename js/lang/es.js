@@ -5,7 +5,7 @@ export default {
   'ui.missionInfo': 'INFO DE MISIÓN',
   'ui.names': 'NOMBRES DEL ESCUADRÓN',
   'ui.settings': 'AJUSTES',
-  'ui.about': 'ACERCA DE',
+  'ui.credits': 'CRÉDITOS',
   'ui.feedback': 'OPINIÓN (DISCORD)',
   'ui.endSession': 'TERMINAR SESIÓN',
   'ui.back': 'VOLVER A LA MISIÓN',
@@ -396,14 +396,15 @@ export default {
   'map.note': 'Toca el mapa para mirar allí. El juego queda en pausa mientras el mapa está abierto.',
   'map.follow': 'SEGUIR AL ESCUADRÓN',
   'map.back': 'VOLVER',
-  'about.eyebrow': 'Acerca de este proyecto',
-  'about.project': 'PÁGINA DEL PROYECTO',
-  'about.ver': 'Versión {v}. Hecho para la comunidad Super Earth Special Forces.',
-  'about.body': '<p>Un minijuego gratuito hecho por fans para la comunidad <b>Super Earth Special Forces</b>. Eres el artillero de un Súper Destructor: escanea el terreno, pide ataques orbitales, maneja el cañón de la nave y despliega tropas SEAF mientras cuatro Helldivers se abren paso en la misión de abajo. Sin ti, no vuelven a casa.</p>'
-    + '<p>Un <b>proyecto de fans no oficial</b>, sin afiliación ni respaldo de Arrowhead Game Studios ni de Sony Interactive Entertainment. Todo (arte, sonido, textos, cifras) está hecho desde cero; no contiene recursos del juego.</p>'
-    + '<p>Funciona en el navegador, en el móvil o en el ordenador, sin instalar nada. El progreso y los récords se quedan en tu dispositivo. Inglés, francés y español: ver Ajustes.</p>'
-    + '<p><b>Cómo funciona una sesión:</b> las misiones se suceden hasta que una falla. Los primeros despliegues son pequeños y rápidos; los siguientes, más grandes, largos y duros, y de vez en cuando un superpesado tiene que caer antes de que el escuadrón pueda irse. Los créditos compran y mejoran tus orbitales, el apoyo de la nave, el cañón, el dron, los SEAF y el apoyo al escuadrón.</p>'
-    + '<p><b>Tu opinión lo mejora.</b> OPINIÓN abre el Discord de SESF Helldivers. Cuenta en qué jugaste, qué pasó y qué cambiarías.</p>',
+  'credits.eyebrow': 'Créditos y aviso legal',
+  'credits.project': 'CÓDIGO FUENTE',
+  'credits.ver': 'Versión {v}. Hecho para la comunidad Super Earth Special Forces.',
+  'credits.body': '<h4>AVISO LEGAL</h4><p>Orbital Fury es un <b>proyecto de fans no oficial</b> y gratuito. No está afiliado, respaldado ni patrocinado por Arrowhead Game Studios ni por Sony Interactive Entertainment. Helldivers, Super Earth, Super Destroyer y los demás nombres, facciones y ambientaciones de los juegos Helldivers pertenecen a sus propietarios y se usan aquí solo para referirse a ellos, con respeto. Si un propietario pide cambiar o retirar algo, se hará.</p>'
+    + '<p>El juego es gratis, no tiene anuncios, no vende nada y no recoge nada: el progreso y los récords se quedan en tu dispositivo. Se ofrece tal cual, sin garantía.</p>'
+    + '<h4>CREADO POR</h4><ul><li>Diseñado y dirigido por <b>RamziesSGXR</b> para la comunidad <b>Super Earth Special Forces</b> (SESF).</li><li>Escrito con la ayuda de <b>Claude</b>, un asistente de IA creado por Anthropic. El diseño y las decisiones son de la comunidad; Claude escribió buena parte del código.</li><li>Gracias a los miembros de SESF que lo juegan y envían su opinión.</li></ul>'
+    + '<h4>INSPIRADO EN</h4><ul><li><b>Helldivers 2</b> de Arrowhead Game Studios, publicado por Sony Interactive Entertainment: la ambientación, las facciones y el escuadrón a los que este juego rinde homenaje.</li><li>La vista térmica de las cañoneras de los juegos de disparos militares.</li></ul>'
+    + '<h4>QUÉ HAY EN EL JUEGO</h4><p>No contiene imágenes, fuentes, música, archivos de sonido ni bibliotecas de código hechos por otras personas. Todo el arte se dibuja con código, todo el sonido se genera en tu navegador mientras juegas y los textos están escritos para este proyecto. Los textos usan las fuentes que ya tiene tu dispositivo. No se carga nada de otros sitios mientras juegas.</p>'
+    + '<h4>HERRAMIENTAS</h4><p>Se usaron para construirlo y probarlo, y no forman parte de lo que juegas: <b>esbuild</b> (licencia MIT) y <b>Playwright</b> (licencia Apache 2.0). Alojado en GitHub Pages.</p>',
   'flash.title': 'LUCES PARPADEANTES',
   'flash.text': 'Este juego usa estroboscopios infrarrojos parpadeantes y destellos de explosión intensos. Activa Reducir destellos en Ajustes si te molesta.',
   'flash.ok': 'ENTENDIDO',

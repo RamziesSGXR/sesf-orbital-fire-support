@@ -5,7 +5,7 @@ export default {
   'ui.missionInfo': 'MISSION INFO',
   'ui.names': 'SQUAD NAMES',
   'ui.settings': 'SETTINGS',
-  'ui.about': 'ABOUT',
+  'ui.credits': 'CREDITS',
   'ui.feedback': 'FEEDBACK (DISCORD)',
   'ui.endSession': 'END SESSION',
   'ui.back': 'BACK TO THE MISSION',
@@ -396,14 +396,15 @@ export default {
   'map.note': 'Tap the map to look there. The game is paused while the map is open.',
   'map.follow': 'FOLLOW SQUAD',
   'map.back': 'BACK',
-  'about.eyebrow': 'About this project',
-  'about.project': 'PROJECT PAGE',
-  'about.ver': 'Version {v}. Made for the Super Earth Special Forces community.',
-  'about.body': '<p>A free, fan-made minigame for the <b>Super Earth Special Forces</b> community. You are the gunner on a Super Destroyer: scan the ground, call orbital strikes, work the ship gun and drop SEAF troops while four Helldivers fight through the mission below. Without you, they do not come home.</p>'
-    + '<p>An <b>unofficial fan project</b>, not affiliated with or endorsed by Arrowhead Game Studios or Sony Interactive Entertainment. Everything in it (art, sound, text, numbers) is made from scratch; there are no game assets in it.</p>'
-    + '<p>It runs in the browser on a phone or a computer, nothing to install. Progress and best scores stay on your device. English, French and Spanish: see Settings.</p>'
-    + '<p><b>How a session works:</b> missions follow one another until one fails. Early drops are small and quick; later ones are bigger, longer and meaner, and now and then a super heavy has to die before the squad can leave. Credits buy and upgrade your orbitals, ship utilities, the ship gun, the UAV, SEAF and squad support.</p>'
-    + '<p><b>Feedback makes it better.</b> FEEDBACK opens the SESF Helldivers Discord. Say what you played on, what happened and what you would change.</p>',
+  'credits.eyebrow': 'Credits and disclaimer',
+  'credits.project': 'SOURCE CODE',
+  'credits.ver': 'Version {v}. Made for the Super Earth Special Forces community.',
+  'credits.body': '<h4>DISCLAIMER</h4><p>Orbital Fury is a free, <b>unofficial fan project</b>. It is not affiliated with, endorsed by or sponsored by Arrowhead Game Studios or Sony Interactive Entertainment. Helldivers, Super Earth, Super Destroyer and the other names, factions and settings from the Helldivers games belong to their owners and are used here only to refer to them, with respect. If an owner asks for any of it to change or come down, it will.</p>'
+    + '<p>The game is free, has no ads, sells nothing and collects nothing: progress and best scores stay on your device. It is provided as it is, with no warranty.</p>'
+    + '<h4>MADE BY</h4><ul><li>Designed and run by <b>RamziesSGXR</b> for the <b>Super Earth Special Forces</b> (SESF) community.</li><li>Written with the help of <b>Claude</b>, an AI assistant made by Anthropic. The design and the decisions are the community\'s; Claude wrote much of the code.</li><li>Thanks to the SESF members who play it and send feedback.</li></ul>'
+    + '<h4>INSPIRED BY</h4><ul><li><b>Helldivers 2</b> by Arrowhead Game Studios, published by Sony Interactive Entertainment: the setting, the factions and the squad this game is a fan tribute to.</li><li>The thermal gunship view of military shooters.</li></ul>'
+    + '<h4>WHAT IS IN THE GAME</h4><p>No images, fonts, music, sound files or code libraries made by anyone else are in it. All the art is drawn in code, all the sound is made in your browser as you play, and the text is written for this project. Text uses the fonts already on your device. Nothing is loaded from other sites while you play.</p>'
+    + '<h4>TOOLS</h4><p>Used to build and test it, and not part of what you play: <b>esbuild</b> (MIT licence) and <b>Playwright</b> (Apache 2.0 licence). Hosted on GitHub Pages.</p>',
   'flash.title': 'FLASHING LIGHTS',
   'flash.text': 'This game uses blinking infrared strobes and bright explosion flashes. Turn on Reduce flashing in Settings if that bothers you.',
   'flash.ok': 'UNDERSTOOD',

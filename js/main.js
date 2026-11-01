@@ -101,7 +101,7 @@ function relang() {
   applyDom(document);
   hud.relang();
   UI.buildLangs(getLang(), pickLang);
-  $('about-ver').textContent = t('about.ver', { v: C.share.version });
+  $('credits-ver').textContent = t('credits.ver', { v: C.share.version });
   UI.fillVersion();
   if (UI.isOn('s-settings')) UI.buildSettings(settings, onSettingChange);
   if (tac && mission) { hud.fillTactical(mission, sel); hud.setTacState(input.touch); }
@@ -830,7 +830,7 @@ function togglePause(force) {
   if (UI.isOn('s-manual')) { closePanel('s-manual'); return; }
   if (UI.isOn('s-map')) { closeMap(); return; }
   if (UI.isOn('s-info')) { closeInfo(); return; }
-  if (UI.isOn('s-about')) { closeAbout(); return; }
+  if (UI.isOn('s-credits')) { closeCredits(); return; }
   if (UI.isOn('s-names')) { closeNames(false); return; }
   if (state === 'brief' || state === 'shop') { if (!UI.isOn('s-settings')) outMenu(force !== undefined ? force : !UI.isOn('s-pause')); return; }
   if (state !== 'play' || !mission || mission.over) return;
@@ -920,7 +920,7 @@ function closeArmory() { if (tac && hud.tcTab === 'armory') setTac(false); }
 
 // ---------------- mission info and the project page ----------------
 // MISSION INFO: what this mission is and how to finish it, step by step, with the current step lit. The game waits while it is open.
-let infoFrom = null, aboutFrom = null;
+let infoFrom = null, creditsFrom = null;
 function openInfo(from) {
   if (state !== 'play' || !mission || UI.isOn('s-info')) return;
   infoFrom = from || (soft ? 'soft' : paused ? 'pause' : 'play');
@@ -963,31 +963,31 @@ function closeMap() {
   $('map-close').onclick = () => closeMap();
 }
 
-function openAbout(from) {
-  aboutFrom = from;
+function openCredits(from) {
+  creditsFrom = from;
   if (from === 'pause') UI.overlay('s-pause', false);
-  UI.overlay('s-about', true);
+  UI.overlay('s-credits', true);
 }
-function closeAbout() {
-  UI.overlay('s-about', false);
-  if (aboutFrom === 'pause') UI.overlay('s-pause', true);
-  aboutFrom = null;
+function closeCredits() {
+  UI.overlay('s-credits', false);
+  if (creditsFrom === 'pause') UI.overlay('s-pause', true);
+  creditsFrom = null;
 }
 hud.onInfo = () => openInfo();
 for (const a of document.querySelectorAll('a.fb')) a.href = C.share.feedbackUrl;
 $('lnk-proj').href = C.share.projectUrl;
-$('about-ver').textContent = t('about.ver', { v: C.share.version });
+$('credits-ver').textContent = t('credits.ver', { v: C.share.version });
 $('btn-info').onclick = () => openInfo();
 $('btn-info-m').onclick = () => openInfo('pause');
 $('info-close').onclick = closeInfo;
-$('btn-about-t').onclick = () => { audio.unlock(); openAbout('title'); };
-$('btn-about-m').onclick = () => openAbout('pause');
-$('about-close').onclick = closeAbout;
+$('btn-credits-t').onclick = () => { audio.unlock(); openCredits('title'); };
+$('btn-credits-m').onclick = () => openCredits('pause');
+$('credits-close').onclick = closeCredits;
 // Every panel's close (X) button does what that panel's own back button does.
 const CLOSE = {
   's-pause': () => togglePause(false), 's-names': () => closeNames(false), 's-settings': () => closeSettings(),
   's-notice': () => $('btn-notice').click(), 's-lock': () => closeLock(),
-  's-controls': () => closePanel('s-controls'), 's-manual': () => closePanel('s-manual'), 's-info': () => closeInfo(), 's-about': () => closeAbout(), 's-map': () => closeMap(),
+  's-controls': () => closePanel('s-controls'), 's-manual': () => closePanel('s-manual'), 's-info': () => closeInfo(), 's-credits': () => closeCredits(), 's-map': () => closeMap(),
 };
 for (const b of document.querySelectorAll('.x-close[data-close]')) { const f = CLOSE[b.dataset.close]; if (f) b.addEventListener('click', f); }
 

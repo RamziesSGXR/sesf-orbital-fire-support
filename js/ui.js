@@ -21,7 +21,7 @@ import { LEVELS, levelFactors, reward, levelName } from './difficulty.js';
 
 const $ = (id) => document.getElementById(id);
 const SCREENS = ['s-title', 's-glass', 's-shop', 's-brief', 's-debrief', 's-final'];
-const OVERLAYS = ['s-pause', 's-lock', 's-controls', 's-manual', 's-names', 's-settings', 's-notice', 's-info', 's-about', 's-map'];
+const OVERLAYS = ['s-pause', 's-lock', 's-controls', 's-manual', 's-names', 's-settings', 's-notice', 's-info', 's-credits', 's-map'];
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ROLE_GLYPH = { rifle: '•', medic: '+', rocket: '/', gren: '◆', spotter: '▲' };

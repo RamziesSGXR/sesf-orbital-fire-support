@@ -620,13 +620,16 @@ ol.steps li.now { color: #fff; font-weight: 600; }
 ol.steps li.now::marker { color: var(--yellow); }
 .about { text-align: left; font-size: 13px; line-height: 1.6; }
 .about p { margin: 8px 0; }
+.about h4 { margin: 14px 0 2px; font-size: 12px; letter-spacing: 0.14em; color: var(--yellow); }
+.about ul { margin: 4px 0; padding-left: 20px; }
+.about li { margin: 3px 0; }
 a.btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 .btn.fb { border-color: var(--yellow); color: var(--yellow); }
 .btn.fb.primary { color: #000; }
 .fb-note { max-width: 520px; margin-left: auto; margin-right: auto; }
 
 .card > .x-close ~ .eyebrow { padding: 0 38px; }
-#about-body { max-height: 58vh; overflow-y: auto; padding-right: 4px; touch-action: pan-y; }
+#credits-body { max-height: 58vh; overflow-y: auto; padding-right: 4px; touch-action: pan-y; }
 body.touch #info-body { max-height: 56vh; }
 
 /* Loading screen: what is going on, and a tip */

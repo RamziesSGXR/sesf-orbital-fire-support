@@ -222,3 +222,15 @@ PLAY AT ORBITALFURY.COM
 ## Give feedback
 
 This is a work in progress, and feedback from players is how it gets better. Press **FEEDBACK (DISCORD)** on the title screen, the pause menu or the final screen, or join the **[SESF Helldivers Discord](https://discord.com/invite/qruRY4nkEz)**. Tell us what you played on, how far you got, what was fun, what was confusing or broken, and what you'd change. The version you played is on the title screen and under every mission's result.
+
+## Credits and disclaimer
+
+The same text is on the **CREDITS** screen in the game (title screen and pause menu), in English, French and Spanish.
+
+- **Unofficial fan project.** Not affiliated with, endorsed by or sponsored by Arrowhead Game Studios or Sony Interactive Entertainment. Helldivers, Super Earth, Super Destroyer and the other names, factions and settings from the Helldivers games belong to their owners and are used only to refer to them. If an owner asks for something to change or come down, it will.
+- **Made by** RamziesSGXR for the Super Earth Special Forces (SESF) community, written with the help of Claude, an AI assistant made by Anthropic. Thanks to the SESF members who play it and send feedback.
+- **Inspired by** Helldivers 2 (Arrowhead Game Studios, published by Sony Interactive Entertainment) and the thermal gunship view of military shooters.
+- **In the game:** no images, fonts, music, sound files or code libraries made by anyone else. Art is drawn in code, sound is synthesised in the browser, text is original, and it uses the fonts already on your device. It loads nothing from other sites while you play.
+- **Build and test tools** (not part of the game): esbuild (MIT) and Playwright (Apache 2.0). Hosted on GitHub Pages.
+
+If you add an outside asset (a font, an image, a sound, a library), add it here and to the CREDITS screen with its author and licence.

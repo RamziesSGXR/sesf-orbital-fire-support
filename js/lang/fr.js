@@ -5,7 +5,7 @@ export default {
   'ui.missionInfo': 'INFOS MISSION',
   'ui.names': 'NOMS DE L’ESCOUADE',
   'ui.settings': 'RÉGLAGES',
-  'ui.about': 'À PROPOS',
+  'ui.credits': 'CRÉDITS',
   'ui.feedback': 'AVIS (DISCORD)',
   'ui.endSession': 'FIN DE SESSION',
   'ui.back': 'RETOUR À LA MISSION',
@@ -396,14 +396,15 @@ export default {
   'map.note': 'Touchez la carte pour y regarder. Le jeu est en pause tant que la carte est ouverte.',
   'map.follow': 'SUIVRE L’ESCOUADE',
   'map.back': 'RETOUR',
-  'about.eyebrow': 'À propos de ce projet',
-  'about.project': 'PAGE DU PROJET',
-  'about.ver': 'Version {v}. Fait pour la communauté Super Earth Special Forces.',
-  'about.body': '<p>Un mini-jeu gratuit, fait par des fans, pour la communauté <b>Super Earth Special Forces</b>. Vous êtes l’artilleur d’un Super Destroyer : scannez le terrain, appelez des frappes orbitales, maniez le canon du vaisseau et larguez des troupes SEAF pendant que quatre Helldivers se battent en contrebas. Sans vous, ils ne rentrent pas.</p>'
-    + '<p>Un <b>projet de fan non officiel</b>, ni affilié ni approuvé par Arrowhead Game Studios ou Sony Interactive Entertainment. Tout (graphismes, sons, textes, chiffres) est fait de zéro ; aucun élément du jeu original n’y figure.</p>'
-    + '<p>Il tourne dans le navigateur, sur téléphone ou ordinateur, sans rien installer. Progression et meilleurs scores restent sur votre appareil. Anglais, français et espagnol : voir Réglages.</p>'
-    + '<p><b>Une session :</b> les missions s’enchaînent jusqu’au premier échec. Les premiers largages sont courts ; les suivants plus grands, plus longs et plus durs, et parfois un super lourd doit tomber avant que l’escouade puisse partir. Les crédits achètent et améliorent vos orbitales, le soutien du vaisseau, le canon, le drone, les SEAF et l’appui de l’escouade.</p>'
-    + '<p><b>Vos avis le rendent meilleur.</b> AVIS ouvre le Discord SESF Helldivers. Dites sur quoi vous avez joué, ce qui s’est passé et ce que vous changeriez.</p>',
+  'credits.eyebrow': 'Crédits et avertissement',
+  'credits.project': 'CODE SOURCE',
+  'credits.ver': 'Version {v}. Fait pour la communauté Super Earth Special Forces.',
+  'credits.body': '<h4>AVERTISSEMENT</h4><p>Orbital Fury est un <b>projet de fan non officiel</b>, gratuit. Il n’est ni affilié, ni approuvé, ni parrainé par Arrowhead Game Studios ou Sony Interactive Entertainment. Helldivers, Super Earth, Super Destroyer et les autres noms, factions et univers des jeux Helldivers appartiennent à leurs propriétaires et ne sont utilisés ici que pour les désigner, avec respect. Si un propriétaire demande de modifier ou de retirer quoi que ce soit, ce sera fait.</p>'
+    + '<p>Le jeu est gratuit, sans publicité, ne vend rien et ne collecte rien : progression et meilleurs scores restent sur votre appareil. Il est fourni tel quel, sans garantie.</p>'
+    + '<h4>RÉALISATION</h4><ul><li>Conçu et animé par <b>RamziesSGXR</b> pour la communauté <b>Super Earth Special Forces</b> (SESF).</li><li>Écrit avec l’aide de <b>Claude</b>, un assistant d’IA créé par Anthropic. La conception et les décisions viennent de la communauté ; Claude a écrit une grande partie du code.</li><li>Merci aux membres de SESF qui y jouent et envoient leurs avis.</li></ul>'
+    + '<h4>INSPIRATION</h4><ul><li><b>Helldivers 2</b> d’Arrowhead Game Studios, édité par Sony Interactive Entertainment : l’univers, les factions et l’escouade dont ce jeu est un hommage de fan.</li><li>La vue thermique d’hélicoptère d’appui des jeux de tir militaires.</li></ul>'
+    + '<h4>CE QUE CONTIENT LE JEU</h4><p>Aucune image, police, musique, fichier sonore ni bibliothèque de code créés par d’autres n’y figure. Tous les graphismes sont dessinés en code, tous les sons sont produits dans votre navigateur pendant que vous jouez, et les textes sont écrits pour ce projet. Les textes utilisent les polices déjà présentes sur votre appareil. Rien n’est chargé depuis d’autres sites pendant la partie.</p>'
+    + '<h4>OUTILS</h4><p>Utilisés pour le construire et le tester, mais absents de ce à quoi vous jouez : <b>esbuild</b> (licence MIT) et <b>Playwright</b> (licence Apache 2.0). Hébergé sur GitHub Pages.</p>',
   'flash.title': 'LUMIÈRES CLIGNOTANTES',
   'flash.text': 'Ce jeu utilise des stroboscopes infrarouges clignotants et des éclairs d’explosion vifs. Activez Réduire les flashs dans les Réglages si cela vous gêne.',
   'flash.ok': 'COMPRIS',
