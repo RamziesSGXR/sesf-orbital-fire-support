@@ -228,11 +228,12 @@ This is a work in progress, and feedback from players is how it gets better. Pre
 The same text is on the **ABOUT & CREDITS** screen in the game (title screen and pause menu), in English, French and Spanish.
 
 - **Unofficial fan project.** Not affiliated with, endorsed by or sponsored by Arrowhead Game Studios or Sony Interactive Entertainment. Helldivers, Super Earth, Super Destroyer, SEAF and the other names, phrases, factions and settings from the Helldivers games belong to their owners and are used only to refer to them. If an owner asks for something to change or come down, it will. The game is free, has no ads, sells nothing and collects nothing, and is provided as is, with no warranty.
-- **Created and vibe coded by** Robert Troumbley (RamziesSGXR), head admin of the Super Earth Special Forces (SESF) community. Testing and feedback by Helldiver KTL of the SESF Discord and squally_wally740. Thanks to the SESF members who play it and send feedback.
+- **Created and vibe coded by** Robert Troumbley (RamziesSGXR), head admin of the Super Earth Special Forces (SESF) community. The idea has been in the works since Helldivers 2 launched in 2024.
+- **Testing:** KTL of the P.h.a.n.t.o.m. Helldivers (testing, and checking the French), rudolphtheredscare of the Tibit Tigers Helldivers, squally_wally740 of the Super Earth Special Forces Helldivers, and d3c4p1t4p3r (testing, and a sounding board for ideas). Thanks to the SESF members who play it and send feedback.
 - **Art is drawn in code.** Terrain, troops, enemies, explosions, the HUD and the Mars cinematic are shapes the game draws on a canvas as you play. There are no image files, and none of it is an AI-generated picture.
 - **Sound is synthesised** live in the browser from tones and noise (Web Audio). No recordings, no music files.
 - **No one else's assets.** No images, fonts, music, sound files or code libraries made by anyone else. Text uses the fonts already on your device, and the game loads nothing from other sites while you play. Text is written for this project; names and phrases from the Helldivers games point back to those games.
-- **Inspired by** Helldivers 2 (Arrowhead Game Studios, published by Sony Interactive Entertainment) and the thermal gunship view of military shooters.
+- **Inspired by** Helldivers 2 (Arrowhead Game Studios, published by Sony Interactive Entertainment).
 - **Build and test tools** (not part of the game): esbuild (MIT) and Playwright (Apache 2.0). Hosted on GitHub Pages.
 
 If you add an outside asset (a font, an image, a sound, a library), add it here and to the ABOUT & CREDITS screen with its author and licence.
