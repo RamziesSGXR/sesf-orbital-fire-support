@@ -38,8 +38,7 @@ await tap('#btn-menu'); await page.waitForTimeout(300);
 await page.screenshot({ path: out('4-menu') });         // (0.16: MENU opens the pause menu)
 await tap('#btn-resume-m'); await page.waitForTimeout(300);
 await page.waitForTimeout(8300);
-await tap('#dk-sq'); await page.waitForTimeout(300);
-await page.screenshot({ path: out('6-tray') });
+await page.screenshot({ path: out('6-tray') });     // (0.20: the squads are in the command panel, always up)
 await tap('#squads .sqa[data-a=draw]'); await page.waitForTimeout(300);
 const W = VP[vp].width, H = VP[vp].height;
 const cdp = await ctx.newCDPSession(page);

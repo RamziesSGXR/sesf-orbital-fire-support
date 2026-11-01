@@ -71,6 +71,17 @@ export class Input {
       try { cv.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
       this.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType, btn: e.button, sx: e.clientX, sy: e.clientY, t0: performance.now() });
       const draw = this.h.drawing();
+      // (0.19.5) a finger held still on a trooper adds him to the selection, or takes him out of it (a phone's shift-click)
+      clearTimeout(this.holdT);
+      const ht = e.pointerType !== 'mouse' && this.ptrs.size === 1 && !draw && this.h.holdTarget ? this.h.holdTarget(e.clientX, e.clientY) : null;
+      if (ht) {     // (who is under the finger when it goes down: troopers move)
+        const id = e.pointerId, x = e.clientX, y = e.clientY;
+        this.holdT = setTimeout(() => {
+          const q = this.ptrs.get(id);
+          if (!q || this.ptrs.size !== 1 || Math.hypot(q.x - x, q.y - y) > 10 || this.box !== null) return;
+          if (this.h.hold(ht)) { q.held = true; if (this.lp && this.lp.id === id) this.lp = null; }
+        }, 450);
+      }
       if (e.pointerType === 'mouse') {
         this.mx = e.clientX; this.my = e.clientY;
         if (draw && e.button === 0) { this.stroke = e.pointerId; this.h.drawBegin(e.clientX, e.clientY); return; }
@@ -81,8 +92,6 @@ export class Input {
         // draws a box round SEAF troopers.
         if (e.button === 0) { this.lp = { id: e.pointerId, x: e.clientX, y: e.clientY, drag: false, box: this.h.tac() }; return; }
         if (e.button === 2) this.panning = e.pointerId;
-      } else if (this.h.tac() && this.ptrs.size === 1) {
-        this.lp = { id: e.pointerId, x: e.clientX, y: e.clientY, drag: false, box: true };   // the tactical screen: one finger draws a box
       } else if (this.h.boxing && this.h.boxing() && this.ptrs.size === 1) {
         this.box = e.pointerId; this.h.boxBegin(e.clientX, e.clientY);   // SELECT armed: one finger draws the box
       } else if (draw && this.ptrs.size === 1) {
@@ -100,6 +109,8 @@ export class Input {
       if (!p || !this.active()) return;
       const dx = e.clientX - p.x, dy = e.clientY - p.y;
       p.x = e.clientX; p.y = e.clientY;
+      if (p.held) return;                                          // (a held finger stays put: no pan, no box)
+      if (Math.hypot(p.x - p.sx, p.y - p.sy) > 10) clearTimeout(this.holdT);
       if (this.stroke === e.pointerId) { this.h.drawMove(e.clientX, e.clientY); return; }
       if (this.box === e.pointerId) { this.h.boxMove(e.clientX, e.clientY); return; }
       const lp = this.lp;
@@ -123,6 +134,8 @@ export class Input {
       const p = this.ptrs.get(e.pointerId);
       if (!p) return;
       this.ptrs.delete(e.pointerId);
+      clearTimeout(this.holdT);
+      if (p.held) { if (this.ptrs.size < 2) this.pinch = null; return; }
       const lp = this.lp && this.lp.id === e.pointerId ? this.lp : null;
       if (lp) this.lp = null;
       if (this.box === e.pointerId) { this.box = null; this.h.boxEnd(); if (this.ptrs.size < 2) this.pinch = null; return; }
@@ -173,16 +186,15 @@ export class Input {
       // Esc steps back one thing at a time (main.js): drawing, a placement, the tactical screen, an armed weapon, then the menu
       if (e.code === 'Escape') { this.h.escape(); return; }
       if (e.code === 'F2') { e.preventDefault(); if (this.h.hideUi) this.h.hideUi(); return; }     // hide the HUD, and back
-      if (e.code === 'Tab' && this.h.tac && this.h.tac()) { e.preventDefault(); this.h.order('build', true); return; }   // Tab closes it again
+      if (e.code === 'Tab' || ((e.code === 'KeyM' || e.code === 'KeyL') && !e.ctrlKey && !e.metaKey)) { if (this.h.map && this.h.map()) { e.preventDefault(); return; } }     // (0.20) Tab, M or L: the big map, and back (in a mission)
       // (0.18) Space: the tactical screen (and its pause) on and off; Alt+1..9: the selected troopers join that squad
       if (e.code === 'Space') { e.preventDefault(); if (this.h.supplyTap && this.h.supplyTap()) return; this.h.soft(); return; }   // (0.18) Space pauses (look around, no orders) and goes on
       if (e.code === 'Enter' && this.h.deployNow) { this.h.deployNow(); return; }
       { const ad = /^Digit([1-9])$/.exec(e.code); if (ad && e.altKey && this.h.toSquad) { e.preventDefault(); this.h.toSquad(Number(ad[1]) - 1); return; } }
       // the tactical build screen is open: 1 to 7 build, Z X C V B pick a formation (and no weapon keys)
-      if (this.h.tac && this.h.tac() && !e.shiftKey) {
-        const d = /^Digit([0-9])$/.exec(e.code), f = ['KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB'].indexOf(e.code);
+      if (this.h.buildKeys && this.h.buildKeys() && !e.shiftKey) {     // (0.20: in the build context, 1 to 8 pick a build)
+        const d = /^Digit([0-9])$/.exec(e.code);
         if (d) { if (Number(d[1]) >= 1 && Number(d[1]) <= 8) this.h.tacBuild(Number(d[1]) - 1); return; }
-        if (f >= 0) { this.h.tacForm(f); return; }
       }
       if (e.code === 'KeyP') { this.h.soft(); return; }            // the soft pause: the game stops, the menu stays shut
       if (e.code === 'Comma' && this.h.speed) { this.h.speed(); return; }   // half speed / normal speed
@@ -191,10 +203,9 @@ export class Input {
       if (dig && e.shiftKey) this.h.squad(Number(dig[1]) >= 1 ? Number(dig[1]) - 1 : -1);   // Shift+1..9 pick a squad, Shift+0 all
       else if (dig && dig[1] !== '0') this.h.weapon(Number(dig[1]) - 1);
       else if (e.code === 'Backquote') this.h.squad(-1);
-      else if (e.code === 'Tab') { e.preventDefault(); this.h.order('build', true); }      // the tactical build screen (as O)
       else if (e.code === 'KeyR') this.h.squadAct('draw');
       else if (e.code === 'KeyF') this.h.follow();
-      else if (e.code === 'KeyM') this.h.squadAct('disband');
+      else if (e.code === 'Delete' || e.code === 'Backspace') this.h.squadAct('disband');
       else if (e.code === 'KeyQ') this.h.cycle(-1);
       else if (e.code === 'KeyE') this.h.cycle(1);
       else if (e.code === 'KeyG') this.h.order('seaf', true);
@@ -203,12 +214,11 @@ export class Input {
       else if (e.code === 'KeyZ') this.h.order('protect', true);
       else if (e.code === 'KeyN') this.h.order('attack', true);
       else if (e.code === 'KeyC') this.h.order('escort', true);
-      else if (e.code === 'KeyO') this.h.order('build', true);
-      else if (e.code === 'KeyB') this.h.armory();
+      else if (e.code === 'KeyB') this.h.ctx('build');
+      else if (e.code === 'KeyY') this.h.ctx('armory');
       else if (e.code === 'KeyT') this.h.polarity();
       else if (e.code === 'KeyH') this.h.relief();
       else if (e.code === 'KeyI') this.h.info();
-      else if (e.code === 'KeyL') this.h.map();
       else if (e.code === 'KeyU') this.h.supply();
       else if (e.code === 'KeyK' && this.h.timeYes) this.h.timeYes();
       else if (e.code === 'KeyJ') this.h.look();

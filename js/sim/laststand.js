@@ -13,7 +13,7 @@ import { damageArea } from './combat.js';
 import { COMMS } from '../data/data.js';
 import { t as tr } from '../i18n.js';
 
-export const LAST_STAND = { seed: 20185052, faction: 'squids', biome: 'mars', level: 3, tod: 5.6 };
+export const LAST_STAND = { seed: 20185052, faction: 'squids', biome: 'mars', level: 1, tod: 5.6 };     // (0.19.5: level 1, and it climbs)
 const L = () => C.lastStand;
 
 const dryAt = (m, x, y) => m.terrain.isLand(x, y) && m.terrain.speedAt(x, y) > 0.9;
@@ -80,7 +80,7 @@ export function setupLastStand(m) {
   // the lessons ask for the UAV and an orbital: they are ready from the start
   for (const sl of m.player.slots) if (sl.readyAt !== undefined) sl.readyAt = 0;
   m.hd.lives = m.hd.max = K.lives;
-  m.ls = { stage: 'lessons', glassT: 0, broke: false, fallen: false, waveT: K.waveFirst, waves: 0, lifted: 0, pop: K.personnel, holdT: 0, beamT: 0, dmg: 1, hp0: m.hpMul };
+  m.ls = { stage: 'lessons', glassT: 0, broke: false, fallen: false, waveT: K.waveFirst, waves: 0, lifted: 0, pop: K.personnel, holdT: 0, beamT: 0, dmg: 1, hp0: m.hpMul, level: m.difficulty || 1 };
   o.pop = K.personnel;
 }
 
@@ -131,6 +131,9 @@ export function updateLastStand(m, dt) {
     // each minute the Great Host hits harder (director.js multiplies the enemy's damage by ls.dmg) and comes in tougher
     ls.dmg = 1 + K.dmgGrow * min;
     m.hpMul = ls.hp0 * (1 + K.hpGrow * min);
+    // (0.19.5) the difficulty the HUD shows climbs with it: from level 1, a level every levelEvery seconds, on past 10
+    const lv = (m.difficulty || 1) + Math.floor(ls.holdT / K.levelEvery);
+    if (lv !== ls.level) { ls.level = lv; m.emit('ls_level', { level: lv }); }
     ls.waveT -= dt;
     if (ls.waveT <= 0) {
       const [e0, e1] = K.waveEvery;

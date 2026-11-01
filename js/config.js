@@ -248,9 +248,10 @@ export const CONFIG = {
   // last. The Helldivers get `lives`; when the last one falls (or after maxHold whatever happens) the fleet glasses the plain for
   // glassSec, a beam every beamEvery seconds, beamR wide, and the mission ends. The lessons' groups start lessonR out. countdown:
   // the Helldivers' drop waits this long unless DEPLOY NOW is pressed (the lessons ask for it). breakAt: lives left when the radio
-  // says the line is breaking.
+  // says the line is breaking. (0.19.5) It is flown at level 1 (LAST_STAND), and from the evacuation on the level the HUD shows
+  // climbs one every levelEvery seconds, with the waves.
   lastStand: { personnel: 160, squad: 6, lzOff: 46, lives: 10, breakAt: 3, waveFirst: 5, waveEvery: [12, 3.5], rampSec: 150, waveSize: [9, 9], waveGrow: 8,
-               heavyEvery: 3, hpGrow: 0.6, dmgGrow: 0.9, maxHold: 480, glassSec: 10, beamEvery: 0.09, beamR: 13, waveR: 230, lessonR: 160, countdown: 900 },
+               heavyEvery: 3, hpGrow: 0.6, dmgGrow: 0.9, levelEvery: 25, maxHold: 480, glassSec: 10, beamEvery: 0.09, beamR: 13, waveR: 230, lessonR: 160, countdown: 900 },
   difficulty: { start: 3, spawn: 0.55, medium: 0.6, heavy: 0.4, boss: 0.3, curve: 1, reward: [0.75, 1.2], ramp: 0.39, beyond: 1,
                 // war minutes at each level (1 to 10), war minutes a level past 10, and the share of each real session minute that counts
                 war: [0, 15, 38, 41, 44, 47, 50, 53, 56, 60], warBeyond: 10, sessionRamp: 0.075 },     // (0.19.2: ramp and sessionRamp halved)
@@ -387,6 +388,6 @@ export const CONFIG = {
   share:    { channelUrl: '',
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.19.4',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.20.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

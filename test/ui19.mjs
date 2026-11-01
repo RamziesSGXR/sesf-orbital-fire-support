@@ -53,85 +53,72 @@ await tap('#cine-skip'); await page.waitForTimeout(900);
 check('SKIP ends it and the lessons begin', (await ev(() => document.getElementById('cine').classList.contains('hidden'))) && !(await card()).hidden);
 const s0 = await ev(() => ({ state: window.__game.state, biome: window.__game.mission.biome.id, fac: window.__game.mission.faction.id, ls: !!window.__game.mission.ls, tac: window.__game.tac,
   mb: document.getElementById('mb-num').textContent, timer: document.getElementById('timer').textContent, obj: document.getElementById('obj-main').textContent, cd: document.getElementById('dropcd-n').textContent }));
-check('TUTORIAL starts the last stand: Mars, the Illuminate, the panels shut', s0.state === 'play' && s0.biome === 'mars' && s0.fac === 'squids' && s0.ls && !s0.tac, JSON.stringify(s0));
+check('TUTORIAL starts the last stand: Mars, the Illuminate, the command panel up on the troops', s0.state === 'play' && s0.biome === 'mars' && s0.fac === 'squids' && s0.ls && s0.tac, JSON.stringify(s0));
 check('the HUD says TUTORIAL, no mission clock yet, and to get ready', s0.mb === 'TUTORIAL' && s0.timer === '--:--' && /GET READY/.test(s0.obj));
 check('the drop countdown reads in minutes', /^\d+:\d\d$/.test(s0.cd), s0.cd);
+// (0.19.5) level 1, the Helldivers' lives beside the credits
+const s1 = await ev(() => ({ d: window.__game.mission.difficulty, diff: document.getElementById('mb-diff').textContent, lives: document.getElementById('lives-v').textContent, liveVis: !!document.getElementById('lives').getBoundingClientRect().width }));
+check('the tutorial starts at difficulty 1, and the Helldivers\' lives show beside the credits', s1.d === 1 && /DIFFICULTY 1/.test(s1.diff) && s1.lives === '10' && s1.liveVis, JSON.stringify(s1));
 let c = await card();
-check('the card: step 1, the base, the Great Host', !c.hidden && /STEP 1 OF 15/.test(c.k) && /THARSIS/.test(c.h) && /Great Host/.test(c.b), c.h);
+check('the card: step 1, the base, the Great Host', !c.hidden && /STEP 1 OF 9/.test(c.k) && /THARSIS/.test(c.h) && /Great Host/.test(c.b), c.h);
 check('a card holds the game until it is read (nothing to point at: no spotlight)', c.held && !c.spot && await frozen());
 check('...and sits under the top corners, clear of the middle of the screen', await ev(() => { const a = document.getElementById('tut').getBoundingClientRect(); return a.bottom < innerHeight * 0.5 && a.top > 0; }));
 await shot('intro');
 
-// ---------------------------------------------------------------- the steps, one by one
+// ---------------------------------------------------------------- the steps, one by one (0.19.5: the basics, each with its why)
 await tap('#tut-next');
 check('NEXT: look around', await waitStep('LOOK AROUND'));
 c = await card();
 check('a lesson card holds the game too, with GOT IT', c.held && await page.isVisible('#tut-ok') && await frozen());
+check('...and says why, not only how', /Why/.test(c.b), c.b);
 await tap('#tut-ok'); await page.waitForTimeout(300);
 check('GOT IT: the game runs again, the card stays, folded to its heading', !(await card()).held && !(await frozen()) && !(await card()).hidden && (await card()).fold);
 check('...at the top, out of the way', await ev(() => document.getElementById('tut').getBoundingClientRect().bottom < innerHeight * 0.35));
 if (touch) { await page.touchscreen.tap(W / 2, H / 3); await ev(() => { window.__game.cam.x += 50; }); }
 else { await page.mouse.move(W / 2, H / 3); await page.mouse.down({ button: 'right' }); await page.mouse.move(W / 2 - 260, H / 3 + 60, { steps: 10 }); await page.mouse.up({ button: 'right' }); }
-check('moving the map does it', await waitStep('THE TACTICAL PANEL'));
-c = await card();
-check('TACTICAL is pointed out and lit, the rest dimmed, the game held', c.hl > 0 && c.spot && c.held && await ev(() => document.getElementById('dk-tac').classList.contains('tut-hl')));
-check('the card sits beside TACTICAL', await beside('#dk-tac'));
-await shot('tac-card');
-if (touch) await tap('#dk-tac'); else await page.keyboard.press('Tab');
-check('opening the sheet (with the card up) lets the game go, and the card goes on: the pause', await waitStep('STOP THE CLOCK'));
-if (touch) { await tap('#btn-pause'); await page.waitForTimeout(300); await tap('#btn-pause'); } else { await page.keyboard.press('Space'); await page.waitForTimeout(300); await page.keyboard.press('Space'); }
-check('pausing and going on does it', await waitStep('PICK YOUR TROOPS'));
-{ const hl = await ev(() => [...document.querySelectorAll('.tut-hl')].map((e) => e.id || e.className).join(',')), bs = await beside('#squads');
-  check('the squad bar (in the sheet\'s TROOPS tab) is pointed out, the card beside it', /^squads$|,squads|squads,/.test(hl) && bs === true, hl + ' ' + bs); }
-await shot('select-card');
-await tap('#tut-ok'); await page.waitForTimeout(200);
-if (touch) await ev(() => window.__game.selectSquad(0)); else await page.keyboard.press('Shift+Digit1');
-check('picking a squad does it', await waitStep('GIVE AN ORDER'), JSON.stringify(await card()));
-if (touch) await ev(([x, y]) => window.__game.commandAt(x, y), [W / 2, H * 0.3]); else await page.mouse.click(W / 2, H * 0.35, { button: 'right' });
-check('an order on the map (right-click; a tap on the tactical screen) does it', await waitStep('BUILD A DEFENCE'), (await card()).h);
-if ((await card()).h === 'GIVE AN ORDER') { await ev(() => { const m = window.__game.mission, o = m.objectives[0]; m.seafOrder('move', o.sx + 6, o.sy + 6); }); await waitStep('BUILD A DEFENCE'); }
-check('the build lesson points at the sheet\'s BUILD tab first', await ev(() => document.querySelector('#tactical .tct[data-tab="build"]').classList.contains('tut-hl')));
-await tap('#tut-ok'); await page.waitForTimeout(200);
-await ev(() => window.__game.hud.setTcTab('build')); await page.waitForTimeout(400);
-check('...then, on that tab, at the builds', await ev(() => document.querySelector('#tactical .tac-build').classList.contains('tut-hl')));
-await ev(() => { const m = window.__game.mission, o = m.objectives[0]; m.seafBuild('foxhole', o.x + 22, o.y - 18); });
-check('a build does it', await waitStep('DROP THE HELLDIVERS'));
-check('the card sits beside DEPLOY NOW', await beside('#dropcd-go'));
-c = await card();
-check('the card points at DEPLOY NOW', await ev(() => document.getElementById('dropcd-go').classList.contains('tut-hl')));
-await shot('deploy');
-await tap('#dropcd-go');
-check('DEPLOY NOW drops them and the card goes on', await waitStep('BACK TO THE MAP', 9000));
-if (touch) await tap('#tactical .tc-x'); else await page.keyboard.press('Tab');
-check('closing the tactical screen does it', await waitStep('THE SHIP GUN'));
+check('moving the map does it', await waitStep('THE SHIP GUN'));
 const g1 = await ev(() => window.__game.mission.enemies.filter((e) => !e.dead).length);
 check('the gun lesson sends drones at the base, and the camera looks at them', g1 === 10, String(g1));
+check('the ship gun on the weapon bar is lit, the card beside it', await ev(() => document.querySelector('#weapons .gun-w').classList.contains('tut-hl')) && await beside('#weapons .gun-w'));
 await shot('gun');
 await ev(() => { const m = window.__game.mission; for (const e of m.enemies) if (!e.dead) m.killEnemy(e, 'player'); });
-check('putting them down does it', await waitStep('SEE FARTHER'));
+check('putting them down does it', await waitStep('ORBITAL STRIKE'));
 // the way a player does it: a weapon key (or its button on the bar), then a click (or CALL) on the spot
 const screenOf = (x, y) => ev(([x, y]) => { const r = window.__game.renderer.worldToScreen(x, y, document.getElementById('view')); return [r.x, r.y]; }, [x, y]);
 const callAt = async (key, slot, wx, wy) => {
+  if (await ev(() => document.body.classList.contains('tut-held'))) { await tap('#tut-ok'); await page.waitForTimeout(200); }
   await page.waitForFunction((i) => { const m = window.__game.mission; return m.player.slots[i].readyAt <= m.t; }, slot, { timeout: 60000 });
   const [sx, sy] = await screenOf(wx, wy);
   if (touch) { await ev((i) => window.__game.arm(i), slot); await page.waitForTimeout(500); await ev(([x, y]) => { window.__game.cam.x = x; window.__game.cam.y = y; }, [wx, wy]); await page.waitForTimeout(300); await tap('#fire-btn'); }
   else { await page.keyboard.press(key); await page.waitForTimeout(500); await page.mouse.click(sx, sy); }
 };
-const base = await ev(() => { const o = window.__game.mission.objectives[0]; return [o.x, o.y]; });
-await callAt('Digit1', 0, base[0], base[1] - 25);
-check('dropping the UAV (1, then a click near the base) does it', await waitStep('ORBITAL STRIKE', 9000), String(await ev(() => window.__game.mission.stats.uavs)));
 const grp = await ev(() => { const g = window.__game.mission.groups[window.__game.mission.groups.length - 1]; return g ? [g.cx, g.cy] : null; });
 if (grp) await callAt('Digit2', 1, grp[0], grp[1]);
 check('calling an orbital on the warriors does it', await waitStep('MORE TROOPS', 9000), String(await ev(() => window.__game.mission.stats.orbCalls)));
 if ((await card()).h === 'ORBITAL STRIKE') { await ev(() => { window.__game.mission.stats.orbCalls++; }); await waitStep('MORE TROOPS'); }
+check('SEAF DROP in the command panel is lit', await ev(() => document.querySelector('#tactical .tco.seaf').classList.contains('tut-hl')));
 await ev(() => { const m = window.__game.mission, o = m.objectives[0]; m.callSeaf(o.x + 10, o.y + 10); });
 if ((await card()).h === 'MORE TROOPS') await ev(() => { window.__game.mission.stats.seafCalls++; });
-check('a SEAF drop does it', await waitStep('A HARVESTER', 9000));
-check('the Harvester lesson brings one', await ev(() => window.__game.mission.enemies.some((e) => !e.dead && e.kind === 'H')));
-await ev(() => { const m = window.__game.mission; for (const e of m.enemies) if (!e.dead) m.killEnemy(e, 'player'); });
-check('killing it does it', await waitStep('OPEN THE SHELTER', 9000));
+check('a SEAF drop does it: picking troops is next', await waitStep('PICK YOUR TROOPS', 9000));
+{ const hl = await ev(() => [...document.querySelectorAll('.tut-hl')].map((e) => e.id || e.className).join(',')), bs = await beside('#squads');
+  check('the squad bar (in the sheet\'s TROOPS tab) is pointed out, the card beside it', /^squads$|,squads|squads,/.test(hl) && bs === true, hl + ' ' + bs); }
+check('...and it says how to pick one man, his squad, or more', touch ? /double-tap/.test((await card()).b) && /hold a finger/.test((await card()).b) : /double-click/.test((await card()).b) && /Shift\+click/.test((await card()).b));
+await shot('select-card');
+await tap('#tut-ok'); await page.waitForTimeout(200);
+if (touch) await ev(() => window.__game.selectSquad(0)); else await page.keyboard.press('Shift+Digit1');
+check('picking a squad does it', await waitStep('GIVE AN ORDER'), JSON.stringify(await card()));
+if (touch) await ev(([x, y]) => window.__game.commandAt(x, y), [W / 2, H * 0.3]); else await page.mouse.click(W / 2, H * 0.35, { button: 'right' });
+check('an order on the map does it', await waitStep('DROP THE HELLDIVERS'), (await card()).h);
+if ((await card()).h === 'GIVE AN ORDER') { await ev(() => { const m = window.__game.mission, o = m.objectives[0]; m.seafOrder('move', o.sx + 6, o.sy + 6); }); await waitStep('DROP THE HELLDIVERS'); }
 c = await card();
-check('the last step: HOLD THE LINE', /HOLD THE LINE/.test(await page.textContent('#tut-next')) && /STEP 15 OF 15/.test(c.k));
+check('the card points at DEPLOY NOW, and lights the lives too', await ev(() => document.getElementById('dropcd-go').classList.contains('tut-hl') && document.getElementById('lives').classList.contains('tut-hl')));
+check('the card sits beside DEPLOY NOW', await beside('#dropcd-go'));
+check('...and says why the lives matter', /lives/.test(c.b) && /mission is lost/.test(c.b), c.b);
+await shot('deploy');
+await tap('#dropcd-go');
+check('DEPLOY NOW drops them and the card goes on', await waitStep('OPEN THE SHELTER', 9000));
+c = await card();
+check('the last step: HOLD THE LINE', /HOLD THE LINE/.test(await page.textContent('#tut-next')) && /STEP 9 OF 9/.test(c.k));
 await shot('begin');
 await tap('#tut-next'); await page.waitForTimeout(1500);
 const h1 = await ev(() => ({ stage: window.__game.mission.ls.stage, timer: document.getElementById('timer').textContent, obj: document.getElementById('obj-main').textContent }));
@@ -144,10 +131,13 @@ check('GOT IT folds it away and the hold begins', c.fold && !c.hidden && !c.held
 await ev(() => { const m = window.__game.mission; for (let i = 0; i < 30 * 70; i++) m.step(1 / 30); }); await page.waitForTimeout(800);
 const h2 = await ev(() => ({ saved: window.__game.mission.objectives[0].saved, waves: window.__game.mission.ls.waves, dmg: window.__game.mission.ls.dmg }));
 check('the waves come faster and stronger, and personnel get out', h2.waves >= 6 && h2.dmg > 1.5 && h2.saved > 0, JSON.stringify(h2));
+const lv = await ev(() => ({ lv: window.__game.mission.ls.level, diff: document.getElementById('mb-diff').textContent }));
+check('(0.19.5) the difficulty climbs with the waves, a level every 25 s, and the clock box shows it', lv.lv === 3 && /DIFFICULTY 3/.test(lv.diff), JSON.stringify(lv));
 await shot('hold');
 await ev(() => { const m = window.__game.mission; m.hd.lives = 3; for (let i = 0; i < 3; i++) m.step(1 / 30); }); await page.waitForTimeout(1000);
 c = await card();
 check('the line breaking: the card comes back, the screen goes orange', /BREAKING/.test(c.h) && !c.fold && await ev(() => document.body.classList.contains('ls-warn')), c.h);
+check('the lives beside the credits turn red', await ev(() => document.getElementById('lives').classList.contains('low') && document.getElementById('lives-v').textContent === '3'));
 await shot('breaking');
 await tap('#tut-ok'); await page.waitForTimeout(200);
 // the last Helldiver falls

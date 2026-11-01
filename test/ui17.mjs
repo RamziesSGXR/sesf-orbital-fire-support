@@ -33,7 +33,7 @@ const PAGE = `file://${ROOT}/dist/orbital-fury.html?skipstart&faction=bots&biome
 await page.goto(PAGE); await page.waitForTimeout(600);
 // ---------------------------------------------------------------- title: the version, the Discord
 const ver = await ev(() => document.getElementById('ver-t').textContent);
-check('the title screen shows the version', /0\.1[7-9]\.\d/.test(ver), ver);
+check('the title screen shows the version', /\d+\.\d+\.\d+/.test(ver), ver);
 const fb = await ev(() => [...document.querySelectorAll('a.fb')].map((a) => a.href));
 check('every FEEDBACK button goes to the SESF Helldivers Discord', fb.length >= 4 && fb.every((h) => h === 'https://discord.com/invite/qruRY4nkEz'), fb[0]);
 check('and says so', /DISCORD/.test(await ev(() => document.getElementById('lnk-fb-t').textContent)));
@@ -125,12 +125,11 @@ if (!touch) {
 // one feed at the top left: radio lines and the supply request join it; nothing at the top middle
 await ev(() => { const m = window.__game.mission; m.radio('Testing the one feed, over.', 'test', 3); });
 await step(0.1); await page.waitForTimeout(200);
-check('radio lines go to the feed at the top left (no radio at the top middle)', (await ev(() => [...document.querySelectorAll('#notices .nt')].some((n) => /one feed/.test(n.textContent)))) && !(await page.isVisible('#radio')));
+check('(0.20) radio lines go to the short log above the minimap (no radio at the top middle)', (await ev(() => [...document.querySelectorAll('#notices .nt')].some((n) => /one feed/.test(n.textContent)))) && !(await page.isVisible('#radio')));
 await ev(() => { const m = window.__game.mission, S = m.supply; if (S) { S.state = 'ask'; S.ask = { by: m.hdAlive[0].id, tag: 'A1', until: m.t + 30 }; } });
 await page.waitForTimeout(300);
-const sup = await box('#co-sup'), fd = await box('#feed');
-check('the supply pod request sits in the feed with the rest', sup && fd && sup.l >= fd.l - 1 && sup.r <= fd.r + 1 && sup.t >= fd.t - 1, sup && `${Math.round(sup.l)},${Math.round(sup.t)}`);
-if (!touch) check('which is at the top left', sup && sup.l < 30 && sup.t < 140);
+const sup = await box('#co-sup'), ob = await box('#objective');
+check('(0.20) the supply pod request sits on the right, under the objective', sup && ob && sup.t >= ob.b - 1 && Math.abs(sup.r - ob.r) < 3, sup && `${Math.round(sup.l)},${Math.round(sup.t)}`);
 await shot('feed');
 await ev(() => { const S = window.__game.mission.supply; if (S) { S.state = 'idle'; S.ask = null; } });
 // the minimap: twice as big, with a setting
@@ -142,15 +141,8 @@ check('Settings > Minimap size makes it smaller (and bigger)', mm1 < mm0 * 0.65,
 await ev(() => window.__game.setSetting('mini', 2)); await page.waitForTimeout(150);
 check('its canvas is drawn at the size it shows', await ev(() => { const c = document.getElementById('minimap'); return c.width >= c.clientWidth; }));
 // (0.19.1) the Helldivers: a health chip each on the dock, and their rows on the sheet's HELLDIVERS tab, every ship name in full
-if (!touch) {      // (a phone held upright has no room for them: the sheet's tab has them)
-  check('the Helldivers have a health chip each on the dock', (await ev(() => document.querySelectorAll('#dk-hd .hc').length)) === 4 && await page.isVisible('#dk-hd'));
-  await tap('#dk-hd');
-} else { await tap('#dk-tac'); await page.waitForTimeout(250); await tap('#tactical .tct[data-tab="hd"]'); }
-await page.waitForTimeout(300);
-check('HELLDIVERS: the sheet on their tab', (await ev(() => window.__game.tac && window.__game.hud.tcTab === 'hd')) && await page.isVisible('#hdrows'));
-const cutRows = await ev(() => [...document.querySelectorAll('#hdrows .ship')].filter((e) => e.scrollWidth > e.clientWidth + 1).length);
-check('with every ship name in full', cutRows === 0, String(cutRows));
-await tap('#tactical .tc-x'); await page.waitForTimeout(300);
+// (0.20) the Helldivers: always on show above the selection, every ship name in their rows' tips
+check('the Helldivers show without opening anything', (await ev(() => [...document.querySelectorAll('#hdrows .hr')].filter((r) => r.getBoundingClientRect().height > 4).length)) === 4);
 // F2 hides the HUD
 if (!touch) {
   await page.keyboard.press('F2'); await page.waitForTimeout(150);
@@ -172,36 +164,31 @@ await step(0.2); await page.waitForTimeout(300);
 const ps = await scr(post.x, post.y);
 await at(ps.x, ps.y); await page.waitForTimeout(300);
 check('a click (or tap) on a post selects it', (await ev(() => window.__game.sel && window.__game.sel.what)) === 'mg');
-const pop = await box('#selpop');
-check('its name, level and health show just above it (no side card)', pop && pop.b <= ps.y + 2 && pop.b > ps.y - 90 && Math.abs((pop.l + pop.r) / 2 - ps.x) < 40 && !(await page.$('#selcard')), pop && `${Math.round(pop.l)},${Math.round(pop.t)}-${Math.round(pop.r)},${Math.round(pop.b)} over ${Math.round(ps.x)},${Math.round(ps.y)}`);
-const ptxt = await ev(() => document.getElementById('selpop').textContent);
-check('it says what it is and its level', /TURRET NEST/.test(ptxt) && /L1/.test(ptxt), ptxt);
-check('with a door in, and no door out yet', (await page.isVisible('#selpop .dr.in')) && !(await page.isVisible('#selpop .dr.out')));
+// (0.20) the post shows in the selection panel at the bottom left, with its doors (no card over the map)
+const sp = await box('#selpanel');
+check('its name, level and health show in the selection panel (no card over the map)', sp && sp.l < W / 3 && sp.b > H * 0.6 && !(await page.isVisible('#selpop')) && await page.isVisible('#tc-sel .ts-hp'), sp && `${Math.round(sp.l)},${Math.round(sp.t)}-${Math.round(sp.r)},${Math.round(sp.b)}`);
+const ptxt = await ev(() => document.querySelector('#tc-sel .ts-h').textContent);
+check('it says what it is and its level', /TURRET NEST/.test(ptxt) && /1/.test(ptxt), ptxt);
+check('with a door in, and no door out yet', (await page.isVisible('#tc-sel [data-sa="in"]')) && !(await page.isVisible('#tc-sel [data-sa="out"]')));
 await shot('selpop');
-await ev(() => window.__game.selectSquad(0));
-await tap('#selpop .dr.in'); await page.waitForTimeout(200);
+await ev(() => window.__game.selectSquad(0)); await page.waitForTimeout(200);
+await tap('#tc-sel [data-sa="in"]'); await page.waitForTimeout(200);
 check('the door sends the selected squad in', await ev(() => { const q = window.__game.mission.seaf.squads[0]; return q.order.kind === 'post' && q.order.garrison; }));
 await step(25); await page.waitForTimeout(300);
-check('they garrison it, and the door out shows', (await ev(() => window.__game.sel.garrison)) >= 1 && await page.isVisible('#selpop .dr.out'), `garrison ${await ev(() => window.__game.sel.garrison)}`);
-await tap('#selpop .dr.out'); await page.waitForTimeout(200);
+check('they garrison it, and the door out shows', (await ev(() => window.__game.sel.garrison)) >= 1 && await page.isVisible('#tc-sel [data-sa="out"]'), `garrison ${await ev(() => window.__game.sel.garrison)}`);
+await tap('#tc-sel [data-sa="out"]'); await page.waitForTimeout(200);
 check('the door out brings them back', (await ev(() => window.__game.sel.garrison)) === 0);
 
 // ---------------------------------------------------------------- the tactical build screen
-// (0.19.1) TACTICAL: a blue button on the dock, every screen; it opens one sheet with five tabs
-const tb0 = await ev(() => { const b = document.getElementById('dk-tac'), r = b.getBoundingClientRect(), d = document.getElementById('dock').getBoundingClientRect();
-  return { vis: r.width > 0, onDock: r.top >= d.top - 1 && r.bottom <= d.bottom + 1, top: !document.querySelector('.tl-btns #btn-tac'), oldGone: !document.getElementById('btn-tac').getBoundingClientRect().width }; });
-check('TACTICAL is a blue button on the dock (not in the top row; the old one is gone)', tb0.vis && tb0.onDock && tb0.top && tb0.oldGone, JSON.stringify(tb0));
-await tap('#dk-tac'); await page.waitForTimeout(300);
+// (0.20) the command panel: always up, three contexts
+check('the command panel is up, on the troops', (await ev(() => window.__game.tac && window.__game.hud.tcTab === 'units')) && await page.isVisible('#tactical'));
 const t0 = await ev(() => window.__game.mission.t); await page.waitForTimeout(400);
-check('it opens, and (0.18) the game runs on', (await ev(() => window.__game.tac)) && (await page.isVisible('#tactical')) && (await ev(() => window.__game.mission.t)) > t0);
+check('and (0.18) the game runs on', (await ev(() => window.__game.mission.t)) > t0);
 await tap('#tactical .tct[data-tab="build"]'); await page.waitForTimeout(200);
 const pics = await ev(() => [...document.querySelectorAll('#tactical .bld canvas')].map((c) => { const d = c.getContext('2d').getImageData(c.width / 2 - 8, c.height / 2 - 8, 16, 16).data; let v = 0; for (let i = 0; i < d.length; i += 4) v += d[i] + d[i + 1] + d[i + 2]; return v; }));
 check('each build has a picture', pics.length === 8 && pics.every((v) => v > 0), pics.length + ' pictures');
-check('the dock steps into the sheet; the weapon bar rides on it (not on a short screen)', !(await page.isVisible('#dk-sq')) && (H <= 520 ? !(await page.isVisible('#weapons')) : await ev(() => document.getElementById('weapons').getBoundingClientRect().bottom <= document.getElementById('tactical').getBoundingClientRect().top + 1)));
 await tap('#tactical .tct[data-tab="units"]'); await page.waitForTimeout(200);
-check('TROOPS has the squad bar', (await page.isVisible('#squads')) && !(await page.isVisible('#sqpanel')));
-await tap('#tactical .tct[data-tab="hd"]'); await page.waitForTimeout(200);
-check('HELLDIVERS has the Helldivers', (await page.isVisible('#sqpanel')) && !(await page.isVisible('#squads')));
+check('TROOPS has the squad bar; the Helldivers stay on show', (await page.isVisible('#squads')) && (await page.isVisible('#sqpanel')));
 await tap('#tactical .tct[data-tab="build"]'); await page.waitForTimeout(200);
 await shot('tactical');
 const tb = await box('#tactical');
@@ -212,13 +199,15 @@ const tr = await ev(() => { const g = window.__game, m = g.mission, c = document
 await ev(() => { window.__game.selectSquad(-1); window.__game.deselect(); });     // (a drag that starts on the post's panel is not a drag on the map)
 await page.waitForTimeout(100);
 if (!touch) { await page.mouse.move(tr.p.x, tr.p.y); await page.mouse.down(); await page.mouse.move((tr.p.x + tr.q.x) / 2, (tr.p.y + tr.q.y) / 2, { steps: 4 }); await page.mouse.move(tr.q.x, tr.q.y, { steps: 4 }); await page.mouse.up(); }
-else {
-  await ev(({ p, q }) => { const c = document.getElementById('view'); const E = (t, x, y) => c.dispatchEvent(new PointerEvent(t, { pointerId: 41, pointerType: 'touch', clientX: x, clientY: y, bubbles: true }));
-    E('pointerdown', p.x, p.y); for (let k = 1; k <= 6; k++) E('pointermove', p.x + ((q.x - p.x) * k) / 6, p.y + ((q.y - p.y) * k) / 6); E('pointerup', q.x, q.y); }, tr);
+else {     // (0.20) one finger pans on a phone: a double tap on a trooper picks his squad
+  const id = await ev(() => { const g = window.__game, m = g.mission, a = m.seafAlive.find((s) => s.sq >= 0 && !s.inside); g.cam.follow = false; g.cam.x = a.x; g.cam.y = a.y; return a.id; });
+  await page.waitForTimeout(300);
+  const at2 = await ev((id) => { const g = window.__game, a = g.mission.seafAlive.find((x) => x.id === id); return g.renderer.worldToScreen(a.x, a.y, document.getElementById('view')); }, id);
+  await page.touchscreen.tap(at2.x, at2.y); await page.waitForTimeout(90); await page.touchscreen.tap(at2.x, at2.y);
 }
 await page.waitForTimeout(250);
 const bsel = await ev(() => window.__game.mission.seaf.sel);
-check('a box dragged round troopers picks them (0.18)', (bsel >= 0 || bsel === -2) && tr.n > 0, `squad ${bsel}, ${tr.n} troopers`);
+check(touch ? 'a double tap on a trooper picks his squad (0.20)' : 'a box dragged round troopers picks them (0.18)', (bsel >= 0 || bsel === -2) && tr.n > 0, `squad ${bsel}, ${tr.n} troopers`);
 check('the console shows them, a tile each', (await ev(() => document.querySelectorAll('#tc-sel .tt').length)) >= 1);
 // an order: a right click (a tap on the tactical screen) on open ground moves them there
 const dest = await ev(() => { const m = window.__game.mission, a = Math.atan2(m.ao.cy - m.hy, m.ao.cx - m.hx);     // (0.18: in toward the middle of the round map, clear of any site)
@@ -238,22 +227,19 @@ const fx = await scr(dest.x + 6, dest.y - 6);
 await at(fx.x, fx.y); await page.waitForTimeout(200);
 check('a click (or tap) there orders it, and the screen stays open', (await ev(() => window.__game.mission.seaf.squads.some((q) => q.n && q.order.kind === 'build' && q.order.what === 'foxhole'))) && (await ev(() => window.__game.tac)) && !(await ev(() => window.__game.placing)));
 // a formation
-if (!touch) await page.keyboard.press('KeyX'); else { await tap('#tactical .tct[data-tab="units"]'); await page.waitForTimeout(150); await tap('#tactical .frm[data-f="line"]'); }   // (0.18: the formations are on the troops tab)
+await tap('#tactical .tct[data-tab="units"]'); await page.waitForTimeout(150); await tap('#tactical .frm[data-f="line"]');   // (0.18: the formations are on the troops tab; 0.20: no keys, X is AUTO)
 await page.waitForTimeout(150);
 check('a formation for the selected squad (the screen stays open)', (await ev(() => { const m = window.__game.mission; return m.seaf.squads[m.seaf.sel].form; })) === 'line' && await ev(() => window.__game.tac));
-if (!touch) { await page.keyboard.press('Escape'); await page.waitForTimeout(200); check('Esc closes it (before the menu)', !(await ev(() => window.__game.tac)) && !(await on('s-pause'))); }
-else { await tap('#tactical .tc-x'); await page.waitForTimeout(200); check('its ✕ closes it', !(await ev(() => window.__game.tac))); }
+if (!touch) { await page.keyboard.press('KeyB'); await page.waitForTimeout(150); await page.keyboard.press('Escape'); await page.waitForTimeout(200); check('(0.20) Esc goes back to the troops (before the menu)', (await ev(() => window.__game.hud.tcTab)) === 'units' && !(await on('s-pause'))); }
 const t1 = await ev(() => window.__game.mission.t); await page.waitForTimeout(500);
 check('and the game goes on', (await ev(() => window.__game.mission.t)) > t1);
 // (0.17.3) the TACTICAL button (0.19.1: on the dock), Tab, GAME PAUSED, the list of crates and posts
-if (touch) check('TACTICAL is in the dock on a phone, clear of CALL', await ev(() => { const a = document.getElementById('dk-tac').getBoundingClientRect(), b = document.getElementById('fire-btn').getBoundingClientRect(); return a.width > 0 && (a.right <= b.left + 1 || a.bottom <= b.top + 1); }));
-if (await page.isVisible('#tactical .tct[data-tab="build"]')) { await tap('#tactical .tct[data-tab="build"]'); await page.waitForTimeout(150); }   // (0.18: the crates are on the build tab)
+await ev(() => window.__game.hud.setTcTab('units')); await page.waitForTimeout(100);     // (0.20: B, or the BUILD button, brings the builds and the crates up from the troops)
 const lst = await ev(() => { const g = window.__game, m = g.mission; m.crates.push({ id: m.nextId++, what: 'lookout', x: m.hx + 30, y: m.hy + 30, landed: true, used: false, prog: 9, born: m.t }); g.makePost('mg', m.hx - 50, m.hy + 50); g.makePost('lookout', m.hx - 40, m.hy + 60); return { x: m.hx + 30, y: m.hy + 30 }; });
-if (touch) await tap('#dk-tac'); else await page.keyboard.press('Tab');
+if (touch) await tap('#tactical .tct[data-tab="build"]'); else await page.keyboard.press('KeyB');
 await page.waitForTimeout(300);
-check(touch ? 'it opens the tactical build screen' : 'Tab opens the tactical build screen', await ev(() => window.__game.tac));
+check(touch ? 'BUILD shows the builds' : '(0.20) B shows the builds', (await ev(() => window.__game.hud.tcTab)) === 'build');
 check('(0.18) no GAME PAUSED banner: it says LIVE', /LIVE/.test(await ev(() => document.getElementById('tc-state').textContent)));
-if (await page.isVisible('#tactical .tct[data-tab="build"]')) { await tap('#tactical .tct[data-tab="build"]'); await page.waitForTimeout(150); }
 const chips = await ev(() => [...document.querySelectorAll('#tc-list .tl')].map((b) => b.textContent));
 check('a button for each crate with its progress, and one for posts that stand together', chips.some((c) => /LOOKOUT.*%/.test(c)) && chips.some((c) => /TURRET NEST.*LOOKOUT/.test(c)), chips.join(' | '));
 const chip = page.locator('#tc-list .tl:not(.built)', { hasText: 'LOOKOUT' }).first();
@@ -261,9 +247,9 @@ if (touch) { await chip.scrollIntoViewIfNeeded(); const bb = await chip.bounding
 await page.waitForTimeout(250);
 const camD = await ev(({ x, y }) => Math.hypot(window.__game.cam.x - x, window.__game.cam.y - y), lst);
 check('a double tap on one takes the camera there', camD < 40, String(Math.round(camD)));
-if (touch) await tap('#tactical .tc-x'); else await page.keyboard.press('Tab');
+if (touch) await tap('#tactical .tct[data-tab="units"]'); else await page.keyboard.press('KeyB');
 await page.waitForTimeout(250);
-check(touch ? 'its ✕ closes it' : 'and Tab closes it again', !(await ev(() => window.__game.tac)));
+check(touch ? 'TROOPS goes back' : 'and B again goes back to the troops', (await ev(() => window.__game.hud.tcTab)) === 'units');
 
 // (0.17.1) MAIN MENU in the pause menu: asks twice; the mission does not count, and the same one waits for RESUME
 const opNow = await ev(() => window.__game.info.op), flown0 = await ev(() => window.__game.session.missions.length);
@@ -286,7 +272,7 @@ await tap('#b-continue'); await page.waitForTimeout(1200);
 // the results carry the version
 await ev(() => { const m = window.__game.mission; m.finish('defeat'); });
 await page.waitForTimeout(4200);
-check('the mission result shows the version', /0\.1[7-9]\.\d/.test(await ev(() => document.getElementById('ver-d').textContent)) && await page.isVisible('#ver-d'));
+check('the mission result shows the version', /\d+\.\d+\.\d+/.test(await ev(() => document.getElementById('ver-d').textContent)) && await page.isVisible('#ver-d'));
 await shot('debrief');
 
 console.log('errors:', errs.length ? '\n' + errs.join('\n') : 'none');

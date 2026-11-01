@@ -89,7 +89,6 @@ await page.waitForTimeout(200);
 check('nothing fires while soft-paused', await ev(() => { const m = window.__game.mission; return m.stats.stratCalls + (m.stats.orbCalls || 0) + (m.stats.uavs || 0) === m._testCalls; }));
 await shot('soft');
 // a double tap on a Helldiver works in the soft pause
-if (touch) { await tap('#dk-sq'); await page.waitForTimeout(250); }
 const hdPos = await ev(() => { const a = window.__game.mission.teams[1].hd; return a && !a.dead ? { x: a.x, y: a.y } : null; });
 await ev(() => { window.__game.cam.x += 200; });
 if (await page.isVisible('#hdbar .hdb:nth-child(2)')) {
@@ -99,7 +98,7 @@ if (await page.isVisible('#hdbar .hdb:nth-child(2)')) {
   const c = await ev(() => ({ x: window.__game.cam.x, y: window.__game.cam.y }));
   check('a double tap on a Helldiver moves the camera there while paused', hdPos && Math.hypot(c.x - hdPos.x, c.y - hdPos.y) < 3, hdPos ? `${Math.hypot(c.x - hdPos.x, c.y - hdPos.y).toFixed(1)} m` : 'no Helldiver');
 }
-if (touch && await page.isVisible('#tactical')) { await tap('#tactical .tc-x'); await page.waitForTimeout(250); }   // (0.19.1: the squads chip opens the sheet, paused too)
+if (false) {}   // (0.19.1: the squads chip opens the sheet, paused too)
 // a panel opened from the soft pause comes back to it
 if (touch) { await page.tap('#minimap'); } else await page.keyboard.press('KeyL');
 await page.waitForTimeout(300);
@@ -124,7 +123,7 @@ check('the strip\'s RESUME plays on', !(await ev(() => window.__game.soft)) && (
 // ---------------------------------------------------------------- a failed mission: RETRY
 await ev(() => window.__game.openArmory());
 await page.waitForTimeout(300);
-const bought = await ev(() => { const b = [...document.querySelectorAll('#tc-arm .btn.buy')].find((x) => !x.disabled); if (b) b.click(); return !!b; });
+const bought = await ev(() => { const b = [...document.querySelectorAll('#tc-arm .la-it')].find((x) => !x.classList.contains('poor')); if (b) b.click(); return !!b; });     // (0.20: the live armory's buttons)
 await page.waitForTimeout(200);
 await ev(() => window.__game.closeArmory()); await page.waitForTimeout(200);
 const crSpent = await ev(() => window.__game.session.wallet.bal);

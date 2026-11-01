@@ -10,26 +10,23 @@ const gone = (g) => !g || g.members.every((e) => e.dead);
 
 // g: the game's side of it (main.js): mission, touch, tac, soft, cam. Each step: done(g, s) (s: the step's own state, with the
 // events seen since it began), start(g, s) when it comes up, next: a button instead of a condition, hl: what to point at.
+// (0.19.5) Only the controls a new player needs, and each card says why, not just how: look round, the ship gun, an orbital, a SEAF
+// drop, picking troopers and ordering them (0.20: in the command panel, always up), then dropping the Helldivers (their lives are
+// the mission).
 export const STEPS = [
   { id: 'intro', next: true },
   { id: 'look', done: (g, s) => Math.hypot(g.cam.x - s.cx, g.cam.y - s.cy) > 20 || Math.abs(g.cam.view - s.view) > 25 },
-  { id: 'tac', hl: '#dk-tac', done: (g) => g.tac },
-  { id: 'pause', hl: '#btn-pause', done: (g, s) => { if (g.soft) s.was = true; return s.was && !g.soft; } },
+  { id: 'gun', hl: '#weapons .gun-w', start: (g, s) => { s.g = g.mission.lsSpawn('light', -Math.PI / 2); g.look(s.g); },
+    done: (g, s) => gone(s.g) || g.mission.stats.killsPlayer >= 4 },
+  { id: 'orbital', hl: '#weapons .orb-w', start: (g, s) => { s.g = g.mission.lsSpawn('medium', 0); g.look(s.g); }, done: (g) => g.mission.stats.orbCalls >= 1 },
+  { id: 'seaf', hl: '#tactical .tco.seaf', tab: 'units', done: (g) => g.mission.stats.seafCalls >= 1 },
   { id: 'select', hl: '#tactical #squads', tab: 'units', done: (g) => g.mission.seaf.sel !== -1 },
   { id: 'order', hl: '#tactical .tac-ord', tab: 'units', done: (g, s) => s.ev.some((e) => e.type === 'seaf_order' && e.kind !== 'build') },
-  { id: 'build', hl: '#tactical .tac-build', tab: 'build', done: (g, s) => s.ev.some((e) => e.type === 'seaf_order' && e.kind === 'build') },
-  { id: 'deploy', hl: '#dropcd-go', done: (g, s) => g.mission.dropAt < s.drop0 - 1 || g.mission.t >= g.mission.dropAt },
-  { id: 'close', hl: '#tactical .tc-x', done: (g) => !g.tac },
-  { id: 'gun', hl: '#weapons', start: (g, s) => { s.g = g.mission.lsSpawn('light', -Math.PI / 2); g.look(s.g); },
-    done: (g, s) => gone(s.g) || g.mission.stats.killsPlayer >= 4 },
-  { id: 'uav', hl: '#weapons', done: (g) => g.mission.stats.uavs >= 1 },
-  { id: 'orbital', hl: '#weapons', start: (g, s) => { s.g = g.mission.lsSpawn('medium', 0); g.look(s.g); }, done: (g) => g.mission.stats.orbCalls >= 1 },
-  { id: 'seaf', hl: '#dk-drop', done: (g) => g.mission.stats.seafCalls >= 1 },
-  { id: 'heavy', start: (g, s) => { s.g = g.mission.lsSpawn('heavy', Math.PI); g.look(s.g); }, done: (g, s) => gone(s.g) },
+  { id: 'deploy', hl: '#dropcd-go, #lives', done: (g, s) => g.mission.dropAt < s.drop0 - 1 || g.mission.t >= g.mission.dropAt },
   { id: 'begin', next: true, last: true },
 ];
 
-// (0.19.1) Every card holds the game until GOT IT (or NEXT; a lesson's card also lets go once the player starts on it): it sits beside what it points at, which is lit and the rest of the
+// Every card (0.19.1) holds the game until GOT IT (or NEXT; a lesson's card also lets go once the player starts on it): it sits beside what it points at, which is lit and the rest of the
 // screen dimmed. Then the game runs while the player does it, the card still beside it. A step on a tab of the sheet points at
 // TACTICAL first, then at the tab, then at the thing itself.
 const vis = (e) => { if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 2 && r.height > 2 && getComputedStyle(e).visibility !== 'hidden'; };
@@ -108,14 +105,14 @@ export class Tutorial {
   target() {
     const st = this.step, g = this.g;
     if (this.stage !== 'lessons' || !st || !st.hl) return null;
-    if (st.tab) { if (!g.tac) return '#dk-tac'; if (g.tab !== st.tab) return `#tactical .tct[data-tab="${st.tab}"]`; }
+    if (st.tab && g.tab !== st.tab) return `#tactical .tct[data-tab="${st.tab}"]`;
     return st.hl;
   }
   point(sel) {
     if (sel === this.cur && this.hl.length) { this.place(); return; }
     this.cur = sel;
     for (const e of this.hl) e.classList.remove('tut-hl');
-    this.hl = sel ? [...document.querySelectorAll(sel)].filter(vis) : [];
+    this.hl = sel ? sel.split(',').flatMap((q) => [...document.querySelectorAll(q.trim())]).filter(vis) : [];   // (in the order given: the card goes by the first)
     for (const e of this.hl) e.classList.add('tut-hl');
     this.place();
   }
@@ -139,9 +136,13 @@ export class Tutorial {
       const P = 5;
       sp.style.left = `${b.left - P}px`; sp.style.top = `${b.top - P}px`; sp.style.width = `${b.width + 2 * P}px`; sp.style.height = `${b.height + 2 * P}px`;
     } else {
+      // nothing to point at: at the top, in the gap between the left-hand and right-hand corners if it fits, else across the middle
+      const tops = ['#topbar', '#mbox', '#objective', '#callouts'].map((q) => document.querySelector(q)).filter(vis).map((e) => e.getBoundingClientRect());
+      const lo = Math.max(M, ...tops.filter((b) => b.right < W * 0.45).map((b) => b.right + M)), hi = Math.min(W - M, ...tops.filter((b) => b.left > W * 0.55).map((b) => b.left - M));
+      const [a0, a1] = hi - lo >= w ? [lo, hi] : [(W - w) / 2, (W + w) / 2];
       let top = M;
-      for (const q of ['#mbox', '#objective', '.tl-btns', '#bigcr']) { const e = document.querySelector(q); if (vis(e)) { const b = e.getBoundingClientRect(); if (b.left < W / 2 + w / 2 && b.right > W / 2 - w / 2) top = Math.max(top, b.bottom + M); } }
-      x = (W - w) / 2; y = Math.min(top, Math.max(M, H * 0.42 - h));
+      for (const b of tops) if (b.left < a1 && b.right > a0) top = Math.max(top, b.bottom + M);
+      x = cl((a0 + a1) / 2 - w / 2, M, W - w - M); y = Math.min(top, Math.max(M, H * 0.42 - h));
     }
     el.style.left = `${Math.round(x)}px`; el.style.top = `${Math.round(y)}px`;
     el.dataset.side = side;

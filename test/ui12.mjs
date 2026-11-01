@@ -46,12 +46,8 @@ check('a supply drop does not pull the camera', Math.hypot(c2.x - c1.x, c2.y - c
 const hb = await ev(() => [...document.querySelectorAll('#hdrows .hr')].map((b) => b.textContent));
 check('a Helldiver row for each group', hb.length === 4 && /A/.test(hb[0]), hb.join(' | '));
 // (0.19.1) their health on the dock; their rows on the sheet's HELLDIVERS tab
-if (await page.isVisible('#dk-hd')) await tap('#dk-hd'); else { await tap('#dk-tac'); await page.waitForTimeout(250); await tap('#tactical .tct[data-tab="hd"]'); }   // (upright: the tab)
-await page.waitForTimeout(300);
 const vis = await page.isVisible('#sqpanel');
-check('the sheet\'s HELLDIVERS tab has their rows', vis && (await ev(() => window.__game.hud.tcTab)) === 'hd');
-const geo = await ev(() => { const a = document.getElementById('sqpanel').getBoundingClientRect(), b = document.getElementById('tactical').getBoundingClientRect(); return { a: [a.left, a.top, a.right, a.bottom], b: [b.left, b.top, b.right, b.bottom], W: innerWidth }; });
-check('inside the sheet, and on the screen', geo.a[0] >= geo.b[0] - 1 && geo.a[2] <= geo.b[2] + 1 && geo.a[1] >= geo.b[1] - 1 && geo.a[2] <= geo.W + 1, JSON.stringify(geo));
+check('(0.20) the Helldivers\' rows are always on show, above the selection', vis && await ev(() => document.getElementById('hdpanel').getBoundingClientRect().bottom <= document.getElementById('selpanel').getBoundingClientRect().top + 1));
 await shot('bars');
 // double tap a Helldiver: the camera goes there
 const target = await ev(() => { const m = window.__game.mission, a = m.teams[2].hd; return a && !a.dead ? { x: a.x, y: a.y } : null; });
@@ -81,7 +77,6 @@ if (sq) {
   // the build menu
   // (0.17: TACTICAL is its own screen, from the button at the top left)
   await ev(() => window.__game.setTac(false)); await page.waitForTimeout(300);
-  await tap('#dk-tac'); await page.waitForTimeout(300);
   await tap('#tactical .tct[data-tab="build"]'); await page.waitForTimeout(300);
   const menu = await page.isVisible('#tactical');
   const items = await ev(() => [...document.querySelectorAll('#tactical .bld')].map((b) => b.textContent));

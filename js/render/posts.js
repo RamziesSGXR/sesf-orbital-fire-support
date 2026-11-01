@@ -211,17 +211,25 @@ export function postIcon(cv, what) {
 }
 
 // sel: the selected post, asset or site (or null).
+// (0.20) What troopers can use (a post with places in it, a defence site to man) wears one colour: a dashed cyan ring.
+const USE = 'rgba(61, 224, 255, 0.85)';
+function useRing(ctx, x, y, R, px, now) {
+  ctx.save(); ctx.setLineDash([px(4), px(3)]); ctx.lineDashOffset = -now * px(6); ctx.strokeStyle = USE; ctx.lineWidth = px(1.4);
+  ring(ctx, x, y, R); ctx.stroke(); ctx.restore();
+}
 export function drawPosts(ctx, m, now, px, labels, scale, sel) {
   const t = m.t;
+  for (const s of m.coverSites || []) if (s.kind !== 'built' && !s.dead && s !== sel) useRing(ctx, s.x, s.y, Math.max(px(10), (s.R || 8) * 0.8), px, now);
   for (const p of m.posts || []) {
     if (p.dead) continue;
     art(ctx, p, now, px, t);
     const R = p.what === 'bastion' ? p.r : p.what === 'bridge' ? 3 : Math.max(4, px(9));
+    if (p.cap && p !== sel) useRing(ctx, p.x, p.y, R + px(4), px, now);
     if (p.maxHp > 0 && p.hp < p.maxHp) hpBar(ctx, p.x, p.y + R + px(4), Math.max(8, px(26)), px(3), p.hp / p.maxHp, p.hp > p.maxHp * 0.35 ? '#7dff9b' : '#ff4a4a');
     if (p.repairing) { const k = (now * 2) % 1; ctx.strokeStyle = `rgba(125,255,155,${1 - k})`; ctx.lineWidth = px(1.5); ring(ctx, p.x, p.y, R + px(4 + 6 * k)); ctx.stroke(); }
     const crew = p.cap ? ` ${p.crew}/${p.cap}` : '';
     const gar = p.garrison ? ' ' + tr('lab.garrisoned') : '';
-    if (sel !== p) labels.push({ x: p.x, y: p.y, dy: -R * scale - 8, text: `${p.name.toUpperCase()}${crew}${gar}`, col: '#6fc0ff', pri: 1 });   // (selected: the panel over it says it)
+    if (sel !== p) labels.push({ x: p.x, y: p.y, dy: -R * scale - 8, text: `${p.name.toUpperCase()}${crew}${gar}`, col: p.cap ? '#3de0ff' : '#6fc0ff', pri: 1 });   // (selected: the panel over it says it)
   }
   if (!sel || sel.dead) return;
   // the selection: brackets and the reach of whatever it is

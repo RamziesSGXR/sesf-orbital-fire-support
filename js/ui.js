@@ -83,7 +83,7 @@ export class Hud {
       this.ord[kind] = { el: e, sub: e.querySelector('.s'), key: '' };
     });
     // The tactical build screen (main.js opens it): what is selected, a picture of everything SEAF can build (keys 1 to 8), and
-    // the formations for the selected squad (Z X C V B). It runs in real time.
+    // the formations for the selected squad (clicked: Z X C V and B are orders and BUILD since 0.20). It runs in real time.
     this.bld = {}; this.frm = {};
     const tb = document.querySelector('#tactical .tac-build'), tf = document.querySelector('#tactical .tac-form');
     POSTS.forEach((what, i) => {
@@ -96,7 +96,7 @@ export class Hud {
       tb.appendChild(e); this.bld[what] = { el: e, n: e.querySelector('.n'), s: e.querySelector('.s'), c: e.querySelector('.c'), key: '' };
     });
     FORMS.forEach((f, i) => {
-      const e = el('button', 'frm', `<span class="k">${'ZXCVB'[i]}</span><i class="fg fg-${f}"></i><span class="n"></span>`);
+      const e = el('button', 'frm', `<i class="fg fg-${f}"></i><span class="n"></span>`);
       e.type = 'button'; e.dataset.f = f;
       e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onForm && this.onForm(f); if (this.m) this.tip(e, () => formShort(this.m, f), null); });
       e.addEventListener('pointerenter', (ev) => { if (ev.pointerType === 'mouse' && this.m) this.tip(e, () => formShort(this.m, f), null, 0); });
@@ -108,13 +108,13 @@ export class Hud {
     // the ship's weapons, and the armory (live: the war goes on while you shop)
     this.tcTab = 'units';
     document.querySelector('#tactical .tc-sqs').appendChild($('squads'));
-    document.querySelector('#tactical .tc-d').appendChild($('sqpanel'));
+    document.querySelector('#tactical .tc-u').appendChild(document.querySelector('#tactical .tac-form'));     // (0.20: formations with the troops)
     document.querySelectorAll('#tactical .tct').forEach((b) => b.addEventListener('pointerdown', (ev) => {
       ev.preventDefault(); ev.stopPropagation();
       this.setTcTab(b.dataset.tab);
     }));
     const ordBox = document.querySelector('#tactical .tac-ord');
-    for (const [o, k] of [['seaf', 'G'], ['auto', 'X'], ['move', 'V'], ['protect', 'Z'], ['attack', 'N'], ['escort', 'C'], ['disband', 'M']]) {
+    for (const [o, k] of [['seaf', 'G'], ['auto', 'X'], ['move', 'V'], ['protect', 'Z'], ['attack', 'N'], ['escort', 'C']]) {     // (0.20: DISBAND is on the squad bar, once)
       const e = el('button', 'tco ' + o, `<span class="k">${k}</span><span class="n"></span><span class="s"></span>`);
       e.type = 'button'; e.dataset.o = o;
       e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); if (o === 'disband') this.onSquadAct && this.onSquadAct('disband'); else this.onOrder && this.onOrder(o); });
@@ -275,91 +275,29 @@ export class Hud {
   // They sit in a fixed spot that covers no controls (Settings > Info cards): down the right side on a computer (left with the
   // left-handed layout), or across the top under the callouts. Off hides them.
   placeCard(now = false) { this.layout(now); }
-  // (0.19.1) Nothing on top of anything (the tutorial's card aside). The corners and the bottom rows have fixed places (css); this
-  // trims what has to give, from where things are now: the sheet's height (it gives way to the top corners on a short screen),
-  // the feed's length (it ends above the bottom rows, and above the toasts when they have to go under it), and the places of the
-  // drop countdown and the toasts (just above the bottom rows: in the gap between the feed and the minimap when it is wide
-  // enough, else across the middle) and of the big message (under whatever is at the top in the room it has).
+  // (0.20) Every block has its place (css); this trims the two that grow: the short log above the minimap ends under the requests
+  // on the right, and the toasts sit above the drop countdown while it shows.
   layout(force = false) {
     const now = performance.now();
     if (!force && now - (this._lyT || 0) < 250) return;
     this._lyT = now;
-    const b = document.body, W = window.innerWidth, H = window.innerHeight, G = 8, touch = b.classList.contains('touch');
-    const box = (e) => { if (!e || e.classList.contains('hidden')) return null; const r = e.getBoundingClientRect(); return r.width > 1 && r.height > 1 ? r : null; };
-    const q = (s) => document.querySelector(s), px = (n) => `${Math.round(n)}px`;
-    const set = (k, v) => { if (this._ly[k] !== v) { this._ly[k] = v; b.style.setProperty(k, v); } };
+    const b = document.body, G = 8, px = (n) => `${Math.round(n)}px`;
     if (!this._ly) this._ly = {};
-    const tops = ['#mbox', '#objective', '.tl-btns', '#bigcr', '#place-hint'].concat(touch ? ['#minimap'] : []).map((s) => box(q(s))).filter(Boolean);
-    // the sheet gives way to the corners (twice: the weapon bar over it moves with it)
-    for (let k = 0; k < 2; k++) {
-      const sh = box($('tactical'));
-      if (!sh) break;
-      let band = 0; for (const r of tops) if (r.right > sh.left && r.left < sh.right) band = Math.max(band, r.bottom);
-      const wb = box($('weapons')), over = wb && wb.bottom <= sh.top + 2 ? sh.top - wb.top : 0;
-      const cut = Math.max(0, Math.min(sh.height + (this._cut || 0) - 110, (this._cut || 0) - (sh.top - over - band - G)));
-      if (Math.abs(cut - (this._cut || 0)) < 1) break;
-      this._cut = cut; set('--cut', px(cut));
-    }
-    // the feed (touch: it has a place of its own) starts under whatever is above it at the top
-    let fr = $('feed').getBoundingClientRect();
-    if (touch) {
-      let ft = 0; for (const r of tops) if (r.left < fr.right && r.right > fr.left) ft = Math.max(ft, r.bottom);
-      set('--ft', px(ft + G));
-      fr = $('feed').getBoundingClientRect();
-    }
-    // the top of the bottom rows
-    let bot = H;
-    for (const e of [$('tactical'), $('weapons'), $('dock'), $('fire-btn')]) { const r = box(e); if (r && r.top > H * 0.25) bot = Math.min(bot, r.top); }
-    // the drop countdown and the toasts, just above the bottom rows: in the gap between the feed and what is on the right when it
-    // is wide enough, else from the left edge (and the feed ends above them)
-    const dc = box($('dropcd')), tst = $('toast'), cw = dc ? dc.width : 0, th = tst.classList.contains('show') ? tst.offsetHeight + G : 0;
-    const sp = !$('softpause').classList.contains('hidden') ? box(q('#softpause .sp-bar')) : null, sph = sp ? sp.height + G : 0;   // (the pause strip)
-    const zoneTop = bot - G - (dc ? dc.height + G : 0) - sph - th - 30;
-    const br = !touch ? box(q('.hud-br')) : null;
-    let colR = W - G;
-    for (const r of tops.concat(br ? [br] : [])) if (r.left > W * 0.4 && r.bottom > zoneTop) colR = Math.min(colR, r.left - G);
-    const colL = fr.left + fr.width + G, need = Math.max(300, cw + 2 * G), wide = colR - colL >= need;
-    const lo = wide ? colL : Math.max(G, Math.min(fr.left, colR - need)), cx = (lo + colR) / 2;
-    set('--cl', px(cx)); set('--cw', px(cw)); set('--cb', px(H - bot + G)); set('--cww', px(Math.max(200, colR - lo)));
-    set('--spb', px((H - bot + G + (dc ? dc.height + G : 0)) / (parseFloat(getComputedStyle(b).getPropertyValue('--ui')) || 1)));
-    set('--tb', px(H - bot + G + (dc ? dc.height + G : 0) + sph));
-    const fh = (wide ? bot - G : zoneTop) - fr.top;
-    set('--fh', px(Math.max(0, fh))); b.classList.toggle('feed-off', fh < 30);      // (no room at all: it waits)
-    // the big message: under the top in the middle, between the feed (or the clock) and the right-hand corner; smaller if it
-    // would run into the countdown
-    const msg = $('center-msg');
-    if (msg.classList.contains('show') || force) {
-      // where it can go, best first: between the feed and the right-hand corner; across, under the feed; left of the right-hand
-      // corner, over the feed's place (the feed steps out while it shows); across, over the feed's place. Smaller if need be;
-      // a toast under it waits.
-      const right = Math.min(W, ...tops.filter((r) => r.left > W * 0.55).map((r) => r.left));
-      const left = Math.max(0, ...tops.filter((r) => r.right < W * 0.45).map((r) => r.right));
-      const feedOn = fr.height > 2 && fr.width > 2;
-      const cands = [[Math.max(fr.left + fr.width, left) + G, W - right + G, false, false], [G, G, true, false], [G, W - right + G, false, true], [G, G, false, true]];
-      const lim = bot - G - (dc ? dc.height + G : 0) - sph, rg = document.createRange(), low = () => { rg.selectNodeContents(msg); return rg.getBoundingClientRect(); };
-      let over = false, done = false;
-      for (const [ml, mr, under, ovr] of cands) {
-        if (W - ml - mr < 240) continue;
-        let top = 0;
-        for (const r of tops) if (r.right > ml && r.left < W - mr) top = Math.max(top, r.bottom);
-        if (under && feedOn) top = Math.max(top, fr.bottom);
-        top = Math.max(top + G, touch ? 0 : H * 0.16);
-        set('--ml', px(ml)); set('--mr', px(mr)); msg.style.top = px(top);
-        if (!msg.classList.contains('show')) { done = true; break; }
-        for (const tight of [false, true]) {
-          msg.classList.toggle('tight', tight);
-          const m = low();
-          if (m.bottom <= lim) { done = true; over = ovr && feedOn && m.top < fr.bottom && m.bottom > fr.top && m.left < fr.right && m.right > fr.left; break; }
-        }
-        if (done) break;
-      }
-      if (!done) over = feedOn;
-      if (msg.classList.contains('show')) {
-        const tr = tst.classList.contains('show') ? tst.getBoundingClientRect() : null, mr2 = low();
-        tst.classList.toggle('wait', !!(tr && tr.top < mr2.bottom && tr.bottom > mr2.top && tr.left < mr2.right && tr.right > mr2.left));
-      }
-      b.classList.toggle('msg-over', over);
-    } else { b.classList.remove('msg-over'); tst.classList.remove('wait'); }
+    const set = (k, v) => { if (this._ly[k] !== v) { this._ly[k] = v; $('hud').style.setProperty(k, v); } };
+    const z = parseFloat(getComputedStyle(b).getPropertyValue('--ui')) || 1;
+    const tr = document.querySelector('#hud .hud-tr').getBoundingClientRect(), nt = $('notices').getBoundingClientRect();
+    set('--nh', px(Math.max(0, (nt.bottom - tr.bottom - G) / z)));
+    const dc = $('dropcd'); set('--dch', px(dc.classList.contains('hidden') ? 0 : (dc.getBoundingClientRect().height + G) / z));
+    const sp = $('softpause').classList.contains('hidden') ? null : document.querySelector('#softpause .sp-bar');
+    set('--sph', px(sp ? (sp.getBoundingClientRect().height + G) / z : 0));
+    // the countdown and the toasts go just above whatever is at the bottom under the middle of the map
+    const W = window.innerWidth, H = window.innerHeight, cs = getComputedStyle($('hud')), cw = $('weapons').getBoundingClientRect();
+    let top = cw.height ? cw.top : H;
+    for (const q of ['#hdpanel', '#selpanel', '#hud .hud-br', '#fire-btn']) { const r = document.querySelector(q)?.getBoundingClientRect(); if (r && r.height && r.left < cw.right && r.right > cw.left) top = Math.min(top, r.top); }
+    void cs; set('--dcb', px((H - top + G) / z));
+    // the big alerts: between the resource bar and the clock
+    const tb = $('topbar').getBoundingClientRect();
+    set('--mL', px((tb.right + G) / z)); set('--mR', px((W - tr.left + G) / z));
   }
   // ---- tips
   // A tip over anchor: short() is the one line (live: it is redrawn while the tip shows), full() the card ⓘ opens (null: no ⓘ).
@@ -419,16 +357,11 @@ export class Hud {
     clearTimeout(this._wt); this._wt = setTimeout(() => h.classList.add('idle'), ms);
   }
 
-  // (0.19.1) Where the camera's point goes: the middle of the room between the top corners and the sheet (0.5 with it shut).
-  // insetB: how much of the bottom the sheet (and the weapon bar over it) takes, for the arrows at the edge.
+  // (0.20) Where the camera's point goes: the middle of the map between the resource bar and the weapons. insetB: how much of
+  // the bottom the panels take, for the arrows at the edge.
   focusY() {
-    const H = window.innerHeight || 1;
-    if (!document.body.classList.contains('tac-open')) { this.insetB = 0; return 0.5; }
-    let bot = $('tactical').getBoundingClientRect().top, top = 0;
-    const wb = $('weapons').getBoundingClientRect(); if (wb.height && wb.top < bot) bot = wb.top;
-    for (const e of [$('mbox'), $('objective'), document.querySelector('.tl-btns'), $('bigcr')]) {
-      const r = e && e.getBoundingClientRect(); if (r && r.height && r.bottom < bot - 60) top = Math.max(top, r.bottom);
-    }
+    const H = window.innerHeight || 1, w = $('weapons').getBoundingClientRect(), t = $('topbar').getBoundingClientRect();
+    const bot = w.height ? w.top : H, top = t.height ? t.bottom : 0;
     this.insetB = Math.max(0, H - bot);
     return Math.max(0.2, Math.min(0.5, (top + bot) / 2 / H));
   }
@@ -479,7 +412,6 @@ export class Hud {
   message(text, ms = 2200) {
     const e = $('center-msg');
     e.textContent = text; e.classList.add('show');
-    e.style.top = `${Math.round(topBelow() + 10)}px`;
     this.placeCard(true);
     clearTimeout(this._mt); this._mt = setTimeout(() => e.classList.remove('show'), ms);
   }
@@ -623,6 +555,22 @@ export class Hud {
     else if (!dc.classList.contains('hidden')) dc.classList.add('hidden');
     this._set('cr', $('sc-credits'), fmtNum(m.wallet.bal));
     // the big credits at the top left, with a flash of what just came in or went out
+    // (0.19.5) on Mars the level climbs as the waves do: the clock box shows where it has got to
+    if (m.ls && this.last.lsLv !== m.ls.level) {
+      this.last.lsLv = m.ls.level;
+      $('mb-diff').textContent = t('hud.diffN', { n: m.ls.level, name: t(...levelName(m.ls.level)).toUpperCase() });
+      if (m.ls.stage !== 'lessons') this.hot($('mbox'), 2500);
+    }
+    $('hud').classList.toggle('ls', !!m.ls);
+    // (0.19.5) the Helldivers' lives beside the credits: the mission is lost when they are gone (red with a quarter or less left)
+    const lv = Math.max(0, m.hd.lives), lmax = m.hd.max || lv || 1;
+    if (this.last.lives !== lv) {
+      const d = this.last.lives === undefined ? 0 : lv - this.last.lives;
+      this.last.lives = lv; $('lives-v').textContent = String(lv);
+      $('lives').classList.toggle('low', lv <= Math.max(2, Math.ceil(lmax * 0.25)));
+      $('lives').classList.toggle('out', lv <= 0);
+      if (d) { const e = $('lives-d'); e.textContent = (d > 0 ? '+' : '−') + Math.abs(d); e.className = d > 0 ? 'up' : 'down'; void e.offsetWidth; e.classList.add('go'); this.hot($('lives'), 3000); }
+    }
     if (this.last.bigcr !== m.wallet.bal) {
       const d = this.last.bigcr === undefined ? 0 : m.wallet.bal - this.last.bigcr;
       this.last.bigcr = m.wallet.bal; $('bigcr-v').textContent = fmtNum(m.wallet.bal);
@@ -685,9 +633,9 @@ export class Hud {
     const sf = m.countAlly('S'), pods = m.pendingPods('S'), st = seafStats(m.kit), lives = m.hd.lives;
     const key = `${lives}|${m.hd.max}|${sf}|${pods}|${st.max}|${getLang()}`;
     if (this.last.supply === key) return;
-    if (this.last.lives !== undefined && this.last.lives !== lives) this.hot(document.querySelector('.hud-tl'), 3500);
-    this.last.lives = lives;
     this.last.supply = key;
+    // (0.20) SEAF on the ground, out of the most there can be, on the resource bar
+    $('seafc-v').innerHTML = `${sf}<small>/${st.max}</small>${pods ? ` <i>+${pods}</i>` : ''}`;
     $('supply').innerHTML = `<span>${t('hud.lives')} <b class="lives${lives <= 4 ? ' low' : ''}">${lives}</b></span><span>SEAF <b>${sf}</b>/${st.max}${pods ? ` <i>+${pods}</i>` : ''}</span>`;
   }
 
@@ -735,7 +683,7 @@ export class Hud {
     if (none) set('escort', t('hud.o.noSeaf'), 'off');
     else if (!m.hdAlive.length) set('escort', t('hud.o.noHd'), 'off');
     else r = cur('escort', RDY), set('escort', r[0], r[1]);
-    if (document.body.classList.contains('tac-open')) this.fillTactical(m);
+    this.fillTactical(m);     // (0.20: the command panel and the selection are always up)
   }
   // The tactical build screen: what is selected, each build's picture, name, level and cost (or LOCKED), and the selected squad's
   // formation.
@@ -874,6 +822,9 @@ export class Hud {
   setArmed(on) { this.armed = !!on; document.body.classList.toggle('armed', !!on); for (const w of this.wb) w.key = ''; }
   // The tactical screen's left panel: the selected post (or site, or sentry), or the selected squad and what it is made of.
   _tacSel(m, sel) {
+    const key = `${sel ? sel.id || sel.x : ''}|${m.seaf.sel}|${(m.seaf.pick || []).join(',')}`;
+    if (this._selKey !== undefined && this._selKey !== key) { const p = $('selpanel'); p.classList.remove('flash'); void p.offsetWidth; p.classList.add('flash'); }
+    this._selKey = key;
     const sf = m.seaf, q = sf.sel >= 0 ? sf.squads[sf.sel] : null;
     // (0.18) like Age of Empires II: a tile for each trooper selected (his role, his health); tap one to pick him alone
     const tiles = (list, max = 24) => `<div class="ts-tiles">${list.slice(0, max).map((a) => {
@@ -990,7 +941,7 @@ export class Hud {
     const kinds = new Set(tq.map((q) => q.order.kind));
     const who = sf.sel >= 0 ? `S${sf.sel + 1}` : t('hud.all');
     const what = !total ? t('hud.o.noSeaf') : !tq.length ? t('hud.d.empty') : kinds.size === 1 ? t('hud.d.' + tq[0].order.kind) : t('hud.d.mixed');
-    const open = document.body.classList.contains('tac-open') && this.tcTab === 'units';
+    const open = this.tcTab === 'units';
     const n1 = t(this.drawing ? 'hud.d.drawing' : 'hud.squads'), n2 = this.drawing ? t('hud.d.finish') : `${who} ${total ? tq.reduce((a, q) => a + q.n, 0) : ''} ${what}`.replace(/\s+/g, ' ');
     const key = `${n1}|${n2}|${this.drawing}|${open}`;
     if (this.dkKey === key) return;
@@ -1365,6 +1316,52 @@ export function renderShop(root, opts) {
   body.scrollTop = keep;
 }
 
+// (0.20) The armory during a mission, in the command panel: the game runs on, and nothing scrolls. A row of the four kinds (a dot on
+// those with something you can afford), then the upgrades you can buy now as small buttons (name, level, price) in pages that fit
+// the panel (‹ › when there are more). What each one does is in its tip (hover, or a finger held on it).
+let liveTab = 'orb', livePage = 0;
+export function renderLiveArmory(root, opts) {
+  const { kit, wallet } = opts;
+  const all = shopItems(kit).filter((it) => it.live && it.cost !== null && !it.locked);
+  const tabOf = (it) => (SHOP_TABS.find((x) => x.secs.includes(it.section)) || SHOP_TABS[0]).id;
+  if (!all.some((it) => tabOf(it) === liveTab)) { const f = SHOP_TABS.find((tb) => all.some((it) => tabOf(it) === tb.id)); if (f) liveTab = f.id; }
+  const list = all.filter((it) => tabOf(it) === liveTab);
+  const box = root.getBoundingClientRect(), z = parseFloat(getComputedStyle(document.body).getPropertyValue('--ui')) || 1;
+  const touch = document.body.classList.contains('touch'), short = window.innerHeight <= 520;
+  const cols = Math.max(2, Math.floor((box.width / z + 4) / (short ? 96 : 120))), rows = Math.max(1, Math.floor(((box.height / z) - (short ? 26 : 30) + 4) / (short ? 30 : 38)));
+  const per = cols * rows, pages = Math.max(1, Math.ceil(list.length / per));
+  livePage = Math.min(livePage, pages - 1);
+  root.innerHTML = '';
+  const top = el('div', 'la-top');
+  for (const tb of SHOP_TABS) {
+    const has = all.filter((it) => tabOf(it) === tb.id);
+    if (!has.length) continue;
+    const can = has.some((it) => wallet.bal >= it.cost);
+    const b = el('button', 'la-tab' + (liveTab === tb.id ? ' on' : '') + (can ? ' can' : ''), esc(t('arm.tab.' + tb.id)));
+    b.type = 'button'; b.onclick = () => { liveTab = tb.id; livePage = 0; renderLiveArmory(root, opts); };
+    top.appendChild(b);
+  }
+  if (pages > 1) {
+    const pg = el('span', 'la-pg', `<button type="button" class="la-p" data-d="-1">‹</button><i>${livePage + 1}/${pages}</i><button type="button" class="la-p" data-d="1">›</button>`);
+    pg.querySelectorAll('.la-p').forEach((b) => { b.onclick = () => { livePage = (livePage + Number(b.dataset.d) + pages) % pages; renderLiveArmory(root, opts); }; });
+    top.appendChild(pg);
+  }
+  if (opts.note) top.appendChild(el('span', 'la-note', esc(opts.note)));
+  root.appendChild(top);
+  const grid = el('div', 'la-grid'); grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`; grid.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
+  if (!list.length) grid.appendChild(el('p', 'fine la-none', esc(t('arm.noneLive'))));
+  for (const it of list.slice(livePage * per, livePage * per + per)) {
+    const poor = wallet.bal < it.cost, name = it.orb ? shortName(it.orb) : it.name;
+    const lv = it.max > 1 && isFinite(it.max) ? `L${it.level}→${it.level + 1}` : '';
+    const b = el('button', 'la-it sec-' + (SEC_SLUG[it.section] || it.section) + (poor ? ' poor' : ''), `<span class="la-n">${esc(name)}</span><span class="la-s">${lv ? `<i>${lv}</i>` : ''}<b>${fmtNum(it.cost)}</b></span>`);
+    b.type = 'button'; b.title = `${name}: ${it.blurb}`;
+    b.onclick = () => (poor ? opts.onPoor && opts.onPoor(it) : opts.onBuy(it.id));
+    if (opts.onTip) { b.addEventListener('pointerenter', (ev) => { if (ev.pointerType === 'mouse') opts.onTip(b, it, 0); }); b.addEventListener('pointerleave', (ev) => { if (ev.pointerType === 'mouse' && opts.onTipLeave) opts.onTipLeave(); }); }
+    if (touch && opts.onTip) { let ht = 0; b.addEventListener('pointerdown', () => { ht = setTimeout(() => opts.onTip(b, it, 3000), 450); }); b.addEventListener('pointerup', () => clearTimeout(ht)); b.addEventListener('pointerleave', () => clearTimeout(ht)); }
+    grid.appendChild(b);
+  }
+  root.appendChild(grid);
+}
 // ---------------- squad names ----------------
 export function buildNames(names) {
   const body = $('names-body'); body.innerHTML = '';
@@ -1601,7 +1598,7 @@ export function fillLock(level) {
 }
 
 // The field manual: everything the gunner can do, and the tips, by section (lists in the language tables).
-const TC_TABS = { units: 'tac.tUnitsH', hd: 'tac.tHdH', build: 'tac.title', ship: 'tac.tShipH', armory: 'tac.tArmH' };
+const TC_TABS = { units: 'tac.tUnitsH', build: 'tac.title', armory: 'tac.tArmH' };     // (0.20: the command panel's contexts)
 export const MANUAL = ['you', 'seaf', 'build', 'hd', 'enemy', 'armory', 'session'];
 export function fillManual() {
   const body = $('manual-body');

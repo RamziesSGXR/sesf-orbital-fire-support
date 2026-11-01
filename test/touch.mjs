@@ -42,14 +42,12 @@ const shells0 = await page.evaluate(() => window.__game.mission.stats.orbCalls);
 await tap('#fire-btn'); await page.waitForTimeout(400);
 check('orbital called', await page.evaluate(() => window.__game.mission.stats.orbCalls) === shells0 + 1);
 // SEAF drop
-await tap('#dk-drop'); await page.waitForTimeout(400);
+await tap('#tactical .tco.seaf'); await page.waitForTimeout(400);     // (0.20: SEAF DROP in the command panel)
 check('SEAF pelican called', await page.evaluate(() => window.__game.mission.pelicans.length > 0));
 // orders need SEAF on the ground: wait for the pod, then tap protect
 await page.waitForTimeout(12000);
 check('SEAF landed', await page.evaluate(() => window.__game.mission.seafAlive.length) > 0);
-check('(0.19.1) the sheet is shut until asked', !(await page.evaluate(() => window.__game.tac)) && !(await page.isVisible('#tactical')));
-await tap('#dk-sq'); await page.waitForTimeout(250);
-check('the squads chip opens it on TROOPS', await page.isVisible('#tactical') && (await page.evaluate(() => window.__game.hud.tcTab)) === 'units' && await page.isVisible('#tactical .tco[data-o=protect]'));
+check('(0.20) the command panel is up, on TROOPS', await page.isVisible('#tactical') && (await page.evaluate(() => window.__game.hud.tcTab)) === 'units' && await page.isVisible('#tactical .tco[data-o=protect]'));
 await tap('#tactical .tco[data-o=protect]'); await page.waitForTimeout(300);
 check('SEAF protect order', await page.evaluate(() => window.__game.mission.seaf.squads[0].order.kind) === 'protect');
 await tap('#tactical .tco[data-o=escort]'); await page.waitForTimeout(300);
@@ -63,17 +61,10 @@ await tap('#squads .sqa[data-a=disband]'); await page.waitForTimeout(300);
 check('(0.18) disband by tap: the troopers are in no squad, and the empty squad is not shown', await page.evaluate(() => window.__game.mission.seaf.squads[0].n === 0 && window.__game.mission.seafAlive.some((a) => a.sq === -3)) && !(await page.isVisible('#squads .sqb[data-sq="0"]')));
 await tap('#squads .sqa[data-a=draw]'); await page.waitForTimeout(250);
 check('draw mode on by tap', await page.evaluate(() => window.__game.drawing));
-check('the sheet steps aside while drawing', !(await page.isVisible('#tactical')));
-check('dock offers to finish drawing', /FINISH/.test(await page.evaluate(() => document.getElementById('dk-sq').textContent)));
-await tap('#dk-sq'); await page.waitForTimeout(250);
+check('DRAW is lit while drawing', await page.evaluate(() => document.querySelector('#squads .sqa[data-a=draw]').classList.contains('active')));
+await tap('#squads .sqa[data-a=draw]'); await page.waitForTimeout(250);
 check('draw mode off by tap', !(await page.evaluate(() => window.__game.drawing)));
-// the sheet stays open until it is closed: its ✕
-await tap('#dk-sq'); await page.waitForTimeout(300);
-check('the sheet reopens', await page.isVisible('#tactical'));
-await page.waitForTimeout(6000);
-check('and stays open until closed', await page.isVisible('#tactical'));
-await tap('#tactical .tc-x'); await page.waitForTimeout(250);
-check('its close button closes it', !(await page.isVisible('#tactical')));
+check('the command panel stays up', await page.isVisible('#tactical'));
 // the Helldivers live in the squad panel now (0.16), and panels fade back until touched
 // the camera is the player's: free from the start, with a re-center button that locks it on the squad (and then hides)
 check('the camera starts free, with a re-center button', await page.isVisible('#btn-follow') && !(await page.evaluate(() => window.__game.cam.follow)));
@@ -83,12 +74,10 @@ check('radio box is off on phones', !(await page.isVisible('#radio')));
 check('at most two notices show', (await page.evaluate(() => [...document.querySelectorAll('#notices .nt')].filter((n) => getComputedStyle(n).display !== 'none').length)) <= 2, await page.evaluate(() => [...document.querySelectorAll('#notices .nt')].map((n) => n.textContent).join(' | ')));
 await page.waitForTimeout(3600);
 const idle = await page.evaluate(() => ({ chip: Number(getComputedStyle(document.getElementById('mbox')).opacity), bar: Number(getComputedStyle(document.querySelector('#weapons .wbtn:not(.sel)')).opacity), mini: Number(getComputedStyle(document.getElementById('minimap')).opacity) }));
-check('the HUD fades when idle', idle.chip < 0.6 && idle.bar < 0.7 && idle.mini < 0.7, JSON.stringify(idle));
+check('the HUD fades when idle', idle.chip < 0.6 && idle.bar < 0.7 && idle.mini >= 0.9, JSON.stringify(idle));     // (0.20: the minimap stays solid, it is the map you read)
 await tap('#mbox'); await page.waitForTimeout(800);
 check('a touch wakes the HUD', await page.evaluate(() => Number(getComputedStyle(document.getElementById('mbox')).opacity)) > 0.95);
-if (await page.isVisible('#dk-hd')) await tap('#dk-hd'); else { await tap('#dk-tac'); await page.waitForTimeout(250); await tap('#tactical .tct[data-tab="hd"]'); }   // (upright: no room for the chips)
-await page.waitForTimeout(300);
-check('the sheet\'s HELLDIVERS tab has the Helldivers, with their stratagems', (await page.isVisible('#sqpanel')) && await page.evaluate(() => document.querySelectorAll('#hdrows .hr').length === 4 && document.querySelectorAll('#hdrows .sc').length === 16));
+check('(0.20) the Helldivers are always on show, with their stratagems', (await page.isVisible('#sqpanel')) && await page.evaluate(() => document.querySelectorAll('#hdrows .hr').length === 4 && document.querySelectorAll('#hdrows .sc').length === 16));
 await page.screenshot({ path: path.join(root, `test/shots/t5-${vp}-squadpanel.png`) });
 await tap('#tactical .tct[data-tab="units"]'); await page.waitForTimeout(250);
 await tap('#squads .sqb[data-sq="-1"]'); await page.waitForTimeout(200);
@@ -106,7 +95,7 @@ check('MENU opens the pause menu', await page.evaluate(() => document.getElement
 await tap('#btn-armory-m'); await page.waitForTimeout(400);
 check('mission armory opens: the sheet on its armory tab, the menu shut, the game running', await page.evaluate(() => window.__game.tac && window.__game.hud.tcTab === 'armory' && !document.getElementById('s-pause').classList.contains('on') && !window.__game.paused));
 await page.screenshot({ path: path.join(root, `test/shots/t4-${vp}-armory.png`) });
-await tap('#tactical .tc-x'); await page.waitForTimeout(300);
+await tap('#tactical .tct[data-tab="units"]'); await page.waitForTimeout(300);
 await tap('#btn-pause'); await page.waitForTimeout(300);
 check('the pause button soft-pauses (no menu)', await page.evaluate(() => window.__game.soft && !document.getElementById('s-pause').classList.contains('on')));
 await tap('#sp-menu'); await page.waitForTimeout(300);

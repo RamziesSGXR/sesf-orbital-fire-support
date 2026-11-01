@@ -37,13 +37,13 @@ await page.waitForTimeout(4000);
 const near = (tip, b) => tip && b && tip.b <= b.t + 2 && tip.b >= b.t - 30 && tip.l < b.r && tip.r > b.l;
 await ev(() => { const m = window.__game.mission; if (!m.seaf.squads[0].n) { for (let k = 0; k < 3; k++) { const a = m.addAlly('S', m.hx + 8 + k, m.hy + 4, { role: 'rifle' }); a.sq = 0; } m._refreshAlive(); m.step(0); } });   // (0.18: only squads with troops show)
 await page.waitForTimeout(150);
-if (touch) { await tap('#dk-sq'); await page.waitForTimeout(300); await tap('.sqb[data-sq="0"]'); }
+if (touch) { await tap('.sqb[data-sq="0"]'); }
 else { await page.keyboard.press('Shift+Digit1'); }
 await page.waitForTimeout(300);
 let tipR = await rect('#hottip');
-check('picking a SEAF squad shows its tip just over its button (0.19.1: the dock\'s squads chip with the sheet shut)', near(tipR, await rect(touch ? '.sqb[data-sq="0"]' : '#dk-sq')), tipR ? `${Math.round(tipR.l)},${Math.round(tipR.t)}-${Math.round(tipR.r)},${Math.round(tipR.b)}` : 'none');
+check('picking a SEAF squad shows its tip just over its button (0.19.1: the dock\'s squads chip with the sheet shut)', near(tipR, await rect('.sqb[data-sq="0"]')), tipR ? `${Math.round(tipR.l)},${Math.round(tipR.t)}-${Math.round(tipR.r)},${Math.round(tipR.b)}` : 'none');
 check('one short line: the squad, its troopers', /S1/.test(await ev(() => document.querySelector('#hottip .tt-l').textContent)) && (tipR.b - tipR.t) < 60);
-if (touch) { await tap('#tactical .tc-x'); await page.waitForTimeout(250); await tap('#weapons .wbtn:nth-child(3)'); }
+if (touch) { await tap('#weapons .wbtn:nth-child(3)'); }
 else await page.keyboard.press('Digit3');
 await page.waitForTimeout(250);
 tipR = await rect('#hottip');
@@ -55,7 +55,7 @@ await (touch ? page.tap('#hottip .tt-i') : page.click('#hottip .tt-i')); await p
 check('ⓘ opens the full details', await ev(() => !document.querySelector('#hottip .tt-more').classList.contains('hidden') && /RECHARGE/.test(document.querySelector('#hottip .tt-more').textContent)));
 await page.waitForTimeout(2600);
 check('which stay open until a tap elsewhere', await page.isVisible('#hottip'));
-if (touch) await page.touchscreen.tap(195, 420); else await page.mouse.click(700, 300);
+if (touch) await page.touchscreen.tap(100, 300); else await page.mouse.click(700, 300);     // (0.20: on a phone, the Helldivers' rows sit round the middle of the screen; this is open map)
 await page.waitForTimeout(200);
 check('a tap elsewhere closes it', !(await page.isVisible('#hottip')));
 if (touch) await tap('#weapons .wbtn:nth-child(8)'); else await page.keyboard.press('Digit8');
@@ -86,7 +86,7 @@ await page.waitForTimeout(400);
 check('a super heavy shows a callout with its name', await page.isVisible('#co-boss') && /SIEGE WALKER/.test(await page.textContent('#co-boss .co-t')), await page.textContent('#co-boss .co-t'));
 const msg = await rect('#center-msg'), co = await rect('#callouts');
 check('the big message shows', await ev(() => document.getElementById('center-msg').classList.contains('show')), await page.textContent('#center-msg'));
-check('and sits clear of the callouts and of mid-screen', msg && co && (touch ? msg.t >= co.b - 1 : !overlap(msg, co)) && msg.b < (touch ? 844 : 720) * 0.45, msg ? `top ${Math.round(msg.t)}, callouts end ${co ? Math.round(co.b) : '?'}` : '');   // (0.16: on a computer the callouts are in the top right corner)
+check('and sits clear of the callouts and of mid-screen', msg && co && !overlap(msg, co) && msg.b < (touch ? 844 : 720) * 0.45, msg ? `top ${Math.round(msg.t)}, callouts end ${co ? Math.round(co.b) : '?'}` : '');   // (0.16: on a computer the callouts are in the top right corner)
 await ev(() => { window.__game.cam.follow = true; });
 await tap('#co-boss [data-co="look-boss"]'); await page.waitForTimeout(touch ? 2500 : 2000);
 const lk = await ev(() => { const g = window.__game, b = g.mission.boss; return Math.hypot(g.cam.x - b.x, g.cam.y - b.y); });

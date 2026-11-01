@@ -842,7 +842,7 @@ export class Renderer {
     try {
       const cv = this.cv || document.getElementById('view');
       const cr = cv.getBoundingClientRect(), k = this.W / cr.width;
-      for (const sel of ['#weapons', '#dock', '#objective', '#touch-ctl', '.tl-btns', '#bigcr', '#feed', '.hud-tr', '.hud-br', '#dropcd']) {
+      for (const sel of ['#topbar', '.hud-tr', '#hdpanel', '#selpanel', '#tactical', '#weapons', '.hud-br', '#fire-btn', '#dropcd']) {
         const el = document.querySelector(sel);
         if (!el || el.offsetParent === null) continue;
         const r = el.getBoundingClientRect();

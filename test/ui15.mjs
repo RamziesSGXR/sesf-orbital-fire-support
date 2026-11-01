@@ -59,7 +59,7 @@ const tabs = await ev(() => ({ d: !document.getElementById('controls-desktop').c
 check('it opens on this device\'s controls', touch ? tabs.t && !tabs.d : tabs.d && !tabs.t);
 await tap(touch ? '#ctl-tab-d' : '#ctl-tab-t'); await page.waitForTimeout(150);
 check('and the other tab shows the other device', await ev(() => !document.getElementById('controls-desktop').classList.contains('hidden')) === touch);
-check('the computer controls list the cannon, pause, half speed, the tactical menu and box select', await ev(() => { const s = document.getElementById('controls-desktop').textContent; return /artillery cannon/.test(s) && /half speed/.test(s) && /pause/.test(s) && /TACTICAL/.test(s) && /box/.test(s); }));
+check('the computer controls list the cannon, pause, half speed, the command panel (0.20: build and armory keys) and box select', await ev(() => { const s = document.getElementById('controls-desktop').textContent; return /artillery cannon/.test(s) && /half speed/.test(s) && /pause/.test(s) && /B\s*build/.test(s) && /Y\s*armory/.test(s) && /big map/.test(s) && /box/.test(s); }));
 await shot('controls');
 await tap('#btn-man-m'); await page.waitForTimeout(300);   // (0.17.3: FIELD MANUAL is on the HELP panel)
 const man = await ev(() => ({ secs: document.querySelectorAll('#manual-body .man-sec').length, items: document.querySelectorAll('#manual-body li').length, text: document.getElementById('manual-body').textContent }));
@@ -91,7 +91,7 @@ const sel = await ev(() => { const r = [...document.querySelectorAll('#settings-
 check('there is a UI size setting', /80%.*130%/.test(sel), sel);
 await ev(() => { const r = [...document.querySelectorAll('#settings-body .set-row')].find((x) => /UI size/.test(x.textContent)); const s = r.querySelector('select'); s.value = '1.3'; s.dispatchEvent(new Event('change')); });
 await page.waitForTimeout(200);
-const z = await ev(() => ({ v: getComputedStyle(document.documentElement).getPropertyValue('--ui').trim(), w: getComputedStyle(document.getElementById('weapons')).zoom, saved: JSON.parse(localStorage.getItem('ofs.settings')).uiScale }));
+const z = await ev(() => ({ v: getComputedStyle(document.documentElement).getPropertyValue('--ui').trim(), w: getComputedStyle(document.getElementById('hud')).zoom,   /* (0.20: the whole HUD zooms) */ saved: JSON.parse(localStorage.getItem('ofs.settings')).uiScale }));
 check('UI size scales the HUD and is saved', z.v === '1.3' && Number(z.w) === 1.3 && z.saved === 1.3, JSON.stringify(z));
 await tap('#btn-settings-close'); await page.waitForTimeout(300);
 check('closing settings goes back to the pause menu', await on('s-pause'));
@@ -116,13 +116,13 @@ check('and back to full speed', await ev(() => window.__game.speed === 1 && docu
 
 // ---------------------------------------------------------------- building: the tactical menu, weapon 9 (the cannon needs a crew)
 await ev(() => { const m = window.__game.mission; m.seaf.readyAt = 0; m.callSeaf(m.hx + 20, m.hy + 10); for (let i = 0; i < 30 * 14; i++) m.step(1 / 30); });
-await tap('#dk-tac'); await page.waitForTimeout(300);
+await tap('#tactical .tct[data-tab="build"]'); await page.waitForTimeout(300);
 const bm = await ev(() => [...document.querySelectorAll('#tactical .bld')].map((b) => b.textContent));
 check('the tactical build screen has the artillery cannon, locked until the armory unlocks it', bm.length === 8 && /ARTILLERY CANNON/.test(bm[7]) && /UNLOCK/.test(bm[7]), bm.join(' | '));
 check('and (0.18) the game runs on while it is open', await ev(async () => { const g = window.__game, t0 = g.mission.t; await new Promise((r) => setTimeout(r, 300)); return g.tac && g.mission.t > t0; }));
 await shot('buildmenu');
-await tap('#tactical .tc-x'); await page.waitForTimeout(250);
-check('its ✕ closes it', !(await page.isVisible('#tactical')) && await ev(() => !window.__game.tac));
+await tap('#tactical .tct[data-tab="units"]'); await page.waitForTimeout(250);
+check('(0.20) TROOPS goes back from the builds; the panel stays up', (await page.isVisible('#tactical')) && await ev(() => window.__game.hud.tcTab === 'units'));
 await ev(() => { const g = window.__game, m = g.mission; g.makePost('arty', m.hx + 40, m.hy + 20); m.step(1 / 30); m.step(1 / 30); });
 await page.waitForTimeout(300);
 const w9 = await ev(() => { const b = document.querySelectorAll('#weapons .wbtn')[8]; return { shown: b && b.style.display !== 'none', txt: b ? b.textContent : '' }; });
