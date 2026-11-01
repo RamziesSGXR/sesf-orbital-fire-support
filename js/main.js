@@ -107,7 +107,7 @@ function relang() {
   if (tac && mission) { hud.fillTactical(mission, sel); hud.setTacState(input.touch); }
   if (state === 'title') toTitle();
   else if (state === 'shop') { const n = session.missions.length + 1; $('shop-eyebrow').textContent = n === 1 ? t('arm.eyebrow1') : t('arm.eyebrowN', { n }); $('shop-go').textContent = t('arm.deploy', { n }); drawShop(); }
-  else if (state === 'debrief' && lastRes) UI.fillDebrief(info, lastRes, session, S.scoreBlock(session, null), startCredits());
+  else if (state === 'debrief' && lastRes) UI.fillDebrief(info, lastRes, session, S.missionReport(session), startCredits());
   else if (state === 'glass' && lastRes) UI.fillGlass(lastRes);
   else if (state === 'final' && lastFin) UI.fillFinal(session, lastFin.fin, lastFin.block);
   if (UI.isOn('s-info') && mission) UI.fillMissionInfo(mission, info);
@@ -798,7 +798,7 @@ function finishMission() {
   // Extracted, or the primary objective done: the session goes on. A failed mission ends it, unless the player retries it.
   if (S.carriesOn(res.outcome)) persist(); else S.drop('session');
   retryArm = false;
-  UI.fillDebrief(info, res, session, S.scoreBlock(session, null), startCredits());
+  UI.fillDebrief(info, res, session, S.missionReport(session), startCredits());
   state = 'debrief'; audio.humStop(); hud.reset();
   UI.showScreen('s-debrief');
 }
@@ -1050,7 +1050,7 @@ $('btn-tutorial').onclick = () => startLastStand();
 $('glass-title').onclick = () => { audio.click(); session = null; toTitle(); };
 $('glass-again').onclick = () => startLastStand();
 $('glass-play').onclick = () => { audio.click(); session = null; toTitle(); $('btn-play').click(); };
-// Copy a score block: the final one (f-text) or the session so far, after any mission (d-text).
+// Copy a report: the session's at the end (f-text), or the mission's after each one (d-text).
 async function copyScore(box = 'f-text', out = 'f-msg') {
   const ta = $(box), text = ta.value, msg = $(out);
   try { await navigator.clipboard.writeText(text); msg.textContent = t('fin.copied'); }

@@ -99,7 +99,7 @@ const TUNED = snap();
   const old = fixSession({ missions: [{ op: 'Operation Old', outcome: 'victory', score: 10 }], score: 10, seconds: 60 });
   check('a session saved before levels existed counts as level 10', old.difficulty === 10);
   const block = scoreBlock(s, { id: '20261028-000000Z', callsign: 'TEST', wins: 0 });
-  check('the score block names the level, in English', /\nDIFFICULTY 6 EXTREME\n/.test(block), block.split('\n')[3]);
+  check('the score block names the level, in English', /DIFFICULTY 6 EXTREME/.test(block), block.split('\n')[1]);
 }
 
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');

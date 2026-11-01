@@ -117,28 +117,33 @@ export function sessionTotals(s) {
   return t;
 }
 
-// The block players paste into the community channel. fin: the finished session (finalise). With no fin it is the session so far,
-// for the copy button after each mission: the session goes on and its final ID is not known yet.
+// (0.19.4) The reports players paste into the community channel: short, in English whatever the game's language, with no session
+// ID and no web address. After every mission, that mission's report (missionReport); at the end of the session, the session's
+// report with every mission on a line of its own (scoreBlock).
+const opShort = (op) => String(op || '').replace(/^Operation\s+/i, '').toUpperCase();
+const lvl = (d) => `DIFFICULTY ${d} ${tEn(...levelName(d)).toUpperCase()}`;
+const bossLine = (m) => (m.boss ? `${m.boss.fac ? tEn('boss.' + m.boss.fac) : m.boss.name || tEn('boss.generic')} ${m.boss.killed ? 'KILLED' : 'ESCAPED'}` : '');
+const head = (callsign, ...rest) => ['ORBITAL FURY', callsign && callsign !== 'ANON' ? callsign.toUpperCase() : '', ...rest].filter(Boolean).join(' | ');
+// One mission (by default the last one flown): what it was, how it went, and where the session stands.
+export function missionReport(s, i = s.missions.length - 1) {
+  const m = s.missions[i];
+  if (!m) return '';
+  const n = i + 1, score = s.missions.slice(0, n).reduce((a, x) => a + (x.score || 0), 0);
+  return [
+    head(s.callsign, `MISSION ${n}`, lvl(levelAt(s.difficulty ?? LEVELS, n))),
+    [opShort(m.op), tEn('fac.' + m.faction), tEn('out.' + m.outcome)].join(' | '),
+    [`SCORE ${fmtNum(m.score)}`, `${fmtNum(m.kills || 0)} KILLS`, m.lostH ? `HELLDIVERS LOST ${m.lostH}` : '', bossLine(m)].filter(Boolean).join(' | '),
+    `SESSION ${fmtNum(score)} AFTER ${n} MISSION${n === 1 ? '' : 'S'}`,
+  ].join('\n');
+}
+// The whole session (fin: the finished session, finalise): the totals, then every mission on a line.
 export function scoreBlock(s, fin) {
-  const lines = [], t = sessionTotals(s), live = !fin;
-  const wins = live ? s.missions.filter((m) => carriesOn(m.outcome)).length : fin.wins;
-  lines.push('ORBITAL FURY | SUPER EARTH SPECIAL FORCES');
-  lines.push(live ? `SESSION IN PROGRESS | STARTED ${sessionId(new Date(s.startedAt || Date.now()))}` : `SESSION ${fin.id}`);
-  lines.push(`CALLSIGN ${live ? s.callsign || 'ANON' : fin.callsign}`);
-  const dl = s.difficulty || LEVELS, top = levelReached(s);
-  lines.push(`DIFFICULTY ${dl} ${tEn(...levelName(dl)).toUpperCase()}${top > dl ? ` | REACHED ${top} ${tEn(...levelName(top)).toUpperCase()}` : ''}`);
-  lines.push(`${live ? `SCORE AFTER MISSION ${s.missions.length}` : 'FINAL SCORE'} ${fmtNum(s.score)}`);
-  lines.push(`MISSIONS ${s.missions.length} (${wins} won) | TIME ${fmtTime(s.seconds)}`);
-  lines.push(`CREDITS EARNED ${fmtNum(t.earned)} | SPENT ${fmtNum(t.spent)}`);
-  lines.push(`KILLS ${fmtNum(t.kills)} | HELLDIVERS LOST ${t.lostH} | SEAF LOST ${t.lostS}`);
-  lines.push('---');
-  // Always in English, whatever language the game is in, so posts in the community channel read the same.
-  s.missions.forEach((m, i) => {
-    const bossName = m.boss ? (m.boss.fac ? tEn('boss.' + m.boss.fac) : m.boss.name || 'SUPER HEAVY') : '';
-    const boss = m.boss ? ` | ${bossName} ${m.boss.killed ? 'KILLED' : 'ESCAPED'}` : '';
-    lines.push(`${i + 1}. ${m.op} | ${tEn('fac.' + m.faction)} ${tEn('biome.' + m.biome)} | ${tEn('out.' + m.outcome)} | ${fmtNum(m.score)} | ${fmtNum(m.kills || 0)} KILLS${boss}`);
-  });
-  if (s.missions.length) lines.push('---');
-  lines.push(`PLAY AT ${C.share.playUrl.replace(/^https?:\/\//, '').replace(/\/$/, '').toUpperCase()}`);
+  const wins = fin ? fin.wins : s.missions.filter((m) => carriesOn(m.outcome)).length;
+  const dl = s.difficulty || LEVELS, top = levelReached(s), n = s.missions.length;
+  const lines = [
+    head(fin ? fin.callsign : s.callsign, `${fin ? 'FINAL SCORE' : 'SCORE'} ${fmtNum(s.score)}`),
+    [`${n} MISSION${n === 1 ? '' : 'S'}, ${wins} WON`, fmtTime(s.seconds), lvl(dl) + (top > dl ? `, REACHED ${top} ${tEn(...levelName(top)).toUpperCase()}` : '')].join(' | '),
+  ];
+  s.missions.forEach((m, i) => lines.push([`${i + 1}. ${opShort(m.op)}`, tEn('fac.' + m.faction), tEn('out.' + m.outcome), fmtNum(m.score), `${fmtNum(m.kills || 0)} KILLS`, bossLine(m)].filter(Boolean).join(' | ')));
   return lines.join('\n');
 }

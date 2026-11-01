@@ -1447,7 +1447,7 @@ export function fillDebrief(info, res, session, block = '', startCr = null) {
   $('d-retry-note').dataset.cr = startCr === null ? '' : fmtNum(startCr);
   armRetry(false);
   // The session so far, ready to paste, without ending the session.
-  const ta = $('d-text'); ta.value = block; ta.rows = Math.min(10, block.split('\n').length + 1);
+  const ta = $('d-text'); ta.value = block; ta.rows = Math.min(10, block.split('\n').length);
   $('d-msg').textContent = '';
 }
 // The first tap on RETRY MISSION says what it does; the second does it.
@@ -1462,7 +1462,6 @@ export function armRetry(on) {
 export function fillFinal(session, fin, block) {
   const tt = sessionTotals(session);
   $('f-score').textContent = fmtNum(session.score);
-  $('f-id').textContent = fin.id;
   $('f-local').textContent = fin.isBest ? t('fin.best') : fin.bestBefore ? t('fin.bestWas', { n: fmtNum(Math.max(fin.bestBefore, session.score)) }) : '';
   const dl = session.difficulty || LEVELS, top = levelReached(session);
   $('f-diff').textContent = t('fin.diff', { n: dl, name: t(...levelName(dl)).toUpperCase() }) + (top > dl ? ' · ' + t('fin.reached', { n: top, name: t(...levelName(top)).toUpperCase() }) : '');
@@ -1471,7 +1470,7 @@ export function fillFinal(session, fin, block) {
     const boss = m.boss ? t('fin.boss', { name: bossName(m.boss), fate: t(m.boss.killed ? 'fin.killed' : 'fin.escaped') }) : '';
     return `<tr><td>${i + 1}. ${esc(m.op)}<br><small style="color:var(--g-dim)">${esc(t('fin.row', { fac: FACTIONS[m.faction].name, biome: BIOMES[m.biome].name, out: t('out.' + m.outcome), kills: fmtNum(m.kills || 0) }) + boss)}</small></td><td>${fmtNum(m.score)}</td></tr>`;
   }).join('') || `<tr><td>${esc(t('fin.none'))}</td><td>0</td></tr>`;
-  $('f-text').value = block; $('f-text').rows = Math.min(14, block.split('\n').length + 1);
+  $('f-text').value = block; $('f-text').rows = Math.min(14, block.split('\n').length);
   $('f-msg').textContent = '';
   $('btn-share').classList.toggle('hidden', !navigator.share);
   $('btn-post').classList.toggle('hidden', !C.share.channelUrl);

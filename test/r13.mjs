@@ -5,7 +5,7 @@
 import { Mission } from '../js/sim/mission.js';
 import { CONFIG as C } from '../js/config.js';
 import { newKit, newWallet, shopItems, buy, maxLives, price } from '../js/data/kit.js';
-import { newSession, fixSession, recordMission, scoreBlock, carriesOn, finalise } from '../js/session.js';
+import { newSession, fixSession, recordMission, scoreBlock, missionReport, carriesOn, finalise } from '../js/session.js';
 
 let fails = 0;
 const check = (name, ok, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  (' + detail + ')' : ''}`); if (!ok) fails++; };
@@ -82,16 +82,17 @@ const objDone = (m) => { for (const o of m.objectives) o.done = true; m.objDone 
   run(a, 20); run(b, 20);
   check('and plays out the same at the start', sig(a) === sig(b));
 }
-// ---------------------------------------------------------------- the session so far, ready to paste
+// ---------------------------------------------------------------- (0.19.4) the reports, ready to paste
 {
   const s = newSession('GUNNER', 4);
   const m = quiet('bots', 9200, { kit: s.kit, wallet: s.wallet }); objDone(m); wipe(m);
-  recordMission(s, { op: 'Operation Test', faction: 'bots', biome: 'grass' }, m.result());
-  const blk = scoreBlock(s, null);
-  check('a score block can be made mid-session', /SESSION IN PROGRESS/.test(blk) && /SCORE AFTER MISSION 1/.test(blk) && /CALLSIGN GUNNER/.test(blk) && /\(1 won\)/.test(blk), blk.split('\n').slice(1, 6).join(' / '));
-  check('it lists the mission as OBJECTIVE COMPLETE', /OBJECTIVE COMPLETE/.test(blk));
-  const fin = finalise(s);
-  check('the final block still reads FINAL SCORE', /FINAL SCORE/.test(scoreBlock(s, fin)) && fin.wins === 1);
+  recordMission(s, { op: 'Operation Test Lance', faction: 'bots', biome: 'grass' }, m.result());
+  const rep = missionReport(s), L = rep.split('\n');
+  check('after a mission, its own report: four short lines', L.length === 4 && /^ORBITAL FURY \| GUNNER \| MISSION 1 \| DIFFICULTY 4 CHALLENGING$/.test(L[0]) && /^TEST LANCE \| BOTS \| OBJECTIVE COMPLETE$/.test(L[1]) && /^SCORE [\d,]+ \| [\d,]+ KILLS/.test(L[2]) && /^SESSION [\d,]+ AFTER 1 MISSION$/.test(L[3]), rep.replace(/\n/g, ' / '));
+  check('no session ID, no web address, no long names', !/SESSION ID|\d{8}-\d{6}Z|HTTP|\.COM|SUPER EARTH|OPERATION/i.test(rep));
+  const fin = finalise(s), blk = scoreBlock(s, fin), B = blk.split('\n');
+  check('at the end, the session\'s report: the totals, then a line a mission', B.length === 3 && /FINAL SCORE/.test(B[0]) && /1 MISSION, 1 WON/.test(B[1]) && /^1\. TEST LANCE \| BOTS \| OBJECTIVE COMPLETE/.test(B[2]) && fin.wins === 1, blk.replace(/\n/g, ' / '));
+  check('...with no session ID or web address either', !/SESSION ID|\d{8}-\d{6}Z|HTTP|\.COM|PLAY AT|SUPER EARTH/i.test(blk));
 }
 
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');

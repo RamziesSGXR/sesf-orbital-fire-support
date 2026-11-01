@@ -49,7 +49,7 @@ const row = await ev(() => [...document.querySelectorAll('#d-table tr')].map((r)
 check('the debrief shows what the level took off the score', /Difficulty 4, Challenging \(×0\.90\)-/.test(row), row);
 await tap('#btn-continue'); await page.waitForTimeout(800);
 check('the final screen names the level', /DIFFICULTY 4 · CHALLENGING/.test(await page.textContent('#f-diff')));
-check('so does the score block', /\nDIFFICULTY 4 CHALLENGING\n/.test(await page.inputValue('#f-text')));
+check('so does the session report', /DIFFICULTY 4 CHALLENGING/.test(await page.inputValue('#f-text')));
 
 // the next session starts at the level last picked; a saved session keeps its own
 await tap('#btn-again'); await page.waitForTimeout(600);

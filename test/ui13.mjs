@@ -99,7 +99,7 @@ if (await page.isVisible('#hdbar .hdb:nth-child(2)')) {
   const c = await ev(() => ({ x: window.__game.cam.x, y: window.__game.cam.y }));
   check('a double tap on a Helldiver moves the camera there while paused', hdPos && Math.hypot(c.x - hdPos.x, c.y - hdPos.y) < 3, hdPos ? `${Math.hypot(c.x - hdPos.x, c.y - hdPos.y).toFixed(1)} m` : 'no Helldiver');
 }
-if (touch) { await tap('#dk-sq'); await page.waitForTimeout(250); }
+if (touch && await page.isVisible('#tactical')) { await tap('#tactical .tc-x'); await page.waitForTimeout(250); }   // (0.19.1: the squads chip opens the sheet, paused too)
 // a panel opened from the soft pause comes back to it
 if (touch) { await page.tap('#minimap'); } else await page.keyboard.press('KeyL');
 await page.waitForTimeout(300);
@@ -134,11 +134,11 @@ await debrief(); await page.waitForTimeout(300);
 const d1 = await ev(() => ({ out: document.getElementById('d-outcome').textContent, why: document.getElementById('d-why').textContent, cont: document.getElementById('btn-continue').textContent, retry: document.getElementById('btn-retry').textContent, note: document.getElementById('d-retry-note').textContent, text: document.getElementById('d-text').value, saved: localStorage.getItem('ofs.session') }));
 check('lives gone before the objective: DEFEAT', d1.out === 'DEFEAT' && /primary objective/.test(d1.why), d1.why);
 check('the failed debrief offers RETRY MISSION, with the credits it goes back to', d1.retry === 'RETRY MISSION' && d1.note.includes(cr0.toLocaleString('en-US')), d1.note);
-check('the score so far is on the debrief, ready to copy', /SESSION IN PROGRESS/.test(d1.text) && /SCORE AFTER MISSION 1/.test(d1.text) && /DEFEAT/.test(d1.text));
+check('(0.19.4) the mission\'s report is on the debrief, short, ready to copy', /MISSION 1 \| DIFFICULTY/.test(d1.text) && /DEFEAT/.test(d1.text) && /SESSION [\d,]+ AFTER 1 MISSION/.test(d1.text) && d1.text.split('\n').length === 4 && !/SESSION ID|ORBITALFURY|SUPER EARTH/.test(d1.text), d1.text.replace(/\n/g, ' / '));
 check('a failed mission still ends the saved session', d1.saved === null);
 await tap('#btn-copy-d'); await page.waitForTimeout(300);
 const msg = await ev(() => document.getElementById('d-msg').textContent);
-check('COPY SCORE copies it (or says how)', /Copied|copy it by hand/.test(msg), msg);
+check('COPY REPORT copies it (or says how)', /Copied|copy it by hand/.test(msg), msg);
 await shot('debrief_fail');
 await tap('#btn-retry'); await page.waitForTimeout(200);
 const armed = await ev(() => ({ t: document.getElementById('btn-retry').textContent, st: window.__game.state }));
@@ -160,7 +160,7 @@ const d2 = await ev(() => ({ out: document.getElementById('d-outcome').textConte
 check('objective done, squad lost: OBJECTIVE COMPLETE', d2.out === 'OBJECTIVE COMPLETE', d2.out);
 check('and the session goes on: NEXT MISSION', d2.cont === 'NEXT MISSION' && d2.end && d2.saved && d2.saved.missions.length === 1);
 check('RETRY says it drops this result', /dropped/.test(d2.note), d2.note);
-check('the copy block counts it as won', /\(1 won\)/.test(d2.text) && /OBJECTIVE COMPLETE/.test(d2.text));
+check('the mission report says so', /OBJECTIVE COMPLETE/.test(d2.text) && /AFTER 1 MISSION/.test(d2.text), d2.text.replace(/\n/g, ' / '));
 await shot('debrief_complete');
 // retry a completed mission for a better score
 const won = await ev(() => window.__game.session.score);

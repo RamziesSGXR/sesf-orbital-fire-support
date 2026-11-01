@@ -6,7 +6,7 @@ A Super Destroyer targeting minigame for the **Super Earth Special Forces** comm
 
 It runs in your browser on a computer, phone or tablet. There is nothing to install. Turn the sound on. Your progress and best scores stay on your own device.
 
-**Languages:** English, Français and Español. Pick one on the title screen or in **Settings**. Operation names, callsigns, ship names and the score block you post stay as they are, so posts read the same in the channel whoever wrote them.
+**Languages:** English, Français and Español. Pick one on the title screen or in **Settings**. Operation names, callsigns, ship names and the reports you post stay as they are, so posts read the same in the channel whoever wrote them.
 
 > Unofficial fan project. Not affiliated with or endorsed by Arrowhead Game Studios or Sony Interactive Entertainment. It uses no game assets, text or audio: all art is drawn in code and all sound is synthesised.
 
@@ -205,19 +205,26 @@ The war gets worse every mission: the level climbs, so there are more enemies, t
 
 ## Share your score
 
-After every mission the debrief shows your **session score so far**. Press **COPY SCORE** to paste it in the community channel without ending the session. When your session ends, the final screen shows your **score block** and a **session ID**. Press **COPY** and paste it in the community channel:
+After every mission the debrief has a short **mission report**. Press **COPY REPORT** to paste it in the community channel; it doesn't end the session:
 
 ```
-ORBITAL FURY | SUPER EARTH SPECIAL FORCES
-SESSION 20261027-030146Z
-CALLSIGN ANON
-FINAL SCORE 38,959
-MISSIONS 3 (3 won) | TIME 33:43
-...
-3. Operation Iron Harvest | BOTS Tall-grass highlands | VICTORY | 21,590 | 1,204 KILLS | SIEGE WALKER KILLED
----
-PLAY AT ORBITALFURY.COM
+ORBITAL FURY | KESTREL | MISSION 2 | DIFFICULTY 3 MEDIUM
+GOLDEN ANTHEM | BUGS | OBJECTIVE COMPLETE
+SCORE 7,800 | 301 KILLS | BROOD TITAN KILLED
+SESSION 13,010 AFTER 2 MISSIONS
 ```
+
+When your session ends, the final screen has the **session report**, with every mission on a line. Press **COPY** and paste it:
+
+```
+ORBITAL FURY | KESTREL | FINAL SCORE 14,210
+3 MISSIONS, 2 WON | 35:00 | DIFFICULTY 3 MEDIUM, REACHED 4 CHALLENGING
+1. IRON HARVEST | BOTS | VICTORY | 5,210 | 214 KILLS
+2. GOLDEN ANTHEM | BUGS | OBJECTIVE COMPLETE | 7,800 | 301 KILLS | BROOD TITAN KILLED
+3. SILENT LANCE | SQUIDS | DEFEAT | 1,200 | 88 KILLS | WARP COLOSSUS ESCAPED
+```
+
+The reports are always in English, whatever language you play in. Your callsign is left out if you didn't set one.
 
 ## Give feedback
 
