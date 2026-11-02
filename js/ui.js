@@ -18,6 +18,7 @@ import { t, tl, getLang, LANGS } from './i18n.js';
 import { postIcon } from './render/posts.js';
 import { squadColor } from './render/squads.js';
 import { LEVELS, levelFactors, reward, levelName } from './difficulty.js';
+import { CAST, CAST_ORDER } from './data/story.js';
 
 const $ = (id) => document.getElementById(id);
 const SCREENS = ['s-title', 's-campaign', 's-glass', 's-shop', 's-brief', 's-debrief', 's-final'];
@@ -47,6 +48,11 @@ export function fillCampaign(story, onPlay) {
   $('cp-title').textContent = t(`cp.${story.id}.t`);
   const st = $('cp-story'); st.innerHTML = '';
   for (const k of [1, 2, 3]) st.appendChild(el('p', '', esc(t(`cp.${story.id}.p${k}`))));
+  // (0.27) who is on the radio
+  st.appendChild(el('h3', 'cp-cast-h', esc(t('cp.cast'))));
+  const ul = el('ul', 'cp-cast');
+  for (const k of CAST_ORDER) { const c = CAST[k], li = el('li', '', `<b>${esc(c.name)}</b><small>${esc(t(c.unit))}</small>`); li.style.setProperty('--cc', c.col); ul.appendChild(li); }
+  st.appendChild(ul);
   const ol = $('cp-chs'); ol.innerHTML = '';
   for (const c of story.chapters) {
     const li = el('li', 'cp-ch' + (c.play ? '' : ' locked'));
@@ -489,6 +495,16 @@ export class Hud {
     this.notice(text, 'radio');
   }
   clearRadio() { /* (radio lines are notices now) */ }
+  // (0.27) the campaign's cast on the radio: their tag in their colour, then the line; up longer than other news (it is read)
+  cast(c, text) {
+    const touch = document.body.classList.contains('touch');
+    const box = $('notices'), d = el('div', 'nt cast'); d.style.setProperty('--cc', c.col);
+    const b = document.createElement('b'); b.textContent = c.tag; d.append(b, document.createTextNode(text)); box.appendChild(d);
+    while (box.children.length > (touch ? 3 : 6)) box.removeChild(box.firstChild);
+    const life = touch ? 7000 : 9500;
+    setTimeout(() => d.classList.add('old'), life);
+    setTimeout(() => d.remove(), life + 1200);
+  }
 
   // The notice feed: Helldiver deployments and deaths, breaches, points of interest, purchases.
   notice(text, tone = 'info') {
@@ -1678,7 +1694,7 @@ export function fillDebrief(info, res, session, block = '', startCr = null) {
   $('d-retry-note').dataset.cr = startCr === null ? '' : fmtNum(startCr);
   armRetry(false);
   // The session so far, ready to paste, without ending the session.
-  const ta = $('d-text'); ta.value = block; ta.rows = Math.min(10, block.split('\n').length);
+  const ta = $('d-text'); ta.value = block; ta.rows = Math.min(15, block.split('\n').length);
   $('d-msg').textContent = '';
 }
 // The first tap on RETRY MISSION says what it does; the second does it.
@@ -1786,7 +1802,7 @@ export function buildEnemy(cur, onPick) {
   $('enemy-note').textContent = t('enemy.note');
 }
 // (0.19) The end of the tutorial: Mars is glassed. How long the base held, how many got off Mars, and what it cost.
-export function fillGlass(res) {
+export function fillGlass(res, block = '') {
   const L = res.lastStand || { lifted: 0, held: 0, fallen: false, pop: 0 }, s = res.stats || {};
   const mm = Math.floor((L.held || 0) / 60), ss = String((L.held || 0) % 60).padStart(2, '0');
   $('g-title').textContent = t(res.outcome === 'retired' ? 'glass.titleLeft' : 'glass.title');
@@ -1800,6 +1816,7 @@ export function fillGlass(res) {
     [t('glass.r.civLost'), String(res.civLost || 0)],
   ];
   $('g-table').innerHTML = rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
+  const ta = $('g-text'); ta.value = block; ta.rows = Math.min(9, block.split('\n').length); $('g-msg').textContent = '';     // (0.27) the after action report
 }
 
 // The difficulty picker on the title screen: ten levels, the chosen one's name, and what it does. saved: the level of a session

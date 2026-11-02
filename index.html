@@ -221,7 +221,7 @@
   <section id="s-campaign" class="screen">
     <div class="cp">
       <button id="cp-back" class="btn cp-back" type="button" data-t="cp.back">BACK</button>
-      <p class="tt-eyebrow" data-t="title.campaign">CAMPAIGN</p>
+      <p class="tt-eyebrow" data-t="cp.eyebrow">SUPER EARTH SPECIAL FORCES · CAMPAIGN</p>
       <h2 class="cp-title" id="cp-title"></h2>
       <div class="cp-dev" role="note"><b data-t="cp.devH">In development</b> <span data-t="cp.dev"></span></div>
       <div class="cp-story" id="cp-story"></div>
@@ -289,6 +289,12 @@
       <p id="g-lede" class="g-lede"></p>
       <table id="g-table"></table>
       <p class="fine g-lore" data-t="glass.lore"></p>
+      <div class="d-copy">
+        <h3 data-t="deb.copyTitle">AFTER ACTION REPORT</h3>
+        <textarea id="g-text" readonly rows="7" spellcheck="false" data-ta="deb.copyTitle"></textarea>
+        <div class="btns"><button id="btn-copy-g" class="btn" type="button" data-t="deb.copy">COPY FOR DISCORD</button></div>
+        <p id="g-msg" class="fine"></p>
+      </div>
       <div class="btns">
         <button id="glass-play" class="btn primary big" type="button" data-t="glass.play">PLAY A SESSION</button>
         <button id="glass-again" class="btn" type="button" data-t="glass.again">HOLD MARS AGAIN</button>
@@ -331,7 +337,8 @@
       <div id="f-diff" class="f-diff"></div>
       <div id="f-totals" class="fine"></div>
       <table id="f-table"></table>
-      <textarea id="f-text" readonly rows="8" spellcheck="false"></textarea>
+      <h3 data-t="deb.copyTitle">AFTER ACTION REPORT</h3>
+      <textarea id="f-text" readonly rows="8" spellcheck="false" data-ta="deb.copyTitle"></textarea>
       <div class="btns">
         <button id="btn-copy" class="btn primary" data-t="fin.copy">COPY</button>
         <button id="btn-post" class="btn hidden">POST</button>

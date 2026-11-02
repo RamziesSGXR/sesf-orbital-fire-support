@@ -11,13 +11,14 @@ import { Input } from './input.js';
 import { Audio } from './audio.js';
 import * as S from './session.js';
 import { startTitleBg } from './render/titlebg.js';
-import { STORY } from './data/story.js';
+import { STORY, CAST, chapterFor } from './data/story.js';
+import { castLines, CastRadio, aarMission, aarSession, aarStand } from './campaign.js';
 import * as UI from './ui.js';
 import { sunAt, todName, todClock } from './render/sky.js';
 import { acceptSupply, declineSupply, fillSupply, launchSupply, supplyFilling } from './sim/supply.js';
 import { hbFilling, tapHellbomb } from './sim/ops.js';
 const handsBusy = (m) => !!m && (supplyFilling(m) || hbFilling(m));     // the supply loader or the Hellbomb is open
-import { t, setLang, getLang, applyDom, startLang } from './i18n.js';
+import { t, tEn, setLang, getLang, applyDom, startLang } from './i18n.js';
 import { clampLevel, LEVELS, levelName } from './difficulty.js';
 import { answerTime } from './sim/planner.js';
 import { POSTS, makePost } from './sim/posts.js';
@@ -129,8 +130,8 @@ function relang() {
   if (state === 'title') toTitle();
   else if (state === 'campaign') UI.fillCampaign(STORY, playChapter);
   else if (state === 'shop') { const n = session.missions.length + 1; $('shop-eyebrow').textContent = n === 1 ? t('arm.eyebrow1') : t('arm.eyebrowN', { n }); $('shop-go').textContent = t('arm.deploy', { n }); drawShop(); }
-  else if (state === 'debrief' && lastRes) UI.fillDebrief(info, lastRes, session, S.missionReport(session), startCredits());
-  else if (state === 'glass' && lastRes) UI.fillGlass(lastRes);
+  else if (state === 'debrief' && lastRes) UI.fillDebrief(info, lastRes, session, aarMission(session, info, lastRes), startCredits());
+  else if (state === 'glass' && lastRes) UI.fillGlass(lastRes, aarStand(lastRes, session && session.callsign));
   else if (state === 'final' && lastFin) UI.fillFinal(session, lastFin.fin, lastFin.block);
   if (UI.isOn('s-info') && mission) UI.fillMissionInfo(mission, info);
   if (tac && hud.tcTab === 'armory' && mission) drawArmory(armNote);
@@ -790,9 +791,10 @@ function goBrief(again = false) {
   const held = session.held;
   const back = !keep && held && held.n === session.missions.length + 1 ? held.info : null;     // CANCEL (or MAIN MENU) left this one waiting
   session.held = null;
-  info = keep ? { op: keep.op, faction: keep.faction, biome: keep.biome, seed: keep.seed, tod: keep.tod } : back ? { ...back } : S.rollMission(prev, Math.random, settings.enemy);   // (the enemy picked on the title screen or in Settings)
-  const ch = session.story && session.missions.length === 0 ? STORY.chapters.find((c) => c.n === session.story.ch) : null;
-  if (!keep && !back && ch && ch.play) { info.faction = ch.play.faction; info.biome = ch.play.biome; info.seed = ch.play.seed; }
+  info = keep ? { op: keep.op, faction: keep.faction, biome: keep.biome, seed: keep.seed, tod: keep.tod, chapter: keep.chapter } : back ? { ...back } : S.rollMission(prev, Math.random, settings.enemy);   // (the enemy picked on the title screen or in Settings)
+  // (0.27) a story session: its missions are the chapters, in order, from the one picked
+  const ch = chapterFor(session, session.missions.length + 1);
+  if (!keep && !back && ch) { info.faction = ch.play.faction; info.biome = ch.play.biome; info.seed = ch.play.seed; info.chapter = ch.n; info.op = tEn('cp.ember.op', { name: tEn(`cp.ember.c${ch.n}`) }); }
   if (!keep && !back && session.missions.length === 0) { // URL overrides for testing: ?seed= ?faction= ?biome= (first mission only)
     if (qs.get('seed')) info.seed = Number(qs.get('seed')) >>> 0;
     if (FACTION_OK(qs.get('faction'))) info.faction = qs.get('faction');
@@ -808,7 +810,7 @@ function goBrief(again = false) {
     loadout: ovLoad.length ? ovLoad : undefined, objectives: ovObj, kit: session.kit, wallet: session.wallet, names: session.names, defenders: !qs.has('skipstart') });
   info.loadout = pre.loadout.slice();
   if (keep) { info.ovObj = keep.ovObj || []; info.loadout = keep.loadout.slice(); }
-  else if (!back) info.tod = qs.has('tod') ? ((Number(qs.get('tod')) % 24) + 24) % 24 : pre.tod0;   // ?tod=14 forces the hour (testing)
+  else if (!back) info.tod = qs.has('tod') ? ((Number(qs.get('tod')) % 24) + 24) % 24 : ch && ch.play.tod !== undefined ? ch.play.tod : pre.tod0;   // ?tod=14 forces the hour (testing)
   UI.setBriefHeader(n, session.score);
   if (briefCtl) briefCtl.cancel();
   const ctl = briefCtl = UI.runBriefing({
@@ -888,7 +890,19 @@ function enterPlay() {
     if (!mission.ls) hud.notice(t('tac.startNote'), 'info');     // (0.21: a line in the log, not a card over the squad; the tutorial teaches the rest)
   }
   hud.setTcTab('units'); setTac(true);     // (0.20: the command panel is up from the start, on the troops)
+  // (0.27) a campaign chapter: the briefing first (the game waits under it), then the cast on the radio through the mission
+  castRadio = null;
+  const ch = storyChapter();
+  if (ch && !BOT) {
+    castRadio = new CastRadio((c, text) => { audio.chirp(); hud.cast(c, text); });
+    audio.humStop();
+    cinema.play('camp', castLines(ch, 'brief'), () => { if (state === 'play' && mission) audio.humStart(); }, campOpts(ch, 'brief'));
+  }
 }
+// (0.27) the chapter this mission is, in a story session (null otherwise), and the cinematic's options for it
+let castRadio = null;
+function storyChapter() { return session && session.story && info && info.chapter ? STORY.chapters.find((c) => c.n === info.chapter) || null : null; }
+function campOpts(ch, mood) { return { mood, night: !!ch.night, head: t('cine.chapter', { n: ch.n, name: t(`cp.ember.c${ch.n}`) }), tag: t(mood === 'brief' ? 'cine.brief' : 'cine.debrief') }; }
 
 // ---------------- (0.19) the tutorial: the last stand on Mars ----------------
 // A mission of its own, outside any session: a throwaway session holds its kit and credits (never saved), and a saved session is
@@ -945,7 +959,7 @@ function finishLastStand() {
   const res = lastRes = mission.result();
   if (tut) { tut.close(); tut = null; }
   S.save('tutDone', true);
-  UI.fillGlass(res);
+  UI.fillGlass(res, aarStand(res, session && session.callsign));
   state = 'glass'; audio.humStop(); lsEnding = true;      // (the map keeps drawing under the white-out)
   const end = () => { lsReset(); hud.reset(); UI.showScreen('s-glass'); };
   if (res.outcome !== 'glassed') { end(); return; }        // (left early: straight to the end screen)
@@ -974,10 +988,17 @@ function finishMission() {
   // Extracted, or the primary objective done: the session goes on. A failed mission ends it, unless the player retries it.
   if (S.carriesOn(res.outcome)) persist(); else S.drop('session');
   retryArm = false;
-  UI.fillDebrief(info, res, session, S.missionReport(session), startCredits());
-  state = 'debrief'; audio.humStop(); hud.reset();
-  UI.showScreen('s-debrief');
-  if (ms) UI.milestone(ms, { onShow: () => { audio.click(); UI.milestone(null); msShow(true); }, onLater: () => { audio.click(); UI.milestone(null); } });
+  UI.fillDebrief(info, res, session, aarMission(session, info, res), startCredits());
+  state = 'debrief'; audio.humStop(); hud.reset(); castRadio = null;
+  const show = () => {
+    if (state !== 'debrief') return;
+    UI.showScreen('s-debrief');
+    if (ms) UI.milestone(ms, { onShow: () => { audio.click(); UI.milestone(null); msShow(true); }, onLater: () => { audio.click(); UI.milestone(null); } });
+  };
+  // (0.27) a campaign chapter: its debrief plays first (won or lost), then the screen
+  const ch = storyChapter();
+  if (ch && !BOT) cinema.play('camp', castLines(ch, S.carriesOn(res.outcome) ? 'win' : 'lose', res), show, campOpts(ch, S.carriesOn(res.outcome) ? 'win' : 'lose'));
+  else show();
 }
 function startCredits() { try { return JSON.parse(startSnap).wallet.bal; } catch { return null; } }
 // RETRY MISSION: the session goes back to how it was at the drop (credits, kit, score, time) and the same mission loads again.
@@ -995,7 +1016,7 @@ function retryMission() {
 function endSession() {
   state = 'final'; audio.humStop();
   const fin = S.finalise(session);
-  const block = S.scoreBlock(session, fin);
+  const block = aarSession(session, fin);      // (0.27: the after action report, ready for Discord)
   lastFin = { fin, block };
   UI.fillFinal(session, fin, block);
   S.drop('session');
@@ -1262,6 +1283,7 @@ async function copyScore(box = 'f-text', out = 'f-msg') {
 }
 $('btn-copy').onclick = () => copyScore();
 $('btn-copy-d').onclick = () => { audio.click(); copyScore('d-text', 'd-msg'); };
+$('btn-copy-g').onclick = () => { audio.click(); copyScore('g-text', 'g-msg'); };
 $('btn-post').onclick = async () => { await copyScore(); window.open(C.share.channelUrl, '_blank', 'noopener'); };
 $('btn-share').onclick = async () => { try { await navigator.share({ text: $('f-text').value }); } catch { /* user cancelled */ } };
 $('callsign').value = S.load('callsign', '');
@@ -1292,6 +1314,7 @@ function ambient(m, dt) {
 function onEvent(ev, now) {
   renderer.handle(ev, now, mission);
   if (tut) tut.onEvent(ev);
+  if (castRadio) castRadio.onEvent(ev, mission);
   if (ev.type === 'ls_stage' && ev.stage === 'breaking') { document.body.classList.add('ls-warn'); audio.siren(); }
   if (ev.type === 'ls_stage' && ev.stage === 'glass') { lsGlass(now); audio.nukeBlast(); }
   const L = ev.x !== undefined ? loudness(ev.x, ev.y) : 1, P = ev.x !== undefined ? pan(ev.x) : 0;
@@ -1413,7 +1436,7 @@ function frame(ts) {
     if (session && session.tutorial && live()) tutRank();     // (0.26) the tutorial's ranks come with kills
     if (hud.askAnchor) { const an = hud.askAnchor; if (an.dead) hud.askEnd(); else { const p = renderer.worldToScreen(an.x, an.y, canvas); if (p) hud.askPlace(p.x, p.y); } }
     if (plan() && !bot) { const sa = input.screenAim(), w = renderer.screenToWorld(sa.x, sa.y, canvas); if (w) mission.setAim(w.x, w.y); }     // (the reticle follows in the pause too)
-    if (!paused && !cinema.on && !(tut && tut.held) && state === 'play') { simulate(dt, now); ambient(mission, dt); }
+    if (!paused && !cinema.on && !(tut && tut.held) && state === 'play') { simulate(dt, now); ambient(mission, dt); if (castRadio && !mission.over) castRadio.tick(mission); }
     else if (tut && tut.held && mission.events.length) { for (const ev of mission.events) onEvent(ev, now); mission.events.length = 0; }   // (an order given with a card up counts)
     // The camera is the player's. It follows the squad only when locked on, and moves to a callout only when the player asks to
     // look (J, a callout button, a double tap on a team). The map holds still under a play being drawn.

@@ -213,29 +213,40 @@ Between missions the **armory** opens. Credits from kills, bases, targets, super
 
 **Classified (0.25).** Ranks 6 to 9 each declassify one over-the-top stratagem. Until then they sit in the **CLASSIFIED** tab with their names blacked out and the rank they need. Each has one level and is the gunner's alone (the Helldivers never get them): **Orbital Liberty Storm** (rank 6, 15 missions: thirty-six heavy shells over a huge area for sixteen seconds), **Eagle Squadron** (rank 7, 20 missions: every Eagle in the hangar in one long bombing run, for one of the Eagle's runs; it needs the Hangar), **Democracy Lance** (rank 8, 25 missions: a beam far bigger than the laser, steered for twenty-two seconds) and **Super Earth's Final Word** (rank 9, 30 missions: one shot from the main gun that wipes out everything within 70 m, allies included, on a five-minute recharge). Ranks count for the session (a retry takes back a bonus with the result it replaces); the campaign will keep them for good.
 
-**Campaign (in development).** **CAMPAIGN** on the title screen opens a test story, *The Ember Line*: three chapters, of which the first can be played. It starts a session (after the same lock-in) whose first mission is the chapter's: Terminids on the grassland, and the evacuation. After it the session goes on as usual. The story, saving and unlocks will change, and nothing about the campaign is kept yet.
+**Campaign (in development, 0.27).** **CAMPAIGN** on the title screen opens *Operation Ember Line*, told by Super Earth Special Forces command: General Ramzies gives the orders, KTL of the P.H.A.N.T.O.M. Helldivers is his second in command, Rudolph the Red's Tibit Tigers are on the ground, Neonboot of F.E.A.R. brings the Ministry of Science's read on the enemy, and Mota, the SESF Knight of Midnight, speaks for the Ministry of Defense. All three chapters can be played: **Landfall** (the evacuation at the river shelter), **The Long Night** (a downed convoy's commander, after dark) and **Ember Line** (the nuke under the landing field). Each one opens with a briefing and closes with a debrief, played like the tutorial's cinematics over Verdane Reach and your Super Destroyer (won or lost, the debrief is different), and the cast comes on the radio through the mission: the drop, the first heavy, a flare, a super heavy, a big hit from orbit, lives running out, the objective, the pelican. A chapter starts a session (after the same lock-in); the chapters after it are that session's next missions, and after the last one the session goes on as usual. Nothing about the campaign is saved yet.
 
 The war gets worse every mission: the level climbs, so there are more enemies, tougher and harder-hitting, with more heavies, on top of each mission's own climb, and the maps grow. Upgrades are how you keep up. Every run ends eventually.
 
 ## Share your score
 
-After every mission the debrief has a short **mission report**. Press **COPY REPORT** to paste it in the community channel; it doesn't end the session:
+Every ending screen has an **after action report**, ready to paste into Discord: the debrief after each mission, the final screen when a session ends, and the end of the tutorial. Press **COPY FOR DISCORD**; copying never ends anything. It uses Discord's bold, so it reads cleanly in a channel:
 
 ```
-ORBITAL FURY | KESTREL | MISSION 2 | DIFFICULTY 3 MEDIUM
-GOLDEN ANTHEM | BUGS | OBJECTIVE COMPLETE
-SCORE 7,800 | 301 KILLS | BROOD TITAN KILLED
-SESSION 13,010 AFTER 2 MISSIONS
+**ORBITAL FURY · AFTER ACTION REPORT**
+**GOLDEN ANTHEM** · Mission 2 · DIFFICULTY 3 MEDIUM
+Gunner KESTREL · BUGS · Tall-grass highlands · 18:42 on the ground
+**Result:** OBJECTIVE COMPLETE
+**Objective:** LAUNCH THE NUKE ✅ · Side 2/3 · Bases 3/4
+**Kills:** 301 (gunner 188 · allies 113) · BROOD TITAN KILLED
+**Helldivers:** 6 lost · 14/20 lives left
+**SEAF:** 22 lost
+**Damage:** gunner 61% · Helldivers 27% · stratagems 12%
+**Score:** 7,800 · session 13,010 after 2 missions
+Orbital Fury v0.27.0
 ```
 
-When your session ends, the final screen has the **session report**, with every mission on a line. Press **COPY** and paste it:
+A campaign chapter's report also names the chapter and ends with the General's last word. The session's report has the totals and every mission on a numbered line:
 
 ```
-ORBITAL FURY | KESTREL | FINAL SCORE 14,210
-3 MISSIONS, 2 WON | 35:00 | DIFFICULTY 3 MEDIUM, REACHED 4 CHALLENGING
-1. IRON HARVEST | BOTS | VICTORY | 5,210 | 214 KILLS
-2. GOLDEN ANTHEM | BUGS | OBJECTIVE COMPLETE | 7,800 | 301 KILLS | BROOD TITAN KILLED
-3. SILENT LANCE | SQUIDS | DEFEAT | 1,200 | 88 KILLS | WARP COLOSSUS ESCAPED
+**ORBITAL FURY · SESSION AFTER ACTION REPORT**
+Gunner KESTREL · **FINAL SCORE 14,210**
+3 missions, 2 won · 35:00 · DIFFICULTY 3 MEDIUM
+**Missions**
+1. IRON HARVEST · BOTS · VICTORY · 5,210 · 214 kills
+2. GOLDEN ANTHEM · BUGS · OBJECTIVE COMPLETE · 7,800 · 301 kills · BROOD TITAN KILLED
+3. SILENT LANCE · SQUIDS · DEFEAT · 1,200 · 88 kills · WARP COLOSSUS ESCAPED
+**Totals:** 603 kills · 11 Helldivers lost · 41 SEAF lost · 1 super heavy killed
+Orbital Fury v0.27.0
 ```
 
 The reports are always in English, whatever language you play in. Your callsign is left out if you didn't set one.

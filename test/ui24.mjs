@@ -45,14 +45,16 @@ await tap('#btn-campaign'); await page.waitForTimeout(500);
 check('CAMPAIGN opens the test story', await page.isVisible('#s-campaign'));
 const cp = await ev(() => ({ t: document.getElementById('cp-title').textContent, dev: document.querySelector('.cp-dev').textContent, ch: document.querySelectorAll('.cp-ch').length, play: document.querySelectorAll('.cp-ch .btn').length, p: document.querySelectorAll('#cp-story p').length }));
 check('it has a title, a story, and a notice that it is in development', cp.t.length > 3 && cp.p === 3 && /in development/i.test(cp.dev) && /saved yet/i.test(cp.dev), JSON.stringify(cp).slice(0, 160));
-check('three chapters, and only the first can be played', cp.ch === 3 && cp.play === 1);
+check('(0.27) three chapters, and every one can be played', cp.ch === 3 && cp.play === 3);
+const roster = await ev(() => [...document.querySelectorAll('.cp-cast li')].map((li) => li.textContent));
+check('(0.27) the command roster: General Ramzies, KTL, Rudolph the Red, Neonboot and Mota, with their units', roster.length === 5 && /GENERAL RAMZIES/.test(roster[0]) && /P\.H\.A\.N\.T\.O\.M\./.test(roster[1]) && /Tibit Tigers/.test(roster[2]) && /F\.E\.A\.R\..*Science/.test(roster[3]) && /Knight of Midnight.*Defense/.test(roster[4]), roster.join(' | ').slice(0, 200));
 const bg2 = await ev(() => getComputedStyle(document.getElementById('title-bg')).display);
 check('the view from orbit is behind the campaign too', bg2 === 'block', bg2);
 await shot('campaign');
 await tap('#cp-back'); await page.waitForTimeout(400);
 check('BACK goes to the title', await page.isVisible('#s-title') && !(await page.isVisible('#s-campaign')));
 await tap('#btn-campaign'); await page.waitForTimeout(400);
-await tap('.cp-ch .btn'); await page.waitForTimeout(400);
+await tap('.cp-ch:first-child .btn'); await page.waitForTimeout(400);
 if (await page.isVisible('#btn-notice')) { await tap('#btn-notice'); await page.waitForTimeout(250); }
 check('PLAY CHAPTER 1 asks for the lock-in like a new session', await page.isVisible('#btn-lock'));
 await tap('#btn-lock'); await page.waitForTimeout(500);
@@ -65,16 +67,34 @@ check('chapter 1 is its own mission: Terminids, grassland, the evacuation', inf.
 await tap('#b-continue'); await page.waitForTimeout(1500);
 const obj = await ev(() => window.__game.mission.objectives.map((o) => o.type).join());
 check('and it is flown', /evac/.test(obj), obj);
+// (0.27) the chapter's briefing: a cinematic over the planet, the cast a line at a time, the game waiting under it
+const br = await ev(() => ({ on: !document.getElementById('cine').classList.contains('hidden'), head: document.querySelector('#cine .cine-head').textContent, t: window.__game.mission.t, op: window.__game.info.op }));
+check('(0.27) the chapter opens with its briefing, and the game waits under it', br.on && /BRIEFING/.test(br.head) && /CHAPTER 1: LANDFALL/.test(br.head) && br.t === 0 && /Ember Line: LANDFALL/.test(br.op), JSON.stringify(br));
+await page.waitForTimeout(2500);
+const say = await ev(() => ({ who: (document.querySelector('#cine-text .who') || {}).textContent, line: (document.querySelector('#cine-text .line') || {}).textContent }));
+check('(0.27) the General speaks first, his name over his line', say.who === 'GENERAL RAMZIES' && /General Ramzies/.test(say.line || ''), JSON.stringify(say));
+await shot('briefing');
+await tap('#cine-skip'); await page.waitForTimeout(900);
+check('(0.27) SKIP ends it and the mission runs', await ev(() => document.getElementById('cine').classList.contains('hidden')) && await ev(() => { const m = window.__game.mission; for (let i = 0; i < 30; i++) m.step(1 / 30); return m.t > 0.5; }));
+
 
 // ---------------------------------------------------------------- milestones
-// back to the title, then a normal session
+// (0.27) the chapter's debrief when it ends, then the screen with the after action report
+await ev(() => window.__game.mission.finish('victory'));
+await page.waitForFunction(() => !document.getElementById('cine').classList.contains('hidden') || document.getElementById('s-debrief').classList.contains('on'), null, { timeout: 15000 }); await page.waitForTimeout(300);
+const db = await ev(() => ({ on: !document.getElementById('cine').classList.contains('hidden'), head: document.querySelector('#cine .cine-head').textContent, deb: document.getElementById('s-debrief').classList.contains('on') }));
+check('(0.27) a chapter ends with its debrief, before the debrief screen', db.on && /DEBRIEF/.test(db.head) && !db.deb, JSON.stringify(db));
+await tap('#cine-skip'); await page.waitForFunction(() => document.getElementById('s-debrief').classList.contains('on'), null, { timeout: 8000 });
+await page.waitForTimeout(600);
+const aar = await page.inputValue('#d-text');
+check('(0.27) the debrief screen has the after action report for Discord, the chapter in it', /^\*\*ORBITAL FURY · AFTER ACTION REPORT\*\*/.test(aar) && /chapter 1 of 3/.test(aar) && /> RAMZIES:/.test(aar) && /COPY FOR DISCORD/.test(await page.textContent('#btn-copy-d')), aar.split('\n').slice(0, 3).join(' / '));
+// the rest is a normal session
 await ev(() => { window.__game.session.story = null; });
 const win = async () => {
   await ev(() => window.__game.mission.finish('victory'));
   await page.waitForFunction(() => document.getElementById('s-debrief').classList.contains('on'), null, { timeout: 30000 });
   await page.waitForTimeout(600);
 };
-await win();
 let sp = await ev(() => { const b = document.getElementById('ms-splash'); return b.hidden ? null : { k: document.getElementById('ms-k').textContent, bonus: document.getElementById('ms-bonus').textContent, list: [...document.querySelectorAll('#ms-list li')].map((l) => l.textContent) }; });
 check('the first mission done splashes rank 1, with its name and a level bonus', sp && /RANK 1: Certified Patriot/.test(sp.k) && /\+400 CR/.test(sp.bonus), JSON.stringify(sp));
 check('and lists what is new in the armory', sp && sp.list.length >= 5 && sp.list.some((n) => /Gas/i.test(n)), sp ? sp.list.join(', ') : '');

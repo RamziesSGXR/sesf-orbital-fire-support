@@ -975,7 +975,7 @@ export class Mission {
       score: Math.max(0, Math.round(raw)), raw: Math.round(raw), breakdown: { ...sc }, base: Math.round(this._baseScore()), difficulty: this.difficulty, reward: this.reward,
       kills: this.stats.killsPlayer + this.stats.killsAlly, stats: { ...this.stats }, bossName: this.boss ? this.boss.name : null,
       bases: this.stats.bases, baseTotal: this.baseTotal, pois: this.stats.pois, poiTotal: this.pois.length, breaches: this.stats.breaches, sides: (this.sides || []).filter((q) => q.done).length, sideTotal: (this.sides || []).length, fullClear: !!(this.plan && this.plan.full),
-      livesLeft: this.hd.lives, survivorsH: this.countAlly('H') + (this.extraction.boardedH || 0), survivorsS: this.countAlly('S') + (this.extraction.boardedS || 0),
+      livesLeft: this.hd.lives, livesMax: this.hd.max, survivorsH: this.countAlly('H') + (this.extraction.boardedH || 0), survivorsS: this.countAlly('S') + (this.extraction.boardedS || 0),
       civSaved: this.stats.civSaved || 0, civLost: this.stats.civLost || 0,
       lastStand: this.ls ? { lifted: this.ls.lifted, held: Math.round(this.ls.holdT), fallen: this.ls.fallen, pop: this.ls.pop } : null,
       objectives: this.objectives.map((o) => ({ type: o.type, done: o.done })), objDone: this.objDone, extracted: this.extracted,

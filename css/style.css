@@ -1402,6 +1402,24 @@ body.ls-warn #view { filter: sepia(0.35) saturate(1.4) hue-rotate(-12deg); trans
 #cine-text p.last { color: var(--yellow); font-size: clamp(16px, 2.6vw, 24px); letter-spacing: 0.16em; }
 #cine.outro #cine-text p.last { color: #ffb070; }
 @keyframes cineIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* (0.27) a campaign chapter's briefing and debrief: the chapter at the top, and each line with who says it */
+#cine .cine-head { position: absolute; left: max(18px, env(safe-area-inset-left)); top: max(16px, env(safe-area-inset-top)); display: flex; flex-direction: column; gap: 2px; pointer-events: none; max-width: calc(100vw - 150px); }
+#cine .cine-head.hidden { display: none; }
+#cine .cine-head small { color: var(--yellow); font-size: 11px; letter-spacing: 0.3em; }
+#cine .cine-head b { color: #e8edf2; font-size: clamp(12px, 1.7vw, 16px); letter-spacing: 0.14em; font-weight: 600; text-shadow: 0 0 10px #000; }
+#cine-text p.say { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+#cine-text p.say .who { font-size: clamp(12px, 1.5vw, 14px); letter-spacing: 0.24em; font-weight: 700; }
+#cine-text p.say .unit { font-size: 10.5px; letter-spacing: 0.14em; color: #9aa6b2; text-transform: uppercase; }
+#cine-text p.say .line { margin-top: 6px; }
+@media (max-height: 520px) { #cine-text p.say .unit { display: none; } #cine-text p.say .line { margin-top: 2px; } }
+/* (0.27) the campaign's cast on the radio */
+#notices .nt.cast { --nc: var(--cc, var(--yellow)); }
+#notices .nt.cast b { color: var(--cc, var(--yellow)); letter-spacing: 0.12em; margin-right: 6px; font-weight: 700; }
+/* (0.27) the campaign screen's roster */
+.cp-cast { list-style: none; margin: 10px 0 4px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px 14px; }
+.cp-cast li { display: flex; flex-direction: column; border-left: 2px solid var(--cc, var(--yellow)); padding: 2px 0 2px 8px; }
+.cp-cast b { color: var(--cc, var(--yellow)); letter-spacing: 0.12em; font-size: 12px; }
+.cp-cast small { color: var(--g-dim, #9aa6b2); font-size: 11px; }
 #cine-skip { position: absolute; right: max(14px, env(safe-area-inset-right)); top: max(14px, env(safe-area-inset-top)); min-height: 34px; padding: 4px 14px; font-size: 11px; opacity: 0.75; }
 @media (prefers-reduced-motion: reduce) { #cine-text p { animation: none; } }
 @media (max-height: 520px) { #cine-text { bottom: 14px; } #cine-text p { font-size: 13px; line-height: 1.4; } #cine-text p.last { font-size: 16px; } }
