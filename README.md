@@ -19,6 +19,8 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 4. The Helldivers drop in and head for the objective. The ship gun is ready at once; your UAV scan and orbital strikes are still charging for the first twenty seconds or so. Aim, pick a weapon and call strikes on the enemy, not on your own squad.
 5. Not sure what to do? Press **INFO** (or `I`) at any time for the mission's steps and what the enemy does.
 
+**On a computer (0.27.1)** the menus use the whole screen: the campaign, settings, controls, the debrief and the end of the tutorial are laid out in columns so they fit without scrolling, the armory lists two items to a row, and the field manual, mission info and credits spread across a wider panel.
+
 ## Tutorial: last stand on Mars
 
 **Mars, 20 May 2185.** Within the hour after New Haven falls, the Illuminate **Great Host** enters the Sol System on its way to Super Earth, and Mars is in the way. The Super Earth Special Forces hold **Base Tharsis** and the last Pelicans off the planet, and you are their fire control on the destroyer overhead.

@@ -38,7 +38,32 @@ export function showScreen(id) {
   for (const s of SCREENS) $(s).classList.toggle('on', s === id);
   $('hud').classList.toggle('hidden', id !== null);
 }
-export function overlay(id, on) { $(id).classList.toggle('on', on); }
+export function overlay(id, on) { $(id).classList.toggle('on', on); if (on && COLS[id]) requestAnimationFrame(() => fitCols($(COLS[id]))); }
+// (0.27.1) On a computer screen the long panels (the field manual, the mission's info, the credits) are set in as many columns
+// as they need to fit without scrolling (up to three, none narrower than about 380 px). If even three are too tall, they stay
+// one column, at a readable width, and scroll as before.
+const COLS = { 's-manual': 'manual-body', 's-info': 'info-body', 's-credits': 'credits-body' };
+export function fitCols(box) {
+  if (!box) return;
+  box.style.columnCount = ''; box.style.maxWidth = ''; box.style.margin = ''; box.style.gridTemplateColumns = ''; box.classList.remove('cols', 'secgrid');
+  if (document.body.classList.contains('touch') || window.innerWidth < 1000 || !box.offsetParent) return;
+  const maxH = parseFloat(getComputedStyle(box).maxHeight) || window.innerHeight * 0.6, W = box.clientWidth;
+  box.style.maxHeight = 'none';
+  let fit = 0;
+  for (let n = 1; n <= 3 && W / n >= 380; n++) {
+    box.style.columnCount = String(n); box.classList.toggle('cols', n > 1);
+    if (box.scrollHeight <= maxH + 2) { fit = n; break; }
+  }
+  box.style.maxHeight = '';
+  // too long for that: its sections side by side, as many across as fit, and it scrolls (a section is read whole)
+  if (!fit) {
+    box.style.columnCount = ''; box.classList.remove('cols');
+    const n = Math.max(1, Math.min(3, Math.floor(W / 380)));
+    if (n > 1 && box.querySelector(':scope > section')) { box.classList.add('secgrid'); box.style.gridTemplateColumns = `repeat(${n}, minmax(0, 1fr))`; }
+    else { box.style.maxWidth = '920px'; box.style.margin = '0 auto'; }
+  }
+}
+window.addEventListener('resize', () => { for (const [id, b] of Object.entries(COLS)) if ($(id) && $(id).classList.contains('on')) fitCols($(b)); });
 export function isOn(id) { return $(id).classList.contains('on'); }
 export function anyOverlay() { return OVERLAYS.some((o) => $(o).classList.contains('on')); }
 export function hideOverlays() { for (const o of OVERLAYS) overlay(o, false); }
@@ -2042,5 +2067,5 @@ export function fillMissionInfo(m, info) {
   parts.push(`<h3>${t('info.boss')}</h3><p>${Bm && !Bm.dead ? t('info.bossOn', { name: esc(Bm.name) }) : Bm ? esc(t('info.bossDead', { name: Bm.name })) : ''}${esc(t('info.bossV', { fac: f.name.toLowerCase(), name: t('boss.' + m.faction.id), cr: fmtNum(C.boss.reward), how: t('info.boss.' + m.faction.id) }))}</p>`);
   parts.push(`<h3>${t('info.supply')}</h3><p>${esc(t('info.supplyV', { f: C.supply.fastSec, b: C.supply.boostSec }))}</p>`);
   parts.push(`<h3>${t('info.fail')}</h3><p>${esc(t('info.failV', { n: Math.round(m.limitSec / 60) }))}</p>`);
-  $('info-body').innerHTML = parts.join('');
+  $('info-body').innerHTML = parts.map((x) => `<section class="ib-sec">${x}</section>`).join('');      // (0.27.1: a section each, for the desktop grid)
 }

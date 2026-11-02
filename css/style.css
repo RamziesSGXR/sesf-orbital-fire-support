@@ -2250,3 +2250,73 @@ body:has(#s-title.on) #title-bg, body:has(#s-campaign.on) #title-bg { display: b
 body.rts #hud #topmid #ask.anchored { position: fixed; z-index: 45; max-width: min(380px, 92vw); border: 1px solid rgba(125, 255, 155, 0.6); }
 body.rts #hud #topmid #ask.anchored::after { content: ''; position: absolute; left: 50%; bottom: -7px; margin-left: -7px; border: 7px solid transparent; border-bottom: 0; border-top-color: rgba(125, 255, 155, 0.6); }
 body.rts #hud #topmid #ask.anchored.below::after { bottom: auto; top: -7px; border: 7px solid transparent; border-top: 0; border-bottom-color: rgba(125, 255, 155, 0.6); }
+
+/* ---------- (0.27.1) desktop: use the whole screen ----------
+   On a computer screen (no touch, 1000 px and wider) the menus spread out instead of making you scroll: the campaign in two
+   columns (the story and the command on the left, the chapters on the right), settings and controls in two columns, the
+   debrief and the end of the tutorial with the after action report beside the results, the armory's list in two columns, and
+   the field manual, mission info and credits in columns across a wider panel. Phones and tablets keep their own layout. */
+@media (min-width: 1000px) {
+  body:not(.touch) #s-campaign { justify-content: center; }
+  body:not(.touch) .cp {
+    width: min(1400px, 100%); margin: auto; padding: clamp(14px, 3vh, 34px) clamp(18px, 3vw, 44px);
+    display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); column-gap: clamp(20px, 2.6vw, 40px); align-content: center;
+    grid-template-areas: "back back" "eye eye" "title title" "story dev" "story chs";
+    grid-template-rows: auto auto auto auto 1fr;
+  }
+  body:not(.touch) .cp-back { grid-area: back; justify-self: start; margin-bottom: clamp(8px, 1.6vh, 18px); }
+  body:not(.touch) .cp > .tt-eyebrow { grid-area: eye; }
+  body:not(.touch) .cp-title { grid-area: title; font-size: clamp(30px, min(4.4vw, 7vh), 60px); margin-bottom: clamp(10px, 2vh, 18px); }
+  body:not(.touch) .cp-dev { grid-area: dev; margin-bottom: 12px; font-size: 12.5px; }
+  body:not(.touch) .cp-story { grid-area: story; margin-bottom: 0; align-self: start; }
+  body:not(.touch) .cp-story p { max-width: none; }
+  body:not(.touch) .cp-chs { grid-area: chs; align-content: start; }
+  body:not(.touch) .cp-cast { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+
+  body:not(.touch) #s-settings .card { width: min(96vw, 1180px); }
+  body:not(.touch) #settings-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 36px; }
+
+  body:not(.touch) #s-controls .card { width: min(96vw, 1280px); }
+  body:not(.touch) #s-controls .ctl { columns: 2; column-gap: 40px; text-align: left; }
+  body:not(.touch) #s-controls .ctl > * { break-inside: avoid; }
+
+  /* the debrief: results on the left, the after action report on the right */
+  body:not(.touch) #s-debrief .card { width: min(96vw, 1260px); display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); column-gap: 32px; align-content: start; }
+  body:not(.touch) #s-debrief .card > * { grid-column: 1; }
+  body:not(.touch) #s-debrief .card > .d-copy { grid-column: 2; grid-row: 1 / span 30; align-self: start; margin-top: 0; padding: 0 0 0 28px; border-top: 0; border-left: 1px solid rgba(157, 255, 184, 0.18); }
+  body:not(.touch) #s-debrief .d-copy textarea { min-height: 300px; }
+  body:not(.touch) #s-debrief .card > .x-close { grid-column: 2; }
+  /* the end of the tutorial: the same, the buttons across the bottom */
+  body:not(.touch) #s-glass .glass-card { width: min(96vw, 1180px); display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); column-gap: 32px; }
+  body:not(.touch) #s-glass .glass-card > * { grid-column: 1; }
+  body:not(.touch) #s-glass .glass-card > .d-copy { grid-column: 2; grid-row: 1 / span 5; align-self: start; margin-top: 0; padding: 0 0 0 28px; border-top: 0; border-left: 1px solid rgba(157, 255, 184, 0.18); }
+  body:not(.touch) #s-glass .glass-card > .btns { grid-column: 1 / -1; }
+  /* the session's end: the missions on the left, the report on the right */
+  body:not(.touch) #s-final .card { width: min(96vw, 1180px); }
+
+  /* the armory between missions: two items to a row */
+  body:not(.touch) #s-shop .card { width: min(96vw, 1560px); }
+  body:not(.touch) #s-shop .shop-scroll .tabpane.on { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 10px; align-items: start; }
+  body:not(.touch) #s-shop .shop-scroll .tabpane.on > :not(.item) { grid-column: 1 / -1; }
+  body:not(.touch) #s-shop .shop-scroll .tabpane.on > .item { margin-bottom: 8px; }
+
+  /* the field manual, the mission's info and the credits: wider, in columns, taller before they scroll */
+  body:not(.touch) #s-manual .card, body:not(.touch) #s-info .card, body:not(.touch) #s-credits .card { width: min(96vw, 1320px); }
+  body:not(.touch) .manual, body:not(.touch) #info-body, body:not(.touch) #credits-body { max-height: calc(100dvh - 230px); }
+  body:not(.touch) .manual.cols, body:not(.touch) #info-body.cols, body:not(.touch) #credits-body.cols { column-gap: 40px; column-rule: 1px solid rgba(157, 255, 184, 0.1); }
+  body:not(.touch) .secgrid { display: grid; column-gap: 36px; row-gap: 4px; align-items: start; }
+  body:not(.touch) .secgrid > section { min-width: 0; }
+  body:not(.touch) .cols h3 { break-after: avoid; }
+  body:not(.touch) .cols li, body:not(.touch) .cols p, body:not(.touch) .cols .man-sec ul { break-inside: avoid; }
+}
+@media (min-width: 1000px) and (max-height: 820px) {
+  body:not(.touch) .cp-story { padding: 12px 16px; }
+  body:not(.touch) .cp-story p { font-size: 13px; line-height: 1.55; margin-bottom: 8px; }
+  body:not(.touch) .cp-ch { padding: 9px 12px; }
+  body:not(.touch) .set-row { padding: 7px 2px; }
+  body:not(.touch) .tt-mark { font-size: clamp(52px, min(9.4vw, 15vh), 132px); }
+  body:not(.touch) #s-brief .r-line { padding: 5px 4px; min-height: 28px; }
+  body:not(.touch) #s-brief .progress { margin: 8px 0 6px; }
+  body:not(.touch) #s-brief #b-strats { margin-top: 6px; }
+  body:not(.touch) .tt-menu .tt-item { padding-top: 7px; padding-bottom: 7px; }
+}
