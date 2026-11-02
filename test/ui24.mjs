@@ -1,5 +1,6 @@
 // 0.24 in the browser: the new title screen (the view from orbit, the deployment console, the menu), the campaign's test story,
-// and milestones (missions done open more of the armory, with a level bonus, a splash and SHOW ME).
+// and milestones (missions done open more of the armory, with a level bonus, a splash and SHOW ME). 0.25: they are ranks now,
+// with names and a bar in the armory; everything shows, locked until your rank reaches it; four classified ones are blacked out.
 //   node test/ui24.mjs [desktop|phone|land]
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -75,15 +76,19 @@ const win = async () => {
 };
 await win();
 let sp = await ev(() => { const b = document.getElementById('ms-splash'); return b.hidden ? null : { k: document.getElementById('ms-k').textContent, bonus: document.getElementById('ms-bonus').textContent, list: [...document.querySelectorAll('#ms-list li')].map((l) => l.textContent) }; });
-check('the first mission done splashes milestone 1 with a level bonus', sp && /MILESTONE 1 OF 5/.test(sp.k) && /\+400 CR/.test(sp.bonus), JSON.stringify(sp));
+check('the first mission done splashes rank 1, with its name and a level bonus', sp && /RANK 1: Certified Patriot/.test(sp.k) && /\+400 CR/.test(sp.bonus), JSON.stringify(sp));
 check('and lists what is new in the armory', sp && sp.list.length >= 5 && sp.list.some((n) => /Gas/i.test(n)), sp ? sp.list.join(', ') : '');
 await shot('splash1');
 await tap('#ms-later'); await page.waitForTimeout(300);
 check('LATER puts it away and leaves the debrief', await ev(() => document.getElementById('ms-splash').hidden) && await page.isVisible('#s-debrief'));
 await tap('#btn-continue'); await page.waitForTimeout(700);
-const arm = await ev(() => ({ ms: (document.querySelector('.shop-ms') || {}).textContent || '', hangar: [...document.querySelectorAll('#shop-root .it-name')].some((n) => /^Hangar/.test(n.textContent)), fresh: document.querySelectorAll('#shop-root .item.fresh').length }));
-check('the armory says how far the milestones have got', /MILESTONE 1\/5/.test(arm.ms) && /3 missions/.test(arm.ms), arm.ms);
-check('the Hangar is still hidden at milestone 1', !arm.hangar);
+const arm = await ev(() => { const h = [...document.querySelectorAll('#shop-root .item')].find((x) => /^Hangar/.test(x.querySelector('.it-name').textContent));
+  return { ms: (document.querySelector('#shop-root .rankbar') || {}).textContent || '', fill: parseFloat((document.querySelector('#shop-root .rb-fill') || { style: {} }).style.width) || 0,
+    hangar: h ? { lock: h.classList.contains('ranklock'), btn: h.querySelector('.btn.buy').textContent, dis: h.querySelector('.btn.buy').disabled } : null, fresh: document.querySelectorAll('#shop-root .item.fresh').length,
+    cls: [...document.querySelectorAll('#shop-root .tabpane[data-tab="classified"] .item')].map((x) => ({ red: x.classList.contains('redacted'), bars: !!x.querySelector('.bars'), txt: x.textContent })) }; });
+check('(0.25) the armory shows your rank, its name and a bar to the next one', /RANK 1/.test(arm.ms) && /Certified Patriot/.test(arm.ms) && /rank 2, Liber-Tea Sommelier, at 3 missions/.test(arm.ms) && arm.fill > 11 && arm.fill < 23, `${arm.ms.replace(/\s+/g, ' ').slice(0, 160)} | fill ${arm.fill}%`);
+check('(0.25) the Hangar shows at rank 1, but locked: it needs rank 2', arm.hangar && arm.hangar.lock && arm.hangar.dis && /RANK 2/.test(arm.hangar.btn), JSON.stringify(arm.hangar));
+check('(0.25) CLASSIFIED shows four blacked-out stratagems, their names not given away', arm.cls.length === 4 && arm.cls.every((c) => c.red && c.bars && !/Storm|Squadron|Lance|Final/.test(c.txt) && /rank [6-9]/i.test(c.txt)), arm.cls.map((c) => c.txt.slice(0, 50)).join(' | '));
 check('what milestone 1 brought is marked NEW', arm.fresh >= 3, `${arm.fresh} new`);
 // two more missions done (the second is set up here; the third is flown)
 await ev(() => { const s = window.__game.session; s.missions.push({ ...s.missions[0] }); });
@@ -94,7 +99,7 @@ const bal0 = await ev(() => window.__game.session.wallet.bal);
 await win();
 sp = await ev(() => { const b = document.getElementById('ms-splash'); return b.hidden ? null : { k: document.getElementById('ms-k').textContent, list: [...document.querySelectorAll('#ms-list li')].map((l) => l.textContent) }; });
 const bal1 = await ev(() => window.__game.session.wallet.bal);
-check('three missions done: milestone 2, with the Hangar', sp && /MILESTONE 2 OF 5/.test(sp.k) && sp.list.some((n) => /Hangar/.test(n)), JSON.stringify(sp));
+check('three missions done: rank 2, with the Hangar', sp && /RANK 2: Liber-Tea Sommelier/.test(sp.k) && sp.list.some((n) => /Hangar/.test(n)), JSON.stringify(sp));
 check('the level bonus is paid', bal1 - bal0 >= 600, `${bal0} → ${bal1}`);
 await shot('splash2');
 await tap('#ms-show'); await page.waitForTimeout(900);

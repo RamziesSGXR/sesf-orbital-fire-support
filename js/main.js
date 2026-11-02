@@ -939,10 +939,10 @@ function finishMission() {
   let ms = null;
   if (t1 > t0 && S.carriesOn(res.outcome)) {
     let bonus = 0; const fresh = [];
-    for (let k = t0 + 1; k <= t1; k++) { bonus += C.milestones.bonus[k - 1] || 0; fresh.push(...tierItems(session.kit, k)); }
+    for (let k = t0 + 1; k <= t1; k++) { bonus += C.ranks.bonus[k - 1] || 0; fresh.push(...tierItems(session.kit, k)); }
     session.wallet.bal += bonus; session.fresh = fresh;
     const names = fresh.map((id) => shopItems(session.kit).find((it) => it.id === id)).filter(Boolean).map((it) => ({ n: it.orb ? UI.shortName(it.orb) : it.name, k: t('kit.tag.' + it.section) }));
-    ms = { k: t1, of: TIER_MAX, done: doneN(session), bonus, names, next: C.milestones.at[t1] || 0 };
+    ms = { k: t1, of: TIER_MAX, done: doneN(session), bonus, names, next: C.ranks.at[t1] || 0 };
   }
   // Extracted, or the primary objective done: the session goes on. A failed mission ends it, unless the player retries it.
   if (S.carriesOn(res.outcome)) persist(); else S.drop('session');

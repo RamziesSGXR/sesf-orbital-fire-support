@@ -4,7 +4,7 @@ import { FACTIONS, BIOMES } from './data/data.js';
 import { fmtTime, fmtNum, sessionTotals, MAX_NAME, carriesOn, levelReached } from './session.js';
 import { STRATS, CAT_COLOR } from './data/strat.js';
 import { LETTERS, TEAM_COLOR } from './data/names.js';
-import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, hangarStats, shownAt, TIER_MAX, tierItems } from './data/kit.js';
+import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, hangarStats, shownAt, TIER_MAX, tierItems, itemTier } from './data/kit.js';
 import { stratReady, stratOnline } from './sim/strat.js';
 import { slotStats } from './sim/player.js';
 import { compass } from './sim/enemies.js';
@@ -63,13 +63,13 @@ let msKeys = null;
 export function milestone(ms, h = {}) {
   const box = $('ms-splash');
   if (!ms) { box.hidden = true; box.classList.remove('go'); if (msKeys) { document.removeEventListener('keydown', msKeys, true); msKeys = null; } return; }
-  $('ms-k').textContent = t('ms.k', { k: ms.k, of: ms.of });
+  $('ms-k').textContent = t('ms.k', { k: ms.k, name: t('rank.' + ms.k) });
   $('ms-done').textContent = ms.done === 1 ? t('ms.done1') : t('ms.done', { n: ms.done });
   $('ms-bonus').textContent = t('ms.bonus', { cr: fmtNum(ms.bonus) });
   $('ms-nh').textContent = t(ms.k >= ms.of ? 'ms.all' : 'ms.new');
   const ul = $('ms-list'); ul.innerHTML = '';
   for (const n of ms.names) ul.appendChild(el('li', '', `${esc(n.n)}<small>${esc(n.k)}</small>`));
-  $('ms-next').textContent = ms.next ? t('ms.next', { n: ms.next }) : '';
+  $('ms-next').textContent = ms.next ? t('ms.next', { n: ms.next, k: ms.k + 1, name: t('rank.' + (ms.k + 1)) }) : '';
   $('ms-show').textContent = t('ms.show'); $('ms-later').textContent = t('ms.later');
   $('ms-show').onclick = h.onShow; $('ms-later').onclick = h.onLater;
   box.hidden = false; void box.offsetWidth; box.classList.add('go');
@@ -1292,7 +1292,7 @@ export function runBriefing({ info, mission, touch, onContinue, onEnd, onCancel,
 
 // ---------------- the armory ----------------
 // css class per armory section (the styles predate the section ids)
-const SEC_SLUG = { loadout: 'loadout', orbitals: 'orbitals', utilities: 'utilities', eagles: 'eagles', defense: 'minefields', gun: 'ship-gun', uav: 'uav-scan', seaf: 'seaf-troops', specialists: 'seaf-specialists', build: 'buildables', support: 'squad-support' };
+const SEC_SLUG = { classified: 'classified', loadout: 'loadout', orbitals: 'orbitals', utilities: 'utilities', eagles: 'eagles', defense: 'minefields', gun: 'ship-gun', uav: 'uav-scan', seaf: 'seaf-troops', specialists: 'seaf-specialists', build: 'buildables', support: 'squad-support' };
 const pips = (lv, max) => { let s = ''; for (let i = 0; i < max; i++) s += i < lv ? '●' : '○'; return s; };
 
 // One line of numbers under an item's name.
@@ -1420,12 +1420,24 @@ function upgradeLines(it, kit) {
 
 // Draw the armory into root. opts: { kit, wallet, live, onBuy(id), onEquip(id), onUnequip(slot), note }
 // The armory's tabs, and which sections each holds.
-export const SHOP_TABS = [{ id: 'orb', secs: ['loadout', 'orbitals', 'utilities', 'defense'] }, { id: 'eagle', secs: ['eagles'] }, { id: 'ship', secs: ['gun', 'uav', 'support'] }, { id: 'seaf', secs: ['seaf', 'specialists'] }, { id: 'build', secs: ['build'] }];
+export const SHOP_TABS = [{ id: 'orb', secs: ['loadout', 'orbitals', 'utilities', 'defense'] }, { id: 'eagle', secs: ['eagles'] }, { id: 'ship', secs: ['gun', 'uav', 'support'] }, { id: 'seaf', secs: ['seaf', 'specialists'] }, { id: 'build', secs: ['build'] }, { id: 'classified', secs: ['classified'] }];
+// (0.25) The rank bar: your rank and its name, one segment a rank (filled as far as your missions go), and what comes next.
+export function rankBar(tier, done) {
+  const at = C.ranks.at, N = at.length, box = el('div', 'rankbar');
+  const lo = tier ? at[tier - 1] : 0, hi = at[tier], frac = tier >= N ? 0 : Math.max(0, Math.min(1, (done - lo) / (hi - lo)));
+  const pct = ((tier + frac) / N) * 100;
+  let ticks = '';
+  for (let i = 1; i <= N; i++) ticks += `<i class="rb-t${i > 5 ? ' cls' : ''}${i <= tier ? ' on' : ''}" style="left:${(i / N) * 100}%"><b>${i}</b></i>`;
+  box.innerHTML = `<div class="rb-top"><b>${esc(t('arm.rankN', { n: tier }))}</b><span class="rb-name">${esc(t('rank.' + tier))}</span><span class="rb-done">${esc(done === 1 ? t('arm.done1') : t('arm.doneN', { n: done }))}</span></div>`
+    + `<div class="rb-track" role="progressbar" aria-valuemin="0" aria-valuemax="${N}" aria-valuenow="${tier}" aria-valuetext="${esc(t('arm.rankN', { n: tier }))}"><i class="rb-fill" style="width:${pct.toFixed(1)}%"></i>${ticks}</div>`
+    + `<p class="rb-next">${esc(tier >= N ? t('arm.rankMax') : t('arm.rankNext', { n: tier + 1, name: t('rank.' + (tier + 1)), m: hi, left: hi - done }))}</p>`;
+  return box;
+}
 let shopTab = 'orb';
 export function renderShop(root, opts) {
   const { kit, wallet, live } = opts, tier = opts.tier ?? TIER_MAX, fresh = new Set(opts.fresh || []);
-  const all = shopItems(kit), items = all.filter((it) => shownAt(it, tier));       // (0.24) what the milestones have opened
-  const hidden = all.length - items.length;
+  // (0.25) everything shows; what your rank has not reached is locked (and a classified one is blacked out)
+  const items = shopItems(kit), rankOf = (it) => itemTier(it.id), open = (it) => shownAt(it, tier);
   // (0.24) SHOW ME: open the tab with the first new item in it
   if (opts.focus && fresh.size) { const f = items.find((it) => fresh.has(it.id) || (it.orb && fresh.has('own:' + it.orb))); if (f) shopTab = (SHOP_TABS.find((x) => x.secs.includes(f.section)) || SHOP_TABS[0]).id; }
   const scroll = root.querySelector('.shop-scroll'), keep = scroll ? scroll.scrollTop : 0;
@@ -1445,11 +1457,8 @@ export function renderShop(root, opts) {
     lo.appendChild(s);
   }
   root.appendChild(lo);
-  // (0.24) how far the milestones have got, and when the next one opens more
-  if (tier < TIER_MAX && !live) {
-    const next = C.milestones.at[tier], done = opts.done ?? 0;
-    root.appendChild(el('p', 'shop-ms', `<b>${esc(t('arm.ms', { k: tier, of: TIER_MAX }))}</b> ${esc(t('arm.msNext', { n: next, d: done, h: hidden }))}`));
-  }
+  // (0.25) your rank, and a bar to the next one: one segment a rank, the classified ones (6 to 9) in red
+  if (!live && opts.done !== undefined) root.appendChild(rankBar(tier, opts.done));
 
   // The armory is tabbed: orbitals (and the loadout slots), the ship (gun, UAV, support), SEAF troops, and buildables. Every item
   // is in the page; only the open tab shows. A tab with something affordable in it carries a dot.
@@ -1459,7 +1468,7 @@ export function renderShop(root, opts) {
   const shownTabs = SHOP_TABS.filter((tb) => items.some((it) => tb.secs.includes(it.section)));      // (0.24: the Hangar's comes with its milestone)
   if (!shownTabs.some((tb) => tb.id === shopTab)) shopTab = (shownTabs[0] || SHOP_TABS[0]).id;
   for (const tb of shownTabs) {
-    const can = items.some((it) => tb.secs.includes(it.section) && it.cost !== null && !it.locked && wallet.bal >= it.cost && !(live && !it.live));
+    const can = items.some((it) => tb.secs.includes(it.section) && it.cost !== null && !it.locked && open(it) && wallet.bal >= it.cost && !(live && !it.live));
     const b = el('button', 'btn tab' + (shopTab === tb.id ? ' on' : '') + (can ? ' can' : ''), esc(t('arm.tab.' + tb.id)));
     b.type = 'button'; b.dataset.tab = tb.id; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(shopTab === tb.id));
     b.onclick = () => { shopTab = tb.id; root.querySelectorAll('.shop-tabs .tab').forEach((x) => { x.classList.toggle('on', x.dataset.tab === shopTab); x.setAttribute('aria-selected', String(x.dataset.tab === shopTab)); }); root.querySelectorAll('.tabpane').forEach((x) => x.classList.toggle('on', x.dataset.tab === shopTab)); const sc = root.querySelector('.shop-scroll'); if (sc) sc.scrollTop = 0; };
@@ -1479,14 +1488,20 @@ export function renderShop(root, opts) {
     for (const it of sec.list) {
       const inLoad = it.orb && kit.loadout.slice(0, kit.slots).includes(it.orb);
       const isNew = fresh.has(it.id) || (it.orb && fresh.has('own:' + it.orb));
-      const card = el('div', 'item sec-' + slug + (it.owned ? ' owned' : '') + (it.cost === null ? ' maxed' : '') + (inLoad ? ' equipped' : '') + (isNew ? ' fresh' : ''));
+      const shut = !open(it), rk = rankOf(it), black = shut && it.secret;       // (0.25) locked by rank; a classified one stays blacked out
+      const card = el('div', 'item sec-' + slug + (it.owned ? ' owned' : '') + (it.cost === null ? ' maxed' : '') + (inLoad ? ' equipped' : '') + (isNew ? ' fresh' : '') + (shut ? ' ranklock' : '') + (black ? ' redacted' : ''));
       if (isNew) card.dataset.fresh = '1';
       const main = el('div', 'it-main');
-      main.innerHTML = `<div class="it-name">${esc(it.orb ? shortName(it.orb) : it.name)}${isNew ? `<span class="newc">${esc(t('arm.new'))}</span>` : ''}<span class="tagc">${esc(t('kit.tag.' + sec.name))}</span>${it.max > 1 && isFinite(it.max) ? `<span class="pips">${pips(it.level, it.max)}</span>` : it.endless ? `<span class="pips">${t('arm.lv', { n: it.level })}</span>` : ''}${inLoad ? `<span class="tagq">${t('arm.equipped')}</span>` : ''}</div>`
+      const nm = it.orb ? shortName(it.orb) : it.name;
+      main.innerHTML = black
+        ? `<div class="it-name"><span class="bars" aria-label="${esc(t('arm.redactedAria'))}">${nm.replace(/\S/g, '█')}</span><span class="tagc">${esc(t('kit.tag.' + sec.name))}</span></div>`
+          + `<div class="it-blurb">${esc(t('arm.redacted'))}</div><div class="it-stat">${esc(t('arm.clearance', { n: rk, name: t('rank.' + rk), m: C.ranks.at[rk - 1] }))}</div>`
+        : `<div class="it-name">${esc(nm)}${isNew ? `<span class="newc">${esc(t('arm.new'))}</span>` : ''}<span class="tagc">${esc(t('kit.tag.' + sec.name))}</span>${it.max > 1 && isFinite(it.max) ? `<span class="pips">${pips(it.level, it.max)}</span>` : it.endless ? `<span class="pips">${t('arm.lv', { n: it.level })}</span>` : ''}${inLoad ? `<span class="tagq">${t('arm.equipped')}</span>` : ''}</div>`
         + `<div class="it-blurb">${esc(it.blurb)}</div>${upgradeLines(it, kit)}`;
       const btns = el('div', 'it-btns');
       const b = el('button', 'btn buy');
-      if (it.cost === null) { b.textContent = t(it.locked ? 'arm.locked' : 'arm.max'); b.disabled = true; }
+      if (shut && it.cost !== null) { b.innerHTML = `${t('arm.rankN', { n: rk })}<small>${esc(t('rank.' + rk))}</small>`; b.disabled = true; b.classList.add('small', 'rankb'); }     // (0.25) not your rank yet
+      else if (it.cost === null) { b.textContent = t(it.locked ? 'arm.locked' : 'arm.max'); b.disabled = true; }
       else if (it.locked && it.needs) { b.innerHTML = `${t('arm.needs.' + it.needs)}<small>${t('arm.cr', { n: fmtNum(it.cost) })}</small>`; b.disabled = true; b.classList.add('small'); }     // (0.23: Eagles need the Hangar)
       else if (live && !it.live) { b.textContent = t('arm.between'); b.disabled = true; b.classList.add('small'); }
       else {

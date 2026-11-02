@@ -18,6 +18,8 @@ const ORB_BASE = {
   // (0.23) Eagles (the Hangar has to be bought first) and the gunner's minefields
   eagle_smoke: 450, eagle_strafe: 550, eagle_air: 700, eagle_cluster: 750, eagle_napalm: 900, eagle_rockets: 950, eagle_500: 1250,
   mine_ap: 600, mine_inc: 800, mine_at: 1000,
+  // (0.25) classified: one level each, for the last ranks
+  orb_storm: 2800, eagle_squad: 3000, orb_lance: 3400, orb_final: 4200,
 };
 export const ORB_PRICE = Object.fromEntries(Object.entries(ORB_BASE).map(([k, v]) => [k, price(v)]));
 export const ORB_LIST = PLAYER_IDS.slice().sort((a, b) => ORB_PRICE[a] - ORB_PRICE[b]);
@@ -163,8 +165,9 @@ const UP_MUL = (id) => (id.startsWith('eagle_') || id.startsWith('mine_') ? 0.3 
 export function orbUpCost(id, level) { return price(Math.max(ORB_UP_BASE, ORB_BASE[id]) * UP_MUL(id) * level); }
 export const slotCost = (n) => price(n === 4 ? 700 : 1500);
 
-// (0.24) Milestones. The armory shows more as a session goes on: each item comes in at a milestone (0: from the start, 1: after the
-// first mission done, then 3, 5, 7 and 10 missions; C.milestones.at). Anything you already have levels in always shows.
+// (0.24) Ranks (0.25: they were milestones). Each item opens at a rank (0: from the start, 1: after the first mission done, then
+// 3, 5, 7, 10, 15, 20, 25 and 30 missions; C.ranks.at). Everything shows in the armory; what your rank has not reached is locked.
+// The classified stratagems carry their rank in STRATS (secret).
 const ITEM_TIER = {
   'slot:4': 0, util_smoke: 0, orb_ems: 0, 'gun.dmg': 0, 'gun.ammo': 0, uav: 0, 'seaf.cap': 0, 'seaf.drop': 0, 'seaf.hp': 0, 'bld:bastion': 0, 'bld:mg': 0,
   util_med: 1, orb_gas: 1, orb_walk: 1, 'gun.regen': 1, 'uavb.speed': 1, 'seaf.build': 1, 'seaf.gren': 1, 'bld:lookout': 1, 'bld:bridge': 1, 'sup.zone': 1,
@@ -173,13 +176,14 @@ const ITEM_TIER = {
   eagle_rockets: 4, mine_at: 4, orb_rail: 4,
   orb_laser: 5, eagle_500: 5, 'bld:arty': 5,
 };
-export const itemTier = (id) => ITEM_TIER[String(id).replace(/^(own|up):/, '')] ?? 0;
+export const itemTier = (id) => { const k = String(id).replace(/^(own|up):/, ''); return ITEM_TIER[k] ?? (STRATS[k] && STRATS[k].secret) ?? 0; };
+export const isSecret = (id) => { const k = String(id).replace(/^(own|up):/, ''); return !!(STRATS[k] && STRATS[k].secret); };
 // The milestone reached after this many missions done (0 before the first).
-export function tierFor(done) { let n = 0; C.milestones.at.forEach((at, i) => { if (done >= at) n = i + 1; }); return n; }
-export const TIER_MAX = C.milestones.at.length;
-// Shown in the armory at this milestone: its tier is reached, or you already have it (or levels in it).
+export function tierFor(done) { let n = 0; C.ranks.at.forEach((at, i) => { if (done >= at) n = i + 1; }); return n; }
+export const TIER_MAX = C.ranks.at.length;
+// Open at this rank (it can be bought): its rank is reached, or you already have it (or levels in it).
 export function shownAt(it, tier) { return tier >= TIER_MAX || itemTier(it.id) <= tier || it.level > 0 || !!it.owned; }
-// What a milestone brings in, as item ids (one per thing: 'own:x' rather than its upgrades), in armory order.
+// What a rank opens, as item ids (one per thing: 'own:x' rather than its upgrades), in armory order.
 export function tierItems(kit, tier) { return shopItems(kit).filter((it) => itemTier(it.id) === tier && !it.id.startsWith('up:')).map((it) => it.id); }
 
 export function shopItems(kit) {
@@ -195,10 +199,10 @@ export function shopItems(kit) {
   // Orbitals, utilities, (0.23) Eagles and minefields
   for (const id of ORB_LIST) {
     const d = STRATS[id], lvl = kit.owned[id] || 0;
-    const sec = d.cat === 'EAGLE' ? 'eagles' : d.cat === 'DEFENSE' ? 'defense' : d.util ? 'utilities' : 'orbitals';    // (all of them equip in the same slots)
-    const locked = d.cat === 'EAGLE' && !(kit.hangar > 0);
-    if (!lvl) items.push({ id: `own:${id}`, section: sec, name: d.name, blurb: d.blurb, level: 0, max: MAXL, cost: ORB_PRICE[id], orb: id, live: false, locked, needs: locked ? 'hangar' : null });
-    else items.push({ id: `up:${id}`, section: sec, name: d.name, blurb: d.blurb, level: lvl, max: MAXL, cost: lvl >= MAXL ? null : orbUpCost(id, lvl), orb: id, owned: true, live: true });
+    const sec = d.secret ? 'classified' : d.cat === 'EAGLE' ? 'eagles' : d.cat === 'DEFENSE' ? 'defense' : d.util ? 'utilities' : 'orbitals';    // (all of them equip in the same slots)
+    const locked = d.cat === 'EAGLE' && !(kit.hangar > 0), mx = d.secret ? 1 : MAXL;     // (0.25: a classified one has one level)
+    if (!lvl) items.push({ id: `own:${id}`, section: sec, name: d.name, blurb: d.blurb, level: 0, max: mx, cost: ORB_PRICE[id], orb: id, live: false, locked, needs: locked ? 'hangar' : null, secret: !!d.secret });
+    else items.push({ id: `up:${id}`, section: sec, name: d.name, blurb: d.blurb, level: lvl, max: mx, cost: lvl >= mx ? null : orbUpCost(id, lvl), orb: id, owned: true, live: true, secret: !!d.secret });
   }
   // Ship Gun
   for (const [k, u] of Object.entries(GUN_UP)) {

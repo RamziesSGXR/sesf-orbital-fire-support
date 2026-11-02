@@ -298,7 +298,7 @@ check('the nuke covers a much wider area', C.objective.nuke.blastR >= 200, `${C.
   const kit = newKit(), w = newWallet(); w.bal = 1e9;
   let total = 0; const by = {};
   for (let g = 0; g < 1000; g++) {
-    const it = shopItems(kit).find((i) => i.cost !== null && !i.locked && !i.endless);   // (the endless SEAF Barracks is not 'maxed')
+    const it = shopItems(kit).find((i) => i.cost !== null && !i.locked && !i.endless && !i.secret);   // (the endless SEAF Barracks is not 'maxed'; 0.25: the classified four are a bonus on top)
     if (!it) break;
     if (!buy(kit, w, it.id, false).ok) break;
     total += it.cost; by[it.section] = (by[it.section] || 0) + it.cost;

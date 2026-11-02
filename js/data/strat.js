@@ -59,6 +59,16 @@ export const STRATS = {
                    beam: { dps: 260, width: 6, dur: 16, follow: 15, leash: 60 } },
 
   // ---------- Ship utilities: help for the squad rather than firepower (the player's, bought and equipped like orbitals) ----------
+  // ---------- (0.25) Classified: four over-the-top stratagems for the last ranks (15, 20, 25 and 30 missions done) ----------
+  // The gunner's alone (player), one level each (secret: the rank that opens it), and they hurt allies like any strike.
+  orb_storm:     { cat: 'ORBITAL', g: 'STM', cd: 160, k: 'strike', use: 'cluster', player: true, secret: 6,
+                   pat: 'scatter', n: 36, len: 64, span: 16, delay: 5, dmg: 520, splash: 11, mult: M(1, 1, 0.6, 0.25) },
+  eagle_squad:   { cat: 'EAGLE', g: 'SQD', cd: 150, k: 'strike', use: 'cluster', player: true, secret: 7,
+                   pat: 'line', n: 22, len: 110, span: 2.2, delay: 4, dmg: 650, splash: 11, mult: M(1, 1, 0.7, 0.3), fly: true },
+  orb_lance:     { cat: 'ORBITAL', g: 'LNC', cd: 190, k: 'beam', use: 'heavy', player: true, secret: 8, delay: 3,
+                   beam: { dps: 1100, width: 13, dur: 22, follow: 26, leash: 110 } },
+  orb_final:     { cat: 'ORBITAL', g: 'FIN', cd: 600, k: 'strike', use: 'heavy', player: true, secret: 9, anti: true,
+                   pat: 'point', n: 1, len: 0, span: 0, delay: 8, dmg: 30000, splash: 70, mult: M(1, 1, 1, 1) },
   util_med:      { cat: 'ORBITAL', util: 'med', g: 'MED', cd: 80, k: 'util', delay: 2.5, r: 18, heal: 0.6, splash: 18 },
   util_smoke:    { cat: 'ORBITAL', util: 'smoke', g: 'SCR', cd: 70, k: 'util', delay: 2.5, zone: { kind: 'smoke', r: 22, sec: 25 } },
   util_shield:   { cat: 'ORBITAL', util: 'shield', g: 'DOM', cd: 110, k: 'util', delay: 3, r: 16, shield: 1200, life: 40, splash: 16 },

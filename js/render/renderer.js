@@ -819,7 +819,7 @@ export class Renderer {
   _strikeFx(ev, now, flash) {
     if (this.fx.length > 300) return;
     const fx = this.fx, id = ev.sid || '', r = Math.max(2, ev.r), x = ev.x, y = ev.y, rnd = Math.random;
-    const kind = /napalm|mine_inc/.test(id) ? 'fire' : /gas/.test(id) ? 'gas' : /ems/.test(id) ? 'ems' : /500|380/.test(id) ? 'big' : /rail/.test(id) ? 'rail'
+    const kind = /napalm|mine_inc/.test(id) ? 'fire' : /gas/.test(id) ? 'gas' : /ems/.test(id) ? 'ems' : /500|380|storm|squad|final/.test(id) ? 'big' : /rail/.test(id) ? 'rail'
       : /precision/.test(id) ? 'prec' : /airburst/.test(id) ? 'air' : /cluster/.test(id) ? 'cluster' : /strafe/.test(id) ? 'strafe' : /rocket/.test(id) ? 'rocket' : ev.mine ? 'mine' : 'he';
     switch (kind) {
       case 'fire':
