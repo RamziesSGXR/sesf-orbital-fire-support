@@ -90,7 +90,7 @@ if (sq) {
   // (a little above the camera's point, which sits higher with the sheet open: 0.19.1)
   const cy = await ev(() => Math.round(innerHeight * (window.__game.renderer.focusY || 0.5)) - 60);
   if (!touch) { await page.mouse.move(640, cy); await page.waitForTimeout(100); await page.mouse.click(640, cy); await page.waitForTimeout(300); }
-  else { await page.touchscreen.tap(W / 2, H * 0.45); await page.waitForTimeout(300); }
+  else { await page.touchscreen.tap(W / 2, H * 0.45); await page.waitForTimeout(300); await tap('#po-go'); await page.waitForTimeout(300); }     // (0.22: the tap moves the ghost; PLACE puts it down)
   await page.keyboard.press('Escape'); await page.waitForTimeout(200);
   const bo = await ev(() => window.__game.mission.seaf.squads.some((q) => q.n && q.order.kind === 'build' && q.order.what === 'tower'));
   check('picking one sends a squad to build it', bo);

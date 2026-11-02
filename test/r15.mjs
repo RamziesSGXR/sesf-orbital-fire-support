@@ -202,6 +202,8 @@ function lone(m, kind, x, y) {
   check('no weapon 9 without a cannon', m.player.slots[8].type === 'empty');
   m.selectSquad(0); m.seafBuild('arty', m.hx + 30, m.hy + 10);
   run(m, 70, (mm) => { if (mm.arty.length) mm.step(dt); });
+  // (0.22: nobody goes inside on their own; the squad that built it is sent in)
+  { const g = m.arty.find((x) => x.built); if (g) { m.selectSquad(0); m.garrisonGo(g); run(m, 6); } }
   const built = m.arty.filter((g) => g.built);   // (a captured one may have joined it: the squad takes abandoned ones on the way)
   check('SEAF build the cannon, man it, and it joins the weapon bar', built.length === 1 && m.player.slots[8].type === 'arty' && built[0].crew > 0, m.arty[0] ? `crew ${m.arty[0].crew}, ${m.arty.length} cannons, slot ${m.player.slots[8].type}` : '');
   const st = buildStats('arty', 2);

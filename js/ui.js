@@ -68,12 +68,27 @@ export class Hud {
     }
     document.querySelectorAll('#squads .sqb').forEach((e) => {
       const i = Number(e.dataset.sq);
-      e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); const d = this.dbl('s' + i); if (d && i >= 0 && this.onSquadDbl && this.onSquadDbl(i)) return; this.onSquad && this.onSquad(i); if (d) this.onFocus && this.onFocus('seaf', i); });
+      let held = 0, hT = 0;
+      e.addEventListener('pointerdown', (ev) => {
+        ev.preventDefault();
+        if (this.merge) { if (i >= 0) this.mergeToggle(i); return; }                        // (0.22) MERGE: a tap picks the squads to merge
+        if (ev.shiftKey && i >= 0) { this.onSquadAdd && this.onSquadAdd(i); return; }     // (0.22) Shift+click: this squad as well
+        if (ev.pointerType !== 'mouse' && i >= 0) {     // (0.22) a finger held on it: this squad as well (a short tap acts when the finger lifts)
+          held = 0; clearTimeout(hT); e._down = true;
+          hT = setTimeout(() => { held = 1; e._down = false; try { navigator.vibrate && navigator.vibrate(12); } catch { /* */ } this.onSquadAdd && this.onSquadAdd(i); }, 450);
+          return;
+        }
+        tapSq();
+      });
+      const tapSq = () => { const d = this.dbl('s' + i); if (d && i >= 0 && this.onSquadDbl && this.onSquadDbl(i)) return; this.onSquad && this.onSquad(i); if (d) this.onFocus && this.onFocus('seaf', i); };
+      e.addEventListener('pointerup', () => { clearTimeout(hT); if (e._down && !held) { e._down = false; tapSq(); } });
+      const stop = () => { clearTimeout(hT); e._down = false; };
+      e.addEventListener('pointerleave', stop); e.addEventListener('pointercancel', stop);
       this.sqb.push({ i, el: e, s: e.querySelector('.s'), key: '' });
     });
     document.querySelectorAll('#squads .sqa').forEach((e) => {
       const kind = e.dataset.a;
-      e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); this.onSquadAct && this.onSquadAct(kind); });
+      e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); if (kind === 'merge') { ev.stopPropagation(); if (this.merge) this.mergeEnd(); else this.mergeStart(); return; } this.onSquadAct && this.onSquadAct(kind); });
       this.sqa[kind] = { el: e, key: '' };
     });
     this.ord = {}; this.placing = null;
@@ -112,6 +127,13 @@ export class Hud {
       });
       $('squads').appendChild(e); this.fcyc = { el: e, i: e.querySelector('.fg'), n: e.querySelector('.n'), key: '' };
     }
+    $('mp-go').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); const L = this.merge ? [...this.merge] : []; this.mergeEnd(); if (this.onMerge) this.onMerge(L); });
+    $('mp-x').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.mergeEnd(); });
+    document.addEventListener('pointerdown', (ev) => { if (this.merge && !ev.target.closest('#squads, #merge-pop')) this.mergeEnd(); }, true);
+    // (0.22) PLACE and CANCEL for a ghost on a touch screen; UNDO for the plan made in the pause
+    $('po-go').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onPlaceOk && this.onPlaceOk(); });
+    $('po-x').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onPlaceCancel && this.onPlaceCancel(); });
+    $('sp-undo').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onPlanUndo && this.onPlanUndo(); });
     // (0.21) phones have no INFO button: a tap on the clock or the objective opens the mission info
     for (const q of ['#mbox', '#objective']) document.querySelector(q).addEventListener('click', () => { if (document.body.classList.contains('lay-phone')) this.onInfo && this.onInfo(); });
     $('dropcd-go').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onDeployNow && this.onDeployNow(); });
@@ -482,6 +504,52 @@ export class Hud {
   }
   // The strip goes just under whatever is across the top (nothing moves while the game is stopped, so once is enough).
   placeSoft() { const bar = document.querySelector('#softpause .sp-bar'); if (bar) bar.style.top = ''; this.layout(true); }
+  // (0.22) How many orders, builds and calls wait for RESUME (planned in the pause), with UNDO for the last.
+  setPlanCount(n) {
+    const q = $('sp-q'); q.classList.toggle('hidden', !n); $('sp-undo').classList.toggle('hidden', !n);
+    if (n) q.textContent = t('plan.count', { n });
+  }
+  // (0.22) A question with buttons: [{ label, fn, primary }]. It goes by itself after ms (nothing done: the safe answer).
+  ask(text, buttons, ms = 7000) {
+    const a = $('ask'); clearTimeout(this._askT);
+    a.querySelector('.ask-t').textContent = text;
+    const bx = a.querySelector('.ask-b'); bx.innerHTML = '';
+    for (const b of buttons) {
+      const e = el('button', 'btn' + (b.primary ? ' primary' : ''), esc(b.label)); e.type = 'button';
+      e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.askEnd(); if (b.fn) b.fn(); });
+      bx.appendChild(e);
+    }
+    a.classList.remove('hidden'); this.layout(true);
+    this._askT = setTimeout(() => this.askEnd(), ms);
+  }
+  askEnd() { clearTimeout(this._askT); $('ask').classList.add('hidden'); }
+  // (0.22) Touch: the ghost of what is being placed, with PLACE and CANCEL (a tap on the map moves the ghost).
+  placeOk(text) {
+    const e = $('place-ok'); e.classList.toggle('hidden', !text);
+    if (text) e.querySelector('.po-t').textContent = text;
+  }
+  // (0.22) MERGE: tap the squads to merge (they light up and are listed over the button), then MERGE; a tap anywhere else lets it go.
+  mergeStart() {
+    const sf = this.m && this.m.seaf; if (!sf) return;
+    this.merge = new Set(sf.sel >= 0 ? [sf.sel] : sf.multi || []);
+    document.body.classList.add('merging'); this.mergeShow();
+  }
+  mergeToggle(i) { if (!this.merge) return; if (this.merge.has(i)) this.merge.delete(i); else this.merge.add(i); this.mergeShow(); }
+  mergeEnd() { this.merge = null; document.body.classList.remove('merging'); $('merge-pop').classList.add('hidden'); for (const b of this.sqb) b.key = ''; if (this.sqa.merge) this.sqa.merge.key = ''; }
+  mergeShow() {
+    const pop = $('merge-pop'), L = [...this.merge].sort((a, b) => a - b), go = $('mp-go');
+    pop.querySelector('.mp-t').textContent = L.length ? t('merge.list', { list: L.map((i) => 'S' + (i + 1)).join(' + ') }) : t('merge.pick');
+    go.disabled = L.length < 2; go.textContent = L.length >= 2 ? t('merge.goTo', { to: 'S' + (L[0] + 1) }) : t('merge.go');
+    pop.classList.remove('hidden');
+    for (const b of this.sqb) b.key = '';
+    // over the MERGE button (in the HUD's own units: it is zoomed with Settings > UI size)
+    const btn = this.sqa.merge && this.sqa.merge.el, z = parseFloat(getComputedStyle(document.body).getPropertyValue('--ui')) || 1;
+    if (btn) {
+      const r = btn.getBoundingClientRect(), W = window.innerWidth, pw = pop.offsetWidth * z;
+      pop.style.left = `${Math.max(8, Math.min(W - pw - 8, r.left + r.width / 2 - pw / 2)) / z}px`;
+      pop.style.bottom = `${(window.innerHeight - r.top + 8) / z}px`;
+    }
+  }
   // Placement mode (desktop): the next click on the map drops or sends.
   setPlacing(kind) {
     this.placing = kind;
@@ -878,7 +946,7 @@ export class Hud {
   setArmed(on) { this.armed = !!on; document.body.classList.toggle('armed', !!on); for (const w of this.wb) w.key = ''; }
   // The tactical screen's left panel: the selected post (or site, or sentry), or the selected squad and what it is made of.
   _tacSel(m, sel) {
-    const key = `${sel ? sel.id || sel.x : ''}|${m.seaf.sel}|${(m.seaf.pick || []).join(',')}`;
+    const key = `${sel ? sel.id || sel.x : ''}|${m.seaf.sel}|${(m.seaf.pick || []).join(',')}|${(m.seaf.multi || []).join(',')}`;
     if (this._selKey !== undefined && this._selKey !== key) { const p = $('selpanel'); p.classList.remove('flash'); void p.offsetWidth; p.classList.add('flash'); }
     this._selKey = key;
     const sf = m.seaf, q = sf.sel >= 0 ? sf.squads[sf.sel] : null;
@@ -902,6 +970,9 @@ export class Hud {
     } else if (sf.sel === -2 && sf.pick) {
       const list = m.seafAlive.filter((a) => sf.pick.includes(a.id));
       h = `<div class="ts-h">${esc(t('tac.picked'))} <i>${esc(t('tac.troopers', { n: list.length }))}</i></div>${tiles(list)}<div class="ts-b">${esc(t('tac.pickHint'))}</div>`;
+    } else if (sf.multi && sf.multi.length) {     // (0.22) several squads: each gets the orders, as itself
+      const list = m.seafAlive.filter((a) => sf.multi.includes(a.sq));
+      h = `<div class="ts-h">${sf.multi.map((i) => `<span style="color:${SQUAD_COL[i] || '#fff'}">S${i + 1}</span>`).join(' + ')} <i>${esc(t('tac.troopers', { n: list.length }))}</i></div>${tiles(list)}<div class="ts-r">${esc(t('tac.multi'))}</div>`;
     } else if (q && q.n) {
       const list = m.seafAlive.filter((a) => a.sq === q.i);
       h = `<div class="ts-h" style="color:${SQUAD_COL[q.i] || '#fff'}">S${q.i + 1} <i>${esc(t('tac.troopers', { n: q.n }))}</i></div>${tiles(list)}`
@@ -910,7 +981,7 @@ export class Hud {
       const n = m.countAlly('S'), loose = m.seafAlive.filter((a) => a.sq === -3).length;
       h = `<div class="ts-h">${esc(t('hud.all'))} <i>${esc(t('tac.troopers', { n }))}</i></div>${loose ? `<div class="ts-r">${esc(t('tac.loose', { n: loose }))}</div>` : ''}<div class="ts-b">${esc(t(n ? (document.body.classList.contains('touch') ? 'tac.selHintTouch' : 'tac.selHint') : 'tac.noSeaf'))}</div>`;
     }
-    $('selpanel').classList.toggle('empty', !(sel && !sel.dead) && !(sf.sel === -2 && sf.pick) && !(q && q.n));     // (0.21: nothing picked; phones fold the line away)
+    $('selpanel').classList.toggle('empty', !(sel && !sel.dead) && !(sf.sel === -2 && sf.pick) && !(q && q.n) && !(sf.multi && sf.multi.length));     // (0.21: nothing picked; phones fold the line away)
     this._set('tacsel', $('tc-sel'), h, 'innerHTML');
   }
   // The selected post, site or sentry: name, level, health and crew in a small panel just above it on the map, with a door to send
@@ -973,7 +1044,9 @@ export class Hud {
   _squads(m) {
     const sf = m.seaf, total = m.countAlly('S');
     for (const b of this.sqb) {
-      const q = b.i < 0 ? null : sf.squads[b.i], n = q ? q.n : total, sel = sf.sel === b.i;
+      const q = b.i < 0 ? null : sf.squads[b.i], n = q ? q.n : total, multi = !!(sf.multi && sf.multi.length);
+      const mg = !!(this.merge && b.i >= 0 && this.merge.has(b.i));
+      const sel = this.merge ? mg : b.i < 0 ? sf.sel === -1 && !multi : sf.sel === b.i || (multi && sf.multi.includes(b.i));     // (0.22: several squads lit at once)
       let sub = n ? String(n) : '--';
       if (q && n) {
         const k = q.order.kind;
@@ -981,15 +1054,16 @@ export class Hud {
       }
       const pend = q ? m.pelicans.some((p) => p.squad === q.i && p.roles.length > p.dropped) : false;
       const show = !q || n > 0 || sel || pend;            // (0.18) empty squads are not shown
-      const key = `${sub}|${sel}|${n > 0}|${show}`;
+      const key = `${sub}|${sel}|${n > 0}|${show}|${multi}|${!!this.merge}`;
       if (b.key === key) continue;
-      b.key = key; b.s.textContent = sub; b.el.className = 'sqb' + (sel ? ' sel' : '') + (n ? '' : ' empty') + (show ? '' : ' gone');
+      b.key = key; b.s.textContent = sub; b.el.className = 'sqb' + (sel ? ' sel' : '') + (sel && (multi || this.merge) && b.i >= 0 ? ' plus' : '') + (n ? '' : ' empty') + (show ? '' : ' gone');
     }
     const selN = sf.sel >= 0 ? sf.squads[sf.sel].n : 0;
     this._dock(sf, total);
     const set = (kind, cls) => { const a = this.sqa[kind], key = cls; if (!a || a.key === key) return; a.key = key; a.el.className = 'sqa ' + cls; };
     set('draw', !total ? 'off' : this.drawing ? 'active' : 'ready');
-    set('disband', sf.sel === -2 || (sf.sel >= 0 && selN > 0) ? 'ready' : 'off');
+    set('disband', sf.sel === -2 || (sf.sel >= 0 && selN > 0) || (sf.multi && sf.multi.length) ? 'ready' : 'off');
+    set('merge', this.merge ? 'active' : sf.squads.filter((q) => q.n > 0).length >= 2 ? 'ready' : 'off');
   }
 
   // The dock chip shows which squad is selected and what it is doing, so the tray can stay closed.

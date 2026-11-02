@@ -231,6 +231,7 @@ if (await ev(() => document.body.classList.contains('lay-phone'))) check('pickin
 else check('picking a build waits for a spot on the map (its tile lit)', (await ev(() => window.__game.placing)) === 'build:foxhole' && await page.isVisible('#tactical .bld.on'));
 const fx = await scr(dest.x + 6, dest.y - 6);
 await at(fx.x, fx.y); await page.waitForTimeout(200);
+if (touch) { await tap('#po-go'); await page.waitForTimeout(200); }     // (0.22: on a touch screen the tap moves the ghost; PLACE puts it down)
 check('a click (or tap) there orders it, and the screen stays open', (await ev(() => window.__game.mission.seaf.squads.some((q) => q.n && q.order.kind === 'build' && q.order.what === 'foxhole'))) && (await ev(() => window.__game.tac)) && !(await ev(() => window.__game.placing)));
 // a formation
 await toTroops(); await page.waitForTimeout(150);

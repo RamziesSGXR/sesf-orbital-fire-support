@@ -66,8 +66,9 @@
     <div id="squads" class="panel">
       <button class="sqb" data-sq="-1"><span class="n" data-t="hud.all">ALL</span><span class="s">0</span></button>
       <span class="sqbs"><!-- S1 to S9: only the squads with troops in them (ui.js) --></span>
-      <button class="sqa" data-a="draw"><span class="k">R</span><span class="n" data-t="hud.draw">DRAW</span></button>
-      <button class="sqa" data-a="disband"><span class="k">DEL</span><span class="n" data-t="hud.disband">DISBAND</span></button>
+      <button class="sqa" data-a="draw"><span class="k">R</span><i class="gl">✎</i><span class="n" data-t="hud.draw">DRAW</span></button>
+      <button class="sqa" data-a="disband"><span class="k">DEL</span><i class="gl">⊘</i><span class="n" data-t="hud.disband">DISBAND</span></button>
+      <button class="sqa" data-a="merge"><i class="gl">⧉</i><span class="n" data-t="hud.merge">MERGE</span></button>
     </div>
     <div id="orders" class="panel">
       <button class="ord" data-o="seaf"><span class="k">G</span><span class="n" data-t="hud.seafDrop">SEAF DROP</span><span class="s">--</span></button>
@@ -154,6 +155,7 @@
       <div class="sp-frame"></div>
       <div class="sp-bar panel">
         <b data-t="soft.title">PAUSED</b><span class="sp-hint" data-t="soft.hint">Look around: pan, zoom, open the map</span>
+        <span id="sp-q" class="sp-q hidden"></span><button id="sp-undo" class="btn hidden" type="button" data-t="plan.undo">UNDO</button>
         <button id="sp-resume" class="btn primary" type="button"><span data-t="soft.resume">RESUME</span> <kbd>P</kbd></button>
         <button id="sp-menu" class="btn" type="button"><span data-t="soft.menu">PAUSE MENU</span> <kbd>ESC</kbd></button>
       </div>
@@ -162,7 +164,13 @@
     <div id="topmid">
       <div id="dropcd" class="hidden" role="status"><div class="dc-t"><small class="dc-l" data-t="hud.dropIn">HELLDIVERS DROP IN</small><small class="dc-s" data-t="hud.dropShort">DROP IN</small><b id="dropcd-n">0:30</b></div><button id="dropcd-go" class="btn primary" type="button"><span class="dc-l" data-t="hud.deployNow">DEPLOY NOW</span><span class="dc-s" data-t="hud.deployShort">DEPLOY</span> <kbd>ENTER</kbd></button></div>
       <div id="center-msg"></div>
+      <!-- (0.22) a question the game asks (go inside a building?), answered with a tap; it goes by itself -->
+      <div id="ask" class="panel hidden" role="alertdialog"><span class="ask-t"></span><span class="ask-b"></span></div>
     </div>
+    <!-- (0.22) touch: the ghost of what is being placed waits for PLACE (a tap on the map moves it) -->
+    <div id="place-ok" class="panel hidden" role="group"><span class="po-t"></span><button id="po-go" class="btn primary" type="button" data-t="place.go">PLACE</button><button id="po-x" class="btn" type="button" data-t="place.cancel">CANCEL</button></div>
+    <!-- (0.22) MERGE: the squads to merge, over the button -->
+    <div id="merge-pop" class="panel hidden" role="dialog"><span class="mp-t"></span><button id="mp-go" class="btn primary" type="button" data-t="merge.go">MERGE</button><button id="mp-x" class="btn" type="button">✕</button></div>
     <div id="toast"></div>
   </div>
 

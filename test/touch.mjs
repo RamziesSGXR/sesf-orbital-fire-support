@@ -47,12 +47,14 @@ await tap('#fire-btn'); await page.waitForTimeout(400);
 check('orbital called', await page.evaluate(() => window.__game.mission.stats.orbCalls) === shells0 + 1);
 // SEAF drop
 await tap('#tactical .tco.seaf'); await page.waitForTimeout(400);     // (0.20: SEAF DROP in the command panel)
+check('(0.22) SEAF DROP shows its ghost first, with PLACE', await page.isVisible('#place-ok') && (await page.evaluate(() => window.__game.mission.pelicans.length)) === 0);
+await tap('#po-go'); await page.waitForTimeout(400);
 check('SEAF pelican called', await page.evaluate(() => window.__game.mission.pelicans.length > 0));
 // orders need SEAF on the ground: wait for the pod, then tap protect
 await page.waitForTimeout(12000);
 check('SEAF landed', await page.evaluate(() => window.__game.mission.seafAlive.length) > 0);
 check('(0.20) the command panel is up, on TROOPS', await page.isVisible('#tactical') && (await page.evaluate(() => window.__game.hud.tcTab)) === 'units' && await page.isVisible('#tactical .tco[data-o=protect]'));
-await tap('#tactical .tco[data-o=protect]'); await page.waitForTimeout(300);
+await tap('#tactical .tco[data-o=protect]'); await page.waitForTimeout(300); await tap('#po-go'); await page.waitForTimeout(300);     // (0.22: its ghost, then PLACE)
 check('SEAF protect order', await page.evaluate(() => window.__game.mission.seaf.squads[0].order.kind) === 'protect');
 await tap('#tactical .tco[data-o=escort]'); await page.waitForTimeout(300);
 check('SEAF escort order', await page.evaluate(() => window.__game.mission.seaf.squads[0].order.kind) === 'escort');

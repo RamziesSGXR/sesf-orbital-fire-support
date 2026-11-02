@@ -77,7 +77,7 @@ check('the version is 0.18.0 or later', /^0\.(1[89]|[2-9]\d)\./.test(C.share.ver
   run(m, 0.3);
   const solo = L.reach;
   check('(0.18) a lookout works with nobody up it', solo > 0 && m.relays.some((u) => u.kind === 'lookout'), `reach ${solo} m`);
-  const man = m.addAlly('S', L.x + 2, L.y, { role: 'rifle' }); man.sq = 5; m._refreshAlive(); m.selectSquad(5); m.seafMan(L);
+  const man = m.addAlly('S', L.x + 2, L.y, { role: 'rifle' }); man.sq = 5; m._refreshAlive(); m.selectSquad(5); m.garrisonGo(L);
   run(m, 3, () => { if (!man.inside) { man.x = L.x + 1; man.y = L.y; } });
   check('manned (the crew inside, out of sight), it sees farther than a UAV circle', man.inside === L && L.reach > solo && L.reach > 95, `reach ${L.reach} m`);
   // an enemy beyond the lookout's sight but inside its spotting ring, in the strike zone

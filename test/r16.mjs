@@ -177,7 +177,9 @@ function troops(m, n, sq = 0, x = m.hx + 10, y = m.hy + 6) {
   run(m, 3);
   const hpSolo = e.maxHp - e.hp;
   check('(0.18) a turret nest with nobody in it fires on its own', hpSolo > 0, `${Math.round(hpSolo)} damage`);
-  m.selectSquad(0); m.seafMan(mg); run(m, 30);
+  m.selectSquad(0); const offer = m.seafMan(mg); run(m, 30);
+  check('(0.22) sent to it, the squad holds beside the nest and nobody goes in on their own (the game offers the door)', offer.ok && offer.canGarrison && mg.garrison === 0 && !m.seafAlive.some((a) => a.inside === mg), `garrison ${mg.garrison}`);
+  m.garrisonGo(mg); run(m, 30);
   check('sent to man it, the squad takes its places', mg.crew === mg.cap, `crew ${mg.crew}/${mg.cap}`);
   check('manned, it fires (and the crew are inside it, out of sight)', e.hp < e.maxHp && m.seafAlive.filter((a) => a.inside === mg).length === mg.cap);
   check('and it is tough', mg.maxHp >= 1500);
@@ -202,7 +204,7 @@ function troops(m, n, sq = 0, x = m.hx + 10, y = m.hy + 6) {
   run(m, 0.2);
   const r0 = (m.relays.find((u2) => u2.tower) || {}).r || 0;
   check('(0.18) with nobody in it, it already keeps some ground in view', r0 > 0 && r0 < C.uav.r[0], `${r0} m`);
-  const t2 = m.addAlly('S', tw.x + 2, tw.y, { role: 'rifle' }); t2.sq = 2; m._refreshAlive(); m.selectSquad(2); m.seafMan(tw); run(m, 3, () => { if (!t2.inside) { t2.x = tw.x + 1; t2.y = tw.y; } });
+  const t2 = m.addAlly('S', tw.x + 2, tw.y, { role: 'rifle' }); t2.sq = 2; m._refreshAlive(); m.selectSquad(2); m.garrisonGo(tw); run(m, 3, () => { if (!t2.inside) { t2.x = tw.x + 1; t2.y = tw.y; } });
   check('manned, it keeps the ground round it in view (as far as the UAV reaches)', t2.inside === tw && m.relays.some((u2) => u2.tower && u2.r >= C.uav.r[0]) && m.visLevel(tw.x + 60, tw.y) > 0);
   const t2b = m.addAlly('S', tw.x + 20, tw.y, { role: 'rifle' }); t2b.sq = 3; m._refreshAlive(); run(m, 0.2);
   check('allies under it get the UAV\'s lift', m.t - t2b.uavAt < 0.3);
@@ -227,7 +229,7 @@ function troops(m, n, sq = 0, x = m.hx + 10, y = m.hy + 6) {
   const sh0 = m.shells.length; m.fire(); run(m, 0.1);
   const cdSolo = m.player.slots[8].readyAt - m.t;
   check('(0.18) with nobody on it, it fires, and reloads slowly', m.shells.length > sh0 && gun.crew === 0, `${Math.round(cdSolo)} s`);
-  const t3 = m.addAlly('S', gun.x + 2, gun.y, { role: 'rifle' }); const t4 = m.addAlly('S', gun.x + 3, gun.y, { role: 'rifle' }); t3.sq = t4.sq = 4; m._refreshAlive(); m.selectSquad(4); m.seafMan(gun); run(m, 3);
+  const t3 = m.addAlly('S', gun.x + 2, gun.y, { role: 'rifle' }); const t4 = m.addAlly('S', gun.x + 3, gun.y, { role: 'rifle' }); t3.sq = t4.sq = 4; m._refreshAlive(); m.selectSquad(4); m.garrisonGo(gun); run(m, 3);
   m.player.slots[8].readyAt = 0; const sh1 = m.shells.length; m.fire(); run(m, 0.1);
   check('manned, it fires and reloads faster', m.shells.length > sh1 && m.player.slots[8].readyAt - m.t < cdSolo - 5, `crew ${gun.crew}, ${Math.round(m.player.slots[8].readyAt - m.t)} s`);
 }

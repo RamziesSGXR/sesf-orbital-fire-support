@@ -11,8 +11,8 @@ import { newKit, newWallet, seafStats, maxLives, zoneExtra, buy, loadoutIds, bui
 import { seafName } from '../data/names.js';
 import { updateSquad } from './squad.js';
 import { setupDefenders } from './defenders.js';
-import { initSeaf, targetSquads, setSquadOrder, drawOrder, callPelican, pendingTroops, dropSquad, callCargo, boxSelect, setForm, pickTroops, toSquad, disband, PICKED } from './seaf.js';
-import { updatePosts, updateSam, garrisonPost, releaseGarrison, POSTS } from './posts.js';
+import { initSeaf, targetSquads, setSquadOrder, drawOrder, callPelican, pendingTroops, dropSquad, callCargo, boxSelect, setForm, pickTroops, toSquad, disband, PICKED, selectSquads as seafSelectSquads, mergeSquads as seafMergeSquads } from './seaf.js';
+import { updatePosts, updateSam, garrisonPost, releaseGarrison, POSTS, makePost, INSIDE } from './posts.js';
 import { updateEnemies, updateAllies } from './enemies.js';
 import { updateDirector, alertBase } from './director.js';
 import { initPatrols, updatePatrols } from './patrols.js';
@@ -125,7 +125,7 @@ export class Mission {
     this.deaths = [];     // the death report: every Helldiver and SEAF who fell, in order
 
     this.enemies = []; this.groups = []; this.allies = []; this.alive = []; this.hdAlive = []; this.seafAlive = [];
-    this.shells = []; this.beams = []; this.markers = []; this.pods = []; this.pelicans = []; this.incoming = []; this.uavs = []; this.relays = []; this.spotters = []; this.bubbles = []; this.evading = false; this.hellbomb = null;
+    this.shells = []; this.beams = []; this.bridgeQ = []; this.markers = []; this.pods = []; this.pelicans = []; this.incoming = []; this.uavs = []; this.relays = []; this.spotters = []; this.bubbles = []; this.evading = false; this.hellbomb = null;
     this.assets = []; this.zones = []; this.civs = [];
     this.crates = []; this.arty = []; this.posts = [];   // supply crates SEAF deploy into defences; artillery cannons; everything SEAF built (posts.js)
     this.pois = []; this.breaches = [];
@@ -343,6 +343,7 @@ export class Mission {
     const st = buildStats(what, lvl);
     const sq = targetSquads(this).filter((q) => q.n > 0);
     if (!sq.length) return this._deny('noseaf');
+    if (what === 'bridge') return this.bridgeDrop(x, y);     // (0.22) a light bridge comes down from the ship: nobody builds it
     let span = null;
     if (what === 'bridge') {
       // a light bridge goes across the water at the spot: the shortest way over, the crate on the bank nearer the squad
@@ -373,6 +374,43 @@ export class Mission {
     this.emit('seaf_order', { kind: 'build', what, x, y, sq: q.i });
     return { ok: true, squad: q.i };
   }
+  // (0.22) A light bridge, dropped from the ship: anywhere an ally (or a UAV) can see, across the water at the spot. No crate and
+  // nobody to build it; it comes down on its own after dropSec, a little slower than a crate the squad builds.
+  bridgeDrop(x, y) {
+    if (this.over) return { ok: false, reason: 'over' };
+    const lvl = buildLevel(this.kit, 'bridge');
+    if (!lvl) return this._deny('locked');
+    const st = buildStats('bridge', lvl);
+    if (!this.inSight(x, y)) return this._deny('nosight');
+    let ref = null, rd = Infinity;
+    for (const a of this.alive) { const d = Math.hypot(a.x - x, a.y - y); if (d < rd) { rd = d; ref = a; } }
+    const span = this.terrain.findSpan(x, y, st.span, ref ? ref.x : this.hx, ref ? ref.y : this.hy);
+    if (!span) return this._deny('nospan');
+    if (this.bridgeQ.some((b) => Math.hypot((b.span.x1 + b.span.x2) / 2 - (span.x1 + span.x2) / 2, (b.span.y1 + b.span.y2) / 2 - (span.y1 + span.y2) / 2) < 12)) return this._deny('nospan');
+    if (this.wallet.bal < st.cost) return this._deny('funds');
+    this.wallet.bal -= st.cost; this.wallet.spent += st.cost;
+    const at = this.t + C.build.bridge.dropSec, mx = (span.x1 + span.x2) / 2, my = (span.y1 + span.y2) / 2;
+    this.bridgeQ.push({ at, span, lvl });
+    this.markers.push({ type: 'bridge', x: mx, y: my, r: 6, span, start: this.t, end: at });
+    this.notice(tr('n.bridgeIn', { s: C.build.bridge.dropSec, cr: st.cost }), 'info');
+    this.emit('bridge_call', { x: mx, y: my, at });
+    return { ok: true, at, span };
+  }
+  _bridges() {
+    for (let i = this.bridgeQ.length - 1; i >= 0; i--) {
+      const b = this.bridgeQ[i]; if (this.t < b.at) continue;
+      this.bridgeQ.splice(i, 1);
+      makePost(this, 'bridge', b.span.x1, b.span.y1, { span: b.span, lvl: b.lvl });
+      this.notice(tr('n.bridgeDown'), 'good');
+    }
+  }
+  // (0.22) Can an ally (or a UAV circle) see (x, y)? Light bridges need it.
+  inSight(x, y) {
+    for (const a of this.alive) { const r = a.vision || a.sight || 0, dx = a.x - x, dy = a.y - y; if (dx * dx + dy * dy <= r * r) return true; }
+    for (const u of this.uavs) { const dx = u.x - x, dy = u.y - y; if (dx * dx + dy * dy <= u.r * u.r) return true; }
+    for (const u of this.relays) { const dx = u.x - x, dy = u.y - y; if (dx * dx + dy * dy <= u.r * u.r) return true; }
+    return false;
+  }
   // A crate on the ground (or a foxhole being dug): the selected squad (or the nearest) goes and builds it. Its progress is the crate's,
   // so it carries on where the last squad left off.
   seafBuildCrate(crate) {
@@ -402,10 +440,13 @@ export class Mission {
     if (!sq.length) return this._deny('noseaf');
     const post = target.kind === 'post' ? target : null, site = post ? post.site : target;
     const q = sq.slice().sort((a, b) => Math.hypot(a.cx - site.x, a.cy - site.y) - Math.hypot(b.cx - site.x, b.cy - site.y))[0];
-    setSquadOrder(this, q, 'post', site.x, site.y, { post, site });
+    // (0.22) a building (turret nest, lookout, tower, cannon): they hold beside it and crew it from there. Going inside takes them out
+    // of their squad, so that only happens through its door (the game offers it: see main.js commandAt).
+    const room = !!(post && INSIDE.has(post.what) && post.cap);
+    setSquadOrder(this, q, 'post', site.x, site.y, { post, site, garrison: room ? false : undefined });
     this.radio(COMMS.seafMan, 'seafman', 1);
     this.emit('seaf_order', { kind: 'post', x: site.x, y: site.y, sq: q.i });
-    return { ok: true, squad: q.i };
+    return { ok: true, squad: q.i, canGarrison: room && post.garrison < post.cap };
   }
   // The door on a selected post: the selected squad (or the nearest) goes there and as many as fit go in for good: they leave
   // their squad and stay with it (they still count toward the troops in the field). Anyone of the squad already on it goes in now.
@@ -453,7 +494,17 @@ export class Mission {
   // A formation for squad i (the tactical menu): loose, line, wedge, column or ring.
   setForm(i, f) { const q = this.seaf.squads[i]; if (q) setForm(this, q, f); }
   // -1 selects every squad.
-  selectSquad(i) { this.seaf.sel = i >= 0 && i < this.seaf.squads.length ? i : -1; this.seaf.pick = null; this.emit('squad_select', { sel: this.seaf.sel }); }
+  selectSquad(i) { this.seaf.sel = i >= 0 && i < this.seaf.squads.length ? i : -1; this.seaf.pick = null; this.seaf.multi = null; this.emit('squad_select', { sel: this.seaf.sel }); }
+  // (0.22) several squads at once (Shift+click, a finger held on a squad's button): orders go to each of them
+  selectSquads(list) { const L = seafSelectSquads(this, list); this.emit('squad_select', { sel: this.seaf.sel, multi: L }); return L; }
+  // (0.22) MERGE: the squads listed become one (the lowest number keeps its order)
+  mergeSquads(list) {
+    const r = seafMergeSquads(this, list);
+    if (!r.ok) return this._deny('merge');
+    this.notice(tr('n.merged', { from: r.from.map((i) => 'S' + (i + 1)).join(' + '), to: 'S' + (r.to + 1) }), 'info');
+    this.emit('squad_select', { sel: this.seaf.sel });
+    return r;
+  }
   // (0.18) pick troopers (a click on one, a box): see seaf.js pickTroops
   pickSeaf(list) { const r = pickTroops(this, list); this.emit('squad_select', { sel: this.seaf.sel }); return r; }
   // the selection joins squad i (Alt+number, a double tap on a squad button)
@@ -1012,6 +1063,7 @@ export class Mission {
     updatePosts(this, dt);
     updateSam(this);
     updatePlayer(this, dt);
+    if (this.bridgeQ.length) this._bridges();
     updatePlan(this, dt);
     updateSquad(this, dt);
     updateHelldivers(this, dt);

@@ -19,7 +19,7 @@ const dt = 1 / 30;
 const run = (m, sec, each) => { for (let i = 0, n = Math.round(sec / dt); i < n && !m.over; i++) { m.step(dt); if (each && each(m) === true) break; } };
 
 // ---------------------------------------------------------------- the version
-check('version 0.21.0', C.share.version === '0.21.0' && JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url))).version === '0.21.0', C.share.version);
+check('version 0.22.0', C.share.version === '0.22.0' && JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url))).version === '0.22.0', C.share.version);
 
 // ---------------------------------------------------------------- the climb
 {
@@ -115,7 +115,7 @@ check('version 0.21.0', C.share.version === '0.21.0' && JSON.parse(fs.readFileSy
 
 // ---------------------------------------------------------------- the code taken out (0.19 review)
 {
-  check('split, merge and assign are gone (Alt+number and DISBAND do it now)', !('splitSquad' in SEAF) && !('mergeSquad' in SEAF) && !('assignNear' in SEAF)
+  check('the old split, merge and assign are gone (Alt+number and DISBAND do it; 0.22 brings MERGE back as mergeSquads, see r21)', !('splitSquad' in SEAF) && !('mergeSquad' in SEAF) && !('assignNear' in SEAF) && typeof SEAF.mergeSquads === 'function'
     && typeof Mission.prototype.splitSeaf === 'undefined' && typeof Mission.prototype.assignSeaf === 'undefined');
   const m = new Mission({ seed: 3, faction: 'bots', biome: 'grass', events: false, boss: false });
   for (let k = 0; k < 8; k++) m.addAlly('S', m.lz.x + k, m.lz.y);

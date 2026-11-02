@@ -2019,3 +2019,40 @@ body.rts.lay-phone #hud #tactical #squads .sqb .s { font-size: 10px; }
 body.rts.lay-phone #hud #tactical .bld .n, body.rts.lay-phone #hud #tactical .bld .c, body.rts.lay-phone #hud #tactical .bld .s { font-size: 10px; }
 body.rts.lay-phone #hud #hdpanel .hr:is(.drop, .wait, .lost):not(.open) .st { letter-spacing: 0; }
 body.rts.lay-tab #hud #tactical #squads .sqb .n, body.rts.lay-tab #hud #tactical #squads .sqa .n { font-size: 12.5px; } body.rts.lay-tab #hud #tactical #squads .sqb .s { font-size: 11.5px; }
+
+/* ======================= 0.22: plan in the pause, ghosts, several squads, MERGE, the question ======================= */
+/* squads picked together: each lit, with a + (and the ones being merged the same way) */
+body.rts #hud .sqb.sel.plus { position: relative; box-shadow: 0 0 0 1px var(--sc), 0 0 12px color-mix(in srgb, var(--sc) 70%, transparent); }
+body.rts #hud .sqb.sel.plus::after { content: '+'; position: absolute; top: -1px; right: 3px; font-size: 11px; font-weight: 700; color: var(--sc); }
+body.merging #hud #squads .sqb:not(.gone) { outline: 1px dashed rgba(255, 210, 74, 0.55); outline-offset: -3px; }
+body.merging #hud #squads .sqb.sel { outline-color: #ffd24a; }
+body.rts #hud #squads .sqa.active { color: #ffd24a; border-color: #ffd24a; }
+/* the squad bar's DRAW, DISBAND and MERGE: a glyph (a phone held upright shows only the glyph) */
+body.rts #hud #squads .sqa .gl { font-style: normal; display: none; }
+body.rts.lay-phone.lay-port #hud #squads .sqa .gl { display: block; font-size: 16px; line-height: 1; }
+body.rts.lay-phone.lay-port #hud #squads .sqa .n { display: none; }
+body.rts.lay-phone.lay-port #hud #squads .sqa { min-width: 34px; flex: 0 0 auto; padding: 0 6px; }
+/* MERGE's popup, over its button (placed by ui.js) */
+#hud #merge-pop { position: absolute; z-index: 9; display: flex; align-items: center; gap: 6px; padding: 5px 6px 5px 10px; pointer-events: auto; font-size: 11.5px; letter-spacing: 0.06em; color: #ffd24a; border-color: #ffd24a; white-space: nowrap; }
+#hud #merge-pop.hidden { display: none; }
+#hud #merge-pop .btn { min-height: 34px; padding: 0 12px; font-size: 11px; } #hud #merge-pop .btn:disabled { opacity: 0.4; }
+/* the plan made in the pause: how many, and UNDO, on the pause strip */
+#softpause .sp-q { color: #ffd24a; font-size: 11.5px; letter-spacing: 0.08em; white-space: nowrap; }
+#softpause .sp-q.hidden, #softpause #sp-undo.hidden { display: none; }
+/* the question (go inside?): in the top centre, under the alerts */
+body.rts #hud #topmid #ask { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 8px; padding: 6px 8px 6px 12px; max-width: 100%; pointer-events: auto; font-size: 12px; color: #e8fff0; border-color: rgba(61, 224, 255, 0.8); }
+body.rts #hud #topmid #ask.hidden { display: none; }
+body.rts #hud #topmid #ask .ask-b { display: flex; gap: 6px; } body.rts #hud #topmid #ask .btn { min-height: 34px; padding: 0 12px; font-size: 11.5px; }
+/* touch: PLACE and CANCEL for the ghost, just over the command panel in the middle */
+#hud #place-ok { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(var(--dcb, 210px) + var(--sph, 0px)); z-index: 7; display: flex; align-items: center; gap: 6px; padding: 5px 6px 5px 10px; pointer-events: auto; max-width: calc(100vw / var(--ui, 1) - 16px); }
+#hud #place-ok.hidden { display: none; }
+#hud #place-ok .po-t { font-size: 11px; color: #9dffb8; letter-spacing: 0.04em; white-space: normal; }
+#hud #place-ok .btn { min-height: 40px; padding: 0 14px; font-size: 12px; white-space: nowrap; }
+body.rts.lay-phone #hud #place-ok { bottom: calc(var(--B) + var(--bbn) + 36px + 2 * var(--g)); }
+body.rts.lay-phone.lay-port #hud #place-ok { bottom: calc(var(--B) + var(--bbn) + var(--wsh) + 36px + 3 * var(--g)); }
+body.rts.lay-phone #hud:has(#place-ok:not(.hidden)) #notices { visibility: hidden; }
+body.touch #hud:has(#place-ok:not(.hidden)) #place-hint { display: none; }     /* (PLACE's bar says it) */
+body.rts.lay-phone #hud:has(#place-ok:not(.hidden)) #softpause .sp-bar { visibility: hidden; }     /* (a phone has room for one bar there: PLACE while placing; the pause button at the top still resumes) */
+/* the popups that ask for something sit on a solid panel (they cross the weapons and the map) */
+#hud #merge-pop, body.rts #hud #topmid #ask, #hud #place-ok { background: rgba(4, 20, 11, 0.95); box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6); }
+body.rts.lay-phone.lay-port #hud #tactical #squads .sqb { min-width: 34px; }

@@ -13,8 +13,8 @@ import { t as tr } from '../i18n.js';
 import { beaconAt } from '../sim/sides.js';
 import { drawFlares, drawHoles, drawDrops, drawEvac, drawExtraction, critText, drawSupply } from './reinf.js';
 import { drawBaseArt, drawBaseRuin, drawCover, drawCitadelWalls, drawCannonArt, drawNodeArt } from './sites.js';
-import { drawPosts } from './posts.js';
-import { buildStats, uavStats } from '../data/kit.js';
+import { drawPosts, postArt } from './posts.js';
+import { buildStats, uavStats, seafStats, buildLevel } from '../data/kit.js';
 import { todAt, skyTint } from './sky.js';
 
 const SIZE = C.world.size;
@@ -413,25 +413,13 @@ export class Renderer {
     drawSupply(ctx, m, now, px, labels, scale, (team) => (m.teams[team] ? m.teams[team].color : '#9dffb8'));
     if (ui.draw) drawStroke(ctx, m, now, px, labels, scale, ui.draw);
 
-    // Placement ghost for SEAF drops and orders
-    if (ui.placing && ui.aim) {
-      const k = ui.placing;
-      const bc = k === 'seaf' ? beaconAt(m, ui.aim.x, ui.aim.y) : null;     // over a lit drop beacon: it snaps there
-      const sp = bc || (ui.snap && k !== 'seaf' ? ui.snap(ui.aim.x, ui.aim.y) : ui.aim), ax = sp.x, ay = sp.y;
-      const covered = k === 'seaf' ? !!bc || m.inZone(ax, ay, -5) : true;
-      const col = !covered ? '#ff4a4a' : pal.ally;
-      const bk = k.startsWith('build:') ? k.slice(6) : null;
-      const R = bk === 'bastion' ? buildStats('bastion', Math.max(1, (m.kit.build || {}).bastion || 1)).R : bk ? C.build.r : k === 'protect' ? C.seaf.protectR : k === 'move' ? C.seaf.patrolRadius : k === 'attack' ? 24 : 22;
-      // a build that reaches out (the SAM site, the tower, the MG post, the cannon): its reach, faint
-      const reach = bk === 'sam' || bk === 'tower' ? uavStats(m.kit.uav).r : bk === 'mg' ? 46 : 0;
-      if (reach) { ctx.strokeStyle = 'rgba(255,230,0,0.4)'; ctx.lineWidth = px(1.2); ctx.setLineDash([px(4), px(6)]); ctx.beginPath(); ctx.arc(ax, ay, reach, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
-      if (bk === 'bastion') {       // (an area: the bastions' ring of walls)
-        ctx.strokeStyle = col; ctx.lineWidth = px(2); ctx.setLineDash([px(6), px(5)]); ctx.lineDashOffset = -now * px(12);
-        ctx.beginPath(); ctx.arc(ax, ay, R, 0, TAU); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
-      }
-      ctx.fillStyle = col; this._diamond(ctx, ax, ay, Math.max(px(6), 3.5));
-      labels.push({ x: ax, y: ay, dy: 38, text: !covered ? tr('ret.noCover') : bk ? tr('lab.place.build', { what: tr('build.' + bk) }) : k === 'seaf' ? tr(bc ? 'lab.dropBeacon' : 'lab.beacon') : tr('lab.place.' + k), col , pri: 3 });
-    }
+    // (0.22) The plan made in the pause: each order, build, drop and call where it will go, numbered in the order they go out
+    if (ui.plan && ui.plan.length) this._plan(ctx, m, ui.plan, now, px, labels, scale, pal);
+    // Placement ghost (0.22: what will be there, before it is placed): a building drawn see-through, a light bridge's span, a SEAF
+    // drop's size and the squad it joins, who will build it; red where it cannot go. ui.ghost: where it is (the cursor, or on a
+    // touch screen where it was put); the aim otherwise.
+    const gp = ui.placing ? ui.ghost || ui.aim : null;
+    if (gp) this._ghost(ctx, m, ui.placing, gp, now, px, labels, scale, pal, ui.snap);
 
     // Effects, and the player's orbital shells coming down
     this._incoming(ctx, m, now, px);
@@ -452,6 +440,86 @@ export class Renderer {
     this._post(ctx);
   }
 
+  // (0.22) The squad a build or a drop goes to: the one picked, the nearest of those picked, or the nearest of all.
+  _builder(m, x, y) {
+    const sf = m.seaf;
+    let L = sf.sel >= 0 ? [sf.squads[sf.sel]] : sf.multi && sf.multi.length ? sf.multi.map((i) => sf.squads[i]) : sf.sel === -2 ? [] : sf.squads;
+    L = L.filter((q) => q && q.n > 0);
+    let b = null, bd = Infinity;
+    for (const q of L) { const d = Math.hypot(q.cx - x, q.cy - y); if (d < bd) { bd = d; b = q; } }
+    return b ? { q: b, d: bd } : null;
+  }
+  _ghost(ctx, m, k, at, now, px, labels, scale, pal, snapFn) {
+    const bc = k === 'seaf' ? beaconAt(m, at.x, at.y) : null;     // over a lit drop beacon: it snaps there
+    const sp = bc || (snapFn && k !== 'seaf' && !k.startsWith('build:') ? snapFn(at.x, at.y) : at), ax = sp.x, ay = sp.y;
+    const bk = k.startsWith('build:') ? k.slice(6) : null;
+    let ok = true, why = '', text = '';
+    const pulse = 0.55 + 0.45 * Math.sin(now * 6);
+    if (bk) {
+      const lvl = Math.max(1, buildLevel(m.kit, bk)), st = buildStats(bk, lvl), cost = st.cost || 0;
+      if (!buildLevel(m.kit, bk)) { ok = false; why = tr('deny.locked'); }
+      else if (m.wallet.bal < cost) { ok = false; why = tr('deny.funds'); }
+      if (bk === 'bridge') {
+        // the span across the water at the spot (worked out again only when the ghost moves a few metres)
+        const key = `${Math.round(ax / 3)},${Math.round(ay / 3)}`;
+        if (this._gSpanKey !== key) { this._gSpanKey = key; const near = this._builder(m, ax, ay); this._gSpan = m.terrain.findSpan(ax, ay, st.span, near ? near.q.cx : m.hx, near ? near.q.cy : m.hy); }
+        const span = this._gSpan;
+        if (ok && !m.inSight(ax, ay)) { ok = false; why = tr('deny.nosight'); }
+        if (ok && !span) { ok = false; why = tr('deny.nospan'); }
+        if (span) {
+          ctx.save(); ctx.globalAlpha = ok ? 0.55 : 0.35;
+          postArt(ctx, { what: 'bridge', x: (span.x1 + span.x2) / 2, y: (span.y1 + span.y2) / 2, span, w: st.w, face: Math.atan2(span.y2 - span.y1, span.x2 - span.x1), hurtAt: -99, r: 4 }, now, px, m.t);
+          ctx.restore();
+        }
+        text = ok ? tr('lab.ghost.bridge', { s: C.build.bridge.dropSec, cr: cost }) : why;
+      } else {
+        if (ok && (!m.terrain.isLand(ax, ay) || m.terrain.blocked(ax, ay))) { ok = false; why = tr('deny.water'); }
+        const R = bk === 'bastion' ? buildStats('bastion', lvl).R : C.build.r;
+        const reach = bk === 'sam' || bk === 'tower' ? uavStats(m.kit.uav).r : bk === 'mg' ? 46 : 0;
+        if (reach) { ctx.strokeStyle = 'rgba(255,230,0,0.4)'; ctx.lineWidth = px(1.2); ctx.setLineDash([px(4), px(6)]); ctx.beginPath(); ctx.arc(ax, ay, reach, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
+        ctx.save(); ctx.globalAlpha = ok ? 0.5 + 0.15 * pulse : 0.3;
+        if (bk === 'bastion') { ctx.strokeStyle = ok ? '#d8e4dc' : '#ff4a4a'; ctx.lineWidth = px(3); ctx.setLineDash([px(7), px(4)]); ctx.beginPath(); ctx.arc(ax, ay, R, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
+        postArt(ctx, { what: bk, x: ax, y: ay, face: Math.atan2(ay - m.hy, ax - m.hx), face0: Math.atan2(ay - m.hy, ax - m.hx), hurtAt: -99, r: 3.5, lvl, manned: false, crew: 0, cap: st.cap || 0 }, now, px, m.t);
+        ctx.restore();
+        const b = ok ? this._builder(m, ax, ay) : null;
+        text = !ok ? why : b ? tr('lab.ghost.build', { what: tr('build.' + bk), sq: 'S' + (b.q.i + 1), m: Math.round(b.d), cr: cost }) : tr('lab.place.build', { what: tr('build.' + bk) });
+      }
+      ctx.strokeStyle = ok ? 'rgba(61,224,255,0.9)' : 'rgba(255,74,74,0.9)'; ctx.lineWidth = px(1.6); ctx.setLineDash([px(5), px(4)]); ctx.lineDashOffset = -now * px(10);
+      ctx.beginPath(); ctx.arc(ax, ay, Math.max(px(12), bk === 'bastion' ? buildStats('bastion', Math.max(1, buildLevel(m.kit, 'bastion'))).R + 3 : 7), 0, TAU); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+    } else if (k === 'seaf') {
+      // a SEAF drop: where the pelican puts them down, how many, and the squad they join
+      ok = !!bc || m.inZone(ax, ay, -5);
+      const st = seafStats(m.kit), room = Math.max(0, st.max - m.countAlly('S') - m.pendingPods('S')), n = Math.min(st.drop, room);
+      if (ok && !n) { ok = false; why = tr('deny.full'); }
+      const col = ok ? '95,168,255' : '255,74,74';
+      ctx.strokeStyle = `rgba(${col},${0.6 + 0.35 * pulse})`; ctx.fillStyle = `rgba(${col},0.10)`; ctx.lineWidth = px(2); ctx.setLineDash([px(6), px(5)]); ctx.lineDashOffset = -now * px(10);
+      ctx.beginPath(); ctx.arc(ax, ay, 14, 0, TAU); ctx.fill(); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      for (let i = 0; i < n; i++) { const a = (i / Math.max(1, n)) * TAU - Math.PI / 2; ctx.fillStyle = `rgba(${col},0.85)`; ctx.beginPath(); ctx.arc(ax + Math.cos(a) * 7, ay + Math.sin(a) * 7, Math.max(px(2.4), 1.4), 0, TAU); ctx.fill(); }
+      text = !ok ? (why || tr('ret.noCover')) : tr(bc ? 'lab.ghost.dropBeacon' : 'lab.ghost.drop', { n });
+    } else {
+      // an order: where the squad (or squads) will go
+      const R = k === 'protect' ? C.seaf.protectR : k === 'move' ? C.seaf.patrolRadius : k === 'attack' ? 24 : 22;
+      ctx.strokeStyle = pal.ally; ctx.lineWidth = px(1.6); ctx.setLineDash([px(6), px(5)]); ctx.lineDashOffset = -now * px(10);
+      ctx.beginPath(); ctx.arc(ax, ay, R, 0, TAU); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      text = tr('lab.place.' + k);
+    }
+    ctx.fillStyle = ok ? pal.ally : '#ff4a4a'; this._diamond(ctx, ax, ay, Math.max(px(5), 3));
+    labels.push({ x: ax, y: ay, dy: 34, text, col: ok ? '#9dffb8' : '#ff6a5a', pri: 3 });
+  }
+  _plan(ctx, m, plan, now, px, labels, scale, pal) {
+    plan.forEach((it, n) => {
+      if (it.x === undefined || it.y === undefined) return;
+      const x = it.x, y = it.y, k = it.kind, fire = k.startsWith('fire:'), bk = k.startsWith('build:') ? k.slice(6) : null;
+      const col = fire ? '255,210,74' : bk ? '61,224,255' : k === 'seaf' ? '95,168,255' : '157,255,184';
+      if (bk && bk !== 'bridge') { ctx.save(); ctx.globalAlpha = 0.4; postArt(ctx, { what: bk, x, y, face: Math.atan2(y - m.hy, x - m.hx), face0: Math.atan2(y - m.hy, x - m.hx), hurtAt: -99, r: 3.5, lvl: 1 }, now, px, m.t); ctx.restore(); }
+      ctx.strokeStyle = `rgba(${col},0.85)`; ctx.lineWidth = px(1.6); ctx.setLineDash([px(3), px(4)]);
+      ctx.beginPath(); ctx.arc(x, y, Math.max(px(11), fire ? 10 : 6), 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+      // a line from the squad that will do it
+      for (const i of it.sq || []) { const q = m.seaf.squads[i]; if (!q || !q.n || fire) continue; ctx.strokeStyle = `rgba(${col},0.35)`; ctx.lineWidth = px(1); ctx.setLineDash([px(2), px(5)]); ctx.beginPath(); ctx.moveTo(q.cx, q.cy); ctx.lineTo(x, y); ctx.stroke(); ctx.setLineDash([]); }
+      const what = fire ? (slotStats(m, Number(k.slice(5)))?.name || '').toUpperCase() : bk ? tr('build.' + bk).toUpperCase() : k === 'seaf' ? tr('hud.seafDrop') : tr('lab.place.' + k);
+      labels.push({ x, y, dy: -16, text: `${n + 1} · ${what}`, col: `rgb(${col})`, pri: 3 });
+    });
+  }
   // Dims the map outside what the squad (and any UAV) can see, and outlines the strike zone: the ring in which strikes can be called.
   _fog(ctx, m, scale, tx, ty) {
     // A quarter-size mask: soft by nature, so a small canvas scaled up looks the same and costs a sixteenth of the pixels.

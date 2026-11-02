@@ -159,6 +159,14 @@ export function drawMarkers(ctx, m, now, px, labels, scale) {
       ctx.lineWidth = px(2.5); ctx.beginPath(); ctx.moveTo(mx, my - 120 * f); ctx.lineTo(mx, my - 4); ctx.stroke();
       ctx.fillStyle = '#ffe600'; ctx.fillRect(mx - px(3), my - 120 * f - px(3), px(6), px(6));
       labels.push({ x: mx, y: my, dy: 22, text: (STRATS[mk.id]?.name || tr('lab.supplyDrop')).toUpperCase(), col: '#ffe600' , pri: 1 });
+    } else if (mk.type === 'bridge') {
+      // (0.22) a light bridge coming down from the ship: its span, dashed, filling in as it comes
+      const sp = mk.span, f = Math.max(0, Math.min(1, (t - mk.start) / (mk.end - mk.start)));
+      ctx.strokeStyle = `rgba(127,216,255,${0.45 + 0.4 * pulse})`; ctx.lineWidth = Math.max(px(3), 6); ctx.setLineDash([px(8), px(6)]); ctx.lineDashOffset = -now * px(12);
+      ctx.beginPath(); ctx.moveTo(sp.x1, sp.y1); ctx.lineTo(sp.x2, sp.y2); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      ctx.strokeStyle = 'rgba(200,240,255,0.9)'; ctx.lineWidth = Math.max(px(2), 3);
+      ctx.beginPath(); ctx.moveTo(sp.x1, sp.y1); ctx.lineTo(sp.x1 + (sp.x2 - sp.x1) * f, sp.y1 + (sp.y2 - sp.y1) * f); ctx.stroke();
+      labels.push({ x: mx, y: my, dy: -14, text: tr('lab.bridgeIn', { n: Math.max(0, mk.end - t).toFixed(0) }), col: '#7fd8ff', pri: 2 });
     } else if (mk.type === 'nuke') {
       const left = Math.max(0, mk.end - t);
       ctx.strokeStyle = `rgba(255,60,40,${0.55 + pulse * 0.45})`; ctx.lineWidth = px(2.5); ctx.setLineDash([px(10), px(7)]); ctx.lineDashOffset = -now * px(16);

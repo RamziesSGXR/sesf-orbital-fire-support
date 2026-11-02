@@ -15,7 +15,7 @@ import { steer } from './terrain.js';
 import { speedMul } from './helldiver.js';
 import { shoreToward } from './enemies.js';
 import { siteAt, coverSlot } from './cover.js';
-import { makePost, GARRISON } from './posts.js';
+import { makePost, GARRISON, INSIDE } from './posts.js';
 
 const SIZE = C.world.size;
 const S = C.seaf;
@@ -74,7 +74,29 @@ export function targetSquads(m) {
   recount(m);
   if (sf.sel === PICKED) { const q = adopt(m); return q ? [q] : []; }
   if (sf.sel >= 0) return [sf.squads[sf.sel]];
+  if (sf.multi && sf.multi.length) return sf.multi.map((i) => sf.squads[i]).filter((q) => q && q.n > 0);     // (0.22) several squads picked: each gets the order
   return sf.squads.filter((q) => q.n > 0);
+}
+// (0.22) Several squads picked (Shift+click, or a finger held on a squad's button): sel stays -1 (every squad) and multi lists the
+// ones meant, so an order goes to each of them, as itself. One left is a plain selection; none is every squad.
+export function selectSquads(m, list) {
+  const sf = m.seaf, L = [...new Set(list.filter((i) => i >= 0 && i < sf.squads.length))].sort((a, b) => a - b);
+  sf.pick = null;
+  if (L.length === 1) { sf.sel = L[0]; sf.multi = null; } else { sf.sel = -1; sf.multi = L.length ? L : null; }
+  return L;
+}
+// (0.22) MERGE: the troopers of every squad listed join the first of them (the lowest number), which keeps its order.
+export function mergeSquads(m, list) {
+  const sf = m.seaf; recount(m);
+  const L = [...new Set(list)].filter((i) => i >= 0 && i < sf.squads.length && squadCount(m, i) > 0).sort((a, b) => a - b);
+  if (L.length < 2) return { ok: false, reason: 'merge' };
+  const to = L[0], movers = m.seafAlive.filter((a) => L.includes(a.sq) && a.sq !== to);
+  for (const a of movers) a.sq = to;
+  for (const p of m.pelicans) if (L.includes(p.squad)) p.squad = to;     // troops still on their way join it too
+  for (const i of L.slice(1)) { const q = sf.squads[i]; q.order = newOrder(); q.form = null; q.tgt = null; q.stand = null; }
+  sf.sel = to; sf.pick = null; sf.multi = null;
+  recount(m);
+  return { ok: true, to, from: L.slice(1), n: movers.length };
 }
 export const squadCount = (m, i) => { let n = 0; for (const a of m.seafAlive) if (a.sq === i) n++; return n; };
 export function squadMembers(m, i) { return m.seafAlive.filter((a) => a.sq === i); }
@@ -83,6 +105,7 @@ export function squadMembers(m, i) { return m.seafAlive.filter((a) => a.sq === i
 export function dropSquad(m) {
   const sf = m.seaf;
   if (sf.sel >= 0) return sf.sel;
+  if (sf.multi && sf.multi.length) return sf.multi.slice().sort((a, b) => squadCount(m, a) + pendingFor(m, a) - squadCount(m, b) - pendingFor(m, b))[0];     // (0.22: the smallest of those picked)
   // (0.18) a drop comes down as a squad of its own while there is a free one
   const free = sf.squads.find((q) => squadCount(m, q.i) === 0 && pendingFor(m, q.i) === 0);
   if (free) { free.order = newOrder(); free.form = null; return free.i; }
@@ -116,7 +139,7 @@ function finishBuild(m, q, o) {
   m.notice(tr(o.what === 'foxhole' ? 'n.dug' : 'n.built', { what: tr('build.' + o.what), cr: buildStats(o.what, p.lvl).cost }), 'good');
   m.emit('built', { what: o.what, x: o.x, y: o.y });
   if (o.what === 'bridge') setSquadOrder(m, q, 'protect', o.x, o.y);       // (nothing to man on a bridge)
-  else setSquadOrder(m, q, 'post', p.x, p.y, { post: p, site: p.site });
+  else setSquadOrder(m, q, 'post', p.x, p.y, { post: p, site: p.site, garrison: INSIDE.has(o.what) ? false : undefined });     // (0.22: they hold beside a building; nobody goes in unless told to)
   return true;
 }
 
@@ -575,8 +598,8 @@ export function pickTroops(m, list) {
   if (!list.length) { sf.pick = null; if (sf.sel === PICKED) sf.sel = -1; return { ok: false, reason: 'none' }; }
   recount(m);
   const from = new Set(list.map((a) => a.sq));
-  if (from.size === 1) { const i = list[0].sq; if (i >= 0 && squadCount(m, i) === list.length) { sf.sel = i; sf.pick = null; return { ok: true, to: i, n: list.length }; } }
-  sf.pick = list.map((a) => a.id); sf.sel = PICKED;
+  if (from.size === 1) { const i = list[0].sq; if (i >= 0 && squadCount(m, i) === list.length) { sf.sel = i; sf.pick = null; sf.multi = null; return { ok: true, to: i, n: list.length }; } }
+  sf.pick = list.map((a) => a.id); sf.sel = PICKED; sf.multi = null;
   return { ok: true, to: PICKED, n: list.length };
 }
 export const picked = (m) => (m.seaf.sel === PICKED && m.seaf.pick ? m.seafAlive.filter((a) => m.seaf.pick.includes(a.id)) : []);
@@ -585,6 +608,7 @@ export function selectedTroops(m) {
   const sf = m.seaf;
   if (sf.sel === PICKED) return picked(m);
   if (sf.sel >= 0) return squadMembers(m, sf.sel);
+  if (sf.multi && sf.multi.length) return m.seafAlive.filter((a) => sf.multi.includes(a.sq));
   return m.seafAlive.filter((a) => a.sq !== GARRISON);
 }
 // A pick given an order becomes a squad: a free one (with the order its troopers' squad had), or the squad most of them are in.
@@ -606,7 +630,7 @@ function moveTo(m, list, to) {
     dst.tgt = null; dst.stand = null;
   }
   for (const a of list) a.sq = to;
-  sf.sel = to; sf.pick = null;
+  sf.sel = to; sf.pick = null; sf.multi = null;
   recount(m);
 }
 // Alt+number, or a double tap on a squad's button: the selection joins squad `to` (0 to 8).
@@ -622,7 +646,7 @@ export function disband(m) {
   const sf = m.seaf, list = sf.sel === -1 ? [] : selectedTroops(m);
   if (!list.length) return { ok: false, reason: 'none' };
   for (const a of list) a.sq = LOOSE;
-  sf.sel = -1; sf.pick = null;
+  sf.sel = -1; sf.pick = null; sf.multi = null;
   recount(m);
   return { ok: true, n: list.length };
 }
