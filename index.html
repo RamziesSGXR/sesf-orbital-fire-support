@@ -11,6 +11,7 @@
 <body>
 <div id="app">
   <canvas id="view"></canvas>
+  <canvas id="title-bg" aria-hidden="true"></canvas>
 
   <!-- In-mission HUD -->
   <div id="hud" class="hidden">
@@ -176,35 +177,55 @@
 
   <!-- Screens -->
   <section id="s-title" class="screen">
-    <div class="card">
-      <div class="eyebrow" data-t="title.eyebrow">Super Earth Special Forces</div>
-      <h1>ORBITAL<br>FURY</h1>
-      <p class="tag" data-t="title.tag"></p>
-      <label class="field"><span data-t="title.callsign">CALLSIGN</span> <input id="callsign" maxlength="16" data-tp="title.optional" autocomplete="off" spellcheck="false"></label>
-      <div id="langs" class="langs" role="group" data-ta="set.lang"></div>
-      <div id="diff" class="diff">
-        <div class="diff-h"><span data-t="title.diff">DIFFICULTY</span> <b id="diff-name"></b></div>
-        <div id="diff-row" class="diff-row" role="group" data-ta="title.diff"></div>
-        <p id="diff-note" class="fine diff-note"></p>
-      </div>
-      <div id="enemy" class="diff">
-        <div class="diff-h"><span data-t="title.enemy">ENEMY</span></div>
-        <div id="enemy-row" class="enemy-row" role="group" data-ta="title.enemy"></div>
-        <p id="enemy-note" class="fine diff-note"></p>
-      </div>
-      <div class="btns">
-        <button id="btn-play" class="btn primary big" data-t="title.play">PLAY</button>
-        <button id="btn-resume" class="btn hidden"></button>
-        <button id="btn-tutorial" class="btn tut-b" type="button"><span data-t="title.tutorial">TUTORIAL: LAST STAND ON MARS</span><i id="tut-new" class="hidden" data-t="title.new">NEW</i></button>
-        <button id="btn-names-t" class="btn" data-t="ui.names">SQUAD NAMES</button>
-        <button id="btn-settings" class="btn" data-t="ui.settings">SETTINGS</button>
-        <button id="btn-credits-t" class="btn" data-t="ui.credits">ABOUT &amp; CREDITS</button>
-        <a id="lnk-fb-t" class="btn fb" target="_blank" rel="noopener" data-t="ui.feedback">FEEDBACK</a>
-      </div>
-      <p class="fine fb-note" data-t="title.fbNote"></p>
-      <p id="best" class="fine"></p>
-      <p class="fine" data-t="ui.disclaimer"></p>
-      <p class="ver" id="ver-t"></p>
+    <div class="ttl">
+      <header class="tt-head">
+        <p class="tt-eyebrow" data-t="title.eyebrow">Super Earth Special Forces</p>
+        <h1 class="tt-mark" aria-label="Orbital Fury"><span>ORBITAL</span><span>FURY</span></h1>
+        <p class="tt-tag" data-t="title.tag"></p>
+      </header>
+      <div id="langs" class="langs tt-langs" role="group" data-ta="set.lang"></div>
+      <section class="tt-deploy" aria-labelledby="tt-dh">
+        <h2 id="tt-dh" class="tt-h" data-t="title.newSession">New session</h2>
+        <label class="field"><span data-t="title.callsign">CALLSIGN</span> <input id="callsign" maxlength="16" data-tp="title.optional" autocomplete="off" spellcheck="false"></label>
+        <div id="diff" class="diff">
+          <div class="diff-h"><span data-t="title.diff">DIFFICULTY</span> <b id="diff-name"></b></div>
+          <div id="diff-row" class="diff-row" role="group" data-ta="title.diff"></div>
+          <p id="diff-note" class="fine diff-note"></p>
+        </div>
+        <div id="enemy" class="diff">
+          <div class="diff-h"><span data-t="title.enemy">ENEMY</span></div>
+          <div id="enemy-row" class="enemy-row" role="group" data-ta="title.enemy"></div>
+          <p id="enemy-note" class="fine diff-note"></p>
+        </div>
+        <button id="btn-play" class="btn primary big tt-play" data-t="title.play">PLAY</button>
+      </section>
+      <nav class="tt-menu" data-ta="title.menu">
+        <button id="btn-resume" class="btn tt-item tt-resume hidden" type="button"></button>
+        <button id="btn-campaign" class="btn tt-item" type="button"><span data-t="title.campaign">CAMPAIGN</span><i class="tt-dev" data-t="title.inDev">IN DEVELOPMENT</i><small data-t="title.campaignSub">A story across missions</small></button>
+        <button id="btn-tutorial" class="btn tt-item tut-b" type="button"><span data-t="title.tutorial">TUTORIAL: LAST STAND ON MARS</span><i id="tut-new" class="hidden" data-t="title.new">NEW</i><small data-t="title.tutSub">Learn the controls</small></button>
+        <button id="btn-names-t" class="btn tt-item" type="button"><span data-t="ui.names">SQUAD NAMES</span><small data-t="title.namesSub">Name your Helldivers</small></button>
+        <button id="btn-settings" class="btn tt-item" type="button"><span data-t="ui.settings">SETTINGS</span><small data-t="title.setSub">Sound, layout, language</small></button>
+        <button id="btn-credits-t" class="btn tt-item" type="button"><span data-t="ui.credits">ABOUT &amp; CREDITS</span><small data-t="title.aboutSub">Who made this, and how</small></button>
+        <a id="lnk-fb-t" class="btn fb tt-item" target="_blank" rel="noopener"><span data-t="ui.feedback">FEEDBACK</span><small data-t="title.fbSub">The SESF Helldivers Discord</small></a>
+      </nav>
+      <footer class="tt-foot">
+        <p class="fine fb-note" data-t="title.fbNote"></p>
+        <p id="best" class="fine"></p>
+        <p class="fine" data-t="ui.disclaimer"></p>
+        <p class="ver" id="ver-t"></p>
+      </footer>
+    </div>
+  </section>
+
+  <!-- (0.24) the campaign: a test story while the real one is built -->
+  <section id="s-campaign" class="screen">
+    <div class="cp">
+      <button id="cp-back" class="btn cp-back" type="button" data-t="cp.back">BACK</button>
+      <p class="tt-eyebrow" data-t="title.campaign">CAMPAIGN</p>
+      <h2 class="cp-title" id="cp-title"></h2>
+      <div class="cp-dev" role="note"><b data-t="cp.devH">In development</b> <span data-t="cp.dev"></span></div>
+      <div class="cp-story" id="cp-story"></div>
+      <ol class="cp-chs" id="cp-chs"></ol>
     </div>
   </section>
 
@@ -428,6 +449,20 @@
       <div class="btns"><button id="man-close" class="btn primary" type="button" data-t="ui.backBtn">BACK</button></div>
     </div>
   </section>
+
+  <!-- (0.24) a milestone reached: a band across the screen with the level bonus and what is new in the armory -->
+  <div id="ms-splash" class="ms-splash" role="dialog" aria-modal="true" aria-labelledby="ms-k" hidden>
+    <div class="ms-band">
+      <div class="ms-in">
+        <p class="ms-k" id="ms-k"></p>
+        <p class="ms-done" id="ms-done"></p>
+        <p class="ms-bonus" id="ms-bonus"></p>
+        <div class="ms-new"><p class="ms-nh" id="ms-nh"></p><ul id="ms-list"></ul></div>
+        <p class="ms-next" id="ms-next"></p>
+        <div class="ms-btns"><button id="ms-show" class="btn primary big" type="button"></button><button id="ms-later" class="btn" type="button"></button></div>
+      </div>
+    </div>
+  </div>
 
   <section id="s-lock" class="screen overlay">
     <div class="card lockcard">

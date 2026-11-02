@@ -163,6 +163,25 @@ const UP_MUL = (id) => (id.startsWith('eagle_') || id.startsWith('mine_') ? 0.3 
 export function orbUpCost(id, level) { return price(Math.max(ORB_UP_BASE, ORB_BASE[id]) * UP_MUL(id) * level); }
 export const slotCost = (n) => price(n === 4 ? 700 : 1500);
 
+// (0.24) Milestones. The armory shows more as a session goes on: each item comes in at a milestone (0: from the start, 1: after the
+// first mission done, then 3, 5, 7 and 10 missions; C.milestones.at). Anything you already have levels in always shows.
+const ITEM_TIER = {
+  'slot:4': 0, util_smoke: 0, orb_ems: 0, 'gun.dmg': 0, 'gun.ammo': 0, uav: 0, 'seaf.cap': 0, 'seaf.drop': 0, 'seaf.hp': 0, 'bld:bastion': 0, 'bld:mg': 0,
+  util_med: 1, orb_gas: 1, orb_walk: 1, 'gun.regen': 1, 'uavb.speed': 1, 'seaf.build': 1, 'seaf.gren': 1, 'bld:lookout': 1, 'bld:bridge': 1, 'sup.zone': 1,
+  hangar: 2, eagle_smoke: 2, eagle_strafe: 2, eagle_air: 2, mine_ap: 2, orb_napalm: 2, util_shield: 2, 'gun.spread': 2, 'uavb.dodge': 2, 'seaf.rocket': 2, 'seaf.medic': 2, 'bld:tower': 2,
+  'slot:5': 3, eagle_cluster: 3, eagle_napalm: 3, mine_inc: 3, orb_380: 3, util_sentry: 3, 'seaf.spot': 3, 'bld:sam': 3,
+  eagle_rockets: 4, mine_at: 4, orb_rail: 4,
+  orb_laser: 5, eagle_500: 5, 'bld:arty': 5,
+};
+export const itemTier = (id) => ITEM_TIER[String(id).replace(/^(own|up):/, '')] ?? 0;
+// The milestone reached after this many missions done (0 before the first).
+export function tierFor(done) { let n = 0; C.milestones.at.forEach((at, i) => { if (done >= at) n = i + 1; }); return n; }
+export const TIER_MAX = C.milestones.at.length;
+// Shown in the armory at this milestone: its tier is reached, or you already have it (or levels in it).
+export function shownAt(it, tier) { return tier >= TIER_MAX || itemTier(it.id) <= tier || it.level > 0 || !!it.owned; }
+// What a milestone brings in, as item ids (one per thing: 'own:x' rather than its upgrades), in armory order.
+export function tierItems(kit, tier) { return shopItems(kit).filter((it) => itemTier(it.id) === tier && !it.id.startsWith('up:')).map((it) => it.id); }
+
 export function shopItems(kit) {
   const items = [];
   // Slots
@@ -212,9 +231,10 @@ export function shopItems(kit) {
 }
 
 // Buy an item. inMission only allows live upgrades (levels), not new unlocks or slots.
-export function buy(kit, wallet, id, inMission = false) {
+export function buy(kit, wallet, id, inMission = false, tier = TIER_MAX) {
   const it = shopItems(kit).find((x) => x.id === id);
   if (!it) return { ok: false, reason: 'unknown' };
+  if (!shownAt(it, tier)) return { ok: false, reason: 'locked' };     // (0.24) not in the armory yet
   if (it.cost === null || it.locked) return { ok: false, reason: it.locked ? 'locked' : 'maxed' };
   if (inMission && !it.live) return { ok: false, reason: 'between' };
   if (wallet.bal < it.cost) return { ok: false, reason: 'funds' };

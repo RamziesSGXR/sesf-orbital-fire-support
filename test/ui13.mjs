@@ -42,7 +42,7 @@ check('the button says where the session starts', /START AT LEVEL 7/.test(lk.go)
 await shot('lock');
 await tap('#btn-lock-change'); await page.waitForTimeout(400);
 check('CHANGE DIFFICULTY goes back to the title, no session started', !(await on('s-lock')) && (await ev(() => window.__game.state)) === 'title' && !(await ev(() => window.__game.session)));
-check('the title says the level is where the session starts, and that it climbs', /where the session starts/.test(await ev(() => document.getElementById('diff-note').textContent)) && /past 10/.test(await ev(() => document.getElementById('diff-note').textContent)));
+check('the title says the level is where the session starts, and that it climbs', /where you start/.test(await ev(() => document.getElementById('diff-note').textContent)) && /past 10/.test(await ev(() => document.getElementById('diff-note').textContent)));
 await tap('#diff-row .dl:nth-child(5)'); await page.waitForTimeout(150);
 await tap('#btn-play'); await page.waitForTimeout(300);
 check('a new pick shows on the lock-in', (await ev(() => document.getElementById('lock-level').textContent)) === '5');
@@ -55,7 +55,7 @@ check('no Helldiver lives upgrade in the armory', !/Reinforcement Budget|Helldiv
 await tap('#shop-go'); await page.waitForTimeout(500);
 await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
 const fail = await ev(() => document.getElementById('r-fail').textContent), lockc = await ev(() => document.querySelector('#r-diff .lockchip')?.textContent || '');
-check('the brief says when the mission fails', /FAIL IF/.test(fail) && /20 Helldiver lives/.test(fail) && /primary objective/.test(fail), fail);
+check('the brief says when the mission fails', /FAIL IF/.test(fail) && /20 Helldiver lives/.test(fail) && /main objective/.test(fail), fail);
 check('and that the level climbs every mission', /CLIMBS EVERY MISSION/.test(lockc), lockc);
 check('no RETRY tag on a first try', !(await page.isVisible('#b-again')));
 await shot('brief');
@@ -131,7 +131,7 @@ check('credits spent mid-mission', bought && crSpent < cr0, `${cr0} -> ${crSpent
 await ev(() => { const m = window.__game.mission; m.hd.lives = 0; for (const a of m.hdAlive.slice()) m.killAlly(a, 'enemy', 'L'); m._refreshAlive(); });
 await debrief(); await page.waitForTimeout(300);
 const d1 = await ev(() => ({ out: document.getElementById('d-outcome').textContent, why: document.getElementById('d-why').textContent, cont: document.getElementById('btn-continue').textContent, retry: document.getElementById('btn-retry').textContent, note: document.getElementById('d-retry-note').textContent, text: document.getElementById('d-text').value, saved: localStorage.getItem('ofs.session') }));
-check('lives gone before the objective: DEFEAT', d1.out === 'DEFEAT' && /primary objective/.test(d1.why), d1.why);
+check('lives gone before the objective: DEFEAT', d1.out === 'DEFEAT' && /main objective/.test(d1.why), d1.why);
 check('the failed debrief offers RETRY MISSION, with the credits it goes back to', d1.retry === 'RETRY MISSION' && d1.note.includes(cr0.toLocaleString('en-US')), d1.note);
 check('(0.19.4) the mission\'s report is on the debrief, short, ready to copy', /MISSION 1 \| DIFFICULTY/.test(d1.text) && /DEFEAT/.test(d1.text) && /SESSION [\d,]+ AFTER 1 MISSION/.test(d1.text) && d1.text.split('\n').length === 4 && !/SESSION ID|ORBITALFURY|SUPER EARTH/.test(d1.text), d1.text.replace(/\n/g, ' / '));
 check('a failed mission still ends the saved session', d1.saved === null);
@@ -155,10 +155,13 @@ check('the same map: landing zone, bases, objective', (await sig()) === first);
 // ---------------------------------------------------------------- the objective done, then the squad lost: the session goes on
 await ev(() => { const m = window.__game.mission; for (const o of m.objectives) o.done = true; m.objDone = true; m.phase = 'clear'; m.sc.kills += 500; m.hd.lives = 0; for (const a of m.hdAlive.slice()) m.killAlly(a, 'enemy', 'L'); m._refreshAlive(); });
 await debrief(); await page.waitForTimeout(300);
+// (0.24) the first mission done is milestone 1: its splash comes up over the debrief; LATER puts it away
+check('(0.24) a mission that counts brings up the milestone splash', await page.isVisible('#ms-splash'));
+if (await page.isVisible('#ms-splash')) { await tap('#ms-later'); await page.waitForTimeout(300); }
 const d2 = await ev(() => ({ out: document.getElementById('d-outcome').textContent, cont: document.getElementById('btn-continue').textContent, end: !document.getElementById('btn-end-d').classList.contains('hidden'), note: document.getElementById('d-retry-note').textContent, text: document.getElementById('d-text').value, saved: JSON.parse(localStorage.getItem('ofs.session') || 'null') }));
 check('objective done, squad lost: OBJECTIVE COMPLETE', d2.out === 'OBJECTIVE COMPLETE', d2.out);
 check('and the session goes on: NEXT MISSION', d2.cont === 'NEXT MISSION' && d2.end && d2.saved && d2.saved.missions.length === 1);
-check('RETRY says it drops this result', /dropped/.test(d2.note), d2.note);
+check('RETRY says it drops this result', /lose this result/.test(d2.note), d2.note);
 check('the mission report says so', /OBJECTIVE COMPLETE/.test(d2.text) && /AFTER 1 MISSION/.test(d2.text), d2.text.replace(/\n/g, ' / '));
 await shot('debrief_complete');
 // retry a completed mission for a better score
@@ -170,6 +173,7 @@ await toPlay();
 await ev(() => { const m = window.__game.mission; for (const o of m.objectives) o.done = true; m.objDone = true; m.phase = 'clear'; m.limitSec = m.t + 0.5; });
 await debrief(); await page.waitForTimeout(300);
 check('time up after the objective: OBJECTIVE COMPLETE', (await ev(() => document.getElementById('d-outcome').textContent)) === 'OBJECTIVE COMPLETE');
+if (await page.isVisible('#ms-splash')) { await tap('#ms-later'); await page.waitForTimeout(300); }
 await tap('#btn-continue'); await page.waitForTimeout(500);
 check('NEXT MISSION goes to the armory for mission 2', (await ev(() => window.__game.state)) === 'shop' && /2/.test(await ev(() => document.getElementById('shop-go').textContent)));
 // lives are full again next mission

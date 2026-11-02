@@ -39,6 +39,7 @@ while (Date.now() - t0 < 600000) {
     missions++;
     const outcome = await page.evaluate(() => document.getElementById('d-outcome').textContent);
     console.log('  debrief:', outcome, 'mission', missions);
+    if (await page.isVisible('#ms-splash')) { await page.click('#ms-later'); await page.waitForTimeout(200); }   // (0.24) a milestone's splash
     if (missions >= maxM && outcome !== 'VICTORY') { await page.click('#btn-continue'); }
     else if (missions >= maxM) { await page.click('#btn-end-d'); }
     else await page.click('#btn-continue');

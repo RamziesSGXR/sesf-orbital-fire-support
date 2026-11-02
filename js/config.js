@@ -314,6 +314,9 @@ export const CONFIG = {
   // callCd apart; when they are spent it flies back to rearm for rearm[level] seconds. Every level also makes pelicans quicker:
   // pelican[level] scales their flight time (SEAF drops, cargo), seafCool[level] the SEAF drop's recharge.
   hangar:   { levels: 5, price: [700, 600, 900, 1250, 1700], usesBase: 2, callCd: 8, rearm: [0, 110, 98, 86, 75, 64], pelican: [1, 0.92, 0.85, 0.78, 0.72, 0.66], seafCool: [1, 0.95, 0.9, 0.85, 0.8, 0.75] },
+  // (0.24) Milestones: missions done in a session open more of the armory (and pay a level bonus). At the last one everything
+  // can be bought. Which item comes at which milestone: ITEM_TIER in data/kit.js.
+  milestones: { at: [1, 3, 5, 7, 10], bonus: [400, 600, 800, 1000, 1500] },
   econ:     { priceMul: 1.1, earnPerMin: 640, maxAtMin: 300 },     // (0.17.3: prices up about a quarter; 0.18: two more buildables; 0.23: the Hangar and minefields add about an hour)
   credits:  { start: 1200, kill: { L: 2, M: 8, H: 45 }, base: 150, objective: 500, extraction: 800, perMission: 0, civ: 8, fullClear: 400 },
 
@@ -392,6 +395,6 @@ export const CONFIG = {
   share:    { channelUrl: '',
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.23.0',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.24.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

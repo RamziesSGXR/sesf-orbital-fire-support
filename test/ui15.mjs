@@ -31,6 +31,8 @@ await page.goto(PAGE); await page.waitForTimeout(600);
 await tap('#btn-play'); await page.waitForTimeout(250);
 if (await page.isVisible('#btn-notice')) { await tap('#btn-notice'); await page.waitForTimeout(250); }
 await tap('#btn-lock'); await page.waitForTimeout(500);
+// (0.24) the whole armory: ten missions done (taken back before the drop)
+await ev(() => { const s = window.__game.session; s.missions = Array.from({ length: 10 }, () => ({ outcome: 'victory', score: 0, seconds: 60 })); window.__game.goShop(); }); await page.waitForTimeout(300);
 
 // ---------------------------------------------------------------- the armory
 const arm = await ev(() => {
@@ -51,7 +53,7 @@ await tap('#shop-root .shop-tabs .tab[data-tab="ship"]'); await page.waitForTime
 await ev(() => { const it = [...document.querySelectorAll('#shop-root .item')].find((x) => /Target Relay/.test(x.textContent)); it && it.scrollIntoView({ block: 'center' }); });
 await shot('armory_uav');
 await tap('#shop-root .shop-tabs .tab[data-tab="build"]'); await page.waitForTimeout(150);
-check('the armory is tabbed: ORBITALS, HANGAR, SHIP, SEAF, BUILDABLES, and only one shows at a time', await ev(() => { const t = [...document.querySelectorAll('#shop-root .shop-tabs .tab')].map((b) => b.textContent).join(','), on = document.querySelectorAll('#shop-root .tabpane.on').length; return t === 'ORBITALS,HANGAR,SHIP,SEAF,BUILDABLES' && on === 1 && document.querySelector('#shop-root .tabpane.on').dataset.tab === 'build'; }));
+check('the armory is tabbed: ORBITALS, HANGAR, SHIP, SEAF, BUILDABLES (all open after ten missions), and only one shows at a time', await ev(() => { const t = [...document.querySelectorAll('#shop-root .shop-tabs .tab')].map((b) => b.textContent).join(','), on = document.querySelectorAll('#shop-root .tabpane.on').length; return t === 'ORBITALS,HANGAR,SHIP,SEAF,BUILDABLES' && on === 1 && document.querySelector('#shop-root .tabpane.on').dataset.tab === 'build'; }));
 await ev(() => { const it = [...document.querySelectorAll('#shop-root .item')].find((x) => /^Artillery Cannon/.test(x.querySelector('.it-name').textContent)); it && it.scrollIntoView({ block: 'center' }); });
 await shot('armory_build');
 
@@ -74,6 +76,7 @@ await tap('#man-close'); await page.waitForTimeout(200);
 await tap('#btn-resume-m'); await page.waitForTimeout(200);
 
 // ---------------------------------------------------------------- the briefing
+await ev(() => { window.__game.session.missions = []; window.__game.goShop(); }); await page.waitForTimeout(300);
 await tap('#shop-go'); await page.waitForTimeout(500);
 check('the briefing prints no controls; it has CONTINUE, CANCEL and MENU (0.17: the menu holds the controls and the manual)', !(await page.isVisible('#controls-desktop')) && !(await page.isVisible('#controls-touch')) && await page.isVisible('#b-cancel') && await page.isVisible('#b-menu') && !(await page.$('#btn-ctl-b')) && !(await page.$('#btn-man-b')));
 await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 30000 });

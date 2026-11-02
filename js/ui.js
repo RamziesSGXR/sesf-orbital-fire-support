@@ -4,7 +4,7 @@ import { FACTIONS, BIOMES } from './data/data.js';
 import { fmtTime, fmtNum, sessionTotals, MAX_NAME, carriesOn, levelReached } from './session.js';
 import { STRATS, CAT_COLOR } from './data/strat.js';
 import { LETTERS, TEAM_COLOR } from './data/names.js';
-import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, hangarStats } from './data/kit.js';
+import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, hangarStats, shownAt, TIER_MAX, tierItems } from './data/kit.js';
 import { stratReady, stratOnline } from './sim/strat.js';
 import { slotStats } from './sim/player.js';
 import { compass } from './sim/enemies.js';
@@ -20,7 +20,7 @@ import { squadColor } from './render/squads.js';
 import { LEVELS, levelFactors, reward, levelName } from './difficulty.js';
 
 const $ = (id) => document.getElementById(id);
-const SCREENS = ['s-title', 's-glass', 's-shop', 's-brief', 's-debrief', 's-final'];
+const SCREENS = ['s-title', 's-campaign', 's-glass', 's-shop', 's-brief', 's-debrief', 's-final'];
 const OVERLAYS = ['s-pause', 's-lock', 's-controls', 's-manual', 's-names', 's-settings', 's-notice', 's-info', 's-credits', 's-map'];
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -41,6 +41,42 @@ export function overlay(id, on) { $(id).classList.toggle('on', on); }
 export function isOn(id) { return $(id).classList.contains('on'); }
 export function anyOverlay() { return OVERLAYS.some((o) => $(o).classList.contains('on')); }
 export function hideOverlays() { for (const o of OVERLAYS) overlay(o, false); }
+
+// (0.24) The campaign screen: the test story, and its chapters (only those that can be played have a button).
+export function fillCampaign(story, onPlay) {
+  $('cp-title').textContent = t(`cp.${story.id}.t`);
+  const st = $('cp-story'); st.innerHTML = '';
+  for (const k of [1, 2, 3]) st.appendChild(el('p', '', esc(t(`cp.${story.id}.p${k}`))));
+  const ol = $('cp-chs'); ol.innerHTML = '';
+  for (const c of story.chapters) {
+    const li = el('li', 'cp-ch' + (c.play ? '' : ' locked'));
+    li.appendChild(el('h3', '', esc(t(`cp.${story.id}.c${c.n}`))));
+    li.appendChild(el('p', '', esc(t(`cp.${story.id}.c${c.n}b`))));
+    if (c.play) { const b = el('button', 'btn primary', esc(t('cp.play', { n: c.n }))); b.type = 'button'; b.onclick = () => onPlay(c); li.appendChild(b); }
+    else li.appendChild(el('span', 'cp-lock', esc(t('cp.later'))));
+    ol.appendChild(li);
+  }
+}
+
+// (0.24) The milestone splash: ms = { k, of, done, bonus, names, next } shows it; null takes it down.
+let msKeys = null;
+export function milestone(ms, h = {}) {
+  const box = $('ms-splash');
+  if (!ms) { box.hidden = true; box.classList.remove('go'); if (msKeys) { document.removeEventListener('keydown', msKeys, true); msKeys = null; } return; }
+  $('ms-k').textContent = t('ms.k', { k: ms.k, of: ms.of });
+  $('ms-done').textContent = ms.done === 1 ? t('ms.done1') : t('ms.done', { n: ms.done });
+  $('ms-bonus').textContent = t('ms.bonus', { cr: fmtNum(ms.bonus) });
+  $('ms-nh').textContent = t(ms.k >= ms.of ? 'ms.all' : 'ms.new');
+  const ul = $('ms-list'); ul.innerHTML = '';
+  for (const n of ms.names) ul.appendChild(el('li', '', `${esc(n.n)}<small>${esc(n.k)}</small>`));
+  $('ms-next').textContent = ms.next ? t('ms.next', { n: ms.next }) : '';
+  $('ms-show').textContent = t('ms.show'); $('ms-later').textContent = t('ms.later');
+  $('ms-show').onclick = h.onShow; $('ms-later').onclick = h.onLater;
+  box.hidden = false; void box.offsetWidth; box.classList.add('go');
+  $('ms-show').focus({ preventScroll: true });
+  msKeys = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); h.onLater(); } };
+  document.addEventListener('keydown', msKeys, true);
+}
 
 // ---------------- HUD ----------------
 export class Hud {
@@ -1387,7 +1423,11 @@ function upgradeLines(it, kit) {
 export const SHOP_TABS = [{ id: 'orb', secs: ['loadout', 'orbitals', 'utilities', 'defense'] }, { id: 'eagle', secs: ['eagles'] }, { id: 'ship', secs: ['gun', 'uav', 'support'] }, { id: 'seaf', secs: ['seaf', 'specialists'] }, { id: 'build', secs: ['build'] }];
 let shopTab = 'orb';
 export function renderShop(root, opts) {
-  const { kit, wallet, live } = opts, items = shopItems(kit);
+  const { kit, wallet, live } = opts, tier = opts.tier ?? TIER_MAX, fresh = new Set(opts.fresh || []);
+  const all = shopItems(kit), items = all.filter((it) => shownAt(it, tier));       // (0.24) what the milestones have opened
+  const hidden = all.length - items.length;
+  // (0.24) SHOW ME: open the tab with the first new item in it
+  if (opts.focus && fresh.size) { const f = items.find((it) => fresh.has(it.id) || (it.orb && fresh.has('own:' + it.orb))); if (f) shopTab = (SHOP_TABS.find((x) => x.secs.includes(f.section)) || SHOP_TABS[0]).id; }
   const scroll = root.querySelector('.shop-scroll'), keep = scroll ? scroll.scrollTop : 0;
   root.innerHTML = '';
   root.appendChild(el('div', 'shop-cr', `${t('arm.credits')} <b>${fmtNum(wallet.bal)}</b>${opts.note ? `<span class="note">${esc(opts.note)}</span>` : ''}`));
@@ -1405,13 +1445,20 @@ export function renderShop(root, opts) {
     lo.appendChild(s);
   }
   root.appendChild(lo);
+  // (0.24) how far the milestones have got, and when the next one opens more
+  if (tier < TIER_MAX && !live) {
+    const next = C.milestones.at[tier], done = opts.done ?? 0;
+    root.appendChild(el('p', 'shop-ms', `<b>${esc(t('arm.ms', { k: tier, of: TIER_MAX }))}</b> ${esc(t('arm.msNext', { n: next, d: done, h: hidden }))}`));
+  }
 
   // The armory is tabbed: orbitals (and the loadout slots), the ship (gun, UAV, support), SEAF troops, and buildables. Every item
   // is in the page; only the open tab shows. A tab with something affordable in it carries a dot.
   const tabs = el('div', 'shop-tabs');
   tabs.setAttribute('role', 'tablist');
   const tabOf = (sec) => SHOP_TABS.find((x) => x.secs.includes(sec)) || SHOP_TABS[0];
-  for (const tb of SHOP_TABS) {
+  const shownTabs = SHOP_TABS.filter((tb) => items.some((it) => tb.secs.includes(it.section)));      // (0.24: the Hangar's comes with its milestone)
+  if (!shownTabs.some((tb) => tb.id === shopTab)) shopTab = (shownTabs[0] || SHOP_TABS[0]).id;
+  for (const tb of shownTabs) {
     const can = items.some((it) => tb.secs.includes(it.section) && it.cost !== null && !it.locked && wallet.bal >= it.cost && !(live && !it.live));
     const b = el('button', 'btn tab' + (shopTab === tb.id ? ' on' : '') + (can ? ' can' : ''), esc(t('arm.tab.' + tb.id)));
     b.type = 'button'; b.dataset.tab = tb.id; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(shopTab === tb.id));
@@ -1431,9 +1478,11 @@ export function renderShop(root, opts) {
     pane.appendChild(hd);
     for (const it of sec.list) {
       const inLoad = it.orb && kit.loadout.slice(0, kit.slots).includes(it.orb);
-      const card = el('div', 'item sec-' + slug + (it.owned ? ' owned' : '') + (it.cost === null ? ' maxed' : '') + (inLoad ? ' equipped' : ''));
+      const isNew = fresh.has(it.id) || (it.orb && fresh.has('own:' + it.orb));
+      const card = el('div', 'item sec-' + slug + (it.owned ? ' owned' : '') + (it.cost === null ? ' maxed' : '') + (inLoad ? ' equipped' : '') + (isNew ? ' fresh' : ''));
+      if (isNew) card.dataset.fresh = '1';
       const main = el('div', 'it-main');
-      main.innerHTML = `<div class="it-name">${esc(it.orb ? shortName(it.orb) : it.name)}<span class="tagc">${esc(t('kit.tag.' + sec.name))}</span>${it.max > 1 && isFinite(it.max) ? `<span class="pips">${pips(it.level, it.max)}</span>` : it.endless ? `<span class="pips">${t('arm.lv', { n: it.level })}</span>` : ''}${inLoad ? `<span class="tagq">${t('arm.equipped')}</span>` : ''}</div>`
+      main.innerHTML = `<div class="it-name">${esc(it.orb ? shortName(it.orb) : it.name)}${isNew ? `<span class="newc">${esc(t('arm.new'))}</span>` : ''}<span class="tagc">${esc(t('kit.tag.' + sec.name))}</span>${it.max > 1 && isFinite(it.max) ? `<span class="pips">${pips(it.level, it.max)}</span>` : it.endless ? `<span class="pips">${t('arm.lv', { n: it.level })}</span>` : ''}${inLoad ? `<span class="tagq">${t('arm.equipped')}</span>` : ''}</div>`
         + `<div class="it-blurb">${esc(it.blurb)}</div>${upgradeLines(it, kit)}`;
       const btns = el('div', 'it-btns');
       const b = el('button', 'btn buy');
@@ -1457,6 +1506,10 @@ export function renderShop(root, opts) {
   }
   root.appendChild(body);
   body.scrollTop = keep;
+  if (opts.focus) {        // (0.24) SHOW ME: bring the first new item into view and make the new ones pulse
+    const f = body.querySelector('.tabpane.on .item.fresh');
+    if (f) { body.scrollTop = Math.max(0, f.offsetTop - body.offsetTop - 12); body.querySelectorAll('.tabpane.on .item.fresh').forEach((c) => c.classList.add('pulse')); }
+  }
 }
 
 // (0.20) The armory during a mission, in the command panel: the game runs on, and nothing scrolls. A row of the four kinds (a dot on
@@ -1465,7 +1518,7 @@ export function renderShop(root, opts) {
 let liveTab = 'orb', livePage = 0;
 export function renderLiveArmory(root, opts) {
   const { kit, wallet } = opts;
-  const all = shopItems(kit).filter((it) => it.live && it.cost !== null && !it.locked);
+  const all = shopItems(kit).filter((it) => it.live && it.cost !== null && !it.locked && shownAt(it, opts.tier ?? TIER_MAX));
   const tabOf = (it) => (SHOP_TABS.find((x) => x.secs.includes(it.section)) || SHOP_TABS[0]).id;
   if (!all.some((it) => tabOf(it) === liveTab)) { const f = SHOP_TABS.find((tb) => all.some((it) => tabOf(it) === tb.id)); if (f) liveTab = f.id; }
   const list = all.filter((it) => tabOf(it) === liveTab);

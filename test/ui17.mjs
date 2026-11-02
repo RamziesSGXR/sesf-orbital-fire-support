@@ -50,7 +50,9 @@ await tap('#btn-lock'); await page.waitForTimeout(500);
 const tabs = await ev(() => { const t = [...document.querySelectorAll('#shop-root .shop-tabs .tab')], on = t.find((x) => x.classList.contains('on')), sc = document.querySelector('#shop-root .shop-scroll');
   const a = on.getBoundingClientRect(), b = sc.getBoundingClientRect(), cs = getComputedStyle(on);
   return { n: t.length, joined: Math.abs(a.bottom - b.top) <= 3, round: parseFloat(cs.borderTopLeftRadius) >= 6 && parseFloat(cs.borderBottomLeftRadius) === 0 }; });
-check('the armory has five tabs (0.23: the Hangar), the open one joined to its page like a folder tab', tabs.n === 5 && tabs.joined && tabs.round, JSON.stringify(tabs));
+check('the armory has four tabs (0.24: the Hangar\'s comes with milestone 2), the open one joined to its page like a folder tab', tabs.n === 4 && tabs.joined && tabs.round, JSON.stringify(tabs));
+// (0.24) Combat Engineers come with milestone 1: one mission done
+await ev(() => { const s = window.__game.session; s.missions = [{ outcome: 'victory', score: 0, seconds: 60 }]; window.__game.goShop(); }); await page.waitForTimeout(300);
 await tap('#shop-root .shop-tabs .tab[data-tab="seaf"]'); await page.waitForTimeout(200);
 const eng = await ev(() => { const it = [...document.querySelectorAll('#shop-root .tabpane.on .item')].find((x) => /Combat Engineers/.test(x.querySelector('.it-name').textContent)); return it ? { stat: it.textContent, buy: !!it.querySelector('.btn.buy:not([disabled])') } : null; });
 check('the SEAF tab sells Combat Engineers (build speed)', eng && /Build speed/.test(eng.stat) && eng.buy, eng && eng.stat.slice(0, 120));

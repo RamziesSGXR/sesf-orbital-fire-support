@@ -26,12 +26,16 @@ if (await page.isVisible('#btn-lock')) { await tap('#btn-lock'); await page.wait
 
 // ---------------------------------------------------------------- the armory: the Hangar tab, Eagles locked until it is bought
 await ev(() => { window.__game.session.wallet.bal = 99999; });
+// (0.24) the Hangar comes with milestone 2: three missions done (taken back again before the drop)
+await ev(() => { const s = window.__game.session; s.missions = [1, 2, 3].map(() => ({ outcome: 'victory', score: 0, seconds: 60 })); window.__game.goShop(); });
+await page.waitForTimeout(300);
 const tabs = await ev(() => [...document.querySelectorAll('.shop-tabs .tab[data-tab]')].filter((b) => b.getClientRects().length).map((b) => b.dataset.tab + ':' + b.textContent.trim()).join(' '));
 check('the armory has a HANGAR tab', /eagle:HANGAR/i.test(tabs), tabs);
 await ev(() => { const b = [...document.querySelectorAll('.shop-tabs .tab[data-tab="eagle"]')].find((x) => x.getClientRects().length); if (b) b.click(); }); await page.waitForTimeout(250);
 const locked = await ev(() => { const p = [...document.querySelectorAll('.tabpane[data-tab="eagle"]')].find((x) => x.getClientRects().length); return p ? (p.textContent.match(/needs the hangar/gi) || []).length : -1; });
 check('Eagles say they need the Hangar until it is bought', locked > 0, `${locked} locked`);
 await shot('armory');
+await ev(() => { window.__game.session.missions = []; window.__game.goShop(); }); await page.waitForTimeout(300);
 
 // a kit with the Hangar, two Eagles, a minefield and two orbitals in the loadout
 await ev(() => { const k = window.__game.session.kit; k.hangar = 1; k.slots = 5;

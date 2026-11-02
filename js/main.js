@@ -3,13 +3,15 @@ import { CONFIG as C } from './config.js';
 import { COMMS } from './data/data.js';
 import { Mission } from './sim/mission.js';
 import { STRAT_IDS } from './data/strat.js';
-import { buy, equip, unequip, loadoutIds } from './data/kit.js';
+import { buy, equip, unequip, loadoutIds, tierFor, tierItems, TIER_MAX, shopItems } from './data/kit.js';
 import { makeBot, botStep, botShop } from './sim/bot.js';
 import { Renderer } from './render/renderer.js';
 import { buildTerrain } from './render/terrain.js';
 import { Input } from './input.js';
 import { Audio } from './audio.js';
 import * as S from './session.js';
+import { startTitleBg } from './render/titlebg.js';
+import { STORY } from './data/story.js';
 import * as UI from './ui.js';
 import { sunAt, todName, todClock } from './render/sky.js';
 import { acceptSupply, declineSupply, fillSupply, launchSupply, supplyFilling } from './sim/supply.js';
@@ -125,6 +127,7 @@ function relang() {
   if (UI.isOn('s-settings')) UI.buildSettings(settings, onSettingChange);
   if (tac && mission) { hud.fillTactical(mission, sel); hud.setTacState(input.touch); }
   if (state === 'title') toTitle();
+  else if (state === 'campaign') UI.fillCampaign(STORY, playChapter);
   else if (state === 'shop') { const n = session.missions.length + 1; $('shop-eyebrow').textContent = n === 1 ? t('arm.eyebrow1') : t('arm.eyebrowN', { n }); $('shop-go').textContent = t('arm.deploy', { n }); drawShop(); }
   else if (state === 'debrief' && lastRes) UI.fillDebrief(info, lastRes, session, S.missionReport(session), startCredits());
   else if (state === 'glass' && lastRes) UI.fillGlass(lastRes);
@@ -689,7 +692,7 @@ function toTitle() {
   if (briefCtl) { briefCtl.cancel(); briefCtl = null; }
   state = 'title'; paused = false; soft = false; mission = null; bot = null; clearPlan();
   hud.setSoft(false); setHideUi(false); audio.humStop(); hud.reset(); $('s-pause').classList.remove('out');
-  UI.hideOverlays(); UI.showScreen('s-title'); UI.setupBest();
+  UI.hideOverlays(); UI.milestone(null); UI.showScreen('s-title'); UI.setupBest(); startTitleBg();
   const saved = S.load('session', null);
   const rb = $('btn-resume');
   rb.classList.toggle('hidden', !resumable(saved));
@@ -715,12 +718,14 @@ function beginSession(resume) {
     const cs = $('callsign').value.trim().toUpperCase().replace(/[^\w \-.]/g, '').slice(0, 16);
     S.save('callsign', cs);
     session = S.newSession(cs, chosenDiff());
+    if (storyPick) session.story = { id: STORY.id, ch: storyPick.n };     // (0.24) a campaign chapter: its first mission is set
   }
+  storyPick = null;
   goShop();
 }
 
 // The armory: before every mission. Buy and equip orbitals, UAV, SEAF and squad upgrades with the session's credits.
-function goShop() {
+function goShop(focus = false) {
   if (briefCtl) { briefCtl.cancel(); briefCtl = null; }
   state = 'shop'; mission = null; paused = false; audio.humStop(); hud.reset(); setPlacing(null); setHideUi(false); $('s-pause').classList.remove('out');
   UI.hideOverlays(); UI.showScreen('s-shop');
@@ -728,14 +733,20 @@ function goShop() {
   $('shop-eyebrow').textContent = n === 1 ? t('arm.eyebrow1') : t('arm.eyebrowN', { n });
   $('shop-go').textContent = t('arm.deploy', { n });
   if (BOT) botShop(session.kit, session.wallet);
-  drawShop();
+  drawShop(undefined, focus);
 }
-function persist() { if (session && !session.tutorial) S.save('session', session); }     // (the tutorial's session is never kept)
-function drawShop(note) {
+function persist() { if (session && !session.tutorial) S.save('session', session); }
+// (0.24) Milestones: missions done this session (a failed one ends it, so it is every mission that carried on) and the
+// milestone that makes. The tutorial has the whole armory.
+const doneN = (s) => (s && s.missions ? s.missions.filter((r) => S.carriesOn(r.outcome)).length : 0);
+function tierNow() { return !session || session.tutorial ? TIER_MAX : tierFor(doneN(session)); }
+function msShow(focus) { goShop(focus); }     // (the tutorial's session is never kept)
+function drawShop(note, focus = false) {
   UI.renderShop($('shop-root'), {
-    kit: session.kit, wallet: session.wallet, live: false, note,
+    kit: session.kit, wallet: session.wallet, live: false, note, tier: tierNow(), done: doneN(session), fresh: session.fresh, focus,
     onBuy: (id) => {
-      const r = buy(session.kit, session.wallet, id, false);
+      const r = buy(session.kit, session.wallet, id, false, tierNow());
+      if (r.ok && session.fresh) session.fresh = session.fresh.filter((f) => f !== id);      // (bought: no longer new)
       if (r.ok) { audio.ready(); persist(); drawShop(t('arm.bought', { name: r.item.name.toUpperCase() })); } else { audio.deny(); drawShop(deny(r.reason)); }
     },
     onEquip: (id) => { if (equip(session.kit, id)) { audio.click(); persist(); drawShop(); } else { audio.deny(); drawShop(t('arm.noSlot')); } },
@@ -753,6 +764,8 @@ function goBrief(again = false) {
   const back = !keep && held && held.n === session.missions.length + 1 ? held.info : null;     // CANCEL (or MAIN MENU) left this one waiting
   session.held = null;
   info = keep ? { op: keep.op, faction: keep.faction, biome: keep.biome, seed: keep.seed, tod: keep.tod } : back ? { ...back } : S.rollMission(prev, Math.random, settings.enemy);   // (the enemy picked on the title screen or in Settings)
+  const ch = session.story && session.missions.length === 0 ? STORY.chapters.find((c) => c.n === session.story.ch) : null;
+  if (!keep && !back && ch && ch.play) { info.faction = ch.play.faction; info.biome = ch.play.biome; info.seed = ch.play.seed; }
   if (!keep && !back && session.missions.length === 0) { // URL overrides for testing: ?seed= ?faction= ?biome= (first mission only)
     if (qs.get('seed')) info.seed = Number(qs.get('seed')) >>> 0;
     if (FACTION_OK(qs.get('faction'))) info.faction = qs.get('faction');
@@ -762,6 +775,7 @@ function goBrief(again = false) {
   // The groups and objective come from the mission seed, so the briefing can show them before the drop.
   // ?loadout=id,id,... and ?objective=nuke|vip|fortress force a loadout or objective for testing.
   const ovLoad = (qs.get('loadout') || '').split(',').filter((id) => STRAT_IDS.includes(id)), ovObj = (qs.get('objective') || '').split(',').filter(Boolean);
+  if (!ovObj.length && ch && ch.play && ch.play.objective) ovObj.push(ch.play.objective);
   info.ovObj = ovObj;
   const pre = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: false, missionN: n, difficulty: S.levelNow(session),
     loadout: ovLoad.length ? ovLoad : undefined, objectives: ovObj, kit: session.kit, wallet: session.wallet, names: session.names, defenders: !qs.has('skipstart') });
@@ -918,13 +932,25 @@ function finishMission() {
   endHandled = true; setPlacing(null); setDrawing(false); setTac(false); disarm(); setHideUi(false); deselect();
   soft = false; hud.setSoft(false);
   const res = lastRes = mission.result();
+  const t0 = tierNow();
   S.recordMission(session, info, res);
+  // (0.24) a milestone reached: the level bonus, and what it opens in the armory (marked NEW there until bought)
+  const t1 = tierNow();
+  let ms = null;
+  if (t1 > t0 && S.carriesOn(res.outcome)) {
+    let bonus = 0; const fresh = [];
+    for (let k = t0 + 1; k <= t1; k++) { bonus += C.milestones.bonus[k - 1] || 0; fresh.push(...tierItems(session.kit, k)); }
+    session.wallet.bal += bonus; session.fresh = fresh;
+    const names = fresh.map((id) => shopItems(session.kit).find((it) => it.id === id)).filter(Boolean).map((it) => ({ n: it.orb ? UI.shortName(it.orb) : it.name, k: t('kit.tag.' + it.section) }));
+    ms = { k: t1, of: TIER_MAX, done: doneN(session), bonus, names, next: C.milestones.at[t1] || 0 };
+  }
   // Extracted, or the primary objective done: the session goes on. A failed mission ends it, unless the player retries it.
   if (S.carriesOn(res.outcome)) persist(); else S.drop('session');
   retryArm = false;
   UI.fillDebrief(info, res, session, S.missionReport(session), startCredits());
   state = 'debrief'; audio.humStop(); hud.reset();
   UI.showScreen('s-debrief');
+  if (ms) UI.milestone(ms, { onShow: () => { audio.click(); UI.milestone(null); msShow(true); }, onLater: () => { audio.click(); UI.milestone(null); } });
 }
 function startCredits() { try { return JSON.parse(startSnap).wallet.bal; } catch { return null; } }
 // RETRY MISSION: the session goes back to how it was at the drop (credits, kit, score, time) and the same mission loads again.
@@ -1024,7 +1050,7 @@ function closeNames(saveIt) {
 function drawArmory(note) {
   armNote = note; armBal = mission ? mission.wallet.bal : 0;
   UI.renderLiveArmory($('tc-arm'), {
-    kit: session.kit, wallet: mission ? mission.wallet : session.wallet, note,
+    kit: session.kit, wallet: mission ? mission.wallet : session.wallet, note, tier: tierNow(),
     onBuy: (id) => {
       const r = mission.spend(id);
       if (r.ok) { audio.ready(); persist(); hud.toast(t('arm.bought', { name: r.item.name.toUpperCase() }), 1600); drawArmory(); } else { audio.deny(); drawArmory(deny(r.reason)); }
@@ -1119,13 +1145,28 @@ for (const b of document.querySelectorAll('.x-close[data-close]')) { const f = C
 
 // ---------------- buttons ----------------
 $('btn-play').onclick = () => {
-  audio.unlock(); audio.click();
+  audio.unlock(); audio.click(); storyPick = null;
   if (!S.load('notice', false)) { UI.overlay('s-notice', true); return; }
   askLock();
 };
 $('btn-notice').onclick = () => { S.save('notice', true); UI.overlay('s-notice', false); askLock(); };
 function closeLock() { UI.overlay('s-lock', false); audio.click(); }
 $('btn-lock').onclick = () => { UI.overlay('s-lock', false); beginSession(false); };
+// (0.24) CAMPAIGN: the test story. Its first chapter starts a session (after the same lock-in) with that chapter's mission.
+let storyPick = null;
+function playChapter(c) {
+  audio.click(); storyPick = c;
+  if (!S.load('notice', false)) { UI.overlay('s-notice', true); return; }
+  askLock();
+}
+function openCampaign() {
+  audio.unlock(); audio.click(); state = 'campaign';
+  UI.fillCampaign(STORY, playChapter);
+  UI.showScreen('s-campaign'); startTitleBg();
+  $('cp-back').focus({ preventScroll: true });
+}
+$('btn-campaign').onclick = openCampaign;
+$('cp-back').onclick = () => { audio.click(); storyPick = null; toTitle(); };
 $('btn-lock-change').onclick = () => { closeLock(); $('diff-row').scrollIntoView({ block: 'center', behavior: 'smooth' }); };
 $('btn-notice-set').onclick = () => openSettings('notice');
 $('btn-resume').onclick = () => beginSession(true);
