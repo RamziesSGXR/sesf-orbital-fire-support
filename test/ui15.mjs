@@ -51,7 +51,7 @@ await tap('#shop-root .shop-tabs .tab[data-tab="ship"]'); await page.waitForTime
 await ev(() => { const it = [...document.querySelectorAll('#shop-root .item')].find((x) => /Target Relay/.test(x.textContent)); it && it.scrollIntoView({ block: 'center' }); });
 await shot('armory_uav');
 await tap('#shop-root .shop-tabs .tab[data-tab="build"]'); await page.waitForTimeout(150);
-check('the armory is tabbed: ORBITALS, SHIP, SEAF, BUILDABLES, and only one shows at a time', await ev(() => { const t = [...document.querySelectorAll('#shop-root .shop-tabs .tab')].map((b) => b.textContent).join(','), on = document.querySelectorAll('#shop-root .tabpane.on').length; return t === 'ORBITALS,SHIP,SEAF,BUILDABLES' && on === 1 && document.querySelector('#shop-root .tabpane.on').dataset.tab === 'build'; }));
+check('the armory is tabbed: ORBITALS, HANGAR, SHIP, SEAF, BUILDABLES, and only one shows at a time', await ev(() => { const t = [...document.querySelectorAll('#shop-root .shop-tabs .tab')].map((b) => b.textContent).join(','), on = document.querySelectorAll('#shop-root .tabpane.on').length; return t === 'ORBITALS,HANGAR,SHIP,SEAF,BUILDABLES' && on === 1 && document.querySelector('#shop-root .tabpane.on').dataset.tab === 'build'; }));
 await ev(() => { const it = [...document.querySelectorAll('#shop-root .item')].find((x) => /^Artillery Cannon/.test(x.querySelector('.it-name').textContent)); it && it.scrollIntoView({ block: 'center' }); });
 await shot('armory_build');
 

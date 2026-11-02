@@ -310,7 +310,11 @@ export const CONFIG = {
   // Credits: earned from kills, bases, POIs, breaches and the objective, with a bonus at extraction. Spent in the armory.
   // One multiplier on every armory price. Bot sessions earn about 520 credits a minute, so three hours earns roughly what the whole
   // armory costs at 0.9 (about 97,000 credits). test/r7.mjs checks the two stay together.
-  econ:     { priceMul: 1.1, earnPerMin: 640, maxAtMin: 240 },     // (0.17.3: prices up about a quarter; 0.18: two more buildables)
+  // (0.23) The Hangar (armory): level 1 lets the gunner buy Eagles. The Eagle has `uses` calls (usesBase, +1 every two levels), each
+  // callCd apart; when they are spent it flies back to rearm for rearm[level] seconds. Every level also makes pelicans quicker:
+  // pelican[level] scales their flight time (SEAF drops, cargo), seafCool[level] the SEAF drop's recharge.
+  hangar:   { levels: 5, price: [700, 600, 900, 1250, 1700], usesBase: 2, callCd: 8, rearm: [0, 110, 98, 86, 75, 64], pelican: [1, 0.92, 0.85, 0.78, 0.72, 0.66], seafCool: [1, 0.95, 0.9, 0.85, 0.8, 0.75] },
+  econ:     { priceMul: 1.1, earnPerMin: 640, maxAtMin: 300 },     // (0.17.3: prices up about a quarter; 0.18: two more buildables; 0.23: the Hangar and minefields add about an hour)
   credits:  { start: 1200, kill: { L: 2, M: 8, H: 45 }, base: 150, objective: 500, extraction: 800, perMission: 0, civ: 8, fullClear: 400 },
 
   // Mission objectives. The squad does these before anything else.
@@ -388,6 +392,6 @@ export const CONFIG = {
   share:    { channelUrl: '',
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.22.0',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.23.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

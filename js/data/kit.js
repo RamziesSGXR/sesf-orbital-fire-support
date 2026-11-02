@@ -1,7 +1,7 @@
 // The player's kit: what the destroyer can do, what it costs, and how upgrades scale. Pure data and rules, no DOM.
 // The player controls three things: the UAV scan, orbital stratagems, and SEAF. Credits buy more and better of each.
 import { CONFIG as C } from '../config.js';
-import { STRATS, ORB_IDS } from './strat.js';
+import { STRATS, PLAYER_IDS } from './strat.js';
 import { t } from '../i18n.js';
 
 const MAXL = C.orbital.maxLevel;
@@ -15,16 +15,19 @@ const ORB_BASE = {
   orb_airburst: 0, orb_120: 0, orb_precision: 0,
   orb_ems: 600, orb_gas: 650, orb_walk: 800, orb_napalm: 900, orb_380: 1300, orb_rail: 1600, orb_laser: 2100,
   util_smoke: 550, util_med: 700, util_shield: 1000, util_sentry: 1200,
+  // (0.23) Eagles (the Hangar has to be bought first) and the gunner's minefields
+  eagle_smoke: 450, eagle_strafe: 550, eagle_air: 700, eagle_cluster: 750, eagle_napalm: 900, eagle_rockets: 950, eagle_500: 1250,
+  mine_ap: 600, mine_inc: 800, mine_at: 1000,
 };
 export const ORB_PRICE = Object.fromEntries(Object.entries(ORB_BASE).map(([k, v]) => [k, price(v)]));
-export const ORB_LIST = ORB_IDS.slice().sort((a, b) => ORB_PRICE[a] - ORB_PRICE[b]);
+export const ORB_LIST = PLAYER_IDS.slice().sort((a, b) => ORB_PRICE[a] - ORB_PRICE[b]);
 
 export function newKit() {
   const owned = {};
   for (const id of C.kit.startLoadout) owned[id] = 1;
   const loadout = Array(C.kit.slotsMax).fill('');
   C.kit.startLoadout.forEach((id, i) => { loadout[i] = id; });
-  return { slots: C.kit.slotsStart, loadout, owned, uav: 1, uavb: { speed: 0, dodge: 0 }, seaf: { cap: 0, drop: 0, hp: 0, gren: 0, rocket: 0, medic: 0, spot: 0, build: 0 }, sup: { lives: 0, zone: 0 }, gun: { dmg: 0, ammo: 0, regen: 0, spread: 0 },
+  return { slots: C.kit.slotsStart, loadout, owned, hangar: 0, uav: 1, uavb: { speed: 0, dodge: 0 }, seaf: { cap: 0, drop: 0, hp: 0, gren: 0, rocket: 0, medic: 0, spot: 0, build: 0 }, sup: { lives: 0, zone: 0 }, gun: { dmg: 0, ammo: 0, regen: 0, spread: 0 },
     build: { bastion: 1, mg: 1, lookout: 1, bridge: 1, tower: 1, sam: 0, arty: 0 } };
 }
 // Old or partial saves are filled in rather than thrown away.
@@ -82,6 +85,12 @@ export function orbStats(id, level = 1) {
   }
   return o;
 }
+// (0.23) The Hangar: how many calls the Eagle has before it goes back to rearm, how long that takes, and how much faster pelicans
+// (SEAF drops and cargo) come. Level 0: no Eagles.
+export function hangarStats(kit) {
+  const H = C.hangar, l = Math.max(0, Math.min(H.levels, (kit && kit.hangar) | 0));
+  return { level: l, uses: l ? H.usesBase + Math.floor(l / 2) : 0, rearm: H.rearm[l], callCd: H.callCd, pelican: H.pelican[l], seafCool: H.seafCool[l] };
+}
 export const uavStats = (lvl = 1) => {
   const i = Math.max(1, Math.min(C.uav.r.length, lvl)) - 1;
   return { r: C.uav.r[i], sec: C.uav.sec[i], cd: C.uav.cd[i] };
@@ -96,7 +105,7 @@ export function seafStats(kit) {
   return {
     max: C.seaf.max + K.seafCap * s.cap,
     drop: C.seaf.dropSize + Math.ceil(s.drop / K.seafDropEvery),
-    cool: C.seaf.dropCooldownSec - 3 * s.drop,
+    cool: (C.seaf.dropCooldownSec - 3 * s.drop) * hangarStats(kit).seafCool,     // (0.23: the Hangar turns pelicans round faster)
     hpMul: 1 + K.seafHp * s.hp, dmgMul: 1 + K.seafDmg * s.hp,
     grenChance: Math.min(0.8, C.seaf.grenChance + K.seafGren * s.gren),
     rocketChance: Math.min(1, C.seaf.rocketChance + K.seafRocket * s.rocket),
@@ -149,7 +158,9 @@ const BLURB_N = { 'seaf.cap': () => C.kit.seafCap, 'gun.ammo': () => C.gun.upAmm
 const named = (key) => ({ get name() { return t(`kit.${key}`); }, get blurb() { return t(`kit.${key}.b`, { n: BLURB_N[key] ? BLURB_N[key]() : '' }); } });
 const ORB_UP_BASE = 400;       // upgrade price scale: level L to L+1 costs this (or the unlock price) x 0.5 x L
 
-export function orbUpCost(id, level) { return price(Math.max(ORB_UP_BASE, ORB_BASE[id]) * 0.5 * level); }
+// (0.23) Eagles and minefields climb more cheaply: an Eagle has only so many runs before it rearms, and a minefield sits where you put it.
+const UP_MUL = (id) => (id.startsWith('eagle_') || id.startsWith('mine_') ? 0.3 : 0.5);
+export function orbUpCost(id, level) { return price(Math.max(ORB_UP_BASE, ORB_BASE[id]) * UP_MUL(id) * level); }
 export const slotCost = (n) => price(n === 4 ? 700 : 1500);
 
 export function shopItems(kit) {
@@ -159,11 +170,15 @@ export function shopItems(kit) {
     if (kit.slots >= n) continue;
     items.push({ id: `slot:${n}`, section: 'loadout', name: t('kit.slot', { n }), blurb: t('kit.slot.b'), level: 0, max: 1, cost: kit.slots === n - 1 ? slotCost(n) : null, locked: kit.slots !== n - 1, live: false });
   }
-  // Orbitals
+  // (0.23) The Hangar: Eagles, and faster pelicans
+  { const lvl = kit.hangar || 0, mx = C.hangar.levels;
+    items.push({ id: 'hangar', section: 'eagles', ...named('hangar'), level: lvl, max: mx, cost: lvl >= mx ? null : price(C.hangar.price[lvl]), live: lvl > 0 }); }
+  // Orbitals, utilities, (0.23) Eagles and minefields
   for (const id of ORB_LIST) {
     const d = STRATS[id], lvl = kit.owned[id] || 0;
-    const sec = d.util ? 'utilities' : 'orbitals';    // ship utilities equip in the same slots, but are listed on their own
-    if (!lvl) items.push({ id: `own:${id}`, section: sec, name: d.name, blurb: d.blurb, level: 0, max: MAXL, cost: ORB_PRICE[id], orb: id, live: false });
+    const sec = d.cat === 'EAGLE' ? 'eagles' : d.cat === 'DEFENSE' ? 'defense' : d.util ? 'utilities' : 'orbitals';    // (all of them equip in the same slots)
+    const locked = d.cat === 'EAGLE' && !(kit.hangar > 0);
+    if (!lvl) items.push({ id: `own:${id}`, section: sec, name: d.name, blurb: d.blurb, level: 0, max: MAXL, cost: ORB_PRICE[id], orb: id, live: false, locked, needs: locked ? 'hangar' : null });
     else items.push({ id: `up:${id}`, section: sec, name: d.name, blurb: d.blurb, level: lvl, max: MAXL, cost: lvl >= MAXL ? null : orbUpCost(id, lvl), orb: id, owned: true, live: true });
   }
   // Ship Gun
@@ -209,6 +224,7 @@ export function buy(kit, wallet, id, inMission = false) {
   else if (kind === 'own') { kit.owned[arg] = 1; equip(kit, arg); }
   else if (kind === 'up') kit.owned[arg] = Math.min(MAXL, kit.owned[arg] + 1);
   else if (kind === 'uav') kit.uav++;
+  else if (kind === 'hangar') kit.hangar = (kit.hangar || 0) + 1;
   else if (kind === 'uavb') { kit.uavb = kit.uavb || { speed: 0, dodge: 0 }; kit.uavb[arg] = (kit.uavb[arg] || 0) + 1; }
   else if (kind === 'seaf') kit.seaf[arg]++;
   else if (kind === 'gun') kit.gun[arg]++;

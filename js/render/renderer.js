@@ -137,6 +137,7 @@ export class Renderer {
         if (ev.r >= 3.5) fx.push({ k: 'ring', x: ev.x, y: ev.y, r: ev.r * 1.4, t0: now, life: 0.55, a: flash, col: ecol });
         if (ev.r >= 2.5) this._scorch(ev.x, ev.y, ev.r * (ev.r >= 6 ? 1 : 0.7), black);
         if (ev.r >= 10) this.shake = Math.min(12, this.shake + ev.r * 0.35);
+        if (ev.sid || ev.mine) this._strikeFx(ev, now, flash);     // (0.23) each stratagem looks like what it is
         break;
       }
       case 'tracer': this._tracer(ev, now, m); break;
@@ -729,6 +730,119 @@ export class Renderer {
     ctx.strokeStyle = 'rgba(255,60,60,0.5)'; ctx.lineWidth = 2 / scale; ctx.strokeRect(0, 0, SIZE, SIZE);
   }
 
+  // (0.23) The stratagems' explosions; true when f was one of them.
+  _fx23(ctx, f, p, now, px) {
+    switch (f.k) {
+      case 'fireball': {
+        // a ball of fire that swells fast, white-hot at the heart, going red and smoky as it cools
+        const g0 = 1 - (1 - Math.min(1, p * 2.4)) ** 2, R = f.r * (0.45 + 0.75 * g0), a = (f.a ?? 1) * (p < 0.45 ? 1 : (1 - p) / 0.55), h = f.hot || 1;
+        const g = ctx.createRadialGradient(f.x, f.y - R * 0.12 * p, 0, f.x, f.y, R);
+        g.addColorStop(0, `rgba(255,${Math.round(250 - 80 * p)},${Math.round(220 - 200 * p)},${0.95 * a})`);
+        g.addColorStop(0.35, `rgba(255,${Math.round(150 * h - 70 * p)},30,${0.85 * a})`);
+        g.addColorStop(0.75, `rgba(${Math.round(190 - 120 * p)},40,15,${0.55 * a})`);
+        g.addColorStop(1, 'rgba(40,20,10,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, R, 0, TAU); ctx.fill();
+        if (p > 0.35) { ctx.fillStyle = `rgba(30,26,22,${0.35 * (1 - p)})`; ctx.beginPath(); ctx.arc(f.x, f.y - f.r * 0.5 * p, R * 0.8, 0, TAU); ctx.fill(); }
+        return true;
+      }
+      case 'flame': {
+        // a tongue of fire rising and flickering out
+        const tt = now - f.t0, y = f.y + f.vy * tt, R = f.r * (1 - 0.6 * p) * (0.85 + 0.15 * Math.sin(now * 30 + f.x)), a = 1 - p;
+        const g = ctx.createRadialGradient(f.x, y, 0, f.x, y, R);
+        g.addColorStop(0, `rgba(255,240,160,${0.9 * a})`); g.addColorStop(0.5, `rgba(255,${Math.round(140 - 90 * p)},20,${0.75 * a})`); g.addColorStop(1, 'rgba(120,20,0,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, y, Math.max(R, px(1.5)), 0, TAU); ctx.fill();
+        return true;
+      }
+      case 'cloud': {
+        // a cloud that billows out and thins (gas)
+        const R = f.r * (0.55 + 0.6 * Math.min(1, p * 1.8)), a = (f.a ?? 0.5) * (p < 0.6 ? 1 : (1 - p) / 0.4);
+        for (let k = 0; k < 3; k++) {
+          const ox = Math.cos(k * 2.1 + f.x) * R * 0.3, oy = Math.sin(k * 2.1 + f.y) * R * 0.3;
+          const g = ctx.createRadialGradient(f.x + ox, f.y + oy, 0, f.x + ox, f.y + oy, R * 0.8);
+          g.addColorStop(0, `rgba(${f.col},${0.45 * a})`); g.addColorStop(1, `rgba(${f.col},0)`);
+          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x + ox, f.y + oy, R * 0.8, 0, TAU); ctx.fill();
+        }
+        return true;
+      }
+      case 'zap': {
+        // an electric ring, and arcs that jump about inside it (EMS)
+        const R = f.r * (0.3 + 0.9 * p), a = (f.a ?? 1) * (1 - p);
+        ctx.strokeStyle = `rgba(120,200,255,${0.85 * a})`; ctx.lineWidth = px(2.2); ctx.beginPath(); ctx.arc(f.x, f.y, R, 0, TAU); ctx.stroke();
+        ctx.strokeStyle = `rgba(220,240,255,${0.9 * a})`; ctx.lineWidth = px(1.3);
+        for (let k = 0; k < 6; k++) {
+          const ang = Math.random() * TAU; let x = f.x, y = f.y; ctx.beginPath(); ctx.moveTo(x, y);
+          for (let j = 1; j <= 4; j++) { const d = (R * j) / 4; x = f.x + Math.cos(ang + (Math.random() - 0.5) * 0.7) * d; y = f.y + Math.sin(ang + (Math.random() - 0.5) * 0.7) * d; ctx.lineTo(x, y); }
+          ctx.stroke();
+        }
+        return true;
+      }
+      case 'column': {
+        // a column of smoke climbing out of a big blast
+        const a = p < 0.2 ? p / 0.2 : (1 - p), lift = f.r * 4 * p;
+        for (let k = 0; k < 4; k++) {
+          const yk = f.y - lift * (k / 3), R = f.r * (0.7 + 0.5 * p + 0.25 * k);
+          const g = ctx.createRadialGradient(f.x, yk, 0, f.x, yk, R);
+          g.addColorStop(0, `rgba(48,42,38,${0.35 * a})`); g.addColorStop(1, 'rgba(48,42,38,0)');
+          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, yk, R, 0, TAU); ctx.fill();
+        }
+        return true;
+      }
+      case 'skybeam': {
+        // a streak from high above onto the spot (a railcannon round, a precision shell)
+        const top = 700, x0 = f.x + top * 0.18, y0 = f.y - top, a = (f.a ?? 1) * (1 - p), w = Math.max(f.r, px(2));
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = `rgba(${f.col},${0.35 * a})`; ctx.lineWidth = w * 2.6; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(f.x, f.y); ctx.stroke();
+        ctx.strokeStyle = `rgba(255,255,255,${0.95 * a})`; ctx.lineWidth = w * 0.8; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(f.x, f.y); ctx.stroke();
+        ctx.lineCap = 'butt';
+        return true;
+      }
+      case 'flak': {
+        // a burst above the ground: a flash, then a dark puff that hangs
+        const a = f.a ?? 1;
+        if (p < 0.25) { const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r); g.addColorStop(0, `rgba(255,240,200,${0.95 * a})`); g.addColorStop(1, 'rgba(255,150,40,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, TAU); ctx.fill(); }
+        const R = f.r * (0.6 + 0.6 * p); ctx.fillStyle = `rgba(40,36,34,${0.5 * (1 - p)})`; ctx.beginPath(); ctx.arc(f.x, f.y, R, 0, TAU); ctx.fill();
+        return true;
+      }
+      case 'dust': {
+        // dirt kicked up: a brown puff spreading out low
+        const R = f.r * (0.4 + 0.8 * p), g = ctx.createRadialGradient(f.x, f.y, R * 0.2, f.x, f.y, R);
+        g.addColorStop(0, `rgba(120,96,64,${0.45 * (1 - p)})`); g.addColorStop(1, 'rgba(120,96,64,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, R, 0, TAU); ctx.fill();
+        return true;
+      }
+      default: return false;
+    }
+  }
+  // (0.23) An explosion drawn after the stratagem that made it: napalm burns, gas billows green, EMS crackles blue, the 500 kg and
+  // the 380 mm throw up a fireball and a column of smoke, the railcannon and the precision strike come down as a streak from the sky,
+  // the airburst bursts above the ground, strafing kicks up dirt.
+  _strikeFx(ev, now, flash) {
+    if (this.fx.length > 300) return;
+    const fx = this.fx, id = ev.sid || '', r = Math.max(2, ev.r), x = ev.x, y = ev.y, rnd = Math.random;
+    const kind = /napalm|mine_inc/.test(id) ? 'fire' : /gas/.test(id) ? 'gas' : /ems/.test(id) ? 'ems' : /500|380/.test(id) ? 'big' : /rail/.test(id) ? 'rail'
+      : /precision/.test(id) ? 'prec' : /airburst/.test(id) ? 'air' : /cluster/.test(id) ? 'cluster' : /strafe/.test(id) ? 'strafe' : /rocket/.test(id) ? 'rocket' : ev.mine ? 'mine' : 'he';
+    switch (kind) {
+      case 'fire':
+        fx.push({ k: 'fireball', x, y, r: r * 1.3, t0: now, life: 0.9, a: flash, hot: 1 });
+        for (let i = 0; i < 6; i++) fx.push({ k: 'flame', x: x + (rnd() - 0.5) * r * 1.4, y: y + (rnd() - 0.5) * r * 1.4, r: r * (0.25 + rnd() * 0.25), t0: now + i * 0.06, life: 1.1 + rnd() * 0.9, vy: -(1.5 + rnd() * 3) });
+        break;
+      case 'gas': fx.push({ k: 'cloud', x, y, r: r * 2, t0: now, life: 3.4, col: '222,255,70', a: 1 }); fx.push({ k: 'cloud', x, y, r: r * 1.3, t0: now + 0.15, life: 3, col: '120,150,20', a: 0.8 }); break;
+      case 'ems': fx.push({ k: 'zap', x, y, r: r * 1.8, t0: now, life: 0.9, a: flash }); break;
+      case 'big':
+        fx.push({ k: 'fireball', x, y, r: r * 1.5, t0: now, life: 1.5, a: flash, hot: 1.2 });
+        fx.push({ k: 'shock', x, y, r: r * 3.4, t0: now, life: 0.6, a: flash });
+        fx.push({ k: 'column', x, y, r: r * 0.8, t0: now + 0.25, life: 4.5 });
+        break;
+      case 'rail': fx.push({ k: 'skybeam', x, y, r: Math.max(3, r * 0.45), t0: now, life: 0.55, col: '191,233,255', a: flash }); fx.push({ k: 'fireball', x, y, r: r * 0.9, t0: now + 0.05, life: 0.6, a: flash, hot: 0.8 }); break;
+      case 'prec': fx.push({ k: 'skybeam', x, y, r: Math.max(2, r * 0.25), t0: now, life: 0.3, col: '255,233,176', a: flash }); fx.push({ k: 'fireball', x, y, r: r * 1.15, t0: now, life: 0.8, a: flash, hot: 1 }); break;
+      case 'air': for (let i = 0; i < 3; i++) fx.push({ k: 'flak', x: x + (rnd() - 0.5) * r, y: y + (rnd() - 0.5) * r - r * 0.6, r: r * 0.55, t0: now + i * 0.05, life: 0.9, a: flash }); break;
+      case 'cluster': for (let i = 0; i < 3; i++) fx.push({ k: 'spark', x: x + (rnd() - 0.5) * r * 1.6, y: y + (rnd() - 0.5) * r * 1.6, r: r * 0.35, t0: now + rnd() * 0.15, life: 0.35, col: '#ffb040' }); break;
+      case 'strafe': fx.push({ k: 'dust', x, y, r: r * 1.6, t0: now, life: 0.7 }); break;
+      case 'rocket': fx.push({ k: 'fireball', x, y, r: r * 1.05, t0: now, life: 0.6, a: flash, hot: 0.9 }); fx.push({ k: 'dust', x, y, r: r * 1.8, t0: now + 0.05, life: 1 }); break;
+      case 'mine': fx.push({ k: 'dust', x, y, r: r * 1.7, t0: now, life: 0.9 }); fx.push({ k: 'fireball', x, y, r: r * 0.8, t0: now, life: 0.45, a: flash, hot: 0.7 }); break;
+      default: fx.push({ k: 'fireball', x, y, r: r * 1.1, t0: now, life: 0.75, a: flash, hot: 1 });
+    }
+  }
   _effects(ctx, now, px) {
     const fx = this.fx;
     for (let i = fx.length - 1; i >= 0; i--) {
@@ -737,6 +851,7 @@ export class Renderer {
       if (p < 0) continue;
       const a = (1 - p) * (f.a ?? 1);
       if (f.k === 'trc') { this._drawTracer(ctx, f, now, px); continue; }
+      if (this._fx23(ctx, f, p, now, px)) continue;     // (0.23) the stratagems' own explosions
       if (f.k === 'flash') {
         const r = f.r * (0.6 + 0.6 * p);
         const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, r);

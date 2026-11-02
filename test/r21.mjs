@@ -4,7 +4,7 @@
 import { Mission } from '../js/sim/mission.js';
 import { fireSlot } from '../js/sim/player.js';
 import { CONFIG as C } from '../js/config.js';
-import { newKit, newWallet, shopItems, buy, orbStats, uavStats, uavBuff, seafStats, gunStats, zoneExtra, buildStats, buildLevel, BUILDS } from '../js/data/kit.js';
+import { newKit, newWallet, shopItems, buy, orbStats, uavStats, uavBuff, seafStats, gunStats, zoneExtra, buildStats, buildLevel, BUILDS, hangarStats } from '../js/data/kit.js';
 
 let fails = 0;
 const check = (name, ok, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  (' + detail + ')' : ''}`); if (!ok) fails++; };
@@ -13,7 +13,7 @@ const check = (name, ok, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} 
 // Everything the kit can say about itself, as one string: a purchase that leaves it the same did nothing.
 const print = (kit) => JSON.stringify({
   slots: kit.slots, loadout: kit.loadout, orbs: Object.fromEntries(Object.entries(kit.owned).filter(([, l]) => l).map(([id, l]) => [id, orbStats(id, l)])),
-  uav: uavStats(kit.uav), uavb: uavBuff(kit), seaf: seafStats(kit), gun: gunStats(kit), zone: zoneExtra(kit),
+  uav: uavStats(kit.uav), uavb: uavBuff(kit), seaf: seafStats(kit), gun: gunStats(kit), zone: zoneExtra(kit), hangar: hangarStats(kit),
   builds: Object.fromEntries(BUILDS.map((w) => [w, buildLevel(kit, w) ? buildStats(w, buildLevel(kit, w)) : 0])),
 });
 const kit = newKit(), wallet = newWallet(1e9);

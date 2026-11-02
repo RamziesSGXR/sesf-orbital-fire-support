@@ -5,7 +5,7 @@ import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { aoX, aoY } from './ao.js';
 import { COMMS } from '../data/data.js';
-import { seafStats, buildStats, buildLevel } from '../data/kit.js';
+import { seafStats, buildStats, buildLevel, hangarStats } from '../data/kit.js';
 import { fireShot, jammedAt } from './combat.js';
 import { nearestObjective } from './pois.js';
 import { strikeAt } from './strat.js';
@@ -254,7 +254,7 @@ export function updatePelicans(m, dt) {
       continue;
     }
     if (p.state === 'in') {
-      const d = Math.hypot(p.tx - p.x, p.ty - p.y), sp = P.speed * Math.min(1, 0.28 + d / 70);
+      const d = Math.hypot(p.tx - p.x, p.ty - p.y), sp = P.speed / hangarStats(m.kit).pelican * Math.min(1, 0.28 + d / 70);     // (0.23: the Hangar speeds them up)
       step(p, p.tx, p.ty, sp, dt);
       p.alt = 0.3 + 0.7 * Math.min(1, d / 160);
       if (d <= 2) { p.state = 'hover'; p.dropT = 0.35; p.alt = 0.3; m.emit('pelican_arrive', { x: p.x, y: p.y, evac: !!p.evac }); }

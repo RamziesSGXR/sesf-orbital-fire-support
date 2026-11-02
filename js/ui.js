@@ -4,7 +4,7 @@ import { FACTIONS, BIOMES } from './data/data.js';
 import { fmtTime, fmtNum, sessionTotals, MAX_NAME, carriesOn, levelReached } from './session.js';
 import { STRATS, CAT_COLOR } from './data/strat.js';
 import { LETTERS, TEAM_COLOR } from './data/names.js';
-import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff } from './data/kit.js';
+import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, hangarStats } from './data/kit.js';
 import { stratReady, stratOnline } from './sim/strat.js';
 import { slotStats } from './sim/player.js';
 import { compass } from './sim/enemies.js';
@@ -1099,8 +1099,11 @@ export class Hud {
         } else if (s.type === 'orb') {
           const st = orbStats(s.id, s.level);
           name = touch ? shortName(s.id) : t('hud.w.lvl', { name: shortName(s.id), n: s.level });   // phones: no room for the level
+          const eg = st.cat === 'EAGLE' ? p.eagle : null, H = eg ? hangarStats(m.kit) : null;     // (0.23) an Eagle: its calls left, or rearming
           if (s.uses <= 0) { sub = t('hud.w.spent'); frac = 0; cls = 'cd'; }
-          else if (tt < s.readyAt) { sub = t('hud.o.sec', { n: Math.ceil(s.readyAt - tt) }); frac = Math.max(0, 1 - (s.readyAt - tt) / st.cd); cls = 'cd'; }
+          else if (eg && eg.uses <= 0) { sub = t('hud.w.rearm', { n: Math.max(0, Math.ceil(eg.rearmAt - tt)) }); frac = eg.rearmAt ? Math.max(0, 1 - (eg.rearmAt - tt) / H.rearm) : 0; cls = 'cd'; }
+          else if (tt < s.readyAt) { sub = t('hud.o.sec', { n: Math.ceil(s.readyAt - tt) }); frac = Math.max(0, 1 - (s.readyAt - tt) / (eg ? H.callCd : st.cd)); cls = 'cd'; }
+          else if (eg && !(sel && !p.aim.inZone)) { sub = t('hud.w.eagle', { n: eg.uses, of: eg.max }); cls = 'ready'; }
           else if (sel && !p.aim.inZone) { sub = t('hud.w.noCover'); cls = 'nomark'; }
           else { sub = s.uses !== Infinity ? t('hud.w.readyX', { n: s.uses }) : t('hud.w.ready'); cls = 'ready'; }
         } else if (s.type === 'gun') {
@@ -1128,7 +1131,8 @@ export class Hud {
       if (w.key !== key) {
         w.key = key; w.el.style.display = hidden ? 'none' : '';
         w.n.textContent = name; w.sub.textContent = sub; w.subText = sub; w.cls = cls;
-        w.el.className = 'wbtn' + (s.type === 'nuke' ? ' big-w obj-w' : s.type === 'arty' ? ' big-w arty-w' : s.type === 'uav' ? ' uav-w' : s.type === 'gun' ? ' gun-w' : ' orb-w') + (on ? ' sel' : '') + (cls ? ' ' + cls : '');
+        const cat = s.type === 'orb' && STRATS[s.id] ? STRATS[s.id].cat : '';     // (0.23) the stratagem's kind, coloured as in Helldivers 2
+        w.el.className = 'wbtn' + (s.type === 'nuke' ? ' big-w obj-w' : s.type === 'arty' ? ' big-w arty-w' : s.type === 'uav' ? ' uav-w' : s.type === 'gun' ? ' gun-w' : ' orb-w') + (cat ? ' cat-' + cat.toLowerCase() : '') + (on ? ' sel' : '') + (cls ? ' ' + cls : '');
       }
       w.bar.style.width = `${Math.max(0, Math.min(1, frac)) * 100}%`;
     });
@@ -1252,7 +1256,7 @@ export function runBriefing({ info, mission, touch, onContinue, onEnd, onCancel,
 
 // ---------------- the armory ----------------
 // css class per armory section (the styles predate the section ids)
-const SEC_SLUG = { loadout: 'loadout', orbitals: 'orbitals', utilities: 'utilities', gun: 'ship-gun', uav: 'uav-scan', seaf: 'seaf-troops', specialists: 'seaf-specialists', build: 'buildables', support: 'squad-support' };
+const SEC_SLUG = { loadout: 'loadout', orbitals: 'orbitals', utilities: 'utilities', eagles: 'eagles', defense: 'minefields', gun: 'ship-gun', uav: 'uav-scan', seaf: 'seaf-troops', specialists: 'seaf-specialists', build: 'buildables', support: 'squad-support' };
 const pips = (lv, max) => { let s = ''; for (let i = 0; i < max; i++) s += i < lv ? '●' : '○'; return s; };
 
 // One line of numbers under an item's name.
@@ -1266,9 +1270,13 @@ function statLine(it, kit) {
       return `${what} · ${rc(o.cd)} · ${t('st.equips')}`;
     }
     if (o.k === 'beam') return `${t('st.beam', { dps: Math.round(o.beam.dps), s: f0(o.beam.dur) })} · ${rc(o.cd)}`;
-    if (o.k === 'zone') return `${t('st.zone', { r: f0(o.zone.r), s: f0(o.zone.sec) })} · ${rc(o.cd)}`;
-    return `${t('st.strike', { dmg: Math.round(o.dmg), n: o.n, r: f0(o.splash) })} · ${rc(o.cd)}`;
+    // (0.23) an Eagle calls on the Hangar's Eagle (its calls, then a rearm); a minefield: how many mines, how hard they hit
+    const H = hangarStats(kit), eg = o.cat === 'EAGLE' ? (H.level ? ` · ${t('st.eagle', { n: H.uses, s: H.rearm })}` : ` · ${t('st.needsHangar')}`) : '';
+    if (o.k === 'mines') return `${t('st.mines', { n: o.n, dmg: Math.round(o.dmg), s: f0(o.life) })}${o.heavyOnly ? ` · ${t('st.minesAT')}` : o.fire ? ` · ${t('st.minesFire')}` : ''} · ${rc(o.cd)}`;
+    if (o.k === 'zone') return `${t('st.zone', { r: f0(o.zone.r), s: f0(o.zone.sec) })}${eg || ` · ${rc(o.cd)}`}`;
+    return `${t('st.strike', { dmg: Math.round(o.dmg), n: o.n, r: f0(o.splash) })}${eg || ` · ${rc(o.cd)}`}`;
   }
+  if (id === 'hangar') { const H = hangarStats(kit); return H.level ? t('st.hangar', { n: H.uses, s: H.rearm, p: Math.round((1 / H.pelican - 1) * 100) }) : t('st.hangar0'); }
   const s = seafStats(kit);
   if (id === 'uav') { const u = uavStats(kit.uav), lv = Math.min(C.radar.every.length, kit.uav); return t('st.uav', { r: u.r, s: u.sec, cd: u.cd, rad: C.radar.every[lv - 1] }); }
   if (id === 'seaf.cap') return t('st.seafCap', { n: s.max });
@@ -1305,6 +1313,7 @@ function statLine(it, kit) {
 function kitAt(kit, it, L) {
   const k = JSON.parse(JSON.stringify(kit)), id = it.id;
   if (it.orb) k.owned[it.orb] = Math.max(1, L);
+  else if (id === 'hangar') k.hangar = L;
   else if (id === 'uav') k.uav = L;
   else if (id.startsWith('uavb.')) { k.uavb = k.uavb || {}; k.uavb[id.slice(5)] = L; }
   else if (id.startsWith('seaf.')) k.seaf[id.slice(5)] = L;
@@ -1321,8 +1330,10 @@ function keyAt(it, kit, L) {
     if (o.k === 'util') return o.util === 'med' ? pc(o.heal) : o.util === 'smoke' ? t('st.k.m', { n: Math.round(o.zone.r) }) : o.util === 'shield' ? fmtNum(o.shield) : t('st.k.hp', { n: o.t.hp });
     if (o.k === 'beam') return t('st.k.ps', { n: Math.round(o.beam.dps) });
     if (o.k === 'zone') return t('st.k.m', { n: Math.round(o.zone.r) });
+    if (o.k === 'mines') return `${o.n}×${Math.round(o.dmg)}`;
     return String(Math.round(o.dmg));
   }
+  if (id === 'hangar') { const H = hangarStats(k); return H.level ? t('st.k.hangar', { n: H.uses, s: H.rearm }) : '—'; }
   if (id === 'uav') return t('st.k.m', { n: uavStats(L).r });
   if (id.startsWith('uavb.')) { const b = uavBuff(k); return `+${pc(id === 'uavb.speed' ? b.speed : b.dodge)}`; }
   const s = seafStats(k), g = gunStats(k);
@@ -1373,7 +1384,7 @@ function upgradeLines(it, kit) {
 
 // Draw the armory into root. opts: { kit, wallet, live, onBuy(id), onEquip(id), onUnequip(slot), note }
 // The armory's tabs, and which sections each holds.
-export const SHOP_TABS = [{ id: 'orb', secs: ['loadout', 'orbitals', 'utilities'] }, { id: 'ship', secs: ['gun', 'uav', 'support'] }, { id: 'seaf', secs: ['seaf', 'specialists'] }, { id: 'build', secs: ['build'] }];
+export const SHOP_TABS = [{ id: 'orb', secs: ['loadout', 'orbitals', 'utilities', 'defense'] }, { id: 'eagle', secs: ['eagles'] }, { id: 'ship', secs: ['gun', 'uav', 'support'] }, { id: 'seaf', secs: ['seaf', 'specialists'] }, { id: 'build', secs: ['build'] }];
 let shopTab = 'orb';
 export function renderShop(root, opts) {
   const { kit, wallet, live } = opts, items = shopItems(kit);
@@ -1414,7 +1425,7 @@ export function renderShop(root, opts) {
   const sections = [];
   for (const it of items) { let s = sections.find((x) => x.name === it.section); if (!s) sections.push(s = { name: it.section, list: [] }); s.list.push(it); }
   for (const sec of sections) {
-    if (sec.name === 'orbitals' || sec.name === 'utilities') sec.list.sort((a, b) => (b.owned ? 1 : 0) - (a.owned ? 1 : 0));
+    if (sec.name === 'orbitals' || sec.name === 'utilities' || sec.name === 'eagles' || sec.name === 'defense') sec.list.sort((a, b) => (a.id === 'hangar' ? -2 : a.owned ? -1 : 0) - (b.id === 'hangar' ? -2 : b.owned ? -1 : 0));     // (the Hangar first, then what is owned)
     const slug = SEC_SLUG[sec.name] || sec.name, pane = panes[tabOf(sec.name).id];
     const hd = el('h3', 'shop-h sec-' + slug, `<i class="dot"></i>${esc(t('kit.sec.' + sec.name))}`);
     pane.appendChild(hd);
@@ -1427,6 +1438,7 @@ export function renderShop(root, opts) {
       const btns = el('div', 'it-btns');
       const b = el('button', 'btn buy');
       if (it.cost === null) { b.textContent = t(it.locked ? 'arm.locked' : 'arm.max'); b.disabled = true; }
+      else if (it.locked && it.needs) { b.innerHTML = `${t('arm.needs.' + it.needs)}<small>${t('arm.cr', { n: fmtNum(it.cost) })}</small>`; b.disabled = true; b.classList.add('small'); }     // (0.23: Eagles need the Hangar)
       else if (live && !it.live) { b.textContent = t('arm.between'); b.disabled = true; b.classList.add('small'); }
       else {
         const verb = t(it.orb || it.build ? (it.owned ? 'arm.upgrade' : 'arm.unlock') : it.id.startsWith('slot') ? 'arm.buy' : 'arm.upgrade');

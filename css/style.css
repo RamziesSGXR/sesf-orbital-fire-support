@@ -2056,3 +2056,11 @@ body.rts.lay-phone #hud:has(#place-ok:not(.hidden)) #softpause .sp-bar { visibil
 /* the popups that ask for something sit on a solid panel (they cross the weapons and the map) */
 #hud #merge-pop, body.rts #hud #topmid #ask, #hud #place-ok { background: rgba(4, 20, 11, 0.95); box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6); }
 body.rts.lay-phone.lay-port #hud #tactical #squads .sqb { min-width: 34px; }
+
+/* ======================= 0.23: stratagem kinds, Eagles, minefields ======================= */
+/* each weapon carries its kind's colour along its top, as in Helldivers 2: orbital, Eagle, defence */
+#hud .wbtn.cat-orbital { box-shadow: inset 0 2px 0 #ff7a3d; } #hud .wbtn.cat-eagle { box-shadow: inset 0 2px 0 #ffd24a; } #hud .wbtn.cat-defense { box-shadow: inset 0 2px 0 #7dff9b; }
+#hud .wbtn.cat-eagle .n { color: #ffe27a; } #hud .wbtn.cat-defense .n { color: #9dffb8; }
+#hud .wbtn.sel.cat-orbital, #hud .wbtn.sel.cat-eagle, #hud .wbtn.sel.cat-defense { box-shadow: inset 0 2px 0 var(--yellow), 0 0 12px rgba(255, 230, 0, 0.3); }
+.sec-eagles { --sec: #ffd24a; } .sec-minefields { --sec: #7dff9b; }
+.la-it.sec-eagles { --sc: #ffd24a; } .la-it.sec-minefields { --sc: #7dff9b; }

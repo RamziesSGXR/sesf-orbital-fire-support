@@ -105,6 +105,11 @@ export const STRATS = {
   jump:          { cat: 'GEAR', g: 'JMP', cd: 120, k: 'jump', use: 'travel', shared: true },
   dog:           { cat: 'GEAR', g: 'DOG', cd: 100, k: 'dog', use: 'fight', threat: 4 },
   resupply:      { cat: 'GEAR', g: 'SUP', cd: 90, k: 'resupply', use: 'resupply', shared: true },
+  // ---------- (0.23) the gunner's minefields: dropped from the ship where the gunner aims, in the strike zone ----------
+  // AP: many small mines; incendiary: each mine leaves fire behind; AT: a few big ones that only heavies set off.
+  mine_ap:       { cat: 'DEFENSE', g: 'APM', cd: 70, k: 'mines', player: true, delay: 3, n: 16, r: 16, trig: 2.8, dmg: 150, splash: 4.5, life: 180 },
+  mine_inc:      { cat: 'DEFENSE', g: 'INC', cd: 80, k: 'mines', player: true, delay: 3, n: 10, r: 14, trig: 3, dmg: 80, splash: 5, life: 180, fire: { r: 7, sec: 6, dps: 60 } },
+  mine_at:       { cat: 'DEFENSE', g: 'ATM', cd: 95, k: 'mines', player: true, delay: 3, n: 7, r: 12, trig: 3.6, dmg: 1100, splash: 6.5, life: 220, heavyOnly: true },
 };
 
 // Names, blurbs and the short names of orbitals come from the language tables: strat.<id>, strat.<id>.b, strat.<id>.s.
@@ -115,9 +120,17 @@ for (const [id, d] of Object.entries(STRATS)) {
 const ALL_IDS = Object.keys(STRATS);
 // Stratagems the Helldivers can draw, and the ones the player can buy.
 // Resupply is not one of them any more: the squad asks the gunner for supplies instead (sim/supply.js).
-export const STRAT_IDS = ALL_IDS.filter((id) => STRATS[id].cat !== 'ORBITAL' && id !== 'resupply');
+// (0.23) The Helldivers draw orbital strikes too (with their own cooldowns; the gunner's are not touched), but not the ship's
+// utilities, the laser (a beam the gunner steers) or the gunner's own minefields.
+export const STRAT_IDS = ALL_IDS.filter((id) => { const d = STRATS[id]; return id !== 'resupply' && !d.player && (d.cat !== 'ORBITAL' || (!d.util && (d.k === 'strike' || d.k === 'zone'))); });
+export const HD_ORB_IDS = STRAT_IDS.filter((id) => STRATS[id].cat === 'ORBITAL');
+// What the gunner can buy and put in the loadout's slots: orbitals and ship utilities, (0.23) Eagles (once the Hangar is bought)
+// and minefields.
 export const ORB_IDS = ALL_IDS.filter((id) => STRATS[id].cat === 'ORBITAL');
-export const CAT_COLOR = { EAGLE: '#ffe600', ORBITAL: '#ffffff', DEFENSE: '#7dff9b', SUPPORT: '#ffb020', VEHICLE: '#7fd8ff', GEAR: '#c9b8ff' };
+export const EAGLE_IDS = ALL_IDS.filter((id) => STRATS[id].cat === 'EAGLE');
+export const MINE_IDS = ALL_IDS.filter((id) => STRATS[id].player && STRATS[id].k === 'mines');
+export const PLAYER_IDS = [...ORB_IDS, ...EAGLE_IDS, ...MINE_IDS];
+export const CAT_COLOR = { EAGLE: '#ffe600', ORBITAL: '#ff7a3d', DEFENSE: '#7dff9b', SUPPORT: '#ffb020', VEHICLE: '#7fd8ff', GEAR: '#c9b8ff' };
 
 export const ANTI_IDS = STRAT_IDS.filter((id) => STRATS[id].anti && !STRATS[id].shared);
 export const isAnti = (id) => !!(STRATS[id] && STRATS[id].anti);
@@ -133,6 +146,9 @@ export function rollLoadout(seed, forced = []) {
     if (anti >= C.strat.groups || out.length >= N) break;
     if (!out.includes(id)) { out.push(id); anti++; }
   }
+  // (0.23) at least two orbital strikes among them (the squad calls orbitals too)
+  let orbs = out.filter((id) => STRATS[id].cat === 'ORBITAL').length;
+  for (const id of rng.shuffle(HD_ORB_IDS.slice())) { if (orbs >= 2 || out.length >= N) break; if (!out.includes(id)) { out.push(id); orbs++; } }
   const pool = rng.shuffle(STRAT_IDS.filter((id) => !out.includes(id)));
   while (out.length < N) out.push(pool.pop());
   return out;

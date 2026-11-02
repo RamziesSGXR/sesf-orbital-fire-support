@@ -304,8 +304,8 @@ check('the nuke covers a much wider area', C.objective.nuke.blastR >= 200, `${C.
     total += it.cost; by[it.section] = (by[it.section] || 0) + it.cost;
   }
   const earn = C.econ.earnPerMin * C.econ.maxAtMin;
-  check('everything in the armory, maxed, costs about what three hours of play earns', Math.abs(total - earn) / earn < 0.1, `${total.toLocaleString()} cr to max everything, about ${earn.toLocaleString()} cr earned in ${C.econ.maxAtMin} min`);
-  check('the ship gun is part of that economy', by.gun > total * 0.1 && by.gun < total * 0.25, `${(by.gun || 0).toLocaleString()} cr, ${Math.round((by.gun || 0) / total * 100)}%`);
+  check(`everything in the armory, maxed, costs about what ${C.econ.maxAtMin / 60} hours of play earns`, Math.abs(total - earn) / earn < 0.1, `${total.toLocaleString()} cr to max everything, about ${earn.toLocaleString()} cr earned in ${C.econ.maxAtMin} min`);
+  check('the ship gun is part of that economy', by.gun > total * 0.08 && by.gun < total * 0.25, `${(by.gun || 0).toLocaleString()} cr, ${Math.round((by.gun || 0) / total * 100)}%`);
 }
 
 console.log(fails ? `\n${fails} FAILED` : '\nall passed');

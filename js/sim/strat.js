@@ -18,7 +18,7 @@ import { postDown } from './posts.js';
 const M = (L, Mm, H, B) => ({ L, M: Mm, H, B });
 const TMULT = { bullet: M(1, 0.8, 0.2, 0.03), shell: M(1, 1, 0.6, 0.15), heavy: M(1, 1, 0.85, 0.25), arc: M(1, 1, 0.5, 0.15), 'arc-zap': M(1, 1, 0.4, 0) };
 const RK_MULT = M(1, 1, 0.85, 0.2);
-const MINE_MULT = M(1, 1, 0.7, 0.1);
+const MINE_MULT = M(1, 1, 0.7, 0.1), AT_MULT = M(1, 1, 1.25, 0.5);     // (0.23: anti-tank mines are made for heavies)
 const MECH_GAT = M(1, 0.7, 0.25, 0.05);
 const MECH_RKT = M(1, 1, 0.7, 0.2);
 const DOG_MULT = M(1, 0.7, 0.2, 0.02);
@@ -246,7 +246,7 @@ function execute(m, g, tgt, ctx) {
   const cs = C.strat.callSec;      // the beacon is thrown, then the ship lines up: the ground is marked for this long first
   m.emit('strat_call', { id: g.id, x: tgt.x, y: tgt.y, delay: (d.delay || 4) + cs, team: team.i, cx: caller ? caller.x : ctx.cx, cy: caller ? caller.y : ctx.cy });
   switch (d.k) {
-    case 'strike': strikeAt(m, { ...d, delay: d.delay + cs }, tgt, { ox: ctx.cx, oy: ctx.cy, by: 'strat', friendly: false, dmgMul: mul(), team: team.i }); break;
+    case 'strike': strikeAt(m, { ...d, id: g.id, delay: d.delay + cs }, tgt, { ox: ctx.cx, oy: ctx.cy, by: 'strat', friendly: false, dmgMul: mul(), team: team.i }); break;
     case 'zone': queueZone(m, d.zone, tgt.x, tgt.y, t + d.delay + cs, d.delay + cs, d, 'strat', team.i); break;
     case 'turret': case 'mines': case 'shield': case 'dog': case 'weapon': case 'mech': case 'frv': {
       const drop = (d.k === 'frv' ? C.strat.frv.dropSec : d.k === 'mech' ? C.strat.mech.dropSec : 3.5) + cs;
@@ -286,7 +286,7 @@ export function strikeAt(m, d, tgt, o) {
     if (d.pat === 'scatter') { const [dx, dy] = rng.inDisc(d.len); x += dx; y += dy; }
     else if (d.pat === 'line' || d.pat === 'walk') { const s = (f - 0.5) * d.len, [jx, jy] = rng.inDisc(d.pat === 'walk' ? 3 : 1.6); x += ux * s + jx; y += uy * s + jy; }
     const at = at0 + f * d.span;
-    m.shells.push({ x, y, at, dmg, splash, mult: d.mult, by: o.by, friendly: o.friendly, lock: d.lock && tgt.e ? tgt.e : null, big: d.dmg >= 500 });
+    m.shells.push({ x, y, at, dmg, splash, mult: d.mult, by: o.by, friendly: o.friendly, lock: d.lock && tgt.e ? tgt.e : null, big: d.dmg >= 500, sid: d.id || '', cat: d.cat || '', n: i, of: n });     // (0.23: what it is, for its explosion)
     if (d.zone) m.queue.push({ at, type: 'zone', kind: d.zone.kind, x, y, r: d.zone.r, sec: d.zone.sec, dps: d.zone.dps || 0, sid: d.name, by: o.by });
   }
   const rr = d.pat === 'point' ? Math.max(d.splash, 6) : d.len || d.splash;
@@ -497,11 +497,15 @@ function minesStep(m, s, dt) {
   s.scan = 0.1;
   for (const mine of s.mines) {
     if (mine.dead) continue;
-    const e = m.eGrid.nearest(mine.x, mine.y, d.trig);
+    let e = null;
+    if (d.heavyOnly) m.eGrid.near(mine.x, mine.y, d.trig, (x) => { if (!e && x.kind === 'H') e = x; });     // (0.23) anti-tank: only a heavy sets one off
+    else e = m.eGrid.nearest(mine.x, mine.y, d.trig);
     if (!e) continue;
     mine.dead = true; s.left--;
-    damageArea(m, mine.x, mine.y, d.splash, d.dmg * mul(), MINE_MULT, 'strat', false);
-    m.emit('boom', { x: mine.x, y: mine.y, r: d.splash, dmg: d.dmg, by: 'strat' });
+    const mine1 = s.by === 'player';      // (0.23) the gunner's minefields: their numbers already carry the player's levels, and they hurt allies
+    damageArea(m, mine.x, mine.y, d.splash, d.dmg * (mine1 ? 1 : mul()), d.heavyOnly ? AT_MULT : MINE_MULT, mine1 ? 'player' : 'strat', mine1);
+    m.emit('boom', { x: mine.x, y: mine.y, r: d.splash, dmg: d.dmg, by: mine1 ? 'player' : 'strat', sid: s.sid, mine: true });
+    if (d.fire) { m.zones.push({ kind: 'fire', x: mine.x, y: mine.y, r: d.fire.r, until: m.t + d.fire.sec, dps: d.fire.dps * (mine1 ? 1 : mul()), tick: 0, born: m.t, by: mine1 ? 'player' : 'strat' }); m.emit('zone', { kind: 'fire', x: mine.x, y: mine.y, r: d.fire.r }); }
   }
   if (s.left <= 0 || t >= s.until) destroyAsset(m, s, 'spent');
 }

@@ -135,6 +135,7 @@ export const COMMS = {
   get civFriendly() { return t('c.civFriendly'); },
   utilCall: (name) => t('c.utilCall', { name }),
   get noWater() { return t('c.noWater'); },
+  get eagleRearm() { return t('c.eagleRearm'); },     // (0.23)
   bossIn: (name, dir, d) => t('c.bossIn', { name, dir, d }),
   bossDown: (name) => t('c.bossDown', { name }),
   bossBlock: (name) => t('c.bossBlock', { name }),
