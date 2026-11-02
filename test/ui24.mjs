@@ -63,13 +63,13 @@ check('the session is the story\'s', /"ch":1/.test(st), st);
 await tap('#shop-go'); await page.waitForTimeout(600);
 await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
 const inf = await ev(() => { const i = window.__game.info; return { f: i.faction, b: i.biome, s: i.seed, o: (i.ovObj || []).join() }; });
-check('chapter 1 is its own mission: Terminids, grassland, the evacuation', inf.f === 'bugs' && inf.b === 'grass' && inf.s === 7042 && inf.o === 'evac', JSON.stringify(inf));
+check('chapter 1 is its own mission: Terminids on Fronteria\'s desert, the evacuation', inf.f === 'bugs' && inf.b === 'desert' && inf.s === 7042 && inf.o === 'evac', JSON.stringify(inf));
 await tap('#b-continue'); await page.waitForTimeout(1500);
 const obj = await ev(() => window.__game.mission.objectives.map((o) => o.type).join());
 check('and it is flown', /evac/.test(obj), obj);
 // (0.27) the chapter's briefing: a cinematic over the planet, the cast a line at a time, the game waiting under it
 const br = await ev(() => ({ on: !document.getElementById('cine').classList.contains('hidden'), head: document.querySelector('#cine .cine-head').textContent, t: window.__game.mission.t, op: window.__game.info.op }));
-check('(0.27) the chapter opens with its briefing, and the game waits under it', br.on && /BRIEFING/.test(br.head) && /CHAPTER 1: LANDFALL/.test(br.head) && br.t === 0 && /Ember Line: LANDFALL/.test(br.op), JSON.stringify(br));
+check('(0.27) the chapter opens with its briefing, and the game waits under it', br.on && /BRIEFING/.test(br.head) && /OPERATION FREEDOM VISTA · CHAPTER 1: VACATION'S OVER/.test(br.head) && br.t === 0 && /Freedom Vista: VACATION'S OVER/.test(br.op), JSON.stringify(br));
 await page.waitForTimeout(2500);
 const say = await ev(() => ({ who: (document.querySelector('#cine-text .who') || {}).textContent, line: (document.querySelector('#cine-text .line') || {}).textContent }));
 check('(0.27) the General speaks first, his name over his line', say.who === 'GENERAL RAMZIES' && /General Ramzies/.test(say.line || ''), JSON.stringify(say));

@@ -3,6 +3,7 @@
 // fire down on it. Full screen, over the game; any key, a click or a tap (or SKIP) ends one early.
 import { Noise } from '../util/noise.js';
 import { RNG } from '../util/rng.js';
+import { TEAM_COLOR } from '../data/names.js';
 
 const TAU = Math.PI * 2;
 const $ = (id) => document.getElementById(id);
@@ -14,47 +15,56 @@ const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 // A latitude-longitude picture of Mars: rust plains, dark basalt, bright dust and the polar caps, from noise sampled on the sphere
 // (so it has no seam); and where it burns first when the Great Host fires on it.
 const TW = 512, TH = 256;
-let MARS = null, VERDANE = null;
-const texture = (kind) => (kind === 'verdane' ? verdaneTexture() : marsTexture());
-// (0.27) Verdane Reach, the campaign's farming world: blue seas, gold wheat and green fields, dark forest on the hills, small caps;
-// and where it burns (the colony's fires, or the hive's) from the same kind of mask as Mars.
-function verdaneTexture() {
-  if (VERDANE) return VERDANE;
-  const n = new Noise(7042), nf = new Noise(7187), col = new Float32Array(TW * TH * 3), fire = new Float32Array(TW * TH);
+let MARS = null;
+const texture = (kind) => (kind === 'fronteria' ? fronteriaTexture() : marsTexture());
+// (0.27.1) Fronteria, the campaign's world (Umlaut Sector): dunes and pale salt flats, dark mesas, a scatter of blue-green oases with
+// green round them, and the old craters of the nuclear test range; fires (the hive's, the colony's) burn on the land.
+let FRONTERIA = null;
+const CRATERS = [[0.6, 0.25, 0.11], [1.4, -0.1, 0.08], [2.3, 0.35, 0.13], [3.3, -0.3, 0.09], [4.1, 0.05, 0.12], [5.2, 0.4, 0.07], [5.7, -0.25, 0.1], [0.2, -0.45, 0.06]];
+function fronteriaTexture() {
+  if (FRONTERIA) return FRONTERIA;
+  const n = new Noise(270), nf = new Noise(2186), col = new Float32Array(TW * TH * 3), fire = new Float32Array(TW * TH);
   const tri = (N, px, py, pz, k, oct) => {
     const wx = px * px, wy = py * py, wz = pz * pz, s2 = wx + wy + wz;
     return (N.fbm(py * k + 11, pz * k + 7, oct) * wx + N.fbm(pz * k + 3, px * k + 19, oct) * wy + N.fbm(px * k + 5, py * k + 13, oct) * wz) / s2;
   };
+  const cr = CRATERS.map(([lo, la, r]) => ({ x: Math.cos(la) * Math.cos(lo), y: Math.sin(la), z: Math.cos(la) * Math.sin(lo), r }));
   for (let y = 0; y < TH; y++) {
     const lat = (0.5 - (y + 0.5) / TH) * Math.PI, cl = Math.cos(lat), sl = Math.sin(lat);
     for (let x = 0; x < TW; x++) {
       const lon = ((x + 0.5) / TW) * TAU, px = cl * Math.cos(lon), py = sl, pz = cl * Math.sin(lon);
-      const e = tri(n, px, py, pz, 2.2, 5), d = tri(n, px, py, pz, 9, 3), f = tri(nf, px, py, pz, 4, 3);
-      let r, g, b;
-      if (e < 0.47) {                         // sea: deep to shallow
-        const k = sstep(0.3, 0.47, e);
-        r = 14 + 30 * k; g = 38 + 62 * k; b = 76 + 70 * k;
-      } else {
-        const h = sstep(0.47, 0.8, e + (d - 0.5) * 0.12), wheat = sstep(0.45, 0.6, f);
-        r = 92 + (196 - 92) * wheat; g = 128 + (170 - 128) * wheat; b = 52 + (70 - 52) * wheat;      // green fields, gold wheat
-        const forest = sstep(0.3, 0.6, h);
-        r += (36 - r) * forest * 0.85; g += (74 - g) * forest * 0.85; b += (38 - b) * forest * 0.85;
-        const rock = sstep(0.7, 0.95, h);
-        r += (120 - r) * rock; g += (112 - g) * rock; b += (98 - b) * rock;
-        const coast = 1 - sstep(0.47, 0.5, e); r += (208 - r) * coast * 0.5; g += (196 - g) * coast * 0.5; b += (150 - b) * coast * 0.5;
+      const e = tri(n, px, py, pz, 2.6, 5), d = tri(n, px, py, pz, 11, 3), dune = 0.5 + 0.5 * Math.sin((px * 3 + pz * 2) * 40 + d * 9);
+      // sand, pale flats and red-brown dunes
+      const t = sstep(0.3, 0.7, e + (d - 0.5) * 0.2);
+      let r = 214 + (178 - 214) * t, g = 176 + (124 - 176) * t, b = 116 + (78 - 116) * t;
+      r += (dune - 0.5) * 7 * (1 - t); g += (dune - 0.5) * 5 * (1 - t); b += (dune - 0.5) * 3 * (1 - t);
+      // dark mesas
+      const mesa = sstep(0.68, 0.76, e);
+      r += (92 - r) * mesa; g += (64 - g) * mesa; b += (44 - b) * mesa;
+      // oases: low ground with water, and green round it
+      const low = 1 - sstep(0.27, 0.34, e), wet = 1 - sstep(0.22, 0.27, e);
+      r += (96 - r) * low * 0.8; g += (140 - g) * low * 0.8; b += (70 - b) * low * 0.8;
+      r += (34 - r) * wet; g += (150 - g) * wet; b += (150 - b) * wet;
+      // the test range's craters: a glassy floor and a bright rim
+      for (const c of cr) {
+        const dd = Math.acos(Math.max(-1, Math.min(1, px * c.x + py * c.y + pz * c.z))) / c.r;
+        if (dd < 1.25) {
+          const floor = 1 - sstep(0.7, 0.9, dd), rim = Math.exp(-(((dd - 1) / 0.12) ** 2));
+          r += (70 - r) * floor * 0.75; g += (66 - g) * floor * 0.75; b += (60 - b) * floor * 0.75;
+          r += (236 - r) * rim * 0.45; g += (214 - g) * rim * 0.45; b += (170 - b) * rim * 0.45;
+        }
       }
-      const cap = sstep(1.3, 1.42, Math.abs(lat) + (d - 0.5) * 0.2);
-      r += (236 - r) * cap; g += (240 - g) * cap; b += (244 - b) * cap;
-      // a little cloud
-      const cloud = sstep(0.6, 0.78, tri(nf, px, py, pz, 6, 4)) * 0.55;
-      r += (240 - r) * cloud; g += (242 - g) * cloud; b += (246 - b) * cloud;
+      const cap = sstep(1.38, 1.5, Math.abs(lat) + (d - 0.5) * 0.15);
+      r += (232 - r) * cap; g += (226 - g) * cap; b += (214 - b) * cap;
+      const haze = sstep(0.62, 0.8, tri(nf, px, py, pz, 5, 4)) * 0.3;      // a little dust in the air
+      r += (236 - r) * haze; g += (210 - g) * haze; b += (170 - b) * haze;
       const i = y * TW + x;
       col[i * 3] = r; col[i * 3 + 1] = g; col[i * 3 + 2] = b;
-      fire[i] = e < 0.47 ? 0 : tri(nf, px, py, pz, 6, 4) * (1 - cap);      // (nothing burns at sea)
+      fire[i] = tri(nf, px, py, pz, 6, 4) * (1 - cap) * (1 - wet);
     }
   }
-  VERDANE = { col, fire };
-  return VERDANE;
+  FRONTERIA = { col, fire };
+  return FRONTERIA;
 }
 function marsTexture() {
   if (MARS) return MARS;
@@ -177,36 +187,81 @@ function drawShip(ctx, x, y, s, ang, glow, now, dark = false) {
   ctx.restore();
 }
 
-// ---------------------------------------------------------------- (0.27) the Super Destroyer: an original design. A long arrowhead of
-// a hull in gunmetal, a stepped command tower aft, a gold line down the spine, running lights, and two engines glowing blue.
-function drawDestroyer(ctx, x, y, s, ang, now, glow = 1) {
+// ---------------------------------------------------------------- (0.27.1) the squad's destroyer, drawn from the project lead's
+// side-view sketch: a black armoured drive block with two inset panels and a bright blue light line down its face, twin blue
+// exhausts on a stern stub, a long black upper hull with blue light lines along it riding on a grey lower hull, a mast, a spinal gun
+// out past the bow, and gun mounts underneath. Seen side-on, nose to +x; one unit is the scale s. accent: its Helldiver's colour
+// (the mast's beacon).
+const BLUE = '#35d4ff';
+function drawDestroyer(ctx, x, y, s, ang, now, glow = 1, accent = null) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(s, s);
-  for (const ey of [-0.1, 0.1]) {
-    const g = ctx.createRadialGradient(-1.16, ey, 0, -1.16, ey, 0.32);
-    g.addColorStop(0, `rgba(200,235,255,${0.95 * glow})`); g.addColorStop(0.35, `rgba(90,170,255,${0.55 * glow})`); g.addColorStop(1, 'rgba(40,90,255,0)');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(-1.16, ey, 0.32, 0, TAU); ctx.fill();
+  const px = 1 / s;
+  const edge = (a = 0.9) => { ctx.lineWidth = Math.max(px, 0.006); ctx.strokeStyle = `rgba(0,0,0,${a})`; ctx.stroke(); };
+  const lit = (x0, y0, w, h) => {      // a bright blue light line, glowing
+    ctx.save(); ctx.shadowColor = BLUE; ctx.shadowBlur = Math.max(4, 0.05 * s);
+    ctx.fillStyle = BLUE; ctx.fillRect(x0, y0, w, h); ctx.restore();
+    ctx.strokeStyle = 'rgba(95,105,115,0.9)'; ctx.lineWidth = Math.max(px, 0.006); ctx.strokeRect(x0, y0, w, h);
+  };
+  // the exhausts: two, on a stub at the stern
+  for (const ey of [-0.05, 0.064]) {
+    const g = ctx.createRadialGradient(-1.27, ey, 0, -1.27, ey, 0.2);
+    g.addColorStop(0, `rgba(225,248,255,${0.95 * glow})`); g.addColorStop(0.35, `rgba(70,190,255,${0.55 * glow})`); g.addColorStop(1, 'rgba(30,110,255,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(-1.27, ey, 0.2, 0, TAU); ctx.fill();
   }
-  ctx.fillStyle = '#20252c';
-  ctx.beginPath();
-  ctx.moveTo(1.3, 0); ctx.lineTo(0.6, -0.1); ctx.lineTo(-0.15, -0.17); ctx.lineTo(-0.85, -0.21); ctx.lineTo(-1.12, -0.17);
-  ctx.lineTo(-1.12, 0.17); ctx.lineTo(-0.85, 0.21); ctx.lineTo(-0.15, 0.17); ctx.lineTo(0.6, 0.1); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = 'rgba(150,165,185,0.45)'; ctx.lineWidth = 0.012; ctx.stroke();
-  ctx.fillStyle = '#323943';
-  ctx.beginPath(); ctx.moveTo(1.05, 0); ctx.lineTo(0.4, -0.06); ctx.lineTo(-0.7, -0.12); ctx.lineTo(-0.7, 0.12); ctx.lineTo(0.4, 0.06); ctx.closePath(); ctx.fill();
-  // the command tower, stepped
-  ctx.fillStyle = '#3e4651'; ctx.fillRect(-0.82, -0.09, 0.34, 0.18);
-  ctx.fillStyle = '#4b5562'; ctx.fillRect(-0.76, -0.055, 0.2, 0.11);
-  ctx.fillStyle = 'rgba(255,214,120,0.85)'; ctx.fillRect(-0.6, -0.04, 0.03, 0.08);
-  // the gold spine, and the guns along it
-  ctx.strokeStyle = 'rgba(222,186,80,0.8)'; ctx.lineWidth = 0.014; ctx.beginPath(); ctx.moveTo(1.1, 0); ctx.lineTo(-0.48, 0); ctx.stroke();
-  ctx.fillStyle = '#4b5562';
-  for (const gx of [0.62, 0.3, -0.02]) { ctx.fillRect(gx - 0.03, -0.035, 0.06, 0.07); ctx.fillRect(gx, -0.008, 0.11, 0.016); }
-  // running lights
-  for (let k = 0; k < 9; k++) {
-    const t = k / 8, lx = 1.1 - t * 2.1, ly = 0.1 + t * 0.1, a = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(now * 5 - k));
-    ctx.fillStyle = `rgba(255,${k % 3 ? 230 : 90},${k % 3 ? 160 : 70},${a})`;
-    ctx.fillRect(lx, ly, 0.018, 0.018); ctx.fillRect(lx, -ly - 0.018, 0.018, 0.018);
+  ctx.fillStyle = '#5d656e'; ctx.beginPath(); ctx.rect(-1.257, -0.13, 0.09, 0.28); ctx.fill(); edge();
+  for (const ey of [-0.05, 0.064]) { ctx.fillStyle = '#0d2a36'; ctx.fillRect(-1.285, ey - 0.022, 0.03, 0.044); ctx.strokeStyle = BLUE; ctx.lineWidth = Math.max(px, 0.008); ctx.strokeRect(-1.285, ey - 0.022, 0.03, 0.044); }
+  // the grey lower hull, under the black upper hull
+  const lg = ctx.createLinearGradient(0, -0.146, 0, 0.152);
+  lg.addColorStop(0, '#7d868f'); lg.addColorStop(1, '#4a525a');
+  ctx.fillStyle = lg; ctx.beginPath(); ctx.rect(-0.47, -0.146, 1.13, 0.298); ctx.fill(); edge();
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = px;
+  for (let sx = -0.36; sx < 0.66; sx += 0.12) { ctx.beginPath(); ctx.moveTo(sx, 0.09); ctx.lineTo(sx, 0.15); ctx.stroke(); }
+  for (let i = 0, wx = -0.34; wx < 0.62; wx += 0.06, i++) if (i % 4 !== 1) { ctx.fillStyle = `rgba(255,226,170,${0.45 + 0.35 * Math.sin(now * 0.8 + i * 1.3)})`; ctx.fillRect(wx, 0.112, 0.02, 0.014); }
+  // gun mounts slung underneath
+  for (const [gx0, gw] of [[-0.234, 0.123], [0.368, 0.065], [0.453, 0.065]]) {
+    ctx.fillStyle = '#121519'; ctx.beginPath(); ctx.rect(gx0, 0.152, gw, 0.06); ctx.fill(); edge(0.6);
+    ctx.strokeStyle = '#0a0c0e'; ctx.lineWidth = Math.max(px * 1.4, 0.012);
+    ctx.beginPath(); ctx.moveTo(gx0 + gw * 0.6, 0.19); ctx.lineTo(gx0 + gw * 0.6 + 0.16, 0.225); ctx.stroke();
   }
+  // the spinal gun out past the bow
+  ctx.fillStyle = '#d9dee3'; ctx.beginPath(); ctx.rect(1.07, -0.117, 0.175, 0.044); ctx.fill(); edge();
+  ctx.fillStyle = '#2b3036'; ctx.fillRect(1.07, -0.104, 0.175, 0.018);
+  // the black upper hull, with a little light on its top edge and plate seams
+  const ug = ctx.createLinearGradient(0, -0.167, 0, 0.088);
+  ug.addColorStop(0, '#2a3037'); ug.addColorStop(0.5, '#15181c'); ug.addColorStop(1, '#0b0d10');
+  const rim = () => { ctx.lineWidth = Math.max(px * 1.3, 0.007); ctx.strokeStyle = 'rgba(140,156,172,0.5)'; ctx.stroke(); };      // (so the black reads against space)
+  ctx.fillStyle = ug; ctx.beginPath(); ctx.rect(-0.424, -0.167, 1.5, 0.255); ctx.fill(); rim();
+  ctx.strokeStyle = 'rgba(170,185,200,0.35)'; ctx.lineWidth = px; ctx.beginPath(); ctx.moveTo(-0.42, -0.164); ctx.lineTo(1.07, -0.164); ctx.stroke();
+  ctx.strokeStyle = 'rgba(120,135,150,0.16)';
+  for (let sx = -0.26; sx < 1.06; sx += 0.15) { ctx.beginPath(); ctx.moveTo(sx, -0.165); ctx.lineTo(sx, 0.086); ctx.stroke(); }
+  // a hatch block and the mast on top
+  ctx.fillStyle = '#5d656e'; ctx.beginPath(); ctx.rect(-0.32, -0.183, 0.12, 0.016); ctx.fill(); edge(0.7);
+  ctx.strokeStyle = '#3a4048'; ctx.lineWidth = Math.max(px * 1.2, 0.01); ctx.beginPath(); ctx.moveTo(0.462, -0.167); ctx.lineTo(0.462, -0.215); ctx.stroke();
+  // its light lines
+  lit(-0.357, -0.123, 0.562, 0.041);
+  lit(-0.357, 0.009, 1.351, 0.044);
+  // the drive block: black, armoured, two inset panels, a light line down its forward face
+  const bg = ctx.createLinearGradient(0, -0.29, 0, 0.31);
+  bg.addColorStop(0, '#262b31'); bg.addColorStop(0.5, '#121519'); bg.addColorStop(1, '#090b0d');
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.rect(-1.175, -0.29, 0.713, 0.6); ctx.fill(); rim();
+  ctx.strokeStyle = 'rgba(170,185,200,0.35)'; ctx.lineWidth = px; ctx.beginPath(); ctx.moveTo(-1.17, -0.287); ctx.lineTo(-0.465, -0.287); ctx.stroke();
+  for (const [py0, ph] of [[-0.225, 0.165], [0.05, 0.17]]) {
+    ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(-1.12, py0, 0.57, ph);
+    ctx.strokeStyle = '#7d868f'; ctx.lineWidth = Math.max(px * 1.3, 0.008); ctx.strokeRect(-1.12, py0, 0.57, ph);
+    ctx.strokeStyle = 'rgba(120,135,150,0.18)'; ctx.lineWidth = px;
+    for (let vy = py0 + 0.03; vy < py0 + ph - 0.01; vy += 0.03) { ctx.beginPath(); ctx.moveTo(-1.1, vy); ctx.lineTo(-0.57, vy); ctx.stroke(); }
+  }
+  lit(-0.52, -0.257, 0.037, 0.526);
+  // its Helldiver's colour, on the mast
+  if (accent) {
+    ctx.save(); ctx.shadowColor = accent; ctx.shadowBlur = Math.max(4, 0.05 * s);
+    ctx.fillStyle = accent; ctx.globalAlpha = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(now * 3 + x * 0.01));
+    ctx.beginPath(); ctx.arc(0.462, -0.222, 0.018, 0, TAU); ctx.fill(); ctx.restore();
+  }
+  // running lights at the ends
+  const blink = (0.5 + 0.5 * Math.sin(now * 4)) > 0.6;
+  ctx.fillStyle = blink ? 'rgba(255,90,70,1)' : 'rgba(120,40,30,0.6)'; ctx.fillRect(1.05, -0.16, 0.02, 0.02);
+  ctx.fillStyle = !blink ? 'rgba(120,255,160,1)' : 'rgba(40,110,60,0.6)'; ctx.fillRect(-1.17, -0.285, 0.02, 0.02);
   ctx.restore();
 }
 function drawPelican(ctx, x, y, s, ang) {
@@ -219,6 +274,9 @@ function drawPelican(ctx, x, y, s, ang) {
   ctx.lineTo(-0.9, 0.2); ctx.lineTo(-0.4, 0.25); ctx.lineTo(-0.5, 0.75); ctx.lineTo(-0.2, 0.75); ctx.lineTo(0.2, 0.3); ctx.closePath(); ctx.fill();
   ctx.restore();
 }
+
+// (0.27.1) The squad's four destroyers in formation: where each sits from the lead (A), in lengths of the lead, and its size.
+const FLEET = [{ ox: 0, oy: 0, s: 1 }, { ox: -1.1, oy: -0.66, s: 0.58 }, { ox: 0.8, oy: -0.74, s: 0.46 }, { ox: -1.6, oy: 0.64, s: 0.5 }];
 
 // ---------------------------------------------------------------- the player
 export class Cinema {
@@ -262,7 +320,7 @@ export class Cinema {
     this.lineAt = -1; this.txt.innerHTML = '';
     this.el.classList.remove('hidden', 'out'); this.el.classList.toggle('outro', kind === 'outro'); this.el.classList.toggle('camp', kind === 'camp');
     this.resize();
-    if (kind === 'camp') verdaneTexture(); else marsTexture();
+    if (kind === 'camp') fronteriaTexture(); else marsTexture();
     if (this.audio) this.audio.cineSwell(kind === 'intro' ? 9 : 7);
     const loop = () => { if (!this.on) return; this.draw(); this.raf = requestAnimationFrame(loop); };
     this.raf = requestAnimationFrame(loop);
@@ -333,7 +391,7 @@ export class Cinema {
     drawPlanet(this.pl, D, spin, burn, now, kind, night);
     // the air: a thin glow on the lit limb (orange once it burns)
     const g = ctx.createRadialGradient(cx, cy, R * 0.94, cx, cy, R * 1.12);
-    g.addColorStop(0, burn > 0.2 ? `rgba(255,140,60,${0.25 + 0.35 * burn})` : kind === 'verdane' ? `rgba(140,200,255,${night ? 0.18 : 0.34})` : 'rgba(255,170,130,0.28)'); g.addColorStop(1, kind === 'verdane' && burn <= 0.2 ? 'rgba(120,180,255,0)' : 'rgba(255,120,60,0)');
+    g.addColorStop(0, burn > 0.2 ? `rgba(255,140,60,${0.25 + 0.35 * burn})` : kind === 'fronteria' ? `rgba(255,214,160,${night ? 0.16 : 0.3})` : 'rgba(255,170,130,0.28)'); g.addColorStop(1, 'rgba(255,120,60,0)');
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R * 1.12, 0, TAU); ctx.fill();
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(this.pl, cx - R, cy - R, R * 2, R * 2);
@@ -351,27 +409,32 @@ export class Cinema {
       ctx.strokeStyle = `rgba(170,120,255,${a * 0.35})`; ctx.lineWidth = this.dpr; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 26 * this.dpr, y); ctx.stroke();
     }
   }
-  // (0.27) A campaign chapter: Verdane Reach turning below, the Super Destroyer over it. Briefing: hellpods streak down from its
+  // (0.27) A campaign chapter: Fronteria turning below, the squad's destroyers over it. Briefing: hellpods streak down from its
   // belly. A win: pelicans climb back up to it, and the colony's signal fires (the Ember Line) still burn. A loss: the fires
   // spread and the destroyer pulls away.
   _camp(ctx, t, now, W, H, M) {
     const o = this.opts || {}, mood = o.mood || 'brief', night = !!o.night, short = H / this.dpr < 520, dt = 1 / 60;
     const R = M * (short ? 0.3 : 0.34), cx = W * 0.56, cy = H * (short ? 0.58 : 0.6), spin = t * 0.04 + 0.8;
     const burn = mood === 'lose' ? 0.3 + 0.5 * sstep(0, this.dur * 0.85, t) : mood === 'win' ? 0.16 : night ? 0.1 : 0.04;
-    this._planet(ctx, cx, cy, R, now, spin, burn, 'verdane', night);
+    this._planet(ctx, cx, cy, R, now, spin, burn, 'fronteria', night);
     // the destroyer: in from the left on a briefing, holding high on a win, pulling away on a loss
-    const k = clamp01(t / this.dur), sc = M * (short ? 0.2 : 0.24);
+    const k = clamp01(t / this.dur), sc = M * (short ? 0.17 : 0.2);
     let dx, dy, ds = sc, da = -0.08;
     if (mood === 'brief') { dx = W * (0.12 + 0.2 * ease(clamp01(t / 6))); dy = H * 0.26; }
     else if (mood === 'win') { dx = W * 0.3; dy = H * 0.22 + Math.sin(t * 0.5) * 4 * this.dpr; }
     else { dx = W * (0.4 - 0.3 * k); dy = H * (0.26 - 0.12 * k); ds = sc * (1 - 0.45 * k); da = Math.PI - 0.1 - 0.2 * k; }      // (turned for home)
-    // hellpods (briefing): from the destroyer's belly to the lit face of the planet, a flash where each lands
+    // (0.27.1) four destroyers in orbit, one for each Helldiver, in their colours: the lead (A) nearest, the others behind it
+    const fleet = FLEET.map((f, i) => {
+      const k2 = mood === 'lose' ? -1 : 1;      // (turned for home: the formation mirrored)
+      return { i, x: dx + f.ox * ds * k2, y: dy + f.oy * ds, s: ds * f.s, a: da, col: TEAM_COLOR[i] };
+    });
+    // hellpods (briefing): from one of the destroyers' bellies to the lit face of the planet, a flash where each lands
     if (mood === 'brief') {
       this.podT -= dt;
       if (this.podT <= 0 && t > 2 && t < this.dur - 3) {
-        this.podT = 0.5 + Math.random() * 0.9;
-        const a = -2.2 + Math.random() * 1.6, rr = R * (0.2 + 0.6 * Math.random());
-        this.pods.push({ x1: dx + Math.random() * ds * 0.6 - ds * 0.3, y1: dy + ds * 0.08, x2: cx + Math.cos(a) * rr, y2: cy + Math.sin(a) * rr, t0: now });
+        this.podT = 0.35 + Math.random() * 0.7;
+        const sh = fleet[Math.floor(Math.random() * fleet.length)], a = -2.2 + Math.random() * 1.6, rr = R * (0.2 + 0.6 * Math.random());
+        this.pods.push({ x1: sh.x + Math.random() * sh.s * 0.6 - sh.s * 0.3, y1: sh.y + sh.s * 0.08, x2: cx + Math.cos(a) * rr, y2: cy + Math.sin(a) * rr, t0: now });
       }
     }
     this.pods = this.pods.filter((p) => now - p.t0 < 1.6);
@@ -394,15 +457,15 @@ export class Cinema {
       if (this.pelT <= 0 && t < this.dur - 2.5) {
         this.pelT = 0.9 + Math.random() * 1.2;
         const a = -2.4 + Math.random() * 1.4, rr = R * (0.3 + 0.5 * Math.random());
-        this.pels.push({ x1: cx + Math.cos(a) * rr, y1: cy + Math.sin(a) * rr, t0: now, dur: 3 + Math.random() });
+        this.pels.push({ x1: cx + Math.cos(a) * rr, y1: cy + Math.sin(a) * rr, t0: now, dur: 3 + Math.random(), to: Math.floor(Math.random() * fleet.length) });
       }
       this.pels = this.pels.filter((p) => now - p.t0 < p.dur);
       for (const p of this.pels) {
-        const f = ease(clamp01((now - p.t0) / p.dur)), x = p.x1 + (dx - p.x1) * f, y = p.y1 + (dy + ds * 0.1 - p.y1) * f;
-        drawPelican(ctx, x, y, M * 0.028 * (1.1 - 0.5 * f), Math.atan2(dy - p.y1, dx - p.x1));      // (smaller as it climbs away)
+        const sh = fleet[p.to || 0], f = ease(clamp01((now - p.t0) / p.dur)), x = p.x1 + (sh.x - p.x1) * f, y = p.y1 + (sh.y + sh.s * 0.1 - p.y1) * f;
+        drawPelican(ctx, x, y, M * 0.028 * (1.1 - 0.5 * f), Math.atan2(sh.y - p.y1, sh.x - p.x1));      // (smaller as it climbs away)
       }
     }
-    drawDestroyer(ctx, dx, dy, ds, da, now, mood === 'lose' ? 1 : 0.9);
+    for (let i = fleet.length - 1; i >= 0; i--) { const sh = fleet[i]; drawDestroyer(ctx, sh.x, sh.y, sh.s, sh.a, now, mood === 'lose' ? 1 : 0.9, sh.col); }
     // the lower part of the screen darker, under the lines
     const sh = ctx.createLinearGradient(0, H * 0.62, 0, H);
     sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,0.72)');
@@ -441,3 +504,4 @@ export class Cinema {
     if (big > 0) drawShip(ctx, (-0.5 + big * 1.9) * W, H * 0.9, M * 0.42, -0.04, 1, now, true);
   }
 }
+export { drawDestroyer };      // (for the art checks)
