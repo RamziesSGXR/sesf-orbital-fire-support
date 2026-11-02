@@ -9,7 +9,7 @@ import { stratReady, stratOnline } from './sim/strat.js';
 import { slotStats } from './sim/player.js';
 import { compass } from './sim/enemies.js';
 import { builtCount, FORMS } from './sim/seaf.js';
-import { POSTS } from './sim/posts.js';
+import { POSTS, INSIDE } from './sim/posts.js';
 import { objectiveStatus, OBJ_NAME } from './sim/objectives.js';
 import { SQUAD_COLOR } from './sim/seaf.js';
 import { todAt, todName, todClock } from './render/sky.js';
@@ -25,6 +25,16 @@ const SCREENS = ['s-title', 's-campaign', 's-glass', 's-shop', 's-brief', 's-deb
 const OVERLAYS = ['s-pause', 's-lock', 's-controls', 's-manual', 's-names', 's-settings', 's-notice', 's-info', 's-credits', 's-map'];
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// (0.27.3) a label too long for its box in some language: its font steps down until the words fit (never under `min` pixels)
+function fitEl(e, min = 8) {
+  if (!e) return;
+  e.style.fontSize = ''; e.style.letterSpacing = '';
+  const w = e.clientWidth; if (!w || e.scrollWidth <= w + 1) return;
+  e.style.letterSpacing = '0'; if (e.scrollWidth <= w + 1) return;     // (the spacing goes first)
+  const cs = getComputedStyle(e), pad = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0), fs = parseFloat(cs.fontSize) || 10;
+  e.style.fontSize = `${Math.max(min, Math.floor(fs * (w - pad) / Math.max(1, e.scrollWidth - pad) * 10) / 10)}px`;
+}
+const FIT = '#tactical .tct span, #tactical .tco .n, #tactical .tco .s, #fire-btn, #weapons .wbtn .n';
 const ROLE_GLYPH = { leader: '★', rifle: '•', spec: '/', medic: '+' };     // (0.26) the four roles
 const SQUAD_COL = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(squadColor);
 // The doors on a selected post (Age of Empires style): go in (garrison it) and come out (release the garrison).
@@ -417,6 +427,9 @@ export class Hud {
     // (0.21) phones held upright: the weapons in two rows, half of them in each
     const nw = [...document.querySelectorAll('#weapons .wbtn')].filter((e) => e.getClientRects().length).length;
     set('--wpc', String(Math.max(1, Math.ceil(nw / 2))));
+    // (0.27.3) the labels that run long in French or Spanish, fitted again when the screen, the layout or the language changes
+    const fk = `${W}|${H}|${b.className}|${getLang()}|${nw}`;
+    if (force || fk !== this._fitK) { this._fitK = fk; document.querySelectorAll(FIT).forEach((e) => fitEl(e)); }
   }
   // ---- tips
   // A tip over anchor: short() is the one line (live: it is redrawn while the tip shows), full() the card ⓘ opens (null: no ⓘ).
@@ -559,6 +572,7 @@ export class Hud {
   }
 
   reset() {
+    this.doorsClear();
     this.last = {}; this.clearRadio(); this.clearNotices(); $('center-msg').classList.remove('show'); $('toast').classList.remove('show'); this.setPlacing(null);
     if (this.tt) this.tipHide();
     if (this.sg) { this.sg.el.classList.add('hidden'); for (const q of this.sg.slots) q.key = ''; }
@@ -601,6 +615,32 @@ export class Hud {
     }
     a.classList.remove('hidden'); this.layout(true);
     this._askT = setTimeout(() => this.askEnd(), ms);
+  }
+  // (0.27.3) GO INSIDE over a building a squad has just been sent to: a small button and nothing else (no question to answer); it
+  // goes by itself after a few seconds, or once the building is full. Several can be up at once, one per building.
+  doorPin(post, onGo, ms = 6500) {
+    let box = $('doors');
+    if (!box) { box = el('div', ''); box.id = 'doors'; $('hud').appendChild(box); }
+    this.doors = (this.doors || []).filter((d) => { if (d.post === post) { d.el.remove(); return false; } return true; });
+    const b = el('button', 'btn door', `<i class="door-ic" aria-hidden="true"></i>${esc(t('ask.goIn'))}`); b.type = 'button';
+    const d = { post, el: b, until: performance.now() + ms };
+    b.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.doorEnd(d); onGo(); });
+    box.appendChild(b); this.doors.push(d);
+    while (this.doors.length > 4) this.doorEnd(this.doors[0]);
+  }
+  doorEnd(d) { d.el.remove(); this.doors = (this.doors || []).filter((x) => x !== d); }
+  doorsClear() { for (const d of (this.doors || []).slice()) this.doorEnd(d); }
+  // every frame: each button over its building (toScreen(post) → page pixels, or null when it is off the view)
+  doorsPlace(toScreen) {
+    if (!this.doors || !this.doors.length) return;
+    const now = performance.now(), z = parseFloat(getComputedStyle(document.body).getPropertyValue('--ui')) || 1;
+    for (const d of this.doors.slice()) {
+      const p = d.post;
+      if (now > d.until || p.dead || p.garrison >= p.cap) { this.doorEnd(d); continue; }
+      const q = toScreen(p);
+      d.el.style.visibility = q ? '' : 'hidden';
+      if (q) { d.el.style.left = `${q.x / z}px`; d.el.style.top = `${q.y / z}px`; }
+    }
   }
   askEnd() { clearTimeout(this._askT); const a = $('ask'); a.classList.add('hidden'); a.classList.remove('anchored'); a.style.left = a.style.top = ''; this.askAnchor = null; }
   // (sx, sy): the anchor on screen, in page pixels; kept on screen, above the building (below it if there is no room above)
@@ -681,7 +721,7 @@ export class Hud {
     this.m = m;
     const rows = $('hdrows'); rows.innerHTML = ''; this.rr = []; this.sc = []; this._hdOpen = -1; $('hdpanel').classList.remove('pop');
     m.teams.forEach((tm, i) => {
-      const r = el('div', 'hr', `<b class="l">${tm.letter}</b><span class="rn"></span><div class="hm"><div class="h1"><span class="t">--</span><span class="ship">${esc(tm.ship)}</span></div><i class="hp"><u></u></i><div class="h3"><span class="st"></span><div class="cells"></div></div></div>`);
+      const r = el('div', 'hr', `<b class="l">${tm.letter}</b><span class="rn"></span><div class="hm"><div class="h1"><span class="t">--</span><span class="ship">${esc(tm.ship)}</span></div><i class="hp"><u></u></i><div class="h3"><span class="st"></span><span class="sts"></span><div class="cells"></div></div></div>`);
       r.style.setProperty('--tc', tm.color); r.dataset.hd = i;
       r.addEventListener('pointerdown', (ev) => { if (ev.target.closest('.sc')) return; this.onHd && this.onHd(i); if (document.body.classList.contains('lay-phone')) { if (this.dbl('h' + i)) { this.hdOpen(i); this.onFocus && this.onFocus('hd', i); } else this.hdOpen(i); return; } if (this.dbl('h' + i)) this.onFocus && this.onFocus('hd', i); });     // (0.21: on a phone a tap opens the chip, a double tap goes there)
       const cells = r.querySelector('.cells');
@@ -695,7 +735,7 @@ export class Hud {
         cells.appendChild(c); this.sc.push({ el: c, f: c.querySelector('.f'), id, row: i, key: '' });
       }
       rows.appendChild(r);
-      this.rr.push({ el: r, t: r.querySelector('.t'), ship: r.querySelector('.ship'), hp: r.querySelector('.hp u'), st: r.querySelector('.st'), rn: r.querySelector('.rn'), key: '', rk: '' });
+      this.rr.push({ el: r, t: r.querySelector('.t'), ship: r.querySelector('.ship'), hp: r.querySelector('.hp u'), st: r.querySelector('.st'), sts: r.querySelector('.sts'), rn: r.querySelector('.rn'), key: '', rk: '' });
     });
     // (0.19.1) the dock's chips: a letter and a health bar each, so the Helldivers can be watched with the sheet shut
     const hc = document.querySelector('#dk-hd .hdc'); hc.innerHTML = ''; this.hc = [];
@@ -799,7 +839,7 @@ export class Hud {
     m.teams.forEach((tm, i) => {
       const r = this.rr[i]; if (!r) return;
       const a = tm.hd && !tm.hd.dead ? tm.hd : null;
-      let name, st = '', f = 0, cls = '';
+      let name, st = '', sts = '', f = 0, cls = '';
       if (a) {
         name = m.tag(a);
         const mech = a.mech && a.mech.hp > 0 ? a.mech : null;
@@ -810,15 +850,17 @@ export class Hud {
       } else {
         name = m.slotTag(tm);
         const pod = m.pods.find((p) => p.type === 'H' && p.team === i);
-        if (pod) { st = t('hud.r.drop', { n: Math.ceil(Math.max(0, pod.landAt - m.t)) }); cls = 'drop'; }
-        else if (m.hd.lives <= 0) { st = t('hud.r.lost'); cls = 'lost'; }
-        else { st = t('hud.r.call', { n: Math.ceil(Math.max(0, tm.respawnAt - m.t)) }); cls = 'wait'; }
+        // (0.27.3) a phone held upright shows the chip short: an arrow and the time (minutes past a minute), the words in the open row
+        const mmss = (n) => (n >= 60 ? `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}` : `${n}S`);
+        if (pod) { const n = Math.ceil(Math.max(0, pod.landAt - m.t)); st = t('hud.r.drop', { n }); sts = `▼ ${mmss(n)}`; cls = 'drop'; }
+        else if (m.hd.lives <= 0) { st = sts = t('hud.r.lost'); cls = 'lost'; }
+        else { const n = Math.ceil(Math.max(0, tm.respawnAt - m.t)); st = t('hud.r.call', { n }); sts = `◷ ${mmss(n)}`; cls = 'wait'; }
       }
       const ship = tm.ship, hc = this.hc && this.hc[i];
       if (hc) { const k = `${Math.round(f * 30)}|${cls}`; if (hc.key !== k) { hc.key = k; hc.u.style.width = `${Math.max(0, Math.min(1, f)) * 100}%`; hc.el.className = 'hc ' + cls; } }
       const key = `${name}|${st}|${Math.round(f * 24)}|${cls}|${ship}`;
       if (r.key === key) return;
-      r.key = key; r.t.textContent = name; r.st.textContent = st; r.hp.style.width = `${Math.max(0, Math.min(1, f)) * 100}%`; r.ship.textContent = ship;
+      r.key = key; r.t.textContent = name; r.st.textContent = st; r.sts.textContent = sts; r.hp.style.width = `${Math.max(0, Math.min(1, f)) * 100}%`; r.ship.textContent = ship;
       r.el.className = 'hr' + (cls ? ' ' + cls : '') + (this._hdOpen === i ? ' open' : '');
     });
   }
@@ -945,7 +987,7 @@ export class Hud {
       const off = o === 'disband' ? !selN : o !== 'seaf' && !any;
       const key = `${n}|${s}|${off}|${src ? src.el.className : ''}`;
       if (b._k === key) return; b._k = key;
-      b.querySelector('.n').textContent = n; b.querySelector('.s').textContent = s;
+      b.querySelector('.n').textContent = n; b.querySelector('.s').textContent = s; fitEl(b.querySelector('.n')); fitEl(b.querySelector('.s'));
       b.className = 'tco ' + o + (off ? ' off' : '') + (src && /\bcd\b/.test(src.el.className) ? ' cd' : '');
     });
     document.querySelectorAll('#tactical .tcq').forEach((b, i) => {
@@ -1089,7 +1131,7 @@ export class Hud {
       if (post) {
         name = `${esc(t('build.' + post.what).toUpperCase())}${post.what !== 'foxhole' ? ` <i>${esc(t('card.lvShort', { n: post.lvl }))}</i>` : ''}`;
         if (post.cap) sub = `${esc(t('sel.crew'))} ${post.crew}/${post.cap}${post.garrison ? ` · ${esc(t('sel.garrison'))} ${post.garrison}` : ''}`;
-        if (post.cap && post.garrison < post.cap) btns += `<button class="dr in" type="button" data-sa="in" title="${esc(t('sel.inT', { who }))}" aria-label="${esc(t('sel.inT', { who }))}">${DOOR_IN}</button>`;
+        if (post.cap && post.garrison < post.cap && INSIDE.has(post.what)) btns += `<button class="dr in" type="button" data-sa="in" title="${esc(t('sel.inT', { who }))}" aria-label="${esc(t('sel.inT', { who }))}">${DOOR_IN}</button>`;
         if (post.garrison) btns += `<button class="dr out" type="button" data-sa="out" title="${esc(t('sel.outT'))}" aria-label="${esc(t('sel.outT'))}">${DOOR_OUT}</button>`;
       } else if (sentry) {
         name = esc((sentry.name || t('lab.sentry')).toUpperCase());

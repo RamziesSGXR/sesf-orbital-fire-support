@@ -241,14 +241,31 @@ export function callCargo(m, x, y, crate) {
   m.emit('cargo_call', { x, y, what: crate.what });
 }
 
-export function callPelican(m, x, y, n, squad) {
+// (0.27.3) A new squad down from a pelican waits for orders: it holds the drop (and fights whatever comes at it), unless there is
+// cover close by (a walled site, a bastion, a foxhole, a nest): then it goes straight to that and mans it.
+export function dropHold(m, q, x, y) {
+  const R = C.seaf.dropCover;
+  const site = siteAt(m, x, y, R);
+  let post = null, pd = Infinity;
+  for (const p of m.posts || []) {
+    if (p.dead || p.what === 'bridge' || p.what === 'tower' || p.what === 'sam' || p.what === 'arty') continue;
+    const d = Math.hypot(p.x - x, p.y - y);
+    if (d <= R && d < pd) { pd = d; post = p; }
+  }
+  const sd = site ? Math.hypot(site.x - x, site.y - y) : Infinity;
+  if (post && pd <= sd) setSquadOrder(m, q, 'post', post.site ? post.site.x : post.x, post.site ? post.site.y : post.y, { post, site: post.site, garrison: INSIDE.has(post.what) ? false : undefined });
+  else if (site) setSquadOrder(m, q, 'post', site.x, site.y, { post: null, site });
+  else setSquadOrder(m, q, 'protect', x, y);
+}
+export function callPelican(m, x, y, n, squad, hold = false) {
   const st = seafStats(m.kit), P = C.pelican;
   const base = (m.squad.dir || 0) + Math.PI + m.rng.range(-0.7, 0.7);   // comes in from behind the squad
   const dx = Math.cos(base + Math.PI), dy = Math.sin(base + Math.PI);   // heading: toward the drop point
   m.pelicans.push({
     id: m.nextId++, x: x - dx * P.approach, y: y - dy * P.approach, tx: x, ty: y, dx, dy, state: 'in', alt: 1,
-    roles: rollRoles(m, n, st), dropped: 0, dropT: 0, hoverT: P.hover, outT: 0, gunT: 0.4, squad, born: m.t, vis: 0,
+    roles: rollRoles(m, n, st), dropped: 0, dropT: 0, hoverT: P.hover, outT: 0, gunT: 0.4, squad, born: m.t, vis: 0, hold,
   });
+  if (hold && m.seaf.squads[squad]) setSquadOrder(m, m.seaf.squads[squad], 'protect', x, y);      // (the first ones down hold too)
 }
 
 function pelicanGun(m, p, dt) {
@@ -303,6 +320,7 @@ export function updatePelicans(m, dt) {
         const extra = [c('spec') ? tr('n.pSpec') : '', c('medic') ? tr('n.pMedic') : ''].filter(Boolean).join(' ');
         m.notice(tr('n.seafDown', { n, extra: extra ? ' ' + extra : '', sq: p.squad + 1 }), 'info');
         m.radio(COMMS.seafLanded, 'land', 0);
+        if (p.hold && m.seaf.squads[p.squad]) dropHold(m, m.seaf.squads[p.squad], p.tx, p.ty);
         const s = m.seafAlive.filter((a) => a.sq === p.squad).pop();
         if (s) bark(m, s, 'land', '');
       }

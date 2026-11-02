@@ -49,8 +49,10 @@ await tap('#btn-lock'); await page.waitForTimeout(500);
 // ---------------------------------------------------------------- the armory: folder tabs, Combat Engineers in SEAF
 const tabs = await ev(() => { const t = [...document.querySelectorAll('#shop-root .shop-tabs .tab')], on = t.find((x) => x.classList.contains('on')), sc = document.querySelector('#shop-root .shop-scroll');
   const a = on.getBoundingClientRect(), b = sc.getBoundingClientRect(), cs = getComputedStyle(on);
-  return { n: t.length, joined: Math.abs(a.bottom - b.top) <= 3, round: parseFloat(cs.borderTopLeftRadius) >= 6 && parseFloat(cs.borderBottomLeftRadius) === 0 }; });
-check('the armory has six tabs (0.25: the Hangar\'s and CLASSIFIED show from the start), the open one joined to its page like a folder tab', tabs.n === 6 && tabs.joined && tabs.round, JSON.stringify(tabs));
+  const narrow = innerWidth <= 560, cut = t.filter((x) => x.scrollWidth > x.clientWidth + 1).length;
+  return { n: t.length, narrow, cut, joined: Math.abs(a.bottom - b.top) <= 3, round: parseFloat(cs.borderTopLeftRadius) >= 6 && parseFloat(cs.borderBottomLeftRadius) === 0, rows: new Set(t.map((x) => Math.round(x.getBoundingClientRect().top))).size }; });
+// (0.27.3) a narrow screen puts them three to a row in two rows, every name whole; a wider one keeps the folder tabs
+check('the armory has six tabs (0.25: the Hangar\'s and CLASSIFIED show from the start): folder tabs joined to the page, or on a narrow screen three to a row with no name cut', tabs.n === 6 && (tabs.narrow ? tabs.rows === 2 && tabs.cut === 0 : tabs.joined && tabs.round), JSON.stringify(tabs));
 // (0.24) Combat Engineers come with milestone 1: one mission done
 await ev(() => { const s = window.__game.session; s.missions = [{ outcome: 'victory', score: 0, seconds: 60 }]; window.__game.goShop(); }); await page.waitForTimeout(300);
 await tap('#shop-root .shop-tabs .tab[data-tab="seaf"]'); await page.waitForTimeout(200);

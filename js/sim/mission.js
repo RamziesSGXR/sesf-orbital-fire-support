@@ -297,7 +297,9 @@ export class Mission {
   pendingPods(type) { if (type === 'S') return pendingTroops(this); let n = 0; for (const p of this.pods) if (p.type === type) n += p.n; return n; }
 
   // Call a SEAF drop. A troop pelican flies it in; it has to land inside the strike zone. The troops join the selected squad.
-  callSeaf(x, y) {
+  // (0.27.3) opts.hold: a squad of its own waits for orders where it lands (see dropHold); false keeps the old way (it goes
+  // straight off to clear the nearest objective: the test bot plays like that)
+  callSeaf(x, y, opts = {}) {
     const t = this.t, sf = this.seaf, st = seafStats(this.kit);
     if (this.over) return { ok: false, reason: 'over' };
     // (0.18) before the Helldivers are down (the start, on the tactical screen) the landing zone takes a drop
@@ -311,7 +313,8 @@ export class Mission {
     if (t < sf.readyAt) return this._deny('cooldown');
     sf.readyAt = t + st.cool;
     const n = Math.min(st.drop, room), squad = dropSquad(this);
-    callPelican(this, x, y, n, squad);
+    const fresh = !this.seafAlive.some((a) => a.sq === squad) && !this.pelicans.some((p) => p.squad === squad);
+    callPelican(this, x, y, n, squad, fresh && opts.hold !== false);
     this.stats.seafCalls++;
     this.radio(COMMS.seafDrop, 'seafDrop', 0);
     this.emit('pod_call', { type: 'S', x, y, n });
@@ -453,6 +456,7 @@ export class Mission {
   garrisonGo(p) {
     if (this.over || !p || p.dead || p.kind !== 'post') return { ok: false, reason: 'over' };
     if (!p.cap) return this._deny('nogarrison');
+    if (!INSIDE.has(p.what)) return this.seafMan(p);      // (0.27.3) a foxhole or a bastion has no inside: they just man it
     if (p.garrison >= p.cap) return this._deny('postfull');
     const sq = targetSquads(this).filter((q) => q.n > 0);
     if (!sq.length) return this._deny('noseaf');

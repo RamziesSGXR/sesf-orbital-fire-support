@@ -142,7 +142,7 @@ export class Tutorial {
       const [a0, a1] = hi - lo >= w ? [lo, hi] : [(W - w) / 2, (W + w) / 2];
       let top = M;
       for (const b of tops) if (b.left < a1 && b.right > a0) top = Math.max(top, b.bottom + M);
-      x = cl((a0 + a1) / 2 - w / 2, M, W - w - M); y = Math.min(top, Math.max(M, H * 0.42 - h));
+      x = cl((a0 + a1) / 2 - w / 2, M, W - w - M); y = Math.min(top, Math.max(M, H * (H > W ? 0.62 : 0.42) - h));     // (0.27.3: upright, under the drop countdown, not over it)
     }
     el.style.left = `${Math.round(x)}px`; el.style.top = `${Math.round(y)}px`;
     el.dataset.side = side;

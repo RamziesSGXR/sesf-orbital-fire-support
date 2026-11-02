@@ -325,27 +325,32 @@
 
   <section id="s-debrief" class="screen">
     <div class="card wide">
-      <div class="eyebrow" id="d-op"></div>
-      <h2 id="d-outcome"></h2>
-      <div id="d-why" class="fine"></div>
-      <table id="d-table"></table>
-      <h3 data-t="hud.credits">CREDITS</h3>
-      <table id="d-credits"></table>
-      <h3 data-t="deb.deaths">DEATH REPORT</h3>
-      <div id="d-deaths" class="deaths"></div>
-      <div id="d-extra" class="fine"></div>
-      <div class="d-total"><span data-t="deb.mscore">MISSION SCORE</span> <b id="d-mscore">0</b></div>
-      <div class="d-total"><span data-t="deb.sscore">SESSION TOTAL</span> <b id="d-sscore">0</b></div>
-      <div class="btns"><button id="btn-continue" class="btn primary big"></button><button id="btn-retry" class="btn retry" type="button"></button><button id="btn-end-d" class="btn" data-t="ui.endSession">END SESSION</button></div>
-      <p id="d-retry-note" class="fine retry-note"></p>
-      <div class="d-copy">
-        <h3 data-t="deb.copyTitle">MISSION REPORT</h3>
-        <p class="fine" data-t="deb.copyNote"></p>
-        <textarea id="d-text" readonly rows="8" spellcheck="false" data-ta="deb.copyTitle"></textarea>
-        <div class="btns"><button id="btn-copy-d" class="btn" type="button" data-t="deb.copy">COPY REPORT</button></div>
-        <p id="d-msg" class="fine"></p>
+      <div class="d-main">
+        <div class="eyebrow" id="d-op"></div>
+        <h2 id="d-outcome"></h2>
+        <div id="d-why" class="fine"></div>
+        <table id="d-table"></table>
+        <h3 data-t="hud.credits">CREDITS</h3>
+        <table id="d-credits"></table>
+        <h3 data-t="deb.deaths">DEATH REPORT</h3>
+        <div id="d-deaths" class="deaths"></div>
+        <div id="d-extra" class="fine"></div>
+        <div class="d-total"><span data-t="deb.mscore">MISSION SCORE</span> <b id="d-mscore">0</b></div>
+        <div class="d-total"><span data-t="deb.sscore">SESSION TOTAL</span> <b id="d-sscore">0</b></div>
       </div>
-      <p class="ver" id="ver-d"></p>
+      <!-- (0.27.3) what to do next and the report: beside the results on a computer, under them on a phone -->
+      <div class="d-side">
+        <div class="btns"><button id="btn-continue" class="btn primary big"></button><button id="btn-retry" class="btn retry" type="button"></button><button id="btn-end-d" class="btn" data-t="ui.endSession">END SESSION</button></div>
+        <p id="d-retry-note" class="fine retry-note"></p>
+        <div class="d-copy">
+          <h3 data-t="deb.copyTitle">MISSION REPORT</h3>
+          <p class="fine" data-t="deb.copyNote"></p>
+          <textarea id="d-text" readonly rows="8" spellcheck="false" data-ta="deb.copyTitle"></textarea>
+          <div class="btns"><button id="btn-copy-d" class="btn" type="button" data-t="deb.copy">COPY REPORT</button></div>
+          <p id="d-msg" class="fine"></p>
+        </div>
+        <p class="ver" id="ver-d"></p>
+      </div>
     </div>
   </section>
 

@@ -1,5 +1,6 @@
 // 0.27 checks (the sim side): the campaign's chapters as a session's missions, the briefing and debrief lines for every chapter
-// in every language, the cast on the radio during a chapter's mission, and the after action reports for Discord.
+// in every language, the cast on the radio during a chapter's mission, and the after action reports for Discord. (0.27.3) A new
+// SEAF squad waits for orders where it lands, or takes cover close by; foxholes have no door.
 // Run: node test/r27.mjs
 import { Mission } from '../js/sim/mission.js';
 import { CONFIG as C } from '../js/config.js';
@@ -8,6 +9,7 @@ import { castLines, CastRadio, aarMission, aarSession, aarStand } from '../js/ca
 import { newSession, recordMission, finalise } from '../js/session.js';
 import { setLang, tl } from '../js/i18n.js';
 import { makeBot, botStep } from '../js/sim/bot.js';
+import { makePost } from '../js/sim/posts.js';
 
 let fails = 0;
 const check = (name, ok, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  (' + detail + ')' : ''}`); if (!ok) fails++; };
@@ -83,6 +85,49 @@ const run = (m, s, each) => { for (let i = 0, n = Math.round(s / dt); i < n && !
   check('at the end of a session: the totals and every mission on a numbered line', B[0] === '**ORBITAL FURY · SESSION AFTER ACTION REPORT**' && /FINAL SCORE/.test(B[1]) && /1 mission, 1 won/.test(B[2]) && /DIFFICULTY 3 MEDIUM/.test(B[2]) && B.some((x) => /^1\. FREEDOM VISTA: VACATION'S OVER · BUGS · /.test(x)) && B.some((x) => x.startsWith('**Totals:**')), b.replace(/\n/g, ' / ').slice(0, 300));
   const t = aarStand({ outcome: 'glassed', kills: 260, civSaved: 134, lastStand: { held: 552, lifted: 9, pop: 200 } }, 'KESTREL'), T = t.split('\n');
   check('the tutorial\'s last stand has its own report: personnel off Mars, the hold, the rank', /LAST STAND AT THARSIS/.test(t) && /\*\*Personnel off Mars:\*\* 134 of 200 · 9 pelicans away · held 09:12/.test(t) && /Rank \d+, /.test(t) && /Gunner KESTREL/.test(t), T.slice(2, 5).join(' / '));
+}
+
+// ---------------------------------------------------------------- (0.27.3) a new squad waits for orders
+{
+  const quiet = (seed) => {
+    const m = new Mission({ seed, faction: 'bots', biome: 'grass', difficulty: 1, events: false });
+    m.deployNow(); run(m, 15);
+    for (const e of m.enemies) e.dead = true; m.enemies = []; m.groups = []; m.dirtyE = true;
+    for (const b of m.bases) { b.garrisoned = true; b.owed = 0; b.nextPatrol = 1e9; }
+    m.reinf.readyAt = 1e9; m.intercept.nextAt = 1e9;
+    return m;
+  };
+  const drop = (m, x, y, opts) => { m.seaf.readyAt = 0; m.selectSquad(-1); const r = m.callSeaf(x, y, opts); run(m, 14); return r; };
+  // in the open
+  let m = quiet(81);
+  const a0 = m.hdAlive[0], X = a0.x + 10, Y = a0.y + 10;
+  const r1 = drop(m, X, Y);
+  const q1 = m.seaf.squads[r1.squad], o1 = q1.order;
+  run(m, 20);
+  const L1 = m.seafAlive.filter((a) => a.sq === r1.squad), cx1 = L1.reduce((s2, a) => s2 + a.x, 0) / L1.length, cy1 = L1.reduce((s2, a) => s2 + a.y, 0) / L1.length;
+  const far = Math.max(...L1.map((a) => Math.hypot(a.x - X, a.y - Y))), mid = Math.hypot(cx1 - X, cy1 - Y);
+  check('(0.27.3) a new squad dropped in the open holds where it lands and waits for orders', r1.ok && o1.kind === 'protect' && Math.hypot(o1.x - X, o1.y - Y) < 3 && mid < 8 && far < 24, `${o1.kind}, middle ${mid.toFixed(1)} m off, furthest ${far.toFixed(1)} m`);
+  // next to a bastion: they go straight to it
+  m = quiet(82);
+  const b0 = m.hdAlive[0], bx = b0.x + 30, by = b0.y - 6;
+  const bas = makePost(m, 'bastion', bx, by);
+  const r2 = drop(m, bx - 14, by + 8);
+  const o2 = m.seaf.squads[r2.squad].order;
+  check('(0.27.3) dropped beside cover (a bastion inside the drop zone), the squad goes straight to it and mans it', o2.kind === 'post' && o2.post === bas, `${o2.kind}`);
+  // the old way, for the test bot
+  m = quiet(83);
+  const r3 = drop(m, m.hdAlive[0].x + 10, m.hdAlive[0].y - 10, { hold: false });
+  check('(the bot\'s drops still go straight off to clear)', m.seaf.squads[r3.squad].order.kind === 'auto');
+  // a drop that joins a squad keeps that squad's order
+  const sel = r3.squad; m.selectSquad(sel); m.seafOrder('move', m.hdAlive[0].x + 40, m.hdAlive[0].y); const before = m.seaf.squads[sel].order.kind;
+  m.seaf.readyAt = 0; m.callSeaf(m.hdAlive[0].x + 12, m.hdAlive[0].y - 12); run(m, 14);
+  check('(0.27.3) troops dropped into a selected squad follow that squad\'s order', before === 'move' && m.seaf.squads[sel].order.kind === 'move');
+  // a foxhole has no door: the GO INSIDE sends them to man it
+  m = quiet(84);
+  const fx = makePost(m, 'foxhole', m.hdAlive[0].x + 20, m.hdAlive[0].y);
+  const r5 = drop(m, m.hdAlive[0].x + 60, m.hdAlive[0].y + 30);
+  m.selectSquad(r5.squad); const g = m.garrisonGo(fx);
+  check('(0.27.3) a foxhole has no inside: the door just mans it, nobody leaves the squad', g.ok && !g.now && m.seaf.squads[r5.squad].order.kind === 'post' && fx.garrison === 0);
 }
 
 console.log(fails ? `${fails} FAILED` : 'ALL PASS');

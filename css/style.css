@@ -2281,11 +2281,10 @@ body.rts #hud #topmid #ask.anchored.below::after { bottom: auto; top: -7px; bord
   body:not(.touch) #s-controls .ctl > * { break-inside: avoid; }
 
   /* the debrief: results on the left, the after action report on the right */
-  body:not(.touch) #s-debrief .card { width: min(96vw, 1260px); display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); column-gap: 32px; align-content: start; }
-  body:not(.touch) #s-debrief .card > * { grid-column: 1; }
-  body:not(.touch) #s-debrief .card > .d-copy { grid-column: 2; grid-row: 1 / span 30; align-self: start; margin-top: 0; padding: 0 0 0 28px; border-top: 0; border-left: 1px solid rgba(157, 255, 184, 0.18); }
-  body:not(.touch) #s-debrief .d-copy textarea { min-height: 300px; }
-  body:not(.touch) #s-debrief .card > .x-close { grid-column: 2; }
+  body:not(.touch) #s-debrief .card { width: min(96vw, 1260px); display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); column-gap: 32px; align-items: start; }
+  body:not(.touch) #s-debrief .d-side { padding-left: 28px; border-left: 1px solid rgba(157, 255, 184, 0.18); }
+  body:not(.touch) #s-debrief .d-side > .btns { margin-top: 4px; }
+  body:not(.touch) #s-debrief .d-copy textarea { min-height: 230px; }
   /* the end of the tutorial: the same, the buttons across the bottom */
   body:not(.touch) #s-glass .glass-card { width: min(96vw, 1180px); display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); column-gap: 32px; }
   body:not(.touch) #s-glass .glass-card > * { grid-column: 1; }
@@ -2315,8 +2314,53 @@ body.rts #hud #topmid #ask.anchored.below::after { bottom: auto; top: -7px; bord
   body:not(.touch) .cp-ch { padding: 9px 12px; }
   body:not(.touch) .set-row { padding: 7px 2px; }
   body:not(.touch) .tt-mark { font-size: clamp(52px, min(9.4vw, 15vh), 132px); }
+  body:not(.touch) .cp { padding-top: 10px; padding-bottom: 10px; }
+  body:not(.touch) .cp-back { margin-bottom: 8px; }
   body:not(.touch) #s-brief .r-line { padding: 5px 4px; min-height: 28px; }
   body:not(.touch) #s-brief .progress { margin: 8px 0 6px; }
   body:not(.touch) #s-brief #b-strats { margin-top: 6px; }
   body:not(.touch) .tt-menu .tt-item { padding-top: 7px; padding-bottom: 7px; }
 }
+
+/* (0.27.3) GO INSIDE over a building a squad was just sent to (instead of a question) */
+#doors { position: fixed; inset: 0; pointer-events: none; z-index: 44; }
+#doors .door { position: absolute; transform: translate(-50%, -100%); pointer-events: auto; min-height: 28px; padding: 0 10px 0 8px; font-size: 10.5px; letter-spacing: 0.12em;
+  display: inline-flex; align-items: center; gap: 6px; background: rgba(4, 20, 11, 0.95); border-color: rgba(125, 255, 155, 0.7); box-shadow: 0 3px 12px rgba(0, 0, 0, 0.6); white-space: nowrap; }
+#doors .door::after { content: ''; position: absolute; left: 50%; bottom: -6px; margin-left: -6px; border: 6px solid transparent; border-bottom: 0; border-top-color: rgba(125, 255, 155, 0.7); }
+#doors .door-ic { width: 9px; height: 12px; border: 1.5px solid currentColor; border-bottom: 0; border-radius: 2px 2px 0 0; position: relative; }
+#doors .door-ic::after { content: ''; position: absolute; right: 1px; top: 5px; width: 2px; height: 2px; background: currentColor; border-radius: 50%; }
+body.touch #doors .door { min-height: 36px; font-size: 11.5px; padding: 0 12px 0 10px; }
+
+/* ======================= 0.27.3: narrow screens in every language ======================= */
+/* the armory's tabs: three across in two rows where six in a row would cut the names short */
+@media (max-width: 560px) {
+  .shop-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 0; border-bottom: 0; margin-bottom: 6px; }
+  .shop-tabs .tab, body.touch .shop-tabs .tab { margin: 0; min-height: 34px; padding: 6px 4px; border-radius: 6px; border: 1px solid rgba(157, 255, 184, 0.28); letter-spacing: 0.02em; font-size: 10px; text-overflow: clip; }
+  .shop-tabs .tab.on, body.touch .shop-tabs .tab.on { border: 1px solid rgba(255, 230, 0, 0.75); box-shadow: inset 0 0 0 1px rgba(255, 230, 0, 0.45); }
+  .shop-tabs .tab.can::after { top: 4px; right: 4px; }
+  .shop-scroll { border-top: 2px solid rgba(255, 230, 0, 0.6); border-radius: 10px; }
+  /* the loadout chips: the label stops short of the ✕, which sits in the corner */
+  .slot .sn { font-size: 8.5px; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; padding-right: 10px; }
+  .slot .x { text-align: right; padding: 0 3px 0 0; font-size: 14px; }
+}
+/* an item's name line and its upgrade path wrap instead of running under the buttons */
+.it-name > span, .it-path > span, .it-path > i { display: inline-block; }
+.it-name > span { margin-top: 2px; }
+/* the briefing on a narrow screen: the buttons in one row on a solid strip, so the text scrolls under it cleanly */
+@media (max-width: 700px) {
+  .b-left .btns { flex-wrap: nowrap; gap: 6px; padding: 14px 0 4px; background: linear-gradient(to bottom, transparent, rgba(4, 18, 10, 0.98) 14px); }
+  .b-left .btns .btn { flex: 1 1 auto; min-width: 0; padding: 6px 8px; letter-spacing: 0.06em; }
+  .b-left .btns .btn.big { font-size: 14px; min-height: 48px; }
+  .b-left .btns #b-menu, .b-left .btns #btn-end { flex: 0 1 auto; font-size: 11px; }
+}
+/* the phone held upright: a squad's number under its name; CALL without the wide spacing */
+body.rts.lay-phone.lay-port #hud #tactical #squads .sqb { flex-direction: column; gap: 0; line-height: 1.1; }
+body.rts.lay-phone.lay-port #hud #tactical #squads .sqb .s { overflow: visible; }
+body.rts.lay-phone.touch #hud #fire-btn { padding: 0; letter-spacing: 0.04em; }
+/* the Helldiver chips before a drop: just the arrow and the time (the full words are in the open row) */
+#hud #hdpanel .hr .sts { display: none; }
+body.rts.lay-phone.lay-port #hud #hdpanel .hr:is(.drop, .wait, .lost):not(.open) .st { display: none; }
+body.rts.lay-phone.lay-port #hud #hdpanel .hr:is(.drop, .wait, .lost):not(.open) .sts { display: block; font-size: 10.5px; color: var(--g-dim); white-space: nowrap; letter-spacing: 0; }
+/* (the labels fitted by ui.js fill their button's width, so a long one is measured against it; the order's state stays on one line) */
+body.rts.lay-phone #hud #tactical .tct span { align-self: stretch; text-align: center; white-space: nowrap; overflow: hidden; line-height: 1.35; }     /* (room for the accents on capitals) */
+body.rts.lay-phone #hud #tactical .tco .s { white-space: nowrap; }

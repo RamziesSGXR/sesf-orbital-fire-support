@@ -394,15 +394,18 @@ function commandAt(sx, sy) {
   const res = plan() ? queuePlan(kind, at.x, at.y, go) : go();
   if (res && res.ok === false) { audio.deny(); hud.toast(deny(res.reason)); return; }
   if (!res || !res.queued) audio.chirp();
-  if (res && res.canGarrison) askGarrison(man, res.squad);
+  if (res && res.canGarrison) doorPin(man, res.squad);      // (0.27.3: a small GO INSIDE over it, no question)
 }
-// (0.22) Nobody goes into a building unless told to: sent to one, the squad holds beside it, and the game asks.
-function askGarrison(post, squad) {
-  if (!post || post.dead) return;
-  hud.ask(t('ask.garrison', { sq: 'S' + (squad + 1), what: post.name.toUpperCase() }), [
-    { label: t('ask.goIn'), primary: true, fn: () => { if (!mission || post.dead) return; const sf = mission.seaf, k = { sel: sf.sel, multi: sf.multi }; sf.sel = squad; sf.multi = null; const r = mission.garrisonGo(post); sf.sel = k.sel; sf.multi = k.multi; if (r && r.ok) audio.chirp(); else if (r) { audio.deny(); hud.toast(deny(r.reason)); } } },
-    { label: t('ask.stayOut') },
-  ], 9000, post);     // (0.26: next to the building)
+// (0.22) Nobody goes into a building unless told to: sent to one, the squad holds beside it. (0.27.3) No question any more: a
+// small GO INSIDE button sits over the building for a few seconds (the selected building's door does the same any time).
+function doorPin(post, squad) {
+  if (!post || post.dead || bot) return;
+  hud.doorPin(post, () => {
+    if (!mission || post.dead) return;
+    const sf = mission.seaf, k = { sel: sf.sel, multi: sf.multi };
+    sf.sel = squad; sf.multi = null; const r = mission.garrisonGo(post); sf.sel = k.sel; sf.multi = k.multi;
+    if (r && r.ok) audio.chirp(); else if (r) { audio.deny(); hud.toast(deny(r.reason)); }
+  });
 }
 // The selected post's panel sits just above it on the map (and follows it as the camera moves).
 function placeSel(force = false) {
@@ -1367,7 +1370,7 @@ function onEvent(ev, now) {
     case 'radar': break;
     // (0.25.1) a squad has just built something with room inside (a turret nest, a lookout, a tower, the cannon): ask, as when
     // they are sent to one. Nobody goes in unless told to.
-    case 'built': if (ev.post && ev.post.cap > 0 && !ev.post.dead && !bot) askGarrison(ev.post, ev.sq); break;     // (0.22: the radar sweep is silent; its ping every few seconds all mission long was too much)
+    case 'built': break;      // (0.27.3: no question when a building goes up; its door, or a right click on it, sends troops in)     // (0.22: the radar sweep is silent; its ping every few seconds all mission long was too much)
     case 'time_ask': audio.supAsk(); hud.wake(6000); break;
     case 'time_yes': audio.ready(); break;
     case 'side_done': audio.sideDone(); break;
@@ -1434,6 +1437,7 @@ function frame(ts) {
     // (the story first: the game waits under the cinematic, and under a tutorial card until GOT IT)
     if (planQ.length && live()) runPlan();     // (0.22) the plan made in the pause goes out as the game runs again
     if (session && session.tutorial && live()) tutRank();     // (0.26) the tutorial's ranks come with kills
+    hud.doorsPlace((p) => { const R = p.what === 'bastion' ? p.r + 2 : 5; return renderer.worldToScreen(p.x, p.y - R, canvas); });
     if (hud.askAnchor) { const an = hud.askAnchor; if (an.dead) hud.askEnd(); else { const p = renderer.worldToScreen(an.x, an.y, canvas); if (p) hud.askPlace(p.x, p.y); } }
     if (plan() && !bot) { const sa = input.screenAim(), w = renderer.screenToWorld(sa.x, sa.y, canvas); if (w) mission.setAim(w.x, w.y); }     // (the reticle follows in the pause too)
     if (!paused && !cinema.on && !(tut && tut.held) && state === 'play') { simulate(dt, now); ambient(mission, dt); if (castRadio && !mission.over) castRadio.tick(mission); }

@@ -19,6 +19,10 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 4. The Helldivers drop in and head for the objective. The ship gun is ready at once; your UAV scan and orbital strikes are still charging for the first twenty seconds or so. Aim, pick a weapon and call strikes on the enemy, not on your own squad.
 5. Not sure what to do? Press **INFO** (or `I`) at any time for the mission's steps and what the enemy does.
 
+**SEAF reinforcements (0.27.3)** wait where they land for your orders instead of running off: they fight anything that comes at them, and if the drop zone has a structure or cover in it (a bastion, a foxhole, a nest, a rock line) they go straight to it.
+
+**On phones and in French or Spanish (0.27.3)** the labels that ran long are fitted to their buttons, the armory's tabs sit three to a row on a narrow screen, and a tutorial card no longer covers the drop countdown.
+
 **On a computer (0.27.1)** the menus use the whole screen: the campaign, settings, controls, the debrief and the end of the tutorial are laid out in columns so they fit without scrolling, the armory lists two items to a row, and the field manual, mission info and credits spread across a wider panel.
 
 ## Tutorial: last stand on Mars
@@ -93,7 +97,7 @@ From difficulty 3 up the Helldivers can't win this alone. Left to themselves the
 | Order the selected squad | Right click: a crate (build it), a post (hold beside it), an enemy (attack), anywhere else (move). Each order shows in its own colour: move blue, attack red, protect green, build yellow | Tap the map |
 | Mission info | `I` or the **INFO** button | **INFO** button |
 | Command panel (always up, real time) | Bottom centre: the troops (orders, squads, formations), `B` build (then `1`-`8`), `Y` armory. `Esc` goes back to the troops | Tap its **TROOPS**, **BUILD** or **ARMORY** button |
-| Garrison a post | Nobody goes into a building on their own (0.22): sent to one (or after building it), a squad holds beside it, and the game asks **GO INSIDE** or **STAY OUT**. Or select the post, then its door (the door out brings them back) | Same |
+| Garrison a post | Nobody goes into a building on their own: sent to one (or after building it), a squad holds beside it. With the squad selected, right-click the building and a small **GO INSIDE** button shows over it for a few seconds (0.27.3; no more question in the middle of the screen). Or select the post, then its door (the door out brings them back). Foxholes and bastions are cover, not buildings: a squad sent there just takes its places | Tap the building, then **GO INSIDE** over it |
 | Big map | `Tab`, `M` or `L`, or click the minimap (bottom right); the same key shuts it. Click a spot on it to look there | Tap the minimap (bottom right), then tap a spot to look there |
 | Supply request | `U` (or **LOAD POD**), then `1`-`3` or click the compartments; `Space` loads the next one | **LOAD POD**, then tap the compartments |
 | Look at a callout | `J` or **LOOK**: the latest supply drop or super heavy | **LOOK** |

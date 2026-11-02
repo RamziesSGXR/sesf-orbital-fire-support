@@ -117,8 +117,8 @@ function orders(m, bot) {
   const st = seafStats(m.kit);
   if (m.countAlly('S') + m.pendingPods('S') <= st.max - st.drop && t >= m.seaf.readyAt) {
     const bc = beaconAhead(m);
-    if (bc) m.callSeaf(bc.x, bc.y);
-    else m.callSeaf(m.hx + Math.cos(dir) * 25, m.hy + Math.sin(dir) * 25);
+    if (bc) m.callSeaf(bc.x, bc.y, { hold: false });
+    else m.callSeaf(m.hx + Math.cos(dir) * 25, m.hy + Math.sin(dir) * 25, { hold: false });      // (0.27.3: the bot sends its new squads straight off, as before)
   }
   // keep a pair of squads when there are enough troopers
   if (bot.split && !bot.splitDone && m.seafAlive.length >= 6) { bot.splitDone = true; splitHalf(m); }

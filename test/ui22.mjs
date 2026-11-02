@@ -117,12 +117,14 @@ const nest = await ev(() => { const g = window.__game, m = g.mission, p = g.make
 await ev(() => window.__game.selectSquad(0)); await page.waitForTimeout(150);
 await ev((d) => { const g = window.__game, p = g.renderer.worldToScreen(d.x, d.y, document.getElementById('view')); g.commandAt(p.x, p.y); }, nest);
 await page.waitForTimeout(250);
-const ask = await ev(() => ({ on: !document.getElementById('ask').classList.contains('hidden'), t: document.querySelector('#ask .ask-t').textContent, b: [...document.querySelectorAll('#ask .btn')].map((b) => b.textContent) }));
+const ask = await ev(() => ({ q: !document.getElementById('ask').classList.contains('hidden'), pins: [...document.querySelectorAll('#doors .door')].map((b) => b.textContent) }));
+const near = await ev((d) => { const g = window.__game, p = g.renderer.worldToScreen(d.x, d.y, document.getElementById('view')), b = document.querySelector('#doors .door'); if (!b) return null; const r = b.getBoundingClientRect(); return { dx: Math.round(r.left + r.width / 2 - p.x), dy: Math.round(r.bottom - p.y) }; }, nest);
 await shot('ask');
-check('sent to a turret nest, the squad holds beside it and the game asks about going inside', ask.on && /inside/i.test(ask.t) && ask.b.join() === 'GO INSIDE,STAY OUT', JSON.stringify(ask));
+// (0.27.3) no question: a small GO INSIDE over the building, and nothing else
+check('sent to a turret nest, the squad holds beside it: no question, a small GO INSIDE over the building', !ask.q && ask.pins.length === 1 && /GO INSIDE/.test(ask.pins[0]) && near && Math.abs(near.dx) < 30 && near.dy < 10 && near.dy > -90, JSON.stringify({ ask, near }));
 await ev(() => { const m = window.__game.mission; for (let i = 0; i < 30 * 15; i++) m.step(1 / 30); });
 check('nobody has gone in on their own', await ev((id) => window.__game.mission.posts.find((p) => p.id === id).garrison === 0, nest.id));
-await ev(() => { const b = [...document.querySelectorAll('#ask .btn')][0]; b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })); });
+await ev(() => { const b = document.querySelector('#doors .door'); b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })); });
 await ev(() => { const m = window.__game.mission; for (let i = 0; i < 30 * 20; i++) m.step(1 / 30); });
 check('GO INSIDE sends them in', await ev((id) => window.__game.mission.posts.find((p) => p.id === id).garrison > 0, nest.id));
 

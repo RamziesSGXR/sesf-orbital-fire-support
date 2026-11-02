@@ -30,6 +30,8 @@ function quiet(faction = 'bots', seed = 77, opts = {}) {
   for (const o of m.objectives) { o.garrisoned = true; o.owed = 0; }
   return m;
 }
+// (0.27.3) the builds are checked with nothing attacking (a drop elsewhere on the map must not decide them)
+const calm = (m) => { if (m.enemies.length) { for (const e of m.enemies) e.dead = true; m.enemies = []; m.groups = []; } };
 const seafReady = (m, n = 5) => { m.seaf.readyAt = 0; m.callSeaf(m.hx + 10, m.hy + 10); run(m, 14); return m.seafAlive.length >= Math.min(n, 3); };
 
 // ---------------------------------------------------------------- orders stick
@@ -154,17 +156,17 @@ const seafReady = (m, n = 5) => { m.seaf.readyAt = 0; m.callSeaf(m.hx + 10, m.hy
   const before = m.wallet.spent;
   const r = m.seafBuild('tower', spot.x, spot.y);
   const spent = m.wallet.spent;
-  run(m, C.build.tower.sec + 30);
+  run(m, C.build.tower.sec + 30, calm);
   const bc = m.beacons.find((b) => b.built);
   // (0.15: paid when ordered; a cargo pelican brings the crate and SEAF deploy it. 0.16: the drop beacon became the Propaganda Tower)
   check('SEAF ordered to build a propaganda tower build it, and it is paid for when ordered', r.ok && !!bc && spent === before + C.build.tower.cost && m.wallet.spent === spent, r.ok ? `${m.beacons.length} beacons` : JSON.stringify(r));
   check('a built tower takes a SEAF drop', bc && !!beaconAt(m, bc.x, bc.y));
   const q = m.seaf.squads.find((x) => x.n);
   check('and the squad stays to man it', q && q.order.kind === 'post');
-  m.seafBuild('mg', spot.x + 12, spot.y); run(m, C.build.mg.sec + 30);
+  m.seafBuild('mg', spot.x + 12, spot.y); run(m, C.build.mg.sec + 30, calm);
   check('an MG post goes up', m.posts.some((p) => !p.dead && p.what === 'mg'));
   const nC = m.cover.length;
-  m.seafBuild('bastion', spot.x - 12, spot.y); run(m, C.build.bastion.sec + 30);
+  m.seafBuild('bastion', spot.x - 12, spot.y); run(m, C.build.bastion.sec + 30, calm);
   check('the bastions are a ring of cover', m.cover.length > nC && m.coverSites.some((s) => s.kind === 'built'), `${m.cover.length - nC} walls`);
   m.wallet.bal = 0;
   const poor = m.seafBuild('mg', spot.x, spot.y + 15);

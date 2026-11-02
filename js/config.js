@@ -44,6 +44,8 @@ export const CONFIG = {
               // (0.26) four roles: a Squad Leader in every drop, Riflemen, Specialists (MG-43 and EAT-17) and Medics. Everyone carries
               // G-12 grenades (grenades each, plus the armory's G-12 upgrade).
               specChance: 0.6, squads: 9, medicChance: 0.45, grenades: 2, braceMul: 0.3, coverSeek: 12,
+              // (0.27.3) a new squad holds where it lands (and fights what comes), or takes cover within dropCover m of the drop
+              dropCover: 26,
               formationSpacing: 5, pathReach: 9,
               // every SEAF trooper lost is replaced (paid at the end of the mission): lifeCost CR for the first, lifeStep more for each after
               lifeCost: 8, lifeStep: 0.25,
@@ -422,6 +424,6 @@ export const CONFIG = {
   share:    { channelUrl: '',
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.27.2',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.27.3',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };
