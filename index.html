@@ -77,6 +77,12 @@
       </div>
       </div>
     </div>
+    <!-- (0.28) the command radio (tutorial and campaign): a button by the minimap, and the log it opens (on a phone, in the minimap's place) -->
+    <button id="btn-radio" class="hidden" type="button" data-ta="radio.title" data-tt="radio.open"><i class="radio-ic" aria-hidden="true"></i><b class="rdot" aria-hidden="true"></b></button>
+    <div id="radiolog" class="hidden" role="log" aria-live="off">
+      <div class="rl-h"><span data-t="radio.title">COMMAND RADIO</span><button id="radio-full" class="rl-b" type="button" data-ta="radio.log" data-tt="radio.log">⤢</button><button id="radio-x" class="rl-b" type="button" data-ta="radio.map" data-tt="radio.map">✕</button></div>
+      <div id="rl-body" class="rl-body"></div>
+    </div>
     <!-- bottom left: the Helldivers (health, kit, stratagems, ships), then the SEAF squads and their orders -->
     <!-- (0.20) left: the Helldivers (always shown), just above what is selected -->
     <div id="hdpanel"><div id="sqpanel" class="panel" data-tt="hud.hdbarTitle"><div id="hdrows"></div><div id="supply"></div></div></div>
@@ -312,7 +318,7 @@
       <div class="d-copy">
         <h3 data-t="deb.copyTitle">AFTER ACTION REPORT</h3>
         <textarea id="g-text" readonly rows="7" spellcheck="false" data-ta="deb.copyTitle"></textarea>
-        <div class="btns"><button id="btn-copy-g" class="btn" type="button" data-t="deb.copy">COPY FOR DISCORD</button></div>
+        <div class="btns"><button id="btn-copy-g" class="btn" type="button" data-t="deb.copy">COPY FOR DISCORD</button><button id="btn-radio-g" class="btn hidden" type="button" data-t="radio.log">RADIO LOG</button></div>
         <p id="g-msg" class="fine"></p>
       </div>
       <div class="btns">
@@ -346,7 +352,7 @@
           <h3 data-t="deb.copyTitle">MISSION REPORT</h3>
           <p class="fine" data-t="deb.copyNote"></p>
           <textarea id="d-text" readonly rows="8" spellcheck="false" data-ta="deb.copyTitle"></textarea>
-          <div class="btns"><button id="btn-copy-d" class="btn" type="button" data-t="deb.copy">COPY REPORT</button></div>
+          <div class="btns"><button id="btn-copy-d" class="btn" type="button" data-t="deb.copy">COPY REPORT</button><button id="btn-radio-d" class="btn hidden" type="button" data-t="radio.log">RADIO LOG</button></div>
           <p id="d-msg" class="fine"></p>
         </div>
         <p class="ver" id="ver-d"></p>
@@ -388,6 +394,7 @@
         <button id="btn-armory-m" class="btn play-only" data-t="hud.armory">ARMORY</button>
         <button id="btn-settings-m" class="btn" data-t="ui.settings">SETTINGS</button>
         <button id="btn-ctl-m" class="btn" type="button" data-t="pause.help">HELP</button>
+        <button id="btn-radio-m" class="btn play-only radio-only" type="button" data-t="radio.log">RADIO LOG</button>
         <button id="btn-home-m" class="btn pm-out" type="button" data-t="pause.home">MAIN MENU</button>
         <button id="btn-abort" class="btn danger pm-out play-only" data-t="pause.retire">RETIRE</button>
       </div>
@@ -429,6 +436,17 @@
       <h2 id="info-title"></h2>
       <div id="info-body"></div>
       <div class="btns"><button id="info-close" class="btn primary big" data-t="ui.back">BACK TO THE MISSION</button></div>
+    </div>
+  </section>
+
+  <section id="s-radio" class="screen overlay">
+    <div class="card">
+      <button class="x-close" data-close="s-radio" data-ta="ui.backBtn">✕</button>
+      <div class="eyebrow" data-t="radio.log">RADIO LOG</div>
+      <h2 data-t="radio.title">COMMAND RADIO</h2>
+      <p class="fine" data-t="radio.note"></p>
+      <div id="radio-body" class="rl-body"></div>
+      <div class="btns"><button id="radio-close" class="btn primary" type="button" data-t="ui.backBtn">BACK</button></div>
     </div>
   </section>
 

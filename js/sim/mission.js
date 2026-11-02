@@ -12,7 +12,7 @@ import { seafName } from '../data/names.js';
 import { updateSquad } from './squad.js';
 import { setupDefenders } from './defenders.js';
 import { initSeaf, targetSquads, setSquadOrder, drawOrder, callPelican, pendingTroops, dropSquad, callCargo, boxSelect, setForm, pickTroops, toSquad, disband, PICKED, selectSquads as seafSelectSquads, mergeSquads as seafMergeSquads } from './seaf.js';
-import { updatePosts, updateSam, garrisonPost, releaseGarrison, POSTS, makePost, INSIDE } from './posts.js';
+import { updatePosts, updateSam, garrisonPost, releaseGarrison, POSTS, makePost, INSIDE, foxSize } from './posts.js';
 import { updateEnemies, updateAllies } from './enemies.js';
 import { updateDirector, alertBase } from './director.js';
 import { initPatrols, updatePatrols } from './patrols.js';
@@ -361,7 +361,9 @@ export class Mission {
     }
     // a crate of this kind already on the ground near the spot (from an order that was changed) is used again, at no charge
     let crate = this.crates.find((c) => c.what === what && !c.used && Math.hypot(c.x - x, c.y - y) < C.build.crateR);
-    if (!crate && what === 'foxhole') { crate = { id: this.nextId++, what, x, y, landed: true, used: false, dig: true, prog: 0, born: this.t }; this.crates.push(crate); }
+    // (0.28) a foxhole is dug by the squads picked (or the nearest, with every squad picked), as long as there are troopers in them
+    const diggers = what === 'foxhole' ? this.diggers(sq, x, y) : null;
+    if (!crate && what === 'foxhole') { crate = { id: this.nextId++, what, x, y, landed: true, used: false, dig: true, prog: 0, born: this.t, size: foxSize(diggers.reduce((n, q) => n + q.n, 0)), face: Math.atan2(y - this.hy, x - this.hx) }; this.crates.push(crate); }
     if (!crate) {
       if (this.wallet.bal < st.cost) return this._deny('funds');
       this.wallet.bal -= st.cost; this.wallet.spent += st.cost;     // paid now: a cargo pelican brings the crate
@@ -370,12 +372,28 @@ export class Mission {
       callCargo(this, x, y, crate);
       this.notice(tr('n.crateIn', { what: tr('build.' + what), cr: st.cost }), 'info');
     }
-    const q = sq.slice().sort((a, b) => Math.hypot(a.cx - x, a.cy - y) - Math.hypot(b.cx - x, b.cy - y))[0];
+    const q = diggers ? diggers[0] : sq.slice().sort((a, b) => Math.hypot(a.cx - x, a.cy - y) - Math.hypot(b.cx - x, b.cy - y))[0];
     if (span && !crate.span) crate.span = span;
-    setSquadOrder(this, q, 'build', crate.x, crate.y, { what, crate });
+    for (const d of diggers || [q]) setSquadOrder(this, d, 'build', crate.x, crate.y, { what, crate });
     this.radio(COMMS.seafBuild(what), 'seafbuild', 1);
     this.emit('seaf_order', { kind: 'build', what, x, y, sq: q.i });
     return { ok: true, squad: q.i };
+  }
+  // (0.28) Who digs a foxhole at (x, y): every squad picked (one, several, or troopers picked as a group), nearest first; with every
+  // squad picked (nothing chosen), just the nearest one. Its size is theirs: a trooper to a place.
+  diggers(sq = targetSquads(this).filter((q) => q.n > 0), x = 0, y = 0) {
+    const L = sq.slice().sort((a, b) => Math.hypot(a.cx - x, a.cy - y) - Math.hypot(b.cx - x, b.cy - y));
+    const all = this.seaf.sel === -1 && !(this.seaf.multi && this.seaf.multi.length);
+    return all ? L.slice(0, 1) : L;
+  }
+  // how many places a foxhole dug at (x, y) now would have, and which squads would dig it (for the ghost: nothing is changed)
+  digPlan(x = 0, y = 0) {
+    const sf = this.seaf;
+    if (sf.sel === -2) return { size: foxSize((sf.pick || []).filter((a) => !a.dead).length), sq: [] };
+    let L = sf.sel >= 0 ? [sf.squads[sf.sel]] : sf.multi && sf.multi.length ? sf.multi.map((i) => sf.squads[i]) : sf.squads;
+    L = L.filter((q) => q && q.n > 0).sort((a, b) => Math.hypot(a.cx - x, a.cy - y) - Math.hypot(b.cx - x, b.cy - y));
+    if (sf.sel === -1 && !(sf.multi && sf.multi.length)) L = L.slice(0, 1);
+    return { size: foxSize(L.reduce((n, q) => n + q.n, 0)), sq: L };
   }
   // (0.22) A light bridge, dropped from the ship: anywhere an ally (or a UAV) can see, across the water at the spot. No crate and
   // nobody to build it; it comes down on its own after dropSec, a little slower than a crate the squad builds.

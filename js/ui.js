@@ -9,7 +9,7 @@ import { stratReady, stratOnline } from './sim/strat.js';
 import { slotStats } from './sim/player.js';
 import { compass } from './sim/enemies.js';
 import { builtCount, FORMS } from './sim/seaf.js';
-import { POSTS, INSIDE } from './sim/posts.js';
+import { POSTS, INSIDE, crateSec } from './sim/posts.js';
 import { objectiveStatus, OBJ_NAME } from './sim/objectives.js';
 import { SQUAD_COLOR } from './sim/seaf.js';
 import { todAt, todName, todClock } from './render/sky.js';
@@ -22,7 +22,7 @@ import { CAST, CAST_ORDER } from './data/story.js';
 
 const $ = (id) => document.getElementById(id);
 const SCREENS = ['s-title', 's-campaign', 's-glass', 's-shop', 's-brief', 's-debrief', 's-final'];
-const OVERLAYS = ['s-pause', 's-lock', 's-controls', 's-manual', 's-names', 's-settings', 's-notice', 's-info', 's-credits', 's-map'];
+const OVERLAYS = ['s-pause', 's-lock', 's-controls', 's-manual', 's-names', 's-settings', 's-notice', 's-info', 's-credits', 's-map', 's-radio'];
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // (0.27.3) a label too long for its box in some language: its font steps down until the words fit (never under `min` pixels)
@@ -124,6 +124,12 @@ export class Hud {
   constructor() {
     this.last = {};
     this.wb = []; this.sc = []; this.rr = [];
+    // (0.28) the command radio: the button by the minimap opens (or shuts) its log; ⤢ opens it full size
+    this.radioOn = false; this.radioOpen = false;
+    $('btn-radio').addEventListener('click', (e) => { e.stopPropagation(); this.radioToggle(); });
+    $('radio-x').addEventListener('click', (e) => { e.stopPropagation(); this.radioToggle(false); });
+    $('radio-full').addEventListener('click', (e) => { e.stopPropagation(); this.radioToggle(false); this.onRadioFull && this.onRadioFull(); });
+    for (const id of ['btn-radio', 'radiolog']) for (const ev of ['pointerdown', 'wheel']) $(id).addEventListener(ev, (e) => e.stopPropagation(), { passive: true });
     const bar = $('weapons');
     bar.innerHTML = '';
     for (let i = 0; i < 9; i++) {
@@ -427,6 +433,20 @@ export class Hud {
     // (0.21) phones held upright: the weapons in two rows, half of them in each
     const nw = [...document.querySelectorAll('#weapons .wbtn')].filter((e) => e.getClientRects().length).length;
     set('--wpc', String(Math.max(1, Math.ceil(nw / 2))));
+    // (0.28) the command radio: a computer or a tablet has its button on the minimap's corner and its log above the minimap; a phone
+    // has the button by the camera button and the log in the minimap's place (the minimap steps aside while it is open)
+    if (this.radioOn) {
+      const rb = $('btn-radio'), rl = $('radiolog'), mm = R('#minimap') || this._mmR, fb = R('#btn-follow');
+      if (mm) this._mmR = mm;
+      const port = H > W, S = (e, o) => { for (const k of ['left', 'top', 'right', 'bottom', 'width', 'height', 'maxHeight']) e.style[k] = o[k] === undefined ? '' : px(o[k] / z); };
+      if (phone && fb) S(rb, port ? { left: fb.left, top: fb.bottom + G, width: fb.width, height: 32 * z } : { left: fb.left, top: fb.top - G - 34 * z, width: fb.width, height: 34 * z });
+      else if (mm) S(rb, { left: mm.left - 4 * z, top: mm.top - 4 * z, width: 30 * z, height: 30 * z });
+      if (this.radioOpen && mm) {
+        if (phone && port) { const tr2 = R('#hud .hud-tr'); const top = Math.max(mm.top, tr2 ? tr2.bottom + G : mm.top); S(rl, { right: G, top, width: Math.min(W - 2 * G, 420 * z), height: Math.min(H * 0.34, 300 * z) }); }
+        else if (phone) { const tr2 = R('#hud .hud-tr'), top = tr2 && tr2.left < W && tr2.bottom < mm.bottom - 120 * z ? tr2.bottom + G : 40 * z; S(rl, { right: W - mm.right, bottom: H - mm.bottom, width: Math.min(W * 0.46, 340 * z), height: Math.min(mm.bottom - top, 250 * z) }); }
+        else S(rl, { right: W - mm.right, bottom: H - mm.top + G, width: Math.min(W * 0.36, 380 * z), maxHeight: Math.max(140 * z, Math.min(360 * z, mm.top - 130 * z)) });
+      }
+    }
     // (0.27.3) the labels that run long in French or Spanish, fitted again when the screen, the layout or the language changes
     const fk = `${W}|${H}|${b.className}|${getLang()}|${nw}`;
     if (force || fk !== this._fitK) { this._fitK = fk; document.querySelectorAll(FIT).forEach((e) => fitEl(e)); }
@@ -571,8 +591,36 @@ export class Hud {
     clearTimeout(this._tst); this._tst = setTimeout(() => e.classList.remove('show'), ms);
   }
 
+  // ---- (0.28) the command radio (tutorial and campaign): a button by the minimap; its log above the minimap, or (on a phone) in its
+  // place until it is shut again. Chatter only shows here: the button lights when there is something new.
+  radioShow(on) {
+    this.radioOn = !!on; $('btn-radio').classList.toggle('hidden', !on); document.body.classList.toggle('radio-on', !!on);
+    if (!on) { this.radioOpen = false; $('radiolog').classList.add('hidden'); $('btn-radio').classList.remove('on', 'new'); document.body.classList.remove('radio-open'); }
+    else this.layout(true);
+  }
+  radioToggle(force) {
+    const open = force === undefined ? !this.radioOpen : !!force && this.radioOn;
+    if (open === this.radioOpen && force !== undefined) return;
+    this.radioOpen = open;
+    $('radiolog').classList.toggle('hidden', !open); $('btn-radio').classList.toggle('on', open);
+    document.body.classList.toggle('radio-open', open);
+    if (open) { this.radioRender(this._rlog); this.radioRead(this._rlog); }
+    this.layout(true);
+    if (open) requestAnimationFrame(() => { const b = $('rl-body'); b.scrollTop = b.scrollHeight; });     // (the newest at the bottom, once it has its size)
+  }
+  radioRead(log) { if (log) log.unread = 0; $('btn-radio').classList.remove('new'); }
+  radioAdd(log, it) {
+    this._rlog = log;
+    if (!it) { $('rl-body').innerHTML = ''; $('btn-radio').classList.remove('new'); return; }
+    if (this.radioOpen) { this.radioRender(log); this.radioRead(log); } else if (this.radioOn) $('btn-radio').classList.add('new');
+  }
+  radioRender(log) {
+    const box = $('rl-body'); if (!box) return;
+    fillRadioBox(box, log);
+    box.scrollTop = box.scrollHeight;
+  }
   reset() {
-    this.doorsClear();
+    this.doorsClear(); this.radioShow(false);
     this.last = {}; this.clearRadio(); this.clearNotices(); $('center-msg').classList.remove('show'); $('toast').classList.remove('show'); this.setPlacing(null);
     if (this.tt) this.tipHide();
     if (this.sg) { this.sg.el.classList.add('hidden'); for (const q of this.sg.slots) q.key = ''; }
@@ -1026,7 +1074,7 @@ export class Hud {
     const items = [];
     for (const c of m.crates || []) {
       if (c.used) continue;
-      const B = buildStats(c.what, Math.max(1, buildLevel(m.kit, c.what))), f = Math.min(1, (c.prog || 0) / B.sec);
+      const f = Math.min(1, (c.prog || 0) / crateSec(m, c));
       items.push({ key: 'c' + c.id, x: c.x, y: c.y, f, crate: c, name: t('build.' + c.what),
         sub: !c.landed ? t('tac.l.inbound') : f > 0 ? `${Math.floor(f * 100)}%` : t('tac.l.waiting'), hands: c.hands || 0 });
     }
@@ -1869,6 +1917,21 @@ export function buildEnemy(cur, onPick) {
   $('enemy-note').textContent = t('enemy.note');
 }
 // (0.19) The end of the tutorial: Mars is glassed. How long the base held, how many got off Mars, and what it cost.
+// (0.28) the command radio's log: the briefing, the mission and the debrief, each under its heading; a line is the speaker's tag in
+// their colour, then what they said (the tutorial's narration has no speaker; chatter is a little dimmer)
+function fillRadioBox(box, log) {
+  const items = (log && log.items) || [];
+  if (!items.length) { box.innerHTML = `<p class="rl-none">${esc(t('radio.none'))}</p>`; return; }
+  let h = '', part = '';
+  for (const it of items) {
+    if (it.part !== part) { part = it.part; h += `<h4 class="rl-sec">${esc(t(part === 'brief' ? 'radio.brief' : part === 'debrief' ? 'radio.debrief' : 'radio.mission'))}</h4>`; }
+    h += `<p class="rl-l${it.flavor ? ' fl' : ''}${it.narr ? ' nr' : ''}"${it.col ? ` style="--cc:${esc(it.col)}"` : ''}>${it.tag ? `<b title="${esc(it.unit || '')}">${esc(it.tag)}</b>` : ''}<span>${esc(it.text)}</span></p>`;
+  }
+  box.innerHTML = h;
+}
+export function fillRadio(log) { const box = $('radio-body'); fillRadioBox(box, log); requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; }); }
+export function radioBtn(id, on) { $(id).classList.toggle('hidden', !on); }
+
 export function fillGlass(res, block = '') {
   const L = res.lastStand || { lifted: 0, held: 0, fallen: false, pop: 0 }, s = res.stats || {};
   const mm = Math.floor((L.held || 0) / 60), ss = String((L.held || 0) % 60).padStart(2, '0');

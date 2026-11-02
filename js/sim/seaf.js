@@ -15,7 +15,7 @@ import { steer } from './terrain.js';
 import { speedMul } from './helldiver.js';
 import { shoreToward } from './enemies.js';
 import { siteAt, coverSlot } from './cover.js';
-import { makePost, GARRISON, INSIDE } from './posts.js';
+import { makePost, GARRISON, INSIDE, crateSec } from './posts.js';
 
 const SIZE = C.world.size;
 const S = C.seaf;
@@ -133,14 +133,15 @@ export function builtCount(m, what) { return (m.posts || []).filter((p) => !p.de
 // Done: the crate is deployed (it was paid for when ordered; a foxhole is dug), the post goes up (posts.js) and the squad that
 // built it stays on it. Upgrades from the armory decide how good it is (data/kit.js buildStats).
 function finishBuild(m, q, o) {
-  if (o.crate) { o.crate.used = true; m.crates = m.crates.filter((c) => c !== o.crate); }
-  const p = makePost(m, o.what, o.x, o.y, o.crate && o.crate.span ? { span: o.crate.span } : {});
+  const cr = o.crate, crew = cr ? m.seaf.squads.filter((x) => x !== q && x.n && x.order.kind === 'build' && x.order.crate === cr) : [];     // (0.28: everyone who dug a trench mans it)
+  if (cr) { cr.used = true; m.crates = m.crates.filter((c) => c !== cr); }
+  const p = makePost(m, o.what, o.x, o.y, cr && cr.span ? { span: cr.span } : cr && cr.dig ? { size: cr.size, face: cr.face } : {});
   if (o.what === 'arty') m.radio(COMMS.artyUp, 'artyup', 0);
   m.stats.built = (m.stats.built || 0) + 1;
   m.notice(tr(o.what === 'foxhole' ? 'n.dug' : 'n.built', { what: tr('build.' + o.what), cr: buildStats(o.what, p.lvl).cost }), 'good');
   m.emit('built', { what: o.what, x: o.x, y: o.y, sq: q.i, post: p });     // (0.25.1: a building with room inside: the game asks)
   if (o.what === 'bridge') setSquadOrder(m, q, 'protect', o.x, o.y);       // (nothing to man on a bridge)
-  else setSquadOrder(m, q, 'post', p.x, p.y, { post: p, site: p.site, garrison: INSIDE.has(o.what) ? false : undefined });     // (0.22: they hold beside a building; nobody goes in unless told to)
+  else for (const x of [q, ...crew]) setSquadOrder(m, x, 'post', p.x, p.y, { post: p, site: p.site, garrison: INSIDE.has(o.what) ? false : undefined });     // (0.22: they hold beside a building; nobody goes in unless told to)
   return true;
 }
 
@@ -486,7 +487,7 @@ function buildSteps(m, by, dt) {
     c.hands = Math.min(K.maxHands, hands);
     if (!c.hands) continue;
     c.prog = (c.prog || 0) + dt * K.perHand * c.hands * sp;
-    if (c.prog >= buildStats(c.what, buildLevel(m.kit, c.what)).sec) finishBuild(m, best, best.order);
+    if (c.prog >= crateSec(m, c)) finishBuild(m, best, best.order);
   }
   for (const q of m.seaf.squads) if (q.n && q.order.kind === 'build' && q.order.crate && !q.order.crate.landed) q.order.waiting = true;
 }
@@ -591,9 +592,11 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
       // manning a post or a defence site: each takes one of its places and stays; anyone over holds round it
       const p = o.post, site = o.site || (p && p.site);
       const pl = p && p.slots && p.what !== 'bastion' ? p.slots : null;
-      let s;
-      if (pl && ki < pl.length) s = pl[ki];
-      else if (pl) { const k = ki - pl.length, n = Math.max(1, kn - pl.length), ang = (p.face || 0) + Math.PI + ((k + 0.5) / n - 0.5) * Math.PI * 1.4; s = { x: p.x + Math.cos(ang) * (p.r + 5), y: p.y + Math.sin(ang) * (p.r + 5) }; }
+      // (0.28) several squads on one post: each takes the places after the squads before it
+      let s, kk = ki;
+      if (pl) for (const o2 of m.seaf.squads) { if (o2.i >= q.i) break; if (o2.n && o2.order.kind === 'post' && o2.order.post === p) kk += o2.n; }
+      if (pl && kk < pl.length) s = pl[kk];
+      else if (pl) { const k = kk - pl.length, n = Math.max(1, kn - pl.length), ang = (p.face || 0) + Math.PI + ((k + 0.5) / n - 0.5) * Math.PI * 1.4; s = { x: p.x + Math.cos(ang) * (p.r + 5), y: p.y + Math.sin(ang) * (p.r + 5) }; }
       else if (site && site.pieces.length) s = coverSlot(site, ki, kn, ((a.id % 3) - 1) * 1.8);
       else s = { x: o.x + fo.x * 0.5, y: o.y + fo.y * 0.5 };
       tx = s.x; ty = s.y; spd = Math.hypot(tx - a.x, ty - a.y) > 18 ? chase : speed;

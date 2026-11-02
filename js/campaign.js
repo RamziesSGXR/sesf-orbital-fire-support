@@ -28,12 +28,51 @@ export function castLines(ch, part, res = null, en = false) {
   return who.map((k, i) => ({ who: k, name: CAST[k].name, unit: T(CAST[k].unit), col: CAST[k].col, text: T(`cp.${STORY.id}.c${ch.n}.${part}${i + 1}`, v) }));
 }
 
+// ---------------------------------------------------------------- the command radio (0.28)
+// Everything said on the radio in a tutorial or campaign mission, to read again: the briefing, the cast during the mission (their
+// chatter too, which only goes here), and the debrief. part: 'brief', 'mission' or 'debrief'. A line: { tag, col, text, unit,
+// flavor (chatter), narr (the tutorial's narration, no speaker) }.
+export class RadioLog {
+  constructor() { this.items = []; this.unread = 0; this.onAdd = null; }
+  clear() { this.items = []; this.unread = 0; if (this.onAdd) this.onAdd(null); }
+  add(part, line) {
+    const last = this.items[this.items.length - 1];
+    if (last && last.part === part && last.text === line.text) return;
+    const it = { part, ...line };
+    this.items.push(it); if (this.items.length > 240) this.items.shift();
+    this.unread++;
+    if (this.onAdd) this.onAdd(it);
+  }
+  // a cinematic's lines (castLines, or the tutorial's narration as plain strings)
+  addLines(part, lines) {
+    for (const l of lines) this.add(part, typeof l === 'string' ? { tag: '', col: '', text: l, narr: true } : { tag: CAST[l.who] ? CAST[l.who].tag : l.name, col: l.col, unit: l.unit, text: l.text });
+  }
+}
+// a cast member's line for the log
+export const castLine = (c, text, flavor = false) => ({ tag: c.tag, col: c.col, unit: t(c.unit), text, flavor });
+
 // ---------------------------------------------------------------- the cast on the radio
-// say(cast, text): put a line on screen. Lines in the language files are 'who|text'.
+// say(cast, text, line): put a line on screen (line.flavor: chatter, for the radio log only). Lines in the language files are
+// 'who|text'. opts.cues: false for the tutorial (chatter only); opts.chat: the language keys of the chatter for this mission, each
+// an array of exchanges ('who|text || who|text ...'), one now and then (never the same twice in a mission) when the radio is quiet.
 export class CastRadio {
-  constructor(say) {
+  constructor(say, opts = {}) {
     this.say = say; this.done = {}; this.q = []; this.nextAt = 0; this.t0 = null;
     this.lives0 = null; this.kp = []; this.big = 0; this.bigAt = -99;
+    this.cues = opts.cues !== false; this.chatKeys = opts.chat || []; this.chatUsed = new Set(); this.chatAt = null; this.lastAt = -99;
+  }
+  // (0.28) a short exchange between the cast: queued behind anything that matters
+  chatter(m) {
+    const pool = [];
+    for (const k of this.chatKeys) tl(k).forEach((x, i) => { if (!this.chatUsed.has(k + i)) pool.push([k + i, x]); });
+    if (!pool.length) return false;
+    const [id, raw] = pool[m.crng.int(pool.length)];
+    this.chatUsed.add(id);
+    for (const part of raw.split(' || ')) {
+      const bar = part.indexOf('|'), who = bar > 0 ? part.slice(0, bar).trim() : 'ktl';
+      this.q.push({ who: CAST[who] ? who : 'ktl', text: (bar > 0 ? part.slice(bar + 1) : part).trim(), flavor: true });
+    }
+    return true;
   }
   // a moment: speak (once a mission per kind unless `again`), now or as soon as the line before has been read
   cue(kind, m, { again = 0, first = false, v = {} } = {}) {
@@ -45,10 +84,13 @@ export class CastRadio {
     const raw = lines[m.crng.int(lines.length)], bar = raw.indexOf('|');
     const who = bar > 0 ? raw.slice(0, bar) : 'ktl', text = (bar > 0 ? raw.slice(bar + 1) : raw).replace(/\{(\w+)\}/g, (_, k) => (v[k] ?? ''));
     const item = { who: CAST[who] ? who : 'ktl', text };
-    if (first) this.q.unshift(item); else this.q.push(item);
-    if (this.q.length > 3) this.q.length = 3;          // (a backlog is old news: the oldest goes)
+    // (ahead of any chatter not yet begun; an exchange under way is let finish, unless this is urgent)
+    if (first) this.q.unshift(item); else { const k = this.inChat ? -1 : this.q.findIndex((x) => x.flavor); if (k >= 0) this.q.splice(k, 0, item); else this.q.push(item); }
+    const real = this.q.filter((x) => !x.flavor);
+    if (real.length > 3) this.q.splice(this.q.indexOf(real[real.length - 1]), 1);     // (a backlog is old news: no more than three waiting)
   }
   onEvent(ev, m) {
+    if (!this.cues) return;
     switch (ev.type) {
       case 'boss': this.cue('boss', m, { first: true }); break;
       case 'boss_down': this.cue('bossDown', m, { first: true }); break;
@@ -65,6 +107,21 @@ export class CastRadio {
     const t = m.t;
     if (this.t0 === null) this.t0 = t;
     const since = t - this.t0;
+    if (this.chatKeys.length) {
+      if (this.chatAt === null) this.chatAt = t + 45 + m.crng.next() * 25;
+      if (t >= this.chatAt && !this.q.length && t - this.lastAt > 12) { this.chatter(m); this.chatAt = t + 70 + m.crng.next() * 50; }
+    }
+    if (this.cues) this.cueTick(m, t, since);
+    // one line at a time, each up long enough to read (chatter, which is only in the log, a little quicker)
+    if (this.q.length && t >= this.nextAt) {
+      const it = this.q.shift();
+      this.say(CAST[it.who], it.text, castLine(CAST[it.who], it.text, !!it.flavor));
+      this.lastAt = it.flavor ? this.lastAt : t;
+      this.inChat = !!it.flavor && !!(this.q[0] && this.q[0].flavor);
+      this.nextAt = t + (it.flavor ? Math.max(3.5, 1.5 + it.text.length * 0.04) : Math.max(7, 3 + it.text.length * 0.06));
+    }
+  }
+  cueTick(m, t, since) {
     if (since > 2) this.cue('start', m);
     if (since > 26 && m.hdAlive.length) this.cue('landed', m);
     if (since > 70) this.cue('intel.' + m.faction.id, m);
@@ -77,12 +134,6 @@ export class CastRadio {
     const kp = m.stats.killsPlayer || 0;
     this.kp.push([t, kp]); while (this.kp.length && t - this.kp[0][0] > 1.2) this.kp.shift();
     if (this.kp.length && kp - this.kp[0][1] >= 12 && t - this.bigAt > 60) { this.bigAt = t; this.cue('bigHit', m, { again: 1, v: { n: kp - this.kp[0][1] } }); }
-    // one line at a time, each up long enough to read
-    if (this.q.length && t >= this.nextAt) {
-      const it = this.q.shift();
-      this.say(CAST[it.who], it.text);
-      this.nextAt = t + Math.max(7, 3 + it.text.length * 0.06);
-    }
   }
 }
 

@@ -1,6 +1,7 @@
 // Buildables ("posts"): what SEAF put up from the tactical menu. Each one is paid for when it is ordered (the foxhole is free and
 // dug on the spot), a cargo pelican drops its crate and the squad deploys it. There is no limit on how many stand.
-//   foxhole:  three places in light cover; whoever shoots from one fires faster. Not in the armory: it has no levels.
+//   foxhole:  places in light cover, one for each trooper who digs it (a pit for three, a trench for more, a crescent for eight or
+//             more; 0.28); whoever shoots from one fires faster. Not in the armory: it has no levels.
 //   bastion:  the Defilade Bastions, a full ring of low walls round the spot.
 //   mg:       the Heavy Turret Nest: a manned heavy gun (it hits like a heavy weapon) behind a thick wall, with three times the
 //             old MG post's health. It only fires with someone on it (faster with two), and the crew sit inside the wall.
@@ -41,8 +42,26 @@ export const postName = (what) => tr('build.' + what);
 // behind each wall. (render/posts.js draws each post round these.)
 const IN = { foxhole: [[0.3, -1.1], [0.3, 1.1], [-0.9, 0]], mg: [[-1.4, -0.9], [-1.4, 0.9]], lookout: [[-0.8, -0.8], [0.8, 0.8]], tower: [[-1.1, 0]],
   arty: [[-2.4, -1.2], [-2.4, 1.2]] };
+// (0.28) A foxhole is dug for the troops that dig it: three or fewer get the pit; four to seven a straight trench across the front,
+// its fire steps staggered; eight or more a longer one bent into a crescent, the ends curled back. Its places, end to end.
+export const FOX_MAX = 12, FOX_GAP = 2.4;
+export const foxSize = (n) => Math.max(3, Math.min(FOX_MAX, Math.round(n || 3)));
+export function foxholeSlots(x, y, face, size = 3) {
+  const n = foxSize(size), c = Math.cos(face), s = Math.sin(face);
+  let L = IN.foxhole;
+  if (n > 3) {
+    const half = (n - 1) / 2; L = [];
+    for (let k = 0; k < n; k++) { const r = (k - half) * FOX_GAP; L.push([(k % 2 ? -0.35 : 0.35) - (n >= 8 ? 0.03 * r * r : 0), r]); }
+  }
+  return L.map(([f, r]) => ({ x: x + c * f - s * r, y: y + s * f + c * r }));
+}
+// how long a crate takes to deploy (in seconds of one pair of hands): a longer trench takes longer to dig
+export const crateSec = (m, c) => buildStats(c.what, Math.max(1, buildLevel(m.kit, c.what))).sec * (c.dig ? 1 + (foxSize(c.size) - 3) * 0.12 : 1);
+// how far a foxhole of that size reaches from its middle (to select it, and for anyone over its places)
+export const foxReach = (n) => (foxSize(n) <= 3 ? 3.5 : ((foxSize(n) - 1) * FOX_GAP) / 2 + 2);
 function placeSlots(p) {
   if (p.what === 'bastion') return p.site.pieces.map((q) => ({ x: q.x - q.nx * 1.6, y: q.y - q.ny * 1.6 }));
+  if (p.what === 'foxhole') return foxholeSlots(p.x, p.y, p.face0 ?? p.face, p.cap);
   const L = IN[p.what] || [], c = Math.cos(p.face), s = Math.sin(p.face);
   return L.slice(0, Math.max(1, p.cap)).map(([f, r]) => ({ x: p.x + c * f - s * r, y: p.y + s * f + c * r }));
 }
@@ -57,16 +76,17 @@ const towerReach = (m, p) => Math.round(uavStats(m.kit.uav).r * (p.what === 'tow
 // How far out a lookout spots for the fire support (enemies there, inside the strike zone, are shown).
 export const spotReach = (m, p) => Math.round(towerReach(m, p) * buildStats('lookout', p.lvl).spot);
 
-// Put one up at (x, y), facing away from the Helldivers (toward the enemy). opts: { captured, lvl }.
+// Put one up at (x, y), facing away from the Helldivers (toward the enemy). opts: { captured, lvl, size (a foxhole's places) }.
 export function makePost(m, what, x, y, opts = {}) {
   const lvl = Math.max(1, opts.lvl || postLevel(m, what)), S = buildStats(what, lvl);
   const face = opts.face ?? Math.atan2(y - m.hy, x - m.hx);
-  const p = { id: m.nextId++, kind: 'post', what, sid: 'post_' + what, x, y, lvl, born: m.t, dead: false, hurtAt: -9, face, face0: face, cap: S.cap || 0,
-    hp: S.hp || 0, maxHp: S.hp || 0, r: what === 'bastion' ? S.R : what === 'arty' ? 4.5 : what === 'bridge' ? 4 : 3.5, crew: 0, crewH: 0, crewS: 0, garrison: 0,
+  const fox = what === 'foxhole' ? foxSize(opts.size || S.cap) : 0;
+  const p = { id: m.nextId++, kind: 'post', what, sid: 'post_' + what, x, y, lvl, born: m.t, dead: false, hurtAt: -9, face, face0: face, cap: fox || S.cap || 0,
+    hp: S.hp || 0, maxHp: S.hp || 0, r: what === 'bastion' ? S.R : what === 'arty' ? 4.5 : what === 'bridge' ? 4 : fox ? foxReach(fox) : 3.5, crew: 0, crewH: 0, crewS: 0, garrison: 0,
     captured: !!opts.captured, built: !opts.captured, repairing: false, get name() { return postName(this.what); } };
   // cover: the places are cover pieces (the bastions are a ring of walls), so whoever stands in one is in cover, and the
   // Helldivers and SEAF holding near it spread out to them
-  const site = { x, y, R: what === 'bastion' ? S.R : 4, pieces: [], kind: 'built', post: p };
+  const site = { x, y, R: what === 'bastion' ? S.R : fox ? Math.max(4, p.r) : 4, pieces: [], kind: 'built', post: p };
   p.site = site;
   if (what === 'bastion') {
     for (let k = 0; k < S.n; k++) {
@@ -77,7 +97,8 @@ export function makePost(m, what, x, y, opts = {}) {
   } else if (what !== 'bridge') {
     p.slots = placeSlots(p);
     const mul = what === 'foxhole' ? S.mul : what === 'mg' ? S.crewMul : 0.6;
-    p.slots.forEach((s, k) => { const ang = Math.atan2(s.y - y, s.x - x) || face; site.pieces.push({ x: s.x, y: s.y, nx: Math.cos(ang), ny: Math.sin(ang), ang, len: 2.5, style: 1, k, built: true, mul, lvl, post: p, hole: what === 'foxhole' }); });
+    // (a pit's places face out all round; a trench's face the front)
+    p.slots.forEach((s, k) => { const ang = fox > 3 ? face : Math.atan2(s.y - y, s.x - x) || face; site.pieces.push({ x: s.x, y: s.y, nx: Math.cos(ang), ny: Math.sin(ang), ang, len: 2.5, style: 1, k, built: true, mul, lvl, post: p, hole: what === 'foxhole' }); });
   }
   if (what === 'bastion') p.slots = placeSlots(p);
   if (site.pieces.length) { m.coverSites.push(site); m.cover.push(...site.pieces); }

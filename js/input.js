@@ -219,6 +219,7 @@ export class Input {
       else if (e.code === 'KeyT') this.h.polarity();
       else if (e.code === 'KeyH') this.h.relief();
       else if (e.code === 'KeyI') this.h.info();
+      else if (e.code === 'KeyO' && this.h.radio) this.h.radio();     // (0.28) the command radio (tutorial and campaign)
       else if (e.code === 'KeyU') this.h.supply();
       else if (e.code === 'KeyK' && this.h.timeYes) this.h.timeYes();
       else if (e.code === 'KeyJ') this.h.look();

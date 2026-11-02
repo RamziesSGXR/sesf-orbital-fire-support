@@ -12,7 +12,7 @@ import { Audio } from './audio.js';
 import * as S from './session.js';
 import { startTitleBg } from './render/titlebg.js';
 import { STORY, CAST, chapterFor } from './data/story.js';
-import { castLines, CastRadio, aarMission, aarSession, aarStand } from './campaign.js';
+import { castLines, CastRadio, RadioLog, aarMission, aarSession, aarStand } from './campaign.js';
 import * as UI from './ui.js';
 import { sunAt, todName, todClock } from './render/sky.js';
 import { acceptSupply, declineSupply, fillSupply, launchSupply, supplyFilling } from './sim/supply.js';
@@ -21,7 +21,7 @@ const handsBusy = (m) => !!m && (supplyFilling(m) || hbFilling(m));     // the s
 import { t, tEn, setLang, getLang, applyDom, startLang } from './i18n.js';
 import { clampLevel, LEVELS, levelName } from './difficulty.js';
 import { answerTime } from './sim/planner.js';
-import { POSTS, makePost } from './sim/posts.js';
+import { POSTS, makePost, foxholeSlots } from './sim/posts.js';
 import { FORMS, targetSquads } from './sim/seaf.js';
 import { fireSlot } from './sim/player.js';
 import { LAST_STAND } from './sim/laststand.js';
@@ -203,6 +203,7 @@ const input = new Input(canvas, $('minimap'), cam, {
   polarity: () => { settings.polarity = settings.polarity === 'white' ? 'black' : 'white'; onSettingChange('polarity'); },
   relief: () => { settings.relief = !settings.relief; onSettingChange('relief'); if (mission) hud.notice(t(settings.relief ? 'set.reliefOn' : 'set.reliefOff'), 'info'); },
   info: () => openInfo(),
+  radio: () => { if (state === 'play' && mission && hud.radioOn) hud.radioToggle(); },
   map: () => { if (state !== 'play' || !mission || (UI.anyOverlay() && !UI.isOn('s-map'))) return false; if (UI.isOn('s-map')) closeMap(); else openMap(); return true; },     // (0.20: Tab, M and L)
   follow: () => { if (live() && supplyFilling(mission)) { supTap(-1); return; } cam.follow = !cam.follow; },
   deployNow: () => hud.onDeployNow(),
@@ -324,7 +325,11 @@ function pickAt(sx, sy) {
   const m = mission, r = Math.max(5, cam.view * 0.022);
   let best = null, bd = Infinity;
   const take = (o, d, lim) => { if (d <= lim && d < bd) { bd = d; best = o; } };
-  for (const p of m.posts) if (!p.dead) take(p, Math.hypot(p.x - w.x, p.y - w.y), p.what === 'bastion' ? Math.max(r, 5) : r + 2);
+  for (const p of m.posts) {
+    if (p.dead) continue;
+    const trench = p.what === 'foxhole' && p.cap > 3 && p.slots;     // (0.28) a trench is picked anywhere along it
+    take(p, trench ? Math.min(...p.slots.map((q) => Math.hypot(q.x - w.x, q.y - w.y))) : Math.hypot(p.x - w.x, p.y - w.y), p.what === 'bastion' ? Math.max(r, 5) : r + 2);
+  }
   for (const s of m.assets) if (!s.dead && s.kind === 'turret') take(s, Math.hypot(s.x - w.x, s.y - w.y), r);
   for (const s of m.coverSites) if (s.kind !== 'built') take(s, Math.hypot(s.x - w.x, s.y - w.y), Math.max(r, s.R * 0.4));
   // (0.20) like an RTS, the trooper under the cursor wins over the building he stands by, unless the click is nearer the building's middle
@@ -375,7 +380,7 @@ function holdOn(o) {
 function crateAt(x, y) {
   const r = Math.max(6, cam.view * 0.03);
   let best = null, bd = r;
-  for (const c of mission.crates) { if (c.used || !c.landed) continue; const d = Math.hypot(c.x - x, c.y - y); if (d < bd) { bd = d; best = c; } }
+  for (const c of mission.crates) { if (c.used || !c.landed) continue; const d = c.dig && c.size > 3 ? Math.min(...foxholeSlots(c.x, c.y, c.face || 0, c.size).map((q) => Math.hypot(q.x - x, q.y - y))) : Math.hypot(c.x - x, c.y - y); if (d < bd) { bd = d; best = c; } }
   return best;
 }
 function commandAt(sx, sy) {
@@ -894,13 +899,32 @@ function enterPlay() {
   }
   hud.setTcTab('units'); setTac(true);     // (0.20: the command panel is up from the start, on the troops)
   // (0.27) a campaign chapter: the briefing first (the game waits under it), then the cast on the radio through the mission
-  castRadio = null;
+  castRadio = null; radioLog.clear(); hud.radioShow(!!mission.ls && !BOT);
   const ch = storyChapter();
   if (ch && !BOT) {
-    castRadio = new CastRadio((c, text) => { audio.chirp(); hud.cast(c, text); });
+    castRadio = new CastRadio(castSay, { chat: ['chat.camp', `chat.camp.c${ch.n}`] });
+    hud.radioShow(true);
     audio.humStop();
-    cinema.play('camp', castLines(ch, 'brief'), () => { if (state === 'play' && mission) audio.humStart(); }, campOpts(ch, 'brief'));
+    const lines = castLines(ch, 'brief'); radioLog.addLines('brief', lines);
+    cinema.play('camp', lines, () => { if (state === 'play' && mission) audio.humStart(); }, campOpts(ch, 'brief'));
   }
+}
+// (0.28) the command radio: what the cast says goes in its log (and the feed, unless it is just chatter); tutorial and campaign only
+const radioLog = new RadioLog();
+radioLog.onAdd = (it) => { hud.radioAdd(radioLog, it); if (UI.isOn('s-radio')) UI.fillRadio(radioLog); };
+function castSay(c, text, line) { radioLog.add('mission', line); if (!line.flavor) { audio.chirp(); hud.cast(c, text); } }
+let radioFrom = null;
+function openRadioLog(from) {
+  if (!radioLog.items.length && !hud.radioOn) return;
+  radioFrom = from;
+  if (from === 'pause') UI.overlay('s-pause', false);
+  if (from === 'play') { if (state !== 'play' || !mission || mission.over) return; paused = true; firePending = false; setPlacing(null); setDrawing(false); mission.setFiring(false); }
+  UI.fillRadio(radioLog); UI.overlay('s-radio', true); hud.radioRead(radioLog);
+}
+function closeRadioLog() {
+  UI.overlay('s-radio', false);
+  if (radioFrom === 'pause') UI.overlay('s-pause', true); else if (radioFrom === 'play') { paused = false; audio.unlock(); }
+  radioFrom = null;
 }
 // (0.27) the chapter this mission is, in a story session (null otherwise), and the cinematic's options for it
 let castRadio = null;
@@ -942,6 +966,7 @@ function startLastStand() {
   S.save('tutSeen', true);
   // the story first (the game waits under it), then the lessons
   const tu = tut;
+  radioLog.addLines('brief', lsLines('intro')); castRadio = BOT ? null : new CastRadio(castSay, { cues: false, chat: ['chat.tut'] });     // (0.28: Base Tharsis on the command radio)
   cinema.play('intro', lsLines('intro'), () => { if (tut === tu && mission) { tut.start(); audio.humStart(); } });
 }
 function quitTutorial() {
@@ -963,12 +988,14 @@ function finishLastStand() {
   if (tut) { tut.close(); tut = null; }
   S.save('tutDone', true);
   UI.fillGlass(res, aarStand(res, session && session.callsign));
+  castRadio = null; UI.radioBtn('btn-radio-g', radioLog.items.length > 0);
   state = 'glass'; audio.humStop(); lsEnding = true;      // (the map keeps drawing under the white-out)
   const end = () => { lsReset(); hud.reset(); UI.showScreen('s-glass'); };
   if (res.outcome !== 'glassed') { end(); return; }        // (left early: straight to the end screen)
   // a white-out, then Mars burning from space, then the end screen
   const fx = $('glassfx'); fx.classList.toggle('soft', !!settings.reduceFlash); fx.classList.add('white');
   audio.cineHit();
+  radioLog.addLines('debrief', lsLines('outro', res));
   setTimeout(() => { if (state === 'glass') cinema.play('outro', lsLines('outro', res), () => { if (state === 'glass') end(); }); }, 1400);
 }
 
@@ -1000,8 +1027,9 @@ function finishMission() {
   };
   // (0.27) a campaign chapter: its debrief plays first (won or lost), then the screen
   const ch = storyChapter();
-  if (ch && !BOT) cinema.play('camp', castLines(ch, S.carriesOn(res.outcome) ? 'win' : 'lose', res), show, campOpts(ch, S.carriesOn(res.outcome) ? 'win' : 'lose'));
+  if (ch && !BOT) { const lines = castLines(ch, S.carriesOn(res.outcome) ? 'win' : 'lose', res); radioLog.addLines('debrief', lines); cinema.play('camp', lines, show, campOpts(ch, S.carriesOn(res.outcome) ? 'win' : 'lose')); }
   else show();
+  UI.radioBtn('btn-radio-d', !!ch && radioLog.items.length > 0);
 }
 function startCredits() { try { return JSON.parse(startSnap).wallet.bal; } catch { return null; } }
 // RETRY MISSION: the session goes back to how it was at the drop (credits, kit, score, time) and the same mission loads again.
@@ -1032,6 +1060,7 @@ function togglePause(force) {
   if (UI.isOn('s-map')) { closeMap(); return; }
   if (UI.isOn('s-info')) { closeInfo(); return; }
   if (UI.isOn('s-credits')) { closeCredits(); return; }
+  if (UI.isOn('s-radio')) { closeRadioLog(); return; }
   if (UI.isOn('s-names')) { closeNames(false); return; }
   if (state === 'brief' || state === 'shop') { if (!UI.isOn('s-settings')) outMenu(force !== undefined ? force : !UI.isOn('s-pause')); return; }
   if (state !== 'play' || !mission || mission.over) return;
@@ -1190,12 +1219,17 @@ $('btn-info-m').onclick = () => openInfo('pause');
 $('info-close').onclick = closeInfo;
 $('btn-credits-t').onclick = () => { audio.unlock(); openCredits('title'); };
 $('btn-credits-m').onclick = () => openCredits('pause');
+$('btn-radio-m').onclick = () => openRadioLog('pause');
+$('btn-radio-d').onclick = () => openRadioLog('end');
+$('btn-radio-g').onclick = () => openRadioLog('end');
+$('radio-close').onclick = closeRadioLog;
+hud.onRadioFull = () => openRadioLog('play');
 $('credits-close').onclick = closeCredits;
 // Every panel's close (X) button does what that panel's own back button does.
 const CLOSE = {
   's-pause': () => togglePause(false), 's-names': () => closeNames(false), 's-settings': () => closeSettings(),
   's-notice': () => $('btn-notice').click(), 's-lock': () => closeLock(),
-  's-controls': () => closePanel('s-controls'), 's-manual': () => closePanel('s-manual'), 's-info': () => closeInfo(), 's-credits': () => closeCredits(), 's-map': () => closeMap(),
+  's-controls': () => closePanel('s-controls'), 's-manual': () => closePanel('s-manual'), 's-info': () => closeInfo(), 's-credits': () => closeCredits(), 's-map': () => closeMap(), 's-radio': () => closeRadioLog(),
 };
 for (const b of document.querySelectorAll('.x-close[data-close]')) { const f = CLOSE[b.dataset.close]; if (f) b.addEventListener('click', f); }
 
@@ -1546,5 +1580,6 @@ window.__game = { hud,
   cam, input, renderer, settings, order, get placing() { return placing; }, get drawing() { return drawing; }, squadAct, selectSquad, focusTeam, strokeBegin, strokeMove, strokeEnd, goShop, openArmory, closeArmory,
   setSetting: (k, v) => { settings[k] = v; onSettingChange(k); },
   makePost: (w, x, y, o) => (mission ? makePost(mission, w, x, y, o) : null), select: (o) => select(o), get sel() { return sel; }, buildMenu, setTac, get tac() { return tac; },
+  radioLog, tickRadio: () => { if (castRadio && mission && !mission.over) castRadio.tick(mission); }, get castRadio() { return castRadio; },
   arm, disarm, get armed() { return armed; }, clickAt, commandAt, get plan() { return planQ.length; }, get ghost() { return ghostAt; }, get placing2() { return placing; }, setPlacing, deselect, setHideUi, get hideUi() { return hideUi; }, get held() { return session && session.held; }, goHome,
 };

@@ -3,8 +3,8 @@
 // Labels are plain text from data/data.js (OPS); every function draws in metres, px(n) converts screen pixels to metres.
 import { CONFIG as C } from '../config.js';
 import { OPS } from '../data/data.js';
-import { buildStats, buildLevel } from '../data/kit.js';
-import { postArt } from './posts.js';
+import { postArt, trenchArt } from './posts.js';
+import { crateSec, foxholeSlots } from '../sim/posts.js';
 import { t as tr } from '../i18n.js';
 
 const TAU = Math.PI * 2;
@@ -109,7 +109,7 @@ export function drawArty(ctx, m, now, px, labels, scale) {
 // How far along a crate is (0 to 1), and which of the four stages it shows: 0 the closed crate, 1 the crate opened, 2 the parts
 // going up, 3 nearly built (the post itself follows).
 export function crateStage(m, c) {
-  const f = Math.min(1, (c.prog || 0) / buildStats(c.what, Math.max(1, buildLevel(m.kit, c.what))).sec);
+  const f = Math.min(1, (c.prog || 0) / crateSec(m, c));
   return { f, stage: f <= 0 ? 0 : f < 0.35 ? 1 : f < 0.75 ? 2 : 3 };
 }
 // Crates on the ground (and foxholes being dug), drawn at their stage, with a progress bar while SEAF work on them.
@@ -117,7 +117,13 @@ export function drawCrates(ctx, m, now, px, labels) {
   for (const c of m.crates || []) {
     if (!c.landed || c.used) continue;
     const { f, stage } = crateStage(m, c), s = Math.max(px(6), 3.5), t = m.t;
-    if (c.dig) {
+    if (c.dig && (c.size || 3) > 3) {
+      // (0.28) a trench: its line pegged out, then dug from the middle out
+      const pts = c._pts || (c._pts = foxholeSlots(c.x, c.y, c.face || 0, c.size));
+      ctx.strokeStyle = 'rgba(255,210,120,0.7)'; ctx.lineWidth = px(1.2); ctx.setLineDash([px(3), px(3)]);
+      ctx.beginPath(); pts.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y))); ctx.stroke(); ctx.setLineDash([]);
+      if (f > 0) trenchArt(ctx, pts, c.face || 0, Math.max(1, px(2)), 0.5 - f / 2, 0.5 + f / 2);
+    } else if (c.dig) {
       // a foxhole: a marked square, then the pit opening up as it is dug
       ctx.strokeStyle = 'rgba(255,210,120,0.7)'; ctx.lineWidth = px(1.2); ctx.setLineDash([px(3), px(3)]); ctx.strokeRect(c.x - 3.5, c.y - 3, 7, 6); ctx.setLineDash([]);
       if (f > 0) {

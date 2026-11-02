@@ -12,6 +12,10 @@ export const CAST = {
   rudolph: { name: 'RUDOLPH THE RED', unit: 'cast.u.rudolph', tag: 'RUDOLPH', col: '#ff6a5a' },
   neonboot: { name: 'NEONBOOT', unit: 'cast.u.neonboot', tag: 'NEONBOOT', col: '#7dffb0' },
   mota: { name: 'MOTA', unit: 'cast.u.mota', tag: 'MOTA', col: '#c9b8ff' },
+  // (0.28) the tutorial's voices on the command radio: Base Tharsis, Mars
+  tharsis: { name: 'THARSIS CONTROL', unit: 'cast.u.tharsis', tag: 'THARSIS', col: '#ffd24a' },
+  pelican: { name: 'PELICAN LEAD', unit: 'cast.u.pelican', tag: 'PELICAN', col: '#9fd3ff' },
+  sarge: { name: 'SEAF SERGEANT', unit: 'cast.u.sarge', tag: 'SEAF SGT', col: '#7dffb0' },
 };
 export const CAST_ORDER = ['ramzies', 'ktl', 'rudolph', 'neonboot', 'mota'];
 

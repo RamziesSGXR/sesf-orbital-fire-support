@@ -217,7 +217,7 @@ export default {
   'brief.pay': 'CRÉDITOS Y PUNTUACIÓN ×{x}',
   'brief.objective': 'OBJETIVO',
   'brief.stratNote': 'LAS ESTRATAGEMAS DEL ESCUADRÓN. CADA HELLDIVER LLAMA LAS SUYAS.',
-  'ctl.desktop': '<div><kbd>CLIC</kbd> elegir: un puesto, una torreta, un sitio de defensa o un solo soldado. <kbd>DOBLE CLIC</kbd> en un soldado: toda su escuadra. <kbd>MAYÚS</kbd>+clic añade uno (o lo quita). <kbd>ARRASTRAR</kbd> un recuadro sobre soldados para elegirlos</div><div class="sub">Lo elegido se ve abajo a la izquierda, y el panel de órdenes de al lado cambia en consecuencia.</div><div><kbd>1</kbd> dron <kbd>2</kbd>-<kbd>6</kbd> orbitales <kbd>Q</kbd><kbd>E</kbd> rotar: la arma (la mira). <kbd>CLIC</kbd> la pide y el cursor vuelve a elegir (mantén <kbd>MAYÚS</kbd> para dejarla armada). <kbd>CLIC DERECHO</kbd> o <kbd>ESC</kbd> la guarda</div><div><kbd>7</kbd> la nuke, cuando el sitio de lanzamiento esté armado <kbd>8</kbd> cañón de la nave: mantén <kbd>CLIC</kbd> sobre lo que veas <kbd>9</kbd> el cañón de artillería, cuando esté construido o capturado (una dotación lo recarga más rápido)</div><div><kbd>G</kbd> despliegue SEAF <kbd>X</kbd> auto <kbd>V</kbd> mover <kbd>Z</kbd> proteger <kbd>N</kbd> atacar <kbd>C</kbd> escoltar. Las órdenes siguen hasta que las cambies.</div><div><kbd>CLIC DERECHO</kbd> con soldados elegidos: una orden. En un puesto lo ocupan, en un enemigo atacan, en cualquier otro sitio se mueven.</div><div><kbd>B</kbd> construir: <kbd>1</kbd>-<kbd>8</kbd> elige una, un clic en el mapa la coloca <kbd>Y</kbd> arsenal. La misma tecla (o <kbd>ESC</kbd>) vuelve a las tropas, donde están las formaciones.</div><div class="sub">Un puesto elegido muestra su nombre, nivel y salud encima. La puerta manda dentro a la escuadra elegida (lo guarnece); la puerta de salida la hace volver.</div><div><kbd>`</kbd> todas <kbd>MAYÚS</kbd>+<kbd>1</kbd>-<kbd>9</kbd> elegir una <kbd>ALT</kbd>+<kbd>1</kbd>-<kbd>9</kbd> los elegidos se unen a esa escuadra <kbd>SUPR</kbd> disolver <kbd>R</kbd> trazar</div><div><kbd>MAYÚS</kbd>+clic en el botón de una escuadra: también esa (las órdenes van a cada una) <kbd>FUSIONAR</kbd> toca las escuadras y luego FUSIONAR EN</div><div><kbd>TAB</kbd>, <kbd>M</kbd> o clic en el minimapa: el mapa grande <kbd>ESPACIO</kbd> o <kbd>P</kbd> pausa para planificar: órdenes, construcciones, despliegues y llamadas salen al REANUDAR <kbd>,</kbd> media velocidad <kbd>INTRO</kbd> manda a los Helldivers antes de que acabe la cuenta atrás</div><div><kbd>ARRASTRAR CON CLIC DERECHO</kbd> o <kbd>WASD</kbd> mover <kbd>RUEDA</kbd> zoom <kbd>F</kbd> cámara fija <kbd>T</kbd> térmica <kbd>H</kbd> relieve <kbd>I</kbd> información de la misión <kbd>ESC</kbd> o <kbd>MENÚ</kbd> menú de pausa <kbd>F2</kbd> ocultar la interfaz</div><div><kbd>U</kbd> responder a una petición de suministros <kbd>J</kbd> ver el último aviso <kbd>K</kbd> aprobar más tiempo</div><div class="sub">Doble clic en la fila de un Helldiver o en una escuadra SEAF para llevar la cámara allí. Las flechas en el borde de la pantalla señalan cada equipo.</div>',
+  'ctl.desktop': '<div><kbd>CLIC</kbd> elegir: un puesto, una torreta, un sitio de defensa o un solo soldado. <kbd>DOBLE CLIC</kbd> en un soldado: toda su escuadra. <kbd>MAYÚS</kbd>+clic añade uno (o lo quita). <kbd>ARRASTRAR</kbd> un recuadro sobre soldados para elegirlos</div><div class="sub">Lo elegido se ve abajo a la izquierda, y el panel de órdenes de al lado cambia en consecuencia.</div><div><kbd>1</kbd> dron <kbd>2</kbd>-<kbd>6</kbd> orbitales <kbd>Q</kbd><kbd>E</kbd> rotar: la arma (la mira). <kbd>CLIC</kbd> la pide y el cursor vuelve a elegir (mantén <kbd>MAYÚS</kbd> para dejarla armada). <kbd>CLIC DERECHO</kbd> o <kbd>ESC</kbd> la guarda</div><div><kbd>7</kbd> la nuke, cuando el sitio de lanzamiento esté armado <kbd>8</kbd> cañón de la nave: mantén <kbd>CLIC</kbd> sobre lo que veas <kbd>9</kbd> el cañón de artillería, cuando esté construido o capturado (una dotación lo recarga más rápido)</div><div><kbd>G</kbd> despliegue SEAF <kbd>X</kbd> auto <kbd>V</kbd> mover <kbd>Z</kbd> proteger <kbd>N</kbd> atacar <kbd>C</kbd> escoltar. Las órdenes siguen hasta que las cambies.</div><div><kbd>CLIC DERECHO</kbd> con soldados elegidos: una orden. En un puesto lo ocupan, en un enemigo atacan, en cualquier otro sitio se mueven.</div><div><kbd>B</kbd> construir: <kbd>1</kbd>-<kbd>8</kbd> elige una, un clic en el mapa la coloca <kbd>Y</kbd> arsenal. La misma tecla (o <kbd>ESC</kbd>) vuelve a las tropas, donde están las formaciones.</div><div class="sub">Un puesto elegido muestra su nombre, nivel y salud encima. La puerta manda dentro a la escuadra elegida (lo guarnece); la puerta de salida la hace volver.</div><div><kbd>`</kbd> todas <kbd>MAYÚS</kbd>+<kbd>1</kbd>-<kbd>9</kbd> elegir una <kbd>ALT</kbd>+<kbd>1</kbd>-<kbd>9</kbd> los elegidos se unen a esa escuadra <kbd>SUPR</kbd> disolver <kbd>R</kbd> trazar</div><div><kbd>MAYÚS</kbd>+clic en el botón de una escuadra: también esa (las órdenes van a cada una) <kbd>FUSIONAR</kbd> toca las escuadras y luego FUSIONAR EN</div><div><kbd>TAB</kbd>, <kbd>M</kbd> o clic en el minimapa: el mapa grande <kbd>ESPACIO</kbd> o <kbd>P</kbd> pausa para planificar: órdenes, construcciones, despliegues y llamadas salen al REANUDAR <kbd>,</kbd> media velocidad <kbd>INTRO</kbd> manda a los Helldivers antes de que acabe la cuenta atrás</div><div><kbd>ARRASTRAR CON CLIC DERECHO</kbd> o <kbd>WASD</kbd> mover <kbd>RUEDA</kbd> zoom <kbd>F</kbd> cámara fija <kbd>T</kbd> térmica <kbd>H</kbd> relieve <kbd>I</kbd> información de la misión <kbd>O</kbd> radio de mando (tutorial y campaña) <kbd>ESC</kbd> o <kbd>MENÚ</kbd> menú de pausa <kbd>F2</kbd> ocultar la interfaz</div><div><kbd>U</kbd> responder a una petición de suministros <kbd>J</kbd> ver el último aviso <kbd>K</kbd> aprobar más tiempo</div><div class="sub">Doble clic en la fila de un Helldiver o en una escuadra SEAF para llevar la cámara allí. Las flechas en el borde de la pantalla señalan cada equipo.</div>',
   'ctl.touch': '<div><kbd>ARRASTRAR</kbd> mover el mapa <kbd>PELLIZCAR</kbd> zoom <kbd>TOCAR EL MINIMAPA</kbd> el mapa grande</div><div><kbd>TOCAR</kbd> elegir: un puesto, una torreta, un sitio de defensa o un solo soldado. <kbd>DOBLE TOQUE</kbd> en un soldado: toda su escuadra. <kbd>MANTENER</kbd> el dedo sobre un soldado para añadirlo (o quitarlo)</div><div class="sub">Lo elegido se ve abajo a la izquierda, y el panel de órdenes de al lado cambia en consecuencia. Con soldados elegidos, toca el mapa para enviarlos: en un puesto lo ocupan, en un enemigo atacan, en cualquier otro sitio se mueven.</div><div><kbd>BARRA</kbd> elige un escaneo, un orbital o la nuke: aparece la mira. <kbd>LLAMAR</kbd> lo dispara a la mira y luego se guarda. Cañón de la nave: elígelo y mantén LLAMAR.</div><div><kbd>TROPAS</kbd> despliegue SEAF, las órdenes, las escuadras, las formaciones, TRAZAR y DISOLVER <kbd>CONSTRUIR</kbd> toca una construcción y luego el mapa para colocarla <kbd>ARSENAL</kbd> lo que puedes comprar ahora mismo</div><div class="sub">Un puesto elegido muestra su nombre, nivel y salud encima. La puerta manda dentro a la escuadra elegida (lo guarnece); la puerta de salida la hace volver.</div><div><kbd>S1-S9</kbd> elegir una escuadra (doble toque: lo elegido se une a ella; mantener: también esa). <kbd>FUSIONAR</kbd> toca las escuadras y luego FUSIONAR EN. Una construcción o un despliegue muestra su fantasma: toca el mapa para moverlo y luego COLOCAR. <kbd>TRAZAR</kbd> y arrastra un dedo: una ruta, línea o anillo. Dos dedos siguen moviendo y haciendo zoom.</div><div><kbd>CARGAR</kbd> responder a una petición <kbd>VER</kbd> ver un aviso <kbd>DOBLE TOQUE</kbd> en la fila de un Helldiver o una escuadra: llevar la cámara allí</div><div><kbd>½×</kbd> media velocidad <kbd>II</kbd> pausa para planificar: órdenes, construcciones, despliegues y llamadas salen al REANUDAR <kbd>MENÚ</kbd> el menú de pausa, con ajustes, controles, manual y OCULTAR INTERFAZ</div><div class="sub">Un despliegue SEAF cae en la mira. Una torre de propaganda recibe un despliegue SEAF en cualquier sitio.</div>',
 
   // ---------- arsenal ----------
@@ -1195,7 +1195,7 @@ export default {
   'sel.site': 'Posición defensiva',
   'sel.siteB': 'Los muros que el escuadrón defiende aquí. Manda al SEAF a ocuparlos: toman los muros y luchan a cubierto.',
   'sel.sentry': 'Una torreta que pidieron los Helldivers. El anillo muestra su alcance.',
-  'sel.foxhole': 'Tres plazas a cubierto ligero. Quien dispara desde él dispara más rápido. Gratis, se cava en segundos.',
+  'sel.foxhole': 'Una plaza a cubierto ligero por cada soldado que lo cava: un pozo para tres, una trinchera para más, una media luna a partir de ocho. Quien dispara desde él dispara más rápido. Gratis, se cava en segundos.',
   'sel.bastion': 'Un anillo completo de muros bajos. Quien se cubra tras ellos recibe menos fuego enemigo.',
   'sel.mg': 'Un cañón pesado tras un grueso muro de hormigón. Dispara solo; una dotación dentro (dos como mucho) dispara el doble de rápido.',
   'sel.tower': 'Un punto de despliegue SEAF. El terreno alrededor queda a la vista y se puede atacar allí; una dotación lo amplía y da a los aliados debajo el impulso del dron.',
@@ -1562,6 +1562,7 @@ export default {
   'lab.place.post': 'SEAF: AGUANTAR AQUÍ',
   'lab.place.seaf': 'DESPLIEGUE SEAF',
   'lab.ghost.build': '{what} · {sq} LO CONSTRUYE ({m} M) · {cr} CR',
+  'lab.ghost.dig': '{what} · {n} PUESTOS · CAVADO POR {sq} ({m} M)',
   'lab.ghost.bridge': 'PUENTE DE LUZ · DESDE LA NAVE EN {s} S · {cr} CR',
   'lab.ghost.drop': 'DESPLIEGUE SEAF · +{n} SOLDADOS',
   'lab.ghost.dropBeacon': 'DESPLIEGUE SEAF · +{n} · EN LA BALIZA',
@@ -1839,4 +1840,45 @@ export default {
   ],
   // ---------- 0.27: the SESF campaign, its cast, and the after action reports ----------
   'cp.eyebrow': 'FUERZAS ESPECIALES DE LA SUPERTIERRA · CAMPAÑA',
+  // ---------- 0.28: la radio de mando ----------
+  'cast.u.tharsis': 'Base Tharsis · red de control de fuego',
+  'cast.u.pelican': 'Escuadrilla Pelican · Base Tharsis',
+  'cast.u.sarge': 'SEAF · guarnición de la Base Tharsis',
+  'chat.camp': [
+    'rudolph|Neonboot, ¿cuánta radiación hay en mi posición? || neonboot|Dentro de las directrices del Ministerio, Rudolph. || rudolph|Eso no es un número. || neonboot|Es una directriz.',
+    'ktl|Phantom Dos informa de un gato de arena rondando el perímetro. || rudolph|¿Un qué? || ktl|Fauna local. No lo adoptes. || rudolph|Demasiado tarde.',
+    'mota|Defensa recuerda a todas las unidades que las parcelas del complejo ya están vendidas. Por favor, no llenéis de cráteres el campo de golf. || rudolph|¿Qué parte es el campo de golf? || mota|Todo.',
+    'neonboot|F.E.A.R. ha repuesto los estimulantes. Dejad de tomarlos como si fueran café. || rudolph|No prometo nada.',
+    'ramzies|KTL, ¿cómo van los Tigres? || ktl|Ruidosos, llenos de arena y ganando, mi general. || ramzies|Que siga así.',
+    'rudolph|Artillero, ¿has visto los atardeceres de aquí? Son increíbles. || ktl|Rudolph, ese atardecer es una colmena en llamas. || rudolph|Sigue siendo increíble.',
+  ],
+  'chat.camp.c1': [
+    'rudolph|El capataz del refugio pregunta si las horas extra siguen contando. || mota|Defensa confirma: las horas extra se pagan en libertad. || rudolph|Dice que eso es justo lo que temía.',
+    'neonboot|Al refugio le queda aire para una hora. Después, las cuadrillas cantan el himno para no perder la calma. || rudolph|¿Podemos sacarlos antes de la cuarta estrofa?',
+  ],
+  'chat.camp.c2': [
+    'ktl|Visión nocturna activa. Los Phantoms cuentan cuatrocientos contactos. || rudolph|Menos mal que trajimos cuatrocientas una balas.',
+    'neonboot|La baliza de la jefa de equipo sigue emitiendo. Pulso estable. || rudolph|Dile que no se mueva y que no mire fuera. || neonboot|Ha mirado fuera.',
+  ],
+  'chat.camp.c3': [
+    'mota|Códigos de lanzamiento verificados. El Caballero de Medianoche tiene la segunda llave. || rudolph|¿Y la primera? || mota|Clasificado. || ktl|La tiene el general.',
+    'neonboot|Ciencia recuerda a todo el personal: no miréis directamente al lanzamiento. || rudolph|¿Ni un poquito? || neonboot|Sobre todo ni un poquito.',
+  ],
+  'chat.tut': [
+    'tharsis|Pelican Líder, aquí Control Tharsis. ¿Cuántas plazas hay en el próximo vuelo? || pelican|Cuarenta, si nadie trae equipaje. || tharsis|Traen equipaje.',
+    'sarge|Control, mi escuadra pregunta si los reclutas Helldiver dejaron raciones. || tharsis|Negativo, sargento. Se llevaron las raciones. Y el café.',
+    'pelican|Tharsis, aquí arriba hay mucha luz en el cielo. || tharsis|Es la Gran Hueste, Pelican Líder. Ojos en la pista.',
+    'sarge|Control, ¿cuánto aguantamos? || tharsis|Mientras quede gente en tierra, sargento. || sarge|Recibido. Entonces aguantamos.',
+    'tharsis|A todas las estaciones: el destructor de arriba dirige el fuego. No entréis en sus círculos. || sarge|Ya habéis oído a Control. ¡Fuera de los círculos!',
+  ],
+  'radio.title': 'RADIO DE MANDO',
+  'radio.open': 'Radio de mando: todo lo que se ha dicho en esta misión (O)',
+  'radio.map': 'Volver al minimapa',
+  'radio.log': 'REGISTRO DE RADIO',
+  'radio.brief': 'SESIÓN INFORMATIVA',
+  'radio.mission': 'EN LA MISIÓN',
+  'radio.debrief': 'INFORME',
+  'radio.cards': 'ENTRENAMIENTO',
+  'radio.none': 'Todavía no hay nada en la radio.',
+  'radio.note': 'Lo que se dijo por radio: el informe, el equipo durante la misión y el informe final. Nada de esto es una orden que te hayas perdido.',
 };

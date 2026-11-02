@@ -2,7 +2,7 @@
 // a crew and has none), its health when hurt, a wrench while it is being patched up, and, when selected, its reach and brackets.
 // Turrets the Helldivers called (sentries) show their reach only when selected too.
 import { t as tr } from '../i18n.js';
-import { postReach } from '../sim/posts.js';
+import { postReach, foxholeSlots } from '../sim/posts.js';
 
 const TAU = Math.PI * 2;
 function ring(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, Math.max(0.01, r), 0, TAU); }
@@ -32,12 +32,29 @@ export function cannonArt(ctx, x, y, face, px, live) {
 }
 
 export function postArt(ctx, p, now, px, t) { art(ctx, p, now, px, t); }
+// (0.28) a trench through a foxhole's places (end to end): the spoil heaped along its front, the dark cut, the fire steps. a to b is
+// how much of it is dug, from the middle out (0 to 1 of its length each way).
+export function trenchArt(ctx, pts, face, f, a = 0, b = 1) {
+  if (!pts || pts.length < 2) return;
+  const L = [0]; for (let i = 1; i < pts.length; i++) L.push(L[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+  const tot = L[L.length - 1], at = (d) => { let i = 1; while (i < L.length - 1 && L[i] < d) i++; const k = (d - L[i - 1]) / Math.max(1e-6, L[i] - L[i - 1]); return { x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * k, y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * k, i }; };
+  const d0 = tot * a, d1 = tot * b;
+  if (d1 - d0 < 0.2) return;
+  const path = (ox, oy) => { const s = at(d0); ctx.beginPath(); ctx.moveTo(s.x + ox, s.y + oy); for (let i = s.i; i < pts.length - 1 && L[i] < d1; i++) ctx.lineTo(pts[i].x + ox, pts[i].y + oy); const e = at(d1); ctx.lineTo(e.x + ox, e.y + oy); };
+  const fx = Math.cos(face), fy = Math.sin(face);
+  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = 'rgba(120,96,60,0.95)'; ctx.lineWidth = 1.3 * f; path(fx * 1.75, fy * 1.75); ctx.stroke();     // the spoil, in front
+  ctx.strokeStyle = 'rgba(20,14,8,0.88)'; ctx.lineWidth = 2.5 * f; path(0, 0); ctx.stroke();                         // the cut
+  ctx.strokeStyle = 'rgba(70,56,36,0.9)'; ctx.lineWidth = 0.35 * f; path(-fx * 1.15, -fy * 1.15); ctx.stroke();     // the back lip
+  ctx.restore();
+}
 // How much bigger than its true size a post is drawn when zoomed out: the same as the troopers (render/units.js), so whoever is
 // in a post's places (sim/posts.js) stays inside it at any zoom.
 const grow = (px) => Math.max(1, px(2));
 function art(ctx, p, now, px, t) {
   const x = p.x, y = p.y, hit = t - p.hurtAt < 0.12, f = grow(px);
   if (p.what === 'bridge') { bridgeArt(ctx, p, now, px); return; }
+  if (p.what === 'foxhole' && (p.cap || 3) > 3) { trenchArt(ctx, p.slots || foxholeSlots(x, y, p.face0 ?? p.face ?? 0, p.cap), p.face0 ?? p.face ?? 0, f); return; }
   if (p.what === 'foxhole') {
     // a dug pit with its spoil heaped round the rim
     ctx.fillStyle = 'rgba(20,14,8,0.85)'; ctx.beginPath(); ctx.ellipse(x, y, 2.3 * f, 2.0 * f, p.face, 0, TAU); ctx.fill();
@@ -223,7 +240,7 @@ export function drawPosts(ctx, m, now, px, labels, scale, sel) {
   for (const p of m.posts || []) {
     if (p.dead) continue;
     art(ctx, p, now, px, t);
-    const R = p.what === 'bastion' ? p.r : p.what === 'bridge' ? 3 : Math.max(4, px(9));
+    const R = p.what === 'bastion' || (p.what === 'foxhole' && p.cap > 3) ? p.r : p.what === 'bridge' ? 3 : Math.max(4, px(9));     // (0.28: round the whole trench)
     if (p.cap && p !== sel) useRing(ctx, p.x, p.y, R + px(4), px, now);
     if (p.maxHp > 0 && p.hp < p.maxHp) hpBar(ctx, p.x, p.y + R + px(4), Math.max(8, px(26)), px(3), p.hp / p.maxHp, p.hp > p.maxHp * 0.35 ? '#7dff9b' : '#ff4a4a');
     if (p.repairing) { const k = (now * 2) % 1; ctx.strokeStyle = `rgba(125,255,155,${1 - k})`; ctx.lineWidth = px(1.5); ring(ctx, p.x, p.y, R + px(4 + 6 * k)); ctx.stroke(); }

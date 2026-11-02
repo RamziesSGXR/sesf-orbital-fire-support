@@ -14,6 +14,7 @@ import { beaconAt } from '../sim/sides.js';
 import { drawFlares, drawHoles, drawDrops, drawEvac, drawExtraction, critText, drawSupply } from './reinf.js';
 import { drawBaseArt, drawBaseRuin, drawCover, drawCitadelWalls, drawCannonArt, drawNodeArt } from './sites.js';
 import { drawPosts, postArt } from './posts.js';
+import { foxReach } from '../sim/posts.js';
 import { buildStats, uavStats, seafStats, buildLevel } from '../data/kit.js';
 import { todAt, skyTint } from './sky.js';
 
@@ -454,7 +455,7 @@ export class Renderer {
     const bc = k === 'seaf' ? beaconAt(m, at.x, at.y) : null;     // over a lit drop beacon: it snaps there
     const sp = bc || (snapFn && k !== 'seaf' && !k.startsWith('build:') ? snapFn(at.x, at.y) : at), ax = sp.x, ay = sp.y;
     const bk = k.startsWith('build:') ? k.slice(6) : null;
-    let ok = true, why = '', text = '';
+    let ok = true, why = '', text = '', gr = 0;
     const pulse = 0.55 + 0.45 * Math.sin(now * 6);
     if (bk) {
       const lvl = Math.max(1, buildLevel(m.kit, bk)), st = buildStats(bk, lvl), cost = st.cost || 0;
@@ -480,13 +481,16 @@ export class Renderer {
         if (reach) { ctx.strokeStyle = 'rgba(255,230,0,0.4)'; ctx.lineWidth = px(1.2); ctx.setLineDash([px(4), px(6)]); ctx.beginPath(); ctx.arc(ax, ay, reach, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
         ctx.save(); ctx.globalAlpha = ok ? 0.5 + 0.15 * pulse : 0.3;
         if (bk === 'bastion') { ctx.strokeStyle = ok ? '#d8e4dc' : '#ff4a4a'; ctx.lineWidth = px(3); ctx.setLineDash([px(7), px(4)]); ctx.beginPath(); ctx.arc(ax, ay, R, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
-        postArt(ctx, { what: bk, x: ax, y: ay, face: Math.atan2(ay - m.hy, ax - m.hx), face0: Math.atan2(ay - m.hy, ax - m.hx), hurtAt: -99, r: 3.5, lvl, manned: false, crew: 0, cap: st.cap || 0 }, now, px, m.t);
+        const dig = bk === 'foxhole' ? m.digPlan(ax, ay) : null;     // (0.28: a foxhole the size of the squads that dig it)
+        postArt(ctx, { what: bk, x: ax, y: ay, face: Math.atan2(ay - m.hy, ax - m.hx), face0: Math.atan2(ay - m.hy, ax - m.hx), hurtAt: -99, r: 3.5, lvl, manned: false, crew: 0, cap: dig ? dig.size : st.cap || 0 }, now, px, m.t);
         ctx.restore();
         const b = ok ? this._builder(m, ax, ay) : null;
-        text = !ok ? why : b ? tr('lab.ghost.build', { what: tr('build.' + bk), sq: 'S' + (b.q.i + 1), m: Math.round(b.d), cr: cost }) : tr('lab.place.build', { what: tr('build.' + bk) });
+        if (dig) gr = dig.size > 3 ? foxReach(dig.size) + 2 : 0;
+        text = !ok ? why : dig && dig.sq.length ? tr('lab.ghost.dig', { what: tr('build.' + bk), n: dig.size, sq: dig.sq.slice().sort((p, q) => p.i - q.i).map((q) => 'S' + (q.i + 1)).join('+'), m: Math.round(Math.hypot(dig.sq[0].cx - ax, dig.sq[0].cy - ay)) })
+          : b ? tr('lab.ghost.build', { what: tr('build.' + bk), sq: 'S' + (b.q.i + 1), m: Math.round(b.d), cr: cost }) : tr('lab.place.build', { what: tr('build.' + bk) });
       }
       ctx.strokeStyle = ok ? 'rgba(61,224,255,0.9)' : 'rgba(255,74,74,0.9)'; ctx.lineWidth = px(1.6); ctx.setLineDash([px(5), px(4)]); ctx.lineDashOffset = -now * px(10);
-      ctx.beginPath(); ctx.arc(ax, ay, Math.max(px(12), bk === 'bastion' ? buildStats('bastion', Math.max(1, buildLevel(m.kit, 'bastion'))).R + 3 : 7), 0, TAU); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      ctx.beginPath(); ctx.arc(ax, ay, Math.max(px(12), bk === 'bastion' ? buildStats('bastion', Math.max(1, buildLevel(m.kit, 'bastion'))).R + 3 : gr || 7), 0, TAU); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
     } else if (k === 'seaf') {
       // a SEAF drop: where the pelican puts them down, how many, and the squad they join
       ok = !!bc || m.inZone(ax, ay, -5);

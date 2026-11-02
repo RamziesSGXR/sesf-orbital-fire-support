@@ -217,7 +217,7 @@ export default {
   'brief.pay': 'CRÉDITS ET SCORE ×{x}',
   'brief.objective': 'OBJECTIF',
   'brief.stratNote': 'LES STRATAGÈMES DE L’ESCOUADE. CHAQUE HELLDIVER APPELLE LES SIENS.',
-  'ctl.desktop': '<div><kbd>CLIC</kbd> choisir : un poste, une tourelle, un site de défense ou un seul soldat. <kbd>DOUBLE-CLIC</kbd> sur un soldat : toute son escouade. <kbd>MAJ</kbd>+clic en ajoute un (ou le retire). <kbd>GLISSER</kbd> un cadre autour de soldats pour les choisir</div><div class="sub">Votre choix s’affiche en bas à gauche, et le panneau de commandes à côté change en conséquence.</div><div><kbd>1</kbd> drone <kbd>2</kbd>-<kbd>6</kbd> orbitales <kbd>Q</kbd><kbd>E</kbd> faire défiler : arme l’arme (le réticule). <kbd>CLIC</kbd> l’appelle, puis le curseur redevient sélection (gardez <kbd>MAJ</kbd> pour la garder armée). <kbd>CLIC DROIT</kbd> ou <kbd>ÉCHAP</kbd> la repose</div><div><kbd>7</kbd> la nuke, une fois le site de lancement armé <kbd>8</kbd> canon du vaisseau : maintenez <kbd>CLIC</kbd> sur tout ce qui est en vue <kbd>9</kbd> le canon d’artillerie, une fois construit ou pris (un équipage le recharge plus vite)</div><div><kbd>G</kbd> largage SEAF <kbd>X</kbd> auto <kbd>V</kbd> bouger <kbd>Z</kbd> protéger <kbd>N</kbd> attaquer <kbd>C</kbd> escorter. Les ordres restent jusqu’à ce que vous les changiez.</div><div><kbd>CLIC DROIT</kbd> avec des soldats choisis : un ordre. Sur un poste ils le tiennent, sur un ennemi ils attaquent, ailleurs ils s’y rendent.</div><div><kbd>B</kbd> bâtir : <kbd>1</kbd>-<kbd>8</kbd> en choisit une, un clic sur la carte la place <kbd>Y</kbd> armurerie. La même touche (ou <kbd>ÉCHAP</kbd>) revient aux troupes, où sont les formations.</div><div class="sub">Un poste choisi affiche son nom, son niveau et sa santé au-dessus de lui. La porte y envoie l’escouade choisie (en garnison) ; la porte de sortie la fait revenir.</div><div><kbd>`</kbd> toutes <kbd>MAJ</kbd>+<kbd>1</kbd>-<kbd>9</kbd> en choisir une <kbd>ALT</kbd>+<kbd>1</kbd>-<kbd>9</kbd> les choisis rejoignent cette escouade <kbd>SUPPR</kbd> dissoudre <kbd>R</kbd> tracer</div><div><kbd>MAJ</kbd>+clic sur le bouton d’une escouade : elle aussi (les ordres vont à chacune) <kbd>FUSION</kbd> touchez les escouades, puis FUSIONNER DANS</div><div><kbd>TAB</kbd>, <kbd>M</kbd> ou clic sur la mini-carte : la grande carte <kbd>ESPACE</kbd> ou <kbd>P</kbd> pause pour planifier : ordres, constructions, largages et appels partent à REPRENDRE <kbd>,</kbd> demi-vitesse <kbd>ENTRÉE</kbd> larguer les Helldivers avant la fin du compte à rebours</div><div><kbd>GLISSER CLIC DROIT</kbd> ou <kbd>ZQSD</kbd> déplacer <kbd>MOLETTE</kbd> zoom <kbd>F</kbd> caméra verrouillée <kbd>T</kbd> thermique <kbd>H</kbd> relief <kbd>I</kbd> infos de mission <kbd>ÉCHAP</kbd> ou <kbd>MENU</kbd> menu pause <kbd>F2</kbd> masquer l’interface</div><div><kbd>U</kbd> répondre à une demande de ravitaillement <kbd>J</kbd> voir la dernière alerte <kbd>K</kbd> accorder plus de temps</div><div class="sub">Double-cliquez sur une ligne de Helldiver ou une escouade SEAF pour y amener la caméra. Des flèches au bord de l’écran indiquent chaque équipe.</div>',
+  'ctl.desktop': '<div><kbd>CLIC</kbd> choisir : un poste, une tourelle, un site de défense ou un seul soldat. <kbd>DOUBLE-CLIC</kbd> sur un soldat : toute son escouade. <kbd>MAJ</kbd>+clic en ajoute un (ou le retire). <kbd>GLISSER</kbd> un cadre autour de soldats pour les choisir</div><div class="sub">Votre choix s’affiche en bas à gauche, et le panneau de commandes à côté change en conséquence.</div><div><kbd>1</kbd> drone <kbd>2</kbd>-<kbd>6</kbd> orbitales <kbd>Q</kbd><kbd>E</kbd> faire défiler : arme l’arme (le réticule). <kbd>CLIC</kbd> l’appelle, puis le curseur redevient sélection (gardez <kbd>MAJ</kbd> pour la garder armée). <kbd>CLIC DROIT</kbd> ou <kbd>ÉCHAP</kbd> la repose</div><div><kbd>7</kbd> la nuke, une fois le site de lancement armé <kbd>8</kbd> canon du vaisseau : maintenez <kbd>CLIC</kbd> sur tout ce qui est en vue <kbd>9</kbd> le canon d’artillerie, une fois construit ou pris (un équipage le recharge plus vite)</div><div><kbd>G</kbd> largage SEAF <kbd>X</kbd> auto <kbd>V</kbd> bouger <kbd>Z</kbd> protéger <kbd>N</kbd> attaquer <kbd>C</kbd> escorter. Les ordres restent jusqu’à ce que vous les changiez.</div><div><kbd>CLIC DROIT</kbd> avec des soldats choisis : un ordre. Sur un poste ils le tiennent, sur un ennemi ils attaquent, ailleurs ils s’y rendent.</div><div><kbd>B</kbd> bâtir : <kbd>1</kbd>-<kbd>8</kbd> en choisit une, un clic sur la carte la place <kbd>Y</kbd> armurerie. La même touche (ou <kbd>ÉCHAP</kbd>) revient aux troupes, où sont les formations.</div><div class="sub">Un poste choisi affiche son nom, son niveau et sa santé au-dessus de lui. La porte y envoie l’escouade choisie (en garnison) ; la porte de sortie la fait revenir.</div><div><kbd>`</kbd> toutes <kbd>MAJ</kbd>+<kbd>1</kbd>-<kbd>9</kbd> en choisir une <kbd>ALT</kbd>+<kbd>1</kbd>-<kbd>9</kbd> les choisis rejoignent cette escouade <kbd>SUPPR</kbd> dissoudre <kbd>R</kbd> tracer</div><div><kbd>MAJ</kbd>+clic sur le bouton d’une escouade : elle aussi (les ordres vont à chacune) <kbd>FUSION</kbd> touchez les escouades, puis FUSIONNER DANS</div><div><kbd>TAB</kbd>, <kbd>M</kbd> ou clic sur la mini-carte : la grande carte <kbd>ESPACE</kbd> ou <kbd>P</kbd> pause pour planifier : ordres, constructions, largages et appels partent à REPRENDRE <kbd>,</kbd> demi-vitesse <kbd>ENTRÉE</kbd> larguer les Helldivers avant la fin du compte à rebours</div><div><kbd>GLISSER CLIC DROIT</kbd> ou <kbd>ZQSD</kbd> déplacer <kbd>MOLETTE</kbd> zoom <kbd>F</kbd> caméra verrouillée <kbd>T</kbd> thermique <kbd>H</kbd> relief <kbd>I</kbd> infos de mission <kbd>O</kbd> radio de commandement (tutoriel et campagne) <kbd>ÉCHAP</kbd> ou <kbd>MENU</kbd> menu pause <kbd>F2</kbd> masquer l’interface</div><div><kbd>U</kbd> répondre à une demande de ravitaillement <kbd>J</kbd> voir la dernière alerte <kbd>K</kbd> accorder plus de temps</div><div class="sub">Double-cliquez sur une ligne de Helldiver ou une escouade SEAF pour y amener la caméra. Des flèches au bord de l’écran indiquent chaque équipe.</div>',
   'ctl.touch': '<div><kbd>GLISSER</kbd> déplacer la carte <kbd>PINCER</kbd> zoom <kbd>TOUCHER LA MINI-CARTE</kbd> la grande carte</div><div><kbd>TOUCHER</kbd> choisir : un poste, une tourelle, un site de défense ou un seul soldat. <kbd>DOUBLE TOUCHER</kbd> un soldat : toute son escouade. <kbd>GARDER</kbd> le doigt sur un soldat pour l’ajouter (ou le retirer)</div><div class="sub">Votre choix s’affiche en bas à gauche, et le panneau de commandes à côté change en conséquence. Avec des soldats choisis, touchez la carte pour les envoyer : sur un poste ils le tiennent, sur un ennemi ils attaquent, ailleurs ils s’y rendent.</div><div><kbd>BARRE</kbd> choisissez un scan, une orbitale ou la nuke : le réticule apparaît. <kbd>APPEL</kbd> la tire au réticule, puis elle est reposée. Canon du vaisseau : choisissez-le et maintenez APPEL.</div><div><kbd>TROUPES</kbd> largage SEAF, les ordres, les escouades, les formations, TRACER et DISSOUDRE <kbd>BÂTIR</kbd> touchez une construction, puis la carte pour la placer <kbd>ARMURERIE</kbd> ce que vous pouvez acheter tout de suite</div><div class="sub">Un poste choisi affiche son nom, son niveau et sa santé au-dessus de lui. La porte y envoie l’escouade choisie (en garnison) ; la porte de sortie la fait revenir.</div><div><kbd>S1-S9</kbd> choisir une escouade (double toucher : la sélection la rejoint ; garder le doigt : elle aussi). <kbd>FUSION</kbd> touchez les escouades, puis FUSIONNER DANS. Une construction ou un largage montre son fantôme : touchez la carte pour le déplacer, puis PLACER. <kbd>TRACER</kbd>, puis glisser un doigt : un itinéraire, une ligne ou un cercle. Deux doigts déplacent et zooment toujours.</div><div><kbd>RAVITAILLER</kbd> répondre à une demande <kbd>VOIR</kbd> voir une alerte <kbd>DOUBLE TOUCHER</kbd> une ligne de Helldiver ou une escouade : y amener la caméra</div><div><kbd>½×</kbd> demi-vitesse <kbd>II</kbd> pause pour planifier : ordres, constructions, largages et appels partent à REPRENDRE <kbd>MENU</kbd> le menu pause, avec réglages, commandes, manuel et MASQUER L’INTERFACE</div><div class="sub">Un largage SEAF tombe au réticule. Une tour de propagande reçoit un largage SEAF n’importe où.</div>',
 
   // ---------- armurerie ----------
@@ -1195,7 +1195,7 @@ export default {
   'sel.site': 'Position défensive',
   'sel.siteB': 'Les murets que l’escouade tient ici. Envoyez des SEAF les occuper : ils prennent les murets et se battent à couvert.',
   'sel.sentry': 'Une tourelle appelée par les Helldivers. Le cercle montre sa portée.',
-  'sel.foxhole': 'Trois places à couvert léger. Qui tire depuis le trou tire plus vite. Gratuit, creusé en quelques secondes.',
+  'sel.foxhole': 'Une place à couvert léger pour chaque soldat qui le creuse : un trou pour trois, une tranchée au-delà, un croissant à partir de huit. Qui tire depuis le trou tire plus vite. Gratuit, creusé en quelques secondes.',
   'sel.bastion': 'Un cercle complet de murets. Qui s’abrite derrière prend moins de tirs ennemis.',
   'sel.mg': 'Un canon lourd derrière un épais mur de béton. Il tire seul ; un équipage à l’intérieur (deux au plus) tire deux fois plus vite.',
   'sel.tower': 'Un point de largage SEAF. Le terrain autour reste en vue et on peut y frapper ; un équipage l’élargit et donne aux alliés dessous l’élan du drone.',
@@ -1562,6 +1562,7 @@ export default {
   'lab.place.post': 'SEAF : TENIR ICI',
   'lab.place.seaf': 'LARGAGE SEAF',
   'lab.ghost.build': '{what} · {sq} LE CONSTRUIT ({m} M) · {cr} CR',
+  'lab.ghost.dig': '{what} · {n} PLACES · CREUSÉ PAR {sq} ({m} M)',
   'lab.ghost.bridge': 'PONT DE LUMIÈRE · DU VAISSEAU DANS {s} S · {cr} CR',
   'lab.ghost.drop': 'LARGAGE SEAF · +{n} SOLDATS',
   'lab.ghost.dropBeacon': 'LARGAGE SEAF · +{n} · SUR LA BALISE',
@@ -1839,4 +1840,45 @@ export default {
   ],
   // ---------- 0.27: the SESF campaign, its cast, and the after action reports ----------
   'cp.eyebrow': 'FORCES SPÉCIALES DE LA SUPER-TERRE · CAMPAGNE',
+  // ---------- 0.28 : la radio de commandement ----------
+  'cast.u.tharsis': 'Base Tharsis · réseau de conduite de tir',
+  'cast.u.pelican': 'Escadrille Pelican · Base Tharsis',
+  'cast.u.sarge': 'SEAF · garnison de la Base Tharsis',
+  'chat.camp': [
+    'rudolph|Neonboot, quel est le taux de radiation à ma position ? || neonboot|Conforme aux directives du Ministère, Rudolph. || rudolph|Ce n’est pas un chiffre. || neonboot|C’est une directive.',
+    'ktl|Phantom Deux signale un chat des sables qui rôde autour du périmètre. || rudolph|Un quoi ? || ktl|La faune locale. Ne l’adoptez pas. || rudolph|Trop tard.',
+    'mota|La Défense rappelle à toutes les unités que les parcelles du complexe sont prévendues. Merci de ne pas cratériser le golf. || rudolph|C’est quelle partie, le golf ? || mota|Tout.',
+    'neonboot|F.E.A.R. a refait le plein de stimulants. Merci d’arrêter de les prendre comme du café. || rudolph|Je ne promets rien.',
+    'ramzies|KTL, où en sont les Tigres ? || ktl|Bruyants, ensablés et victorieux, mon général. || ramzies|Que ça dure.',
+    'rudolph|Artilleur, vous avez vu les couchers de soleil d’ici ? Magnifiques. || ktl|Rudolph, ce coucher de soleil, c’est une ruche en feu. || rudolph|Toujours magnifique.',
+  ],
+  'chat.camp.c1': [
+    'rudolph|Le contremaître de l’abri demande si les heures supplémentaires comptent toujours. || mota|La Défense confirme : les heures supplémentaires sont payées en liberté. || rudolph|Il dit que c’est bien ce qu’il craignait.',
+    'neonboot|L’abri a de l’air pour encore une heure. Après, les équipes chantent l’hymne pour garder leur calme. || rudolph|On peut les sortir avant le quatrième couplet ?',
+  ],
+  'chat.camp.c2': [
+    'ktl|Vision nocturne active. Les Phantoms comptent quatre cents contacts. || rudolph|Heureusement qu’on a apporté quatre cent une balles.',
+    'neonboot|La balise du chef d’équipe émet toujours. Rythme cardiaque stable. || rudolph|Dites-lui de ne pas bouger et de ne pas regarder dehors. || neonboot|Il a regardé dehors.',
+  ],
+  'chat.camp.c3': [
+    'mota|Codes de lancement vérifiés. Le Chevalier de Minuit détient la deuxième clé. || rudolph|Et la première ? || mota|Classifié. || ktl|C’est le général.',
+    'neonboot|La Science rappelle à tout le personnel : ne regardez pas le lancement en face. || rudolph|Même pas un peu ? || neonboot|Surtout pas un peu.',
+  ],
+  'chat.tut': [
+    'tharsis|Pelican Leader, ici Tharsis Contrôle. Combien de places sur le prochain vol ? || pelican|Quarante, si personne n’apporte de bagages. || tharsis|Ils apportent des bagages.',
+    'sarge|Contrôle, mon escouade demande si les recrues Helldivers ont laissé des rations. || tharsis|Négatif, sergent. Elles ont pris les rations. Et le café.',
+    'pelican|Tharsis, il y a beaucoup de lumière dans le ciel par ici. || tharsis|C’est la Grande Ost, Pelican Leader. Gardez les yeux sur la piste.',
+    'sarge|Contrôle, on tient combien de temps ? || tharsis|Tant qu’il reste des gens au sol, sergent. || sarge|Reçu. Alors on tient.',
+    'tharsis|À toutes les stations : le destroyer au-dessus de nous dirige le tir. Restez hors de ses cercles. || sarge|Vous avez entendu le Contrôle. Hors des cercles !',
+  ],
+  'radio.title': 'RADIO DE COMMANDEMENT',
+  'radio.open': 'Radio de commandement : tout ce qui a été dit pendant cette mission (O)',
+  'radio.map': 'Retour à la mini-carte',
+  'radio.log': 'JOURNAL RADIO',
+  'radio.brief': 'BRIEFING',
+  'radio.mission': 'PENDANT LA MISSION',
+  'radio.debrief': 'DÉBRIEFING',
+  'radio.cards': 'ENTRAÎNEMENT',
+  'radio.none': 'Rien à la radio pour l’instant.',
+  'radio.note': 'Ce qui a été dit à la radio : le briefing, l’équipe pendant la mission et le débriefing. Rien ici n’est un ordre manqué.',
 };

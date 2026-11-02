@@ -217,7 +217,7 @@ export default {
   'brief.pay': 'CREDITS AND SCORE ×{x}',
   'brief.objective': 'OBJECTIVE',
   'brief.stratNote': 'THE SQUAD\'S STRATAGEMS. EACH HELLDIVER CALLS THEIR OWN.',
-  'ctl.desktop': '<div><kbd>CLICK</kbd> select: a post, a sentry, a defence site or one trooper. <kbd>DOUBLE-CLICK</kbd> a trooper: his whole squad. <kbd>SHIFT</kbd>+click adds one (or drops him). <kbd>DRAG</kbd> a box round troopers to pick them</div><div class="sub">What you pick shows at the bottom left, and the command panel beside it changes to match.</div><div><kbd>1</kbd> UAV <kbd>2</kbd>-<kbd>6</kbd> orbitals <kbd>Q</kbd><kbd>E</kbd> cycle: arms it (the reticle). <kbd>CLICK</kbd> calls it, then the cursor selects again (hold <kbd>SHIFT</kbd> to keep it armed). <kbd>RIGHT CLICK</kbd> or <kbd>ESC</kbd> puts it down</div><div><kbd>7</kbd> the nuke, once the launch site is armed <kbd>8</kbd> ship gun: hold <kbd>CLICK</kbd> on anything in sight <kbd>9</kbd> the artillery cannon, once one is built or captured (a crew reloads it faster)</div><div><kbd>G</kbd> SEAF drop <kbd>X</kbd> auto <kbd>V</kbd> move <kbd>Z</kbd> protect <kbd>N</kbd> attack <kbd>C</kbd> escort. Orders stay until you change them.</div><div><kbd>RIGHT CLICK</kbd> with troopers picked: an order. On a post they man it, on an enemy they attack, anywhere else they move.</div><div><kbd>B</kbd> build: <kbd>1</kbd>-<kbd>8</kbd> picks one, a click on the map places it <kbd>Y</kbd> armory. The same key (or <kbd>ESC</kbd>) goes back to the troops, where the formations are.</div><div class="sub">A selected post shows its name, level and health over it. The door sends the selected squad in (they garrison it); the door out brings them back.</div><div><kbd>`</kbd> all squads <kbd>SHIFT</kbd>+<kbd>1</kbd>-<kbd>9</kbd> pick one <kbd>ALT</kbd>+<kbd>1</kbd>-<kbd>9</kbd> what is picked joins that squad <kbd>DEL</kbd> disband <kbd>R</kbd> draw a play</div><div><kbd>SHIFT</kbd>+click a squad\'s button: that squad as well (orders go to each) <kbd>MERGE</kbd> tap the squads, then MERGE INTO</div><div><kbd>TAB</kbd>, <kbd>M</kbd> or click the minimap: the big map <kbd>SPACE</kbd> or <kbd>P</kbd> pause and plan: orders, builds, drops and calls go out on RESUME <kbd>,</kbd> half speed <kbd>ENTER</kbd> drop the Helldivers before the countdown ends</div><div><kbd>RIGHT DRAG</kbd> or <kbd>WASD</kbd> pan <kbd>WHEEL</kbd> zoom <kbd>F</kbd> camera lock <kbd>T</kbd> thermal <kbd>H</kbd> relief <kbd>I</kbd> mission info <kbd>ESC</kbd> or <kbd>MENU</kbd> pause menu <kbd>F2</kbd> hide the HUD</div><div><kbd>U</kbd> answer a supply request <kbd>J</kbd> look at the latest callout <kbd>K</kbd> approve more time</div><div class="sub">Double-click a Helldiver row or a SEAF squad to move the camera to them. Arrows at the screen edge point to every team.</div>',
+  'ctl.desktop': '<div><kbd>CLICK</kbd> select: a post, a sentry, a defence site or one trooper. <kbd>DOUBLE-CLICK</kbd> a trooper: his whole squad. <kbd>SHIFT</kbd>+click adds one (or drops him). <kbd>DRAG</kbd> a box round troopers to pick them</div><div class="sub">What you pick shows at the bottom left, and the command panel beside it changes to match.</div><div><kbd>1</kbd> UAV <kbd>2</kbd>-<kbd>6</kbd> orbitals <kbd>Q</kbd><kbd>E</kbd> cycle: arms it (the reticle). <kbd>CLICK</kbd> calls it, then the cursor selects again (hold <kbd>SHIFT</kbd> to keep it armed). <kbd>RIGHT CLICK</kbd> or <kbd>ESC</kbd> puts it down</div><div><kbd>7</kbd> the nuke, once the launch site is armed <kbd>8</kbd> ship gun: hold <kbd>CLICK</kbd> on anything in sight <kbd>9</kbd> the artillery cannon, once one is built or captured (a crew reloads it faster)</div><div><kbd>G</kbd> SEAF drop <kbd>X</kbd> auto <kbd>V</kbd> move <kbd>Z</kbd> protect <kbd>N</kbd> attack <kbd>C</kbd> escort. Orders stay until you change them.</div><div><kbd>RIGHT CLICK</kbd> with troopers picked: an order. On a post they man it, on an enemy they attack, anywhere else they move.</div><div><kbd>B</kbd> build: <kbd>1</kbd>-<kbd>8</kbd> picks one, a click on the map places it <kbd>Y</kbd> armory. The same key (or <kbd>ESC</kbd>) goes back to the troops, where the formations are.</div><div class="sub">A selected post shows its name, level and health over it. The door sends the selected squad in (they garrison it); the door out brings them back.</div><div><kbd>`</kbd> all squads <kbd>SHIFT</kbd>+<kbd>1</kbd>-<kbd>9</kbd> pick one <kbd>ALT</kbd>+<kbd>1</kbd>-<kbd>9</kbd> what is picked joins that squad <kbd>DEL</kbd> disband <kbd>R</kbd> draw a play</div><div><kbd>SHIFT</kbd>+click a squad\'s button: that squad as well (orders go to each) <kbd>MERGE</kbd> tap the squads, then MERGE INTO</div><div><kbd>TAB</kbd>, <kbd>M</kbd> or click the minimap: the big map <kbd>SPACE</kbd> or <kbd>P</kbd> pause and plan: orders, builds, drops and calls go out on RESUME <kbd>,</kbd> half speed <kbd>ENTER</kbd> drop the Helldivers before the countdown ends</div><div><kbd>RIGHT DRAG</kbd> or <kbd>WASD</kbd> pan <kbd>WHEEL</kbd> zoom <kbd>F</kbd> camera lock <kbd>T</kbd> thermal <kbd>H</kbd> relief <kbd>I</kbd> mission info <kbd>O</kbd> command radio (tutorial and campaign) <kbd>ESC</kbd> or <kbd>MENU</kbd> pause menu <kbd>F2</kbd> hide the HUD</div><div><kbd>U</kbd> answer a supply request <kbd>J</kbd> look at the latest callout <kbd>K</kbd> approve more time</div><div class="sub">Double-click a Helldiver row or a SEAF squad to move the camera to them. Arrows at the screen edge point to every team.</div>',
   'ctl.touch': '<div><kbd>DRAG</kbd> move the map <kbd>PINCH</kbd> zoom <kbd>TAP THE MINIMAP</kbd> the big map</div><div><kbd>TAP</kbd> select: a post, a sentry, a defence site or one trooper. <kbd>DOUBLE TAP</kbd> a trooper: his whole squad. <kbd>HOLD</kbd> a finger on a trooper to add him (or drop him)</div><div class="sub">What you pick shows at the bottom left, and the command panel beside it changes to match. With troopers picked, tap the map to send them: on a post they man it, on an enemy they attack, anywhere else they move.</div><div><kbd>BAR</kbd> pick a scan, orbital or the nuke: the crosshair shows. <kbd>CALL</kbd> fires it at the crosshair, then it is put down. Ship gun: pick it and hold CALL.</div><div><kbd>TROOPS</kbd> SEAF drop, the orders, the squads, formations, DRAW and DISBAND <kbd>BUILD</kbd> tap a build, then the map to place it <kbd>ARMORY</kbd> what you can buy right now</div><div class="sub">A selected post shows its name, level and health over it. The door sends the selected squad in (they garrison it); the door out brings them back.</div><div><kbd>S1-S9</kbd> pick a squad (double tap: what is picked joins it; hold: that squad as well). <kbd>MERGE</kbd> tap the squads, then MERGE INTO. A build or a drop shows its ghost: tap the map to move it, then PLACE. <kbd>DRAW</kbd>, then drag one finger: a route, line or ring. Two fingers still pan and zoom.</div><div><kbd>LOAD POD</kbd> answer a supply request <kbd>LOOK</kbd> see a callout <kbd>DOUBLE TAP</kbd> a Helldiver row or a squad: move the camera there</div><div><kbd>½×</kbd> half speed <kbd>II</kbd> pause and plan: orders, builds, drops and calls go out on RESUME <kbd>MENU</kbd> the pause menu, with settings, controls, the field manual and HIDE UI</div><div class="sub">A SEAF drop lands at the crosshair. A Propaganda Tower takes a SEAF drop anywhere.</div>',
 
   // ---------- armory ----------
@@ -1195,7 +1195,7 @@ export default {
   'sel.site': 'Defence position',
   'sel.siteB': 'The walls the squad holds here. Send SEAF to man them: they take the walls and fight from cover.',
   'sel.sentry': 'A sentry the Helldivers called in. The ring shows how far it reaches.',
-  'sel.foxhole': 'Three places in light cover. Whoever shoots from it fires faster. Free, and dug in seconds.',
+  'sel.foxhole': 'A place in light cover for every trooper who digs it: a pit for three, a trench for more, a crescent for eight or more. Whoever shoots from it fires faster. Free, and dug in seconds.',
   'sel.bastion': 'A full ring of low walls. Anyone behind them takes less enemy fire.',
   'sel.mg': 'A heavy gun behind a thick concrete wall. It fires on its own; a crew inside (two at most) fires it twice as fast.',
   'sel.tower': 'A SEAF drop point. The ground round it stays in view and strikes can be called there; a crew widens it and gives allies under it the UAV\'s lift.',
@@ -1562,6 +1562,7 @@ export default {
   'lab.place.post': 'SEAF HOLD HERE',
   'lab.place.seaf': 'SEAF DROP',
   'lab.ghost.build': '{what} · {sq} BUILDS IT ({m} M) · {cr} CR',
+  'lab.ghost.dig': '{what} · {n} PLACES · DUG BY {sq} ({m} M)',
   'lab.ghost.bridge': 'LIGHT BRIDGE · FROM THE SHIP IN {s}S · {cr} CR',
   'lab.ghost.drop': 'SEAF DROP · +{n} TROOPERS',
   'lab.ghost.dropBeacon': 'SEAF DROP · +{n} · ON THE BEACON',
@@ -1839,4 +1840,45 @@ export default {
   ],
   // ---------- 0.27: the SESF campaign, its cast, and the after action reports ----------
   'cp.eyebrow': 'SUPER EARTH SPECIAL FORCES · CAMPAIGN',
+  // ---------- 0.28: the command radio's chatter (lines between the cast, now and then; an exchange is 'who|text' lines joined by ' || ') ----------
+  'cast.u.tharsis': 'Base Tharsis · fire control net',
+  'cast.u.pelican': 'Pelican flight · Base Tharsis',
+  'cast.u.sarge': 'SEAF · Base Tharsis garrison',
+  'chat.camp': [
+    'rudolph|Neonboot, what\'s the radiation reading at my position? || neonboot|Within Ministry guidelines, Rudolph. || rudolph|That\'s not a number. || neonboot|It\'s a guideline.',
+    'ktl|Phantom Two reports a sand cat stalking the perimeter. || rudolph|A what? || ktl|Local wildlife. Do not adopt it. || rudolph|Too late.',
+    'mota|Defense reminds all units that the resort plots are pre-sold. Please do not crater the golf course. || rudolph|Which part is the golf course? || mota|All of it.',
+    'neonboot|F.E.A.R. has restocked the stims. Please stop using them as coffee. || rudolph|No promises.',
+    'ramzies|KTL, status on the Tigers? || ktl|Loud, sandy and winning, sir. || ramzies|Keep it that way.',
+    'rudolph|Gunner, have you seen the sunsets down here? They\'re amazing. || ktl|Rudolph, that sunset is a burning hive. || rudolph|Still amazing.',
+  ],
+  'chat.camp.c1': [
+    'rudolph|The foreman in the shelter wants to know if the overtime still counts. || mota|Defense confirms: overtime is paid in freedom. || rudolph|He says that\'s what he was afraid of.',
+    'neonboot|The shelter has air for another hour. After that the crews start singing the anthem to stay calm. || rudolph|Can we get them out before verse four?',
+  ],
+  'chat.camp.c2': [
+    'ktl|Night vision is up. Phantoms count four hundred contacts. || rudolph|Good thing we brought four hundred and one bullets.',
+    'neonboot|The survey lead\'s beacon is still pinging. Steady heartbeat. || rudolph|Tell them to stay put and not look outside. || neonboot|They looked outside.',
+  ],
+  'chat.camp.c3': [
+    'mota|Launch codes verified. The Knight of Midnight holds the second key. || rudolph|Who holds the first? || mota|Classified. || ktl|It\'s the General.',
+    'neonboot|Science reminds all personnel: do not look directly at the launch. || rudolph|Not even a little? || neonboot|Especially not a little.',
+  ],
+  'chat.tut': [
+    'tharsis|Pelican Lead, Tharsis Control. How many seats on the next lift? || pelican|Forty, if nobody brings luggage. || tharsis|They\'re bringing luggage.',
+    'sarge|Control, my squad wants to know if the Helldiver trainees left any rations. || tharsis|Negative, Sergeant. They took the rations. And the coffee.',
+    'pelican|Tharsis, there\'s a lot of light in the sky up here. || tharsis|That\'s the Great Host, Pelican Lead. Eyes on the pad.',
+    'sarge|Control, how long do we hold? || tharsis|As long as there are people on the ground, Sergeant. || sarge|Copy. Then we hold.',
+    'tharsis|All stations: the destroyer overhead is our fire control. Stay out of its circles. || sarge|You heard Control. Out of the circles!',
+  ],
+  'radio.title': 'COMMAND RADIO',
+  'radio.open': 'Command radio: everything said on this mission (O)',
+  'radio.map': 'Back to the minimap',
+  'radio.log': 'RADIO LOG',
+  'radio.brief': 'BRIEFING',
+  'radio.mission': 'ON THE MISSION',
+  'radio.debrief': 'DEBRIEF',
+  'radio.cards': 'TRAINING',
+  'radio.none': 'Nothing on the radio yet.',
+  'radio.note': 'What was said on the radio: the briefing, the cast during the mission and the debrief. Nothing here is an order you missed.',
 }
