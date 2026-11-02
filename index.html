@@ -114,7 +114,6 @@
     </div>
     <div id="tut-spot" class="hidden" aria-hidden="true"></div>
     <div id="glassfx" aria-hidden="true"></div>
-    <div id="dropcd" class="hidden" role="status"><div class="dc-t"><small data-t="hud.dropIn">HELLDIVERS DROP IN</small><b id="dropcd-n">0:30</b></div><button id="dropcd-go" class="btn primary" type="button"><span data-t="hud.deployNow">DEPLOY NOW</span> <kbd>ENTER</kbd></button></div>
     <!-- what is selected on the map (a post, a sentry or a defence site): its name, level and health, just above it -->
     <div id="selpop" class="hidden" role="dialog"></div>
     <div id="dock">
@@ -159,7 +158,11 @@
         <button id="sp-menu" class="btn" type="button"><span data-t="soft.menu">PAUSE MENU</span> <kbd>ESC</kbd></button>
       </div>
     </div>
-    <div id="center-msg"></div>
+    <!-- (0.21) top centre: the drop countdown (one line), then the big alerts under it -->
+    <div id="topmid">
+      <div id="dropcd" class="hidden" role="status"><div class="dc-t"><small class="dc-l" data-t="hud.dropIn">HELLDIVERS DROP IN</small><small class="dc-s" data-t="hud.dropShort">DROP IN</small><b id="dropcd-n">0:30</b></div><button id="dropcd-go" class="btn primary" type="button"><span class="dc-l" data-t="hud.deployNow">DEPLOY NOW</span><span class="dc-s" data-t="hud.deployShort">DEPLOY</span> <kbd>ENTER</kbd></button></div>
+      <div id="center-msg"></div>
+    </div>
     <div id="toast"></div>
   </div>
 

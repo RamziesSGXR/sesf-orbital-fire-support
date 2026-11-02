@@ -20,7 +20,7 @@ import { setupSides, updateSides, beaconAt } from './sides.js';
 import { noise } from './enemies.js';
 import { locked } from './combat.js';
 import { initPlan, updatePlan } from './planner.js';
-import { initPlayer, updatePlayer, syncSlots } from './player.js';
+import { initPlayer, updatePlayer, syncSlots, slotStats } from './player.js';
 import { initStrat, updateStrat, destroyAsset, mechDown } from './strat.js';
 import { setupObjectives, updateObjectives, completeObjective, startSetup } from './objectives.js';
 import { placeBase, setupLastStand, updateLastStand, lsBegin, lsSpawn } from './laststand.js';
@@ -490,9 +490,15 @@ export class Mission {
 
   // ----- the armory: upgrades can be bought mid-mission, new orbitals and slots only between missions -----
   spend(id) {
+    // (0.21) what each weapon's recharge was before the purchase: an upgrade that shortens it shortens the one already running too
+    const before = this.player ? this.player.slots.map((s, i) => (s.readyAt !== undefined ? slotStats(this, i)?.cd || 0 : 0)) : [];
     const r = buy(this.kit, this.wallet, id, true);
     if (!r.ok) { this.emit('deny', { reason: r.reason }); return r; }
     syncSlots(this);
+    if (this.player) this.player.slots.forEach((s, i) => {
+      const was = before[i], now = s.readyAt !== undefined ? slotStats(this, i)?.cd || 0 : 0;
+      if (was > 0 && now > 0 && now < was && s.readyAt > this.t) s.readyAt = this.t + (s.readyAt - this.t) * (now / was);
+    });
     const st = seafStats(this.kit);
     for (const a of this.seafAlive) {
       const nm = Math.round(ALLY.S.hp * st.hpMul);

@@ -16,6 +16,10 @@ page.on('console', (m) => { if (m.type() === 'error') errs.push('CONSOLE ' + m.t
 let fails = 0;
 const check = (name, ok, extra = '') => { console.log(ok ? 'ok  ' : 'FAIL', name, extra); if (!ok) fails++; };
 const tap = async (sel) => { const l = page.locator(sel).first(); await l.scrollIntoViewIfNeeded().catch(() => {}); const b = await l.boundingBox(); if (!b) throw new Error('no box ' + sel); await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); };
+const toTroops = async () => {     // (0.21) back to the troops: TROOPS, or on a phone (no TROOPS button) the open context's button again
+  const [ph, cur] = await page.evaluate(() => [document.body.classList.contains('lay-phone'), window.__game.hud.tcTab]);
+  if (!ph) await tap('#tactical .tct[data-tab="units"]'); else if (cur !== 'units') await tap(`#tactical .tct[data-tab="${cur}"]`);
+};
 await page.goto('file://' + path.join(root, 'dist/orbital-fury.html') + '?skipstart&seed=9&faction=bugs&biome=grass&difficulty=1');     // (0.19: level 1: this checks the controls, not the fight)
 await page.waitForTimeout(500);
 await tap('#btn-play'); await page.waitForTimeout(300);
@@ -76,10 +80,14 @@ await page.waitForTimeout(3600);
 const idle = await page.evaluate(() => ({ chip: Number(getComputedStyle(document.getElementById('mbox')).opacity), bar: Number(getComputedStyle(document.querySelector('#weapons .wbtn:not(.sel)')).opacity), mini: Number(getComputedStyle(document.getElementById('minimap')).opacity) }));
 check('the HUD fades when idle', idle.chip < 0.6 && idle.bar < 0.7 && idle.mini >= 0.9, JSON.stringify(idle));     // (0.20: the minimap stays solid, it is the map you read)
 await tap('#mbox'); await page.waitForTimeout(800);
+if (await page.evaluate(() => document.body.classList.contains('lay-phone'))) {     // (0.21) a phone has no INFO button: a tap on the clock opens the mission's info
+  check('(0.21) a tap on the clock opens the mission info', await page.evaluate(() => document.getElementById('s-info').classList.contains('on')));
+  await tap('#info-close'); await page.waitForTimeout(400);
+}
 check('a touch wakes the HUD', await page.evaluate(() => Number(getComputedStyle(document.getElementById('mbox')).opacity)) > 0.95);
 check('(0.20) the Helldivers are always on show, with their stratagems', (await page.isVisible('#sqpanel')) && await page.evaluate(() => document.querySelectorAll('#hdrows .hr').length === 4 && document.querySelectorAll('#hdrows .sc').length === 16));
 await page.screenshot({ path: path.join(root, `test/shots/t5-${vp}-squadpanel.png`) });
-await tap('#tactical .tct[data-tab="units"]'); await page.waitForTimeout(250);
+await toTroops(); await page.waitForTimeout(250);
 await tap('#squads .sqb[data-sq="-1"]'); await page.waitForTimeout(200);
 await page.screenshot({ path: path.join(root, `test/shots/t4-${vp}-tray.png`) });
 await tap('#weapons .wbtn:nth-child(8)'); await page.waitForTimeout(200);
@@ -95,7 +103,7 @@ check('MENU opens the pause menu', await page.evaluate(() => document.getElement
 await tap('#btn-armory-m'); await page.waitForTimeout(400);
 check('mission armory opens: the sheet on its armory tab, the menu shut, the game running', await page.evaluate(() => window.__game.tac && window.__game.hud.tcTab === 'armory' && !document.getElementById('s-pause').classList.contains('on') && !window.__game.paused));
 await page.screenshot({ path: path.join(root, `test/shots/t4-${vp}-armory.png`) });
-await tap('#tactical .tct[data-tab="units"]'); await page.waitForTimeout(300);
+await toTroops(); await page.waitForTimeout(300);
 await tap('#btn-pause'); await page.waitForTimeout(300);
 check('the pause button soft-pauses (no menu)', await page.evaluate(() => window.__game.soft && !document.getElementById('s-pause').classList.contains('on')));
 await tap('#sp-menu'); await page.waitForTimeout(300);

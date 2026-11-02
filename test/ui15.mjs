@@ -19,6 +19,10 @@ const page = await ctx.newPage();
 const errs = []; page.on('pageerror', (e) => errs.push(e.message));
 const ev = (f, a) => page.evaluate(f, a);
 const tap = (sel) => (touch ? page.tap(sel) : page.click(sel));
+const toTroops = async () => {     // (0.21) back to the troops: TROOPS, or on a phone (no TROOPS button) the open context's button again
+  const [ph, cur] = await page.evaluate(() => [document.body.classList.contains('lay-phone'), window.__game.hud.tcTab]);
+  if (!ph) await tap('#tactical .tct[data-tab="units"]'); else if (cur !== 'units') await tap(`#tactical .tct[data-tab="${cur}"]`);
+};
 const shot = (n) => page.screenshot({ path: path.join(SHOTS, `ui15_${mode}_${n}.png`) });
 const on = (id) => ev((i) => document.getElementById(i).classList.contains('on'), id);
 const PAGE = `file://${ROOT}/dist/orbital-fury.html?skipstart&faction=bots&biome=grass&seed=1515&tod=11&difficulty=4`;
@@ -121,7 +125,7 @@ const bm = await ev(() => [...document.querySelectorAll('#tactical .bld')].map((
 check('the tactical build screen has the artillery cannon, locked until the armory unlocks it', bm.length === 8 && /ARTILLERY CANNON/.test(bm[7]) && /UNLOCK/.test(bm[7]), bm.join(' | '));
 check('and (0.18) the game runs on while it is open', await ev(async () => { const g = window.__game, t0 = g.mission.t; await new Promise((r) => setTimeout(r, 300)); return g.tac && g.mission.t > t0; }));
 await shot('buildmenu');
-await tap('#tactical .tct[data-tab="units"]'); await page.waitForTimeout(250);
+await toTroops(); await page.waitForTimeout(250);
 check('(0.20) TROOPS goes back from the builds; the panel stays up', (await page.isVisible('#tactical')) && await ev(() => window.__game.hud.tcTab === 'units'));
 await ev(() => { const g = window.__game, m = g.mission; g.makePost('arty', m.hx + 40, m.hy + 20); m.step(1 / 30); m.step(1 / 30); });
 await page.waitForTimeout(300);

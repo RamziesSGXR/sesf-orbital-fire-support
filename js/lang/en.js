@@ -1531,4 +1531,16 @@ export default {
   // ---------- 0.20 ----------
   'arm.noneLive': 'Nothing here can be upgraded during a mission.',
   'hud.seafTitle': 'SEAF troopers on the ground, out of the most you can have',
+  // ---------- 0.21: three layouts ----------
+  'set.layout': 'Interface layout',
+  'set.layoutHint': 'How the in-mission controls are laid out: for a phone, a tablet or a desktop. AUTO picks by your screen.',
+  'set.lay.auto': 'Auto',
+  'set.lay.phone': 'Phone',
+  'set.lay.tab': 'Tablet',
+  'set.lay.desk': 'Desktop',
+  'tac.startNote': 'Helldivers drop in 30 s: get SEAF in place first.',
+  'hud.dropShort': 'DROP IN',
+  'hud.deployShort': 'DEPLOY',
+  'hud.form': 'FORM',
+  'tac.selHintTouch': 'Tap a trooper to pick him (twice: his squad; hold a finger on others to add them). Then tap the map to give an order.',
 }

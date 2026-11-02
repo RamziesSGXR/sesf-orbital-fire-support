@@ -67,6 +67,23 @@ let wantAbort = false;
 let lastFin = null;
 
 // ---------------- settings ----------------
+// (0.21) Three layouts for the HUD: phone, tablet and desktop. Settings > Layout picks one, or AUTO picks by the screen: a short side
+// under 540 CSS pixels (after UI size) is a phone; a touch screen bigger than that is a tablet; anything else is a desktop.
+// The body gets lay-phone, lay-tab or lay-desk, and lay-port or lay-land for which way the screen is held.
+function pickLayout() {
+  const z = Number(settings.uiScale) || 1, w = window.innerWidth / z, h = window.innerHeight / z, short = Math.min(w, h);
+  const coarse = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || !!(input && input.touch);
+  const want = settings.layout;
+  return want === 'phone' || want === 'tab' || want === 'desk' ? want : short < 540 ? 'phone' : coarse ? 'tab' : 'desk';
+}
+function applyLayout() {
+  const b = document.body, lay = pickLayout(), port = window.innerHeight > window.innerWidth;
+  for (const k of ['phone', 'tab', 'desk']) b.classList.toggle('lay-' + k, k === lay);
+  b.classList.toggle('lay-port', port); b.classList.toggle('lay-land', !port);
+  if (lay !== applyLayout.last) { applyLayout.last = lay; if (state === 'play') hud.layout(true); if (mission && tac && hud.tcTab === 'armory') drawArmory(); }
+  return lay;
+}
+
 function applySettings() {
   renderer.setSettings(settings);
   renderer.quality = settings.quality === 'low' ? 'low' : 'high';
@@ -78,6 +95,7 @@ function applySettings() {
   document.documentElement.style.setProperty('--mm', String(Number(settings.mini) || 2));
   if (settings.cards === 'off') hud.tipHide();
   input.sens = settings.touchSens;
+  applyLayout();
   S.save('settings', settings);
 }
 
@@ -199,6 +217,7 @@ const input = new Input(canvas, $('minimap'), cam, {
   drawExit: () => setDrawing(false),
 }, () => state === 'play' && (!paused || soft) && !UI.anyOverlay());
 input.setTouch(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+applyLayout();
 hud.onWeapon = (i) => { audio.unlock(); if (live()) arm(i); };
 hud.onTac = (on, tab) => { audio.unlock(); if (tab) hud.setTcTab(tab); setTac(on === undefined ? !tac : on); };
 hud.onArmoryTab = () => { if (tac && mission) drawArmory(); };
@@ -491,7 +510,12 @@ const live = () => state === 'play' && !paused && mission && !mission.over;
 const DENY_KEYS = new Set(['artyrange', 'nocoverage', 'cooldown', 'full', 'noseaf', 'nohd', 'noallies', 'nomark', 'funds', 'between', 'maxed', 'locked', 'novisual', 'gundry',
   'short', 'water', 'jammed', 'nocrew', 'nogarrison', 'boxnone', 'boxnosquad', 'noweapon', 'picksquad', 'postfull']);
 const deny = (r) => (DENY_KEYS.has(r) ? t('deny.' + r) : '');
-function setPlacing(kind) { if (kind) { setDrawing(false); disarm(); } placing = kind; hud.setPlacing(kind); document.body.classList.toggle('placing', !!kind); }
+function setPlacing(kind) {
+  if (kind) { setDrawing(false); disarm(); }
+  placing = kind; hud.setPlacing(kind); document.body.classList.toggle('placing', !!kind);
+  // (0.21) phones: the build drawer folds away once a build is picked, so the map is clear to place it
+  if (kind && kind.startsWith('build:') && document.body.classList.contains('lay-phone') && hud.tcTab === 'build') hud.setTcTab('units');
+}
 function setDrawing(on) {
   if (on && !live()) on = false;
   if (on) { placing = null; hud.setPlacing(null); disarm(); }
@@ -737,7 +761,7 @@ function enterPlay() {
   // ?skipstart (tests) drops straight in.
   if ((!qs.has('skipstart') && !BOT) || mission.ls) {
     if (mission.defenders) { const d = mission.defenders; mission.notice(t('n.defenders', { n: d.n, place: t('place.' + (d.type === 'nuke' ? 'launch' : d.type === 'vip' ? 'pickup' : d.type)) }), 'good'); }
-    if (!mission.ls) hud.toast(t(input.touch ? 'tac.startTouch' : 'tac.startDesk'), 6000);
+    if (!mission.ls) hud.notice(t('tac.startNote'), 'info');     // (0.21: a line in the log, not a card over the squad; the tutorial teaches the rest)
   }
   hud.setTcTab('units'); setTac(true);     // (0.20: the command panel is up from the start, on the troops)
 }
@@ -1086,7 +1110,7 @@ $('btn-post').onclick = async () => { await copyScore(); window.open(C.share.cha
 $('btn-share').onclick = async () => { try { await navigator.share({ text: $('f-text').value }); } catch { /* user cancelled */ } };
 $('callsign').value = S.load('callsign', '');
 document.addEventListener('visibilitychange', () => { if (document.hidden && live()) togglePause(true); });
-window.addEventListener('resize', () => { renderer.resize(); if (soft) hud.placeSoft(); if (state === 'play') { hud.layout(true); hud.layout(true); } if (tut) tut.poke(); });
+window.addEventListener('resize', () => { applyLayout(); renderer.resize(); if (soft) hud.placeSoft(); if (state === 'play') { hud.layout(true); hud.layout(true); } if (mission && tac && hud.tcTab === 'armory') drawArmory(); if (tut) tut.poke(); });
 window.addEventListener('orientationchange', () => setTimeout(() => renderer.resize(), 200));
 
 // ---------------- events from the sim ----------------

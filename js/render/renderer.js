@@ -842,7 +842,7 @@ export class Renderer {
     try {
       const cv = this.cv || document.getElementById('view');
       const cr = cv.getBoundingClientRect(), k = this.W / cr.width;
-      for (const sel of ['#topbar', '.hud-tr', '#hdpanel', '#selpanel', '#tactical', '#weapons', '.hud-br', '#fire-btn', '#dropcd']) {
+      for (const sel of ['#topbar', '.hud-tr', '#hdpanel', '#selpanel', '#tactical', '#weapons', '.hud-br', '#minimap', '#notices', '#btn-menu', '#btn-pause', '#btn-speed', '#btn-follow', '#fire-btn', '#dropcd', '#center-msg']) {     // (0.21: on a phone the minimap's column is not a box)
         const el = document.querySelector(sel);
         if (!el || el.offsetParent === null) continue;
         const r = el.getBoundingClientRect();

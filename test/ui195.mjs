@@ -82,7 +82,8 @@ await add(ids[1]);
 s = await sel();
 check('...and again on one already picked takes him out', s.sel === -2 && s.pick && s.pick.length === 2 && !s.pick.includes(ids[1]), JSON.stringify(s));
 await page.waitForTimeout(600);
-// one man, one order
+// one man, one order (the camera back on him first: he may have walked under a panel at the screen's edge)
+await ev((id) => { const g = window.__game, a = g.mission.seafAlive.find((x) => x.id === id); g.cam.follow = false; g.cam.x = a.x; g.cam.y = a.y; }, ids[0]); await page.waitForTimeout(250);
 await click(ids[0]); await page.waitForTimeout(250);
 const others = ids.slice(1);
 const dest = await ev((id) => { const m = window.__game.mission, a = m.seafAlive.find((x) => x.id === id);

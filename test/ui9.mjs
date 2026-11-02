@@ -41,8 +41,14 @@ if (touch) { await tap('.sqb[data-sq="0"]'); }
 else { await page.keyboard.press('Shift+Digit1'); }
 await page.waitForTimeout(300);
 let tipR = await rect('#hottip');
-check('picking a SEAF squad shows its tip just over its button (0.19.1: the dock\'s squads chip with the sheet shut)', near(tipR, await rect('.sqb[data-sq="0"]')), tipR ? `${Math.round(tipR.l)},${Math.round(tipR.t)}-${Math.round(tipR.r)},${Math.round(tipR.b)}` : 'none');
-check('one short line: the squad, its troopers', /S1/.test(await ev(() => document.querySelector('#hottip .tt-l').textContent)) && (tipR.b - tipR.t) < 60);
+if (await ev(() => document.body.classList.contains('lay-phone'))) {     // (0.21) a phone says it on the line over the command panel, not in a tip
+  const sp = await rect('#selpanel');
+  check('picking a SEAF squad shows it on the line over the command panel (a phone has no tip for it)', sp && !(await page.isVisible('#hottip')) && sp.b <= (await rect('#tactical')).t + 1, sp ? `${Math.round(sp.t)}-${Math.round(sp.b)}` : 'none');
+  check('one short line: the squad, its troopers', /S1/.test(await ev(() => document.querySelector('#tc-sel').textContent)) && sp && (sp.b - sp.t) < 60);
+} else {
+  check('picking a SEAF squad shows its tip just over its button (0.19.1: the dock\'s squads chip with the sheet shut)', near(tipR, await rect('.sqb[data-sq="0"]')), tipR ? `${Math.round(tipR.l)},${Math.round(tipR.t)}-${Math.round(tipR.r)},${Math.round(tipR.b)}` : 'none');
+  check('one short line: the squad, its troopers', /S1/.test(await ev(() => document.querySelector('#hottip .tt-l').textContent)) && (tipR.b - tipR.t) < 60);
+}
 if (touch) { await tap('#weapons .wbtn:nth-child(3)'); }
 else await page.keyboard.press('Digit3');
 await page.waitForTimeout(250);

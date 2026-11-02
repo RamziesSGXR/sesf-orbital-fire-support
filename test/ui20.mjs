@@ -3,6 +3,8 @@
 // the lives and SEAF sit by the credits, nothing scrolls, and nothing sits on anything else (the tutorial's card aside): at the
 // start, in each context, in play, with a big message, and paused. On a computer: B and Y switch the context, Esc goes back,
 // Tab and M open and shut the big map.
+// (0.21) Each screen gets its layout (AUTO): the computers the desktop one, the tablet the tablet one, the phones the phone one. On a
+// phone BUILD and ARMORY pull the command panel up as a drawer (taller than the troops), and pressed again go back to the troops.
 //   node test/ui20.mjs [desk|d720|tab|land|small|port]   (no argument: all six)
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -34,7 +36,7 @@ for (const [vp, [W, H, touch]] of Object.entries(VPS)) {
   const overlaps = () => ev(() => {
     const vis = (e) => { const s = getComputedStyle(e); if (s.display === 'none' || s.visibility === 'hidden' || +s.opacity < 0.05) return false; const r = e.getBoundingClientRect(); return r.width > 2 && r.height > 2; };
     const span = (rs) => (rs.length ? { left: Math.min(...rs.map((k) => k.left)), right: Math.max(...rs.map((k) => k.right)), top: Math.min(...rs.map((k) => k.top)), bottom: Math.max(...rs.map((k) => k.bottom)) } : null);
-    const sel = ['#topbar', '#mbox', '#objective', '#callouts', '#place-hint', '#hdpanel', '#selpanel', '#tactical', '#weapons', '.mm-btns', '#minimap', '#notices', '#fire-btn', '#dropcd', '#toast', '#center-msg', '#softpause .sp-bar'];
+    const sel = ['#topbar', '#mbox', '#objective', '#callouts', '#place-hint', '#hdpanel', '#selpanel', '#tactical', '#weapons', '#btn-menu', '#btn-pause', '#btn-speed', '#btn-info', '#btn-follow', '#minimap', '#notices', '#fire-btn', '#dropcd', '#toast', '#center-msg', '#softpause .sp-bar'];
     const els = sel.map((q) => [q, document.querySelector(q)]).filter(([, e]) => e && vis(e)).map(([q, e]) => {
       let r = e.getBoundingClientRect();
       if (q === '#notices') r = span([...e.querySelectorAll('.nt')].filter(vis).map((k) => k.getBoundingClientRect()).filter((k) => k.top >= e.getBoundingClientRect().top - 1));
@@ -72,10 +74,13 @@ for (const [vp, [W, H, touch]] of Object.entries(VPS)) {
     rows: [...document.querySelectorAll('#hdrows .hr')].filter((r) => r.getBoundingClientRect().height > 4).length, lives: document.getElementById('lives-v').textContent, l: String(window.__game.mission.hd.lives),
     seaf: /\d+\/\d+/.test(document.getElementById('seafc-v').textContent) }));
   check(`${vp}: the command panel is up from the start, on the troops; the Helldivers show; lives and SEAF by the credits`, s0.tac && s0.tab === 'units' && s0.cd && s0.rows === 4 && s0.lives === s0.l && s0.seaf, JSON.stringify(s0));
+  const lay = await ev(() => ['phone', 'tab', 'desk'].find((k) => document.body.classList.contains('lay-' + k)));
+  check(`${vp}: AUTO picks the ${({ desk: 'desktop', d720: 'desktop', tab: 'tablet' })[vp] || 'phone'} layout`, lay === (({ desk: 'desk', d720: 'desk', tab: 'tab' })[vp] || 'phone'), lay);
+  const phone = lay === 'phone';
   await clean('the start'); await noScroll('the start');
   const hs = [];
   for (const c of ['build', 'armory', 'units']) {
-    await tap(`#tactical .tct[data-tab="${c}"]`); await page.waitForTimeout(350);
+    await tap(`#tactical .tct[data-tab="${phone && c === 'units' ? 'armory' : c}"]`); await page.waitForTimeout(350);     // (a phone has no TROOPS button: ARMORY again goes back)
     hs.push(await ev(() => Math.round(document.getElementById('tactical').getBoundingClientRect().height)));
     await clean(`the ${c} context`); await noScroll(`the ${c} context`);
     if (c === 'armory') {
@@ -85,7 +90,8 @@ for (const [vp, [W, H, touch]] of Object.entries(VPS)) {
       await page.screenshot({ path: path.join(SHOTS, `ui20_${vp}_armory.png`) });
     }
   }
-  check(`${vp}: the command panel is the same size in every context`, new Set(hs).size === 1, hs.join(','));
+  if (phone) check(`${vp}: BUILD and ARMORY pull the command panel up as a drawer, and pressed again it goes back to the troops`, hs[0] === hs[1] && hs[2] < hs[0] && (await ev(() => window.__game.hud.tcTab)) === 'units', hs.join(','));
+  else check(`${vp}: the command panel is the same size in every context`, new Set(hs).size === 1, hs.join(','));
   if (!touch) {
     await page.keyboard.press('KeyB'); await page.waitForTimeout(200);
     const k1 = await ev(() => window.__game.hud.tcTab);

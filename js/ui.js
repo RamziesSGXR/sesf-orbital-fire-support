@@ -103,6 +103,17 @@ export class Hud {
       e.addEventListener('pointerleave', (ev) => { if (ev.pointerType === 'mouse') this.tipLeave(); });
       tf.appendChild(e); this.frm[f] = { el: e, n: e.querySelector('.n'), key: '' };
     });
+    {     // (0.21) phones: one button on the squad bar steps through the formations (there is no room for five)
+      const e = el('button', 'sqa fcyc', `<i class="fg fg-loose"></i><span class="n">${esc(t('hud.form'))}</span>`); e.type = 'button';
+      e.addEventListener('pointerdown', (ev) => {
+        ev.preventDefault(); ev.stopPropagation(); if (!this.onForm) return;
+        const cur = this._formNow, f = FORMS[(FORMS.indexOf(cur) + 1) % FORMS.length];
+        this.onForm(f); if (this.m) this.tip(e, () => formShort(this.m, f), null);
+      });
+      $('squads').appendChild(e); this.fcyc = { el: e, i: e.querySelector('.fg'), n: e.querySelector('.n'), key: '' };
+    }
+    // (0.21) phones have no INFO button: a tap on the clock or the objective opens the mission info
+    for (const q of ['#mbox', '#objective']) document.querySelector(q).addEventListener('click', () => { if (document.body.classList.contains('lay-phone')) this.onInfo && this.onInfo(); });
     $('dropcd-go').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onDeployNow && this.onDeployNow(); });
     // (0.19.1) one bottom sheet, five tabs: the troops (with the squad bar), the Helldivers (their rows and the supply), building,
     // the ship's weapons, and the armory (live: the war goes on while you shop)
@@ -111,7 +122,7 @@ export class Hud {
     document.querySelector('#tactical .tc-u').appendChild(document.querySelector('#tactical .tac-form'));     // (0.20: formations with the troops)
     document.querySelectorAll('#tactical .tct').forEach((b) => b.addEventListener('pointerdown', (ev) => {
       ev.preventDefault(); ev.stopPropagation();
-      this.setTcTab(b.dataset.tab);
+      this.setTcTab(b.dataset.tab === this.tcTab && b.dataset.tab !== 'units' ? 'units' : b.dataset.tab);     // (0.21: pressed again, back to the troops)
     }));
     const ordBox = document.querySelector('#tactical .tac-ord');
     for (const [o, k] of [['seaf', 'G'], ['auto', 'X'], ['move', 'V'], ['protect', 'Z'], ['attack', 'N'], ['escort', 'C']]) {     // (0.20: DISBAND is on the squad bar, once)
@@ -285,19 +296,38 @@ export class Hud {
     if (!this._ly) this._ly = {};
     const set = (k, v) => { if (this._ly[k] !== v) { this._ly[k] = v; $('hud').style.setProperty(k, v); } };
     const z = parseFloat(getComputedStyle(b).getPropertyValue('--ui')) || 1;
-    const tr = document.querySelector('#hud .hud-tr').getBoundingClientRect(), nt = $('notices').getBoundingClientRect();
-    set('--nh', px(Math.max(0, (nt.bottom - tr.bottom - G) / z)));
-    const dc = $('dropcd'); set('--dch', px(dc.classList.contains('hidden') ? 0 : (dc.getBoundingClientRect().height + G) / z));
+    const R = (q) => { const e = document.querySelector(q); if (!e) return null; const r = e.getBoundingClientRect(); return r.width > 1 && r.height > 1 ? r : null; };
+    const W = window.innerWidth, H = window.innerHeight, phone = b.classList.contains('lay-phone');
+    // (0.21) phones: how wide the weapons are (they sit by CALL), so the command panel takes the rest
+    const wp = R('#weapons'); set('--wpw', px(wp ? wp.width / z : 0));
+    // the short log: as much room as there is between whatever sits above it and the blocks under it
+    const nt = $('notices').getBoundingClientRect(), tr = R('#hud .hud-tr') || { bottom: 0, left: W };
+    set('--nh', phone ? '40px' : px(Math.max(0, (nt.bottom - tr.bottom - G) / z)));
     const sp = $('softpause').classList.contains('hidden') ? null : document.querySelector('#softpause .sp-bar');
     set('--sph', px(sp ? (sp.getBoundingClientRect().height + G) / z : 0));
-    // the countdown and the toasts go just above whatever is at the bottom under the middle of the map
-    const W = window.innerWidth, H = window.innerHeight, cs = getComputedStyle($('hud')), cw = $('weapons').getBoundingClientRect();
+    const dc = $('dropcd'); set('--dch', px(dc.classList.contains('hidden') ? 0 : (dc.getBoundingClientRect().height + G) / z));
+    // the toasts: just above whatever is at the bottom under the middle of the map
+    const cw = wp || { top: H, left: 0, right: W, height: 0 };
     let top = cw.height ? cw.top : H;
-    for (const q of ['#hdpanel', '#selpanel', '#hud .hud-br', '#fire-btn']) { const r = document.querySelector(q)?.getBoundingClientRect(); if (r && r.height && r.left < cw.right && r.right > cw.left) top = Math.min(top, r.top); }
-    void cs; set('--dcb', px((H - top + G) / z));
-    // the big alerts: between the resource bar and the clock
-    const tb = $('topbar').getBoundingClientRect();
-    set('--mL', px((tb.right + G) / z)); set('--mR', px((W - tr.left + G) / z));
+    for (const q of ['#hdpanel', '#selpanel', '#hud .hud-br', '#fire-btn', '#tactical']) { const r = R(q); if (r && r.left < W / 2 + 40 && r.right > W / 2 - 40 && r.top > H / 2) top = Math.min(top, r.top); }
+    set('--dcb', px((H - top + G) / z));
+    // the top centre (the drop countdown and the big alerts): the highest band, centred on the screen, that is wide enough between
+    // the blocks at the top left and the top right (on a phone that is often just under the top row)
+    const tops = ['#topbar', '#btn-menu', '#btn-pause', '#btn-speed', '#hdpanel', '#hud .hud-tr', '#minimap', '#btn-follow', '#hud .hud-br', '#hud .mm-btns']
+      .map(R).filter((r) => r && r.top < H * 0.35);
+    const need = (phone ? 170 : 260) * z, T0 = (R('#topbar') || { top: G }).top;
+    let at = null;
+    for (const y of [T0, ...tops.map((r) => r.bottom + G)].sort((p, q) => p - q)) {
+      let l = 0, r = W;
+      for (const k of tops) { if (k.bottom <= y || k.top >= y + 64 * z) continue; if (k.left + k.width / 2 < W / 2) l = Math.max(l, k.right); else r = Math.min(r, k.left); }
+      const l2 = Math.max(l, W - r);     // (centred on the screen)
+      if (W - 2 * l2 >= need) { at = { y, l: l2 }; break; }
+    }
+    if (!at) at = { y: Math.max(...tops.map((r) => r.bottom), T0) + G, l: 0 };
+    set('--mT', px(at.y / z)); set('--mL', px((at.l + G) / z)); set('--mR', px((at.l + G) / z));
+    // (0.21) phones held upright: the weapons in two rows, half of them in each
+    const nw = [...document.querySelectorAll('#weapons .wbtn')].filter((e) => e.getClientRects().length).length;
+    set('--wpc', String(Math.max(1, Math.ceil(nw / 2))));
   }
   // ---- tips
   // A tip over anchor: short() is the one line (live: it is redrawn while the tip shows), full() the card ⓘ opens (null: no ⓘ).
@@ -360,8 +390,15 @@ export class Hud {
   // (0.20) Where the camera's point goes: the middle of the map between the resource bar and the weapons. insetB: how much of
   // the bottom the panels take, for the arrows at the edge.
   focusY() {
-    const H = window.innerHeight || 1, w = $('weapons').getBoundingClientRect(), t = $('topbar').getBoundingClientRect();
-    const bot = w.height ? w.top : H, top = t.height ? t.bottom : 0;
+    // (0.21) the middle of the open map: under what crosses the middle of the screen at the top, above what crosses it at the bottom
+    const W = window.innerWidth, H = window.innerHeight || 1, cx = W / 2;
+    let top = 0, bot = H;
+    for (const q of ['#topbar', '#hdpanel', '#hud .hud-tr', '#topmid', '#weapons', '#tactical', '#selpanel', '#hud .hud-br', '#fire-btn']) {
+      const e = document.querySelector(q); if (!e) continue;
+      const r = e.getBoundingClientRect(); if (r.width < 2 || r.height < 2 || r.left > cx || r.right < cx) continue;
+      if (r.top + r.height / 2 < H / 2) top = Math.max(top, r.bottom); else bot = Math.min(bot, r.top);
+    }
+    const t = $('topbar').getBoundingClientRect(); if (t.height) top = Math.max(top, t.bottom);
     this.insetB = Math.max(0, H - bot);
     return Math.max(0.2, Math.min(0.5, (top + bot) / 2 / H));
   }
@@ -485,11 +522,11 @@ export class Hud {
   // and its four stratagems with their cooldowns and which are in use), and the weapon bar.
   setMission(m) {
     this.m = m;
-    const rows = $('hdrows'); rows.innerHTML = ''; this.rr = []; this.sc = [];
+    const rows = $('hdrows'); rows.innerHTML = ''; this.rr = []; this.sc = []; this._hdOpen = -1; $('hdpanel').classList.remove('pop');
     m.teams.forEach((tm, i) => {
-      const r = el('div', 'hr', `<b class="l">${tm.letter}</b><div class="hm"><div class="h1"><span class="t">--</span><span class="ship">${esc(tm.ship)}</span></div><i class="hp"><u></u></i><div class="h3"><span class="st"></span><div class="cells"></div></div></div>`);
+      const r = el('div', 'hr', `<b class="l">${tm.letter}</b><span class="rn"></span><div class="hm"><div class="h1"><span class="t">--</span><span class="ship">${esc(tm.ship)}</span></div><i class="hp"><u></u></i><div class="h3"><span class="st"></span><div class="cells"></div></div></div>`);
       r.style.setProperty('--tc', tm.color); r.dataset.hd = i;
-      r.addEventListener('pointerdown', (ev) => { if (ev.target.closest('.sc')) return; this.onHd && this.onHd(i); if (this.dbl('h' + i)) this.onFocus && this.onFocus('hd', i); });
+      r.addEventListener('pointerdown', (ev) => { if (ev.target.closest('.sc')) return; this.onHd && this.onHd(i); if (document.body.classList.contains('lay-phone')) { if (this.dbl('h' + i)) { this.hdOpen(i); this.onFocus && this.onFocus('hd', i); } else this.hdOpen(i); return; } if (this.dbl('h' + i)) this.onFocus && this.onFocus('hd', i); });     // (0.21: on a phone a tap opens the chip, a double tap goes there)
       const cells = r.querySelector('.cells');
       for (const id of tm.ids) {
         const sg = m.strat.groups[id], d = sg.def, c = el('div', 'sc', `<span class="g">${d.g}</span><i class="f"></i>`);
@@ -498,10 +535,10 @@ export class Hud {
         c.addEventListener('pointerenter', (ev) => ev.pointerType === 'mouse' && this.tip(c, () => stratShort(m, id), () => stratInfo(m, id), 0));
         c.addEventListener('pointerleave', (ev) => { if (ev.pointerType === 'mouse') this.tipLeave(); });
         c.addEventListener('pointerdown', (ev) => { ev.stopPropagation(); this.tip(c, () => stratShort(m, id), () => stratInfo(m, id)); });
-        cells.appendChild(c); this.sc.push({ el: c, f: c.querySelector('.f'), id, key: '' });
+        cells.appendChild(c); this.sc.push({ el: c, f: c.querySelector('.f'), id, row: i, key: '' });
       }
       rows.appendChild(r);
-      this.rr.push({ el: r, t: r.querySelector('.t'), ship: r.querySelector('.ship'), hp: r.querySelector('.hp u'), st: r.querySelector('.st'), key: '' });
+      this.rr.push({ el: r, t: r.querySelector('.t'), ship: r.querySelector('.ship'), hp: r.querySelector('.hp u'), st: r.querySelector('.st'), rn: r.querySelector('.rn'), key: '', rk: '' });
     });
     // (0.19.1) the dock's chips: a letter and a health bar each, so the Helldivers can be watched with the sheet shut
     const hc = document.querySelector('#dk-hd .hdc'); hc.innerHTML = ''; this.hc = [];
@@ -584,7 +621,7 @@ export class Hud {
     this.tipTick();
     // a squad picked: its tip over its button (when the button is on screen)
     if (this.last.selS !== m.seaf.sel) {
-      if (this.last.selS !== undefined) {     // (0.19.1: over the dock's squads chip while the sheet is shut)
+      if (this.last.selS !== undefined && !document.body.classList.contains('lay-phone')) {     // (0.19.1: over the dock's squads chip while the sheet is shut; 0.21: a phone shows it on the line over the panel instead)
         const b = this.sqb.find((q) => q.i === m.seaf.sel), at = b && b.el.offsetParent ? b.el : this.dkSq.offsetParent ? this.dkSq : null;
         if (at) this.tip(at, () => squadShort(m, m.seaf.sel), () => squadInfo(m, m.seaf.sel));
       }
@@ -625,8 +662,17 @@ export class Hud {
       const key = `${name}|${st}|${Math.round(f * 24)}|${cls}|${ship}`;
       if (r.key === key) return;
       r.key = key; r.t.textContent = name; r.st.textContent = st; r.hp.style.width = `${Math.max(0, Math.min(1, f)) * 100}%`; r.ship.textContent = ship;
-      r.el.className = 'hr' + (cls ? ' ' + cls : '');
+      r.el.className = 'hr' + (cls ? ' ' + cls : '') + (this._hdOpen === i ? ' open' : '');
     });
+  }
+  // (0.21) phones: the Helldivers are four chips (letter, health, stratagems ready); a tap on one shows its full row for a few
+  // seconds (a tap again, or another chip, closes it)
+  hdOpen(i) {
+    clearTimeout(this._hdT);
+    this._hdOpen = this._hdOpen === i ? -1 : i;
+    (this.rr || []).forEach((r, k) => r.el.classList.toggle('open', k === this._hdOpen));
+    $('hdpanel').classList.toggle('pop', this._hdOpen >= 0);
+    if (this._hdOpen >= 0) this._hdT = setTimeout(() => this.hdOpen(this._hdOpen), 5000);
   }
 
   _supply(m) {
@@ -652,6 +698,11 @@ export class Hud {
       if (c.key === key) continue;
       c.key = key; c.el.className = 'sc ' + st; c.f.style.height = `${(1 - rdy) * 100}%`;
     }
+    // (0.21) how many of each Helldiver's stratagems are ready (the phone's chips)
+    (this.rr || []).forEach((r, i) => {
+      const n = this.sc.filter((c) => c.row === i && /^sc rdy/.test(c.el.className) && !/\boff\b/.test(c.el.className)).length, k = String(n);
+      if (r.rk !== k) { r.rk = k; r.rn.textContent = `${n}⚡`; r.rn.classList.toggle('z', !n); }
+    });
   }
 
   // State of the SEAF order buttons. Orders go to the selected squad, or to every squad when ALL is selected.
@@ -717,6 +768,11 @@ export class Hud {
     for (const [f, b] of Object.entries(this.frm)) {
       const on = forms.size === 1 && forms.has(f), key = `${on}|${tq.length > 0}|${getLang()}`;
       if (b.key !== key) { b.key = key; b.n.textContent = t('form.' + f); b.el.className = 'frm' + (on ? ' on' : '') + (tq.length ? '' : ' off'); }
+    }
+    if (this.fcyc) {     // the phone's one formation button: the formation now (or FORM when the squads differ)
+      const one = forms.size === 1 ? [...forms][0] : null, key = `${one}|${tq.length > 0}|${getLang()}`;
+      this._formNow = one || FORMS[FORMS.length - 1];
+      if (this.fcyc.key !== key) { this.fcyc.key = key; this.fcyc.n.textContent = one ? t('form.' + one) : t('hud.form'); this.fcyc.i.className = 'fg fg-' + (one || 'loose'); this.fcyc.el.className = 'sqa fcyc' + (tq.length ? ' ready' : ' off'); }
     }
     // how tall the console is, so the drop menus sit just above it
     const h = $('tactical').offsetHeight;
@@ -852,8 +908,9 @@ export class Hud {
         + `<div class="ts-r">${esc(t('card.ord.' + (q.order.kind === 'post' ? 'post' : q.order.kind === 'build' ? 'build' : q.order.kind)) || q.order.kind)} · ${esc(t('form.' + (q.form || 'loose')))}</div>`;
     } else {
       const n = m.countAlly('S'), loose = m.seafAlive.filter((a) => a.sq === -3).length;
-      h = `<div class="ts-h">${esc(t('hud.all'))} <i>${esc(t('tac.troopers', { n }))}</i></div>${loose ? `<div class="ts-r">${esc(t('tac.loose', { n: loose }))}</div>` : ''}<div class="ts-b">${esc(t(n ? 'tac.selHint' : 'tac.noSeaf'))}</div>`;
+      h = `<div class="ts-h">${esc(t('hud.all'))} <i>${esc(t('tac.troopers', { n }))}</i></div>${loose ? `<div class="ts-r">${esc(t('tac.loose', { n: loose }))}</div>` : ''}<div class="ts-b">${esc(t(n ? (document.body.classList.contains('touch') ? 'tac.selHintTouch' : 'tac.selHint') : 'tac.noSeaf'))}</div>`;
     }
+    $('selpanel').classList.toggle('empty', !(sel && !sel.dead) && !(sf.sel === -2 && sf.pick) && !(q && q.n));     // (0.21: nothing picked; phones fold the line away)
     this._set('tacsel', $('tc-sel'), h, 'innerHTML');
   }
   // The selected post, site or sentry: name, level, health and crew in a small panel just above it on the map, with a door to send
@@ -1523,6 +1580,7 @@ export function buildSettings(settings, onChange) {
   };
   row(t('set.lang'), t('set.langHint'), select('lang', Object.entries(LANGS).map(([k, v]) => [k, v.name])));
   row(t('set.enemy'), t('set.enemyHint'), select('enemy', ENEMIES.map((e) => [e, t('enemy.' + e)])));
+  row(t('set.layout'), t('set.layoutHint'), select('layout', [['auto', t('set.lay.auto')], ['phone', t('set.lay.phone')], ['tab', t('set.lay.tab')], ['desk', t('set.lay.desk')]]));
   row(t('set.ui'), t('set.uiHint'), select('uiScale', [['0.8', '80%'], ['0.9', '90%'], ['1', '100%'], ['1.15', '115%'], ['1.3', '130%']]));
   row(t('set.mini'), t('set.miniHint'), select('mini', [['1', '1×'], ['1.5', '1.5×'], ['2', '2×'], ['2.5', '2.5×']]));
   row(t('set.thermal'), t('set.thermalHint'), select('polarity', [['white', t('set.white')], ['black', t('set.black')]]));

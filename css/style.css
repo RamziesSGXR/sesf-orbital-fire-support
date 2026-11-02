@@ -1733,41 +1733,41 @@ body.rts #hud #softpause .sp-bar { top: auto; bottom: calc(var(--dcb, 210px) + v
 
 /* phones held sideways (and other short screens) */
 @media (max-height: 520px) {
-  body.rts #hud { --g: 6px; --bb: 92px; --wsh: 36px; --selw: 156px; --mmp: calc(min(112px, 30vh) * var(--mm) / 2); --mbw: 30px; }
-  body.rts #hud #topbar .bigcr b { font-size: 15px; } body.rts #hud #topbar .bigcr span { font-size: 9px; } body.rts #hud #topbar .bigcr { padding: 0 6px 1px; }
-  body.rts #hud .hud-tr { width: 210px; gap: 4px; }
-  body.rts #hud #center-msg { font-size: 12px; }
-  body.rts #hud #hdpanel .hr .h3 .st { display: none; } body.rts #hud #hdpanel .hr .sc { height: 12px; min-width: 16px; } body.rts #hud #hdpanel .hr .t { font-size: 9px; }
-  body.rts #hud #tactical { padding: 4px 5px; } body.rts #hud #tactical .tc-tabs { width: 40px; } body.rts #hud #tactical .tct span { display: none; } body.rts #hud #tactical .tct i { font-size: 14px; }
-  body.rts #hud #tactical .tc-l { display: none; }
-  body.rts #hud #tactical #squads .sqb, body.rts #hud #tactical #squads .sqa { height: 24px; } body.rts #hud #tactical .tco { height: 26px; } body.rts #hud #tactical .tco .k { display: none; } body.rts #hud #tactical .tco .n { margin-top: 1px; font-size: 8.5px; } body.rts #hud #tactical .tco .s { font-size: 8px; }
-  body.rts #hud #tactical .tac-sq { display: none !important; }
-  body.rts #hud #tactical[data-tab="units"] .frm { height: 22px; }
-  body.rts #hud #tactical .bld .n, body.rts #hud #tactical .bld .k, body.rts #hud #tactical .bld .c { display: none; }
-  body.rts #hud .mm-btns .btn { height: 21px; font-size: 8px; }
-  body.rts.touch #hud #fire-btn { width: 60px; height: 60px; }
-  body.rts.touch #hud #notices { margin-bottom: calc(60px + var(--g)); }
+  body.rts:not(.lay-phone) #hud { --g: 6px; --bb: 92px; --wsh: 36px; --selw: 156px; --mmp: calc(min(112px, 30vh) * var(--mm) / 2); --mbw: 30px; }
+  body.rts:not(.lay-phone) #hud #topbar .bigcr b { font-size: 15px; } body.rts:not(.lay-phone) #hud #topbar .bigcr span { font-size: 9px; } body.rts:not(.lay-phone) #hud #topbar .bigcr { padding: 0 6px 1px; }
+  body.rts:not(.lay-phone) #hud .hud-tr { width: 210px; gap: 4px; }
+  body.rts:not(.lay-phone) #hud #center-msg { font-size: 12px; }
+  body.rts:not(.lay-phone) #hud #hdpanel .hr .h3 .st { display: none; } body.rts:not(.lay-phone) #hud #hdpanel .hr .sc { height: 12px; min-width: 16px; } body.rts:not(.lay-phone) #hud #hdpanel .hr .t { font-size: 9px; }
+  body.rts:not(.lay-phone) #hud #tactical { padding: 4px 5px; } body.rts:not(.lay-phone) #hud #tactical .tc-tabs { width: 40px; } body.rts:not(.lay-phone) #hud #tactical .tct span { display: none; } body.rts:not(.lay-phone) #hud #tactical .tct i { font-size: 14px; }
+  body.rts:not(.lay-phone) #hud #tactical .tc-l { display: none; }
+  body.rts:not(.lay-phone) #hud #tactical #squads .sqb, body.rts:not(.lay-phone) #hud #tactical #squads .sqa { height: 24px; } body.rts:not(.lay-phone) #hud #tactical .tco { height: 26px; } body.rts:not(.lay-phone) #hud #tactical .tco .k { display: none; } body.rts:not(.lay-phone) #hud #tactical .tco .n { margin-top: 1px; font-size: 8.5px; } body.rts:not(.lay-phone) #hud #tactical .tco .s { font-size: 8px; }
+  body.rts:not(.lay-phone) #hud #tactical .tac-sq { display: none !important; }
+  body.rts:not(.lay-phone) #hud #tactical[data-tab="units"] .frm { height: 22px; }
+  body.rts:not(.lay-phone) #hud #tactical .bld .n, body.rts:not(.lay-phone) #hud #tactical .bld .k, body.rts:not(.lay-phone) #hud #tactical .bld .c { display: none; }
+  body.rts:not(.lay-phone) #hud .mm-btns .btn { height: 21px; font-size: 8px; }
+  body.rts.touch:not(.lay-phone) #hud #fire-btn { width: 60px; height: 60px; }
+  body.rts.touch:not(.lay-phone) #hud #notices { margin-bottom: calc(60px + var(--g)); }
 }
 /* phones held upright: the command panel across the bottom, the weapons over it with CALL; the selection and the minimap above */
 @media (orientation: portrait) and (max-width: 600px) {
-  body.rts #hud { --bb: 112px; --wsh: 56px; --selw: calc(100vw - var(--L) - var(--R) - var(--rcol) - var(--g)); --mmp: calc(112px * var(--mm) / 2); --mbw: 30px; --cl: var(--L); --cr: var(--R); --up: calc(var(--B) + var(--bb) + var(--wsh) + 2 * var(--g)); }
-  body.rts #hud #tactical { left: var(--L); right: var(--R); }
-  body.rts #hud #weapons { left: var(--L); right: calc(var(--R) + 56px + var(--g)); }
-  body.rts.touch #hud #fire-btn { width: 56px; height: 56px; bottom: calc(var(--B) + var(--bb) + var(--g)); }
-  body.rts #hud #selpanel { bottom: var(--up); height: max(var(--mmp), 96px); }
-  body.rts #hud .hud-br { bottom: var(--up); }
-  body.rts.touch #hud #notices { margin-bottom: 0; }
-  body.rts #hud #hdpanel { bottom: calc(var(--up) + max(var(--mmp), 96px) + var(--g)); }
-  body.rts #hud #topbar .bigcr b { font-size: 15px; } body.rts #hud #topbar .bigcr span { font-size: 9px; } body.rts #hud #topbar .bigcr { padding: 0 6px 1px; }
-  body.rts #hud .hud-tr { top: calc(var(--T) + 34px); width: 190px; }
-  body.rts #hud #center-msg { left: var(--L); right: calc(var(--R) + 200px); top: calc(var(--T) + 34px); font-size: 12px; }
-  body.rts #hud #tactical .tc-tabs { width: 40px; } body.rts #hud #tactical .tct span { display: none; }
-  body.rts #hud #tactical .tc-grid.tac-ord { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  body.rts #hud #tactical .tac-sq, body.rts #hud #tactical .tc-l { display: none !important; }
-  body.rts #hud #tactical .tco { height: 24px; } body.rts #hud #tactical .tco .k { display: none; } body.rts #hud #tactical .tco .n { margin-top: 0; font-size: 8.5px; } body.rts #hud #tactical .tco .s { font-size: 8px; }
-  body.rts #hud #tactical #squads .sqb, body.rts #hud #tactical #squads .sqa { height: 22px; }
-  body.rts #hud #tactical .tc-grid.tac-build { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  body.rts #hud #tactical .bld .n, body.rts #hud #tactical .bld .k, body.rts #hud #tactical .bld .c { display: none; }
+  body.rts:not(.lay-phone) #hud { --bb: 112px; --wsh: 56px; --selw: calc(100vw - var(--L) - var(--R) - var(--rcol) - var(--g)); --mmp: calc(112px * var(--mm) / 2); --mbw: 30px; --cl: var(--L); --cr: var(--R); --up: calc(var(--B) + var(--bb) + var(--wsh) + 2 * var(--g)); }
+  body.rts:not(.lay-phone) #hud #tactical { left: var(--L); right: var(--R); }
+  body.rts:not(.lay-phone) #hud #weapons { left: var(--L); right: calc(var(--R) + 56px + var(--g)); }
+  body.rts.touch:not(.lay-phone) #hud #fire-btn { width: 56px; height: 56px; bottom: calc(var(--B) + var(--bb) + var(--g)); }
+  body.rts:not(.lay-phone) #hud #selpanel { bottom: var(--up); height: max(var(--mmp), 96px); }
+  body.rts:not(.lay-phone) #hud .hud-br { bottom: var(--up); }
+  body.rts.touch:not(.lay-phone) #hud #notices { margin-bottom: 0; }
+  body.rts:not(.lay-phone) #hud #hdpanel { bottom: calc(var(--up) + max(var(--mmp), 96px) + var(--g)); }
+  body.rts:not(.lay-phone) #hud #topbar .bigcr b { font-size: 15px; } body.rts:not(.lay-phone) #hud #topbar .bigcr span { font-size: 9px; } body.rts:not(.lay-phone) #hud #topbar .bigcr { padding: 0 6px 1px; }
+  body.rts:not(.lay-phone) #hud .hud-tr { top: calc(var(--T) + 34px); width: 190px; }
+  body.rts:not(.lay-phone) #hud #center-msg { left: var(--L); right: calc(var(--R) + 200px); top: calc(var(--T) + 34px); font-size: 12px; }
+  body.rts:not(.lay-phone) #hud #tactical .tc-tabs { width: 40px; } body.rts:not(.lay-phone) #hud #tactical .tct span { display: none; }
+  body.rts:not(.lay-phone) #hud #tactical .tc-grid.tac-ord { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  body.rts:not(.lay-phone) #hud #tactical .tac-sq, body.rts:not(.lay-phone) #hud #tactical .tc-l { display: none !important; }
+  body.rts:not(.lay-phone) #hud #tactical .tco { height: 24px; } body.rts:not(.lay-phone) #hud #tactical .tco .k { display: none; } body.rts:not(.lay-phone) #hud #tactical .tco .n { margin-top: 0; font-size: 8.5px; } body.rts:not(.lay-phone) #hud #tactical .tco .s { font-size: 8px; }
+  body.rts:not(.lay-phone) #hud #tactical #squads .sqb, body.rts:not(.lay-phone) #hud #tactical #squads .sqa { height: 22px; }
+  body.rts:not(.lay-phone) #hud #tactical .tc-grid.tac-build { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  body.rts:not(.lay-phone) #hud #tactical .bld .n, body.rts:not(.lay-phone) #hud #tactical .bld .k, body.rts:not(.lay-phone) #hud #tactical .bld .c { display: none; }
 }
 
 /* (0.20) the command panel's contexts, a column of three; the formations in the troops context; one-line squad buttons */
@@ -1826,3 +1826,196 @@ body.rts #hud #tactical #squads .sqb.gone { display: none; }
 body.rts #hud #selpanel.flash { animation: selFlash 0.5s ease-out; }
 @keyframes selFlash { 0% { box-shadow: 0 0 0 2px rgba(255, 230, 0, 0.9), 0 0 18px rgba(255, 230, 0, 0.5); } 100% { box-shadow: none; } }
 @media (prefers-reduced-motion: reduce) { body.rts #hud #selpanel.flash { animation: none; border-color: var(--yellow); } }
+
+/* ======================= 0.21: three layouts (phone, tablet, desktop) ======================= */
+/* Settings > Interface layout (AUTO picks by the screen) puts lay-phone, lay-tab or lay-desk on the body, and lay-port or lay-land.
+   Desktop is 0.20's layout. Tablet is the same frame with controls sized for fingers. Phone puts the game first: thin bars at the
+   top (MENU, PAUSE and half speed with the resource bar; the clock and the objective; the drop countdown and the alerts), the
+   Helldivers as four chips, one line for what is picked (only when something is), the weapons by CALL, and a command panel two
+   rows high; BUILD and ARMORY pull it up as a drawer while they are used. */
+
+/* every layout: the top centre holds the drop countdown (one line) and the big alerts under it, off the middle of the map */
+body.rts #hud #topmid { position: absolute; top: var(--mT, var(--T)); left: var(--mL, 30%); right: var(--mR, 30%); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; z-index: 6; container-type: inline-size; }
+body.rts #hud #topmid #dropcd { position: static; left: auto; right: auto; top: auto; bottom: auto; transform: none; margin: 0; padding: 3px 4px 3px 12px; gap: 12px; flex-direction: row; max-width: 100%; pointer-events: auto; }
+body.rts #hud #topmid #dropcd .dc-t { flex-direction: row; align-items: baseline; gap: 10px; white-space: nowrap; }
+body.rts #hud #topmid #dropcd .dc-t b { font-size: 20px; }
+body.rts #hud #topmid #dropcd .btn { min-height: 34px; padding: 0 14px; white-space: nowrap; }
+body.rts #hud #topmid .dc-s { display: none; }
+body.rts #hud #topmid #center-msg { position: static; left: auto; right: auto; top: auto; width: auto; max-width: 100%; margin: 0; }
+body.rts #hud #topmid #center-msg:not(.show) { display: none; }
+@container (max-width: 300px) { body.rts #hud #topmid .dc-l { display: none; } body.rts #hud #topmid .dc-s { display: inline; } }
+@container (max-width: 190px) { body.rts #hud #topmid #dropcd .dc-t small { display: none; } }
+/* only the phone has these */
+body.rts:not(.lay-phone) #hud .fcyc, body.rts:not(.lay-phone) #hud .hr .rn { display: none; }
+
+/* ---------------------------------------------------------------- the tablet: 0.20's frame, sized for fingers */
+body.rts.lay-tab #hud { --g: 8px; --bb: 150px; --wsh: 58px; --selw: 250px; --mmp: calc(min(212px, 27vh) * var(--mm) / 2); --mbw: 50px; }
+body.rts.lay-tab #hud #topbar .bigcr b { font-size: 22px; } body.rts.lay-tab #hud #topbar .bigcr span { font-size: 12px; }
+body.rts.lay-tab #hud .hud-tr { width: 290px; }
+body.rts.lay-tab #hud #mbox, body.rts.lay-tab #hud .mb-sc { font-size: 12px; } body.rts.lay-tab #hud #objective { font-size: 12.5px; } body.rts.lay-tab #hud #obj-sub { font-size: 11px; }
+body.rts.lay-tab #hud #callouts .callout { font-size: 12px; } body.rts.lay-tab #hud #callouts .co-b { min-height: 40px; }
+body.rts.lay-tab #hud #center-msg { font-size: 16px; }
+body.rts.lay-tab #hud #hdpanel .hr { gap: 6px; padding: 2px 0; } body.rts.lay-tab #hud #hdpanel .hr .t { font-size: 12.5px; } body.rts.lay-tab #hud #hdpanel .hr .st { font-size: 11px; }
+body.rts.lay-tab #hud #hdpanel .hr .hp { height: 5px; } body.rts.lay-tab #hud #hdpanel .hr .sc { height: 22px; min-width: 30px; } body.rts.lay-tab #hud #hdpanel .hr .sc .g { font-size: 9.5px; }
+body.rts.lay-tab #hud #hdpanel .hr .l { font-size: 15px; }
+body.rts.lay-tab #hud #selpanel .ts-h { font-size: 13.5px; } body.rts.lay-tab #hud #selpanel .tc-sel { font-size: 12px; } body.rts.lay-tab #hud #selpanel .ts-h i { font-size: 11.5px; }
+body.rts.lay-tab #hud #selpanel .tt { width: 34px; height: 36px; } body.rts.lay-tab #hud #selpanel .tsd { min-height: 40px; font-size: 11.5px; }
+body.rts.lay-tab #hud #tactical .tc-tabs { width: 72px; } body.rts.lay-tab #hud #tactical .tct span { font-size: 10.5px; } body.rts.lay-tab #hud #tactical .tct i { font-size: 18px; }
+body.rts.lay-tab #hud #tactical .tct kbd, body.rts.lay-tab #hud #tactical .tco .k, body.rts.lay-tab #hud #tactical .sqa .k { display: none; }
+body.rts.lay-tab #hud #tactical[data-tab="units"] .tc-u { grid-template-rows: 42px 44px 40px; gap: 5px; }
+body.rts.lay-tab #hud #tactical .tac-sq { display: none !important; }
+body.rts.lay-tab #hud #tactical #squads { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)) !important; gap: 5px; }
+body.rts.lay-tab #hud #tactical #squads .sqb, body.rts.lay-tab #hud #tactical #squads .sqa { height: 42px; font-size: 12.5px; }
+body.rts.lay-tab #hud #tactical .tco { height: 44px; } body.rts.lay-tab #hud #tactical .tco .n { font-size: 12px; margin-top: 3px; } body.rts.lay-tab #hud #tactical .tco .s { font-size: 10.5px; }
+body.rts.lay-tab #hud #tactical .tc-u .frm { height: 40px; font-size: 11.5px; }
+body.rts.lay-tab #hud #tactical .tc-b .tc-list { max-height: 36px; } body.rts.lay-tab #hud #tactical .tc-b .tc-list .btn { min-height: 34px; font-size: 11px; }
+body.rts.lay-tab #hud #tactical .bld .n { font-size: 10.5px; } body.rts.lay-tab #hud #tactical .bld .c { font-size: 10.5px; }
+body.rts.lay-tab #hud .la-tab { height: 34px; font-size: 11.5px; padding: 0 12px; } body.rts.lay-tab #hud .la-p { width: 38px; height: 34px; } body.rts.lay-tab #hud .la-pg { font-size: 11.5px; }
+body.rts.lay-tab #hud .la-it .la-n { font-size: 12px; } body.rts.lay-tab #hud .la-it .la-s { font-size: 11px; }
+body.rts.lay-tab #hud #weapons .wbtn { max-width: 150px; } body.rts.lay-tab #hud #weapons .wbtn .n { font-size: 12px; } body.rts.lay-tab #hud #weapons .wbtn .sub { font-size: 13px; }
+body.rts.lay-tab #hud .mm-btns { gap: 4px; } body.rts.lay-tab #hud .mm-btns .btn, body.rts.lay-tab #hud .mm-btns #btn-follow { height: 40px; font-size: 11px; } body.rts.lay-tab #hud .mm-btns #btn-follow .n { font-size: 15px; }
+body.rts.lay-tab #hud #notices .nt { font-size: 12px; padding: 3px 7px; }
+body.rts.lay-tab.touch #hud #fire-btn { width: 84px; height: 84px; font-size: 17px; }
+body.rts.lay-tab.touch #hud #notices { margin-bottom: calc(84px + var(--g)); }
+body.rts.lay-tab #hud #topmid #dropcd .dc-t small { font-size: 12px; } body.rts.lay-tab #hud #topmid #dropcd .btn { min-height: 44px; font-size: 14px; }
+/* a tablet held upright: the command panel across the bottom, the weapons over it with CALL; the selection and the minimap above */
+body.rts.lay-tab.lay-port #hud { --wsh: 64px; --mbw: 50px; --mmp: calc(min(196px, 20vh) * var(--mm) / 2); --cl: var(--L); --cr: var(--R);
+  --selw: calc(100vw / var(--ui, 1) - var(--L) - var(--R) - var(--rcol) - var(--g)); --up: calc(var(--B) + var(--bb) + var(--wsh) + 2 * var(--g)); }
+body.rts.lay-tab.lay-port #hud #tactical { left: var(--L); right: var(--R); }
+body.rts.lay-tab.lay-port #hud #weapons { left: var(--L); right: calc(var(--R) + 84px + var(--g)); }
+body.rts.lay-tab.lay-port.touch #hud #fire-btn { width: 84px; height: var(--wsh); border-radius: 12px; bottom: calc(var(--B) + var(--bb) + var(--g)); }
+/* one band over the weapons: the Helldivers, what is picked, the minimap */
+body.rts.lay-tab.lay-port #hud #hdpanel { bottom: var(--up); left: var(--L); width: min(46%, 380px); }
+body.rts.lay-tab.lay-port #hud #selpanel { bottom: var(--up); left: calc(var(--L) + min(46%, 380px) + var(--g)); right: calc(var(--R) + var(--rcol) + var(--g)); width: auto; height: var(--mmp); }
+body.rts.lay-tab.lay-port #hud .hud-br { bottom: var(--up); }
+body.rts.lay-tab.lay-port.touch #hud #notices { margin-bottom: 0; }
+
+/* ---------------------------------------------------------------- the phone: the game first */
+body.rts.lay-phone #hud { --g: 6px; --tb: 36px; --pb: 40px; --bb: calc(2 * var(--pb) + 4px + 10px); --bbx: 150px; --bbn: var(--bb); --wsh: 58px; --callw: 70px;
+  --mmp: calc(84px * var(--mm) / 2); --chw: 108px; }
+body.rts.lay-phone.lay-port #hud { --bbx: 196px; --wsh: 84px; --callw: 64px; }
+body.rts.lay-phone:not(.touch) #hud { --callw: 0px; }
+body.rts.lay-phone #hud:has(#tactical[data-tab="build"]), body.rts.lay-phone #hud:has(#tactical[data-tab="armory"]) { --bbn: var(--bbx); }
+/* gone on a phone: the mission's name and score lines, the objective's second line, INFO (a tap on the clock or the objective
+   opens it), the TROOPS button (BUILD or ARMORY pressed again goes back), the join-a-squad row, the five formation buttons (one
+   FORM button steps through them), key letters, and the S1-S9 row's labels */
+body.rts.lay-phone #hud #opname, body.rts.lay-phone #hud .mb-sc, body.rts.lay-phone #hud #combo, body.rts.lay-phone #hud #obj-sub, body.rts.lay-phone #hud #btn-info,
+body.rts.lay-phone #hud #tactical .tct[data-tab="units"], body.rts.lay-phone #hud #tactical .tac-sq, body.rts.lay-phone #hud #tactical .tac-form, body.rts.lay-phone #hud #tactical .tc-l,
+body.rts.lay-phone #hud #tactical .tct kbd, body.rts.lay-phone #hud #tactical .tco .k, body.rts.lay-phone #hud #tactical .sqa .k, body.rts.lay-phone #hud #tactical .bld .k { display: none !important; }
+/* the minimap's column is not a box on a phone: its pieces sit on their own */
+body.rts.lay-phone #hud .hud-br, body.rts.lay-phone #hud .mm-wrap, body.rts.lay-phone #hud .mm-btns { display: contents; }
+/* top left: MENU, PAUSE and half speed, then the resource bar */
+body.rts.lay-phone #hud .mm-btns .btn, body.rts.lay-phone #hud .mm-btns #btn-follow { position: absolute; top: var(--T); width: 44px; height: var(--tb); min-height: 0; padding: 0; font-size: 10.5px; display: flex; align-items: center; justify-content: center; }
+body.rts.lay-phone #hud #btn-menu { left: var(--L); } body.rts.lay-phone #hud #btn-pause { left: calc(var(--L) + 48px); } body.rts.lay-phone #hud #btn-speed { left: calc(var(--L) + 96px); }
+body.rts.lay-phone #hud #topbar { left: calc(var(--L) + 146px); top: var(--T); }
+body.rts.lay-phone #hud #topbar .cr-row { gap: 4px; height: var(--tb); }
+body.rts.lay-phone #hud #topbar .bigcr { position: relative; display: flex; align-items: center; gap: 4px; padding: 0 7px; height: var(--tb); }
+body.rts.lay-phone #hud #topbar .bigcr b { font-size: 15px; } body.rts.lay-phone #hud #topbar .bigcr span { font-size: 10px; letter-spacing: 0.06em; }
+body.rts.lay-phone #hud #topbar .bigcr i { position: absolute; left: 4px; top: 100%; font-size: 11px; white-space: nowrap; }
+body.rts.lay-phone.lay-port #hud #topbar .seafc { display: none; }     /* (the squad bar's ALL shows the troopers) */
+/* top right (sideways) or under the top bar (upright): the clock, the objective, the requests */
+body.rts.lay-phone #hud .hud-tr { top: var(--T); right: var(--R); width: 220px; gap: 4px; }
+body.rts.lay-phone #hud #mbox { padding: 2px 8px; height: var(--tb); display: flex; align-items: center; cursor: pointer; }
+body.rts.lay-phone #hud #mbox .mb-top { flex: 1; gap: 8px; }
+body.rts.lay-phone #hud #timer { font-size: 17px; } body.rts.lay-phone #hud .mb-id { font-size: 10.5px; white-space: nowrap; }
+body.rts.lay-phone #hud #objective { padding: 3px 8px; font-size: 11px; text-align: left; cursor: pointer; }
+body.rts.lay-phone #hud #obj-main { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.rts.lay-phone #hud #callouts .callout { font-size: 11px; padding: 3px 6px; } body.rts.lay-phone #hud #callouts .co-b { min-height: 36px; font-size: 10.5px; }
+body.rts.lay-phone #hud #callouts .co-b kbd { display: none; }
+body.rts.lay-phone #hud #place-hint { font-size: 11px; }
+/* the top centre */
+body.rts.lay-phone #hud #topmid #dropcd { padding: 2px 3px 2px 9px; gap: 8px; } body.rts.lay-phone #hud #topmid #dropcd .dc-t b { font-size: 17px; }
+body.rts.lay-phone #hud #topmid #dropcd .dc-t small { font-size: 10px; } body.rts.lay-phone #hud #topmid #dropcd .btn { min-height: 34px; padding: 0 12px; font-size: 12px; }
+body.rts.lay-phone #hud #topmid #dropcd kbd { display: none; }
+body.rts.lay-phone #hud #topmid .dc-l { display: none; } body.rts.lay-phone #hud #topmid .dc-s { display: inline; }
+body.rts.lay-phone #hud #topmid #center-msg { font-size: 12px; padding: 4px 10px; letter-spacing: 0.1em; }
+/* the Helldivers: four chips (a letter, the health, how many stratagems are ready); a tap opens the full row for a moment */
+body.rts.lay-phone #hud #hdpanel { left: var(--L); top: calc(var(--T) + var(--tb) + var(--g)); bottom: auto; width: var(--chw); }
+body.rts.lay-phone #hud #hdpanel #sqpanel { padding: 3px 5px; position: relative; }
+body.rts.lay-phone #hud #hdpanel #hdrows { gap: 3px; }
+body.rts.lay-phone #hud #hdpanel .hr { grid-template-columns: 12px minmax(0, 1fr) auto; gap: 5px; min-height: 24px; padding: 0; }
+body.rts.lay-phone #hud #hdpanel .hr .l { font-size: 13px; }
+body.rts.lay-phone #hud #hdpanel .hr .rn { order: 3; font-size: 10.5px; color: #ffd24a; white-space: nowrap; } body.rts.lay-phone #hud #hdpanel .hr .rn.z { color: var(--g-dim); }
+body.rts.lay-phone #hud #hdpanel .hr .hp { height: 6px; margin: 0; }
+body.rts.lay-phone #hud #hdpanel .hr:not(.open) .h1, body.rts.lay-phone #hud #hdpanel .hr:not(.open) .h3 { display: none; }
+body.rts.lay-phone #hud #hdpanel.pop { width: 250px; z-index: 7; }
+body.rts.lay-phone #hud #hdpanel .hr.open { padding: 3px 0; }
+body.rts.lay-phone #hud #hdpanel .hr.open .t { font-size: 11.5px; } body.rts.lay-phone #hud #hdpanel .hr.open .st { font-size: 10.5px; }
+body.rts.lay-phone #hud #hdpanel .hr.open .sc { height: 22px; min-width: 30px; } body.rts.lay-phone #hud #hdpanel .hr.open .sc .g { font-size: 9px; }
+/* bottom: the command panel, two rows (BUILD and ARMORY pull it up while they are used) */
+body.rts.lay-phone #hud #tactical { left: var(--L); right: calc(var(--R) + var(--callw) + var(--g) + var(--wpw, 190px) + var(--g)); bottom: var(--B); height: var(--bbn); padding: 5px; z-index: 4; }
+body.rts.lay-phone #hud #tactical .tc-body { gap: 5px; }
+body.rts.lay-phone #hud #tactical .tc-tabs { width: 46px; gap: 4px; }
+body.rts.lay-phone #hud #tactical .tct { min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+body.rts.lay-phone #hud #tactical .tct span { display: block; font-size: 9px; letter-spacing: 0.04em; } body.rts.lay-phone #hud #tactical .tct i { font-size: 17px; }
+body.rts.lay-phone #hud #tactical[data-tab="units"] .tc-u { grid-template-rows: var(--pb) var(--pb); gap: 4px; }
+body.rts.lay-phone #hud #tactical #squads { display: flex !important; gap: 4px; height: var(--pb); overflow: hidden; }
+body.rts.lay-phone #hud #tactical #squads .sqbs { display: contents; }
+body.rts.lay-phone #hud #tactical #squads .sqb, body.rts.lay-phone #hud #tactical #squads .sqa { flex: 1 1 0; min-width: 40px; height: 100%; padding: 0 3px; font-size: 11.5px; }
+body.rts.lay-phone #hud #tactical #squads .sqa .n { font-size: 10.5px; }
+body.rts.lay-phone #hud #tactical #squads .fcyc { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+body.rts.lay-phone #hud #tactical #squads .fcyc .fg { transform: scale(0.8); }
+body.rts.lay-phone #hud #tactical .tc-grid.tac-ord { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
+body.rts.lay-phone #hud #tactical .tco { height: var(--pb); padding: 0 2px; } body.rts.lay-phone #hud #tactical .tco .n { margin-top: 2px; font-size: 10.5px; letter-spacing: 0; } body.rts.lay-phone #hud #tactical .tco .s { font-size: 10px; }
+body.rts.lay-phone #hud #tactical .tc-b .tc-list { max-height: 34px; } body.rts.lay-phone #hud #tactical .tc-b .tc-list .btn { min-height: 32px; font-size: 10.5px; }
+body.rts.lay-phone #hud #tactical .tc-grid.tac-build { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 4px; }
+body.rts.lay-phone #hud #tactical .bld .n { display: block; font-size: 9.5px; } body.rts.lay-phone #hud #tactical .bld .c { font-size: 9.5px; }
+body.rts.lay-phone #hud .la-tab { height: 32px; font-size: 10.5px; padding: 0 8px; } body.rts.lay-phone #hud .la-p { width: 34px; height: 32px; }
+body.rts.lay-phone #hud .la-it .la-n { font-size: 11px; } body.rts.lay-phone #hud .la-it .la-s { font-size: 10.5px; }
+/* bottom right: the weapons, two rows, by CALL */
+body.rts.lay-phone #hud #weapons { left: auto; right: calc(var(--R) + var(--callw) + var(--g)); bottom: var(--B); top: auto; width: auto; height: var(--bb); display: grid; grid-auto-flow: column; grid-template-rows: repeat(2, minmax(0, 1fr)); grid-auto-columns: 70px; gap: 4px; transform: none; }
+body.rts.lay-phone #hud #weapons .wbtn { max-width: none; width: auto; height: auto; min-width: 0; padding: 3px 5px; }
+body.rts.lay-phone #hud #weapons .wbtn .k { display: none; } body.rts.lay-phone #hud #weapons .wbtn .n { font-size: 10.5px; padding-right: 0; } body.rts.lay-phone #hud #weapons .wbtn .sub { font-size: 11px; margin-top: 1px; }
+body.rts.lay-phone #hud #weapons .wbtn .bar { height: 3px; }
+body.rts.lay-phone.touch #hud #fire-btn { position: absolute; right: var(--R); bottom: var(--B); left: auto; top: auto; width: var(--callw); height: var(--callw); font-size: 14px; }
+/* the minimap, small, at the right above CALL; the camera button by it */
+body.rts.lay-phone #hud #minimap { position: absolute; right: var(--R); bottom: calc(var(--B) + var(--bb) + var(--g)); top: auto; left: auto; width: var(--mmp); height: var(--mmp); }
+body.rts.lay-phone #hud .mm-btns #btn-follow { top: auto; right: calc(var(--R) + var(--mmp) + var(--g)); bottom: calc(var(--B) + var(--bb) + var(--g)); left: auto; width: 40px; }
+body.rts.lay-phone #hud .mm-btns #btn-follow .n { font-size: 16px; }
+/* what is picked: one line over the command panel, only when something is */
+body.rts.lay-phone #hud #selpanel { left: var(--L); right: calc(var(--R) + var(--mmp) + 2 * var(--g) + 40px); bottom: calc(var(--B) + var(--bbn) + var(--g)); width: auto; height: 36px; padding: 2px 8px; }
+body.rts.lay-phone #hud #selpanel.empty { display: none; }
+body.rts.lay-phone #hud #selpanel .tc-sel { display: flex; align-items: center; gap: 8px; white-space: nowrap; overflow: hidden; font-size: 11px; }
+body.rts.lay-phone #hud #selpanel .ts-h { font-size: 12px; flex: none; } body.rts.lay-phone #hud #selpanel .ts-h i { font-size: 10.5px; }
+body.rts.lay-phone #hud #selpanel .ts-hp { width: 48px; flex: none; margin: 0; }
+body.rts.lay-phone #hud #selpanel .ts-r { margin: 0; overflow: hidden; text-overflow: ellipsis; }
+body.rts.lay-phone #hud #selpanel .ts-tiles, body.rts.lay-phone #hud #selpanel .ts-b { display: none; }
+body.rts.lay-phone #hud #selpanel .ts-doors { margin: 0 0 0 auto; flex: none; } body.rts.lay-phone #hud #selpanel .tsd { min-height: 30px; font-size: 10.5px; padding: 0 8px; }
+/* the short log: two lines over what is picked; the toasts and the pause strip above that */
+body.rts.lay-phone #hud #notices { position: absolute; left: var(--L); right: calc(var(--R) + var(--mmp) + 2 * var(--g) + 40px); bottom: calc(var(--B) + var(--bbn) + 36px + 2 * var(--g)); max-height: none; margin: 0; align-items: flex-start; }
+body.rts.lay-phone #hud #notices .nt { font-size: 10.5px; padding: 2px 6px; max-width: 100%; }
+body.rts.lay-phone #hud #notices .nt:nth-last-child(n+3) { display: none; }
+body.rts.lay-phone #hud:has(#tactical[data-tab="build"]) #notices, body.rts.lay-phone #hud:has(#tactical[data-tab="armory"]) #notices,
+body.rts.lay-phone #hud:has(#tactical[data-tab="build"]) #selpanel, body.rts.lay-phone #hud:has(#tactical[data-tab="armory"]) #selpanel { visibility: hidden; }
+body.rts.lay-phone #hud #toast { left: 50%; bottom: calc(var(--B) + var(--bbn) + 36px + 50px + 3 * var(--g)); transform: translateX(-50%); max-width: 80vw; font-size: 11px; }
+body.rts.lay-phone #hud #softpause .sp-bar { left: 50%; bottom: calc(var(--B) + var(--bbn) + 36px + 2 * var(--g)); transform: translateX(-50%); }
+
+/* the phone held upright: chips across the top, the minimap at the top right; the weapons in a row over the command panel */
+body.rts.lay-phone.lay-port #hud #hdpanel { right: calc(var(--R) + var(--mmp) + var(--g)); width: auto; }
+body.rts.lay-phone.lay-port #hud #hdpanel #hdrows { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+body.rts.lay-phone.lay-port #hud #hdpanel .hr + .hr { border-top: 0; }
+body.rts.lay-phone.lay-port #hud #hdpanel.pop { width: auto; }
+body.rts.lay-phone.lay-port #hud #hdpanel .hr.open { grid-column: 1 / -1; order: 5; }
+body.rts.lay-phone.lay-port #hud .hud-tr { top: calc(var(--T) + var(--tb) + 30px + 2 * var(--g)); left: var(--L); right: calc(var(--R) + var(--mmp) + var(--g)); width: auto; flex-direction: row; flex-wrap: wrap; align-items: stretch; }
+body.rts.lay-phone.lay-port #hud .hud-tr #mbox { flex: none; } body.rts.lay-phone.lay-port #hud .hud-tr #objective { flex: 1 1 120px; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+body.rts.lay-phone.lay-port #hud .hud-tr #place-hint, body.rts.lay-phone.lay-port #hud .hud-tr #callouts { flex: 1 1 100%; }
+body.rts.lay-phone.lay-port #hud #minimap { top: calc(var(--T) + var(--tb) + var(--g)); bottom: auto; }
+body.rts.lay-phone.lay-port #hud .mm-btns #btn-follow { top: calc(var(--T) + var(--tb) + 2 * var(--g) + var(--mmp)); right: var(--R); bottom: auto; width: var(--mmp); height: 32px; }
+body.rts.lay-phone.lay-port #hud #tactical { right: var(--R); }
+body.rts.lay-phone.lay-port #hud #weapons { left: var(--L); right: calc(var(--R) + var(--callw) + var(--g)); bottom: calc(var(--B) + var(--bbn) + var(--g)); height: var(--wsh); grid-auto-flow: row; grid-template-rows: repeat(2, minmax(0, 1fr)); grid-template-columns: repeat(var(--wpc, 3), minmax(0, 1fr)); }     /* two rows, so every name fits */
+body.rts.lay-phone.lay-port.touch #hud #fire-btn { bottom: calc(var(--B) + var(--bbn) + var(--g)); width: var(--callw); height: var(--wsh); border-radius: 12px; }
+body.rts.lay-phone.lay-port #hud #selpanel { right: var(--R); bottom: calc(var(--B) + var(--bbn) + var(--wsh) + 2 * var(--g)); }
+body.rts.lay-phone.lay-port #hud #notices { right: var(--R); bottom: calc(var(--B) + var(--bbn) + var(--wsh) + 36px + 3 * var(--g)); }
+body.rts.lay-phone.lay-port #hud #toast { bottom: calc(var(--B) + var(--bbn) + var(--wsh) + 36px + 50px + 4 * var(--g)); }
+body.rts.lay-phone.lay-port #hud #softpause .sp-bar { bottom: calc(var(--B) + var(--bbn) + var(--wsh) + 36px + 3 * var(--g)); }
+/* the Helldivers before they land (or while one waits for a new drop): the chip says when */
+body.rts.lay-phone #hud #hdpanel .hr:is(.drop, .wait, .lost):not(.open) .h3 { display: flex; } body.rts.lay-phone #hud #hdpanel .hr:is(.drop, .wait, .lost):not(.open) .h3 .cells { display: none; }
+body.rts.lay-phone #hud #hdpanel .hr:is(.drop, .wait, .lost):not(.open) .st { display: block; font-size: 10.5px; color: var(--g-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.rts.lay-phone #hud #hdpanel .hr:is(.drop, .wait, .lost):not(.open) .hp, body.rts.lay-phone #hud #hdpanel .hr:is(.drop, .wait, .lost) .rn { display: none; }
+/* (nothing under 10 px on a phone) */
+body.rts.lay-phone #hud #mb-num, body.rts.lay-phone #hud #mb-diff { font-size: 10.5px; }
+body.rts.lay-phone #hud #tactical .tct span { font-size: 10px; }
+body.rts.lay-phone #hud #tactical #squads .sqb .s { font-size: 10px; }
+body.rts.lay-phone #hud #tactical .bld .n, body.rts.lay-phone #hud #tactical .bld .c, body.rts.lay-phone #hud #tactical .bld .s { font-size: 10px; }
+body.rts.lay-phone #hud #hdpanel .hr:is(.drop, .wait, .lost):not(.open) .st { letter-spacing: 0; }
+body.rts.lay-tab #hud #tactical #squads .sqb .n, body.rts.lay-tab #hud #tactical #squads .sqa .n { font-size: 12.5px; } body.rts.lay-tab #hud #tactical #squads .sqb .s { font-size: 11.5px; }

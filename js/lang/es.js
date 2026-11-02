@@ -1531,4 +1531,16 @@ export default {
   // ---------- 0.20 ----------
   'arm.noneLive': 'Aquí no se puede mejorar nada durante una misión.',
   'hud.seafTitle': 'Soldados SEAF en tierra, sobre el máximo posible',
+  // ---------- 0.21: three layouts ----------
+  'set.layout': 'Disposición de la interfaz',
+  'set.layoutHint': 'Cómo se colocan los controles en misión: para móvil, tableta u ordenador. AUTO elige según tu pantalla.',
+  'set.lay.auto': 'Auto',
+  'set.lay.phone': 'Móvil',
+  'set.lay.tab': 'Tableta',
+  'set.lay.desk': 'Ordenador',
+  'tac.startNote': 'Los Helldivers caen en 30 s: coloca antes al SEAF.',
+  'hud.dropShort': 'CAÍDA EN',
+  'hud.deployShort': 'DESPLEGAR',
+  'hud.form': 'FORM.',
+  'tac.selHintTouch': 'Toca un soldado para elegirlo (dos veces: su escuadra; mantén el dedo sobre otros para añadirlos). Luego toca el mapa para dar una orden.',
 };

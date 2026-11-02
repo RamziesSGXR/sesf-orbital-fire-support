@@ -19,6 +19,10 @@ const page = await ctx.newPage();
 const errs = []; page.on('pageerror', (e) => errs.push(e.message));
 const ev = (f, a) => page.evaluate(f, a);
 const tap = (sel) => (touch ? page.tap(sel) : page.click(sel));
+const toTroops = async () => {     // (0.21) back to the troops: TROOPS, or on a phone (no TROOPS button) the open context's button again
+  const [ph, cur] = await page.evaluate(() => [document.body.classList.contains('lay-phone'), window.__game.hud.tcTab]);
+  if (!ph) await tap('#tactical .tct[data-tab="units"]'); else if (cur !== 'units') await tap(`#tactical .tct[data-tab="${cur}"]`);
+};
 const shot = (n) => page.screenshot({ path: path.join(SHOTS, `ui18_${mode}_${n}.png`) });
 const step = (sec) => ev((s) => { const m = window.__game.mission; for (let i = 0; i < Math.round(s * 30); i++) m.step(1 / 30); }, sec);
 await page.addInitScript(() => { try { localStorage.clear(); } catch (e) { /* */ } });
@@ -60,7 +64,7 @@ check('the MG nest is the Heavy Turret Nest', /HEAVY TURRET/.test(names[0]) && /
 const fit = await ev(() => { const g = document.querySelector('#tactical .tac-build').getBoundingClientRect(); return [...document.querySelectorAll('#tactical .bld')].every((b) => { const r = b.getBoundingClientRect(); return r.right <= g.right + 1 && r.left >= g.left - 1 && r.width > 30; }); });
 check('all eight fit in the build row', fit);
 await shot('tactical');
-await tap('#tactical .tct[data-tab="units"]'); await page.waitForTimeout(250);
+await toTroops(); await page.waitForTimeout(250);
 
 // ---------------------------------------------------------------- the Hellbomb's panel
 await ev(() => { const m = window.__game.mission, o = m.objectives[0], k = o.base; for (const q of o.parts) if (q !== k) m.destroyBase(q); for (const e of m.enemies) e.dead = true;

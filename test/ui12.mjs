@@ -47,7 +47,8 @@ const hb = await ev(() => [...document.querySelectorAll('#hdrows .hr')].map((b) 
 check('a Helldiver row for each group', hb.length === 4 && /A/.test(hb[0]), hb.join(' | '));
 // (0.19.1) their health on the dock; their rows on the sheet's HELLDIVERS tab
 const vis = await page.isVisible('#sqpanel');
-check('(0.20) the Helldivers\' rows are always on show, above the selection', vis && await ev(() => document.getElementById('hdpanel').getBoundingClientRect().bottom <= document.getElementById('selpanel').getBoundingClientRect().top + 1));
+check('(0.20) the Helldivers\' rows are always on show, above the selection (0.21: on a phone, four chips at the top)', vis && await ev(() => { const h = document.getElementById('hdpanel').getBoundingClientRect(), s = document.getElementById('selpanel').getBoundingClientRect();
+  return document.body.classList.contains('lay-phone') ? h.top < innerHeight * 0.3 && document.querySelectorAll('#hdrows .hr').length === 4 : h.bottom <= s.top + 1; }));
 await shot('bars');
 // double tap a Helldiver: the camera goes there
 const target = await ev(() => { const m = window.__game.mission, a = m.teams[2].hd; return a && !a.dead ? { x: a.x, y: a.y } : null; });

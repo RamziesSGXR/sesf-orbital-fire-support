@@ -22,6 +22,10 @@ const page = await ctx.newPage();
 const errs = []; page.on('pageerror', (e) => errs.push(e.message));
 const ev = (f, a) => page.evaluate(f, a);
 const tap = (sel) => (touch ? page.tap(sel) : page.click(sel));
+const toTroops = async () => {     // (0.21) back to the troops: TROOPS, or on a phone (no TROOPS button) the open context's button again
+  const [ph, cur] = await page.evaluate(() => [document.body.classList.contains('lay-phone'), window.__game.hud.tcTab]);
+  if (!ph) await tap('#tactical .tct[data-tab="units"]'); else if (cur !== 'units') await tap(`#tactical .tct[data-tab="${cur}"]`);
+};
 const at = (x, y) => (touch ? page.touchscreen.tap(x, y) : page.mouse.click(x, y));
 const shot = (n) => page.screenshot({ path: path.join(SHOTS, `ui17_${mode}_${n}.png`) });
 const on = (id) => ev((i) => document.getElementById(i).classList.contains('on'), id);
@@ -134,7 +138,7 @@ await shot('feed');
 await ev(() => { const S = window.__game.mission.supply; if (S) { S.state = 'idle'; S.ask = null; } });
 // the minimap: twice as big, with a setting
 const mm0 = (await box('#minimap')).w;
-check('the minimap is big enough to read (0.19.2: smaller on a computer, a quarter of the height or so)', touch ? mm0 >= 110 : mm0 >= 200 && mm0 <= 270, Math.round(mm0) + ' px');
+check('the minimap is big enough to read (0.19.2: smaller on a computer, a quarter of the height or so; 0.21: a phone keeps it small in a corner, a tap opens the big map)', (await ev(() => document.body.classList.contains('lay-phone'))) ? mm0 >= 80 : touch ? mm0 >= 110 : mm0 >= 200 && mm0 <= 270, Math.round(mm0) + ' px');
 await ev(() => window.__game.setSetting('mini', 1)); await page.waitForTimeout(150);
 const mm1 = (await box('#minimap')).w;
 check('Settings > Minimap size makes it smaller (and bigger)', mm1 < mm0 * 0.65, `${Math.round(mm0)} -> ${Math.round(mm1)} px`);
@@ -187,7 +191,7 @@ check('and (0.18) the game runs on', (await ev(() => window.__game.mission.t)) >
 await tap('#tactical .tct[data-tab="build"]'); await page.waitForTimeout(200);
 const pics = await ev(() => [...document.querySelectorAll('#tactical .bld canvas')].map((c) => { const d = c.getContext('2d').getImageData(c.width / 2 - 8, c.height / 2 - 8, 16, 16).data; let v = 0; for (let i = 0; i < d.length; i += 4) v += d[i] + d[i + 1] + d[i + 2]; return v; }));
 check('each build has a picture', pics.length === 8 && pics.every((v) => v > 0), pics.length + ' pictures');
-await tap('#tactical .tct[data-tab="units"]'); await page.waitForTimeout(200);
+await toTroops(); await page.waitForTimeout(200);
 check('TROOPS has the squad bar; the Helldivers stay on show', (await page.isVisible('#squads')) && (await page.isVisible('#sqpanel')));
 await tap('#tactical .tct[data-tab="build"]'); await page.waitForTimeout(200);
 await shot('tactical');
@@ -208,6 +212,7 @@ else {     // (0.20) one finger pans on a phone: a double tap on a trooper picks
 await page.waitForTimeout(250);
 const bsel = await ev(() => window.__game.mission.seaf.sel);
 check(touch ? 'a double tap on a trooper picks his squad (0.20)' : 'a box dragged round troopers picks them (0.18)', (bsel >= 0 || bsel === -2) && tr.n > 0, `squad ${bsel}, ${tr.n} troopers`);
+await page.waitForFunction(() => document.querySelectorAll('#tc-sel .tt').length >= 1, null, { timeout: 2000 }).catch(() => {});     // (the panel is refilled on the next HUD tick)
 check('the console shows them, a tile each', (await ev(() => document.querySelectorAll('#tc-sel .tt').length)) >= 1);
 // an order: a right click (a tap on the tactical screen) on open ground moves them there
 const dest = await ev(() => { const m = window.__game.mission, a = Math.atan2(m.ao.cy - m.hy, m.ao.cx - m.hx);     // (0.18: in toward the middle of the round map, clear of any site)
@@ -222,12 +227,14 @@ const ord = await ev(() => { const m = window.__game.mission, q = m.seaf.squads[
 check(touch ? 'a tap on the map sends the selected squad there' : 'a right click on the map sends the selected squad there', ord && ord.k === 'move' && Math.hypot(ord.x - dest.x, ord.y - dest.y) < 8, JSON.stringify(ord));
 // a build: pick it, then the map
 await tap('#tactical .bld[data-b="foxhole"]'); await page.waitForTimeout(150);
-check('picking a build waits for a spot on the map (its tile lit)', (await ev(() => window.__game.placing)) === 'build:foxhole' && await page.isVisible('#tactical .bld.on'));
+if (await ev(() => document.body.classList.contains('lay-phone'))) check('picking a build waits for a spot on the map, and (0.21) on a phone the drawer folds away to clear it', (await ev(() => window.__game.placing)) === 'build:foxhole' && (await ev(() => window.__game.hud.tcTab)) === 'units');
+else check('picking a build waits for a spot on the map (its tile lit)', (await ev(() => window.__game.placing)) === 'build:foxhole' && await page.isVisible('#tactical .bld.on'));
 const fx = await scr(dest.x + 6, dest.y - 6);
 await at(fx.x, fx.y); await page.waitForTimeout(200);
 check('a click (or tap) there orders it, and the screen stays open', (await ev(() => window.__game.mission.seaf.squads.some((q) => q.n && q.order.kind === 'build' && q.order.what === 'foxhole'))) && (await ev(() => window.__game.tac)) && !(await ev(() => window.__game.placing)));
 // a formation
-await tap('#tactical .tct[data-tab="units"]'); await page.waitForTimeout(150); await tap('#tactical .frm[data-f="line"]');   // (0.18: the formations are on the troops tab; 0.20: no keys, X is AUTO)
+await toTroops(); await page.waitForTimeout(150);
+if (await ev(() => document.body.classList.contains('lay-phone'))) await tap('#squads .fcyc'); else await tap('#tactical .frm[data-f="line"]');     // (0.21: a phone steps through them with one FORM button: LOOSE, then LINE)   // (0.18: the formations are on the troops tab; 0.20: no keys, X is AUTO)
 await page.waitForTimeout(150);
 check('a formation for the selected squad (the screen stays open)', (await ev(() => { const m = window.__game.mission; return m.seaf.squads[m.seaf.sel].form; })) === 'line' && await ev(() => window.__game.tac));
 if (!touch) { await page.keyboard.press('KeyB'); await page.waitForTimeout(150); await page.keyboard.press('Escape'); await page.waitForTimeout(200); check('(0.20) Esc goes back to the troops (before the menu)', (await ev(() => window.__game.hud.tcTab)) === 'units' && !(await on('s-pause'))); }
@@ -247,7 +254,7 @@ if (touch) { await chip.scrollIntoViewIfNeeded(); const bb = await chip.bounding
 await page.waitForTimeout(250);
 const camD = await ev(({ x, y }) => Math.hypot(window.__game.cam.x - x, window.__game.cam.y - y), lst);
 check('a double tap on one takes the camera there', camD < 40, String(Math.round(camD)));
-if (touch) await tap('#tactical .tct[data-tab="units"]'); else await page.keyboard.press('KeyB');
+if (touch) await toTroops(); else await page.keyboard.press('KeyB');
 await page.waitForTimeout(250);
 check(touch ? 'TROOPS goes back' : 'and B again goes back to the troops', (await ev(() => window.__game.hud.tcTab)) === 'units');
 
