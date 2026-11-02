@@ -10,7 +10,7 @@ import { canStep } from './safety.js';
 import { steer } from './terrain.js';
 import { boardingNow } from './extract.js';
 import { aoX, aoY } from './ao.js';
-import { siteAt, threatSlot } from './cover.js';
+import { siteAt, threatSlot, holdSites } from './cover.js';
 
 // Where the squad waits before going in on a base: just outside its detection ring, on the near side, on dry ground.
 function stagePoint(m, b, sq) {
@@ -194,7 +194,7 @@ export function updateSquad(m, dt) {
     // one would pull it away from the target for good)
     // (holding a walled site the squad does not leave cover for anything its rifles reach from the walls; it only goes out after
     // what stands off beyond that, or it would be shot to pieces by longer guns while it waits)
-    const holdingWalls = m.phase !== 'clear' && pointGoal && siteAt(m, sq.ax, sq.ay)
+    const holdingWalls = m.phase !== 'clear' && pointGoal && holdSites(m, sq.ax, sq.ay)
       && near && Math.hypot(near.x - sq.ax, near.y - sq.ay) <= C.combat.helldiver.range * 0.9;
     if (near && !engaged && (sq.state === 'attack' || threat) && !(sq.staging && !threat) && !holdingWalls) {
       const lim = pointGoal ? 55 : baseGoal ? 60 : 1e9;
@@ -233,15 +233,16 @@ export function updateSquad(m, dt) {
   // Helldivers drift to their slots around the anchor; they stand and fight while engaged.
   if (hds.length) {
     const chase = C.squad.chaseSpeed * bm * dt * Math.max(1, mod);
+    const sites = m.phase !== 'clear' ? holdSites(m, sq.ax, sq.ay) : null;     // (0.26: an evacuation's two rings, split between them)
     for (const a of hds) {
       if (a.mounted || a.retreat) continue;   // a Helldiver who is falling back is not drifting to his slot
       const selfEngaged = eg.nearest(a.x, a.y, C.squad.engageRange);
       let tx = sq.ax + a.ox, ty = sq.ay + a.oy;
       const hi = hds.indexOf(a), hn = hds.length;
-      const site = m.phase !== 'clear' ? siteAt(m, sq.ax, sq.ay) : null;
+      const site = sites ? sites[hi % sites.length] : null, si = sites ? Math.floor(hi / sites.length) : hi, sn = sites ? Math.ceil(hn / sites.length) : hn;
       const job = m.hellbomb && m.hellbomb.state === 'landed' && m.hellbomb.armer === a ? m.hellbomb : null;
       if (job) { tx = job.x; ty = job.y; }                                      // the one arming the Hellbomb goes right to it
-      else if (site) { const p = threatSlot(m, site, hi, hn); tx = p.x; ty = p.y; }     // holding a site: the walls that face the threat
+      else if (site) { const p = threatSlot(m, site, si, sn); tx = p.x; ty = p.y; }     // holding a site: the walls that face the threat
       else if (sq.base && !sq.base.destroyed) {
         // at a base: fan out round it on the near side instead of shooting from one spot
         const b = sq.base, d = Math.hypot(sq.ax - b.x, sq.ay - b.y);

@@ -137,7 +137,7 @@ export class Tutorial {
       sp.style.left = `${b.left - P}px`; sp.style.top = `${b.top - P}px`; sp.style.width = `${b.width + 2 * P}px`; sp.style.height = `${b.height + 2 * P}px`;
     } else {
       // nothing to point at: at the top, in the gap between the left-hand and right-hand corners if it fits, else across the middle
-      const tops = ['#topbar', '#mbox', '#objective', '#callouts'].map((q) => document.querySelector(q)).filter(vis).map((e) => e.getBoundingClientRect());
+      const tops = ['#topbar', '#mbox', '#objective', '#callouts', '#dropcd'].map((q) => document.querySelector(q)).filter(vis).map((e) => e.getBoundingClientRect()).filter((b) => b.top < H * 0.3);     // (0.26: the drop countdown too, where it sits at the top)
       const lo = Math.max(M, ...tops.filter((b) => b.right < W * 0.45).map((b) => b.right + M)), hi = Math.min(W - M, ...tops.filter((b) => b.left > W * 0.55).map((b) => b.left - M));
       const [a0, a1] = hi - lo >= w ? [lo, hi] : [(W - w) / 2, (W + w) / 2];
       let top = M;

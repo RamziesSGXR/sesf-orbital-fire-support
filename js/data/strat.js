@@ -144,6 +144,9 @@ export const CAT_COLOR = { EAGLE: '#ffe600', ORBITAL: '#ff7a3d', DEFENSE: '#7dff
 
 export const ANTI_IDS = STRAT_IDS.filter((id) => STRATS[id].anti && !STRATS[id].shared);
 export const isAnti = (id) => !!(STRATS[id] && STRATS[id].anti);
+// (0.26) the heavy weapons: support weapons that can take down a heavy (recoilless, autocannon, railgun, spear, EAT)
+export const HEAVY_W_IDS = STRAT_IDS.filter((id) => STRATS[id].k === 'weapon' && STRATS[id].anti && !STRATS[id].shared);
+export const isHeavyW = (id) => HEAVY_W_IDS.includes(id);
 
 // Sixteen distinct picks for the Helldivers. At least one pick per group can take down a
 // heavy (four in all). A list that is too short or has repeats is topped up from the same seed; a full forced list is used as given.
@@ -151,6 +154,15 @@ export function rollLoadout(seed, forced = []) {
   const rng = new RNG((seed ^ 0x5bd1e995) >>> 0), out = [], N = C.strat.slots;
   for (const id of forced) if (STRAT_IDS.includes(id) && !out.includes(id) && out.length < N) out.push(id);
   if (out.length >= N) return out;
+  // (0.26) a heavy weapon for each Helldiver, most of the time (C.strat.heavyW of the time each), and the rest of the draw leans
+  // toward them too: on average a little over one each
+  const HW = C.strat.heavyW;
+  let hw = out.filter(isHeavyW).length, want = 0;
+  for (let k = 0; k < C.strat.groups; k++) if (rng.next() < HW.each) want++;
+  for (const id of rng.shuffle(HEAVY_W_IDS.slice())) {
+    if (hw >= want || out.length >= N) break;
+    if (!out.includes(id)) { out.push(id); hw++; }
+  }
   let anti = out.filter(isAnti).length;
   for (const id of rng.shuffle(ANTI_IDS.slice())) {
     if (anti >= C.strat.groups || out.length >= N) break;
@@ -159,8 +171,14 @@ export function rollLoadout(seed, forced = []) {
   // (0.23) at least two orbital strikes among them (the squad calls orbitals too)
   let orbs = out.filter((id) => STRATS[id].cat === 'ORBITAL').length;
   for (const id of rng.shuffle(HD_ORB_IDS.slice())) { if (orbs >= 2 || out.length >= N) break; if (!out.includes(id)) { out.push(id); orbs++; } }
-  const pool = rng.shuffle(STRAT_IDS.filter((id) => !out.includes(id)));
-  while (out.length < N) out.push(pool.pop());
+  // the rest at random, a heavy weapon HW.weight times as likely as anything else
+  const pool = STRAT_IDS.filter((id) => !out.includes(id));
+  while (out.length < N && pool.length) {
+    let sum = 0; for (const id of pool) sum += isHeavyW(id) ? HW.weight : 1;
+    let r = rng.next() * sum, k = 0;
+    for (; k < pool.length - 1; k++) { r -= isHeavyW(pool[k]) ? HW.weight : 1; if (r < 0) break; }
+    out.push(pool.splice(k, 1)[0]);
+  }
   return out;
 }
 
@@ -172,12 +190,14 @@ export function dealGroups(loadout, seed, keepOrder = false) {
   const split = (list) => Array.from({ length: n }, (_, i) => list.slice(i * per, i * per + per));
   if (keepOrder) return split(loadout);
   const rng = new RNG((seed ^ 0x2545f491) >>> 0), enough = loadout.filter(isAnti).length >= n;
-  for (let attempt = 0; attempt < 80; attempt++) {
+  // (0.26) the heavy weapons go one to a Helldiver before anyone gets a second
+  const hwN = loadout.filter(isHeavyW).length, hwOk = (t) => { const c = t.filter(isHeavyW).length; return c >= Math.floor(hwN / n) && c <= Math.ceil(hwN / n); };
+  for (let attempt = 0; attempt < 120; attempt++) {
     const teams = split(rng.shuffle(loadout.slice()));
-    if (teams.every((t) => t.filter((id) => STRATS[id].shared).length <= 1 && (!enough || t.some(isAnti)))) return teams;
+    if (teams.every((t) => t.filter((id) => STRATS[id].shared).length <= 1 && (!enough || t.some(isAnti)) && hwOk(t))) return teams;
   }
-  // No lucky shuffle: deal the heavy-killers out first, one per group, then everything else around them.
-  const rest = loadout.filter((id) => !isAnti(id)), tops = loadout.filter(isAnti), teams = Array.from({ length: n }, () => []);
+  // No lucky shuffle: deal the heavy weapons out first, then the other heavy-killers, one per group, then everything else.
+  const rest = loadout.filter((id) => !isAnti(id)), tops = [...loadout.filter(isHeavyW), ...loadout.filter((id) => isAnti(id) && !isHeavyW(id))], teams = Array.from({ length: n }, () => []);
   tops.forEach((id, i) => teams[i % n].push(id));
   for (const id of rest) { const t = teams.filter((x) => x.length < per).sort((a, b) => a.length - b.length)[0]; if (t) t.push(id); }
   return teams;

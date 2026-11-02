@@ -44,7 +44,7 @@ function lone(m, kind, x, y) {
 // ---------------------------------------------------------------- grenades and the Ultimatum
 {
   const m = quiet('bots', 1501), a = m.hdAlive[0];
-  check('every Helldiver carries four grenades and one Ultimatum round', a.gren === 4 && a.ult === 1, `G${a.gren} U${a.ult}`);
+  check('every Helldiver carries six grenades (0.26) and one Ultimatum round', a.gren === 6 && a.ult === 1, `G${a.gren} U${a.ult}`);
   // a heavy: four grenade hits bring it down (rear and crit bonuses aside)
   const hp = C.enemies.hp.heavy * m.hpMul, base = C.enemies.hp.light * m.hpMul * C.hd.gren.light;
   const perGren = base * ((hp * C.hd.gren.heavy) / base);
@@ -64,7 +64,7 @@ function lone(m, kind, x, y) {
   const lost = 1 - big.hp / big.maxHp;
   check('on a super heavy it takes a big piece, not the lot', !big.dead && lost > 0.05 && lost < 0.4, `${Math.round(lost * 100)}%`);
   a.ult = 0; a.gren = 0; restock(m, 1, 1);
-  check('a supply pod reloads grenades and the Ultimatum', a.gren === 4 && a.ult === 1);
+  check('a supply pod reloads grenades and the Ultimatum', a.gren === 6 && a.ult === 1);
   const b = m.hdAlive[1]; b.ult = 0; restock(m, 1, 0);
   check('a pod with no grenades in it does not reload the Ultimatum', b.ult === 0);
 }

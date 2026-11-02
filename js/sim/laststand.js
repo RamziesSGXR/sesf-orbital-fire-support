@@ -127,21 +127,26 @@ export function updateLastStand(m, dt) {
   const o = m.objectives.find((q) => q.lastStand);
   if (ls.stage === 'hold') {
     ls.holdT += dt;
-    const min = ls.holdT / 60, k = Math.min(1, ls.holdT / K.rampSec);
-    // each minute the Great Host hits harder (director.js multiplies the enemy's damage by ls.dmg) and comes in tougher
-    ls.dmg = 1 + K.dmgGrow * min;
-    m.hpMul = ls.hp0 * (1 + K.hpGrow * min);
+    const min = ls.holdT / 60, S = C.lsStages, saved = o ? o.saved : 0;
+    // (0.26) the stage: as far as the personnel off Mars (or the time) have brought it
+    let st = 0;
+    S.forEach((q, i) => { if (saved >= q.saved || ls.holdT >= q.sec) st = i; });
+    if (st > (ls.st || 0)) { ls.st = st; if (st === S.length - 1) { ls.overAt = ls.holdT; ls.wavesAtOver = ls.waves; } m.notice(tr('n.lsStage' + st), st === S.length - 1 ? 'bad' : 'warn'); m.emit('ls_stage', { stage: 'wave' + st }); if (st === S.length - 1) m.radio(COMMS.lsBreaking, 'lsover', 0); }
+    const Q = S[ls.st || 0], over = ls.overAt !== undefined ? (ls.holdT - ls.overAt) / 60 : 0;
+    // tougher and harder-hitting a little every minute, and fast once it is overwhelming (director.js multiplies by ls.dmg)
+    ls.dmg = 1 + K.dmgGrow * 0.35 * min + (Q.dmgPerMin || 0) * over;
+    m.hpMul = ls.hp0 * (1 + K.hpGrow * 0.35 * min + (Q.hpPerMin || 0) * over);
     // (0.19.5) the difficulty the HUD shows climbs with it: from level 1, a level every levelEvery seconds, on past 10
-    const lv = (m.difficulty || 1) + Math.floor(ls.holdT / K.levelEvery);
+    const lv = (m.difficulty || 1) + Math.floor(ls.holdT / K.levelEvery) + Math.floor(over * 3);
     if (lv !== ls.level) { ls.level = lv; m.emit('ls_level', { level: lv }); }
     ls.waveT -= dt;
     if (ls.waveT <= 0) {
-      const [e0, e1] = K.waveEvery;
-      ls.waveT = e0 + (e1 - e0) * k;
+      ls.waveT = Q.every;
       ls.waves++;
       if (m.enemies.length < C.enemies.hardCap) {
-        const n = Math.round(K.waveSize[0] + K.waveGrow * min), heavies = k >= 1 ? 1 + Math.floor(min / 3) : ls.waves % K.heavyEvery === 0 ? 1 : 0;
-        const mediums = Math.round(n * (0.15 + 0.3 * k));
+        const n = Math.round(Q.n + (Q.grow ? Q.grow * (ls.waves - ls.wavesAtOver) : 0));     // (overwhelming: each wave bigger than the last)
+        const heavies = Q.heavy + (Q.heavyEvery && ls.waves % Q.heavyEvery === 0 ? 1 : 0) + (Q.grow ? Math.floor(over * 2) : 0);
+        const mediums = Math.round(n * Q.mid);
         const kinds = [...Array(heavies).fill('H'), ...Array(mediums).fill('M'), ...Array(Math.max(1, n - mediums)).fill('L')];
         const a = m.rng.angle(), R = K.waveR;
         let x = o.x + Math.cos(a) * R, y = o.y + Math.sin(a) * R;

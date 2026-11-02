@@ -480,7 +480,7 @@ export function turretStep(m, s, dt) {
       if (n >= p.chain) break;
       m.emit('tracer', { x: s.x, y: s.y, tx: o.x, ty: o.y, s: 't', hit: true, big: false, zap: true, snd: 'zap' });
       alertGroup(m, o.g);
-      hurtEnemy(m, o, p.dmg * k * TMULT['arc-zap'][o.kind], 'strat', s.x, s.y);
+      hurtEnemy(m, o, p.dmg * k, 'strat', s.x, s.y, undefined, false, TMULT['arc-zap'][o.kind]);
       n++;
     }
   } else {
@@ -702,11 +702,14 @@ export function updateStrat(m, dt) {
   S.scanT -= dt;
   if (S.scanT > 0) return;
   S.scanT = 0.4;
+  // (0.26) every Helldiver keeps his own clock: each can call one of his own stratagems in the same moment as the others (no
+  // squad-wide turn to wait for); the squad-wide items still go one at a time. (S.callAt holds every call: scripted moments, tests)
   if (t < S.callAt) return;
-  const ctxs = {}, n = S.order.length;
+  const ctxs = {}, n = S.order.length, called = new Set();
   for (let i = 0; i < n; i++) {
     const g = S.groups[S.order[(S.rot + i) % n]], d = g.def, team = m.teams[g.team];
     if (t < g.readyAt) continue;
+    if (called.has(g.team) || (d.shared && (called.has('s') || t < (S.sharedAt || 0)))) continue;
     if (!d.shared && t < team.callAt) continue;
     if (!canCall(m, g)) continue;
     const key = d.shared ? 's' : g.team;
@@ -719,10 +722,11 @@ export function updateStrat(m, dt) {
     if (!ctx.panic && m.rng.next() > 0.7) continue;   // not every opportunity gets taken the instant it appears (but a runner calls at once)
     execute(m, g, tgt, ctx);
     g.readyAt = t + d.cd * (C.strat.cdMul ?? 1); g.uses++;
-    team.callAt = t + C.strat.callGapSec; S.callAt = t + 0.5;
-    S.rot = (S.rot + i + 1) % n;
-    break;
+    team.callAt = t + C.strat.callGapSec;
+    called.add(g.team);
+    if (d.shared) { called.add('s'); S.sharedAt = t + 0.5; }
   }
+  S.rot = (S.rot + 1) % n;
 }
 
 export { compass };

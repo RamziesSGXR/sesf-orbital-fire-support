@@ -62,7 +62,7 @@ const nearHd = (m, a, d, ang = 0) => ({ x: a.x + Math.cos(ang) * d, y: a.y + Mat
 // ---------------------------------------------------------------- the Helldiver kit
 {
   const m = quiet(), a = m.hdAlive[0], K = C.hd;
-  check('a Helldiver carries 4 stims, 4 grenades and an Ultimatum round', a.stims === 4 && a.gren === 4 && a.ult === 1, `${a.stims}/${a.gren}/${a.ult}`);
+  check('a Helldiver carries 4 stims, 6 grenades (0.26) and an Ultimatum round', a.stims === 4 && a.gren === 6 && a.ult === 1, `${a.stims}/${a.gren}/${a.ult}`);
   // (0.15: grenades and the Ultimatum scale with the enemy's own health; test/r15.mjs checks them in play)
   check('grenades: a light dies in the blast, two take a medium, about four a heavy', K.gren.light >= 1 && K.gren.med * 2 >= 1 && K.gren.heavy * 4 >= 1 && K.gren.heavy * 3 < 1);
   check('the Ultimatum is a single round that kills almost anything it hits square', K.ult.uses === 1 && K.ult.kill >= 1 && K.ult.bossFrac < 0.5);

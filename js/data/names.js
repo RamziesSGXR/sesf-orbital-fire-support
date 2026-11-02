@@ -25,7 +25,7 @@ const SURNAMES = ['HOLLIS', 'KESSLER', 'MARLOWE', 'OKAFOR', 'BRANDT', 'VASQUEZ',
   'MBEKI', 'HARGROVE', 'ESPOSITO', 'NAKAMURA', 'OYELARAN', 'BRIGHTWELL', 'VOSS', 'CALLAHAN', 'ROSALES', 'IVANOV', 'PEMBERTON'];
 export const surname = (rng) => SURNAMES[rng.int(SURNAMES.length)];
 export function seafName(rng, role) {
-  const rank = role === 'rocket' ? 'SPC' : role === 'gren' ? 'CPL' : role === 'medic' ? 'DOC' : role === 'spotter' ? 'FO' : rng.next() < 0.18 ? 'SGT' : 'PVT';
+  const rank = role === 'leader' ? 'SGT' : role === 'spec' ? 'SPC' : role === 'medic' ? 'DOC' : rng.next() < 0.25 ? 'CPL' : 'PVT';     // (0.26) by role
   return `${rank} ${surname(rng)}`;
 }
 

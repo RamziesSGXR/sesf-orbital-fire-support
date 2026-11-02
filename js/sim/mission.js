@@ -7,7 +7,7 @@ import { RNG } from '../util/rng.js';
 import { Grid } from '../util/grid.js';
 import { FACTIONS, SUBTYPES, ALLY, BIOMES, NUKE, COMMS } from '../data/data.js';
 import { rollLoadout } from '../data/strat.js';
-import { newKit, newWallet, seafStats, maxLives, zoneExtra, buy, loadoutIds, buildStats, buildLevel } from '../data/kit.js';
+import { newKit, newWallet, seafStats, maxLives, zoneExtra, buy, equip, loadoutIds, buildStats, buildLevel } from '../data/kit.js';
 import { seafName } from '../data/names.js';
 import { updateSquad } from './squad.js';
 import { setupDefenders } from './defenders.js';
@@ -540,11 +540,21 @@ export class Mission {
   seafTargets() { return targetSquads(this).filter((q) => q.n > 0); }
 
   // ----- the armory: upgrades can be bought mid-mission, new orbitals and slots only between missions -----
-  spend(id) {
+  spend(id, tier) {
     // (0.21) what each weapon's recharge was before the purchase: an upgrade that shortens it shortens the one already running too
     const before = this.player ? this.player.slots.map((s, i) => (s.readyAt !== undefined ? slotStats(this, i)?.cd || 0 : 0)) : [];
-    const r = buy(this.kit, this.wallet, id, true);
+    const r = buy(this.kit, this.wallet, id, !this.ls, tier);       // (0.26: the tutorial has no between-missions: anything open goes)
     if (!r.ok) { this.emit('deny', { reason: r.reason }); return r; }
+    // (and a new stratagem goes straight into a slot: a free one; with none free, the bar grows a slot, up to five; with five
+    // full, it takes the last one)
+    if (this.ls && id.startsWith('own:')) {
+      const sid = id.slice(4), K = this.kit;
+      if (!equip(K, sid)) {
+        if (K.slots < 5) { K.slots++; equip(K, sid); r.grew = true; }
+        else { r.swapped = K.loadout[K.slots - 1]; K.loadout[K.slots - 1] = sid; }
+      }
+      r.slot = K.loadout.indexOf(sid);
+    }
     syncSlots(this);
     if (this.player) this.player.slots.forEach((s, i) => {
       const was = before[i], now = s.readyAt !== undefined ? slotStats(this, i)?.cd || 0 : 0;
@@ -650,6 +660,7 @@ export class Mission {
     } else {
       const st = seafStats(this.kit);
       a.hp = a.maxHp = Math.round(base.hp * st.hpMul); a.dmgMul = st.dmgMul;
+      a.gren = st.grenades;            // (0.26) G-12 grenades, every role
       a.name = seafName(this.crng, a.role);
     }
     a.sight0 = base.sight * this.biome.ping;   // flat-ground sight; a rise adds to it (see _refreshAlive)
@@ -906,8 +917,11 @@ export class Mission {
         if (hd.lives > 0) { this.stats.wipes++; this.sc.wipes += C.score.wipe; this.radio(COMMS.hdWipe, 'hdWipe', 0); }
       }
     } else this.wiped = false;
+    // (0.26) a reinforcement brings every dead Helldiver down together: once one is due, the others who are down come with him
+    const dead = (tm) => !(tm.hd && !tm.hd.dead) && !tm.pod;
+    const due = this.teams.some((tm) => dead(tm) && t >= tm.respawnAt);
     for (const tm of this.teams) {
-      if ((tm.hd && !tm.hd.dead) || tm.pod || t < tm.respawnAt || hd.lives <= 0) continue;
+      if (!due || !dead(tm) || hd.lives <= 0) continue;
       hd.lives--;
       const p = this._podSpot(tm), alone = !this.hdAlive.length;
       tm.pod = true;
@@ -1056,7 +1070,7 @@ export class Mission {
     this.eGrid.clear(); this.aGrid.clear(); this.tGrid.clear();
     for (const e of this.enemies) if (!e.dead) { this.eGrid.insert(e); e.vis = 0; e.spotted = false; }
     this._visAll();
-    for (const a of this.alive) if (!a.mounted && !a.inside) this.aGrid.insert(a);     // (the crew inside a building are out of reach: posts.js)
+    for (const a of this.alive) if (!a.mounted && !a.inside && !a.down) this.aGrid.insert(a);     // (0.26: nor the downed, lying low)     // (the crew inside a building are out of reach: posts.js)
     for (const s of this.assets) if (!s.dead && s.kind !== 'mines') this.tGrid.insert(s);
 
     buildDanger(this);

@@ -28,7 +28,10 @@ export function initKit(m, a) {
 
 // How fast a Helldiver moves relative to normal: a stim is a burst of speed.
 export const underUav = (m, a) => a.uavAt !== undefined && m.t - a.uavAt < 0.25;
-export const speedMul = (m, a) => (m.t < a.stimUntil ? K.stimSpeed : 1) * (m.supply && m.t < m.supply.boostUntil ? C.supply.boostSpeed : 1) * (underUav(m, a) ? 1 + uavBuff(m.kit).speed : 1);
+// (0.26) The UAV's lift helps allies get somewhere, not charge: it is off while they are in a fight (shot in the last few seconds,
+// or a SEAF trooper engaging). Faster allies in a fight drew the enemy in and made it look as if the UAV sped the enemy up.
+export const inFight = (m, a) => a.engaged || m.t - (a.shotAt ?? -99) < C.uav.liftCalm;
+export const speedMul = (m, a) => (m.t < a.stimUntil ? K.stimSpeed : 1) * (m.supply && m.t < m.supply.boostUntil ? C.supply.boostSpeed : 1) * (underUav(m, a) && !inFight(m, a) ? 1 + uavBuff(m.kit).speed : 1);
 
 export function useStim(m, a) {
   if (a.stims <= 0 || m.t < a.stimReady) return false;
@@ -65,17 +68,22 @@ const aware = (m, e) => m.squad.free || e.g.state === 'hunt' || m.squad.state ==
 
 // The best spot for a grenade: a group (lights count 1, mediums 2, heavies 4) or a heavy on its own, in throwing range and not
 // on top of a friendly. A heavy is worth a grenade even alone: four of them bring one down.
-function pickGrenade(m, a) {
+// (0.26) avoid: a spot just hit (in a burst, the next one goes somewhere else if there is anywhere else worth it). Sets a.grenW
+// to the weight round the spot chosen, and a.grenHeavy when a heavy is close.
+function pickGrenade(m, a, avoid = null) {
   const G = K.gren;
-  let best = null, bs = 0;
+  let best = null, bs = 0, heavy = false;
   m.eGrid.near(a.x, a.y, G.range, (e, d2) => {
     if (d2 < G.minRange * G.minRange || !aware(m, e)) return;
+    if (e.kind === 'H' && d2 < G.heavyR * G.heavyR) heavy = true;
+    if (avoid && (e.x - avoid.x) ** 2 + (e.y - avoid.y) ** 2 < G.splash * G.splash) return;
     let s = 0;
     m.eGrid.near(e.x, e.y, G.splash, (o) => { s += o.kind === 'L' ? 1 : o.kind === 'M' ? 2 : 4; });
     if (e.kind === 'H') s += 1;                       // the heavy itself is the point
     if (s <= bs || friendNear(m, a, e.x, e.y, G.splash) || wakesBase(m, e.x, e.y, G.splash)) return;
     bs = s; best = e;
   });
+  a.grenW = bs; a.grenHeavy = heavy;
   return bs >= G.group ? best : null;
 }
 export function throwGrenade(m, a, e) {
@@ -98,16 +106,17 @@ function pickUltimatum(m, a, crowded) {
   });
   return best;
 }
-// The round: a direct hit kills (a super heavy loses a big piece); now and then it bursts round the target as well.
+// The round: a blast that kills every enemy in it (a super heavy loses a big piece).
 export function fireUltimatum(m, a, e) {
   const U = K.ult, rng = m.rng, hit = rng.next() < U.acc, hp = hpNow(m);
   const dmg = e.boss ? e.maxHp * U.bossFrac : e.maxHp * U.kill;
   m.emit('tracer', { x: a.x, y: a.y, tx: e.x, ty: e.y, s: 'a', hit, big: true, fl: U.flight, snd: 'ult' });
   if (a.face !== undefined) { a.aimA = Math.atan2(e.y - a.y, e.x - a.x); a.aimUntil = m.t + 0.8; }
-  const burst = rng.next() < U.splashChance, base = hp.L * U.splashLight;
-  m.shells.push({ x: e.x, y: e.y, at: m.t + U.flight, lock: e, by: 'squad', friendly: false, fx: a.x, fy: a.y,
-    direct: hit ? e : null, directDmg: dmg * (e.boss ? 1 : a.dmgMul || 1), flat: !!e.boss, pierce: !e.boss,   // through armour and shields
-    dmg: burst ? base : 0, splash: burst ? U.splash : 0, mult: { L: 1, M: (hp.M * U.splashMed) / base, H: 0.2, B: 0.05 } });
+  // (0.26) the round is a blast: every enemy in it dies, whatever its armour or shield (a super heavy loses a big piece). It lands
+  // where the target was; a miss lands short or wide, and the blast still takes what is there.
+  void hp;
+  m.shells.push({ x: e.x, y: e.y, at: m.t + U.flight, lock: hit ? e : null, by: 'squad', friendly: false, fx: a.x, fy: a.y,
+    ultAoe: U.splash, bossDmg: e.boss ? dmg : 0, dmg: 0, splash: 0, miss: !hit, dmgMul: a.dmgMul || 1 });
 }
 
 export function updateHelldivers(m, dt) {
@@ -187,16 +196,25 @@ export function updateHelldivers(m, dt) {
       const e = pickUltimatum(m, a, (a.retreat || frac < 0.5) && crowd >= 3);
       if (e) { a.ultAim = { e, at: t + K.ult.markSec }; a.ultAt = t + 3; mark(m, a, e, 'ult'); }
     }
-    // grenades: groups, and heavies (several to a heavy)
+    // grenades: groups, and heavies (several to a heavy). (0.26) When it gets bad (a big crowd on one spot, a heavy close, or
+    // falling back with enemies round him) he empties his pouch: every grenade, a quarter second apart.
     if (a.gren > 0 && t >= a.grenAt && thr && !a.ultAim) {
-      const e = pickGrenade(m, a);
+      const G = K.gren, burst = a.grenBurst > 0;
+      let e = pickGrenade(m, a, burst ? a.grenLast : null);
+      if (!e && burst) e = pickGrenade(m, a);
       if (e) {
-        a.gren--; a.grenAt = t + K.gren.every;
+        if (!burst && (a.grenW >= G.dump || a.grenHeavy || (a.retreat && a.grenW >= G.group + 1)) && a.gren > 1) {
+          a.grenBurst = a.gren; m.stats.grenBursts = (m.stats.grenBursts || 0) + 1;
+          bark(m, a, 'grenAll', '');
+        } else if (!burst) bark(m, a, 'gren', '');
+        a.gren--;
+        if (a.grenBurst > 0) a.grenBurst--;
+        a.grenAt = t + (a.grenBurst > 0 ? G.gap : G.every);
+        a.grenLast = { x: e.x, y: e.y };
         m.stats.grenades = (m.stats.grenades || 0) + 1;
         if (e.kind === 'H') mark(m, a, e, 'gren');
         throwGrenade(m, a, e);
-        bark(m, a, 'gren', '');
-      }
+      } else if (burst) { a.grenBurst = 0; a.grenAt = t + G.every; }      // (nothing left worth one: the rest stay in the pouch)
     }
   }
 }

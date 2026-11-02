@@ -223,7 +223,7 @@ const input = new Input(canvas, $('minimap'), cam, {
 }, () => state === 'play' && (!paused || soft) && !UI.anyOverlay());
 input.setTouch(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
 applyLayout();
-hud.onWeapon = (i) => { audio.unlock(); if (live()) arm(i); };
+hud.onWeapon = (i) => { audio.unlock(); if (act()) arm(i); };     // (0.25.1: in the pause too, so a weapon call can be planned from the bar)
 hud.onTac = (on, tab) => { audio.unlock(); if (tab) hud.setTcTab(tab); setTac(on === undefined ? !tac : on); };
 hud.onArmoryTab = () => { if (tac && mission) drawArmory(); };
 hud.onTabChange = () => { if (tut) tut.poke(); };
@@ -401,7 +401,7 @@ function askGarrison(post, squad) {
   hud.ask(t('ask.garrison', { sq: 'S' + (squad + 1), what: post.name.toUpperCase() }), [
     { label: t('ask.goIn'), primary: true, fn: () => { if (!mission || post.dead) return; const sf = mission.seaf, k = { sel: sf.sel, multi: sf.multi }; sf.sel = squad; sf.multi = null; const r = mission.garrisonGo(post); sf.sel = k.sel; sf.multi = k.multi; if (r && r.ok) audio.chirp(); else if (r) { audio.deny(); hud.toast(deny(r.reason)); } } },
     { label: t('ask.stayOut') },
-  ]);
+  ], 9000, post);     // (0.26: next to the building)
 }
 // The selected post's panel sits just above it on the map (and follows it as the camera moves).
 function placeSel(force = false) {
@@ -739,8 +739,35 @@ function persist() { if (session && !session.tutorial) S.save('session', session
 // (0.24) Milestones: missions done this session (a failed one ends it, so it is every mission that carried on) and the
 // milestone that makes. The tutorial has the whole armory.
 const doneN = (s) => (s && s.missions ? s.missions.filter((r) => S.carriesOn(r.outcome)).length : 0);
-function tierNow() { return !session || session.tutorial ? TIER_MAX : tierFor(doneN(session)); }
+// (0.26) the tutorial is one mission: its ranks come with kills
+const killsN = () => (mission && mission.stats ? mission.stats.kills.L + mission.stats.kills.M + mission.stats.kills.H : 0);
+function tierNow() { if (!session) return TIER_MAX; return session.tutorial ? tierFor(killsN(), true) : tierFor(doneN(session)); }
+let lsTier = 0;
+// (0.26) In the tutorial a rank comes in the middle of the fight: the level bonus is paid at once, and a prompt (it does not stop
+// the game) says what is new, with SHOW ME to open the armory on it.
+function tutRank() {
+  if (!session || !session.tutorial || !mission || mission.over) return;
+  const t1 = tierNow();
+  if (t1 <= lsTier) return;
+  let bonus = 0; const fresh = [];
+  for (let k = lsTier + 1; k <= t1; k++) { bonus += C.ranks.bonus[k - 1] || 0; fresh.push(...tierItems(session.kit, k)); }
+  lsTier = t1;
+  mission.wallet.bal += bonus; session.fresh = fresh;
+  const names = fresh.map((id) => shopItems(session.kit).find((it) => it.id === id)).filter(Boolean).map((it) => (it.orb ? UI.shortName(it.orb) : it.name));
+  audio.ready();
+  hud.ask(`${t('ms.k', { k: t1, name: t('rank.' + t1) })} · ${t('ms.bonus', { cr: S.fmtNum(bonus) })}${names.length ? ' · ' + t('ms.new') + ': ' + names.slice(0, 4).join(', ') + (names.length > 4 ? '…' : '') : ''}`, [
+    { label: t('ms.show'), primary: true, fn: () => { armFocus = true; openArmory('rank'); } },
+    { label: t('ms.later') },
+  ], 9000);
+}
+let armFocus = false;
 function msShow(focus) { goShop(focus); }     // (the tutorial's session is never kept)
+// (0.26) the rank, one line, for the armory in a mission: where you are and what the next one needs
+function rankLine() {
+  if (!session) return '';
+  const tut = !!session.tutorial, k = tierNow(), at = tut ? C.ranks.tutKills : C.ranks.at, n = tut ? killsN() : doneN(session);
+  return `${t('arm.rankN', { n: k })} ${t('rank.' + k)}` + (k < at.length ? ` · ${t(tut ? 'arm.rankNextKills' : 'arm.rankNext', { n: k + 1, name: t('rank.' + (k + 1)), m: at[k], left: at[k] - n })}` : '');
+}
 function drawShop(note, focus = false) {
   UI.renderShop($('shop-root'), {
     kit: session.kit, wallet: session.wallet, live: false, note, tier: tierNow(), done: doneN(session), fresh: session.fresh, focus,
@@ -872,7 +899,7 @@ const cinema = new Cinema(audio);
 const lsLines = (kind, res) => (kind === 'intro' ? [1, 2, 3, 4, 5].map((k) => t('cine.in.' + k))
   : [t('cine.out.1'), t('cine.out.2', { saved: res ? res.civSaved || 0 : 0 }), t('cine.out.3'), t('cine.out.4')]);
 function lsReset() {
-  glassCam = null; lsEnding = false; cinema.stop();
+  glassCam = null; lsEnding = false; cinema.stop(); lsTier = 0; armFocus = false;
   document.body.classList.remove('ls-warn', 'ls-glass'); $('glassfx').classList.remove('on', 'white', 'soft');
 }
 function startLastStand() {
@@ -1050,10 +1077,15 @@ function closeNames(saveIt) {
 function drawArmory(note) {
   armNote = note; armBal = mission ? mission.wallet.bal : 0;
   UI.renderLiveArmory($('tc-arm'), {
-    kit: session.kit, wallet: mission ? mission.wallet : session.wallet, note, tier: tierNow(),
+    kit: session.kit, wallet: mission ? mission.wallet : session.wallet, note, tier: tierNow(), any: !!session.tutorial, fresh: session.fresh, focus: armFocus,
+    rank: rankLine(),
     onBuy: (id) => {
-      const r = mission.spend(id);
-      if (r.ok) { audio.ready(); persist(); hud.toast(t('arm.bought', { name: r.item.name.toUpperCase() }), 1600); drawArmory(); } else { audio.deny(); drawArmory(deny(r.reason)); }
+      armFocus = false;
+      const r = mission.spend(id, tierNow());
+      if (r.ok && session.fresh) session.fresh = session.fresh.filter((f) => f !== id);
+      const out = r.swapped ? shopItems(session.kit).find((it) => it.orb === r.swapped || it.id === 'own:' + r.swapped) : null;
+      const msg = r.slot >= 0 && r.slot !== undefined ? t(out ? 'arm.swapped' : 'arm.slotted', { name: r.item.name.toUpperCase(), n: r.slot + 2, old: out ? out.name.toUpperCase() : '' }) : t('arm.bought', { name: r.item.name.toUpperCase() });
+      if (r.ok) { audio.ready(); persist(); hud.toast(msg, 2200); drawArmory(); } else { audio.deny(); drawArmory(deny(r.reason)); }
     },
     onPoor: () => { audio.deny(); hud.toast(deny('funds'), 1400); },
     onTip: (b, it, ms) => hud.tip(b, () => `<b>${it.orb ? it.orb.toUpperCase() : it.name.toUpperCase()}</b> ${it.blurb}`, null, ms),
@@ -1309,7 +1341,10 @@ function onEvent(ev, now) {
     case 'extract_down': audio.chirp(); hud.message(t('msg.exDown'), 2200); break;
     case 'pelican_arrive': audio.rotor(); break;
     case 'pelican_drop': audio.snd('thud', L, P); break;
-    case 'radar': break;     // (0.22: the radar sweep is silent; its ping every few seconds all mission long was too much)
+    case 'radar': break;
+    // (0.25.1) a squad has just built something with room inside (a turret nest, a lookout, a tower, the cannon): ask, as when
+    // they are sent to one. Nobody goes in unless told to.
+    case 'built': if (ev.post && ev.post.cap > 0 && !ev.post.dead && !bot) askGarrison(ev.post, ev.sq); break;     // (0.22: the radar sweep is silent; its ping every few seconds all mission long was too much)
     case 'time_ask': audio.supAsk(); hud.wake(6000); break;
     case 'time_yes': audio.ready(); break;
     case 'side_done': audio.sideDone(); break;
@@ -1375,6 +1410,8 @@ function frame(ts) {
     input.update(dt);
     // (the story first: the game waits under the cinematic, and under a tutorial card until GOT IT)
     if (planQ.length && live()) runPlan();     // (0.22) the plan made in the pause goes out as the game runs again
+    if (session && session.tutorial && live()) tutRank();     // (0.26) the tutorial's ranks come with kills
+    if (hud.askAnchor) { const an = hud.askAnchor; if (an.dead) hud.askEnd(); else { const p = renderer.worldToScreen(an.x, an.y, canvas); if (p) hud.askPlace(p.x, p.y); } }
     if (plan() && !bot) { const sa = input.screenAim(), w = renderer.screenToWorld(sa.x, sa.y, canvas); if (w) mission.setAim(w.x, w.y); }     // (the reticle follows in the pause too)
     if (!paused && !cinema.on && !(tut && tut.held) && state === 'play') { simulate(dt, now); ambient(mission, dt); }
     else if (tut && tut.held && mission.events.length) { for (const ev of mission.events) onEvent(ev, now); mission.events.length = 0; }   // (an order given with a card up counts)

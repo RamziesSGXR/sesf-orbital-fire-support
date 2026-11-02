@@ -210,7 +210,10 @@ function troops(m, n, sq = 0, x = m.hx + 10, y = m.hy + 6) {
   check('allies under it get the UAV\'s lift', m.t - t2b.uavAt < 0.3);
   check('it is a SEAF drop point', m.beacons.some((b) => b.post === tw));
 
-  // the SAM site brings dropships down
+  // the SAM site brings dropships down (0.26: on its own, with nothing else about: this mission has run for minutes by now, and
+  // where its fights have drifted to depends on the map)
+  for (const e of m.enemies) e.dead = true;
+  m.enemies = []; m.groups = []; m.drops.length = 0; m.dirtyE = true;
   const sam = makePost(m, 'sam', m.hx - 120, m.hy + 100);
   m.drops.push({ id: 999, drop: true, kind: 'ship', x: sam.x + 160, y: sam.y, tx: sam.x + 50, ty: sam.y, dx: 1, dy: 0, state: 'in', alt: 1, hp: 900, maxHp: 900, r: 9, left: 6, total: 6, dropT: 0, hoverT: 0, outT: 0, low: false, dead: false, hurtAt: -9, born: m.t, why: 'test', vis: 2, face: 0 });
   run(m, 10);

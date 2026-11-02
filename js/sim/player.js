@@ -5,7 +5,7 @@ import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
 import { orbStats, uavStats, gunStats, buildStats, buildLevel, hangarStats } from '../data/kit.js';
-import { noise } from './enemies.js';
+import { noise, alertGroup } from './enemies.js';
 import { damageArea, hurtEnemy, jammedAt } from './combat.js';
 import { domeAt } from './ops.js';
 import { strikeAt, queueZone, destroyAsset } from './strat.js';
@@ -13,7 +13,7 @@ import { strikeAt, queueZone, destroyAsset } from './strat.js';
 export const SLOT_ARTY = 8, ORB_SLOTS = 5;
 export const UAV_REACH = 70;       // a UAV can be dropped this far beyond the strike zone of the allies
 const ALL = { L: 1, M: 1, H: 1, B: 1 };
-const GUN_MULT = { L: 1, M: 0.8, H: 0.2, B: C.gun.struct };
+const GUN_MULT = { L: 1, M: 1, H: 0.7, B: C.gun.struct };     // (0.26) heavy penetration: mediums take full damage, heavies most of it (a Harvester goes down to it)
 
 export function initPlayer(m) {
   const p = {
@@ -107,7 +107,23 @@ export function aimGeom(m, st) {
 // A shell lands. by says who fired it; friendly = whether it hurts allies (only the player's strikes do).
 function explode(m, sh) {
   const by = sh.by || 'player', friendly = sh.friendly !== false;
-  // a round aimed at one enemy (the Ultimatum): it takes the full hit if it is still where the round lands
+  // (0.26) the Ultimatum: a blast that kills every enemy in it, through armour and shields; a super heavy loses a big piece
+  if (sh.ultAoe) {
+    if (sh.miss) { const [ox, oy] = m.rng.inDisc(sh.ultAoe * 0.8); sh.x += ox; sh.y += oy; }
+    else if (sh.lock && !sh.lock.dead) { sh.x = sh.lock.x; sh.y = sh.lock.y; }     // (it was locked on: it follows its target in)
+    const U = C.hd.ult;
+    m.eGrid.near(sh.x, sh.y, sh.ultAoe + 8, (e, d2) => {
+      if (e.dead || d2 > (sh.ultAoe + (e.r || 0) * 0.6) ** 2) return;
+      alertGroup(m, e.g);
+      if (e.boss) hurtEnemy(m, e, e.maxHp * U.bossFrac, by, null, null, '', false);
+      else hurtEnemy(m, e, e.maxHp * U.kill * 1.5 * (sh.dmgMul || 1), by, sh.fx ?? sh.x, sh.fy ?? sh.y, '', true);
+    });
+    damageArea(m, sh.x, sh.y, sh.ultAoe, U.structDmg, { L: 0, M: 0, H: 0, B: 1 }, by, false, '', sh.x, sh.y);     // and what stands there
+    noise(m, sh.x, sh.y, C.noise.strike);
+    m.emit('boom', { x: sh.x, y: sh.y, r: sh.ultAoe, dmg: 9999, by, ult: true, big: true });
+    return;
+  }
+  // a round aimed at one enemy: it takes the full hit if it is still where the round lands
   if (sh.direct && !sh.direct.dead && Math.hypot(sh.direct.x - sh.x, sh.direct.y - sh.y) <= sh.direct.r + 1.5) {
     if (sh.flat) hurtEnemy(m, sh.direct, sh.directDmg, by, null, null, '', !!sh.pierce);      // a flat share: no rear or critical bonus on top
     else hurtEnemy(m, sh.direct, sh.directDmg, by, sh.fx ?? sh.x, sh.fy ?? sh.y, sh.cs, !!sh.pierce);

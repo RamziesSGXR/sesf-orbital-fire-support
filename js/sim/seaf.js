@@ -45,7 +45,8 @@ function walk(m, a, tx, ty, speed, dt) {
   tx = w.x; ty = w.y;
   const dx = tx - a.x, dy = ty - a.y, d = Math.hypot(dx, dy);
   if (d < 0.05) return 0;
-  const s = Math.min(speed * speedMul(m, a) * dt, d), nx = a.x + (dx / d) * s, ny = a.y + (dy / d) * s;
+  const brace = a.role === 'spec' && m.t < (a.braceUntil || 0) ? C.seaf.braceMul : 1;     // (0.26) a Specialist firing the MG-43 is braced
+  const s = Math.min(speed * speedMul(m, a) * brace * dt, d), nx = a.x + (dx / d) * s, ny = a.y + (dy / d) * s;
   if (!canStep(m, a, nx, ny)) return 0;
   a.x = nx; a.y = ny;
   return s;
@@ -137,7 +138,7 @@ function finishBuild(m, q, o) {
   if (o.what === 'arty') m.radio(COMMS.artyUp, 'artyup', 0);
   m.stats.built = (m.stats.built || 0) + 1;
   m.notice(tr(o.what === 'foxhole' ? 'n.dug' : 'n.built', { what: tr('build.' + o.what), cr: buildStats(o.what, p.lvl).cost }), 'good');
-  m.emit('built', { what: o.what, x: o.x, y: o.y });
+  m.emit('built', { what: o.what, x: o.x, y: o.y, sq: q.i, post: p });     // (0.25.1: a building with room inside: the game asks)
   if (o.what === 'bridge') setSquadOrder(m, q, 'protect', o.x, o.y);       // (nothing to man on a bridge)
   else setSquadOrder(m, q, 'post', p.x, p.y, { post: p, site: p.site, garrison: INSIDE.has(o.what) ? false : undefined });     // (0.22: they hold beside a building; nobody goes in unless told to)
   return true;
@@ -199,16 +200,34 @@ export function drawOrder(m, pts) {
 }
 
 // ---------------------------------------------------------------- the troop pelican
+// (0.26) Four roles. Every drop is a squad with a Squad Leader first out; then, by chance (more with the armory's Specialists and
+// Field Medics), a Specialist (MG-43 and EAT-17) and a Medic; Riflemen make up the rest. Everyone carries G-12 grenades.
+export const ROLES = ['leader', 'rifle', 'spec', 'medic'];
 export function rollRoles(m, n, st) {
   const rng = m.rng, roles = Array(Math.max(0, n)).fill('rifle');
+  if (n > 0) roles[0] = 'leader';
   const free = () => { const ix = []; roles.forEach((r, k) => { if (r === 'rifle') ix.push(k); }); return ix; };
-  const put = (role) => { const ix = free(); if (ix.length > 1 || (ix.length === 1 && n <= 2)) roles[ix[rng.int(ix.length)]] = role; };
-  if (n > 0 && rng.next() < st.rocketChance) put('rocket');
+  const put = (role) => { const ix = free(); if (ix.length) roles[ix[rng.int(ix.length)]] = role; };
+  if (n > 1 && rng.next() < st.specChance) put('spec');
   if (n > 2 && rng.next() < st.medicChance) put('medic');
-  if (n > 3 && rng.next() < st.spotChance) put('spotter');
-  let gr = 0;
-  for (let k = 0; k < n; k++) if (roles[k] === 'rifle' && gr < 2 && rng.next() < st.grenChance) { roles[k] = 'gren'; gr++; }
   return roles;
+}
+// (0.26) One Squad Leader per squad: if a squad has lost its leader (or a merge left it with two), a Rifleman takes the lead.
+function keepLeaders(m, by) {
+  by.forEach((list, i) => {
+    const up = list.filter((a) => !a.down);
+    if (!up.length) return;
+    const lead = up.filter((a) => a.role === 'leader');
+    if (lead.length > 1) for (const a of lead.slice(1)) a.role = 'rifle';
+    if (!lead.length) {
+      const nu = up.find((a) => a.role === 'rifle');      // (a Rifleman steps up; a Specialist or a Medic keeps his own job)
+      if (!nu) return;
+      nu.role = 'leader';
+      if (nu.name) nu.name = nu.name.replace(/^\S+/, 'SGT');
+      m.notice(tr('n.newLeader', { sq: i + 1, who: nu.name || 'SGT' }), 'info');
+      m.emit('seaf_lead', { id: nu.id, sq: i });
+    }
+  });
 }
 
 // A cargo pelican: brings a crate for SEAF to deploy (a wall, an MG nest, a drop beacon, a howitzer), drops it and leaves.
@@ -281,7 +300,7 @@ export function updatePelicans(m, dt) {
         p.state = 'out'; p.outT = 0;
         m._refreshAlive();
         const n = p.roles.length, c = (r) => p.roles.filter((q) => q === r).length;
-        const extra = [c('rocket') ? tr('n.pRocket') : '', c('gren') ? tr('n.pGren', { n: c('gren') }) : '', c('medic') ? tr('n.pMedic') : '', c('spotter') ? tr('n.pSpotter') : ''].filter(Boolean).join(' ');
+        const extra = [c('spec') ? tr('n.pSpec') : '', c('medic') ? tr('n.pMedic') : ''].filter(Boolean).join(' ');
         m.notice(tr('n.seafDown', { n, extra: extra ? ' ' + extra : '', sq: p.squad + 1 }), 'info');
         m.radio(COMMS.seafLanded, 'land', 0);
         const s = m.seafAlive.filter((a) => a.sq === p.squad).pop();
@@ -298,57 +317,100 @@ export function updatePelicans(m, dt) {
   }
 }
 
-// ---------------------------------------------------------------- medics and spotters
+// ---------------------------------------------------------------- medics, and the Squad Leader's radio
 const SPOT = () => {
   const K = C.spotter;
   return { name: tr('strat.fireMission'), cat: 'EAGLE', pat: 'scatter', n: K.n, len: K.len, span: K.span, delay: K.delay, dmg: K.dmg, splash: K.splash, mult: M4(1, 1, 0.6, 0.3), fly: true };
 };
 
+// (0.26) A trooper who falls with a Medic in reach goes down instead of dying (combat.js asks this): he lies where he fell, out of
+// the fight, until a Medic gets him up or the time runs out.
+export function medicNear(m, a) {
+  const R2 = C.medic.reviveR * C.medic.reviveR;
+  for (const o of m.seafAlive) if (o !== a && o.role === 'medic' && !o.dead && !o.down && !o.inside && (o.x - a.x) ** 2 + (o.y - a.y) ** 2 <= R2) return o;
+  return null;
+}
+export function goDown(m, a, by, src) {
+  const K = C.medic;
+  a.down = { until: m.t + K.downSec, by, src, rev: 0 }; a.hp = 1; a.engaged = false; a.vx = 0; a.vy = 0;
+  m.dirtyA = true;
+  m.stats.downs = (m.stats.downs || 0) + 1;
+  m.emit('seaf_down', { id: a.id, x: a.x, y: a.y });
+  if (m.crng.next() < 0.5) bark(m, a, 'down', '', true);
+}
+
 function updateSpecialists(m, dt) {
-  const st = seafStats(m.kit), sf = m.seaf, t = m.t;
+  const st = seafStats(m.kit), sf = m.seaf, t = m.t, K = C.medic;
+  // the downed: bleeding out unless a Medic is on it
   for (const a of m.seafAlive) {
+    if (!a.down) continue;
+    if (t >= a.down.until) { const d = a.down; a.down = null; m.killAlly(a, d.by, d.src); }
+  }
+  for (const a of m.seafAlive) {
+    if (a.down || a.inside) continue;
     if (a.role === 'medic') {
+      // a downed trooper in reach comes first: the Medic works on him (a stim) until he is back up
+      const R2 = K.reviveR * K.reviveR;
+      let dn = null, dd = Infinity;
+      for (const o of m.seafAlive) if (o.down && !o.dead) { const d2 = (o.x - a.x) ** 2 + (o.y - a.y) ** 2; if (d2 <= R2 && d2 < dd) { dd = d2; dn = o; } }
+      a.reviving = dn;
+      if (dn) {
+        if (dd > 2.5 * 2.5) walk(m, a, dn.x, dn.y, C.squad.chaseSpeed * 0.9, dt);     // to him, and kneel by him
+        dn.down.rev += dt * st.medicRate;
+        dn.down.until = Math.max(dn.down.until, t + 1);         // (he does not bleed out while the Medic is on him)
+        if (dn.down.rev >= K.reviveSec) {
+          dn.down = null; a.reviving = null; dn.hp = Math.round(dn.maxHp * K.reviveHp); m.dirtyA = true;
+          m.stats.revives = (m.stats.revives || 0) + 1;
+          m.emit('heal', { x: a.x, y: a.y, tx: dn.x, ty: dn.y, id: dn.id });
+          m.emit('seaf_up', { id: dn.id, x: dn.x, y: dn.y });
+          m.notice(tr('n.revived', { who: m.tag(a), what: m.tag(dn) }), 'good');
+          bark(m, a, 'medic', '', true);
+        }
+        continue;
+      }
       a.spT -= dt;
       if (a.spT > 0) continue;
       let best = null, bs = 2;
-      const R2 = C.medic.range * C.medic.range;
+      const H2 = K.range * K.range;
       for (const o of m.alive) {
-        if (o.dead || (o.mech && o.mech.hp > 0)) continue;
-        if ((o.x - a.x) ** 2 + (o.y - a.y) ** 2 > R2) continue;
+        if (o.dead || o.down || (o.mech && o.mech.hp > 0)) continue;
+        if ((o.x - a.x) ** 2 + (o.y - a.y) ** 2 > H2) continue;
         const f = o.hp / o.maxHp;
         if (f >= 0.98) continue;
         const sc = f * (o.type === 'H' ? 0.8 : 1);
         if (sc < bs) { bs = sc; best = o; }
       }
       if (best) {
-        a.spT = C.medic.every / st.medicRate;
-        best.hp = Math.min(best.maxHp, best.hp + C.medic.heal * st.medicRate * (best.type === 'H' ? 1.5 : 1));
-        m.emit('heal', { x: a.x, y: a.y, tx: best.x, ty: best.y });
+        // the stim pistol from where he stands; close in, a full stim (twice the heal)
+        const close = (best.x - a.x) ** 2 + (best.y - a.y) ** 2 <= K.close * K.close;
+        a.spT = K.every / st.medicRate;
+        best.hp = Math.min(best.maxHp, best.hp + K.heal * st.medicRate * (best.type === 'H' ? 1.5 : 1) * (close ? K.closeMul : 1));
+        m.emit('heal', { x: a.x, y: a.y, tx: best.x, ty: best.y, id: best.id });
         if (m.crng.next() < 0.12) bark(m, a, 'medic', '');
       } else a.spT = 0.6;
-    } else if (a.role === 'spotter') {
+    } else if (a.role === 'leader' && st.radio && a.sq >= 0) {
+      // (Leader Radios) the Squad Leader calls Eagle fire missions on big groups
       a.spT -= dt;
       if (a.spT > 0) continue;
       a.spT = 1.6;
       if (t < sf.spotAt) continue;
-      const K = C.spotter, R2 = K.range * K.range;
+      const P = C.spotter;
       let best = null, bs = 0, tries = 0;
-      m.eGrid.near(a.x, a.y, K.range, (e) => {
+      m.eGrid.near(a.x, a.y, P.range, (e) => {
         if (e.vis < 1 || ++tries > 60) return;
         let n = e.kind === 'H' ? 8 : 0;
         m.eGrid.near(e.x, e.y, 11, () => { n++; });
-        if (n < K.minGroup || n <= bs) return;
-        for (const o of m.alive) if ((o.x - e.x) ** 2 + (o.y - e.y) ** 2 < K.minDist * K.minDist) return;
+        if (n < P.minGroup || n <= bs) return;
+        for (const o of m.alive) if ((o.x - e.x) ** 2 + (o.y - e.y) ** 2 < P.minDist * P.minDist) return;
         best = e; bs = n;
       });
-      void R2;
       if (best && !jammedAt(m, best.x, best.y, 4)) {
         sf.spotAt = t + st.spotCool;
         const d = SPOT();
-        d.n = st.spotN; d.dmg = K.dmg * st.spotDmg;
+        d.n = st.spotN; d.dmg = P.dmg * st.spotDmg;
         strikeAt(m, d, { x: best.x, y: best.y }, { ox: a.x, oy: a.y, by: 'squad', friendly: false, dmgMul: 1 });
         m.stats.spotCalls = (m.stats.spotCalls || 0) + 1;
-        m.emit('strat_call', { id: 'spot', x: best.x, y: best.y, delay: K.delay, team: -1 });
+        m.emit('strat_call', { id: 'spot', x: best.x, y: best.y, delay: P.delay, team: -1 });
         m.notice(tr('n.spotter'), 'info');
         bark(m, a, 'spot', '', true);
       }
@@ -359,10 +421,12 @@ function updateSpecialists(m, dt) {
 // ---------------------------------------------------------------- squads on the move
 export function updateSeaf(m, dt, speed, bm) {
   const sf = m.seaf;
-  m.kitDmg = seafStats(m.kit).dmgMul;
+  { const st = seafStats(m.kit); m.kitDmg = st.dmgMul; m.kitEat = st.eatMul; }
   updatePelicans(m, dt);
   const by = sf.squads.map(() => []), held = [];
   for (const a of m.seafAlive) {
+    if (a.down) continue;                    // (0.26) down: he lies where he fell until a Medic gets him up
+    if (a.reviving && a.reviving.down && !a.reviving.dead) continue;     // (and the Medic working on him stays with him)
     if (a.sq === LOOSE) continue;            // in no squad: they hold where they stand (and fight from there)
     if (a.sq === GARRISON) { if (a.post && !a.post.dead) { held.push(a); continue; } a.post = null; a.sq = a.sqWas >= 0 ? a.sqWas : LOOSE; if (a.sq === LOOSE) continue; }
     if (!(a.sq >= 0 && a.sq < by.length)) a.sq = 0;
@@ -376,6 +440,7 @@ export function updateSeaf(m, dt, speed, bm) {
     q.cx = cx / q.n; q.cy = cy / q.n;
   });
   if (!m.seafAlive.length) return;
+  keepLeaders(m, by);
   const claimed = new Set();
   for (const q of sf.squads) if (q.n && q.tgt && q.order.kind === 'auto') claimed.add(q.tgt.obj.id);
   for (const q of sf.squads) if (q.n) stepSquad(m, q, by[q.i], dt, speed, bm, claimed);
@@ -486,7 +551,15 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
     a.engaged = !!en;
     // stand and fight, unless the order is a post or walls to hold: then they get back to their place and fight from it
     // (nobody leaves cover to chase a target)
-    if (en && o.kind !== 'post' && !holdSite) continue;
+    if (en && o.kind !== 'post' && !holdSite) {
+      // (0.26) Riflemen (and the Squad Leader) in a fight go for cover if there is some close by: a wall, a foxhole, a rock line
+      const cv = (a.role === 'rifle' || a.role === 'leader') ? siteAt(m, a.x, a.y, C.seaf.coverSeek) : null;
+      if (!cv || !cv.pieces || !cv.pieces.length) continue;
+      const p = coverSlot(cv, a.id % cv.pieces.length, cv.pieces.length, 0);
+      if (Math.hypot(p.x - a.x, p.y - a.y) <= 1.2) continue;
+      walk(m, a, p.x, p.y, speed, dt);
+      continue;
+    }
     let tx, ty, spd = speed, wander = false;
     const ki = list.indexOf(a), kn = list.length, fo = formOff(q, a, ki, kn);
     if (o.kind === 'escort') {

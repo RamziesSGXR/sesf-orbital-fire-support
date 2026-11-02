@@ -286,7 +286,7 @@ check('the nuke covers a much wider area', C.objective.nuke.blastR >= 200, `${C.
   const d0 = Math.hypot(o.x - sq.ax, o.y - sq.ay);
   const p = away(m, a, 22), g = spawnGroup(m, p.x, p.y, 'hunt');
   for (const e of g.members) e.hp = e.maxHp = 1e9;   // a pack that never dies keeps the squad in contact
-  for (const h of m.hdAlive) h.hp = h.maxHp = 1e7;
+  for (const h of m.hdAlive) { h.hp = h.maxHp = 1e7; h.ult = 0; }    // (0.26: the Ultimatum's blast kills anything, even this pack)
   let eng = 0, seen = false;
   for (let i = 0; i < 30 * 45; i++) { m.step(dt); if (sq.engaged) eng += dt; if (sq.fightOn) seen = true; }
   const d1 = Math.hypot(o.x - sq.ax, o.y - sq.ay);

@@ -24,7 +24,7 @@ const SCREENS = ['s-title', 's-campaign', 's-glass', 's-shop', 's-brief', 's-deb
 const OVERLAYS = ['s-pause', 's-lock', 's-controls', 's-manual', 's-names', 's-settings', 's-notice', 's-info', 's-credits', 's-map'];
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const ROLE_GLYPH = { rifle: '•', medic: '+', rocket: '/', gren: '◆', spotter: '▲' };
+const ROLE_GLYPH = { leader: '★', rifle: '•', spec: '/', medic: '+' };     // (0.26) the four roles
 const SQUAD_COL = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(squadColor);
 // The doors on a selected post (Age of Empires style): go in (garrison it) and come out (release the garrison).
 const DOOR = '<path d="M4 21V4.5L12 3v18M12 3h6v18h-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="9.6" cy="12.5" r="1" fill="currentColor"/>';
@@ -64,12 +64,12 @@ export function milestone(ms, h = {}) {
   const box = $('ms-splash');
   if (!ms) { box.hidden = true; box.classList.remove('go'); if (msKeys) { document.removeEventListener('keydown', msKeys, true); msKeys = null; } return; }
   $('ms-k').textContent = t('ms.k', { k: ms.k, name: t('rank.' + ms.k) });
-  $('ms-done').textContent = ms.done === 1 ? t('ms.done1') : t('ms.done', { n: ms.done });
+  $('ms-done').textContent = ms.kills ? t('ms.kills', { n: ms.done }) : ms.done === 1 ? t('ms.done1') : t('ms.done', { n: ms.done });
   $('ms-bonus').textContent = t('ms.bonus', { cr: fmtNum(ms.bonus) });
   $('ms-nh').textContent = t(ms.k >= ms.of ? 'ms.all' : 'ms.new');
   const ul = $('ms-list'); ul.innerHTML = '';
   for (const n of ms.names) ul.appendChild(el('li', '', `${esc(n.n)}<small>${esc(n.k)}</small>`));
-  $('ms-next').textContent = ms.next ? t('ms.next', { n: ms.next, k: ms.k + 1, name: t('rank.' + (ms.k + 1)) }) : '';
+  $('ms-next').textContent = ms.next ? t(ms.kills ? 'ms.nextKills' : 'ms.next', { n: ms.next, k: ms.k + 1, name: t('rank.' + (ms.k + 1)) }) : '';
   $('ms-show').textContent = t('ms.show'); $('ms-later').textContent = t('ms.later');
   $('ms-show').onclick = h.onShow; $('ms-later').onclick = h.onLater;
   box.hidden = false; void box.offsetWidth; box.classList.add('go');
@@ -546,8 +546,11 @@ export class Hud {
     if (n) q.textContent = t('plan.count', { n });
   }
   // (0.22) A question with buttons: [{ label, fn, primary }]. It goes by itself after ms (nothing done: the safe answer).
-  ask(text, buttons, ms = 7000) {
+  // (0.26) anchor: a point in the world (a building) to show the question next to, rather than at the top of the screen; main.js
+  // moves it with the camera every frame (askPlace)
+  ask(text, buttons, ms = 7000, anchor = null) {
     const a = $('ask'); clearTimeout(this._askT);
+    this.askAnchor = anchor; a.classList.toggle('anchored', !!anchor);
     a.querySelector('.ask-t').textContent = text;
     const bx = a.querySelector('.ask-b'); bx.innerHTML = '';
     for (const b of buttons) {
@@ -558,7 +561,16 @@ export class Hud {
     a.classList.remove('hidden'); this.layout(true);
     this._askT = setTimeout(() => this.askEnd(), ms);
   }
-  askEnd() { clearTimeout(this._askT); $('ask').classList.add('hidden'); }
+  askEnd() { clearTimeout(this._askT); const a = $('ask'); a.classList.add('hidden'); a.classList.remove('anchored'); a.style.left = a.style.top = ''; this.askAnchor = null; }
+  // (sx, sy): the anchor on screen, in page pixels; kept on screen, above the building (below it if there is no room above)
+  askPlace(sx, sy) {
+    const a = $('ask'); if (a.classList.contains('hidden')) return;
+    const z = parseFloat(getComputedStyle(document.body).getPropertyValue('--ui')) || 1, w = a.offsetWidth * z, h = a.offsetHeight * z, pad = 8;
+    const below = sy - h - 26 < pad;
+    const x = Math.max(pad + w / 2, Math.min(innerWidth - pad - w / 2, sx)), y = below ? Math.min(innerHeight - h - pad, sy + 26) : sy - h - 26;
+    a.classList.toggle('below', below);
+    a.style.left = `${(x - w / 2) / z}px`; a.style.top = `${y / z}px`;
+  }
   // (0.22) Touch: the ghost of what is being placed, with PLACE and CANCEL (a tap on the map moves the ghost).
   placeOk(text) {
     const e = $('place-ok'); e.classList.toggle('hidden', !text);
@@ -989,7 +1001,7 @@ export class Hud {
     // (0.18) like Age of Empires II: a tile for each trooper selected (his role, his health); tap one to pick him alone
     const tiles = (list, max = 24) => `<div class="ts-tiles">${list.slice(0, max).map((a) => {
       const hp = Math.max(0, Math.min(1, a.hp / a.maxHp));
-      return `<button type="button" class="tt r-${a.role || 'rifle'}" data-pick="${a.id}" title="${esc(m.tag(a))}" style="--sc:${a.sq >= 0 ? (SQUAD_COL[a.sq] || '#9dd8ff') : '#c8d2cc'}"><b>${ROLE_GLYPH[a.role || 'rifle'] || '•'}</b><u style="width:${Math.round(hp * 100)}%"></u></button>`;
+      return `<button type="button" class="tt r-${a.role || 'rifle'}${a.down ? ' down' : ''}" data-pick="${a.id}" title="${esc(m.tag(a))}" style="--sc:${a.sq >= 0 ? (SQUAD_COL[a.sq] || '#9dd8ff') : '#c8d2cc'}"><b>${ROLE_GLYPH[a.role || 'rifle'] || '•'}</b><u style="width:${Math.round(hp * 100)}%"></u></button>`;
     }).join('')}${list.length > max ? `<span class="tt-more">+${list.length - max}</span>` : ''}</div>`;
     let h;
     if (sel && !sel.dead) {
@@ -1319,10 +1331,10 @@ function statLine(it, kit) {
   if (id === 'seaf.drop') return t('st.seafDrop', { n: s.drop, s: s.cool });
   if (id === 'seaf.hp') return t('st.seafHp', { a: s.hpMul.toFixed(2), b: s.dmgMul.toFixed(2) });
   if (id === 'seaf.build') return t('st.seafBuild', { x: s.buildSpeed.toFixed(2) });
-  if (id === 'seaf.gren') return t('st.seafGren', { p: Math.round(s.grenChance * 100) });
-  if (id === 'seaf.rocket') return t('st.seafRocket', { p: Math.round(s.rocketChance * 100) });
+  if (id === 'seaf.gren') return t('st.seafGren', { n: s.grenades });
+  if (id === 'seaf.rocket') return t('st.seafRocket', { p: Math.round(s.specChance * 100), x: s.eatMul.toFixed(2) });
   if (id === 'seaf.medic') return t('st.seafMedic', { p: Math.round(s.medicChance * 100), x: s.medicRate.toFixed(2) });
-  if (id === 'seaf.spot') return t('st.seafSpot', { p: Math.round(s.spotChance * 100), s: Math.round(s.spotCool), n: s.spotN });
+  if (id === 'seaf.spot') return s.radio ? t('st.seafSpot', { s: Math.round(s.spotCool), n: s.spotN }) : t('st.seafSpot0');
   if (id.startsWith('gun.')) {
     const g = gunStats(kit);
     if (id === 'gun.dmg') return t('st.gunDmg', { d: f1(g.dmg), r: C.gun.rps });
@@ -1377,10 +1389,10 @@ function keyAt(it, kit, L) {
   if (id === 'seaf.drop') return String(s.drop);
   if (id === 'seaf.hp') return `x${s.hpMul.toFixed(2)}`;
   if (id === 'seaf.build') return `x${s.buildSpeed.toFixed(2)}`;
-  if (id === 'seaf.gren') return pc(s.grenChance);
-  if (id === 'seaf.rocket') return pc(s.rocketChance);
+  if (id === 'seaf.gren') return String(s.grenades);
+  if (id === 'seaf.rocket') return pc(s.specChance);
   if (id === 'seaf.medic') return pc(s.medicChance);
-  if (id === 'seaf.spot') return pc(s.spotChance);
+  if (id === 'seaf.spot') return s.radio ? t('st.k.s', { n: Math.round(s.spotCool) }) : '—';
   if (id === 'gun.dmg') return g.dmg.toFixed(1);
   if (id === 'gun.ammo') return String(Math.round(g.ammo));
   if (id === 'gun.regen') return t('st.k.ps', { n: g.regen.toFixed(1) });
@@ -1422,15 +1434,15 @@ function upgradeLines(it, kit) {
 // The armory's tabs, and which sections each holds.
 export const SHOP_TABS = [{ id: 'orb', secs: ['loadout', 'orbitals', 'utilities', 'defense'] }, { id: 'eagle', secs: ['eagles'] }, { id: 'ship', secs: ['gun', 'uav', 'support'] }, { id: 'seaf', secs: ['seaf', 'specialists'] }, { id: 'build', secs: ['build'] }, { id: 'classified', secs: ['classified'] }];
 // (0.25) The rank bar: your rank and its name, one segment a rank (filled as far as your missions go), and what comes next.
-export function rankBar(tier, done) {
-  const at = C.ranks.at, N = at.length, box = el('div', 'rankbar');
+export function rankBar(tier, done, kills = false) {
+  const at = kills ? C.ranks.tutKills : C.ranks.at, N = at.length, box = el('div', 'rankbar');
   const lo = tier ? at[tier - 1] : 0, hi = at[tier], frac = tier >= N ? 0 : Math.max(0, Math.min(1, (done - lo) / (hi - lo)));
   const pct = ((tier + frac) / N) * 100;
   let ticks = '';
   for (let i = 1; i <= N; i++) ticks += `<i class="rb-t${i > 5 ? ' cls' : ''}${i <= tier ? ' on' : ''}" style="left:${(i / N) * 100}%"><b>${i}</b></i>`;
-  box.innerHTML = `<div class="rb-top"><b>${esc(t('arm.rankN', { n: tier }))}</b><span class="rb-name">${esc(t('rank.' + tier))}</span><span class="rb-done">${esc(done === 1 ? t('arm.done1') : t('arm.doneN', { n: done }))}</span></div>`
+  box.innerHTML = `<div class="rb-top"><b>${esc(t('arm.rankN', { n: tier }))}</b><span class="rb-name">${esc(t('rank.' + tier))}</span><span class="rb-done">${esc(kills ? t('arm.killsN', { n: done }) : done === 1 ? t('arm.done1') : t('arm.doneN', { n: done }))}</span></div>`
     + `<div class="rb-track" role="progressbar" aria-valuemin="0" aria-valuemax="${N}" aria-valuenow="${tier}" aria-valuetext="${esc(t('arm.rankN', { n: tier }))}"><i class="rb-fill" style="width:${pct.toFixed(1)}%"></i>${ticks}</div>`
-    + `<p class="rb-next">${esc(tier >= N ? t('arm.rankMax') : t('arm.rankNext', { n: tier + 1, name: t('rank.' + (tier + 1)), m: hi, left: hi - done }))}</p>`;
+    + `<p class="rb-next">${esc(tier >= N ? t('arm.rankMax') : t(kills ? 'arm.rankNextKills' : 'arm.rankNext', { n: tier + 1, name: t('rank.' + (tier + 1)), m: hi, left: hi - done }))}</p>`;
   return box;
 }
 let shopTab = 'orb';
@@ -1439,7 +1451,7 @@ export function renderShop(root, opts) {
   // (0.25) everything shows; what your rank has not reached is locked (and a classified one is blacked out)
   const items = shopItems(kit), rankOf = (it) => itemTier(it.id), open = (it) => shownAt(it, tier);
   // (0.24) SHOW ME: open the tab with the first new item in it
-  if (opts.focus && fresh.size) { const f = items.find((it) => fresh.has(it.id) || (it.orb && fresh.has('own:' + it.orb))); if (f) shopTab = (SHOP_TABS.find((x) => x.secs.includes(f.section)) || SHOP_TABS[0]).id; }
+  if (opts.focus && fresh.size) { const f = firstNew(items, opts.fresh); if (f) shopTab = (SHOP_TABS.find((x) => x.secs.includes(f.section)) || SHOP_TABS[0]).id; }
   const scroll = root.querySelector('.shop-scroll'), keep = scroll ? scroll.scrollTop : 0;
   root.innerHTML = '';
   root.appendChild(el('div', 'shop-cr', `${t('arm.credits')} <b>${fmtNum(wallet.bal)}</b>${opts.note ? `<span class="note">${esc(opts.note)}</span>` : ''}`));
@@ -1527,14 +1539,24 @@ export function renderShop(root, opts) {
   }
 }
 
+// (0.26) the first of the new things, in the order the rank's prompt names them (so SHOW ME opens on the one it named first)
+function firstNew(items, fresh) {
+  for (const id of fresh || []) { const f = items.find((it) => it.id === id || (it.orb && 'own:' + it.orb === id)); if (f) return f; }
+  return null;
+}
+
 // (0.20) The armory during a mission, in the command panel: the game runs on, and nothing scrolls. A row of the four kinds (a dot on
 // those with something you can afford), then the upgrades you can buy now as small buttons (name, level, price) in pages that fit
 // the panel (‹ › when there are more). What each one does is in its tip (hover, or a finger held on it).
 let liveTab = 'orb', livePage = 0;
 export function renderLiveArmory(root, opts) {
   const { kit, wallet } = opts;
-  const all = shopItems(kit).filter((it) => it.live && it.cost !== null && !it.locked && shownAt(it, opts.tier ?? TIER_MAX));
+  // (0.26) opts.any: everything open can be bought now (the tutorial has no time between missions); opts.fresh: marked NEW, and
+  // opts.focus opens the tab with the first of them
+  const fresh = new Set(opts.fresh || []), isNew = (it) => fresh.has(it.id) || (it.orb && fresh.has('own:' + it.orb));
+  const all = shopItems(kit).filter((it) => (it.live || opts.any) && it.cost !== null && !it.locked && shownAt(it, opts.tier ?? TIER_MAX));
   const tabOf = (it) => (SHOP_TABS.find((x) => x.secs.includes(it.section)) || SHOP_TABS[0]).id;
+  if (opts.focus) { const f = firstNew(all, opts.fresh); if (f) { liveTab = tabOf(f); livePage = 0; } }
   if (!all.some((it) => tabOf(it) === liveTab)) { const f = SHOP_TABS.find((tb) => all.some((it) => tabOf(it) === tb.id)); if (f) liveTab = f.id; }
   const list = all.filter((it) => tabOf(it) === liveTab);
   const box = root.getBoundingClientRect(), z = parseFloat(getComputedStyle(document.body).getPropertyValue('--ui')) || 1;
@@ -1558,13 +1580,14 @@ export function renderLiveArmory(root, opts) {
     top.appendChild(pg);
   }
   if (opts.note) top.appendChild(el('span', 'la-note', esc(opts.note)));
+  if (opts.rank) { const rk = el('span', 'la-rank', esc(opts.rank)); rk.title = opts.rank; top.appendChild(rk); }     // (0.26) the rank, and what the next one needs
   root.appendChild(top);
   const grid = el('div', 'la-grid'); grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`; grid.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
   if (!list.length) grid.appendChild(el('p', 'fine la-none', esc(t('arm.noneLive'))));
   for (const it of list.slice(livePage * per, livePage * per + per)) {
     const poor = wallet.bal < it.cost, name = it.orb ? shortName(it.orb) : it.name;
     const lv = it.max > 1 && isFinite(it.max) ? `L${it.level}→${it.level + 1}` : '';
-    const b = el('button', 'la-it sec-' + (SEC_SLUG[it.section] || it.section) + (poor ? ' poor' : ''), `<span class="la-n">${esc(name)}</span><span class="la-s">${lv ? `<i>${lv}</i>` : ''}<b>${fmtNum(it.cost)}</b></span>`);
+    const b = el('button', 'la-it sec-' + (SEC_SLUG[it.section] || it.section) + (poor ? ' poor' : '') + (isNew(it) ? ' fresh' : ''), `<span class="la-n">${esc(name)}${isNew(it) ? `<em>${esc(t('arm.new'))}</em>` : ''}</span><span class="la-s">${lv ? `<i>${lv}</i>` : ''}<b>${fmtNum(it.cost)}</b></span>`);
     b.type = 'button'; b.title = `${name}: ${it.blurb}`;
     b.onclick = () => (poor ? opts.onPoor && opts.onPoor(it) : opts.onBuy(it.id));
     if (opts.onTip) { b.addEventListener('pointerenter', (ev) => { if (ev.pointerType === 'mouse') opts.onTip(b, it, 0); }); b.addEventListener('pointerleave', (ev) => { if (ev.pointerType === 'mouse' && opts.onTipLeave) opts.onTipLeave(); }); }

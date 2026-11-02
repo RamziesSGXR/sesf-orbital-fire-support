@@ -109,11 +109,13 @@ export function seafStats(kit) {
     drop: C.seaf.dropSize + Math.ceil(s.drop / K.seafDropEvery),
     cool: (C.seaf.dropCooldownSec - 3 * s.drop) * hangarStats(kit).seafCool,     // (0.23: the Hangar turns pelicans round faster)
     hpMul: 1 + K.seafHp * s.hp, dmgMul: 1 + K.seafDmg * s.hp,
-    grenChance: Math.min(0.8, C.seaf.grenChance + K.seafGren * s.gren),
-    rocketChance: Math.min(1, C.seaf.rocketChance + K.seafRocket * s.rocket),
+    // (0.26) G-12 Grenades: every trooper carries more; Specialists and Field Medics: more drops bring one; Leader Radios: the
+    // Squad Leader calls Eagle fire missions (none without it)
+    grenades: C.seaf.grenades + K.seafGren * (s.gren || 0),
+    specChance: Math.min(1, C.seaf.specChance + K.seafRocket * s.rocket), eatMul: 1 + 0.08 * (s.rocket || 0),
     medicChance: Math.min(1, C.seaf.medicChance + K.seafMedic * s.medic), medicRate: 1 + K.medicRate * s.medic,
-    spotChance: Math.min(1, C.seaf.spotChance + K.seafSpot * s.spot), spotCool: C.spotter.coolSec * (1 - K.spotCool * s.spot),
-    spotN: C.spotter.n + Math.floor(s.spot / 2), spotDmg: 1 + K.spotDmg * s.spot,
+    radio: (s.spot || 0) > 0, spotCool: C.spotter.coolSec * (1 - K.spotCool * Math.max(0, s.spot - 1)),
+    spotN: C.spotter.n + Math.floor(s.spot / 2), spotDmg: 1 + K.spotDmg * Math.max(0, s.spot - 1),
     buildSpeed: 1 + K.seafBuild * (s.build || 0),       // Combat Engineers: how much faster SEAF put up what they build
   };
 }
@@ -179,7 +181,7 @@ const ITEM_TIER = {
 export const itemTier = (id) => { const k = String(id).replace(/^(own|up):/, ''); return ITEM_TIER[k] ?? (STRATS[k] && STRATS[k].secret) ?? 0; };
 export const isSecret = (id) => { const k = String(id).replace(/^(own|up):/, ''); return !!(STRATS[k] && STRATS[k].secret); };
 // The milestone reached after this many missions done (0 before the first).
-export function tierFor(done) { let n = 0; C.ranks.at.forEach((at, i) => { if (done >= at) n = i + 1; }); return n; }
+export function tierFor(done, kills = false) { let n = 0; (kills ? C.ranks.tutKills : C.ranks.at).forEach((at, i) => { if (done >= at) n = i + 1; }); return n; }
 export const TIER_MAX = C.ranks.at.length;
 // Open at this rank (it can be bought): its rank is reached, or you already have it (or levels in it).
 export function shownAt(it, tier) { return tier >= TIER_MAX || itemTier(it.id) <= tier || it.level > 0 || !!it.owned; }

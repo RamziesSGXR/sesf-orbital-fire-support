@@ -238,14 +238,14 @@ function quiet(faction = 'bots', seed = 77, opts = {}) {
 {
   // side tasks on the way to the main objective
   let took = 0, tried = 0;
-  for (let s = 0; s < 3; s++) {
-    const m = new Mission({ seed: 8000 + s * 7, faction: ['bugs', 'bots', 'squids'][s], biome: 'grass', events: true, sessionMinutes: 0, missionN: 1 });
+  for (let s = 0; s < 6; s++) {      // (0.26: six maps, not three; a side task is only taken when one lies on the way)
+    const m = new Mission({ seed: 8000 + s * 7, faction: ['bugs', 'bots', 'squids'][s % 3], biome: 'grass', events: true, sessionMinutes: 0, missionN: 1 });
     const bot = makeBot();
     let side = false;
     for (let i = 0; i < 30 * 60 * 6 && !m.over && !m.objDone; i++) { botStep(m, bot); m.step(dt); if (m.plan.task && m.plan.task.kind !== 'main') side = true; }
     tried++; if (side) took++;
   }
-  check('on the way to the main objective the Helldivers take side tasks', took >= 2, `${took}/${tried} missions`);
+  check('on the way to the main objective the Helldivers take side tasks', took >= 3, `${took}/${tried} missions`);
   // the full clear: only with more than clearLives lives, and called off when they run down
   const m = quiet('bots', 8100);
   for (const o of m.objectives) o.done = true;

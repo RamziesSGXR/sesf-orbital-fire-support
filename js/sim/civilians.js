@@ -53,8 +53,8 @@ export function updateEvac(m, o, dt) {
     o.open = hold;
     if (!hold) m.radio(COMMS.evacPaused, 'evacpause', 15);
   }
-  // reinforcements keep coming at the site while the evacuation runs
-  siege(m, o, o.x, o.y, dt);
+  // reinforcements keep coming at the site while the evacuation runs (0.26: not in the last stand, whose waves come in stages)
+  if (!o.lastStand) siege(m, o, o.x, o.y, dt);
   // the shelter doors open while the squad holds the site
   const walking = m.civs.filter((c) => !c.dead && !c.safe).length, need = o.need ?? E.need, left = (o.pop ?? Infinity) - o.released;
   o.batchT -= dt;

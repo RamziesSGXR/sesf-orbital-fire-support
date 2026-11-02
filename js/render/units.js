@@ -16,15 +16,16 @@ function line(ctx, x0, y0, x1, y1) { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.li
 
 // ---------------------------------------------------------------- allies
 // strobe: whether the IR strobe on the backpack is lit this frame. team: the Helldiver's group colour (null for SEAF).
-export function drawAllyBody(ctx, a, r, col, team, strobe, now, px) {
+export function drawAllyBody(ctx, a, r, col, team, strobe, now, px, mt = 0) {
   const H = a.type === 'H';
+  if (!H) { drawSeafBody(ctx, a, r, col, strobe, now, px, mt); return; }
   ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.face || 0);
   // dark halo so the shape reads on any ground
   ctx.fillStyle = 'rgba(0,0,0,0.55)'; ell(ctx, -0.15 * r, 0, r * 1.25, r * 1.05); ctx.fill();
-  // backpack, with the strobe; a Helldiver's is edged in its squad colour
-  ctx.fillStyle = H ? '#174f86' : '#1d5a8f';
+  // backpack, with the strobe, edged in the squad colour
+  ctx.fillStyle = '#174f86';
   rect(ctx, -0.82 * r, -0.42 * r, -0.28 * r, 0.42 * r); ctx.fill();
-  if (H && team) { ctx.strokeStyle = rgba(team, 0.95); ctx.lineWidth = Math.max(0.12 * r, px(1.2)); ctx.stroke(); }
+  if (team) { ctx.strokeStyle = rgba(team, 0.95); ctx.lineWidth = Math.max(0.12 * r, px(1.2)); ctx.stroke(); }
   ctx.fillStyle = strobe ? '#ffffff' : 'rgba(170,215,255,0.55)';
   circ(ctx, -0.62 * r, 0, Math.max(0.16 * r, px(1.2))); ctx.fill();
   // body and shoulders
@@ -32,13 +33,90 @@ export function drawAllyBody(ctx, a, r, col, team, strobe, now, px) {
   ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = px(0.7); ctx.stroke();
   // rifle along the right side, pointing ahead
   ctx.strokeStyle = '#dff1ff'; ctx.lineWidth = Math.max(0.22 * r, px(1.4)); ctx.lineCap = 'round';
-  line(ctx, 0.05 * r, 0.38 * r, (H ? 1.45 : 1.25) * r, 0.3 * r);
+  line(ctx, 0.05 * r, 0.38 * r, 1.45 * r, 0.3 * r);
   ctx.lineCap = 'butt';
   // helmet, and the visor at the front
-  ctx.fillStyle = H ? '#e9f5ff' : '#cfe4f5'; circ(ctx, 0.12 * r, 0, 0.42 * r); ctx.fill();
-  ctx.fillStyle = H ? '#0b2238' : '#14324f';
+  ctx.fillStyle = '#e9f5ff'; circ(ctx, 0.12 * r, 0, 0.42 * r); ctx.fill();
+  ctx.fillStyle = '#0b2238';
   ctx.beginPath(); ctx.arc(0.12 * r, 0, 0.42 * r, -0.85, 0.85); ctx.lineTo(0.12 * r + 0.2 * r, 0); ctx.closePath(); ctx.fill();
   ctx.restore();
+}
+
+// (0.26) A SEAF trooper, by role. Facing +x, the right side is +y. The Squad Leader: a big radio pack with its antenna, a pad on
+// the right shoulder, a mic off the helmet. Riflemen: plain, some with a small pack. The Specialist: the most armour (pads on
+// both shoulders, a neck guard), the MG-43 with its ammo box, the EAT-17 tube across the back. The Medic: light grey armour with
+// red, a white medical pack with a red cross, a helmet that comes forward over the cheeks; some wear orange. A trooper who is
+// down lies on his side, greyed, with a red cross over him (green while a Medic works on him).
+function drawSeafBody(ctx, a, r, col, strobe, now, px, mt) {
+  const role = a.role || 'rifle', down = !!a.down, lw = (n) => Math.max(px(n), 0.04);
+  ctx.save(); ctx.translate(a.x, a.y); ctx.rotate((a.face || 0) + (down ? Math.PI / 2 : 0));
+  if (down) ctx.globalAlpha *= 0.75;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ell(ctx, -0.15 * r, 0, r * 1.25, r * 1.05); ctx.fill();
+  const medic = role === 'medic', orange = medic && a.id % 3 === 0;
+  const body = down ? '#7f8a92' : medic ? (orange ? '#ff8a2a' : '#d4dbe0') : role === 'spec' ? shade(col, -0.18) : col;
+  // what is on the back
+  if (role === 'leader') {
+    ctx.fillStyle = '#3c4a2c'; rect(ctx, -0.98 * r, -0.48 * r, -0.24 * r, 0.48 * r); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = lw(0.6); ctx.stroke();
+    ctx.strokeStyle = '#cfd8c0'; ctx.lineWidth = lw(0.9); line(ctx, -0.85 * r, -0.36 * r, -1.55 * r, -0.95 * r);     // the antenna
+    ctx.fillStyle = strobe ? '#ffffff' : '#ff5a4a'; circ(ctx, -1.55 * r, -0.95 * r, Math.max(0.09 * r, px(0.9))); ctx.fill();
+  } else if (medic) {
+    ctx.fillStyle = '#f1f3f4'; rect(ctx, -0.86 * r, -0.44 * r, -0.26 * r, 0.44 * r); ctx.fill();
+    ctx.strokeStyle = '#e0302a'; ctx.lineWidth = Math.max(0.13 * r, px(1.1));
+    line(ctx, -0.56 * r, -0.26 * r, -0.56 * r, 0.26 * r); line(ctx, -0.8 * r, 0, -0.32 * r, 0);
+  } else if (role === 'spec') {
+    ctx.fillStyle = '#1b4a75'; rect(ctx, -0.78 * r, -0.4 * r, -0.3 * r, 0.4 * r); ctx.fill();
+    ctx.strokeStyle = '#a9b59a'; ctx.lineWidth = Math.max(0.2 * r, px(1.6)); ctx.lineCap = 'round';
+    line(ctx, -0.95 * r, -0.62 * r, -0.2 * r, 0.62 * r);     // the EAT-17 across the back
+    ctx.lineCap = 'butt';
+  } else if (a.id % 2 === 0) {
+    ctx.fillStyle = '#1d5a8f'; rect(ctx, -0.74 * r, -0.34 * r, -0.3 * r, 0.34 * r); ctx.fill();     // a Rifleman's small pack
+  }
+  if (!medic) { ctx.fillStyle = strobe ? '#ffffff' : 'rgba(170,215,255,0.55)'; circ(ctx, -0.5 * r, 0.12 * r, Math.max(0.12 * r, px(1))); ctx.fill(); }
+  // body
+  ctx.fillStyle = body; ell(ctx, 0, 0, (role === 'spec' ? 0.64 : 0.58) * r, (role === 'spec' ? 0.84 : 0.78) * r); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = lw(0.7); ctx.stroke();
+  if (medic) { ctx.strokeStyle = '#e0302a'; ctx.lineWidth = lw(1); ctx.beginPath(); ctx.ellipse(0, 0, 0.4 * r, 0.62 * r, 0, -0.6, 0.6); ctx.stroke(); }     // red trim
+  // shoulder pads: the Squad Leader's on the right, the Specialist's on both (and a neck guard)
+  ctx.fillStyle = shade(body, 0.12);
+  if (role === 'leader' || role === 'spec') { rect(ctx, -0.18 * r, 0.5 * r, 0.24 * r, 0.82 * r); ctx.fill(); }
+  if (role === 'spec') { rect(ctx, -0.18 * r, -0.82 * r, 0.24 * r, -0.5 * r); ctx.fill(); ctx.fillStyle = shade(body, 0.2); rect(ctx, 0.22 * r, -0.2 * r, 0.36 * r, 0.2 * r); ctx.fill(); }
+  // the weapon: the Liberator, the MG-43 (longer, heavier, an ammo box), the SMG-37 (short)
+  ctx.lineCap = 'round';
+  if (!down) {
+    if (role === 'spec') {
+      ctx.strokeStyle = '#c9d6e0'; ctx.lineWidth = Math.max(0.3 * r, px(1.9)); line(ctx, 0.05 * r, 0.4 * r, 1.6 * r, 0.34 * r);
+      ctx.fillStyle = '#5c6b3e'; rect(ctx, 0.2 * r, 0.5 * r, 0.6 * r, 0.82 * r); ctx.fill();
+      if (mt < (a.braceUntil || 0)) { ctx.strokeStyle = 'rgba(220,230,240,0.8)'; ctx.lineWidth = lw(0.8); line(ctx, 1.35 * r, 0.36 * r, 1.55 * r, 0.62 * r); line(ctx, 1.35 * r, 0.36 * r, 1.55 * r, 0.1 * r); }     // the bipod down
+    } else {
+      ctx.strokeStyle = '#dff1ff'; ctx.lineWidth = Math.max((medic ? 0.2 : 0.22) * r, px(1.3)); line(ctx, 0.05 * r, 0.38 * r, (medic ? 0.95 : 1.25) * r, 0.3 * r);
+    }
+  }
+  ctx.lineCap = 'butt';
+  // the helmet: the Medic's comes forward over the cheeks, red-striped; the Squad Leader's has a mic
+  ctx.fillStyle = medic ? '#e9edf0' : '#cfe4f5'; circ(ctx, 0.12 * r, 0, 0.42 * r); ctx.fill();
+  if (medic) {
+    ctx.fillStyle = '#e9edf0'; for (const sd of [-1, 1]) { ell(ctx, 0.42 * r, sd * 0.3 * r, 0.16 * r, 0.1 * r); ctx.fill(); }
+    ctx.strokeStyle = '#e0302a'; ctx.lineWidth = lw(1); line(ctx, -0.2 * r, 0, 0.3 * r, 0);
+  }
+  ctx.fillStyle = '#14324f';
+  ctx.beginPath(); ctx.arc(0.12 * r, 0, 0.42 * r, -0.85, 0.85); ctx.lineTo(0.32 * r, 0); ctx.closePath(); ctx.fill();
+  if (role === 'leader') { ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = lw(0.8); line(ctx, 0.3 * r, -0.3 * r, 0.58 * r, -0.12 * r); }
+  ctx.restore();
+  if (down) {
+    // a red cross over him (green while a Medic is working on him), and how long he has left
+    const K = a.down, rev = K.rev > 0, pulse = 0.6 + 0.4 * Math.sin(now * 6);
+    const cx = a.x, cy = a.y - r * 1.9, s = r * 0.55;
+    ctx.save(); ctx.globalAlpha = rev ? 1 : pulse;
+    ctx.strokeStyle = rev ? '#7dff9b' : '#ff4a4a'; ctx.lineWidth = Math.max(0.22 * r, px(1.8));
+    line(ctx, cx - s, cy, cx + s, cy); line(ctx, cx, cy - s, cx, cy + s);
+    ctx.restore();
+  }
+}
+function shade(hex, k) {
+  if (!hex || hex[0] !== '#') return hex;
+  const n = parseInt(hex.slice(1), 16), f = (c) => Math.max(0, Math.min(255, Math.round(c + (k > 0 ? (255 - c) * k : c * k))));
+  return `rgb(${f((n >> 16) & 255)},${f((n >> 8) & 255)},${f(n & 255)})`;
 }
 
 // ---------------------------------------------------------------- civilians

@@ -110,7 +110,7 @@ function dry(m) { for (const a of m.hdAlive) { a.stims = 0; a.gren = 0; } }
   run(m, C.supply.dropSec + 0.5);
   const st = m.hdAlive.map((a) => a.stims), gr = m.hdAlive.map((a) => a.gren);
   const halfS = Math.round(C.helldivers?.kit?.stims ?? 4) / 2;
-  check('half a compartment refills about half', st.every((v) => v >= 1 && v <= 3) && gr.every((v) => v >= 1 && v <= 2), `stims ${st.join(',')}  grenades ${gr.join(',')}  (half of ${halfS * 2})`);
+  check('half a compartment refills about half', st.every((v) => v >= 1 && v <= 3) && gr.every((v) => v >= 2 && v <= 4), `stims ${st.join(',')}  grenades ${gr.join(',')}  (half of ${halfS * 2} stims, of ${C.hd.grenades} grenades)`);
   check('no boost after a slow load', !(m.t < m.supply.boostUntil));
   check('after a drop there is a cooldown of at least a minute', m.supply.cdUntil - m.t >= 60 - C.supply.dropSec, `${(m.supply.cdUntil - m.t).toFixed(0)} s`);
 }

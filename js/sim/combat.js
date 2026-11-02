@@ -4,6 +4,7 @@ import { ALLY } from '../data/data.js';
 import { uavBuff } from '../data/kit.js';
 import { coverMul } from './cover.js';
 import { alertGroup, noise } from './enemies.js';
+import { medicNear, goDown } from './seaf.js';
 
 // ---------- hits from behind and critical hits ----------
 // The multiplier for one hit on tgt coming from (fx, fy): more from behind (the back of every unit is its weak side, and a heavy's
@@ -78,7 +79,10 @@ export function soakBubble(m, b, dmg) {
 }
 
 // pierce: the hit goes through armour and shields (the Ultimatum's round).
-export function hurtEnemy(m, e, dmg, by, fx, fy, cs, pierce = false) {
+// armor: the share of the hit the body takes (a light round on a heavy: very little). (0.26) Shields do not care about armour:
+// a harvester's bubble, a squid heavy's or the Colossus's own shield soak the hit at full strength (light penetration strips them
+// as well as anything), and only what gets through meets the armour.
+export function hurtEnemy(m, e, dmg, by, fx, fy, cs, pierce = false, armor = 1) {
   if (e.dead || !(dmg > 0)) return 0;
   if (e.cover && covered(e)) return 0;
   if (!pierce && m.bubbles && m.bubbles.length) {
@@ -87,12 +91,13 @@ export function hurtEnemy(m, e, dmg, by, fx, fy, cs, pierce = false) {
   }
   const k = hitMul(m, e, fx, fy, cs === undefined ? (by === 'player' ? 'player' : 'ally') : cs, pierce);
   dmg *= k * (e.soak && !pierce ? e.soak : 1);     // the fleshmob takes only part of every hit
-  if (e.shield > 0 && !pierce) {         // a shield (a squid heavy, the Warp Colossus) soaks up damage first
+  if (e.shield > 0 && !pierce) {         // a shield (a squid heavy, the Warp Colossus) soaks up damage first, at full strength
     const soak = Math.min(e.shield, dmg);
     e.shield -= soak; e.shieldAt = m.t; dmg -= soak;
     const bd = m.stats.bossDmg || (m.stats.bossDmg = {}); bd.shield = (bd.shield || 0) + soak;
     if (dmg <= 0) { e.hurtAt = m.t; return 0; }
   }
+  dmg *= armor;                          // what gets through meets the armour
   if (m.hitFlags && (by === 'player' || dmg >= 60)) m.emit('crit', { x: e.x, y: e.y, f: m.hitFlags, by });
   const dealt = Math.min(dmg, e.hp);
   e.hp -= dmg; e.hurtAt = m.t;
@@ -111,9 +116,13 @@ export function hurtEnemy(m, e, dmg, by, fx, fy, cs, pierce = false) {
 // (fx, fy): where the blow comes from, when that is not the centre (a shell fired by someone standing there).
 export function damageArea(m, x, y, rad, dmg, mult, by = 'player', friendly = true, cs, fx = x, fy = y) {
   ABOVE = (fx === x && fy === y) || cs === 'gun';      // a strike or a Ship Gun round, not a rocket fired along the ground
-  m.eGrid.near(x, y, rad, (e) => {
+  // (0.26) a Ship Gun round that lands on a medium's or a heavy's body hits it (the gun is heavy-penetrating: see GUN_MULT), not
+  // only one that lands within its blast of the centre; light enemies are small enough that the centre is what counts
+  const body = cs === 'gun';
+  m.eGrid.near(x, y, body ? rad + C.gun.bodyMax : rad, (e, d2) => {
+    if (body && d2 > rad * rad && (e.kind === 'L' || d2 > (rad + (e.r || 0) * C.gun.body) ** 2)) return;
     alertGroup(m, e.g);
-    hurtEnemy(m, e, dmg * (e.boss && mult.boss !== undefined ? mult.boss : mult[e.kind]), by, fx, fy, cs);   // (a few blasts set their own share for a super heavy)
+    hurtEnemy(m, e, dmg, by, fx, fy, cs, false, e.boss && mult.boss !== undefined ? mult.boss : mult[e.kind]);   // (a few blasts set their own share for a super heavy)
   });
   ABOVE = false;
   for (const d of m.drops) if (!d.dead && d.hp > 0 && d.low && Math.hypot(d.x - x, d.y - y) <= rad + d.r) m.damageDrop(d, dmg * (mult.H ?? 1), by);
@@ -182,7 +191,13 @@ export function hurtAlly(m, a, rawDmg, by, raw = false, src = null, fx, fy) {
   if (dmg <= 0) return;
   if (a.type === 'H' && by === 'enemy' && !raw) dmg = Math.min(dmg, a.maxHp * C.hd.maxHit);     // nothing kills a healthy Helldiver in one hit
   a.hp -= dmg;
-  if (a.hp <= 0) m.killAlly(a, by === 'player' ? 'player' : 'enemy', a.lastSrc);
+  if (a.hp <= 0) {
+    const who = by === 'player' ? 'player' : 'enemy';
+    // (0.26) a SEAF trooper with a Medic in reach goes down instead (seaf.js); hit again while down, he is gone
+    if (a.type === 'S' && !a.down && medicNear(m, a)) { goDown(m, a, who, a.lastSrc); return; }
+    if (a.down) a.down = null;
+    m.killAlly(a, who, a.lastSrc);
+  }
 }
 
 export function hurtAsset(m, s, dmg) {
@@ -257,6 +272,7 @@ export function bandOf(d, R) { if (!R) return 0; const f = d / R; return f <= BA
 export const bandAcc = (b) => BANDS.acc[b], bandDmg = (b) => BANDS.dmg[b];
 
 export function fireShot(m, src, e, prof, by, side = 'a', snd = '') {
+  if (side === 'a') src.shotAt = m.t;                        // (0.26: an ally who has just fired is in a fight: see speedMul)
   const hi = m.terrain.attackMul(src.x, src.y, e.x, e.y);   // from a rise the same shot hits harder
   if (hi > 1.001) prof = { ...prof, dmg: prof.dmg * hi };
   if (prof.range) {                                         // farther out, a shot is less likely to hit and hits softer
@@ -280,6 +296,6 @@ export function fireShot(m, src, e, prof, by, side = 'a', snd = '') {
   if (prof.splash > 0) {
     damageArea(m, tx, ty, prof.splash, prof.dmg, mult, by, false, undefined, src.x, src.y);
     if (prof.splash >= 3) { m.emit('boom', { x: tx, y: ty, r: prof.splash, dmg: prof.dmg, by }); if (prof.splash >= 6) noise(m, tx, ty, C.noise.blast); }
-  } else hurtEnemy(m, e, prof.dmg * mult[e.kind], by, src.x, src.y);
+  } else hurtEnemy(m, e, prof.dmg, by, src.x, src.y, undefined, false, mult[e.kind]);
   return true;
 }

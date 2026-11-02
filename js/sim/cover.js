@@ -71,6 +71,19 @@ export function threatDir(m, s) {
 }
 // Where Helldiver i of n stands at a site: the walls facing the threat first, one each; spread round the ring when it is
 // not known yet. (SEAF take coverSlot: round the whole ring.)
+// (0.26) The walled site(s) a squad holding (x, y) takes: the one it is in, or, at an evacuation (the squad holds between the
+// shelter and the hangar), both rings, the shelter's and the hangar's, so the Helldivers split to the walls rather than standing
+// in the open middle.
+export function holdSites(m, x, y) {
+  const s = siteAt(m, x, y);
+  if (s) return [s];
+  for (const o of m.objectives || []) {
+    if (o.type !== 'evac' || o.sx === undefined || Math.hypot(o.x - x, o.y - y) > C.cover.evacHold) continue;
+    const l = [siteAt(m, o.sx, o.sy, 0), siteAt(m, o.hx, o.hy, 0)].filter(Boolean);
+    if (l.length) return l;
+  }
+  return null;
+}
 export function threatSlot(m, s, i, n) {
   const v = threatDir(m, s), P = s.pieces;
   if (!v || P.length < 2) return coverSlot(s, i, n);

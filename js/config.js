@@ -21,11 +21,14 @@ export const CONFIG = {
               // Grenades: four, for groups and for heavies. Damage follows the enemy's own health as the war toughens it: a grenade
               // kills lights in its blast, takes `med` of a medium and `heavy` of a heavy (about four to kill one). `group` is the
               // weight of enemies (light 1, medium 2, heavy 4) round a spot worth a grenade.
-              grenades: 4, gren: { light: 2.5, med: 0.55, heavy: 0.27, boss: 0.25, struct: 60, splash: 5.5, range: 44, minRange: 9, every: 2.4, acc: 0.85, flight: 0.9, group: 4 },
+              // (0.26) more of them, thrown sooner, and when it gets bad (dump: that much weight round one spot, a heavy inside
+              // heavyR, or a Helldiver falling back with a crowd on him) he throws every one he has, gap seconds apart.
+              grenades: 6, gren: { light: 2.5, med: 0.55, heavy: 0.27, boss: 0.25, struct: 60, splash: 5.5, range: 44, minRange: 9, every: 1.5, acc: 0.85, flight: 0.9, group: 3,
+                dump: 9, heavyR: 24, gap: 0.25 },
               // The Ultimatum: one round, a direct hit kills almost anything (a super heavy loses bossFrac of its health; structures are
               // too hard for it). splashChance of rounds also burst round the target. A supply pod reloads it. markSec: the target is
               // marked on the map first.
-              ult: { uses: 1, range: 60, acc: 0.92, flight: 0.6, kill: 1.05, bossFrac: 0.1, splashChance: 0.5, splash: 4.5, splashLight: 3, splashMed: 0.6, markSec: 0.8 },
+              ult: { uses: 1, range: 60, acc: 0.92, flight: 0.6, kill: 1.05, bossFrac: 0.1, splash: 9, structDmg: 600, markSec: 0.8 },     // (0.26) a blast: every enemy in it dies
               dodge: { cool: 10, chance: 0.65, minHit: 9, dist: 3.6, sec: 0.35 },
               seafDodge: { cool: 14, chance: 0.12 },     // SEAF dodge too, far less often (a UAV overhead helps both)
               // no single enemy hit takes more than maxHit of a Helldiver's health: however late in the war, it takes two
@@ -38,7 +41,9 @@ export const CONFIG = {
   // within startR of the landing zone, before the Helldivers are down.
   seaf:     { max: 12, dropSize: 5, dropCooldownSec: 45, firstDropSec: 0, startSec: 25, startR: 140, dropDelaySec: 6, patrolRadius: 30, patrolSpeed: 2.5,
               followSpread: 28, protectR: 36, protectLeash: 80, clearR: 55, clearMaxSec: 70,
-              grenChance: 0.3, rocketChance: 0.6, squads: 9, medicChance: 0.45, spotChance: 0.3,
+              // (0.26) four roles: a Squad Leader in every drop, Riflemen, Specialists (MG-43 and EAT-17) and Medics. Everyone carries
+              // G-12 grenades (grenades each, plus the armory's G-12 upgrade).
+              specChance: 0.6, squads: 9, medicChance: 0.45, grenades: 2, braceMul: 0.3, coverSeek: 12,
               formationSpacing: 5, pathReach: 9,
               // every SEAF trooper lost is replaced (paid at the end of the mission): lifeCost CR for the first, lifeStep more for each after
               lifeCost: 8, lifeStep: 0.25,
@@ -49,7 +54,9 @@ export const CONFIG = {
   // shoots any enemy it can see while it is on station.
   pelican:  { speed: 92, approach: 330, hover: 1.6, climb: 4.5, dropEvery: 0.22, gunRange: 66, gunEvery: 0.3, gunDmg: 30, gunSplash: 2.4, gunAcc: 0.85 },
   // SEAF specialists. A medic patches up anyone near it. A spotter radios in an Eagle fire mission on a big group or a heavy.
-  medic:    { range: 26, heal: 24, every: 1.3, hp: 90 },
+  // (0.26) a Medic heals anyone hurt within 20 m with the stim pistol (a full stim when close), and revives downed SEAF: a trooper
+  // who falls with a Medic in reach goes down instead, for downSec, and is back up reviveSec after the Medic gets to work.
+  medic:    { range: 20, heal: 24, every: 1.3, hp: 90, close: 4, closeMul: 2, reviveR: 20, downSec: 14, reviveSec: 2.5, reviveHp: 0.4 },
   spotter:  { coolSec: 70, minGroup: 6, minDist: 26, n: 7, len: 24, dmg: 240, splash: 8.5, delay: 5, span: 1.2, range: 150 },
   squad:    { speed: 6, chaseSpeed: 8.5, engageRange: 38, pushAfterSec: 45,
               clusterRadius: 15, setupSec: 5, setupCooldownSec: 15, carrySlow: 0.85, fightOnSec: 12, fightOnSpeed: 0.5, spotRange: 95 },
@@ -98,7 +105,7 @@ export const CONFIG = {
               chance: 0.45, fromMission: 2, mult: { L: 1, M: 1, H: 1, B: 0.5 } },
   // Cover at the sites the squad holds (cover.js): n walls in a ring of the given radius; standing within r of one, an ally takes
   // mul of what enemy fire would do.
-  cover:    { n: 7, nukeR: 30, vipR: 22, evacR: 26, padR: 20, r: 3.6, mul: 0.6 },
+  cover:    { n: 7, nukeR: 30, vipR: 22, evacR: 26, padR: 20, r: 3.6, mul: 0.6, evacHold: 34 },
   // A defence (holding the launch site, running the evacuation) starts with setupSec quiet seconds: the Helldivers take the walls
   // that face the threat, and the gunner can bring SEAF in, build and get strikes ready. The enemy comes after.
   defense:  { setupSec: 25 },
@@ -116,8 +123,11 @@ export const CONFIG = {
     // and a little extra damage, out to `medium` it is a little worse, and at long range (out to the reach) it is clearly worse.
     bands: { short: 0.4, medium: 0.75, acc: [1, 0.85, 0.65], dmg: [1.1, 0.9, 0.75] },
     // SEAF specialists. Grenades lob, rockets are the answer to heavies. Both also hurt POIs and breaches.
-    grenadier: { dmg: 55, splash: 4.2, every: 4.2, range: 46, flight: 0.85, acc: 0.8 },
-    rocketeer: { dmg: 300, splash: 5, every: 5.2, range: 78, flight: 0.55, acc: 0.85 },
+    grenadier: { dmg: 55, splash: 4.2, every: 7, range: 40, flight: 0.85, acc: 0.8, minR: 9, group: 3 },     // (0.26) the G-12 every trooper throws
+    rocketeer: { dmg: 300, splash: 5, every: 5.2, range: 78, flight: 0.55, acc: 0.85 },     // (0.26) the Specialist's EAT-17
+    // (0.26) the Specialist's MG-43 (braced, a steady stream) and the Medic's SMG-37 Defender (short and quick)
+    seafMg:  { dps: 21, burst: 0.25, acc: 0.62, range: 54, mult: { L: 1, M: 0.55, H: 0.16 } },
+    seafSmg: { dps: 11, burst: 0.3, acc: 0.78, range: 30, mult: { L: 1, M: 0.45, H: 0.1 } },
     // Hits from behind and critical hits, for every side. A unit's back is the arc behind it (cos of the angle between where it faces
     // and where the hit comes from below back.cos). Heavies carry their weak spot on the back (back.heavy). Every hit can crit; the
     // destroyer's own strikes crit most often. Turning: how fast units swing round (rad/s), so a slow heavy can be caught from behind.
@@ -250,6 +260,17 @@ export const CONFIG = {
   // the Helldivers' drop waits this long unless DEPLOY NOW is pressed (the lessons ask for it). breakAt: lives left when the radio
   // says the line is breaking. (0.19.5) It is flown at level 1 (LAST_STAND), and from the evacuation on the level the HUD shows
   // climbs one every levelEvery seconds, with the waves.
+  // (0.26) the Great Host comes in stages, by how many personnel are off Mars (or, failing that, by time): lights only, then
+  // mediums, then the odd heavy, then a heavy every wave; at 120 off it becomes overwhelming (waves every few seconds, growing,
+  // several heavies, and tougher and harder-hitting by the minute). Each stage: saved, sec (the time that brings it anyway),
+  // every (seconds between waves), n (enemies a wave), mid (share of mediums), heavy (a wave), heavyEvery (one every this many).
+  lsStages: [
+    { saved: 0,   sec: 0,   every: 12, n: 7,  mid: 0,    heavy: 0, heavyEvery: 0 },
+    { saved: 30,  sec: 75,  every: 10, n: 9,  mid: 0.25, heavy: 0, heavyEvery: 0 },
+    { saved: 60,  sec: 150, every: 8,  n: 11, mid: 0.4,  heavy: 0, heavyEvery: 3 },
+    { saved: 90,  sec: 225, every: 6,  n: 13, mid: 0.45, heavy: 1, heavyEvery: 0 },
+    { saved: 120, sec: 330, every: 3,  n: 20, mid: 0.5,  heavy: 2, heavyEvery: 0, grow: 2, hpPerMin: 1.2, dmgPerMin: 1.6 },
+  ],
   lastStand: { personnel: 160, squad: 6, lzOff: 46, lives: 10, breakAt: 3, waveFirst: 5, waveEvery: [12, 3.5], rampSec: 150, waveSize: [9, 9], waveGrow: 8,
                heavyEvery: 3, hpGrow: 0.6, dmgGrow: 0.9, levelEvery: 25, maxHold: 480, glassSec: 10, beamEvery: 0.09, beamR: 13, waveR: 230, lessonR: 160, countdown: 900 },
   difficulty: { start: 3, spawn: 0.55, medium: 0.6, heavy: 0.4, boss: 0.3, curve: 1, reward: [0.75, 1.2], ramp: 0.39, beyond: 1,
@@ -294,7 +315,7 @@ export const CONFIG = {
   weapons:  { swapSec: 0.3, warmupSec: 8, startCdFrac: 0.5, startCdMin: 12 },
   // The destroyer's free-fire Ship Gun (its one gatling). It fires wherever the player can see, so it is not tied to the strike zone, and it is the
   // only thing that uses the player's ammo. Rounds scatter around the aim point and the spread blooms while the trigger is held.
-  gun:      { ammo: 600, regen: 9, regenDelay: 1.3, rps: 22, dmg: 16, splash: 1.9, spread: 4.5, bloom: 7, bloomUp: 2.4, bloomDown: 5, struct: 0.04,
+  gun:      { ammo: 600, regen: 9, regenDelay: 1.3, rps: 22, dmg: 16, splash: 1.9, spread: 4.5, bloom: 7, bloomUp: 2.4, bloomDown: 5, struct: 0.04, body: 0.75, bodyMax: 8,
               upAmmo: 150, upDmg: 0.2, upRegen: 0.25, upSpread: 0.1, maxLevel: 5 },
 
   // The player's kit. Orbital strikes level 1 to 5; every level adds damage, size and shell count and trims the recharge.
@@ -304,8 +325,8 @@ export const CONFIG = {
   // The UAV: what it reveals (radius, seconds, cooldown by level), and the lift it gives allies under it. Two upgrade tracks:
   // a target relay that speeds allies up (speed, by level 0-3) and threat warnings that help them dodge (dodge, added chance).
   uav:      { r: [95, 120, 145, 175, 205], sec: [24, 28, 32, 36, 40], cd: [42, 38, 34, 30, 26],
-              speed: [0.05, 0.1, 0.15, 0.2], dodge: [0.05, 0.1, 0.15, 0.2], buffMax: 3, buffPrice: 300 },
-  kit:      { slotsStart: 3, slotsMax: 5, seafCap: 3, seafDropEvery: 2, seafHp: 0.18, seafDmg: 0.12, seafGren: 0.06, seafRocket: 0.07, seafMedic: 0.14, medicRate: 0.25, seafSpot: 0.15, spotCool: 0.12, spotDmg: 0.18, seafBuild: 0.25,
+              speed: [0.05, 0.1, 0.15, 0.2], dodge: [0.05, 0.1, 0.15, 0.2], buffMax: 3, buffPrice: 300, liftCalm: 3 },
+  kit:      { slotsStart: 3, slotsMax: 5, seafCap: 3, seafDropEvery: 2, seafHp: 0.18, seafDmg: 0.12, seafGren: 1, seafRocket: 0.07, seafMedic: 0.14, medicRate: 0.25, spotCool: 0.12, spotDmg: 0.18, seafBuild: 0.25,
               zonePer: 18, startLoadout: ['orb_airburst', 'orb_120', 'orb_precision'] },
   // Credits: earned from kills, bases, POIs, breaches and the objective, with a bonus at extraction. Spent in the armory.
   // One multiplier on every armory price. Bot sessions earn about 520 credits a minute, so three hours earns roughly what the whole
@@ -317,7 +338,9 @@ export const CONFIG = {
   // (0.24) Ranks (0.25: they were milestones): missions done in a session raise your rank, which opens more of the armory and
   // pays a level bonus. Everything shows in the armory from the start; what your rank has not reached is locked. Ranks 6 to 9
   // each declassify one stratagem; 30 missions is the top. Which item comes at which rank: ITEM_TIER in data/kit.js.
-  ranks:    { at: [1, 3, 5, 7, 10, 15, 20, 25, 30], bonus: [400, 600, 800, 1000, 1500, 2000, 2500, 3000, 4000] },
+  ranks:    { at: [1, 3, 5, 7, 10, 15, 20, 25, 30], bonus: [400, 600, 800, 1000, 1500, 2000, 2500, 3000, 4000],
+              // (0.26) the tutorial has one mission: its ranks come with kills instead (and everything open can be bought mid-mission)
+              tutKills: [10, 25, 45, 70, 100, 140, 190, 250, 320] },
   econ:     { priceMul: 1.1, earnPerMin: 640, maxAtMin: 300 },     // (0.17.3: prices up about a quarter; 0.18: two more buildables; 0.23: the Hangar and minefields add about an hour)
   credits:  { start: 1200, kill: { L: 2, M: 8, H: 45 }, base: 150, objective: 500, extraction: 800, perMission: 0, civ: 8, fullClear: 400 },
 
@@ -358,6 +381,9 @@ export const CONFIG = {
     // callSec: every call takes this long on top of the stratagem's own delay (the beacon is thrown and the ship lines up), so the
     // marked ground shows for longer; the Helldivers aim where the enemy will be by then, and only inside their own strike zone.
     slots: 16, groups: 4, perGroup: 4, dmgMul: 0.2, swMul: 0.37, cdMul: 1.5, callGapSec: 1.2, startDelaySec: [8, 30], callSec: 2.2, leadMax: 45,
+    // (0.26) heavy weapons in the draw: each Helldiver gets one this often, and in the rest of the draw one is this many times as
+    // likely as anything else (about 1.2 each on average)
+    heavyW: { each: 0.9, weight: 3 },
     frv:   { hp: 800, speed: 14, life: 160, seats: 4, gunRange: 70, gunDmg: 62, gunEvery: 0.42, ejectAt: 0.25, dropSec: 4 },
     mech:  { hp: 850, armor: 0.5, gatAmmo: 500, rktAmmo: 12, dropSec: 5 },
     dog:   { hp: 140, life: 150, range: 38, every: 0.45, dmg: 9 },
@@ -396,6 +422,6 @@ export const CONFIG = {
   share:    { channelUrl: '',
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.25.0',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.26.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

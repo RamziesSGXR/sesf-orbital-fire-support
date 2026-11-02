@@ -73,7 +73,9 @@ check('a lesson card holds the game too, with GOT IT', c.held && await page.isVi
 check('...and says why, not only how', /Why/.test(c.b), c.b);
 await tap('#tut-ok'); await page.waitForTimeout(300);
 check('GOT IT: the game runs again, the card stays, folded to its heading', !(await card()).held && !(await frozen()) && !(await card()).hidden && (await card()).fold);
-check('...at the top, out of the way', await ev(() => document.getElementById('tut').getBoundingClientRect().bottom < innerHeight * 0.35));
+// (0.26) and under the drop countdown when that is at the top, not over it
+check('...at the top, out of the way', await ev(() => { const a = document.getElementById('tut').getBoundingClientRect(), d = document.getElementById('dropcd'), b = d && d.offsetParent ? d.getBoundingClientRect() : null;
+  return a.bottom < innerHeight * 0.4 && (!b || a.top >= b.bottom || a.bottom <= b.top || a.right <= b.left || a.left >= b.right); }));
 if (touch) { await page.touchscreen.tap(W / 2, H / 3); await ev(() => { window.__game.cam.x += 50; }); }
 else { await page.mouse.move(W / 2, H / 3); await page.mouse.down({ button: 'right' }); await page.mouse.move(W / 2 - 260, H / 3 + 60, { steps: 10 }); await page.mouse.up({ button: 'right' }); }
 check('moving the map does it', await waitStep('THE SHIP GUN'));
@@ -129,8 +131,10 @@ await tap('#tut-ok'); await page.waitForTimeout(300);
 c = await card();
 check('GOT IT folds it away and the hold begins', c.fold && !c.hidden && !c.held);
 await ev(() => { const m = window.__game.mission; for (let i = 0; i < 30 * 70; i++) m.step(1 / 30); }); await page.waitForTimeout(800);
-const h2 = await ev(() => ({ saved: window.__game.mission.objectives[0].saved, waves: window.__game.mission.ls.waves, dmg: window.__game.mission.ls.dmg }));
-check('the waves come faster and stronger, and personnel get out', h2.waves >= 6 && h2.dmg > 1.5 && h2.saved > 0, JSON.stringify(h2));
+const h2 = await ev(() => ({ saved: window.__game.mission.objectives[0].saved, waves: window.__game.mission.ls.waves, dmg: window.__game.mission.ls.dmg, st: window.__game.mission.ls.st || 0 }));
+// (0.26) it builds in stages (by personnel off Mars, or by time) and only turns overwhelming at 120 saved: at 70 s it is past
+// stage one and getting stronger, not yet brutal
+check('the waves come faster and stronger, and personnel get out', h2.waves >= 6 && h2.dmg > 1.25 && h2.saved > 0, JSON.stringify(h2));
 const lv = await ev(() => ({ lv: window.__game.mission.ls.level, diff: document.getElementById('mb-diff').textContent }));
 check('(0.19.5) the difficulty climbs with the waves, a level every 25 s, and the clock box shows it', lv.lv === 3 && /DIFFICULTY 3/.test(lv.diff), JSON.stringify(lv));
 await shot('hold');

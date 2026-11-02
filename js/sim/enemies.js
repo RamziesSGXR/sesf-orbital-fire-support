@@ -48,6 +48,9 @@ export function noise(m, x, y, r) {
 // Rifle profile per ally type: damage per burst is dps x burst seconds.
 const RIFLE = {};
 for (const k of ['H', 'S']) { const d = ALLY[k]; RIFLE[k] = { dmg: d.dps * d.burst, acc: d.acc, splash: 0, mult: { ...d.mult, B: 0.04 }, burst: d.burst, range: d.range }; }
+// (0.26) SEAF by role: the Squad Leader and Riflemen carry the Liberator (RIFLE.S), the Specialist the MG-43, the Medic the SMG-37
+for (const [k, d] of [['spec', C.combat.seafMg], ['medic', C.combat.seafSmg]]) RIFLE[k] = { dmg: d.dps * d.burst, acc: d.acc, splash: 0, mult: { ...d.mult, B: 0.04 }, burst: d.burst, range: d.range };
+const gunOf = (a) => (a.type === 'H' ? RIFLE.H : RIFLE[a.role] || RIFLE.S);
 
 // SEAF specialists. A grenadier lobs frags at groups; a rocket trooper hunts mediums and heavies.
 const GRENADE = { dmg: C.combat.grenadier.dmg, acc: C.combat.grenadier.acc, splash: C.combat.grenadier.splash, flight: C.combat.grenadier.flight, range: C.combat.grenadier.range, mult: { L: 1, M: 0.9, H: 0.3, B: 0.25 } };
@@ -56,7 +59,7 @@ const ROCKET = { dmg: C.combat.rocketeer.dmg, acc: C.combat.rocketeer.acc, splas
 export function updateAllies(m, dt) {
   const sq = m.squad, P = C.poi;
   for (const a of m.alive) {
-    if (a.dead || a.mounted) continue;
+    if (a.dead || a.mounted || a.down) continue;      // (0.26: a downed trooper is out of the fight)
     const mechOn = a.mech && a.mech.hp > 0 && (a.mech.gat > 0 || a.mech.rkt > 0);
     const H = a.type === 'H';
 
@@ -67,17 +70,18 @@ export function updateAllies(m, dt) {
     if (!mechOn) {
       a.atk -= dt;
       if (a.atk <= 0) {
-        const range = RIFLE[a.type].range;          // the rifle's reach; long shots are weaker (see fireShot)
+        const G = gunOf(a), range = G.range;       // the rifle's reach (by role for SEAF); long shots are weaker (see fireShot)
         const pick = pickClear(m, a, range, null);
         const e = pick && pick.e;
         if (e && (!H || sq.free || e.g.state === 'hunt')) {
-          const pf = RIFLE[a.type], slow = a.sw ? 1.8 : 1;
+          const pf = G, slow = a.sw ? 1.8 : 1;
           if (pick.block && m.rng.next() >= C.hd.fire.collateral) {
             a.atk += 0.3;                           // a friendly is in the way: hold, look again in a moment
           } else {
             a.atk += pf.burst * slow / (a.inPost && a.inPost.what === 'foxhole' ? C.build.foxhole.rof : 1);   // shooting from a foxhole: faster
             const prof = a.dmgMul && a.dmgMul !== 1 ? { ...pf, dmg: pf.dmg * a.dmgMul } : pf;
-            fireShot(m, a, e, prof, 'squad', 'a', H ? 'rifle' : 'smg');
+            fireShot(m, a, e, prof, 'squad', 'a', H ? 'rifle' : a.role === 'spec' ? 'mg' : 'smg');
+            if (a.role === 'spec') a.braceUntil = m.t + 1;     // (0.26) braced behind the MG-43: he barely moves while it fires
             if (m.t >= (a.noiseAt || 0)) { a.noiseAt = m.t + C.noise.rifleEvery; noise(m, a.x, a.y, C.noise.rifle); }
             // taking the shot anyway: some collateral is expected
             if (pick.block) {
@@ -90,49 +94,61 @@ export function updateAllies(m, dt) {
           const soft = !e && softNear(m, a.x, a.y, 30);
           const bs = !e && !soft ? baseNear(m, a.x, a.y, C.structure.range) : null;
           if (soft) {
-            a.atk += RIFLE[a.type].burst;
-            const dmg = RIFLE[a.type].dmg * (a.dmgMul || 1) * (soft.kind === 'hole' ? C.reinf.bugs.rifle : P.rifleMul) * (m.rng.next() < RIFLE[a.type].acc ? 1 : 0);   // a bug hole wants explosives
+            a.atk += G.burst;
+            const dmg = G.dmg * (a.dmgMul || 1) * (soft.kind === 'hole' ? C.reinf.bugs.rifle : P.rifleMul) * (m.rng.next() < G.acc ? 1 : 0);   // a bug hole wants explosives
             m.emit('tracer', { x: a.x, y: a.y, tx: soft.x, ty: soft.y, s: 'a', hit: true, big: false, fl: 0, snd: H ? 'rifle' : 'smg' });
             if (dmg > 0) (soft.isPoi ? m.damagePoi(soft, dmg, 'squad') : m.damageBreach(soft, dmg, 'squad'));
           } else if (bs) {
             // A base or the citadel: the squad shoots it down itself, so nothing the destroyer can break is out of the Helldivers' reach.
-            a.atk += RIFLE[a.type].burst;
-            const hit = m.rng.next() < RIFLE[a.type].acc, dx = a.x - bs.x, dy = a.y - bs.y, d = Math.hypot(dx, dy) || 1, k = bs.r * 0.7 / d;
+            a.atk += G.burst;
+            const hit = m.rng.next() < G.acc, dx = a.x - bs.x, dy = a.y - bs.y, d = Math.hypot(dx, dy) || 1, k = bs.r * 0.7 / d;
             m.emit('tracer', { x: a.x, y: a.y, tx: bs.x + dx * k, ty: bs.y + dy * k, s: 'a', hit, big: false, fl: 0, snd: H ? 'rifle' : 'smg' });
-            if (hit) m.damageBase(bs, RIFLE[a.type].dmg * (a.dmgMul || 1) * (H ? C.structure.rifleH : C.structure.rifleS), 'squad', a.x, a.y);
+            if (hit) m.damageBase(bs, G.dmg * (a.dmgMul || 1) * (H ? C.structure.rifleH : C.structure.rifleS), 'squad', a.x, a.y);
           } else a.atk = 0;
         }
       }
     }
 
-    // SEAF specialists
-    if (!H && (a.role === 'gren' || a.role === 'rocket')) {
-      a.spT -= dt;
-      if (a.spT <= 0) {
-        const spec = a.role === 'gren' ? C.combat.grenadier : C.combat.rocketeer;
-        let e = null;
-        if (a.role === 'rocket') {
-          let bs = -Infinity;
-          e = dropNear(m, a.x, a.y, spec.range);    // a dropship hovering in reach is the best rocket target there is
+    // (0.26) SEAF: every role throws G-12 grenades at groups while it has some; the Specialist fires the EAT-17 at heavies and
+    // armour (and at a dropship hovering in reach). Each has its own timer.
+    if (!H) {
+      if (a.role === 'spec') {
+        a.spT -= dt;
+        if (a.spT <= 0) {
+          const spec = C.combat.rocketeer;
+          let e = dropNear(m, a.x, a.y, spec.range), bs = -Infinity;     // a dropship hovering in reach is the best target there is
           if (!e) m.eGrid.near(a.x, a.y, spec.range, (q, d2) => { if (q.kind === 'L') return; const sc = (q.kind === 'H' ? 90 : 30) - Math.sqrt(d2) * 0.2; if (sc > bs) { bs = sc; e = q; } });
-        } else {
-          // the densest spot within range
-          let bn = 0;
-          m.eGrid.near(a.x, a.y, spec.range, (q) => { let n = 0; m.eGrid.near(q.x, q.y, 6, () => { n++; }); if (n > bn) { bn = n; e = q; } });
-          if (bn < 2 && e && e.kind === 'L' && !softNear(m, e.x, e.y, 8)) { /* a lone light enemy is not worth a grenade */ e = null; }
+          const soft = !e && softNear(m, a.x, a.y, spec.range);
+          if (e || soft) {
+            a.spT = spec.every * (0.9 + 0.2 * m.rng.next());
+            const t = e || soft, prof = { ...ROCKET };
+            prof.dmg *= (a.dmgMul || 1) * (m.kitEat || 1);
+            if (e) fireShot(m, a, e, prof, 'squad', 'a', 'rocket');
+            else {
+              m.emit('tracer', { x: a.x, y: a.y, tx: t.x, ty: t.y, s: 'a', hit: true, big: true, fl: prof.flight, snd: 'rocket' });
+              m.shells.push({ x: t.x, y: t.y, at: m.t + prof.flight, dmg: prof.dmg, splash: prof.splash, mult: prof.mult, by: 'squad', friendly: false, quiet: true });
+            }
+            bark(m, a, 'rocket', '');
+          } else a.spT = 0.4;
         }
-        const soft = !e && softNear(m, a.x, a.y, spec.range);
-        if (e || soft) {
-          a.spT = spec.every * (0.9 + 0.2 * m.rng.next());
-          const t = e || soft, prof = { ...(a.role === 'gren' ? GRENADE : ROCKET) };
-          if (a.dmgMul) prof.dmg *= a.dmgMul;
-          if (e) fireShot(m, a, e, prof, 'squad', 'a', a.role === 'gren' ? 'grenade' : 'rocket');
-          else {
-            m.emit('tracer', { x: a.x, y: a.y, tx: t.x, ty: t.y, s: 'a', hit: true, big: true, fl: prof.flight, snd: a.role === 'gren' ? 'grenade' : 'rocket' });
-            m.shells.push({ x: t.x, y: t.y, at: m.t + prof.flight, dmg: prof.dmg, splash: prof.splash, mult: prof.mult, by: 'squad', friendly: false, quiet: true });
-          }
-          bark(m, a, a.role, '');
-        } else a.spT = 0.4;
+      }
+      if ((a.gren ?? C.seaf.grenades) > 0) {
+        a.grT = (a.grT ?? 2 + m.rng.next() * 3) - dt;
+        if (a.grT <= 0) {
+          const spec = C.combat.grenadier;
+          // the densest spot within reach; a lone light enemy is not worth a grenade
+          let e = null, bn = 0;
+          m.eGrid.near(a.x, a.y, spec.range, (q, d2) => { if (d2 < spec.minR * spec.minR) return; let n = 0; m.eGrid.near(q.x, q.y, 6, () => { n++; }); if (q.kind === 'H') n += 2; if (n > bn) { bn = n; e = q; } });
+          if (bn < spec.group) e = null;
+          if (e) {
+            a.grT = spec.every * (0.9 + 0.2 * m.rng.next());
+            a.gren = (a.gren ?? C.seaf.grenades) - 1;
+            const prof = { ...GRENADE };
+            if (a.dmgMul) prof.dmg *= a.dmgMul;
+            fireShot(m, a, e, prof, 'squad', 'a', 'grenade');
+            bark(m, a, 'gren', '');
+          } else a.grT = 0.5;
+        }
       }
     }
   }

@@ -38,14 +38,17 @@ export function drawSeafMark(ctx, m, a, r, px, multi, on) {
   }
   // picked (0.18): a bright white ring, the way a selected unit shows in Age of Empires
   if (pk || (sel >= 0 && sel === a.sq)) { ctx.strokeStyle = '#ffffff'; ctx.lineWidth = px(1.4); ctx.globalAlpha = 0.9; ring(ctx, a.x, a.y, r * 2.2); ctx.stroke(); ctx.globalAlpha = 1; }
+  // (0.26) the role marks: the Squad Leader a gold chevron above, the Medic a red cross, the Specialist an orange slash (his EAT)
+  if (a.down) return;
   if (a.role === 'medic') {
     const s = r * 1.15;
-    ctx.strokeStyle = '#7dff9b'; ctx.lineWidth = px(2.2); ctx.globalAlpha = on ? 1 : 0.8;
+    ctx.strokeStyle = '#ff5a52'; ctx.lineWidth = px(2.2); ctx.globalAlpha = on ? 1 : 0.85;
     ctx.beginPath(); ctx.moveTo(a.x - s, a.y); ctx.lineTo(a.x + s, a.y); ctx.moveTo(a.x, a.y - s); ctx.lineTo(a.x, a.y + s); ctx.stroke(); ctx.globalAlpha = 1;
-  } else if (a.role === 'spotter') {
-    ctx.fillStyle = '#ffd24a'; ctx.globalAlpha = on ? 1 : 0.85;
-    const s = r * 1.1; ctx.beginPath(); ctx.moveTo(a.x, a.y - s * 1.6); ctx.lineTo(a.x + s * 0.8, a.y - s * 0.5); ctx.lineTo(a.x - s * 0.8, a.y - s * 0.5); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
-  } else if (a.role === 'rocket') {
+  } else if (a.role === 'leader') {
+    ctx.strokeStyle = '#ffd24a'; ctx.lineWidth = px(2); ctx.globalAlpha = on ? 1 : 0.9;
+    const s = r * 1.1, y = a.y - r * 1.9;
+    ctx.beginPath(); ctx.moveTo(a.x - s, y + s * 0.2); ctx.lineTo(a.x, y - s * 0.55); ctx.lineTo(a.x + s, y + s * 0.2); ctx.stroke(); ctx.globalAlpha = 1;
+  } else if (a.role === 'spec') {
     ctx.strokeStyle = '#ffb36a'; ctx.lineWidth = px(2); ctx.beginPath(); ctx.moveTo(a.x - r * 1.1, a.y + r * 1.1); ctx.lineTo(a.x + r * 1.1, a.y - r * 1.1); ctx.stroke();
   }
 }
@@ -252,7 +255,7 @@ export function drawMiniSeaf(c, m, k, ac, ec) {
   const ctr = new Map();
   for (const a of m.seafAlive) {
     if (a.inside) continue;
-    const r = a.role === 'medic' || a.role === 'spotter' ? 3.4 : 2.8;
+    const r = a.role === 'medic' || a.role === 'leader' ? 3.4 : 2.8;
     c.fillStyle = 'rgba(0,0,0,0.8)'; c.beginPath(); c.arc(a.x * k, a.y * k, r + 1.3, 0, TAU); c.fill();
     c.fillStyle = multi ? squadColor(a.sq) : ac;
     c.beginPath(); c.arc(a.x * k, a.y * k, r, 0, TAU); c.fill();

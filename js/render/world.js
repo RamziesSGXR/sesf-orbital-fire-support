@@ -119,6 +119,25 @@ function beacon(ctx, x, y, now, px, col) {
   ctx.strokeStyle = `rgba(${col},${0.8 * (1 - ((now * 1.5) % 1))})`; ctx.lineWidth = px(1.4); ring(ctx, x, y, Math.max(3, px(6)) * (1 + ((now * 1.5) % 1) * 2)); ctx.stroke();
 }
 
+// (0.26) A call that is not the player's (the Helldivers' stratagems, a SEAF leader's radio strike): no strike circle, only the
+// red stratagem beacon where it was thrown (a glowing dot and its beam) and a call-out with what is coming.
+const RED = '255,48,36';
+function redBeacon(ctx, x, y, now, px, scale, live) {
+  const pulse = 0.5 + 0.5 * Math.sin(now * 10), h = Math.max(px(38), 3);      // (a short beam: the same height on screen at any zoom)
+  const g = ctx.createLinearGradient(x, y, x, y - h);
+  g.addColorStop(0, `rgba(${RED},${live ? 0.75 : 0.35})`); g.addColorStop(1, `rgba(${RED},0)`);
+  ctx.strokeStyle = g; ctx.lineWidth = Math.max(px(2.6), 0.6);
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - h); ctx.stroke();
+  const r = Math.max(1, px(3.4)), glow = r * (2.6 + 1.2 * pulse);
+  const gl = ctx.createRadialGradient(x, y, 0, x, y, glow);
+  gl.addColorStop(0, `rgba(${RED},${live ? 0.55 : 0.25})`); gl.addColorStop(1, `rgba(${RED},0)`);
+  ctx.fillStyle = gl; ring(ctx, x, y, glow); ctx.fill();
+  ctx.fillStyle = `rgba(255,${live ? 70 + 60 * pulse : 70},${live ? 50 + 40 * pulse : 50},1)`; ring(ctx, x, y, r); ctx.fill();
+  ctx.fillStyle = 'rgba(255,230,220,0.9)'; ring(ctx, x, y, r * 0.4); ctx.fill();
+  return h * scale;
+}
+function callout(labels, x, y, lift, text) { labels.push({ x, y, dy: -lift - 8, text, col: '#ff5a4a', pri: 2 }); }
+
 // ---------- markers: stratagem calls, pods, rail / barrage / laser / nuke warnings ----------
 export function drawMarkers(ctx, m, now, px, labels, scale) {
   const t = m.t;
@@ -126,6 +145,22 @@ export function drawMarkers(ctx, m, now, px, labels, scale) {
     let mx = mk.x, my = mk.y;
     if (mk.lock && !mk.lock.dead) { mx = mk.lock.x; my = mk.lock.y; }
     const pulse = 0.5 + 0.5 * Math.sin(now * 12);
+    if (mk.type === 'strat' && mk.by !== 'player') {
+      // (0.26) the beacon stays where it landed (a locked strike's beacon rides on its target)
+      const left = Math.max(0, (mk.impact ?? mk.end) - t), name = String(mk.id || '').toUpperCase();
+      const lift = redBeacon(ctx, mx, my, now, px, scale, left > 0);
+      callout(labels, mx, my, lift, left > 0 ? `${name} ${left.toFixed(0)}S` : name);
+      continue;
+    }
+    if (mk.type === 'pod' && !mk.util) {
+      // (0.26) a Helldiver's drop: the red beacon, the pod coming down on it, and a call-out
+      const f = Math.max(0, Math.min(1, (mk.end - t) / (mk.end - mk.start)));
+      const lift = redBeacon(ctx, mx, my, now, px, scale, true);
+      ctx.strokeStyle = `rgba(${RED},0.8)`; ctx.lineWidth = px(2); ctx.beginPath(); ctx.moveTo(mx, my - 120 * f); ctx.lineTo(mx, my - 120 * f + Math.max(6, px(16))); ctx.stroke();
+      ctx.fillStyle = '#ff5a4a'; ctx.fillRect(mx - px(3), my - 120 * f - px(3), px(6), px(6));
+      callout(labels, mx, my, lift, `${(STRATS[mk.id]?.name || tr('lab.supplyDrop')).toUpperCase()} ${Math.max(0, mk.end - t).toFixed(0)}S`);
+      continue;
+    }
     if (mk.type === 'strat') {
       const first = mk.impact ?? mk.end, left = Math.max(0, first - t);
       // a Helldiver's call is in his group's colour; the player's own strikes and the spotters' in yellow

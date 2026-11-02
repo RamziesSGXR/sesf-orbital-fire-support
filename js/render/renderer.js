@@ -201,7 +201,7 @@ export class Renderer {
       }
       case 'heal': fx.push({ k: 'line', x: ev.x, y: ev.y, x2: ev.tx, y2: ev.ty, t0: now, life: 0.28, col: '#7dff9b' }); fx.push({ k: 'ring', x: ev.tx, y: ev.ty, r: 8, t0: now, life: 0.5, a: 0.9, col: '#7dff9b' }); break;
       case 'pelican_arrive': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 40, t0: now, life: 0.9, a: 0.8, col: this.allyColor() }); fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 24, t0: now, life: 0.6, a: 0.7, col: '#cfe9ff' }); break;
-      case 'pelican_drop': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 10, t0: now, life: 0.5, a: 0.9, col: ev.role === 'medic' ? '#7dff9b' : ev.role === 'spotter' ? '#ffd24a' : '#cfe9ff' }); break;
+      case 'pelican_drop': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 10, t0: now, life: 0.5, a: 0.9, col: ev.role === 'medic' ? '#ff6a62' : ev.role === 'leader' ? '#ffd24a' : '#cfe9ff' }); break;
       case 'breach_open':
         fx.push({ k: 'flash', x: ev.x, y: ev.y, r: 28, t0: now, life: 0.7, a: flash, col: this.enemyColor(m) }); fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 60, t0: now, life: 1.2, a: 1, col: this.enemyColor(m) });
         this.shake = Math.min(12, this.shake + 4); break;
@@ -386,7 +386,7 @@ export class Renderer {
         ctx.strokeStyle = pal.ally; ctx.lineWidth = px(1.2); ctx.globalAlpha = 0.6;
         ctx.beginPath(); ctx.arc(a.x, a.y, r * 2.1, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
       }
-      drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px);
+      drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t);
       if (t - a.hurtAt < 0.1) { ctx.strokeStyle = '#ff6a6a'; ctx.lineWidth = px(1.5); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.3, 0, TAU); ctx.stroke(); }
       if (H_) { ctx.strokeStyle = tm ? tm.color : '#e8f6ff'; ctx.globalAlpha = 0.8; ctx.lineWidth = px(1.3); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.55, 0, TAU); ctx.stroke(); }
       else drawSeafMark(ctx, m, a, r * 0.8, px, seafMulti, on);
@@ -881,10 +881,24 @@ export class Renderer {
         g.addColorStop(0, `rgba(255,250,230,${0.95 * on})`); g.addColorStop(0.4, `rgba(255,170,70,${0.75 * (1 - p)})`); g.addColorStop(1, 'rgba(255,90,20,0)');
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, R, 0, TAU); ctx.fill();
       } else if (f.k === 'fly') {
-        const x = f.x + (f.x2 - f.x) * p, y = f.y + (f.y2 - f.y) * p, ang = Math.atan2(f.y2 - f.y, f.x2 - f.x), s = Math.max(10, px(14));
+        // (0.25.1) an Eagle passing over: a swept-wing jet with its shadow on the ground below and a hot exhaust (it was a plain
+        // white triangle that looked like a glitch, and a big one close in)
+        const x = f.x + (f.x2 - f.x) * p, y = f.y + (f.y2 - f.y) * p, ang = Math.atan2(f.y2 - f.y, f.x2 - f.x), s = Math.max(5, px(13));
+        const jet = (fill, line) => {
+          ctx.beginPath();
+          ctx.moveTo(s, 0); ctx.lineTo(s * 0.55, -s * 0.09); ctx.lineTo(s * 0.12, -s * 0.12);
+          ctx.lineTo(-s * 0.32, -s * 0.82); ctx.lineTo(-s * 0.5, -s * 0.82); ctx.lineTo(-s * 0.3, -s * 0.12);
+          ctx.lineTo(-s * 0.68, -s * 0.13); ctx.lineTo(-s * 0.86, -s * 0.38); ctx.lineTo(-s * 0.96, -s * 0.38); ctx.lineTo(-s * 0.9, -s * 0.08); ctx.lineTo(-s * 0.94, 0);
+          ctx.lineTo(-s * 0.9, s * 0.08); ctx.lineTo(-s * 0.96, s * 0.38); ctx.lineTo(-s * 0.86, s * 0.38); ctx.lineTo(-s * 0.68, s * 0.13);
+          ctx.lineTo(-s * 0.3, s * 0.12); ctx.lineTo(-s * 0.5, s * 0.82); ctx.lineTo(-s * 0.32, s * 0.82); ctx.lineTo(s * 0.12, s * 0.12); ctx.lineTo(s * 0.55, s * 0.09);
+          ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); if (line) { ctx.strokeStyle = line; ctx.lineWidth = px(1); ctx.stroke(); }
+        };
+        ctx.save(); ctx.translate(x + s * 0.7, y + s * 1.1); ctx.rotate(ang); jet('rgba(0,0,0,0.22)'); ctx.restore();     // its shadow
         ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
-        ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.beginPath(); ctx.moveTo(s, 0); ctx.lineTo(-s * 0.7, -s * 0.9); ctx.lineTo(-s * 0.3, 0); ctx.lineTo(-s * 0.7, s * 0.9); ctx.closePath(); ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = px(1.5); ctx.beginPath(); ctx.moveTo(-s * 0.5, 0); ctx.lineTo(-s * 5, 0); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.28)'; ctx.lineWidth = px(1.2); ctx.beginPath(); ctx.moveTo(-s * 0.95, 0); ctx.lineTo(-s * 4.5, 0); ctx.stroke();     // the trail
+        jet('rgba(214,222,228,0.95)', 'rgba(30,40,48,0.7)');
+        ctx.fillStyle = 'rgba(70,90,110,0.9)'; ctx.beginPath(); ctx.ellipse(s * 0.45, 0, s * 0.14, s * 0.05, 0, 0, TAU); ctx.fill();     // the canopy
+        ctx.fillStyle = 'rgba(255,170,60,0.9)'; ctx.beginPath(); ctx.arc(-s * 0.98, 0, s * 0.07, 0, TAU); ctx.fill();     // the exhaust
         ctx.restore();
       } else if (f.k === 'nuke') {
         const r = f.r * (0.15 + 0.95 * Math.min(1, p * 2.2));
