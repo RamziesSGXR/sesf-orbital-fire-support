@@ -25,13 +25,20 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 **Cleaner map (0.31).** The buildings you put up (foxholes, bastions, nests, towers and the rest) no longer have a name over them on the map. Select one and its name and crew show over it; the cyan ring still marks the ones your troops can use. See [tips](#tips) for the reinforcement changes.
 
-**Music (0.30).** The game has a score, made the same way as everything else: synthesised live in your browser, with no music files. Each part of the game has its own piece:
+**Music (0.30, 0.33).** The game has a score, made the same way as everything else: synthesised live in your browser, with no music files. Each part of the game has its own piece:
 - **The menus and the armory:** *Orbit*, a calm theme in D minor. A music-box bell over a soft pad, and every other time round a slow melody.
 - **The loading screen (the briefing):** *Briefing*, a clock ticking over a low pulse, with data blips and a slow swell. You're waiting to drop.
-- **The start of a match:** *Drop*, ten seconds, once. A riser and a tightening snare roll, the whoosh of a hellpod coming down, then a big hit and a short march into the battle music.
-- **In a match:** *Battle*, which follows the fight. Calm when it's quiet, a pulse when the enemy closes on the squad, war drums in a firefight, and in a heavy one hats, snares and a deep braam on each chord change. It falls back when things go quiet.
-- **A ton of enemies on screen:** *Swarm*, faster and darker, with a driving 16th-note line, double-time drums and a braam every bar. It comes in when the screen fills up and goes back to *Battle* once it has thinned out for a few seconds.
+- **The start of a match:** *Drop*, ten seconds, once. A riser and a tightening snare roll, the whoosh of a hellpod coming down, then a big hit and a short march into the battle music, which keeps its drums going for a few bars before it settles.
+- **In a match (0.33):** each enemy has its own battle theme, and each theme has two sections that take turns, so it doesn't loop the same few seconds:
+  - **Terminids:** *Bug Hunt*, tribal drums, toms and a skittering hat (A minor).
+  - **Automatons:** *Iron Front*, a square-wave bass line, metal clanks and four on the floor (C minor).
+  - **Illuminate:** *Cold Light*, a shimmering arpeggio, rim clicks and a deep pulse (F# minor).
+
+  All three follow the fight. They're calm when it's quiet. A pulse comes in when the enemy closes on the squad, the theme's own colour and drums join in a firefight, and in a heavy one everything plays, with a deep braam on each chord change. It falls back when things go quiet.
+- **A ton of enemies on screen:** *Swarm*, faster and darker, with a driving 16th-note line, double-time drums and a braam every bar, now in two sections. It comes in when the screen fills up and goes back to the battle theme once it has thinned out for a few seconds.
 - **The end of a match:** *Victory* when you win (a big hit and rising bells, then an anthem that carries through the debrief), and *Fallen* when you lose (a slow horn line and a funeral drum, also for the end of a session and the end of the tutorial).
+
+**Smooth changes (0.33).** The music never cuts from one piece to the next. A change waits for the end of the bar (or the beat, when it can't wait, like the end of a match). The old piece keeps playing for a moment as it fades while the new one fades in, and going into *Swarm* the old bar ends on a rising sweep. In a match, the music getting busier or calmer also lands on the bar, with a snare fill when it builds up, and each layer fades in or out over a second or two.
 
 A super heavy arriving gets a hit of its own. Cinematics and the pause turn the music down.
 

@@ -1506,7 +1506,7 @@ function frame(ts) {
   requestAnimationFrame(frame);
   const now = ts / 1000;
   const dt = Math.min(0.25, Math.max(0, now - lastT)); lastT = now;
-  { const sc = musicScene(); music.update(dt, sc, musicHeat(dt), { run: state === 'play' ? mission : null, crowd: crowdV, mood: state === 'final' || state === 'glass' ? 'lose' : endMood }); }
+  { const sc = musicScene(); music.update(dt, sc, musicHeat(dt), { run: state === 'play' ? mission : null, crowd: crowdV, mood: state === 'final' || state === 'glass' ? 'lose' : state === 'play' && mission && mission.over ? (mission.outcome === 'victory' || mission.outcome === 'complete' ? 'win' : 'lose') : endMood, faction: mission && mission.faction ? mission.faction.id : null }); }
   if (!renderer.W) return;
 
   // Frame-time watchdog for the auto quality setting.

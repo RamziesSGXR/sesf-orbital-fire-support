@@ -18,7 +18,7 @@ const errs = []; page.on('pageerror', (e) => errs.push(e.message));
 const ev = (f, a) => page.evaluate(f, a);
 const tap = async (s) => { await page.locator(s).scrollIntoViewIfNeeded(); return touch ? page.tap(s) : page.click(s); };
 const cue = () => ev(() => { const m = window.__game.music; return { cue: m.cueName, step: m.step, loops: m.loops, scene: m.scene, swarm: m.swarm, lv: m.level }; });
-const moving = async () => { const a = await cue(); await page.waitForTimeout(700); const b = await cue(); return b.step !== a.step || b.loops !== a.loops || b.cue !== a.cue; };
+const moving = async () => { const a = await cue(); await page.waitForTimeout(1600); const b = await cue(); return b.step !== a.step || b.loops !== a.loops || b.cue !== a.cue; };
 await page.addInitScript(() => { try { localStorage.clear(); localStorage.setItem('ofs.notice', 'true'); } catch (e) { /* */ } });
 await page.goto(`file://${ROOT}/dist/orbital-fury.html?skipstart&faction=bugs&biome=desert&seed=30&tod=14&difficulty=9`); await page.waitForTimeout(800);
 await page.mouse.click(5, 5); await page.waitForTimeout(800);       // the first click anywhere unlocks the sound
