@@ -17,7 +17,7 @@ function planet() {
 const surfaceY = (P, x) => { const dx = x - P.cx; return Math.abs(dx) >= P.R ? Infinity : P.cy - Math.sqrt(P.R * P.R - dx * dx); };
 
 function build() {
-  W = innerWidth; H = innerHeight; DPR = Math.min(2, devicePixelRatio || 1);
+  W = innerWidth; H = innerHeight; DPR = Math.min(typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches ? 1.5 : 2, devicePixelRatio || 1);   // (0.35: a little less on a phone)
   cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   stars = Array.from({ length: Math.round((W * H) / 4200) }, () => ({ x: rnd(0, W), y: rnd(0, H), r: Math.random() < 0.08 ? rnd(1, 1.6) : rnd(0.3, 0.9), a: rnd(0.25, 0.9), tw: rnd(0, TAU) }));
@@ -147,10 +147,13 @@ function draw(now) {
   }
 }
 
+// (0.35) On a phone or tablet the slow view from orbit is drawn 30 times a second, not 60: it looks the same and costs half.
+const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+let drawnAt = 0;
 function loop(now) {
   raf = 0;
   if (!showing()) return;
-  draw(now);
+  if (!COARSE || now - drawnAt >= 30) { drawnAt = now; draw(now); }
   raf = requestAnimationFrame(loop);
 }
 const showing = () => ['s-title', 's-campaign'].some((id) => { const e = document.getElementById(id); return e && e.classList.contains('on'); });

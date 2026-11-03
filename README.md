@@ -25,6 +25,8 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 **Cleaner map (0.31).** The buildings you put up (foxholes, bastions, nests, towers and the rest) no longer have a name over them on the map. Select one and its name and crew show over it; the cyan ring still marks the ones your troops can use. See [tips](#tips) for the reinforcement changes.
 
+**The title screen on a phone (0.35)** fits on one screen with no scrolling, held upright or sideways. The name sits on one line, the long notes under the difficulty and the enemy are left out (the level's name stays), and the menu is two buttons to a row. On phones and tablets the view from orbit behind it is drawn at 30 frames a second, which looks the same and saves battery.
+
 **Music (0.30, 0.33).** The game has a score, made the same way as everything else: synthesised live in your browser, with no music files. Each part of the game has its own piece:
 - **The menus and the armory:** *Orbit*, a calm theme in D minor. A music-box bell over a soft pad, and every other time round a slow melody.
 - **The loading screen (the briefing):** *Briefing*, a clock ticking over a low pulse, with data blips and a slow swell. You're waiting to drop.
