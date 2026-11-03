@@ -13,7 +13,7 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 ## Quick start
 
 0. New here? Press **TUTORIAL: LAST STAND ON MARS** first. It walks you through every control in one short, doomed mission (see [the tutorial](#tutorial-last-stand-on-mars)).
-1. Open the link above. The title screen (0.24) is the view from your Super Destroyer: the planet below, with the ship's fire control at work. The **NEW SESSION** console on it holds the callsign, difficulty and enemy, and **PLAY**; the menu beside it has **CAMPAIGN**, the tutorial, squad names, settings, about and feedback. Type a callsign if you want one on your score, pick the **difficulty** your session starts at (3 if you're new), and press **PLAY**. A screen shows the starting level and how a session ends. Press **START AT LEVEL** to begin, or **CHANGE DIFFICULTY** to go back.
+1. Open the link above. The title screen (0.24) is the view from your Super Destroyer: the planet below, with the ship's fire control at work. The **NEW SESSION** console on it holds the callsign, difficulty and enemy, and **PLAY**; the menu beside it has **CAMPAIGN**, the tutorial, squad names, settings, credits and feedback. Type a callsign if you want one on your score, pick the **difficulty** your session starts at (3 if you're new), and press **PLAY**. A screen shows the starting level and how a session ends. Press **START AT LEVEL** to begin, or **CHANGE DIFFICULTY** to go back.
 2. The **armory** opens. You start with a UAV scan, three orbital strikes and the ship gun. Buy something or just press **DEPLOY**. Most of it is locked at first: every mission you finish raises your rank and opens more (see [ranks](#how-a-session-works)).
 3. Read the briefing while the mission loads, then press **CONTINUE**.
 4. The Helldivers drop in and head for the objective. The ship gun is ready at once; your UAV scan and orbital strikes are still charging for the first twenty seconds or so. Aim, pick a weapon and call strikes on the enemy, not on your own squad.
@@ -300,17 +300,50 @@ The reports are always in English, whatever language you play in. Your callsign 
 
 This is a work in progress, and feedback from players is how it gets better. Press **FEEDBACK (DISCORD)** on the title screen, the pause menu or the final screen, or join the **[SESF Helldivers Discord](https://discord.com/invite/qruRY4nkEz)**. Every post there gets read. Tell us what you played on, how far you got, what was fun, what was confusing or broken, and what you'd change. The version you played is on the title screen and under every mission's result.
 
-## About, credits and disclaimer
+## Credits
 
-The same text is on the **ABOUT & CREDITS** screen in the game (title screen and pause menu), in English, French and Spanish.
+The same text is on the **CREDITS** screen in the game (title screen and pause menu), in English, French and Spanish.
 
-- **Unofficial fan project.** Not affiliated with, endorsed by or sponsored by Arrowhead Game Studios or Sony Interactive Entertainment. Helldivers, Super Earth, Super Destroyer, SEAF and the other names, phrases, factions and settings from the Helldivers games belong to their owners and are used only to refer to them. If an owner asks for something to change or come down, it will. The game is free, has no ads, sells nothing and collects nothing, and is provided as is, with no warranty.
-- **Created and vibe coded by** Robert Troumbley (RamziesSGXR), head admin of the Super Earth Special Forces (SESF) community. The idea has been in the works since Helldivers 2 launched in 2024.
-- **Testing:** KTL of the P.h.a.n.t.o.m. Helldivers (testing, and checking the French), rudolphtheredscare of the Tibit Tigers Helldivers, squally_wally740 of the Super Earth Special Forces Helldivers, and d3c4p1t4p3r (testing, and a sounding board for ideas). Thanks to the SESF members who play it and send feedback.
-- **Art is drawn in code.** Terrain, troops, enemies, explosions, the HUD and the Mars cinematic are shapes the game draws on a canvas as you play. There are no image files, and none of it is an AI-generated picture.
-- **Sound and music are synthesised** live in the browser from tones and noise (Web Audio). No recordings, no music files.
-- **No one else's assets.** No images, fonts, music, sound files or code libraries made by anyone else. Text uses the fonts already on your device, and the game loads nothing from other sites while you play. Text is written for this project; names and phrases from the Helldivers games point back to those games.
-- **Inspired by** Helldivers 2 (Arrowhead Game Studios, published by Sony Interactive Entertainment).
-- **Build and test tools** (not part of the game): esbuild (MIT) and Playwright (Apache 2.0). Hosted on GitHub Pages.
+**Created by** Robert Troumbley (RamziesSGXR), Head Admin of the Super Earth Special Forces: creator, design and development.
 
-If you add an outside asset (a font, an image, a sound, a library), add it here and to the ABOUT & CREDITS screen with its author and licence.
+**Testing**
+
+| Tester | Group | Role |
+|---|---|---|
+| KTL | P.h.a.n.t.o.m. Helldivers | playtesting, French review |
+| rudolphtheredscare | Tibit Tigers Helldivers | playtesting |
+| squally_wally740 | Super Earth Special Forces Helldivers | playtesting |
+| d3c4p1t4p3r | | playtesting, design feedback |
+
+And every SESF member who has played, tested and sent feedback.
+
+**From idea to launch**
+- **2024: the idea.** Helldivers 2 launches, and across the community one wish keeps coming up: a gunship stratagem, an AC-130 circling overhead and raining fire for the squad below.
+- **2024: the community.** The Super Earth Special Forces is founded around the same time and grows fast.
+- **2024–2025: early experiments.** SESF tries other minigames, mostly Discord integrations, among them a community base-building game. It grew beyond what could be built and was set aside.
+- **2026: a new direction.** Six months of changes in the SESF staff made one thing clear: the experience at hand was in web applications, sites built for friends and family. A game that runs in the browser played to that strength, and the picture of the game was already clear.
+- **October 2026: first builds.** Orbital Fire Support reaches SESF testers within days of its first build, with a new revision almost every day.
+- **30 October 2026: Orbital Fury.** The game takes its name, and its home at orbitalfury.com.
+- **Today: in the field.** It runs well on phones, tablets and computers with nothing to install, so everyone could play and test it, the same way, from the start.
+
+**Music and sound.**
+- The original score is composed in code and played live in your browser with the Web Audio API. Its pieces are Orbit, Briefing, Drop, Bug Hunt, Iron Front, Cold Light, Swarm, Victory and Fallen.
+- Every sound effect is synthesised in real time from tones and noise.
+- There are no recordings, and no music or audio files.
+
+**Art.** It is drawn in code: the terrain, troops, enemies, explosions, HUD and cinematics. There are no image files in the game, and none of it is an AI-generated image.
+
+**Technology.**
+- **Built with** JavaScript, HTML5 Canvas and the Web Audio API.
+- **Nothing else in the game:** no game engine, frameworks or third-party libraries, and nothing loads from other sites while you play.
+- **Build and test tools** (not part of the game): esbuild (MIT) and Playwright (Apache 2.0).
+- **Hosting:** GitHub Pages, at orbitalfury.com.
+
+**Inspired by** Helldivers 2 by Arrowhead Game Studios, published by Sony Interactive Entertainment.
+
+**Legal notice.**
+- Orbital Fury is a free, unofficial fan project. It is not affiliated with, endorsed by or sponsored by Arrowhead Game Studios or Sony Interactive Entertainment.
+- Helldivers, Super Earth, Super Destroyer, SEAF and all related names, factions and settings are the property of their respective owners, and are used here only to refer to them. If a rights holder asks for anything to be changed or removed, it will be.
+- The game is free, has no ads, sells nothing and collects no data: progress and scores stay on your device. It is provided as is, without warranty.
+
+If you add an outside asset (a font, an image, a sound, a library), add it here and to the CREDITS screen with its author and licence.

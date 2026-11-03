@@ -52,7 +52,7 @@ export function overlay(id, on) { $(id).classList.toggle('on', on); if (on && CO
 // (0.27.1) On a computer screen the long panels (the field manual, the mission's info, the credits) are set in as many columns
 // as they need to fit without scrolling (up to three, none narrower than about 380 px). If even three are too tall, they stay
 // one column, at a readable width, and scroll as before.
-const COLS = { 's-manual': 'manual-body', 's-info': 'info-body', 's-credits': 'credits-body' };
+const COLS = { 's-manual': 'manual-body', 's-info': 'info-body' };     // (0.34: the credits set their own three columns)
 export function fitCols(box) {
   if (!box) return;
   box.style.columnCount = ''; box.style.maxWidth = ''; box.style.margin = ''; box.style.gridTemplateColumns = ''; box.classList.remove('cols', 'secgrid');

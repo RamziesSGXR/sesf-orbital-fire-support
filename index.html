@@ -231,7 +231,7 @@
         <button id="btn-tutorial" class="btn tt-item tut-b" type="button"><span data-t="title.tutorial">TUTORIAL: LAST STAND ON MARS</span><i id="tut-new" class="hidden" data-t="title.new">NEW</i><small data-t="title.tutSub">Learn the controls</small></button>
         <button id="btn-names-t" class="btn tt-item" type="button"><span data-t="ui.names">SQUAD NAMES</span><small data-t="title.namesSub">Name your Helldivers</small></button>
         <button id="btn-settings" class="btn tt-item" type="button"><span data-t="ui.settings">SETTINGS</span><small data-t="title.setSub">Sound, layout, language</small></button>
-        <button id="btn-credits-t" class="btn tt-item" type="button"><span data-t="ui.credits">ABOUT &amp; CREDITS</span><small data-t="title.aboutSub">Who made this, and how</small></button>
+        <button id="btn-credits-t" class="btn tt-item" type="button"><span data-t="ui.credits">CREDITS</span><small data-t="title.aboutSub">The team, the tools and the story</small></button>
         <a id="lnk-fb-t" class="btn fb tt-item" target="_blank" rel="noopener"><span data-t="ui.feedback">FEEDBACK</span><small data-t="title.fbSub">The SESF Helldivers Discord</small></a>
       </nav>
       <footer class="tt-foot">
@@ -464,12 +464,11 @@
   <section id="s-credits" class="screen overlay">
     <div class="card wide">
       <button class="x-close" data-close="s-credits" data-ta="ui.close">✕</button>
-      <div class="eyebrow" data-t="credits.eyebrow">About and credits</div>
-      <h2>ORBITAL FURY</h2>
-      <div id="credits-body" class="about">
-        <div data-th="credits.body"></div>
-        <p class="fine" id="credits-ver"></p>
-      </div>
+      <div class="eyebrow" data-t="credits.eyebrow">Credits</div>
+      <h2 class="cr-title">ORBITAL FURY</h2>
+      <p class="cr-lede" data-th="credits.lede"></p>
+      <div id="credits-body" class="about credits" data-th="credits.body"></div>
+      <p class="fine cr-ver" id="credits-ver"></p>
       <div class="btns">
         <a id="lnk-fb-a" class="btn primary fb" target="_blank" rel="noopener" data-t="ui.feedback">FEEDBACK</a>
         <a id="lnk-proj" class="btn" target="_blank" rel="noopener" data-t="credits.project">SOURCE CODE</a>

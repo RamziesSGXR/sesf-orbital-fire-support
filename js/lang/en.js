@@ -5,7 +5,7 @@ export default {
   'ui.missionInfo': 'MISSION INFO',
   'ui.names': 'SQUAD NAMES',
   'ui.settings': 'SETTINGS',
-  'ui.credits': 'ABOUT & CREDITS',
+  'ui.credits': 'CREDITS',
   'ui.feedback': 'FEEDBACK (DISCORD)',
   'ui.endSession': 'END SESSION',
   'ui.back': 'BACK TO THE MISSION',
@@ -404,18 +404,19 @@ export default {
   'map.note': 'Tap the map to look there. The game is paused while the map is open.',
   'map.follow': 'FOLLOW SQUAD',
   'map.back': 'BACK',
-  'credits.eyebrow': 'About and credits',
+  'credits.eyebrow': 'Credits',
+  'credits.lede': 'A free fan game made for the <b>Super Earth Special Forces</b> community. You are the gunner on a Super Destroyer, covering four Helldivers from orbit.',
   'credits.project': 'SOURCE CODE',
   'credits.ver': 'Version {v}. Made for the Super Earth Special Forces community.',
-  'credits.body': '<h4>ABOUT</h4><p>A free, fan-made minigame for the <b>Super Earth Special Forces</b> community. You are the gunner on a Super Destroyer: scan the ground, call orbital strikes, work the ship gun and drop SEAF troops while four Helldivers fight through the mission below. Without you, they do not come home. The idea has been in the works since Helldivers 2 launched in 2024.</p>'
-    + '<p>It runs in the browser on a phone or a computer, nothing to install. English, French and Spanish: see Settings. Missions follow one another until one fails; each one is bigger and meaner than the last, and credits buy and upgrade your orbitals, the ship gun, the UAV, SEAF and squad support.</p>'
-    + '<h4>FEEDBACK</h4><p>FEEDBACK takes you to the <b>SESF Helldivers Discord</b>, where every post gets read. Tell us what you play on, what happened, and what you\'d change.</p>'
-    + '<h4>DISCLAIMER</h4><p>Orbital Fury is a free, <b>unofficial fan project</b>. It is not affiliated with, endorsed by or sponsored by Arrowhead Game Studios or Sony Interactive Entertainment. Helldivers, Super Earth, Super Destroyer, SEAF and the other names, phrases, factions and settings from the Helldivers games belong to their owners and are used here only to refer to them, with respect. If an owner asks for any of it to change or come down, it will.</p>'
-    + '<p>The game is free, has no ads, sells nothing and collects nothing: progress and best scores stay on your device. It is provided as it is, with no warranty.</p>'
-    + '<h4>MADE BY</h4><p>Created and vibe coded by <b>Robert Troumbley</b> (RamziesSGXR), head admin of the <b>Super Earth Special Forces</b> (SESF) community.</p><h4>TESTING</h4><ul><li><b>KTL</b> of the P.h.a.n.t.o.m. Helldivers: testing, and checking the French.</li><li><b>rudolphtheredscare</b> of the Tibit Tigers Helldivers: testing.</li><li><b>squally_wally740</b> of the Super Earth Special Forces Helldivers: testing.</li><li><b>d3c4p1t4p3r</b>: testing, and a sounding board for ideas.</li><li>Thanks to the SESF members who play it and send feedback.</li></ul>'
-    + '<h4>ART, SOUND AND ASSETS</h4><ul><li><b>Art is drawn in code.</b> The terrain, troops, enemies, explosions, the HUD and the Mars cinematic are all shapes the game draws on screen as you play. There are no image files in the game, and none of it is an AI-generated picture.</li><li><b>Sound and music are synthesised.</b> Every gun, strike and radio chirp, and the music, is built live in your browser from tones and noise. There are no recordings and no music files.</li><li><b>No one else\'s assets.</b> No images, fonts, music, sound files or code libraries made by anyone else are in it. Text uses the fonts already on your device, and nothing is loaded from other sites while you play.</li><li><b>Text</b> is written for this project. Names and phrases from the Helldivers games point back to those games.</li></ul>'
-    + '<h4>INSPIRED BY</h4><p><b>Helldivers 2</b> by Arrowhead Game Studios, published by Sony Interactive Entertainment: the setting, the factions and the squad this game is a fan tribute to.</p>'
-    + '<h4>TOOLS</h4><p>Used to build and test it, and not part of what you play: <b>esbuild</b> (MIT licence) and <b>Playwright</b> (Apache 2.0 licence). Hosted on GitHub Pages.</p>',
+  'credits.body': '<div class="cr-col cr-c1"><section><h4>CREATED BY</h4><dl class="cr-list"><dt>Creator, design and development</dt><dd><b>Robert Troumbley</b><small>RamziesSGXR · Head Admin, Super Earth Special Forces</small></dd></dl></section>'
+    + '<section><h4>TESTING</h4><dl class="cr-list"><dt>Playtesting · French review</dt><dd><b>KTL</b><small>P.h.a.n.t.o.m. Helldivers</small></dd><dt>Playtesting</dt><dd><b>rudolphtheredscare</b><small>Tibit Tigers Helldivers</small></dd><dt>Playtesting</dt><dd><b>squally_wally740</b><small>Super Earth Special Forces Helldivers</small></dd><dt>Playtesting · Design feedback</dt><dd><b>d3c4p1t4p3r</b></dd></dl><p>And every member of the Super Earth Special Forces who has played, tested and sent feedback. Thank you.</p></section>'
+    + '<section><h4>MUSIC AND SOUND</h4><dl class="cr-list"><dt>Original score</dt><dd><b>Composed in code</b><small>Played live in your browser with the Web Audio API, no music files: Orbit, Briefing, Drop, Bug Hunt, Iron Front, Cold Light, Swarm, Victory and Fallen.</small></dd><dt>Sound effects</dt><dd><b>Synthesised in real time</b><small>Every weapon, strike and radio chirp is built from tones and noise as it plays. No recordings and no audio files.</small></dd></dl></section>'
+    + '<section><h4>ART</h4><p><b>Drawn in code.</b> The terrain, troops, enemies, explosions, the HUD and the cinematics are drawn on screen as you play. There are no image files in the game, and none of it is an AI-generated image.</p></section></div>'
+    + '<div class="cr-col cr-c2"><section><h4>FROM IDEA TO LAUNCH</h4><ol class="cr-time"><li><span class="when">2024</span><b>The idea.</b> Helldivers 2 launches, and across the community one wish keeps coming up: a gunship stratagem, an AC-130 circling overhead and raining fire for the squad below. Orbital Fury starts there.</li><li><span class="when">2024</span><b>The community.</b> The Super Earth Special Forces is founded around the same time and grows fast.</li><li><span class="when">2024 – 2025</span><b>Early experiments.</b> SESF tries other minigames, mostly Discord integrations, among them a community base-building game. It grew beyond what could be built, and was set aside.</li><li><span class="when">2026</span><b>A new direction.</b> Six months of changes in the SESF staff made one thing clear: the experience at hand was in web applications, sites built for friends and family. A game that runs in the browser played to that strength, and by then the picture of the game was already clear.</li><li><span class="when">October 2026</span><b>First builds.</b> Orbital Fire Support reaches SESF testers within days of its first build, with a new revision almost every day.</li><li><span class="when">30 October 2026</span><b>Orbital Fury.</b> The game takes its name, and its home at orbitalfury.com.</li><li><span class="when">Today</span><b>In the field.</b> The surprise has been how well it runs: on phones, tablets and computers, with nothing to install, so everyone could play and test it, the same way, from the start.</li></ol></section></div>'
+    + '<div class="cr-col cr-c3"><section><h4>TECHNOLOGY</h4><dl class="cr-list"><dt>Built with</dt><dd><b>JavaScript, HTML5 Canvas and the Web Audio API</b><small>No game engine, frameworks or third-party libraries, and nothing loads from other sites while you play.</small></dd><dt>Build and test tools</dt><dd><b>esbuild (MIT) · Playwright (Apache 2.0)</b><small>Used to build and test the game; not part of it.</small></dd><dt>Hosting</dt><dd><b>GitHub Pages · orbitalfury.com</b></dd></dl></section>'
+    + '<section><h4>INSPIRED BY</h4><p><b>Helldivers 2</b> by Arrowhead Game Studios, published by Sony Interactive Entertainment. Orbital Fury is a tribute to its setting, its factions and its squads.</p></section>'
+    + '<section><h4>FEEDBACK</h4><p>Bug reports and ideas are welcome on the <b>SESF Helldivers Discord</b> (the FEEDBACK button). Every post is read: tell us what you played on, what happened, and what you would change.</p></section>'
+    + '<section class="cr-legal"><h4>LEGAL NOTICE</h4><p>Orbital Fury is a free, unofficial fan project. It is not affiliated with, endorsed by or sponsored by Arrowhead Game Studios or Sony Interactive Entertainment. Helldivers, Super Earth, Super Destroyer, SEAF and all related names, factions and settings are the property of their respective owners and are used here only to refer to them. If a rights holder asks for anything to be changed or removed, it will be.</p><p>The game is free, has no ads, sells nothing and collects no data: your progress and scores stay on your device. It is provided as is, without warranty.</p></section></div>',
   'flash.title': 'FLASHING LIGHTS',
   'flash.text': 'This game uses blinking infrared strobes and bright explosion flashes. Turn on Reduce flashing in Settings if that bothers you.',
   'flash.ok': 'UNDERSTOOD',
@@ -1646,7 +1647,7 @@ export default {
   'title.tutSub': 'Learn the controls in a short last stand',
   'title.namesSub': 'Name your four Helldivers',
   'title.setSub': 'Sound, layout, language and more',
-  'title.aboutSub': 'Who made the game, and who helped',
+  'title.aboutSub': 'The team, the tools and the story',
   'title.fbSub': 'Tell us what to fix or add',
   'cp.back': 'BACK',
   'cp.devH': 'IN DEVELOPMENT',
