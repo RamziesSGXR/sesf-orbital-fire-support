@@ -436,7 +436,7 @@ function placeSel(force = false) {
 hud.onSelAct = (k) => {
   audio.unlock();
   if (!sel || !mission) return;
-  const r = k === 'man' ? mission.seafMan(sel) : k === 'in' ? mission.garrisonGo(sel) : k === 'out' ? mission.ungarrison(sel) : null;
+  const r = k === 'man' ? mission.seafMan(sel) : k === 'in' ? mission.garrisonGo(sel) : k === 'out' ? mission.ungarrison(sel) : k === 'demo' ? mission.demolishPost(sel) : null;     // (0.36: demo, blow it up)
   if (r && r.ok) audio.chirp(); else if (r) { audio.deny(); hud.toast(deny(r.reason)); }
   placeSel(true);
 };
@@ -599,7 +599,7 @@ hud.onMerge = (L) => {
 // ---------------- orders: SEAF drop and SEAF orders ----------------
 // Why a call or a purchase was refused: deny.<reason> in the language tables.
 const DENY_KEYS = new Set(['artyrange', 'nocoverage', 'cooldown', 'full', 'noseaf', 'nohd', 'noallies', 'nomark', 'funds', 'between', 'maxed', 'locked', 'novisual', 'gundry',
-  'short', 'water', 'jammed', 'nocrew', 'nogarrison', 'boxnone', 'boxnosquad', 'noweapon', 'picksquad', 'postfull', 'nosight', 'nospan', 'merge', 'planfull', 'shielded', 'rearm']);
+  'short', 'water', 'jammed', 'nocrew', 'nogarrison', 'boxnone', 'boxnosquad', 'noweapon', 'picksquad', 'postfull', 'nosight', 'nospan', 'merge', 'planfull', 'shielded', 'rearm', 'nodemo']);
 const deny = (r) => (DENY_KEYS.has(r) ? t('deny.' + r) : '');
 function setPlacing(kind) {
   if (kind) { setDrawing(false); disarm(); }
@@ -632,7 +632,8 @@ function squadAct(kind, viaKey) {
   if (kind === 'draw') {
     if (!drawing && !mission.seafAlive.length) { audio.deny(); hud.toast(deny('noseaf')); return; }
     setDrawing(!drawing);
-  } else if (kind === 'disband') { setDrawing(false); const r = mission.disbandSeaf(); if (r && r.ok) audio.ready(); else { audio.deny(); hud.toast(deny('disband'), 1400); } if (tac) hud.fillTactical(mission, sel); }
+  } else if (kind === 'disband' && viaKey && sel && sel.kind === 'post' && !sel.dead) { const r = mission.demolishPost(sel); if (r && r.ok) audio.chirp(); else { audio.deny(); hud.toast(deny(r && r.reason), 1400); } if (tac) hud.fillTactical(mission, sel); }     // (0.36) Delete with a building selected: blow it up
+  else if (kind === 'disband') { setDrawing(false); const r = mission.disbandSeaf(); if (r && r.ok) audio.ready(); else { audio.deny(); hud.toast(deny('disband'), 1400); } if (tac) hud.fillTactical(mission, sel); }
   else if (kind === 'box') {
     // SELECT: the next drag on the map draws a box round the troopers to pick (on a computer, Shift + drag does it any time)
     if (!mission.seafAlive.length) { audio.deny(); hud.toast(deny('noseaf')); return; }

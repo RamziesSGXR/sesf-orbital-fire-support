@@ -87,6 +87,10 @@ export const CONFIG = {
   // and take longer to build, and a crew makes them better: posts.js.)
   // perHand: how much of a second of build time one trooper does in a second (two do one second; more hands, faster; up to maxHands).
   // builderR: troopers this close to a crate work on it. The four stages a build shows: crate, open crate, parts going up, built.
+  // (0.36) Demolition: the player blows one of their own buildings. The charges go on with a fuse (fuseSec; pressed again before it
+  // blows, they come off); the crew steps out; then it goes up, hitting the enemy within its size + blastPad metres (at least
+  // blastMin, at most blastMax) for dmg (x mult by kind). The charges are shaped: allies take nothing.
+  demolish: { fuseSec: 3, blastPad: 8, blastMin: 10, blastMax: 26, dmg: 650, mult: { L: 1, M: 1, H: 0.6, B: 0.5 } },
   build:    { r: 12, perHand: 0.5, maxHands: 12, builderR: 20, levels: 5, crateR: 16, repair: 14, repairQuiet: 4, repairClear: 40, slowmo: 0.3,
               foxhole: { cost: 0,   sec: 6,  cap: 3, mul: 0.8, rof: 1.3 },
               bastion: { cost: 100, sec: 14, n: 8, R: 10, mul: 0.55, unlock: 0, up: 120 },
@@ -448,6 +452,6 @@ export const CONFIG = {
   share:    { channelUrl: '',
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.35.0',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.36.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

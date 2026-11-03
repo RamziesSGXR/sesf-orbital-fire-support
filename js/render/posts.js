@@ -2,7 +2,7 @@
 // a crew and has none), its health when hurt, a wrench while it is being patched up, and, when selected, its reach and brackets.
 // Turrets the Helldivers called (sentries) show their reach only when selected too.
 import { t as tr } from '../i18n.js';
-import { postReach, foxholeSlots } from '../sim/posts.js';
+import { postReach, foxholeSlots, demoRadius } from '../sim/posts.js';
 
 const TAU = Math.PI * 2;
 function ring(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, Math.max(0.01, r), 0, TAU); }
@@ -246,7 +246,14 @@ export function drawPosts(ctx, m, now, px, labels, scale, sel) {
     if (p.repairing) { const k = (now * 2) % 1; ctx.strokeStyle = `rgba(125,255,155,${1 - k})`; ctx.lineWidth = px(1.5); ring(ctx, p.x, p.y, R + px(4 + 6 * k)); ctx.stroke(); }
     const crew = p.cap ? ` ${p.crew}/${p.cap}` : '';
     const gar = p.garrison ? ' ' + tr('lab.garrisoned') : '';
-    if (sel === p) labels.push({ x: p.x, y: p.y, dy: -R * scale - 8, text: `${p.name.toUpperCase()}${crew}${gar}`, col: p.cap ? '#3de0ff' : '#6fc0ff', pri: 1 });   // (0.31: the name only over the one selected; the map stays clear)
+    if (p.demo) {
+      // (0.36) the charges are on: what the blast will reach (a blinking red ring), red lights on the building, and the countdown
+      const left = Math.max(0, p.demo.at - t), blink = Math.sin(now * (left < 1 ? 24 : 12)) > 0;
+      ctx.save(); ctx.strokeStyle = `rgba(255,74,40,${blink ? 0.85 : 0.4})`; ctx.lineWidth = px(1.6); ctx.setLineDash([px(5), px(4)]); ctx.lineDashOffset = now * px(12);
+      ring(ctx, p.x, p.y, demoRadius(p)); ctx.stroke(); ctx.restore();
+      if (blink) { ctx.fillStyle = '#ff3a1e'; for (let k = 0; k < 4; k++) { const a = (k / 4) * TAU + 0.6; ring(ctx, p.x + Math.cos(a) * Math.max(2, R * 0.6), p.y + Math.sin(a) * Math.max(2, R * 0.6), Math.max(0.5, px(2.2))); ctx.fill(); } }
+      labels.push({ x: p.x, y: p.y, dy: -R * scale - 8, text: tr('lab.demo', { n: Math.ceil(left) }), col: '#ff6a4a', pri: 3 });
+    } else if (sel === p) labels.push({ x: p.x, y: p.y, dy: -R * scale - 8, text: `${p.name.toUpperCase()}${crew}${gar}`, col: p.cap ? '#3de0ff' : '#6fc0ff', pri: 1 });   // (0.31: the name only over the one selected; the map stays clear)
   }
   if (!sel || sel.dead) return;
   // the selection: brackets and the reach of whatever it is

@@ -12,7 +12,7 @@ import { seafName } from '../data/names.js';
 import { updateSquad } from './squad.js';
 import { setupDefenders } from './defenders.js';
 import { initSeaf, targetSquads, setSquadOrder, drawOrder, callPelican, pendingTroops, dropSquad, callCargo, boxSelect, setForm, pickTroops, toSquad, disband, PICKED, LOOSE, selectSquads as seafSelectSquads, mergeSquads as seafMergeSquads } from './seaf.js';
-import { updatePosts, updateSam, garrisonPost, releaseGarrison, POSTS, makePost, INSIDE, foxSize, GARRISON } from './posts.js';
+import { updatePosts, updateSam, garrisonPost, releaseGarrison, POSTS, makePost, INSIDE, foxSize, GARRISON, demolish } from './posts.js';
 import { updateEnemies, updateAllies } from './enemies.js';
 import { updateDirector, alertBase } from './director.js';
 import { initPatrols, updatePatrols } from './patrols.js';
@@ -668,6 +668,8 @@ export class Mission {
   damagePoi(p, dmg, by) { damagePoi(this, p, dmg, by); }
   damageDrop(d, dmg, by) { damageDrop(this, d, dmg, by); }
   callReinf(x, y, why = 'site', opts = {}) { return callReinforcements(this, x, y, why, opts); }     // (tests and the browser checks)
+  // (0.36) blow up one of your own buildings (again before it blows: the charges come off)
+  demolishPost(p) { if (this.over) return { ok: false, reason: 'over' }; return demolish(this, p); }
   hurtCiv(c, dmg, by) { hurtCiv(this, c, dmg, by); }
   damageBreach(b, dmg, by) { damageBreach(this, b, dmg, by); }
 

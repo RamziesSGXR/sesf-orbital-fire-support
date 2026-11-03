@@ -21,6 +21,7 @@ import { COMMS } from '../data/data.js';
 import { buildStats, buildLevel, uavStats } from '../data/kit.js';
 import { turretStep } from './strat.js';
 import { damageDrop } from './reinforce.js';
+import { damageArea } from './combat.js';
 
 export const POSTS = ['foxhole', 'bastion', 'mg', 'lookout', 'bridge', 'tower', 'sam', 'arty'];      // the tactical menu's order (keys 1 to 8)
 export const GARRISON = -2;                                                                // a.sq of a garrisoned trooper
@@ -119,7 +120,7 @@ export function makePost(m, what, x, y, opts = {}) {
 
 // Gone: the walls and places come off the map, a cannon or tower stops working, and any garrison goes back to a squad.
 export function removePost(m, p) {
-  p.dead = true;
+  p.dead = true; p.demo = null;
   m.posts = m.posts.filter((q) => q !== p);
   m.coverSites = m.coverSites.filter((s) => s !== p.site);
   m.cover = m.cover.filter((q) => q.post !== p);
@@ -127,6 +128,41 @@ export function removePost(m, p) {
   if (p.what === 'tower') m.beacons = m.beacons.filter((b) => b.post !== p);
   releaseGarrison(m, p);
   for (const q of m.seaf.squads) if (q.order.kind === 'post' && q.order.post === p) q.order = { ...q.order, kind: 'protect', post: null };
+  // (0.36) a light bridge taken down: its deck comes off the water (the others are laid again), and anyone standing on it ends up on
+  // the nearest bank
+  if (p.what === 'bridge' && p.span && m.terrain.clearDecks) {
+    m.terrain.clearDecks();
+    for (const q of m.posts) if (q.what === 'bridge' && q.span && !q.dead) m.terrain.addDeck(q.span, q.w);
+    const ashore = (u) => { if (u.dead || !m.terrain.blocked(u.x, u.y)) return; const l = m.terrain.nearestLand(u.x, u.y, 60); if (l) { u.x = l.x; u.y = l.y; } };     // (only those left in deep water)
+    for (const a of m.allies) ashore(a);
+    for (const e of m.enemies) ashore(e);
+  }
+}
+
+// ---------------------------------------------------------------- (0.36) demolition
+// The player blows one of their own buildings: the charges go on (a short fuse), the crew and any garrison step out, and when it
+// blows the enemy round it takes the blast. Called again before it blows, the charges come off. Returns { ok, at | cancelled }.
+export const demoRadius = (p) => { const D = C.demolish; return Math.max(D.blastMin, Math.min(D.blastMax, (p.r || 4) + D.blastPad)); };
+export function demolish(m, p) {
+  if (!p || p.dead || p.kind !== 'post' || p.captured) return { ok: false, reason: 'nodemo' };
+  if (p.demo) { p.demo = null; m.notice(tr('n.demoOff', { what: p.name.toUpperCase() }), 'info'); m.emit('demo_off', { id: p.id, x: p.x, y: p.y }); return { ok: true, cancelled: true }; }
+  p.demo = { at: m.t + C.demolish.fuseSec, set: m.t };
+  releaseGarrison(m, p);
+  for (const q of m.seaf.squads) if (q.order.kind === 'post' && q.order.post === p) q.order = { ...q.order, kind: 'protect', post: null };     // (they stop manning it)
+  m.notice(tr('n.demoSet', { what: p.name.toUpperCase(), n: C.demolish.fuseSec }), 'warn');
+  m.emit('demo_set', { id: p.id, x: p.x, y: p.y, at: p.demo.at });
+  return { ok: true, at: p.demo.at };
+}
+function blowPost(m, p) {
+  const D = C.demolish, r = demoRadius(p);
+  const kills0 = m.stats.killsPlayer || 0;
+  damageArea(m, p.x, p.y, r, D.dmg, D.mult, 'player', false);
+  m.emit('boom', { x: p.x, y: p.y, r, dmg: D.dmg, by: 'player', big: true });
+  m.emit('demolished', { what: p.what, x: p.x, y: p.y, r });
+  removePost(m, p);
+  m.stats.demolished = (m.stats.demolished || 0) + 1;
+  const k = (m.stats.killsPlayer || 0) - kills0;
+  m.notice(tr(k > 0 ? 'n.demoBoomK' : 'n.demoBoom', { what: p.name.toUpperCase(), n: k }), 'good');
 }
 
 // ---------------------------------------------------------------- garrisons
@@ -154,6 +190,7 @@ export function releaseGarrison(m, p, to = -1) {
 // ---------------------------------------------------------------- every tick
 export function updatePosts(m, dt) {
   const t = m.t;
+  for (const p of m.posts.slice()) if (p.demo && !p.dead && t >= p.demo.at) blowPost(m, p);     // (0.36) the charges blow
   for (const a of m.alive) { a.inPost = null; a.inside = null; }
   // the tower's cover is rebuilt each tick from the manned towers
   if (m.relays.some((u) => u.tower)) m.relays = m.relays.filter((u) => !u.tower);

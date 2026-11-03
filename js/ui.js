@@ -1144,7 +1144,9 @@ export class Hud {
         + (hp !== null ? `<i class="ts-hp"><u style="width:${hp}%"></u></i>` : '')
         + (post && post.cap ? `<div class="ts-r">${esc(t('sel.crew'))} <b>${post.crew}/${post.cap}</b>${post.crew ? '' : ` · <em class="ts-solo">${esc(t('sel.solo'))}</em>`}</div>` : '')
         + (crew.length ? tiles(crew) : '')
-        + (post && post.cap ? `<div class="ts-doors">${post.garrison < post.cap ? `<button type="button" class="btn tsd" data-sa="in">${esc(t('sel.inBtn', { who }))}</button>` : ''}${post.garrison ? `<button type="button" class="btn tsd" data-sa="out">${esc(t('sel.outBtn'))}</button>` : ''}</div>` : '')
+        + (post ? `<div class="ts-doors">${post.cap && post.garrison < post.cap ? `<button type="button" class="btn tsd" data-sa="in">${esc(t('sel.inBtn', { who }))}</button>` : ''}${post.garrison ? `<button type="button" class="btn tsd" data-sa="out">${esc(t('sel.outBtn'))}</button>` : ''}`
+          // (0.36) blow it up: one press sets the charges (a short fuse), a press again before it blows takes them off
+          + (!post.captured ? `<button type="button" class="btn tsd demo${post.demo ? ' on' : ''}" data-sa="demo" title="${esc(t('sel.demoT'))}">${esc(post.demo ? t('sel.demoOff', { n: Math.max(1, Math.ceil(post.demo.at - m.t)) }) : t('sel.demo'))}</button>` : '') + `</div>` : '')
         + `<div class="ts-b">${esc(post ? t('sel.' + post.what) : sel.kind === 'turret' ? t('sel.sentry') : t('sel.siteB'))}</div>`;
     } else if (sf.sel === -2 && sf.pick) {
       const list = m.seafAlive.filter((a) => sf.pick.includes(a.id));

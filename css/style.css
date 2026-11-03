@@ -2463,3 +2463,15 @@ body.lay-phone.lay-land.radio-open #hud #minimap, body.lay-phone.lay-land.radio-
 /* the pause menu's RADIO LOG: only in the tutorial and the campaign */
 #s-pause .radio-only { display: none; }
 body.radio-on #s-pause .radio-only { display: block; grid-column: 1 / -1; }
+
+/* ======================= 0.36: demolition ======================= */
+#hud .tsd.demo { color: #ffb08f; border-color: rgba(255, 106, 74, 0.7); }
+#hud .tsd.demo:hover { background: rgba(255, 74, 40, 0.18); }
+#hud .tsd.demo.on { color: #fff; background: rgba(200, 40, 20, 0.75); border-color: #ff6a4a; animation: demoBlink 0.5s steps(2) infinite; }
+@keyframes demoBlink { 50% { background: rgba(120, 20, 10, 0.75); } }
+@media (prefers-reduced-motion: reduce) { #hud .tsd.demo.on { animation: none; } }
+/* a phone's one-line selection: the doors and DEMOLISH stay whole; the name gives way (cut short) and the level goes */
+body.rts.lay-phone #hud #selpanel .tc-sel:has(.ts-doors) .ts-h { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+body.rts.lay-phone #hud #selpanel .tc-sel:has(.ts-doors) .ts-h i, body.rts.lay-phone #hud #selpanel .tc-sel:has(.ts-doors) .ts-r { display: none; }
+body.rts.lay-phone #hud #selpanel .tc-sel:has(.ts-doors) .ts-hp { width: 32px; }
+body.rts.lay-phone #hud #selpanel .tsd { padding: 0 6px; letter-spacing: 0.02em; }
