@@ -19,7 +19,7 @@ const dt = 1 / 30;
 const run = (m, sec, each) => { for (let i = 0, n = Math.round(sec / dt); i < n && !m.over; i++) { m.step(dt); if (each && each(m) === true) break; } };
 
 // ---------------------------------------------------------------- the version
-check('version 0.28.0', C.share.version === '0.28.0' && JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url))).version === '0.28.0', C.share.version);
+check('version 0.29.0', C.share.version === '0.29.0' && JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url))).version === '0.29.0', C.share.version);
 
 // ---------------------------------------------------------------- the climb
 {

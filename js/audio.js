@@ -8,6 +8,8 @@
 export class Audio {
   constructor() {
     this.ctx = null; this.master = null; this.volume = 0.6; this.muted = false; this.voices = 0; this.hum = null; this.noiseBuf = null;
+    // (0.29) two buses under the master: the sound effects and the music, each with its own volume
+    this.sfxBus = null; this.musBus = null; this.music = 0.5; this.sfx = 1;
     this.last = {}; this._pan = 0;
   }
 
@@ -20,6 +22,8 @@ export class Audio {
       this.ctx = new AC();
       this.master = this.ctx.createGain();
       this.master.connect(this.ctx.destination);
+      this.sfxBus = this.ctx.createGain(); this.sfxBus.connect(this.master);
+      this.musBus = this.ctx.createGain(); this.musBus.connect(this.master);
       this._applyVolume();
       const len = this.ctx.sampleRate * 1.5, buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate), d = buf.getChannelData(0);
       for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
@@ -27,8 +31,18 @@ export class Audio {
     } catch { this.ctx = null; }
   }
 
-  set(volume, muted) { this.volume = volume; this.muted = muted; this._applyVolume(); }
-  _applyVolume() { if (this.master) this.master.gain.value = this.muted ? 0 : this.volume * 0.8; }
+  // master volume (0..1), mute everything, and (0.29) the music's and the effects' own volumes (0..1)
+  set(volume, muted, music = this.music, sfx = this.sfx) {
+    const n = (v, d) => (Number.isFinite(Number(v)) ? Math.max(0, Math.min(1, Number(v))) : d);
+    this.volume = n(volume, 0.6); this.muted = !!muted; this.music = n(music, 0.5); this.sfx = n(sfx, 1); this._applyVolume();
+  }
+  _applyVolume() {
+    if (!this.master) return;
+    const t = this.ctx.currentTime, to = (g, v) => { g.gain.cancelScheduledValues(t); g.gain.setTargetAtTime(v, t, 0.03); };
+    to(this.master, this.muted ? 0 : this.volume * 0.8);
+    to(this.sfxBus, this.sfx);
+    to(this.musBus, this.music * 0.7);
+  }
 
   // True when this key may sound again (each sound has its own minimum gap, so a swarm doesn't turn into static).
   _ok(key, gap) {
@@ -41,8 +55,8 @@ export class Audio {
   // Where a voice goes: straight to the master, or through a stereo panner when the sound is off to one side.
   _out(pan = this._pan) {
     const c = this.ctx;
-    if (!pan || !c.createStereoPanner) return this.master;
-    const p = c.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); p.connect(this.master);
+    if (!pan || !c.createStereoPanner) return this.sfxBus;
+    const p = c.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); p.connect(this.sfxBus);
     return p;
   }
   _noise(dur, f0, f1, gain, type = 'lowpass', q = 0.7, delay = 0) {
@@ -165,7 +179,7 @@ export class Audio {
     const o = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain(), f = c.createBiquadFilter();
     o.type = 'sawtooth'; o.frequency.value = 55; o2.type = 'sine'; o2.frequency.value = 110.5;
     f.type = 'lowpass'; f.frequency.value = 220; g.gain.value = 0.035;
-    o.connect(f); o2.connect(f); f.connect(g); g.connect(this.master);
+    o.connect(f); o2.connect(f); f.connect(g); g.connect(this.sfxBus);
     o.start(); o2.start(); this.hum = { o, o2, g };
   }
   humStop() {

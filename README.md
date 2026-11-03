@@ -19,6 +19,17 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 4. The Helldivers drop in and head for the objective. The ship gun is ready at once; your UAV scan and orbital strikes are still charging for the first twenty seconds or so. Aim, pick a weapon and call strikes on the enemy, not on your own squad.
 5. Not sure what to do? Press **INFO** (or `I`) at any time for the mission's steps and what the enemy does.
 
+**Music (0.29).** The game has a score now, made the same way as everything else: synthesised live in your browser, with no music files. It is calm in the menus (a low drone, a soft pad and a slow bell). In a mission it follows the fight: when the enemy closes on the squad a pulse comes in, when they are in a firefight war drums join, and in a heavy one the hats and snares come in with a deep braam on each chord change. When things go quiet it falls back. A super heavy arriving gets its own hit, and a win or a loss its own ending. Cinematics and the pause turn it down.
+
+**The AUDIO settings (0.29).** **Settings** is in sections now: **GAME**, **AUDIO**, **DISPLAY** and **CONTROLS**. **AUDIO** has:
+- **Master volume:** everything together.
+- **Music volume:** the score on its own.
+- **Music:** **Dynamic** (it follows the fight), **Ambient** (it stays calm whatever happens) or **Off**.
+- **Effects volume:** weapons, explosions, alarms and the ship, on their own.
+- **Mute all.**
+
+Each volume shows its per cent beside the slider, and every choice is saved on your device.
+
 **The command radio (0.28).** In the tutorial and the campaign a radio button sits by the minimap. It keeps everything said on the radio, to read again: the briefing (even if you skipped the cinematic), what the cast said during the mission, and the debrief. The cast also chat among themselves now and then; that chatter only goes to the radio (the button lights up when there is something new), so the feed stays clear. Nothing in it is an order you missed. In the tutorial it's Base Tharsis: Tharsis Control, the Pelican lead and a SEAF sergeant.
 
 **SEAF reinforcements (0.27.3)** wait where they land for your orders instead of running off: they fight anything that comes at them, and if the drop zone has a structure or cover in it (a bastion, a foxhole, a nest, a rock line) they go straight to it.
@@ -127,7 +138,7 @@ From difficulty 3 up the Helldivers can't win this alone. Left to themselves the
 
 **Three layouts (0.21):** the in-mission screen comes in a **desktop**, a **tablet** and a **phone** layout. **Settings > Interface layout** picks one, or leaves it on **Auto**, which chooses by your screen: a short side under about 540 pixels is a phone, a touch screen bigger than that is a tablet, anything else a desktop. The tablet layout is the desktop one with controls sized for fingers (buttons of 40 px or more, larger text). The phone layout puts the game first: **MENU**, **PAUSE** and half speed sit with the resource bar in one thin row at the top; the clock and the objective (tap either for the mission's info) are a thin line too; the Helldivers are four chips (a letter, the health and how many stratagems are ready; tap one for its full row, double-tap to go to them); what you have picked is one line over the command panel, and only shows when something is picked; the weapons sit by **CALL** (in two rows held upright); and the command panel is two rows of big buttons: the squads with **DRAW**, **DISBAND** and **FORM** (it steps through the formations), and the orders. **BUILD** and **ARMORY** pull it up as a drawer while you use them (picking a build folds it away so you can place it), and pressed again go back to the troops. The minimap is small in a corner: tap it for the big map. Buildings your troops can use (posts with places in them, defence sites to man) wear a dashed cyan ring.
 
-Every panel closes with its ✕ button or `Esc`. In **Settings** you can make the in-mission controls bigger or smaller (**UI size**), turn the info tips off. **CONTROLS**, the **FIELD MANUAL** (everything you can do, with tips), **SQUAD NAMES** and **SETTINGS** are in the menu, which the armory and the briefing open with their **MENU** buttons too. The armory's **BACK** goes to the title screen, where you can change the starting difficulty before you begin. The briefing's **CANCEL** goes back to the armory; the same mission waits for you when you deploy again.
+Every panel closes with its ✕ button or `Esc`. In **Settings** you can make the in-mission controls bigger or smaller (**UI size**), turn the info tips off, and set the music and sound (**AUDIO**: master, music and effects volumes, the music's style, mute all). **CONTROLS**, the **FIELD MANUAL** (everything you can do, with tips), **SQUAD NAMES** and **SETTINGS** are in the menu, which the armory and the briefing open with their **MENU** buttons too. The armory's **BACK** goes to the title screen, where you can change the starting difficulty before you begin. The briefing's **CANCEL** goes back to the armory; the same mission waits for you when you deploy again.
 
 ## Missions
 
@@ -272,7 +283,7 @@ The same text is on the **ABOUT & CREDITS** screen in the game (title screen and
 - **Created and vibe coded by** Robert Troumbley (RamziesSGXR), head admin of the Super Earth Special Forces (SESF) community. The idea has been in the works since Helldivers 2 launched in 2024.
 - **Testing:** KTL of the P.h.a.n.t.o.m. Helldivers (testing, and checking the French), rudolphtheredscare of the Tibit Tigers Helldivers, squally_wally740 of the Super Earth Special Forces Helldivers, and d3c4p1t4p3r (testing, and a sounding board for ideas). Thanks to the SESF members who play it and send feedback.
 - **Art is drawn in code.** Terrain, troops, enemies, explosions, the HUD and the Mars cinematic are shapes the game draws on a canvas as you play. There are no image files, and none of it is an AI-generated picture.
-- **Sound is synthesised** live in the browser from tones and noise (Web Audio). No recordings, no music files.
+- **Sound and music are synthesised** live in the browser from tones and noise (Web Audio). No recordings, no music files.
 - **No one else's assets.** No images, fonts, music, sound files or code libraries made by anyone else. Text uses the fonts already on your device, and the game loads nothing from other sites while you play. Text is written for this project; names and phrases from the Helldivers games point back to those games.
 - **Inspired by** Helldivers 2 (Arrowhead Game Studios, published by Sony Interactive Entertainment).
 - **Build and test tools** (not part of the game): esbuild (MIT) and Playwright (Apache 2.0). Hosted on GitHub Pages.

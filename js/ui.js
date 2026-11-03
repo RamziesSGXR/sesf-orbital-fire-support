@@ -1883,25 +1883,37 @@ export function buildSettings(settings, onChange) {
     s.value = String(settings[key]); s.onchange = () => { settings[key] = key === 'uiScale' || key === 'mini' ? Number(s.value) : s.value; onChange(key); }; return s;
   };
   const range = (key, min, max, step) => {
-    const r = el('input'); r.type = 'range'; r.min = min; r.max = max; r.step = step; r.value = settings[key];
-    r.oninput = () => { settings[key] = Number(r.value); onChange(key); }; return r;
+    const r = el('input'); r.type = 'range'; r.min = min; r.max = max; r.step = step; r.value = settings[key]; r.dataset.k = key;
+    if (max !== 1) { r.oninput = () => { settings[key] = Number(r.value); onChange(key); }; return r; }
+    // (0.29) a volume: the slider and its value in per cent beside it
+    const w = el('span', 'set-vol'), v = el('b', ''); const paint = () => { v.textContent = `${Math.round(Number(r.value) * 100)}%`; };
+    r.oninput = () => { settings[key] = Number(r.value); paint(); onChange(key); }; paint(); w.append(r, v); return w;
   };
+  // (0.29) in sections: the game, audio, display and controls
+  const sec = (key) => { body.appendChild(el('h3', 'set-sec', esc(t(key)))); };
+  sec('set.sec.game');
   row(t('set.lang'), t('set.langHint'), select('lang', Object.entries(LANGS).map(([k, v]) => [k, v.name])));
   row(t('set.enemy'), t('set.enemyHint'), select('enemy', ENEMIES.map((e) => [e, t('enemy.' + e)])));
+  sec('set.sec.audio');
+  row(t('set.volume'), t('set.volumeHint'), range('volume', 0, 1, 0.05));
+  row(t('set.music'), t('set.musicHint'), range('music', 0, 1, 0.05));
+  row(t('set.style'), t('set.styleHint'), select('musicStyle', [['dynamic', t('set.st.dynamic')], ['ambient', t('set.st.ambient')], ['off', t('set.st.off')]]));
+  row(t('set.sfx'), t('set.sfxHint'), range('sfx', 0, 1, 0.05));
+  row(t('set.mute'), t('set.muteHint'), toggle('muted'));
+  sec('set.sec.display');
   row(t('set.layout'), t('set.layoutHint'), select('layout', [['auto', t('set.lay.auto')], ['phone', t('set.lay.phone')], ['tab', t('set.lay.tab')], ['desk', t('set.lay.desk')]]));
   row(t('set.ui'), t('set.uiHint'), select('uiScale', [['0.8', '80%'], ['0.9', '90%'], ['1', '100%'], ['1.15', '115%'], ['1.3', '130%']]));
   row(t('set.mini'), t('set.miniHint'), select('mini', [['1', '1×'], ['1.5', '1.5×'], ['2', '2×'], ['2.5', '2.5×']]));
   row(t('set.thermal'), t('set.thermalHint'), select('polarity', [['white', t('set.white')], ['black', t('set.black')]]));
   row(t('set.relief'), t('set.reliefHint'), toggle('relief'));
-  row(t('set.volume'), '', range('volume', 0, 1, 0.05));
-  row(t('set.mute'), '', toggle('muted'));
+  row(t('set.gfx'), t('set.gfxHint'), select('quality', [['auto', t('set.auto')], ['high', t('set.high')], ['low', t('set.low')]]));
   row(t('set.bubbles'), t('set.bubblesHint'), toggle('bubbles'));
+  row(t('set.cards'), t('set.cardsHint'), select('cards', [['side', t('set.on')], ['off', t('set.off')]]));
   row(t('set.flash'), t('set.flashHint'), toggle('reduceFlash'));
   row(t('set.color'), t('set.colorHint'), toggle('colorblind'));
+  sec('set.sec.controls');
   row(t('set.lefty'), t('set.leftyHint'), toggle('lefty'));
-  row(t('set.cards'), t('set.cardsHint'), select('cards', [['side', t('set.on')], ['off', t('set.off')]]));
   row(t('set.touch'), '', range('touchSens', 0.5, 2, 0.1));
-  row(t('set.gfx'), t('set.gfxHint'), select('quality', [['auto', t('set.auto')], ['high', t('set.high')], ['low', t('set.low')]]));
 }
 // The enemy picker on the title screen (0.18): random (the default) or one faction for every mission.
 export const ENEMIES = ['random', 'bugs', 'bots', 'squids'];

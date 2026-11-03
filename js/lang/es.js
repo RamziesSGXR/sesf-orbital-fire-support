@@ -377,8 +377,13 @@ export default {
   'set.langHint': 'Los nombres de operaciones, indicativos y naves no cambian',
   'set.thermal': 'Vista térmica', 'set.thermalHint': 'Blanco caliente o negro caliente', 'set.white': 'Blanco caliente', 'set.black': 'Negro caliente',
   'set.relief': 'Mapa de relieve', 'set.reliefHint': 'Altura, profundidad del agua y terreno lento (tecla H)',
-  'set.volume': 'Volumen',
-  'set.mute': 'Silencio',
+  'set.volume': 'Volumen general', 'set.volumeHint': 'Todo el sonido',
+  'set.mute': 'Silenciar todo', 'set.muteHint': 'Música y efectos',
+  'set.sec.game': 'JUEGO', 'set.sec.audio': 'SONIDO', 'set.sec.display': 'PANTALLA', 'set.sec.controls': 'CONTROLES',
+  'set.music': 'Volumen de la música', 'set.musicHint': 'La música, en los menús y en misión',
+  'set.style': 'Música', 'set.styleHint': 'Dinámica sigue el combate. Ambiente se queda tranquila',
+  'set.st.dynamic': 'Dinámica', 'set.st.ambient': 'Ambiente', 'set.st.off': 'Apagada',
+  'set.sfx': 'Volumen de efectos', 'set.sfxHint': 'Armas, explosiones, alarmas y la nave',
   'set.bubbles': 'Bocadillos de diálogo', 'set.bubblesHint': 'Lo que dicen Helldivers y SEAF antes de actuar',
   'set.flash': 'Reducir destellos', 'set.flashHint': 'Estroboscopios más lentos, explosiones más suaves',
   'set.color': 'Paleta para daltonismo', 'set.colorHint': 'Enemigos amarillos, aliados azul vivo',
@@ -406,7 +411,7 @@ export default {
     + '<h4>AVISO LEGAL</h4><p>Orbital Fury es un <b>proyecto de fans no oficial</b> y gratuito. No está afiliado, respaldado ni patrocinado por Arrowhead Game Studios ni por Sony Interactive Entertainment. Helldivers, Super Earth, Super Destroyer, SEAF y los demás nombres, frases, facciones y ambientaciones de los juegos Helldivers pertenecen a sus propietarios y se usan aquí solo para referirse a ellos, con respeto. Si un propietario pide cambiar o retirar algo, se hará.</p>'
     + '<p>El juego es gratis, no tiene anuncios, no vende nada y no recoge nada: el progreso y los récords se quedan en tu dispositivo. Se ofrece tal cual, sin garantía.</p>'
     + '<h4>CREADO POR</h4><p>Creado y programado con vibe coding por <b>Robert Troumbley</b> (RamziesSGXR), administrador principal de la comunidad <b>Super Earth Special Forces</b> (SESF).</p><h4>PRUEBAS</h4><ul><li><b>KTL</b> de P.h.a.n.t.o.m. Helldivers: pruebas y revisión del francés.</li><li><b>rudolphtheredscare</b> de Tibit Tigers Helldivers: pruebas.</li><li><b>squally_wally740</b> de Super Earth Special Forces Helldivers: pruebas.</li><li><b>d3c4p1t4p3r</b>: pruebas, y caja de resonancia para las ideas.</li><li>Gracias a los miembros de SESF que lo juegan y envían su opinión.</li></ul>'
-    + '<h4>ARTE, SONIDO Y RECURSOS</h4><ul><li><b>El arte se dibuja con código.</b> El terreno, las tropas, los enemigos, las explosiones, la interfaz y la cinemática de Marte son formas que el juego dibuja en pantalla mientras juegas. El juego no contiene archivos de imagen, y nada en él es una imagen generada por IA.</li><li><b>El sonido es sintetizado.</b> Cada arma, ataque y pitido de radio se crea en directo en tu navegador a partir de tonos y ruido. No hay grabaciones ni archivos de música.</li><li><b>Ningún recurso ajeno.</b> No contiene imágenes, fuentes, música, archivos de sonido ni bibliotecas de código hechos por otras personas. Los textos usan las fuentes que ya tiene tu dispositivo, y no se carga nada de otros sitios mientras juegas.</li><li><b>Los textos</b> están escritos para este proyecto. Los nombres y frases de los juegos Helldivers remiten a esos juegos.</li></ul>'
+    + '<h4>ARTE, SONIDO Y RECURSOS</h4><ul><li><b>El arte se dibuja con código.</b> El terreno, las tropas, los enemigos, las explosiones, la interfaz y la cinemática de Marte son formas que el juego dibuja en pantalla mientras juegas. El juego no contiene archivos de imagen, y nada en él es una imagen generada por IA.</li><li><b>El sonido y la música son sintetizados.</b> Cada arma, ataque y pitido de radio, y también la música, se crea en directo en tu navegador a partir de tonos y ruido. No hay grabaciones ni archivos de música.</li><li><b>Ningún recurso ajeno.</b> No contiene imágenes, fuentes, música, archivos de sonido ni bibliotecas de código hechos por otras personas. Los textos usan las fuentes que ya tiene tu dispositivo, y no se carga nada de otros sitios mientras juegas.</li><li><b>Los textos</b> están escritos para este proyecto. Los nombres y frases de los juegos Helldivers remiten a esos juegos.</li></ul>'
     + '<h4>INSPIRADO EN</h4><p><b>Helldivers 2</b> de Arrowhead Game Studios, publicado por Sony Interactive Entertainment: la ambientación, las facciones y el escuadrón a los que este juego rinde homenaje.</p>'
     + '<h4>HERRAMIENTAS</h4><p>Se usaron para construirlo y probarlo, y no forman parte de lo que juegas: <b>esbuild</b> (licencia MIT) y <b>Playwright</b> (licencia Apache 2.0). Alojado en GitHub Pages.</p>',
   'flash.title': 'LUCES PARPADEANTES',

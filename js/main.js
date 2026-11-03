@@ -9,6 +9,7 @@ import { Renderer } from './render/renderer.js';
 import { buildTerrain } from './render/terrain.js';
 import { Input } from './input.js';
 import { Audio } from './audio.js';
+import { Music } from './music.js';
 import * as S from './session.js';
 import { startTitleBg } from './render/titlebg.js';
 import { STORY, CAST, chapterFor } from './data/story.js';
@@ -39,6 +40,9 @@ const STEP = 1 / C.world.tickHz;
 const canvas = $('view');
 const renderer = new Renderer(canvas);
 const audio = new Audio();
+const music = new Music(audio);     // (0.29) the score: follows the fight in a mission, calm in the menus
+// Browsers only let sound start from a click, a tap or a key: the first one anywhere unlocks it, so the title's music begins then.
+for (const k of ['pointerdown', 'keydown']) window.addEventListener(k, () => audio.unlock(), { once: true, capture: true });
 const hud = new UI.Hud();
 const cam = { x: C.world.size / 2, y: C.world.size / 2, view: C.world.viewWidth, follow: true };
 let settings = S.getSettings();
@@ -91,7 +95,8 @@ function applyLayout() {
 function applySettings() {
   renderer.setSettings(settings);
   renderer.quality = settings.quality === 'low' ? 'low' : 'high';
-  audio.set(settings.volume, settings.muted);
+  audio.set(settings.volume, settings.muted, settings.music, settings.sfx);
+  music.setStyle(settings.musicStyle);
   document.body.classList.toggle('lefty', !!settings.lefty);
   if (settings.cards !== 'off') settings.cards = 'side';     // (0.17.2: tips over the button, on or off)
   document.body.classList.toggle('cards-off', settings.cards === 'off');
@@ -112,6 +117,7 @@ function buildFor(biome, seed, keepDecals = false) {
 
 function onSettingChange(key) {
   applySettings();
+  if (key === 'sfx' || key === 'volume') { audio.unlock(); audio.ready(); }     // (0.29) a blip at the new level, so it can be heard
   if (key === 'lang') relang();
   if ((key === 'polarity' || key === 'relief') && info) buildFor(info.biome, info.seed, true);
   if (key === 'quality') { renderer.perf.low = false; renderer.resize(); if (info) buildFor(info.biome, info.seed, true); }
@@ -1348,6 +1354,34 @@ function ambient(m, dt) {
   const civ = m.civs.find((c) => !c.dead && !c.safe && Math.abs(c.x - cam.x) < half && Math.abs(c.y - cam.y) < half);
   if (civ && Math.random() < 0.3) audio.snd('civ', loudness(civ.x, civ.y), pan(civ.x));
 }
+// (0.29) What the music is playing under: the menus, a mission (or its pause), a cinematic, or the end of one.
+function musicScene() {
+  if (cinema.on) return 'cine';
+  if (state === 'play') return paused ? 'pause' : 'play';
+  return state === 'debrief' || state === 'final' || state === 'glass' ? 'end' : 'menu';
+}
+// How hot the fight is, 0..1, for the music: the enemy close to the squad (a heavy counts for more), a super heavy on the field,
+// and a kick from things going wrong (a Helldiver down, an alarm) that fades over a few seconds. Counted every 0.3 s.
+let heatT = 0, heatV = 0, heatKick = 0;
+function musicHeat(dt) {
+  heatKick = Math.max(0, heatKick - dt * 0.05);
+  if (!mission || state !== 'play') { heatV = 0; return 0; }
+  heatT -= dt;
+  if (heatT <= 0) {
+    heatT = 0.3;
+    const hs = mission.hdAlive || [];
+    let w = 0, boss = false;
+    for (const e of mission.enemies) {
+      if (e.dead) continue;
+      if (e.boss) boss = true;
+      for (const a of hs) { const dx = e.x - a.x, dy = e.y - a.y; if (dx * dx + dy * dy < 90 * 90) { w += e.kind === 'H' ? 3 : e.kind === 'M' ? 1.6 : 1; break; } }
+    }
+    heatV = Math.min(1, w / 22);
+    if (boss) heatV = Math.max(heatV, 0.7);
+  }
+  return Math.min(1, heatV + heatKick);
+}
+
 function onEvent(ev, now) {
   renderer.handle(ev, now, mission);
   if (tut) tut.onEvent(ev);
@@ -1377,7 +1411,7 @@ function onEvent(ev, now) {
     case 'reinf_spawn': audio.arrive(ev.src === 'hole' ? 'bugs' : ev.src, L, P); break;
     case 'drop_down': audio.dropDown(Math.max(0.6, L), P); break;
     case 'boss':
-      audio.siren(); hud.message(t('msg.boss', { name: ev.name }), 3200);
+      audio.siren(); music.hit('boss'); hud.message(t('msg.boss', { name: ev.name }), 3200);
       break;
     case 'boss_down': audio.baseDown(); audio.objective(); hud.message(t('msg.bossDown', { name: ev.name }), 3000); break;
     case 'boss_block': audio.deny(); break;
@@ -1437,14 +1471,14 @@ function onEvent(ev, now) {
     case 'breach_open': audio.reinf('bugs', Math.max(0.5, L), P); break;
     case 'breach_close': if (ev.destroyed) audio.baseDown(); break;
     case 'poi_down': audio.baseDown(); break;
-    case 'ally_down': audio.allyDown(); break;
+    case 'ally_down': audio.allyDown(); heatKick = Math.min(0.35, heatKick + 0.15); break;
     case 'base_down':
       audio.baseDown();
       if (ev.fortress) hud.message(t('msg.citadel'), 2400); else hud.notice(t('msg.baseDown'), 'good');
       break;
     case 'arty_fire': afterCall(); break;
     case 'end':
-      if (ev.outcome === 'victory' || ev.outcome === 'complete') audio.win(); else audio.lose();
+      if (ev.outcome === 'victory' || ev.outcome === 'complete') { audio.win(); music.hit('win'); } else { audio.lose(); music.hit('lose'); }
       hud.message(t(ev.outcome === 'victory' ? (mission.extracted ? 'msg.end.extracted' : 'msg.end.victory') : 'msg.end.' + ev.outcome), 4000);
       break;
     default:
@@ -1456,6 +1490,7 @@ function frame(ts) {
   requestAnimationFrame(frame);
   const now = ts / 1000;
   const dt = Math.min(0.25, Math.max(0, now - lastT)); lastT = now;
+  music.update(dt, musicScene(), musicHeat(dt));
   if (!renderer.W) return;
 
   // Frame-time watchdog for the auto quality setting.
@@ -1574,7 +1609,7 @@ toTitle();
 requestAnimationFrame((t) => { lastT = t / 1000; frame(t); });
 
 // Test hooks (used by the Playwright checks; harmless in production).
-window.__game = { hud,
+window.__game = { hud, audio, music,
   get state() { return state; }, get mission() { return mission; }, get session() { return session; }, get info() { return info; },
   get paused() { return paused; }, get soft() { return soft; }, get speed() { return speed; }, softPause, retryMission, toggleSpeed,
   cam, input, renderer, settings, order, get placing() { return placing; }, get drawing() { return drawing; }, squadAct, selectSquad, focusTeam, strokeBegin, strokeMove, strokeEnd, goShop, openArmory, closeArmory,

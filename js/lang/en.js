@@ -377,8 +377,13 @@ export default {
   'set.langHint': 'Operation names, callsigns and ship names don\'t change',
   'set.thermal': 'Thermal view', 'set.thermalHint': 'White-hot or black-hot', 'set.white': 'White-hot', 'set.black': 'Black-hot',
   'set.relief': 'Relief map', 'set.reliefHint': 'Height, water depth and slow ground (key H)',
-  'set.volume': 'Volume',
-  'set.mute': 'Mute',
+  'set.volume': 'Master volume', 'set.volumeHint': 'Everything together',
+  'set.mute': 'Mute all', 'set.muteHint': 'Music and effects',
+  'set.sec.game': 'GAME', 'set.sec.audio': 'AUDIO', 'set.sec.display': 'DISPLAY', 'set.sec.controls': 'CONTROLS',
+  'set.music': 'Music volume', 'set.musicHint': 'The score, in the menus and in a mission',
+  'set.style': 'Music', 'set.styleHint': 'Dynamic follows the fight. Ambient stays calm',
+  'set.st.dynamic': 'Dynamic', 'set.st.ambient': 'Ambient', 'set.st.off': 'Off',
+  'set.sfx': 'Effects volume', 'set.sfxHint': 'Weapons, explosions, alarms and the ship',
   'set.bubbles': 'Speech bubbles', 'set.bubblesHint': 'What Helldivers and SEAF say before they act',
   'set.flash': 'Reduce flashing', 'set.flashHint': 'Slower strobes, softer explosions',
   'set.color': 'Color-safe palette', 'set.colorHint': 'Yellow enemies, bright blue allies',
@@ -406,7 +411,7 @@ export default {
     + '<h4>DISCLAIMER</h4><p>Orbital Fury is a free, <b>unofficial fan project</b>. It is not affiliated with, endorsed by or sponsored by Arrowhead Game Studios or Sony Interactive Entertainment. Helldivers, Super Earth, Super Destroyer, SEAF and the other names, phrases, factions and settings from the Helldivers games belong to their owners and are used here only to refer to them, with respect. If an owner asks for any of it to change or come down, it will.</p>'
     + '<p>The game is free, has no ads, sells nothing and collects nothing: progress and best scores stay on your device. It is provided as it is, with no warranty.</p>'
     + '<h4>MADE BY</h4><p>Created and vibe coded by <b>Robert Troumbley</b> (RamziesSGXR), head admin of the <b>Super Earth Special Forces</b> (SESF) community.</p><h4>TESTING</h4><ul><li><b>KTL</b> of the P.h.a.n.t.o.m. Helldivers: testing, and checking the French.</li><li><b>rudolphtheredscare</b> of the Tibit Tigers Helldivers: testing.</li><li><b>squally_wally740</b> of the Super Earth Special Forces Helldivers: testing.</li><li><b>d3c4p1t4p3r</b>: testing, and a sounding board for ideas.</li><li>Thanks to the SESF members who play it and send feedback.</li></ul>'
-    + '<h4>ART, SOUND AND ASSETS</h4><ul><li><b>Art is drawn in code.</b> The terrain, troops, enemies, explosions, the HUD and the Mars cinematic are all shapes the game draws on screen as you play. There are no image files in the game, and none of it is an AI-generated picture.</li><li><b>Sound is synthesised.</b> Every gun, strike and radio chirp is built live in your browser from tones and noise. There are no recordings and no music files.</li><li><b>No one else\'s assets.</b> No images, fonts, music, sound files or code libraries made by anyone else are in it. Text uses the fonts already on your device, and nothing is loaded from other sites while you play.</li><li><b>Text</b> is written for this project. Names and phrases from the Helldivers games point back to those games.</li></ul>'
+    + '<h4>ART, SOUND AND ASSETS</h4><ul><li><b>Art is drawn in code.</b> The terrain, troops, enemies, explosions, the HUD and the Mars cinematic are all shapes the game draws on screen as you play. There are no image files in the game, and none of it is an AI-generated picture.</li><li><b>Sound and music are synthesised.</b> Every gun, strike and radio chirp, and the music, is built live in your browser from tones and noise. There are no recordings and no music files.</li><li><b>No one else\'s assets.</b> No images, fonts, music, sound files or code libraries made by anyone else are in it. Text uses the fonts already on your device, and nothing is loaded from other sites while you play.</li><li><b>Text</b> is written for this project. Names and phrases from the Helldivers games point back to those games.</li></ul>'
     + '<h4>INSPIRED BY</h4><p><b>Helldivers 2</b> by Arrowhead Game Studios, published by Sony Interactive Entertainment: the setting, the factions and the squad this game is a fan tribute to.</p>'
     + '<h4>TOOLS</h4><p>Used to build and test it, and not part of what you play: <b>esbuild</b> (MIT licence) and <b>Playwright</b> (Apache 2.0 licence). Hosted on GitHub Pages.</p>',
   'flash.title': 'FLASHING LIGHTS',

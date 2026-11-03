@@ -20,7 +20,9 @@ export function drop(key) { try { localStorage.removeItem(K[key]); } catch { /* 
 export const DEFAULT_SETTINGS = {
   enemy: 'random',        // (0.18) the enemy for the session's missions: 'random' or a faction id; a change counts from the next mission
   polarity: 'white', relief: false, quality: 'auto', reduceFlash: false, colorblind: false,
-  volume: 0.6, muted: false, lefty: false, touchSens: 1, bubbles: true, cards: 'side', lang: 'en', uiScale: 1,
+  volume: 0.6, muted: false, lefty: false,
+  music: 0.5, sfx: 1, musicStyle: 'dynamic',   // (0.29) the music's volume, the effects' volume, and the music: 'dynamic' | 'ambient' | 'off'
+  touchSens: 1, bubbles: true, cards: 'side', lang: 'en', uiScale: 1,
   mini: 2,           // the minimap's size (x its old size)
   layout: 'auto',   // (0.21) the HUD's layout: 'auto' (by the screen), 'phone', 'tab' or 'desk'
   difficulty: C.difficulty.start,     // the level the next new session starts at (a session keeps its own)

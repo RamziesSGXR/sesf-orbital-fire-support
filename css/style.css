@@ -126,6 +126,11 @@ textarea {
 }
 .set-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 2px; border-bottom: 1px solid rgba(157, 255, 184, 0.12); text-align: left; font-size: 13px; }
 .set-row small { display: block; color: var(--g-dim); font-size: 11px; }
+/* (0.29) the settings in sections; a volume shows its value beside the slider */
+.set-sec { grid-column: 1 / -1; margin: 16px 0 2px; padding: 0 2px 5px; font-size: 12px; letter-spacing: 0.28em; color: var(--yellow); text-align: left; border-bottom: 1px solid rgba(255, 230, 0, 0.35); }
+.set-sec:first-child { margin-top: 2px; }
+.set-vol { display: inline-flex; align-items: center; gap: 8px; }
+.set-vol b { min-width: 3.2em; text-align: right; font-weight: 400; color: var(--g); font-variant-numeric: tabular-nums; }
 .set-row input[type=range] { width: 130px; touch-action: auto; }
 .set-row select { font: inherit; color: var(--g); background: #05140a; border: 1px solid var(--line); padding: 6px; border-radius: 4px; }
 .tog { min-width: 64px; min-height: 36px; padding: 4px 10px; }
