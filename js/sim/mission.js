@@ -11,8 +11,8 @@ import { newKit, newWallet, seafStats, maxLives, zoneExtra, buy, equip, loadoutI
 import { seafName } from '../data/names.js';
 import { updateSquad } from './squad.js';
 import { setupDefenders } from './defenders.js';
-import { initSeaf, targetSquads, setSquadOrder, drawOrder, callPelican, pendingTroops, dropSquad, callCargo, boxSelect, setForm, pickTroops, toSquad, disband, PICKED, selectSquads as seafSelectSquads, mergeSquads as seafMergeSquads } from './seaf.js';
-import { updatePosts, updateSam, garrisonPost, releaseGarrison, POSTS, makePost, INSIDE, foxSize } from './posts.js';
+import { initSeaf, targetSquads, setSquadOrder, drawOrder, callPelican, pendingTroops, dropSquad, callCargo, boxSelect, setForm, pickTroops, toSquad, disband, PICKED, LOOSE, selectSquads as seafSelectSquads, mergeSquads as seafMergeSquads } from './seaf.js';
+import { updatePosts, updateSam, garrisonPost, releaseGarrison, POSTS, makePost, INSIDE, foxSize, GARRISON } from './posts.js';
 import { updateEnemies, updateAllies } from './enemies.js';
 import { updateDirector, alertBase } from './director.js';
 import { initPatrols, updatePatrols } from './patrols.js';
@@ -528,6 +528,16 @@ export class Mission {
     this.emit('squad_select', { sel: this.seaf.sel });
     return r;
   }
+  // (0.31) Ctrl+A: every trooper on the map (not those inside a building). Their squads are picked together, each taking an order as
+  // itself; troopers in no squad are picked with everyone else (an order then forms them all into one squad).
+  selectAllTroops() {
+    const all = this.seafAlive.filter((a) => a.sq !== GARRISON && !a.inside);
+    if (!all.length) return { ok: false, reason: 'noseaf' };
+    if (all.some((a) => a.sq === LOOSE)) { const r = this.pickSeaf(all); return { ...r, ok: r.ok !== false, n: all.length, k: 0 }; }
+    const L = [...new Set(all.map((a) => a.sq))].filter((i) => i >= 0).sort((a, b) => a - b);
+    if (L.length === 1) this.selectSquad(L[0]); else this.selectSquads(L);
+    return { ok: true, n: all.length, k: L.length };
+  }
   // (0.18) pick troopers (a click on one, a box): see seaf.js pickTroops
   pickSeaf(list) { const r = pickTroops(this, list); this.emit('squad_select', { sel: this.seaf.sel }); return r; }
   // the selection joins squad i (Alt+number, a double tap on a squad button)
@@ -724,8 +734,12 @@ export class Mission {
     for (const a of this.allies) {
       if (a.dead || a.hidden) continue;           // hidden SEAF (sides.js) are nobody's until they are found
       const sm = tr.sightMul(a.x, a.y);
-      a.sight = a.sight0 * sm; a.vision = a.sight + C.sight.playerBonus;   // high ground sees farther
-      a.zone = (a.zone0 ?? a.sight0) * sm + C.sight.playerBonus + zx;
+      if (a.down) {     // (0.31) a downed trooper lies low: he sees only what is right round him, and gives the strike zone nothing
+        a.sight = a.sight0 * C.medic.downSight; a.vision = a.sight; a.zone = 0;
+      } else {
+        a.sight = a.sight0 * sm; a.vision = a.sight + C.sight.playerBonus;   // high ground sees farther
+        a.zone = (a.zone0 ?? a.sight0) * sm + C.sight.playerBonus + zx;
+      }
       this.alive.push(a); sx += a.x; sy += a.y;
       if (a.type === 'H') { this.hdAlive.push(a); hx += a.x; hy += a.y; } else if (!a.pinned) this.seafAlive.push(a);   // pinned SEAF are not the player's (yet)
     }
@@ -1134,7 +1148,7 @@ export class Mission {
       compact(this.groups, emptyG);
       this.dirtyE = false;
     }
-    if (this.dirtyA) { compact(this.allies, deadE); this.dirtyA = false; }
+    if (this.dirtyA) { compact(this.allies, deadE); this.dirtyA = false; this._refreshAlive(); }     // (0.31: and who is alive, so the dead see nothing between ticks)
 
     // A mission is won outright by extracting (extract.js). If the squad is gone for good (the last Helldiver down with no lives
     // left; SEAF cannot finish the job for them) or the clock runs out, what counts is the primary objective: done, and the

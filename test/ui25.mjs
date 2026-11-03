@@ -41,6 +41,19 @@ const fx = await ev(() => {
 });
 check('two squads picked together dig one trench with a place for each of them', fx.ok && fx.cap === Math.min(12, fx.n) && fx.plan === fx.cap, JSON.stringify(fx));
 check('and man it', fx.manned >= fx.cap - 2, `${fx.manned}/${fx.cap}`);
+if (!touch) {     // (0.31) Ctrl+A: every trooper on the map
+  await ev(() => { const m = window.__game.mission; m.selectSquad(0); });
+  await page.keyboard.down('Control'); await page.keyboard.press('a'); await page.keyboard.up('Control');
+  await page.waitForTimeout(300);
+  const ca = await ev(() => { const m = window.__game.mission, sf = m.seaf; return { sel: sf.sel, multi: sf.multi, n: m.seaf.squads.filter((q) => q.n).length, toast: document.getElementById('toast').textContent }; });
+  check('Ctrl+A picks every squad on the map at once', ca.multi && ca.multi.length === ca.n && ca.n >= 2 && /ALL \d+ TROOPERS SELECTED/.test(ca.toast), JSON.stringify(ca));
+  const w = { x: W / 2 + 60, y: H / 2 - 120 };     // (open map, clear of the panels)
+  await page.mouse.move(w.x, w.y); await page.waitForTimeout(100);
+  await page.mouse.click(w.x, w.y, { button: 'right' }); await page.waitForTimeout(300);
+  const od = await ev(() => window.__game.mission.seaf.squads.filter((q) => q.n).map((q) => q.order.kind + (q.order.queued ? 'q' : '')));
+  check('and a right-click sends them all', od.length >= 2 && od.every((k) => k === 'move' || k === 'attack'), od.join(','));
+  check('the page itself is not selected (Ctrl+A stays in the game)', await ev(() => String(window.getSelection()).length === 0));
+}
 
 // ---------------------------------------------------------------- the campaign: the radio
 await page.goto(`file://${ROOT}/dist/orbital-fury.html`); await page.waitForTimeout(1200);

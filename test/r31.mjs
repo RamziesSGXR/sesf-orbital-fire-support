@@ -162,6 +162,29 @@ for (const fac of ['bugs', 'bots', 'squids']) {
   check('a bug hole spills more bugs than its groups used to bring', bugs >= groups * m.groupSize * 1.3, `${bugs} bugs for ${groups} groups of ${m.groupSize}`);
   check('a pack at a time, over a longer while', packs >= groups * 2 && last - first >= 10, `${packs} packs over ${(last - first).toFixed(0)} s`);
 }
+// ---------------------------------------------------------------- the fallen see nothing (0.31 fix)
+{
+  const { hurtAlly } = await import('../js/sim/combat.js');
+  const { goDown } = await import('../js/sim/seaf.js');
+  const m = quiet('bots', 3112);
+  clearMap(m);
+  m.seaf.readyAt = 0; const a0 = m.hdAlive[0]; m.callSeaf(a0.x + 12, a0.y + 12); run(m, 16);
+  const S = m.seafAlive.slice(0, 2);
+  check('two troopers on the ground for the check', S.length === 2);
+  // one killed in the middle of a tick (after the alive list was made): gone from it by the end of that tick
+  const v = S[0];
+  for (const x of m.seafAlive) if (x.role === 'medic') x.role = 'rifle';     // (no Medic: he dies outright)
+  const orig = m._walk.bind(m); m._walk = (dt) => { if (!v.dead) hurtAlly(m, v, 1e9, 'enemy'); orig(dt); };
+  m.step(1 / 30); m._walk = orig;
+  check('a trooper killed during a tick is off the alive list (and so gives no view) when the tick ends', v.dead && !m.alive.includes(v) && !m.seafAlive.includes(v));
+  // one downed: he lies low and sees only round himself
+  const d = S[1], full = d.vision;
+  goDown(m, d, 'enemy', null); m.step(1 / 30);
+  check('a downed trooper sees only round himself and adds no strike zone', d.down && d.vision <= d.sight0 * C.medic.downSight + 0.01 && d.vision < full * 0.5 && d.zone === 0, `${d.vision.toFixed(0)} m (was ${full.toFixed(0)})`);
+  run(m, C.medic.downSec + 1);
+  check('and when he bleeds out he is gone', d.dead && !m.alive.includes(d));
+}
+
 // ---------------------------------------------------------------- the Hangar comes with a Strafing Run
 {
   const { newKit, newWallet, buy, HANGAR_GIFT } = await import('../js/data/kit.js');

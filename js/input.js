@@ -190,6 +190,7 @@ export class Input {
       // (0.18) Space: the tactical screen (and its pause) on and off; Alt+1..9: the selected troopers join that squad
       if (e.code === 'Space') { e.preventDefault(); if (this.h.supplyTap && this.h.supplyTap()) return; this.h.soft(); return; }   // (0.18) Space pauses (look around, no orders) and goes on
       if (e.code === 'Enter' && this.h.deployNow) { this.h.deployNow(); return; }
+      if (e.code === 'KeyA' && (e.ctrlKey || e.metaKey) && this.h.selectAll) { e.preventDefault(); this.keys.delete('KeyA'); this.h.selectAll(); return; }     // (0.31) Ctrl+A: every trooper on the map (A alone still pans)
       { const ad = /^Digit([1-9])$/.exec(e.code); if (ad && e.altKey && this.h.toSquad) { e.preventDefault(); this.h.toSquad(Number(ad[1]) - 1); return; } }
       // the tactical build screen is open: 1 to 7 build, Z X C V B pick a formation (and no weapon keys)
       if (this.h.buildKeys && this.h.buildKeys() && !e.shiftKey) {     // (0.20: in the build context, 1 to 8 pick a build)

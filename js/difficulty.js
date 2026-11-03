@@ -1,5 +1,5 @@
 // Difficulty. A session starts at a level from 1 to 10, picked on the title screen, and climbs from there: each mission is
-// CONFIG.difficulty.ramp of a level harder than the one before (levelAt), with no ceiling, so a session started at 3 flies its
+// CONFIG.difficulty.ramp of a level harder than the one before (levelAt), and every rank earned adds rankStep more (0.31), with no ceiling, so a session started at 3 flies its
 // nineteenth mission at 10, what a session started at 10 flies first, and goes on past it. Level 10 is the game exactly as tuned in
 // config.js; every lower level scales the enemy down from there and every higher one up (CONFIG.difficulty says by how much at
 // level 1; the levels step evenly, and on past 10 at CONFIG.difficulty.beyond of that step):
@@ -42,8 +42,14 @@ export function warAt(d) {
 export function warMinutes(d, S = 0) { return d === undefined || d === null ? S : warAt(d) + D().sessionRamp * S; }
 // A level's name in the language tables: diff.1 to diff.10, and past 10 'Super Helldive +n' (t(...levelName(d))).
 export const levelName = (d) => (clampAny(d) <= LEVELS ? ['diff.' + clampAny(d)] : ['diff.beyond', { n: clampAny(d) - LEVELS }]);
-// The level of mission n (1 = the first) of a session that started at `start`.
-export function levelAt(start, n) { return clampAny(clampLevel(start) + D().ramp * Math.max(0, (Number(n) || 1) - 1)); }
+// The rank a session has with `done` missions done (as the armory's ranks: CONFIG.ranks.at).
+export const rankAt = (done) => C.ranks.at.filter((a) => done >= a).length;
+// The level of mission n (1 = the first) of a session that started at `start`: ramp a level for every mission before it, and
+// (0.31) rankStep more for every rank those missions earned (each one opens more of the armory, so the enemy steps up too).
+export function levelAt(start, n) {
+  const done = Math.max(0, (Number(n) || 1) - 1);
+  return clampAny(clampLevel(start) + D().ramp * done + (D().rankStep || 0) * rankAt(done));
+}
 
 // A factor for level d: `lo` at level 1 rising to 1 at level 10 (the steps shrink toward the top when CONFIG.difficulty.curve > 1),
 // and on up past 10, beyond x the average step a level.

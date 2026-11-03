@@ -204,6 +204,12 @@ const input = new Input(canvas, $('minimap'), cam, {
   boxBegin: (x, y) => { if (act()) box = { x0: x, y0: y, x1: x, y1: y }; },
   boxMove: (x, y) => { if (box) { box.x1 = x; box.y1 = y; } },
   boxEnd: () => boxEnd(),
+  selectAll: () => {     // (0.31) Ctrl+A: every trooper on the map
+    if (!act()) return;
+    const r = mission.selectAllTroops();
+    if (r && r.ok) { audio.click(); setDrawing(false); deselect(); hud.toast(t(r.k > 1 ? 'sel.allSquads' : 'sel.allTroops', { n: r.n, k: r.k }), 1500); if (tac) hud.fillTactical(mission, sel); }
+    else if (r) { audio.deny(); hud.toast(deny(r.reason)); }
+  },
   boxCancel: () => { box = null; },
   armory: () => openArmory(),
   polarity: () => { settings.polarity = settings.polarity === 'white' ? 'black' : 'white'; onSettingChange('polarity'); },
@@ -1020,7 +1026,7 @@ function finishMission() {
     for (let k = t0 + 1; k <= t1; k++) { bonus += C.ranks.bonus[k - 1] || 0; fresh.push(...tierItems(session.kit, k)); }
     session.wallet.bal += bonus; session.fresh = fresh;
     const names = fresh.map((id) => shopItems(session.kit).find((it) => it.id === id)).filter(Boolean).map((it) => ({ n: it.orb ? UI.shortName(it.orb) : it.name, k: t('kit.tag.' + it.section) }));
-    ms = { k: t1, of: TIER_MAX, done: doneN(session), bonus, names, next: C.ranks.at[t1] || 0 };
+    ms = { k: t1, of: TIER_MAX, done: doneN(session), bonus, names, next: C.ranks.at[t1] || 0, level: S.levelNow(session) };     // (0.31: and the next mission's level)
   }
   // Extracted, or the primary objective done: the session goes on. A failed mission ends it, unless the player retries it.
   if (S.carriesOn(res.outcome)) persist(); else S.drop('session');

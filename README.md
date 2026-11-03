@@ -21,6 +21,8 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 **The enemy never runs out (0.31).** Patrols keep walking in from beyond the edge of the map for the whole mission, even once every base is down: more often as the mission goes on (and when the map is nearly empty, or extraction is open), and in bigger numbers after the first ten minutes or so. They walk past where the squad is and on out the far side; if they spot the squad, they hunt it like any patrol. A dim line in the feed says where one came in.
 
+**0.32.** The difficulty climbs faster: about three fifths of a level every mission (it was two fifths) and a quarter of a level more for every rank you earn, so the more of the armory you've opened, the harder it gets (see [difficulty](#difficulty)). `Ctrl`+`A` picks every trooper on the map. And a fix: a SEAF trooper who goes down now sees only what's right round him (he used to keep his full view while he lay there), and one who dies stops showing the map at once.
+
 **Cleaner map (0.31).** The buildings you put up (foxholes, bastions, nests, towers and the rest) no longer have a name over them on the map. Select one and its name and crew show over it; the cyan ring still marks the ones your troops can use. See [tips](#tips) for the reinforcement changes.
 
 **Music (0.30).** The game has a score, made the same way as everything else: synthesised live in your browser, with no music files. Each part of the game has its own piece:
@@ -115,7 +117,7 @@ From difficulty 3 up the Helldivers can't win this alone. Left to themselves the
 
 | | Computer | Phone and tablet |
 |---|---|---|
-| Select | Click a trooper to pick just him, double-click for his squad, `Shift`+click to add or take out one more, or drag a box round some. Click a post, sentry or defence site to select it. What is selected shows at the bottom left | Tap a trooper (double-tap for his squad; hold a finger on another to add him), or tap a post, sentry or site |
+| Select | Click a trooper to pick just him, double-click for his squad, `Shift`+click to add or take out one more, or drag a box round some. `Ctrl`+`A` picks every trooper on the map (0.31): their squads together, each taking your next order as itself. Click a post, sentry or defence site to select it. What is selected shows at the bottom left | Tap a trooper (double-tap for his squad; hold a finger on another to add him), or tap a post, sentry or site |
 | Arm a weapon | `1` UAV scan, `2`-`6` orbitals, `7` the nuke (once armed), `8` ship gun, `9` artillery cannon. `Q` / `E` cycle. The reticle shows | Weapon bar. The crosshair shows |
 | Fire or call | Click (hold for the ship gun). The cursor then selects again; hold `Shift` to keep it armed | **CALL** button (hold for the ship gun) |
 | Put a weapon down | Right click or `Esc` | It goes down after the call |
@@ -210,7 +212,7 @@ Once the objective is done, the Helldivers decide what's next. With **more than 
 
 ## Difficulty
 
-Pick the level your session **starts** at, from 1 to 10, on the title screen before you press **PLAY** (3 if you're new). From there **the level climbs every mission**, about two fifths of a level each time (a level every two or three missions), with no ceiling. A session started at 3 flies its tenth mission at level 7 and its nineteenth at level 10, which is where a session started at 10 begins, and it keeps going past 10 (**Super Helldive +1**, **+2** and so on). The briefing and the HUD show the level of the mission you're on, and **RESUME** shows the level of the next one. To start at another level, start a new session.
+Pick the level your session **starts** at, from 1 to 10, on the title screen before you press **PLAY** (3 if you're new). From there **the level climbs every mission**, about three fifths of a level each time (0.31; it was two fifths), and **every rank you earn adds a quarter of a level more** (the more of the armory is open, the harder the enemy fights; the rank splash shows the next mission's level), with no ceiling. A session started at 3 flies missions 1 to 10 at 3 4 4 5 6 7 7 8 9 9, reaches 10 at mission 11 and its nineteenth at level 15. It keeps going past 10 (**Super Helldive +1**, **+2** and so on). The briefing and the HUD show the level of the mission you're on, and **RESUME** shows the level of the next one. To start at another level, start a new session.
 
 Each level sets two things. **How many come**: patrols, backup, group sizes, how many can be on the field, and how often mediums, heavies and super heavies turn up. And **how far the war has gone** (the **War** column, in "war minutes"): the enemy's toughness, how hard it hits, how fast the pressure builds and how many heavies come out of the bases. The session's own minutes add a little more to that. Higher levels pay more credits and more score, and your score block shows the level you started at and the highest you reached.
 

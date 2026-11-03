@@ -58,7 +58,8 @@ export const CONFIG = {
   // SEAF specialists. A medic patches up anyone near it. A spotter radios in an Eagle fire mission on a big group or a heavy.
   // (0.26) a Medic heals anyone hurt within 20 m with the stim pistol (a full stim when close), and revives downed SEAF: a trooper
   // who falls with a Medic in reach goes down instead, for downSec, and is back up reviveSec after the Medic gets to work.
-  medic:    { range: 20, heal: 24, every: 1.3, hp: 90, close: 4, closeMul: 2, reviveR: 20, downSec: 14, reviveSec: 2.5, reviveHp: 0.4 },
+  // downSight (0.31): a downed trooper sees only this share of his sight (and none of the player's view past it), and adds no strike zone.
+  medic:    { range: 20, heal: 24, every: 1.3, hp: 90, close: 4, closeMul: 2, reviveR: 20, downSec: 14, reviveSec: 2.5, reviveHp: 0.4, downSight: 0.25 },
   spotter:  { coolSec: 70, minGroup: 6, minDist: 26, n: 7, len: 24, dmg: 240, splash: 8.5, delay: 5, span: 1.2, range: 150 },
   squad:    { speed: 6, chaseSpeed: 8.5, engageRange: 38, pushAfterSec: 45,
               clusterRadius: 15, setupSec: 5, setupCooldownSec: 15, carrySlow: 0.85, fightOnSec: 12, fightOnSpeed: 0.5, spotRange: 95 },
@@ -283,9 +284,12 @@ export const CONFIG = {
   ],
   lastStand: { personnel: 160, squad: 6, lzOff: 46, lives: 10, breakAt: 3, waveFirst: 5, waveEvery: [12, 3.5], rampSec: 150, waveSize: [9, 9], waveGrow: 8,
                heavyEvery: 3, hpGrow: 0.6, dmgGrow: 0.9, levelEvery: 25, maxHold: 480, glassSec: 10, beamEvery: 0.09, beamR: 13, waveR: 230, lessonR: 160, countdown: 900 },
-  difficulty: { start: 3, spawn: 0.55, medium: 0.6, heavy: 0.4, boss: 0.3, curve: 1, reward: [0.75, 1.2], ramp: 0.39, beyond: 1,
+  difficulty: { start: 3, spawn: 0.55, medium: 0.6, heavy: 0.4, boss: 0.3, curve: 1, reward: [0.75, 1.2], ramp: 0.6, beyond: 1,     // (0.31: ramp 0.39 -> 0.6, a level nearly every mission)
                 // war minutes at each level (1 to 10), war minutes a level past 10, and the share of each real session minute that counts
-                war: [0, 15, 38, 41, 44, 47, 50, 53, 56, 60], warBeyond: 10, sessionRamp: 0.075 },     // (0.19.2: ramp and sessionRamp halved)
+                war: [0, 15, 38, 41, 44, 47, 50, 53, 56, 60], warBeyond: 10, sessionRamp: 0.075,     // (0.19.2: ramp and sessionRamp halved)
+                // (0.31) rankStep: a rank reached (ranks.at, missions done) makes every mission after it this much of a level harder too,
+                // so the more of the armory is open, the harder it gets. From level 3: missions 1-14 at 3 4 4 5 6 7 7 8 9 9 10 11 11 12.
+                rankStep: 0.25 },
   // Pressure drives how fast the field fills: it climbs through the session and, faster, through each mission.
   pressure: { start: 1, perSessionMin: 0.035, perMissionMin: 0.12, onBaseKill: 0.6, floor: 0.5 },
   // The war escalates with every minute of the session, so the run only ends in failure: tougher, harder-hitting enemies and more heavies.
@@ -444,6 +448,6 @@ export const CONFIG = {
   share:    { channelUrl: '',
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.31.0',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.32.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

@@ -2,6 +2,7 @@
 // (+x is the front). Allies: a Helldiver has a helmet and rifle at the front and a backpack (with its IR strobe,
 // edged in the squad colour) behind; a SEAF trooper is smaller and plainer. Enemies show their head, eyes or gun at the front; heavies carry a glowing weak spot on the
 // back, where hits do the most. All sizes are in metres with a floor in screen pixels (px), so a unit reads at any zoom.
+import { CONFIG as C } from '../config.js';
 const TAU = Math.PI * 2;
 
 function rgba(hex, a) {
@@ -110,6 +111,10 @@ function drawSeafBody(ctx, a, r, col, strobe, now, px, mt) {
     ctx.save(); ctx.globalAlpha = rev ? 1 : pulse;
     ctx.strokeStyle = rev ? '#7dff9b' : '#ff4a4a'; ctx.lineWidth = Math.max(0.22 * r, px(1.8));
     line(ctx, cx - s, cy, cx + s, cy); line(ctx, cx, cy - s, cx, cy + s);
+    // (0.31) and a ring round the cross that runs down as he bleeds out (or fills as the Medic gets him up)
+    const left = rev ? Math.min(1, K.rev / C.medic.reviveSec) : Math.max(0, Math.min(1, (K.until - mt) / C.medic.downSec));
+    ctx.globalAlpha = 0.9; ctx.lineWidth = Math.max(0.12 * r, px(1.2));
+    ctx.beginPath(); ctx.arc(cx, cy, s * 1.7, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left); ctx.stroke();
     ctx.restore();
   }
 }

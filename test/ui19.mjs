@@ -41,7 +41,7 @@ await page.goto(`file://${ROOT}/dist/orbital-fury.html`); await page.waitForTime
 
 // ---------------------------------------------------------------- the title
 check('the title has the tutorial, marked NEW until it has been opened', await page.isVisible('#btn-tutorial') && await page.isVisible('#tut-new') && /LAST STAND ON MARS/.test(await page.textContent('#btn-tutorial')));
-check('RESUME shows the saved session\'s next level (started at 5, three flown: 6)', /DIFFICULTY 6/.test(await page.textContent('#btn-resume')), await page.textContent('#btn-resume'));
+check('RESUME shows the saved session\'s next level (started at 5, three flown: 7 since 0.32, two ranks earned)', /DIFFICULTY 7/.test(await page.textContent('#btn-resume')), await page.textContent('#btn-resume'));
 await shot('title');
 await tap('#btn-tutorial'); await page.waitForTimeout(2500);
 const ci = await ev(() => ({ on: !document.getElementById('cine').classList.contains('hidden'), txt: document.getElementById('cine-text').textContent, t: window.__game.mission.t, card: document.getElementById('tut').classList.contains('hidden') }));
@@ -180,7 +180,7 @@ if (await page.isVisible('#btn-notice')) { await tap('#btn-notice'); await page.
 await page.waitForTimeout(300); await tap('#shop-go'); await page.waitForTimeout(600);
 await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
 const rd = await page.textContent('#r-diff');
-check('the briefing shows the mission\'s level and where the session started', /DIFFICULTY 6/.test(rd) && /STARTED AT 5/.test(rd) && /CLIMBS/.test(rd), rd);
+check('the briefing shows the mission\'s level and where the session started', /DIFFICULTY 7/.test(rd) && /STARTED AT 5/.test(rd) && /CLIMBS/.test(rd), rd);
 
 check('no page errors', !errs.length, errs.slice(0, 3).join(' | '));
 await browser.close();

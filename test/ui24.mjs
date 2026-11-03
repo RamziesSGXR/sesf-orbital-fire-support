@@ -96,7 +96,7 @@ const win = async () => {
   await page.waitForTimeout(600);
 };
 let sp = await ev(() => { const b = document.getElementById('ms-splash'); return b.hidden ? null : { k: document.getElementById('ms-k').textContent, bonus: document.getElementById('ms-bonus').textContent, list: [...document.querySelectorAll('#ms-list li')].map((l) => l.textContent) }; });
-check('the first mission done splashes rank 1, with its name and a level bonus', sp && /RANK 1: Certified Patriot/.test(sp.k) && /\+400 CR/.test(sp.bonus), JSON.stringify(sp));
+check('the first mission done splashes rank 1, with its name, a level bonus and (0.31) the next mission\'s level', sp && /RANK 1: Certified Patriot/.test(sp.k) && /\+400 CR/.test(sp.bonus) && /NEXT MISSION AT LEVEL \d+/.test(sp.bonus), JSON.stringify(sp));
 check('and lists what is new in the armory', sp && sp.list.length >= 5 && sp.list.some((n) => /Gas/i.test(n)), sp ? sp.list.join(', ') : '');
 await shot('splash1');
 await tap('#ms-later'); await page.waitForTimeout(300);

@@ -106,7 +106,7 @@ export function milestone(ms, h = {}) {
   if (!ms) { box.hidden = true; box.classList.remove('go'); if (msKeys) { document.removeEventListener('keydown', msKeys, true); msKeys = null; } return; }
   $('ms-k').textContent = t('ms.k', { k: ms.k, name: t('rank.' + ms.k) });
   $('ms-done').textContent = ms.kills ? t('ms.kills', { n: ms.done }) : ms.done === 1 ? t('ms.done1') : t('ms.done', { n: ms.done });
-  $('ms-bonus').textContent = t('ms.bonus', { cr: fmtNum(ms.bonus) });
+  $('ms-bonus').textContent = t('ms.bonus', { cr: fmtNum(ms.bonus) }) + (ms.level ? ` · ${t('ms.level', { n: ms.level })}` : '');     // (0.31: a rank makes the next missions harder)
   $('ms-nh').textContent = t(ms.k >= ms.of ? 'ms.all' : 'ms.new');
   const ul = $('ms-list'); ul.innerHTML = '';
   for (const n of ms.names) ul.appendChild(el('li', '', `${esc(n.n)}<small>${esc(n.k)}</small>`));
