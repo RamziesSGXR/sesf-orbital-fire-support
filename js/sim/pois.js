@@ -126,7 +126,8 @@ export function updatePois(m, dt) {
       b.next = t + b.every; b.left--;
       if (b.left === b.total - 1) m.emit('breach_open', { x: b.x, y: b.y, id: b.id });
       if (m.enemies.length < C.enemies.hardCap) {
-        const g = spawnGroup(m, b.x + rng.range(-3, 3), b.y + rng.range(-3, 3), 'hunt', { alertT: 45, emerge: true });
+        const size = b.groups ? Math.max(2, Math.round(m.groupSize * C.reinf.bugs.pack)) : undefined;     // (0.31: a pack at a time)
+        const g = spawnGroup(m, b.x + rng.range(-3, 3), b.y + rng.range(-3, 3), 'hunt', { alertT: 45, emerge: true, size });
         g.reinf = true; g.called = true;
         m.emit('reinf_spawn', { x: b.x, y: b.y, kind: 'bugs', src: 'hole' });
       }
@@ -153,12 +154,15 @@ export function damagePoi(m, p, dmg, by) {
 
 export function damageBreach(m, b, dmg, by) {
   if (b.dead || !(dmg > 0)) return;
+  // (0.31) a fresh hole cannot be shot closed: it holds at floor of its health until it has been open a while
+  const low = b.hardUntil && m.t < b.hardUntil ? Math.round(b.maxHp * C.reinf.bugs.floor) : 0;
+  if (low && b.hp - dmg < low) { dmg = Math.max(0, b.hp - low); b.hurtAt = m.t; b.hardHit = m.t; if (dmg <= 0) return; }
   const dealt = Math.min(dmg, b.hp);
   b.hp -= dmg; b.hurtAt = m.t;
   if (by in m.stats.dmg) m.stats.dmg[by] += dealt;
   if (b.hp > 0) return;
   b.dead = true; b.hp = 0;
-  if (b.left > 0) m.notice(tr('n.breachCollapsed', { n: b.left }), 'good');
+  if (b.left > 0) m.notice(tr('n.breachCollapsed', { n: b.groups ? Math.max(1, Math.round(b.left / C.reinf.bugs.packs)) : b.left }), 'good');
   b.left = 0;
   m.stats.breaches++;
   m.sc.breaches += C.score.breach;

@@ -32,7 +32,7 @@ import { buildDanger, updateEvade } from './safety.js';
 import { getTerrain } from './terrain.js';
 import { domeBlocks } from './ops.js';
 import { boardingNow } from './extract.js';
-import { initReinf, updateReinf, damageDrop } from './reinforce.js';
+import { initReinf, updateReinf, damageDrop, callReinforcements } from './reinforce.js';
 import { updateExtract } from './extract.js';
 import { hurtCiv, updateCivs } from './civilians.js';
 import { initSupply, updateSupply } from './supply.js';
@@ -85,6 +85,7 @@ export class Mission {
     this.rng = new RNG(this.seed);
     this.crng = new RNG((this.seed ^ 0x5bd1e995) >>> 0);   // cosmetic randomness (names, chatter), never touches the sim
     this.srng = new RNG((this.seed ^ 0x2c1b3c6d) >>> 0);   // which mediums come out special (kept apart, so the map does not change)
+    this.rrng = new RNG((this.seed ^ 0x6a09e667) >>> 0);   // (0.31) off-map patrols and how many places a call comes in at (kept apart too)
     this.faction = FACTIONS[opts.faction];
     this.groupSize = C.enemies.group[opts.faction] || C.enemies.groupSize;
     this.biome = BIOMES[opts.biome];
@@ -569,8 +570,8 @@ export class Mission {
     if (!r.ok) { this.emit('deny', { reason: r.reason }); return r; }
     // (and a new stratagem goes straight into a slot: a free one; with none free, the bar grows a slot, up to five; with five
     // full, it takes the last one)
-    if (this.ls && id.startsWith('own:')) {
-      const sid = id.slice(4), K = this.kit;
+    if (this.ls && (id.startsWith('own:') || r.gift)) {
+      const sid = r.gift || id.slice(4), K = this.kit;
       if (!equip(K, sid)) {
         if (K.slots < 5) { K.slots++; equip(K, sid); r.grew = true; }
         else { r.swapped = K.loadout[K.slots - 1]; K.loadout[K.slots - 1] = sid; }
@@ -589,6 +590,7 @@ export class Mission {
     }
     this.emit('bought', { id });
     this.notice(tr('n.bought', { name: r.item.name.toUpperCase() }), 'good');
+    if (r.gift) this.notice(tr('n.gift', { name: String(r.giftName).toUpperCase() }), 'good');     // (0.31: the Hangar's free Eagle)
     return r;
   }
 
@@ -655,6 +657,7 @@ export class Mission {
   }
   damagePoi(p, dmg, by) { damagePoi(this, p, dmg, by); }
   damageDrop(d, dmg, by) { damageDrop(this, d, dmg, by); }
+  callReinf(x, y, why = 'site', opts = {}) { return callReinforcements(this, x, y, why, opts); }     // (tests and the browser checks)
   hurtCiv(c, dmg, by) { hurtCiv(this, c, dmg, by); }
   damageBreach(b, dmg, by) { damageBreach(this, b, dmg, by); }
 

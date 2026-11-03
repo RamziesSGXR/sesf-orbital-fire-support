@@ -11,7 +11,7 @@ import { t as tr } from '../i18n.js';
 import { bossAlive } from './boss.js';
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
-import { callReinforcements } from './reinforce.js';
+import { callReinforcements, reinfCount } from './reinforce.js';
 import { bark } from './chatter.js';
 
 const X = C.extract, SIZE = C.world.size;
@@ -82,13 +82,14 @@ export function updateExtract(m, dt) {
     m.radio(COMMS.extractCalled(wait), 'excall', 0);
     m.notice(tr('n.exCalled', { n: wait }), 'warn');
     m.emit('extract_call', { x: ex.x, y: ex.y });
-    callReinforcements(m, ex.x, ex.y, 'extract', { dist: [55, 105], extra: 1 });      // the enemy always comes for an extraction
+    ex.calledAt = t;
+    callReinforcements(m, ex.x, ex.y, 'extract', { dist: [55, 105], extra: 1, count: reinfCount(m, 'extract', { first: true }) });      // the enemy always comes for an extraction (0.31: from more than one side)
     return;
   }
   if (ex.state === 'called') {
     if (t >= ex.waveAt) {
       ex.waveAt = t + C.reinf.extractEvery / Math.max(0.8, Math.min(1.5, m.pressure));
-      callReinforcements(m, ex.x, ex.y, 'extract', { dist: [55, 105] });
+      callReinforcements(m, ex.x, ex.y, 'extract', { dist: [55, 105], count: reinfCount(m, 'extract', { since: t - (ex.calledAt ?? t) }) });     // (0.31: more places at once the longer it takes)
     }
     if (t >= ex.landAt) {
       ex.state = 'landing'; ex.touchAt = t + X.landSec;

@@ -44,7 +44,7 @@ export function spawnGroup(m, x, y, state = 'patrol', opts = {}) {
     home: { x, y }, pt: null, patrolT: 0, base: opts.base || null, garrison: !!opts.base, engaged: false, faceT: 0, ux: 1, uy: 0,
   };
   // opts.kinds: exactly these (the last stand's scripted groups), not drawn from the bag
-  for (let i = 0, n = opts.kinds ? opts.kinds.length : m.groupSize; i < n; i++) {
+  for (let i = 0, n = opts.kinds ? opts.kinds.length : opts.size || m.groupSize; i < n; i++) {     // (opts.size: a smaller pack, 0.31)
     const kind = opts.kinds ? opts.kinds[i] : m.drawToken(), st = SUBTYPES[kind];
     const [ox, oy] = rng.inDisc(opts.emerge ? Math.min(4, fac.spread) : fac.spread);   // out of a hole or off a ship: bunched up
     let px = aoX(m, x + ox, 3), py = aoY(m, y + oy, 3);
@@ -166,7 +166,7 @@ export function updateDirector(m, dt) {
     if (sp.scanT <= 0) {
       sp.scanT = 1;
       for (const g of m.groups) {
-        if (g.state === 'hunt' || g.garrison || g.from || g.intercept) continue;
+        if (g.state === 'hunt' || g.garrison || g.from || g.intercept || g.roam) continue;     // (0.31: off-map patrols leave on their own, patrols.js)
         let far = true;
         for (const e of g.members) if (!e.dead && !m.beyondRange(e.x, e.y, 120)) { far = false; break; }
         g.lostT = far ? (g.lostT || 0) + 1 : 0;

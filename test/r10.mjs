@@ -68,9 +68,10 @@ function quiet(faction = 'bots', seed = 77, opts = {}) {
   m.intercept.nextAt = 1e9;
   run(m, 180);
   // what is left on the map came by call (backup at the sites the squad works, SEAF under fire), never out of nowhere
-  const stray = m.groups.filter((g) => g.members.some((e) => !e.dead) && !g.reinf && !g.siege);
-  const called = m.groups.filter((g) => g.members.some((e) => !e.dead) && (g.reinf || g.siege)).length;
-  check('with every base destroyed no patrol is replaced and nothing spawns at random', stray.length === 0, `${stray.length} groups from nowhere, ${called} called in at sites`);
+  const stray = m.groups.filter((g) => g.members.some((e) => !e.dead) && !g.reinf && !g.siege && !g.roam);
+  const called = m.groups.filter((g) => g.members.some((e) => !e.dead) && (g.reinf || g.siege)).length, roam = m.stats.roams || 0;
+  // (0.31) the only newcomers walk in from the edge of the map (off-map patrols, test/r31.mjs)
+  check('with every base destroyed no patrol is replaced and nothing appears out of nowhere (0.31: patrols walk in from the edge)', stray.length === 0 && roam >= 1, `${stray.length} groups from nowhere, ${called} called in at sites, ${roam} walked in`);
 
   // a standing base replaces a lost patrol
   const q = quiet('bots', 4420);

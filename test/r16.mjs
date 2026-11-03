@@ -160,7 +160,7 @@ function troops(m, n, sq = 0, x = m.hx + 10, y = m.hy + 6) {
   check('a foxhole is dug for free, with no crate (0.17.3: a dig site that shows its progress)', r.ok && m.wallet.bal === bal && m.crates.every((c) => c.dig));
   run(m, 25);
   const fox = m.posts.find((p) => p.what === 'foxhole');
-  check('it goes up and the squad mans it', fox && fox.crew === C.build.foxhole.cap && m.seaf.squads[0].order.kind === 'post', fox ? `crew ${fox.crew}` : 'none');
+  check('it goes up and the squad mans it (0.28: a place for each of the six who dug it)', fox && fox.cap === sq.length && fox.crew === fox.cap && m.seaf.squads[0].order.kind === 'post', fox ? `crew ${fox.crew}/${fox.cap}` : 'none');
   const inF = sq.filter((a) => a.inPost === fox);
   check('whoever is in it is in light cover', inF.length && inF.every((a) => coverMulAt(m, a.x, a.y) <= C.build.foxhole.mul + 1e-9));
   // pushed off: back to the post

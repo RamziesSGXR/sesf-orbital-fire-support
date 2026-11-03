@@ -129,6 +129,10 @@ for (const fac of ['bugs', 'bots', 'squids']) {
   callReinforcements(m, a.x + 60, a.y, 'site', { dist: [50, 60] });
   const h = m.breaches[0];
   run(m, C.reinf.bugs.warnSec + 0.3);
+  // (0.31) a fresh hole cannot be shot closed: it holds at its floor until it has been open minOpen seconds
+  m.damageBreach(h, h.maxHp + 1, 'squad');
+  check('a fresh bug hole cannot be shot closed yet', !h.dead && h.hp === Math.round(h.maxHp * C.reinf.bugs.floor), `${h.hp}/${h.maxHp}`);
+  run(m, C.reinf.bugs.minOpen);
   const out = h.total - h.left;
   m.damageBreach(h, h.maxHp + 1, 'squad');
   let more = 0;
@@ -165,7 +169,7 @@ for (const fac of ['bugs', 'bots', 'squids']) {
   const ex = m.extraction;
   check('extraction opens once the objective is done', ex.revealed && ex.state === 'open');
   // put the squad on the pad
-  for (const a of m.hdAlive) { a.x = ex.x + (Math.random() - 0.5) * 6; a.y = ex.y + (Math.random() - 0.5) * 6; }
+  for (const a of m.hdAlive) { a.x = ex.x + (Math.random() - 0.5) * 6; a.y = ex.y + (Math.random() - 0.5) * 6; a.hp = a.maxHp = 1e6; }     // (0.31: the pad's waves come from several sides now; this checks the boarding)
   m.squad.ax = ex.x; m.squad.ay = ex.y;
   run(m, 1);
   check('a Helldiver on the pad throws the blue beacon (0.17.3)', ex.state === 'beacon', ex.state);

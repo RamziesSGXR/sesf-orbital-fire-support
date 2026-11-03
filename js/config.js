@@ -194,6 +194,14 @@ export const CONFIG = {
   // squad has been far from it for interceptForget seconds. Patrols walk at speed x their own pace.
   patrols:  { perBase: 2, fortressExtra: 2, maxPerBase: 5, perSessionMin: 40, perMissionMin: 8, atStart: 2, every: 55, radius: [90, 230],
               interceptFirst: 40, interceptSec: 55, interceptLead: 22, interceptForget: 50, speed: 0.6, investigateSec: 35 },
+  // (0.31) Off-map patrols: groups that walk in from the edge of the map for the whole mission, bases or no bases, so a cleared map
+  // never goes quiet. The first comes after firstSec; then one every `every` seconds, shorter by perMin for every minute of the
+  // mission (never under min), quicker still (x quiet) when fewer than quietFrac of the enemies allowed are on the map, and (x extract)
+  // once extraction is open; longer while bases still stand (x 1 + bases x the share of them standing, since those send their own
+  // patrols). Each brings one group, and one more every groupsEvery minutes of the mission (up to maxGroups). They
+  // walk in from the edge, past where the squad is (or the extraction), and on out the far side; seen, they hunt like any patrol.
+  // forget: seconds out of everyone's range once they have passed before they leave the map.
+  roam:     { firstSec: 100, every: 80, perMin: 0.06, min: 28, quiet: 0.55, quietFrac: 0.2, extract: 0.6, bases: 1, groupsEvery: 9, maxGroups: 3, forget: 45, pass: 70 },
   // Noise: how far the enemy hears a fight. A patrol that hears it closer than near x the radius comes hunting; farther off it walks
   // over to see. Rifles make noise at most every rifleEvery seconds; an objective being worked makes it every siteEvery seconds.
   noise:    { rifle: 95, rifleEvery: 1.5, blast: 170, strike: 230, gun: 70, site: 240, siteEvery: 9, near: 0.45 },
@@ -289,11 +297,23 @@ export const CONFIG = {
   //   bugs dig up out of one hole (it can be shot closed), bots come down from a dropship (it can be shot down while it is low),
   //   squids are teleported down from a warp ship (tougher, but it can be shot down too).
   // These are the only enemies that appear where someone can see them.
-  reinf:    { callChance: 0.55, cooldownSec: 20, flareSec: 4, maxActive: 3, groups: 3, perPressure: 0.5, maxGroups: 4,
+  // (0.31) Several at once: a call can open more than one breach or bring more than one ship, from different sides (count), each
+  // with its share of the groups (a few more in all: +perExtra groups for every place past the first, up to maxGroups + perCap each).
+  //   flares: from flareMin minutes into the mission, a flare brings two with flareChance (+flarePerMin a minute, up to flareMax).
+  //   sites:  from siteMin minutes, an objective's wave brings two with siteChance.
+  //   extraction: extractCall when it is called (one more from extractLate minutes), and each wave one more for every extractStep
+  //               seconds since the call (up to extractMax).
+  // bugs: a hole spits a pack (pack x a group) every `every` seconds, packs packs for every group, so it spills more bugs over a
+  //   longer time; it cannot be shot closed before it has been open minOpen seconds (its health stops at floor until then).
+  // bots: a dropship shot down still lets `survive` of the groups aboard out of the wreck (rounded up), hurt (survHp of their health).
+  // squids: a warp ship has a shield like a harvester's: it soaks hits first and comes back regen a second after regenDelay quiet.
+  reinf:    { callChance: 0.55, cooldownSec: 20, flareSec: 4, maxActive: 5, groups: 3, perPressure: 0.5, maxGroups: 4,
               dist: [28, 60], minAlly: 26, siteEvery: 30, extractEvery: 24, siteDist: [70, 120],
-              bugs:   { warnSec: 2.5, every: 1.5, hp: 900, r: 8, lingerSec: 5, reward: 70, rifle: 0.35 },
-              bots:   { speed: 75, approach: 460, hover: 1.2, every: 0.9, hp: 1100, r: 9, lowR: 110, reward: 160, crash: 380 },
-              squids: { speed: 55, approach: 420, hover: 1.6, every: 1.1, hp: 1700, r: 12, lowR: 90, reward: 220, crash: 420 } },
+              multi: { perExtra: 1, perCap: 2, flareMin: 6, flareChance: 0.2, flarePerMin: 0.025, flareMax: 0.55, siteMin: 10, siteChance: 0.4,
+                       extractCall: 2, extractLate: 15, extractStep: 40, extractMax: 3 },
+              bugs:   { warnSec: 2.5, every: 2.2, pack: 0.5, packs: 3, hp: 2400, minOpen: 10, floor: 0.25, r: 8, lingerSec: 6, reward: 90, rifle: 0.35 },
+              bots:   { speed: 75, approach: 460, hover: 1.2, every: 0.9, hp: 1100, r: 9, lowR: 110, reward: 160, crash: 380, survive: 0.5, survHp: 0.7 },
+              squids: { speed: 55, approach: 420, hover: 1.6, every: 1.1, hp: 1700, r: 12, lowR: 90, reward: 260, crash: 420, shield: 1400, regen: 70, regenDelay: 5 } },
   // Points of interest: random spots SEAF can take out for credits. Guarded by an enemy group that wakes when allies come close.
   // (0.18: fewer of these; the finds below are the rest)
   poi:      { min: 2, max: 4, hp: 520, r: 18, minFromLz: 260, spacing: 160, guardR: 130, rifleMul: 0.8,
@@ -424,6 +444,6 @@ export const CONFIG = {
   share:    { channelUrl: '',
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.30.0',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.31.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

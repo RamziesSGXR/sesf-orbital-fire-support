@@ -6,7 +6,7 @@ import { OP_OF, OP_TYPES, setupOil, setupCannon, setupDome, setupKeep, updateOil
 import { openTasks } from './planner.js';
 import { COMMS } from '../data/data.js';
 import { spawnNear } from './director.js';
-import { callReinforcements } from './reinforce.js';
+import { callReinforcements, reinfCount } from './reinforce.js';
 import { updateEvac } from './civilians.js';
 import { lsStatus } from './laststand.js';
 import { openExtract } from './extract.js';
@@ -149,7 +149,7 @@ export function objectiveGoal(m) {
 // A wave at an objective site: the enemy reinforces it the faction's own way (a bug hole, a dropship, a warp ship). These come in
 // where everyone can see them. extra adds groups when the pressure is high.
 function wave(m, cx, cy, rmin, rmax, extra = 0) {
-  callReinforcements(m, cx, cy, 'site', { dist: [Math.max(50, rmin * 0.55), Math.max(90, rmax * 0.55)], extra });
+  callReinforcements(m, cx, cy, 'site', { dist: [Math.max(50, rmin * 0.55), Math.max(90, rmax * 0.55)], extra, count: reinfCount(m, 'site') });
 }
 const waveSize = (m) => (m.pressure >= 1.7 ? 1 : 0);
 

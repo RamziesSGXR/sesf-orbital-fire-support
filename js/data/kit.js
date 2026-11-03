@@ -237,6 +237,7 @@ export function shopItems(kit) {
 }
 
 // Buy an item. inMission only allows live upgrades (levels), not new unlocks or slots.
+export const HANGAR_GIFT = 'eagle_strafe';     // (0.31) what the Hangar's first level comes with
 export function buy(kit, wallet, id, inMission = false, tier = TIER_MAX) {
   const it = shopItems(kit).find((x) => x.id === id);
   if (!it) return { ok: false, reason: 'unknown' };
@@ -250,7 +251,15 @@ export function buy(kit, wallet, id, inMission = false, tier = TIER_MAX) {
   else if (kind === 'own') { kit.owned[arg] = 1; equip(kit, arg); }
   else if (kind === 'up') kit.owned[arg] = Math.min(MAXL, kit.owned[arg] + 1);
   else if (kind === 'uav') kit.uav++;
-  else if (kind === 'hangar') kit.hangar = (kit.hangar || 0) + 1;
+  else if (kind === 'hangar') {
+    kit.hangar = (kit.hangar || 0) + 1;
+    // (0.31) the Hangar's first level comes with an Eagle to fly: the Strafing Run, free, into a free slot if there is one
+    if (kit.hangar === 1 && !kit.owned[HANGAR_GIFT]) {
+      const g = shopItems(kit).find((x) => x.id === 'own:' + HANGAR_GIFT);
+      kit.owned[HANGAR_GIFT] = 1;
+      return { ok: true, item: it, gift: HANGAR_GIFT, giftName: g ? g.name : HANGAR_GIFT, equipped: equip(kit, HANGAR_GIFT) };
+    }
+  }
   else if (kind === 'uavb') { kit.uavb = kit.uavb || { speed: 0, dodge: 0 }; kit.uavb[arg] = (kit.uavb[arg] || 0) + 1; }
   else if (kind === 'seaf') kit.seaf[arg]++;
   else if (kind === 'gun') kit.gun[arg]++;

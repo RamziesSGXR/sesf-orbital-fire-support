@@ -67,8 +67,17 @@ export function drawHoles(ctx, m, now, px, labels, scale, pal) {
       ctx.strokeStyle = rgba(col, 0.6); ctx.lineWidth = px(1.2);
       for (let i = 0; i < 5; i++) { const a = now * 2.5 + i * 1.25; ring(ctx, b.x + Math.cos(a) * R * 0.3, b.y + Math.sin(a) * R * 0.3, R * 0.12); ctx.stroke(); }
     }
+    // (0.31) a fresh hole holds: a hard rim of chitin it cannot be shot past yet (a mark on its health bar), flashing when it stops a hit
+    const hard = b.hardUntil && t < b.hardUntil;
+    if (hard) {
+      const fl = t - (b.hardHit || -9) < 0.25;
+      ctx.strokeStyle = fl ? '#ffffff' : rgba(col, 0.45 + 0.25 * Math.sin(now * 6)); ctx.lineWidth = px(fl ? 3 : 2); ctx.setLineDash([px(3), px(2)]);
+      ring(ctx, b.x, b.y, R * 1.05); ctx.stroke(); ctx.setLineDash([]);
+    }
     hpBar(ctx, b.x, b.y + R * 1.2, R * 2, px(4), b.hp / b.maxHp, col);
-    labels.push({ x: b.x, y: b.y, dy: -R * scale - 8, text: b.left > 0 ? tr('lab.breachMore', { n: b.left, cr: b.reward }) : tr('lab.breachClosing'), col, pri: 2 });
+    if (hard) { ctx.fillStyle = '#ffffff'; ctx.fillRect(b.x - R + R * 2 * C.reinf.bugs.floor - px(1), b.y + R * 1.2 - px(3), px(2), px(6)); }
+    const packs = b.groups ? Math.max(1, Math.round(b.left / C.reinf.bugs.packs)) : b.left;
+    labels.push({ x: b.x, y: b.y, dy: -R * scale - 8, text: hard ? tr('lab.breachHard', { n: Math.ceil(b.hardUntil - t) }) : b.left > 0 ? tr('lab.breachMore', { n: packs, cr: b.reward }) : tr('lab.breachClosing'), col, pri: 2 });
   }
 }
 
@@ -136,7 +145,14 @@ export function drawDrops(ctx, m, now, px, labels, scale, pal) {
       ctx.strokeStyle = `rgba(255,80,80,${0.5 + 0.4 * Math.sin(now * 8)})`; ctx.lineWidth = px(1.4); ctx.setLineDash([px(4), px(4)]);
       ring(ctx, d.x, d.y, s * 1.3); ctx.stroke(); ctx.setLineDash([]);
     }
-    if (d.hp < d.maxHp) hpBar(ctx, d.x, d.y + s * 1.15, s * 2, px(4), d.hp / d.maxHp, col);
+    // (0.31) a warp ship's shield: a bubble round it that flares when hit, and its own bar over the health
+    if (d.maxShield && d.shield > 0) {
+      const f = d.shield / d.maxShield, sh = t - (d.shieldAt || -9) < 0.15, Rb = s * 1.25;
+      ctx.fillStyle = `rgba(150,200,255,${(sh ? 0.16 : 0.05) + 0.05 * f})`; ring(ctx, d.x, d.y, Rb); ctx.fill();
+      ctx.strokeStyle = `rgba(190,225,255,${sh ? 0.95 : 0.3 + 0.4 * f})`; ctx.lineWidth = px(sh ? 2 : 1.2); ring(ctx, d.x, d.y, Rb); ctx.stroke();
+    }
+    if (d.maxShield) hpBar(ctx, d.x, d.y + s * 1.15 - px(5), s * 2, px(3), d.shield / d.maxShield, '#8fd0ff');
+    if (d.hp < d.maxHp || d.maxShield) hpBar(ctx, d.x, d.y + s * 1.15, s * 2, px(4), d.hp / d.maxHp, col);
     const what = tr(d.kind === 'ship' ? 'n.dropship' : 'n.warpship');
     labels.push({ x: d.x, y: d.y, dy: -s * scale - 8, text: tr(d.low ? 'lab.shipLow' : 'lab.shipIn', { what, n: d.left }), col, pri: 2 });
   }

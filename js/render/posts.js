@@ -246,7 +246,7 @@ export function drawPosts(ctx, m, now, px, labels, scale, sel) {
     if (p.repairing) { const k = (now * 2) % 1; ctx.strokeStyle = `rgba(125,255,155,${1 - k})`; ctx.lineWidth = px(1.5); ring(ctx, p.x, p.y, R + px(4 + 6 * k)); ctx.stroke(); }
     const crew = p.cap ? ` ${p.crew}/${p.cap}` : '';
     const gar = p.garrison ? ' ' + tr('lab.garrisoned') : '';
-    if (sel !== p) labels.push({ x: p.x, y: p.y, dy: -R * scale - 8, text: `${p.name.toUpperCase()}${crew}${gar}`, col: p.cap ? '#3de0ff' : '#6fc0ff', pri: 1 });   // (selected: the panel over it says it)
+    if (sel === p) labels.push({ x: p.x, y: p.y, dy: -R * scale - 8, text: `${p.name.toUpperCase()}${crew}${gar}`, col: p.cap ? '#3de0ff' : '#6fc0ff', pri: 1 });   // (0.31: the name only over the one selected; the map stays clear)
   }
   if (!sel || sel.dead) return;
   // the selection: brackets and the reach of whatever it is

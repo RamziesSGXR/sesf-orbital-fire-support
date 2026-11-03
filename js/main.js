@@ -789,7 +789,7 @@ function drawShop(note, focus = false) {
     onBuy: (id) => {
       const r = buy(session.kit, session.wallet, id, false, tierNow());
       if (r.ok && session.fresh) session.fresh = session.fresh.filter((f) => f !== id);      // (bought: no longer new)
-      if (r.ok) { audio.ready(); persist(); drawShop(t('arm.bought', { name: r.item.name.toUpperCase() })); } else { audio.deny(); drawShop(deny(r.reason)); }
+      if (r.ok) { audio.ready(); persist(); drawShop(t('arm.bought', { name: r.item.name.toUpperCase() }) + (r.gift ? ' · ' + t(r.equipped ? 'arm.gift' : 'arm.giftOwned', { name: String(r.giftName).toUpperCase() }) : '')); } else { audio.deny(); drawShop(deny(r.reason)); }
     },
     onEquip: (id) => { if (equip(session.kit, id)) { audio.click(); persist(); drawShop(); } else { audio.deny(); drawShop(t('arm.noSlot')); } },
     onUnequip: (slot) => { unequip(session.kit, slot); audio.click(); persist(); drawShop(); },

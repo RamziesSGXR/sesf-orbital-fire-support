@@ -1,9 +1,13 @@
 // Enemy reinforcements. A patrol that finds the squad, or is shot at, may fire a flare; when it has burned (and the one holding it is
 // still alive) reinforcements come in near it. They also come in waves at objective sites and at the extraction point once
 // extraction has been called. Each faction has its own way in, and these are the only enemies that appear where someone can see them:
-//   bugs   one hole in the ground: a rumble, then group after group digs out of it. Allies can shoot it closed.
-//   bots   a dropship flies in, hovers low while the troops jump out, and climbs away. It can be shot down while it is low.
-//   squids a warp ship slides over the spot and teleports its troops down. Tougher, but it can be shot down too.
+//   bugs   one hole in the ground: a rumble, then pack after pack digs out of it for a while (0.31: more of them, over longer).
+//          Allies can shoot it closed, but not in its first seconds.
+//   bots   a dropship flies in, hovers low while the troops jump out, and climbs away. It can be shot down while it is low; some of
+//          the troops still aboard live through the crash (0.31).
+//   squids a warp ship slides over the spot and teleports its troops down. Tougher, with a shield like a harvester's (0.31), but it
+//          can be shot down too, and everyone aboard goes with it.
+// (0.31) A call can come in at several places at once, from different sides (more often later in a mission, and at extraction).
 // Every number is in CONFIG.reinf.
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
@@ -21,18 +25,36 @@ export function initReinf(m) {
   m.drops = [];
 }
 
-// How many groups one reinforcement brings.
-function groupsFor(m, extra = 0) {
-  const n = Math.min(R.maxGroups, R.groups + Math.floor((m.pressure - 1) * R.perPressure + extra));
-  const room = Math.floor((C.enemies.hardCap - m.enemies.length) / Math.max(1, m.groupSize));
+// How many groups one reinforcement brings (count: from how many places at once; a few more in all when it is several).
+function groupsFor(m, extra = 0, count = 1) {
+  const M = R.multi, more = (count - 1) * M.perExtra;
+  const n = Math.min(R.maxGroups + (count - 1) * M.perCap, R.groups + Math.floor((m.pressure - 1) * R.perPressure + extra + more));
+  const per = m.faction.id === 'bugs' ? R.bugs.pack * R.bugs.packs : 1;     // (a bug hole spills more than a group's worth for each)
+  const room = Math.floor((C.enemies.hardCap - m.enemies.length) / Math.max(1, m.groupSize * per));
   return Math.max(0, Math.min(n, room));
 }
+// (0.31) From how many places at once: why is the reason for the call; now: mission seconds.
+export function reinfCount(m, why, opts = {}) {
+  const M = R.multi, min = m.t / 60;
+  if (why === 'flare') {
+    if (min < M.flareMin || m.reinf.active + 2 > R.maxActive) return 1;
+    return m.rrng.next() < Math.min(M.flareMax, M.flareChance + M.flarePerMin * (min - M.flareMin)) ? 2 : 1;
+  }
+  if (why === 'site') return min >= M.siteMin && m.rrng.next() < M.siteChance ? 2 : 1;
+  if (why === 'extract') {
+    const late = min >= M.extractLate ? 1 : 0;
+    if (opts.first) return Math.min(M.extractMax, M.extractCall + late);
+    return Math.min(M.extractMax, 1 + Math.floor(Math.max(0, opts.since || 0) / M.extractStep) + late);
+  }
+  return 1;
+}
 
-// A spot for the reinforcements near (x, y): on land, inside the map, and not right on top of an ally.
-function dropSpot(m, x, y, dmin, dmax) {
+// A spot for the reinforcements near (x, y): on land, inside the map, and not right on top of an ally. ang: the side to come from
+// (the first tries keep near it; several at once come from different sides).
+function dropSpot(m, x, y, dmin, dmax, ang = null) {
   const rng = m.rng, tr = m.terrain;
   for (let i = 0; i < 40; i++) {
-    const a = rng.angle(), d = rng.range(dmin, dmax + i * 2);
+    const a = ang !== null && i < 24 ? ang + rng.range(-0.5, 0.5) * (1 + i / 12) : rng.angle(), d = rng.range(dmin, dmax + i * 2);
     const px = aoX(m, x + Math.cos(a) * d, 20), py = aoY(m, y + Math.sin(a) * d, 20);
     if (!tr.isLand(px, py)) continue;
     let ok = true;
@@ -43,31 +65,48 @@ function dropSpot(m, x, y, dmin, dmax) {
   return null;
 }
 
-// Bring reinforcements in near (x, y). why: 'flare' | 'site' | 'extract'. Returns true when something is on its way.
+// Bring reinforcements in near (x, y). why: 'flare' | 'site' | 'extract'. opts: { extra (groups), dist ([min, max] metres),
+// count (from how many places at once, 0.31) }. Returns how many places they are coming in at (0: none).
 export function callReinforcements(m, x, y, why = 'flare', opts = {}) {
   const st = m.reinf, fac = m.faction.id, t = m.t;
-  const n = groupsFor(m, opts.extra || 0);
-  if (n <= 0) return false;
-  const ring = opts.dist || (why === 'flare' ? R.dist : R.siteDist);
-  const p = dropSpot(m, x, y, ring[0], ring[1]);
-  if (!p) return false;
-  st.n++; m.stats.reinf = (m.stats.reinf || 0) + 1;
-  const dir = compass(p.x - m.cx, p.y - m.cy);
-  const id = m.nextId++;
-  if (fac === 'bugs') {
-    const B = R.bugs;
-    m.breaches.push({ id, kind: 'hole', x: p.x, y: p.y, r: B.r, hp: B.hp, maxHp: B.hp, born: t, warnUntil: t + B.warnSec, next: t + B.warnSec,
-      every: B.every, left: n, total: n, linger: B.lingerSec, until: Infinity, dead: false, hurtAt: -9, reward: B.reward, why });
+  let count = Math.max(1, opts.count || 1);
+  const n = groupsFor(m, opts.extra || 0, count);
+  if (n <= 0) return 0;
+  count = Math.min(count, n);
+  const ring = opts.dist || (why === 'flare' ? R.dist : R.siteDist), a0 = m.rrng.angle();
+  const dirs = [], sizes = [];
+  for (let k = 0; k < count; k++) sizes.push(Math.floor(n / count) + (k < n % count ? 1 : 0));
+  sizes.forEach((nk, k) => {
+    const p = dropSpot(m, x, y, ring[0], ring[1], count > 1 ? a0 + (k * Math.PI * 2) / count : null);
+    if (!p) return;
+    st.n++; m.stats.reinf = (m.stats.reinf || 0) + 1;
+    const dir = compass(p.x - m.cx, p.y - m.cy), id = m.nextId++;
+    if (fac === 'bugs') {
+      // (0.31) a hole spits packs, a little at a time, and holds out a while before it can be shot closed
+      const B = R.bugs, packs = Math.ceil(nk * B.packs);
+      m.breaches.push({ id, kind: 'hole', x: p.x, y: p.y, r: B.r, hp: B.hp, maxHp: B.hp, born: t, warnUntil: t + B.warnSec, next: t + B.warnSec,
+        every: B.every, left: packs, total: packs, groups: nk, linger: B.lingerSec, until: Infinity, dead: false, hurtAt: -9, reward: B.reward, why,
+        hardUntil: t + B.warnSec + B.minOpen });
+    } else {
+      const D = R[fac], a = m.rng.angle();
+      const sx = p.x - Math.cos(a) * D.approach, sy = p.y - Math.sin(a) * D.approach;
+      m.drops.push({ id, drop: true, kind: fac === 'bots' ? 'ship' : 'warp', x: sx, y: sy, tx: p.x, ty: p.y, dx: Math.cos(a), dy: Math.sin(a), state: 'in',
+        alt: 1, hp: D.hp, maxHp: D.hp, r: D.r, left: nk, total: nk, dropT: 0, hoverT: 0, outT: 0, low: false, dead: false, hurtAt: -9, born: t, why, vis: 0, face: a,
+        ...(D.shield ? { shield: D.shield, maxShield: D.shield, shieldAt: -99 } : {}) });     // (0.31: a warp ship's shield)
+    }
+    dirs.push(dir);
+    m.emit('reinf', { x: p.x, y: p.y, kind: fac, n: nk, why, of: count });
+  });
+  if (!dirs.length) return 0;
+  if (dirs.length === 1) {
+    m.radio(COMMS.reinforcements(dirs[0]), 'reinf', 6);
+    m.notice(tr('n.reinf.' + fac, { dir: dirs[0].toUpperCase(), n }), 'warn');
   } else {
-    const D = R[fac], a = m.rng.angle();
-    const sx = p.x - Math.cos(a) * D.approach, sy = p.y - Math.sin(a) * D.approach;
-    m.drops.push({ id, drop: true, kind: fac === 'bots' ? 'ship' : 'warp', x: sx, y: sy, tx: p.x, ty: p.y, dx: Math.cos(a), dy: Math.sin(a), state: 'in',
-      alt: 1, hp: D.hp, maxHp: D.hp, r: D.r, left: n, total: n, dropT: 0, hoverT: 0, outT: 0, low: false, dead: false, hurtAt: -9, born: t, why, vis: 0, face: a });
+    const ds = dirs.map((d) => d.toUpperCase()).join(' · ');
+    m.radio(tr('c.reinforcementsN', { k: dirs.length, dirs: dirs.join(', ') }), 'reinf', 6);
+    m.notice(tr('n.reinfN.' + fac, { k: dirs.length, dirs: ds, n }), 'warn');
   }
-  m.radio(COMMS.reinforcements(dir), 'reinf', 6);
-  m.notice(tr('n.reinf.' + fac, { dir: dir.toUpperCase(), n }), 'warn');
-  m.emit('reinf', { x: p.x, y: p.y, kind: fac, n, why });
-  return true;
+  return dirs.length;
 }
 
 // The groups that come out of a reinforcement go straight for the squad.
@@ -112,7 +151,7 @@ export function updateReinf(m, dt) {
       }
       if (t >= f.at) {
         g.flare = null; f.caller.flare = false;
-        callReinforcements(m, f.caller.x, f.caller.y, 'flare');
+        callReinforcements(m, f.caller.x, f.caller.y, 'flare', { count: reinfCount(m, 'flare') });
       }
     }
   }
@@ -121,12 +160,20 @@ export function updateReinf(m, dt) {
   for (let i = m.drops.length - 1; i >= 0; i--) {
     const d = m.drops[i], D = R[d.kind === 'ship' ? 'bots' : 'squids'];
     d.vis = m.visLevel(d.x, d.y);
+    if (d.maxShield && d.state !== 'down' && d.shield < d.maxShield && t - d.shieldAt > D.regenDelay) d.shield = Math.min(d.maxShield, d.shield + D.regen * dt);
     if (d.state === 'down') {
       d.fallT += dt; d.alt = Math.max(0, d.alt - dt * 0.8);
       if (d.fallT >= 1.1) {
         damageArea(m, d.x, d.y, 11, D.crash, ALL, 'strat', false, '');
         m.emit('boom', { x: d.x, y: d.y, r: 11, dmg: D.crash, by: 'strat', big: true });
         m.drops.splice(i, 1);
+        // (0.31) a dropship's troops climb out of the wreck, hurt (a warp ship takes everyone with it)
+        for (let k = 0; k < (d.survivors || 0); k++) {
+          const [ox, oy] = m.rng.inDisc(9);
+          const g = release(m, aoX(m, d.x + ox, 6), aoY(m, d.y + oy, 6), 'wreck');
+          for (const e of g.members) { e.hp = Math.max(1, Math.round(e.hp * D.survHp)); e.stunUntil = t + 1.2; }
+        }
+        if (d.survivors) m.emit('wreck_out', { x: d.x, y: d.y, n: d.survivors });
       }
       continue;
     }
@@ -155,10 +202,17 @@ export function updateReinf(m, dt) {
   }
 }
 
-// A dropship or warp ship takes damage (only while it is low). Shot down, it crashes and takes its troops with it.
+// A dropship or warp ship takes damage (only while it is low). Shot down, it crashes: a warp ship takes its troops with it; a
+// dropship's survivors (some of the groups still aboard, 0.31) climb out of the wreck. A warp ship's shield soaks hits first.
 // any: hits it even when it is not low (a SAM site's missile).
 export function damageDrop(m, d, dmg, by, any = false) {
   if (d.dead || d.state === 'down' || (!d.low && !any) || !(dmg > 0)) return;
+  if (d.shield > 0) {     // (0.31) a warp ship's shield takes the hit first, like a harvester's
+    const soak = Math.min(d.shield, dmg);
+    d.shield -= soak; d.shieldAt = m.t; dmg -= soak; d.hurtAt = m.t;
+    if (by in m.stats.dmg) m.stats.dmg[by] += soak;
+    if (dmg <= 0) return;
+  }
   d.hp -= dmg; d.hurtAt = m.t;
   if (by in m.stats.dmg) m.stats.dmg[by] += Math.min(dmg, d.hp + dmg);
   if (d.hp > 0) return;
@@ -167,7 +221,11 @@ export function damageDrop(m, d, dmg, by, any = false) {
   m.stats.dropsDown = (m.stats.dropsDown || 0) + 1;
   m.sc.drops = (m.sc.drops || 0) + C.score.dropDown;
   m.earn('drops', D.reward, d.x, d.y);
-  m.notice(tr(d.left ? 'n.shipDownN' : 'n.shipDown', { what: tr(d.kind === 'ship' ? 'n.dropship' : 'n.warpship'), n: d.left, cr: D.reward }), 'good');
+  // (0.31) a dropship's troops: some of them live through the crash and come out of the wreck
+  d.survivors = d.kind === 'ship' && d.left > 0 ? Math.ceil(d.left * D.survive) : 0;
+  const what = tr(d.kind === 'ship' ? 'n.dropship' : 'n.warpship');
+  if (d.survivors) m.notice(tr('n.shipDownS', { what, n: d.survivors, k: d.left, cr: D.reward }), 'good');
+  else m.notice(tr(d.left ? 'n.shipDownN' : 'n.shipDown', { what, n: d.left, cr: D.reward }), 'good');
   m.radio(d.kind === 'ship' ? COMMS.dropshipDown : COMMS.warpDown, 'dropdown', 2);
   m.emit('drop_down', { x: d.x, y: d.y, kind: d.kind, by });
   d.left = 0;

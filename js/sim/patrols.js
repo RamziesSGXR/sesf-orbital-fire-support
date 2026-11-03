@@ -3,10 +3,13 @@
 // a wide circle round their gate). A patrol that sees the squad, or hears it fighting, comes for it. A base replaces its lost patrols
 // while it stands, so destroying bases thins the map out. On top of that, now and then a patrol is already waiting just out of sight
 // on the way the squad is heading (an intercept), and the enemy calls in reinforcements by flare, at mission sites and at extraction
-// (reinforce.js), which no amount of clearing stops.
+// (reinforce.js), which no amount of clearing stops. (0.31) And patrols keep walking in from beyond the edge of the map for the whole
+// mission (roamers), more often as it goes on, so a cleared map never goes quiet.
+import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
-import { spawnGroup, hiddenSpot, liveCap } from './director.js';
+import { spawnGroup, hiddenSpot, liveCap, unseenSpot } from './director.js';
 import { aoX, aoY, aoScale, aoClamp } from './ao.js';
+import { compass } from './enemies.js';
 
 const P = () => C.patrols;
 
@@ -60,11 +63,71 @@ function launch(m, b, opts = {}) {
 export function initPatrols(m) {
   const Q = P();
   m.intercept = { nextAt: Q.interceptFirst + m.rng.range(0, 20), n: 0 };
+  m.roam = { nextAt: C.roam.firstSec + m.rrng.range(0, 25), n: 0 };
   for (const b of m.bases) {
     b.patrols = []; b.nextPatrol = Q.every * m.rng.range(0.6, 1.2);
     const n = Math.min(patrolCap(m, b), Q.atStart + (b.fortress ? 1 : 0));
     for (let i = 0; i < n; i++) launch(m, b, { along: true });
   }
+}
+
+// ---- (0.31) off-map patrols ----
+// How long until the next one: shorter as the mission goes on, when the map is nearly empty, and once extraction is open.
+export function roamEvery(m) {
+  const Q = C.roam, min = m.t / 60;
+  let s = Math.max(Q.min, Q.every / (1 + Q.perMin * min));
+  if (m.enemies.length < Q.quietFrac * liveCap(m)) s *= Q.quiet;
+  if (m.phase === 'extract') s *= Q.extract;
+  const nb = m.bases.filter((b) => !b.node && !b.part).length;
+  if (nb) s *= 1 + Q.bases * (m.bases.filter((b) => !b.node && !b.part && !b.destroyed).length / nb);     // (bases still standing send their own)
+  return s;
+}
+export const roamGroups = (m) => Math.min(C.roam.maxGroups, 1 + Math.floor(m.t / 60 / C.roam.groupsEvery));
+// Where they are headed: the extraction once it is open, otherwise where the squad (or, without Helldivers, any ally) is.
+function roamGoal(m) {
+  const ex = m.extraction;
+  if (m.phase === 'extract' && ex && ex.x !== undefined) return { x: ex.x, y: ex.y };
+  const L = m.hdAlive.length ? m.hdAlive : m.alive;
+  if (!L.length) return { x: m.ao.cx, y: m.ao.cy };
+  let x = 0, y = 0; for (const a of L) { x += a.x; y += a.y; }
+  return { x: x / L.length, y: y / L.length };
+}
+// A spot on the edge of the map, out of sight, roughly in direction `ang` from the middle (other directions are tried if it is seen).
+function edgeSpot(m, ang, spread) {
+  const ao = m.ao, R = (ao.R || ao.size / 2) - 18;
+  for (let i = 0; i < 16; i++) {
+    const a = ang + (i === 0 ? 0 : (i % 2 ? 1 : -1) * Math.ceil(i / 2) * 0.35);
+    const p = aoClamp(ao, ao.cx + Math.cos(a) * R, ao.cy + Math.sin(a) * R, 18);
+    let q = { x: aoX(m, p.x, 12), y: aoY(m, p.y, 12) };
+    if (!m.terrain.isLand(q.x, q.y)) { const l = m.terrain.nearestLand(q.x, q.y, 60); if (!l) continue; q = aoClamp(ao, l.x, l.y, 14); }
+    if (unseenSpot(m, q.x, q.y, spread)) return { ...q, a };
+  }
+  return null;
+}
+function roamLaunch(m) {
+  const rng = m.rrng, goal = roamGoal(m), ao = m.ao, n = roamGroups(m);
+  if (m.enemies.length + n * m.groupSize > liveCap(m)) return 0;
+  // from a random side of the map, more often the side the squad is not facing
+  const ang = rng.angle();
+  const sp = edgeSpot(m, ang, m.faction.spread);
+  if (!sp) return 0;
+  // the walk: in from the edge, past the goal (a little to one side), and out the far side
+  const off = aoScale(m, C.roam.pass) * rng.range(-1, 1), dx = goal.x - sp.x, dy = goal.y - sp.y, d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d;
+  const via = aoClamp(ao, goal.x + nx * off, goal.y + ny * off, 25);
+  const far = aoClamp(ao, goal.x + (dx / d) * (ao.R || ao.size / 2), goal.y + (dy / d) * (ao.R || ao.size / 2), 25);
+  const land = (q) => (m.terrain.isLand(q.x, q.y) ? q : m.terrain.nearestLand(q.x, q.y, 80) || q);
+  const route = { pts: [{ x: sp.x, y: sp.y }, land(via), land(far)], loop: false };
+  let made = 0;
+  for (let k = 0; k < n; k++) {
+    const px = sp.x - (dx / d) * k * 14 + nx * rng.range(-8, 8), py = sp.y - (dy / d) * k * 14 + ny * rng.range(-8, 8);     // (one behind the other)
+    const g = spawnGroup(m, aoX(m, px, 10), aoY(m, py, 10), 'patrol');
+    g.route = route; g.ri = 1; g.rdir = 1; g.patrol = true; g.roam = true; g.farT = 0;
+    made++;
+  }
+  m.roam.n++; m.stats.roams = (m.stats.roams || 0) + made;
+  m.emit('roam', { x: sp.x, y: sp.y, n: made });
+  m.notice(tr('n.roam', { dir: compass(sp.x - ao.cx, sp.y - ao.cy).toUpperCase() }), 'dim');
+  return made;
 }
 
 // The squad's heading, a little way ahead: where the enemy expects it to be in `lead` seconds.
@@ -101,15 +164,20 @@ export function updatePatrols(m, dt) {
       }
     }
   }
-  // Intercepts the squad has walked away from for good are taken off the map (nobody saw them go).
+  // (0.31) Off-map patrols: one walks in from the edge every so often, whatever is left on the map (not in the tutorial's last stand)
+  const ro = m.roam;
+  if (ro && !m.ls && t >= ro.nextAt) ro.nextAt = t + (roamLaunch(m) ? roamEvery(m) * m.rrng.range(0.85, 1.15) : 8);
+  // Intercepts the squad has walked away from for good are taken off the map (nobody saw them go), and off-map patrols that have
+  // walked on past (they leave the way they came: out of everyone's range at the end of their walk)
   if ((m._icT = (m._icT || 0) - dt) <= 0) {
     m._icT = 1;
     for (const g of m.groups) {
-      if (!g.intercept || g.state !== 'patrol') continue;
+      if (g.roam && g.ri >= 2) g.roamOut = true;     // (past the squad: on its way out)
+      if (!(g.intercept || g.roamOut) || g.state !== 'patrol') continue;
       let far = true;
       for (const e of g.members) if (!e.dead && !m.beyondRange(e.x, e.y, 120)) { far = false; break; }
       g.farT = far ? g.farT + 1 : 0;
-      if (g.farT >= Q.interceptForget) { for (const e of g.members) if (!e.dead) { e.dead = true; m.stats.despawned++; } m.dirtyE = true; }
+      if (g.farT >= (g.roam ? C.roam.forget : Q.interceptForget)) { for (const e of g.members) if (!e.dead) { e.dead = true; m.stats.despawned++; } m.dirtyE = true; }
     }
   }
 }
