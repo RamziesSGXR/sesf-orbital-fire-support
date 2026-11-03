@@ -19,12 +19,20 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 4. The Helldivers drop in and head for the objective. The ship gun is ready at once; your UAV scan and orbital strikes are still charging for the first twenty seconds or so. Aim, pick a weapon and call strikes on the enemy, not on your own squad.
 5. Not sure what to do? Press **INFO** (or `I`) at any time for the mission's steps and what the enemy does.
 
-**Music (0.29).** The game has a score now, made the same way as everything else: synthesised live in your browser, with no music files. It is calm in the menus (a low drone, a soft pad and a slow bell). In a mission it follows the fight: when the enemy closes on the squad a pulse comes in, when they are in a firefight war drums join, and in a heavy one the hats and snares come in with a deep braam on each chord change. When things go quiet it falls back. A super heavy arriving gets its own hit, and a win or a loss its own ending. Cinematics and the pause turn it down.
+**Music (0.30).** The game has a score, made the same way as everything else: synthesised live in your browser, with no music files. Each part of the game has its own piece:
+- **The menus and the armory:** *Orbit*, a calm theme in D minor. A music-box bell over a soft pad, and every other time round a slow melody.
+- **The loading screen (the briefing):** *Briefing*, a clock ticking over a low pulse, with data blips and a slow swell. You're waiting to drop.
+- **The start of a match:** *Drop*, ten seconds, once. A riser and a tightening snare roll, the whoosh of a hellpod coming down, then a big hit and a short march into the battle music.
+- **In a match:** *Battle*, which follows the fight. Calm when it's quiet, a pulse when the enemy closes on the squad, war drums in a firefight, and in a heavy one hats, snares and a deep braam on each chord change. It falls back when things go quiet.
+- **A ton of enemies on screen:** *Swarm*, faster and darker, with a driving 16th-note line, double-time drums and a braam every bar. It comes in when the screen fills up and goes back to *Battle* once it has thinned out for a few seconds.
+- **The end of a match:** *Victory* when you win (a big hit and rising bells, then an anthem that carries through the debrief), and *Fallen* when you lose (a slow horn line and a funeral drum, also for the end of a session and the end of the tutorial).
+
+A super heavy arriving gets a hit of its own. Cinematics and the pause turn the music down.
 
 **The AUDIO settings (0.29).** **Settings** is in sections now: **GAME**, **AUDIO**, **DISPLAY** and **CONTROLS**. **AUDIO** has:
 - **Master volume:** everything together.
 - **Music volume:** the score on its own.
-- **Music:** **Dynamic** (it follows the fight), **Ambient** (it stays calm whatever happens) or **Off**.
+- **Music:** **Dynamic** (the match music follows the fight, with *Drop* and *Swarm*), **Ambient** (a match stays calm whatever happens; the menus, briefing and endings play as they are) or **Off**.
 - **Effects volume:** weapons, explosions, alarms and the ship, on their own.
 - **Mute all.**
 

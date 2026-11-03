@@ -381,7 +381,7 @@ export default {
   'set.mute': 'Mute all', 'set.muteHint': 'Music and effects',
   'set.sec.game': 'GAME', 'set.sec.audio': 'AUDIO', 'set.sec.display': 'DISPLAY', 'set.sec.controls': 'CONTROLS',
   'set.music': 'Music volume', 'set.musicHint': 'The score, in the menus and in a mission',
-  'set.style': 'Music', 'set.styleHint': 'Dynamic follows the fight. Ambient stays calm',
+  'set.style': 'Music', 'set.styleHint': 'Dynamic follows the fight, with a drop and a swarm. Ambient keeps a match calm',
   'set.st.dynamic': 'Dynamic', 'set.st.ambient': 'Ambient', 'set.st.off': 'Off',
   'set.sfx': 'Effects volume', 'set.sfxHint': 'Weapons, explosions, alarms and the ship',
   'set.bubbles': 'Speech bubbles', 'set.bubblesHint': 'What Helldivers and SEAF say before they act',

@@ -1009,6 +1009,7 @@ function finishMission() {
   endHandled = true; setPlacing(null); setDrawing(false); setTac(false); disarm(); setHideUi(false); deselect();
   soft = false; hud.setSoft(false);
   const res = lastRes = mission.result();
+  endMood = S.carriesOn(res.outcome) ? 'win' : 'lose';     // (0.30) the debrief's music: VICTORY or FALLEN
   const t0 = tierNow();
   S.recordMission(session, info, res);
   // (0.24) a milestone reached: the level bonus, and what it opens in the armory (marked NEW there until bought)
@@ -1354,30 +1355,39 @@ function ambient(m, dt) {
   const civ = m.civs.find((c) => !c.dead && !c.safe && Math.abs(c.x - cam.x) < half && Math.abs(c.y - cam.y) < half);
   if (civ && Math.random() < 0.3) audio.snd('civ', loudness(civ.x, civ.y), pan(civ.x));
 }
-// (0.29) What the music is playing under: the menus, a mission (or its pause), a cinematic, or the end of one.
+// (0.29, 0.30) What the music is playing under: the menus, the briefing (the loading screen), a mission (or its pause), a
+// cinematic, or the end of one (from the moment a mission is won or lost, through its debrief).
+let endMood = 'lose';
 function musicScene() {
   if (cinema.on) return 'cine';
-  if (state === 'play') return paused ? 'pause' : 'play';
+  if (state === 'brief') return 'loading';
+  if (state === 'play') return mission && mission.over ? 'end' : paused ? 'pause' : 'play';
   return state === 'debrief' || state === 'final' || state === 'glass' ? 'end' : 'menu';
 }
 // How hot the fight is, 0..1, for the music: the enemy close to the squad (a heavy counts for more), a super heavy on the field,
 // and a kick from things going wrong (a Helldiver down, an alarm) that fades over a few seconds. Counted every 0.3 s.
-let heatT = 0, heatV = 0, heatKick = 0;
+// (0.30) And how crowded the screen is, for the swarm music: the enemy in the camera's view that can be seen (weighted the same
+// way), scaled back when the view is zoomed out wider than the usual 400 m (so zooming out doesn't fill it on its own).
+let heatT = 0, heatV = 0, heatKick = 0, crowdV = 0;
 function musicHeat(dt) {
   heatKick = Math.max(0, heatKick - dt * 0.05);
-  if (!mission || state !== 'play') { heatV = 0; return 0; }
+  if (!mission || state !== 'play') { heatV = 0; crowdV = 0; return 0; }
   heatT -= dt;
   if (heatT <= 0) {
     heatT = 0.3;
     const hs = mission.hdAlive || [];
-    let w = 0, boss = false;
+    const vw = cam.view, vh = cam.view * ((renderer.H || 9) / (renderer.W || 16)), hw = vw / 2, hh = vh / 2;
+    let w = 0, c = 0, boss = false;
     for (const e of mission.enemies) {
       if (e.dead) continue;
       if (e.boss) boss = true;
-      for (const a of hs) { const dx = e.x - a.x, dy = e.y - a.y; if (dx * dx + dy * dy < 90 * 90) { w += e.kind === 'H' ? 3 : e.kind === 'M' ? 1.6 : 1; break; } }
+      const k = e.kind === 'H' ? 3 : e.kind === 'M' ? 1.6 : 1;
+      for (const a of hs) { const dx = e.x - a.x, dy = e.y - a.y; if (dx * dx + dy * dy < 90 * 90) { w += k; break; } }
+      if (Math.abs(e.x - cam.x) < hw && Math.abs(e.y - cam.y) < hh && mission.visLevel(e.x, e.y) > 0) c += k;
     }
-    heatV = Math.min(1, w / 22);
+    heatV = Math.min(1, w / 30);
     if (boss) heatV = Math.max(heatV, 0.7);
+    crowdV = c / Math.max(1, vw / 400);     // (zoomed out past the usual view, the count is scaled back; a tall phone screen counts as it is)
   }
   return Math.min(1, heatV + heatKick);
 }
@@ -1478,7 +1488,7 @@ function onEvent(ev, now) {
       break;
     case 'arty_fire': afterCall(); break;
     case 'end':
-      if (ev.outcome === 'victory' || ev.outcome === 'complete') { audio.win(); music.hit('win'); } else { audio.lose(); music.hit('lose'); }
+      if (ev.outcome === 'victory' || ev.outcome === 'complete') { audio.win(); endMood = 'win'; } else { audio.lose(); endMood = 'lose'; }
       hud.message(t(ev.outcome === 'victory' ? (mission.extracted ? 'msg.end.extracted' : 'msg.end.victory') : 'msg.end.' + ev.outcome), 4000);
       break;
     default:
@@ -1490,7 +1500,7 @@ function frame(ts) {
   requestAnimationFrame(frame);
   const now = ts / 1000;
   const dt = Math.min(0.25, Math.max(0, now - lastT)); lastT = now;
-  music.update(dt, musicScene(), musicHeat(dt));
+  { const sc = musicScene(); music.update(dt, sc, musicHeat(dt), { run: state === 'play' ? mission : null, crowd: crowdV, mood: state === 'final' || state === 'glass' ? 'lose' : endMood }); }
   if (!renderer.W) return;
 
   // Frame-time watchdog for the auto quality setting.

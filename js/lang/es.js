@@ -381,7 +381,7 @@ export default {
   'set.mute': 'Silenciar todo', 'set.muteHint': 'Música y efectos',
   'set.sec.game': 'JUEGO', 'set.sec.audio': 'SONIDO', 'set.sec.display': 'PANTALLA', 'set.sec.controls': 'CONTROLES',
   'set.music': 'Volumen de la música', 'set.musicHint': 'La música, en los menús y en misión',
-  'set.style': 'Música', 'set.styleHint': 'Dinámica sigue el combate. Ambiente se queda tranquila',
+  'set.style': 'Música', 'set.styleHint': 'Dinámica sigue el combate, con despliegue y enjambre. Ambiente deja la misión tranquila',
   'set.st.dynamic': 'Dinámica', 'set.st.ambient': 'Ambiente', 'set.st.off': 'Apagada',
   'set.sfx': 'Volumen de efectos', 'set.sfxHint': 'Armas, explosiones, alarmas y la nave',
   'set.bubbles': 'Bocadillos de diálogo', 'set.bubblesHint': 'Lo que dicen Helldivers y SEAF antes de actuar',

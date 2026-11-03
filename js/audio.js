@@ -21,7 +21,12 @@ export class Audio {
     try {
       this.ctx = new AC();
       this.master = this.ctx.createGain();
-      this.master.connect(this.ctx.destination);
+      // (0.30) a gentle limiter after the master, so music and a big blast together don't clip
+      try {
+        const lim = this.ctx.createDynamicsCompressor();
+        lim.threshold.value = -6; lim.knee.value = 6; lim.ratio.value = 12; lim.attack.value = 0.003; lim.release.value = 0.25;
+        this.master.connect(lim); lim.connect(this.ctx.destination);
+      } catch { this.master.connect(this.ctx.destination); }
       this.sfxBus = this.ctx.createGain(); this.sfxBus.connect(this.master);
       this.musBus = this.ctx.createGain(); this.musBus.connect(this.master);
       this._applyVolume();
