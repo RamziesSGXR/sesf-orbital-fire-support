@@ -88,10 +88,10 @@ const objDone = (m) => { for (const o of m.objectives) o.done = true; m.objDone 
   const m = quiet('bots', 9200, { kit: s.kit, wallet: s.wallet }); objDone(m); wipe(m);
   recordMission(s, { op: 'Operation Test Lance', faction: 'bots', biome: 'grass' }, m.result());
   const rep = missionReport(s), L = rep.split('\n');
-  check('after a mission, its own report: four short lines', L.length === 4 && /^ORBITAL FURY \| GUNNER \| MISSION 1 \| DIFFICULTY 4 CHALLENGING$/.test(L[0]) && /^TEST LANCE \| BOTS \| OBJECTIVE COMPLETE$/.test(L[1]) && /^SCORE [\d,]+ \| [\d,]+ KILLS/.test(L[2]) && /^SESSION [\d,]+ AFTER 1 MISSION$/.test(L[3]), rep.replace(/\n/g, ' / '));
+  check('after a mission, its own report: four short lines', L.length === 4 && /^ORBITAL FURY \| GUNNER \| MISSION 1 \| DIFFICULTY 4 CHALLENGING$/.test(L[0]) && /^TEST LANCE \| BOTS \| OBJECTIVE COMPLETE$/.test(L[1]) && /^SCORE [\d,]+ \| [\d,]+ KILLS/.test(L[2]) && /^TOTAL [\d,]+ AFTER 1 MISSION$/.test(L[3]), rep.replace(/\n/g, ' / '));
   check('no session ID, no web address, no long names', !/SESSION ID|\d{8}-\d{6}Z|HTTP|\.COM|SUPER EARTH|OPERATION/i.test(rep));
   const fin = finalise(s), blk = scoreBlock(s, fin), B = blk.split('\n');
-  check('at the end, the session\'s report: the totals, then a line a mission', B.length === 3 && /FINAL SCORE/.test(B[0]) && /1 MISSION, 1 WON/.test(B[1]) && /^1\. TEST LANCE \| BOTS \| OBJECTIVE COMPLETE/.test(B[2]) && fin.wins === 1, blk.replace(/\n/g, ' / '));
+  check('at the end, the session\'s report: the totals, then a line a mission', B.length === 3 && /FINAL SCORE/.test(B[0]) && /1 MISSION, 1 WON/.test(B[1]) && /^1\. MISSION 1 \| BOTS \| OBJECTIVE COMPLETE/.test(B[2]) && B[0].includes(s.op.replace(/^Operation /, '').toUpperCase()) && fin.wins === 1, blk.replace(/\n/g, ' / '));
   check('...with no session ID or web address either', !/SESSION ID|\d{8}-\d{6}Z|HTTP|\.COM|PLAY AT|SUPER EARTH/i.test(blk));
 }
 

@@ -6,6 +6,7 @@ import { OPS } from '../data/data.js';
 import { postArt, trenchArt } from './posts.js';
 import { crateSec, foxholeSlots } from '../sim/posts.js';
 import { t as tr } from '../i18n.js';
+import { drawHellbomb } from './sites.js';
 
 const TAU = Math.PI * 2;
 function ring(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); }
@@ -42,9 +43,54 @@ function radioArt(ctx, s, now, px, col) {
   ctx.restore();
 }
 
+// (0.37) A jammer site, by the enemy: a spore spewer (a swollen pod with spore vents), a stratagem jammer (a mast with a dish) or
+// a cognitive disruptor (a tall pylon with a ring); the ground it jams has a pulsing dashed edge.
+const JAM_COL = { bugs: '#ffb020', bots: '#ff4a3a', squids: '#c08cff' };
+function jammerArt(ctx, s, now, px) {
+  const col = JAM_COL[s.fac] || '#ff4a3a', r = Math.max(s.r, px(9));
+  const p = 0.5 + 0.5 * Math.sin(now * 2.4 + s.id);
+  // the jammed ground
+  ctx.strokeStyle = rgba(col, 0.22 + 0.25 * p); ctx.lineWidth = px(2); ctx.setLineDash([px(10), px(7)]);
+  ctx.lineDashOffset = -now * px(6); ring(ctx, s.x, s.y, s.R); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+  ctx.fillStyle = rgba(col, 0.05 + 0.04 * p); ring(ctx, s.x, s.y, s.R); ctx.fill();
+  ctx.save(); ctx.translate(s.x, s.y);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ring(ctx, 0, 0, r * 1.25); ctx.fill();
+  if (s.fac === 'bugs') {
+    ctx.fillStyle = '#6b4a2a'; ring(ctx, 0, 0, r * 0.95); ctx.fill();
+    ctx.fillStyle = col;
+    for (let k = 0; k < 5; k++) { const a = s.face + k * 1.2566; ring(ctx, Math.cos(a) * r * 0.55, Math.sin(a) * r * 0.55, r * (0.16 + 0.06 * p)); ctx.fill(); }
+    ctx.fillStyle = rgba(col, 0.35 * p); ring(ctx, 0, 0, r * (1.4 + p * 0.6)); ctx.fill();
+  } else if (s.fac === 'bots') {
+    ctx.strokeStyle = '#9aa3a8'; ctx.lineWidth = px(1.6);
+    ctx.beginPath(); for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + Math.PI / 4; ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.stroke();
+    ctx.rotate(now * 1.5);
+    ctx.fillStyle = '#5c6468'; ctx.beginPath(); ctx.ellipse(0, 0, r * 0.75, r * 0.3, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = Math.floor(now * 3) % 2 ? col : 'rgba(255,255,255,0.3)'; ring(ctx, r * 0.6, 0, r * 0.14); ctx.fill();
+  } else {
+    ctx.strokeStyle = col; ctx.lineWidth = px(1.8); ring(ctx, 0, 0, r * (0.8 + 0.15 * p)); ctx.stroke();
+    ctx.fillStyle = '#2a2340'; ring(ctx, 0, 0, r * 0.5); ctx.fill();
+    ctx.fillStyle = rgba(col, 0.6 + 0.4 * p); ring(ctx, 0, 0, r * 0.22); ctx.fill();
+  }
+  ctx.restore();
+}
+
 export function drawSides(ctx, m, now, px, labels, scale) {
   const S = C.sides, task = m.plan && m.plan.task ? m.plan.task.ref : null;
+  // (0.37) a Hellbomb for a side task (the citadel's own is drawn with the citadel)
+  const hb = m.hellbomb;
+  if (hb && hb.o && hb.o.side) {
+    drawHellbomb(ctx, hb, C.objective.hellbomb, now, px, m.t);
+    if (hb.state === 'landed') labels.push({ x: hb.x, y: hb.y, dy: -14, text: tr('lab.hbArm'), col: '#7dff9b', pri: 3 });
+    if (hb.state === 'armed') labels.push({ x: hb.x, y: hb.y, dy: -14, text: tr('lab.hbRun', { n: Math.max(0, Math.ceil(hb.fuseAt - m.t)) }), col: '#ff6a4a', pri: 3 });
+  }
   for (const s of m.sides || []) {
+    if (s.kind === 'jammer') {
+      if (s.done || s.failed) continue;
+      jammerArt(ctx, s, now, px);
+      labels.push({ x: s.x, y: s.y, dy: -Math.max(s.r * scale, 12) - 8, text: s.name, col: JAM_COL[s.fac] || '#ff6a4a', pri: s === task ? 2 : 1 });
+      labels.push({ x: s.x, y: s.y, dy: Math.max(s.r * scale, 12) + 10, text: tr(s === task ? 'lab.jamOn' : 'lab.jamHb'), col: 'rgba(255,220,200,0.85)', pri: s === task ? 2 : 0 });
+      continue;
+    }
     if (s.kind === 'propaganda') {           // drawn as a point of interest; mark it when the squad is on its way
       if (!s.done && s === task) labels.push({ x: s.x, y: s.y, dy: 26, text: OPS.squadOnIt, col: '#7fd8ff', pri: 1 });
       continue;

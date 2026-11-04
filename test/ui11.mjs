@@ -18,8 +18,11 @@ const tap = (sel) => (touch ? page.tap(sel) : page.click(sel));
 const PAGE = `file://${ROOT}/dist/orbital-fury.html?skipstart&faction=bots&biome=grass&seed=12`;
 
 await page.goto(PAGE); await page.waitForTimeout(600);
+// (0.37) the levels are in NEW OPERATION, which QUICK PLAY opens
+await tap('#btn-play'); await page.waitForTimeout(250);
+if (await page.isVisible('#btn-notice')) { await tap('#btn-notice'); await page.waitForTimeout(250); }
 const start = await ev(() => document.querySelector('#diff-row .btn.dl.on')?.textContent);
-check('the title offers ten levels with the starting level picked', (await page.locator('#diff-row .btn.dl').count()) === 10 && start === '3', `picked ${start}`);
+check('NEW OPERATION offers ten levels with the starting level picked', (await page.locator('#diff-row .btn.dl').count()) === 10 && start === '3', `picked ${start}`);
 check('the picked level is named and explained', /3 · MEDIUM/.test(await page.textContent('#diff-name')) && /enemy.*heavies.*×0\.85/.test(await page.textContent('#diff-note')));
 const fit = await ev(() => { const r = document.getElementById('diff-row').getBoundingClientRect(); return r.right <= innerWidth && r.left >= 0; });
 check('the ten buttons fit the screen', fit);
@@ -28,10 +31,8 @@ check('picking a level updates the name and the note', /8 · IMPOSSIBLE/.test(aw
 await tap('#diff-row .btn.dl:nth-child(10)'); await page.waitForTimeout(200);
 check('level 10 says it is the full war', /full war/i.test(await page.textContent('#diff-note')));
 await tap('#diff-row .btn.dl:nth-child(4)'); await page.waitForTimeout(200);
-
-await tap('#btn-play'); await page.waitForTimeout(250);
-if (await page.isVisible('#btn-notice')) await tap('#btn-notice');
-await page.waitForTimeout(250); if (await page.isVisible('#btn-lock')) await tap('#btn-lock');   // 0.13: the difficulty lock-in
+check('(0.37) START says the level picked', /START AT LEVEL 4/.test(await page.textContent('#btn-lock')));
+await tap('#btn-lock');
 await page.waitForTimeout(300); await tap('#shop-go'); await page.waitForTimeout(500);
 await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
 check('the briefing shows the level and its pay', /DIFFICULTY 4 · CHALLENGING · CREDITS AND SCORE ×0\.90/.test(await page.textContent('#r-diff')), await page.textContent('#r-diff'));
@@ -54,11 +55,14 @@ check('so does the session report', /DIFFICULTY 4 CHALLENGING/.test(await page.i
 // the next session starts at the level last picked; a saved session keeps its own
 await tap('#btn-again'); await page.waitForTimeout(600);
 if (!(await page.isVisible('#s-title'))) { await page.goto(PAGE); await page.waitForTimeout(600); }
+await tap('#btn-play'); await page.waitForTimeout(300);
 check('the level is remembered for the next session', (await ev(() => document.querySelector('#diff-row .btn.dl.on')?.textContent)) === '4');
 await ev(() => localStorage.setItem('ofs.session', JSON.stringify({ startedAt: Date.now(), callsign: '', difficulty: 7, missions: [{ op: 'Operation Test', faction: 'bots', biome: 'grass', outcome: 'victory', score: 400, seconds: 200 }, { op: 'Operation Test', faction: 'bots', biome: 'grass', outcome: 'victory', score: 400, seconds: 200 }, { op: 'Operation Test', faction: 'bots', biome: 'grass', outcome: 'victory', score: 400, seconds: 200 }], score: 1234, seconds: 600 })));
 await page.goto(PAGE); await page.waitForTimeout(600);
-check('a saved session shows the level of its next mission on RESUME (0.19.2: started at 7, three flown: 8)', /DIFFICULTY 8/.test(await page.textContent('#btn-resume')), await page.textContent('#btn-resume'));
-check('and the note says a new session starts at the picked level', /started at level 7/.test(await page.textContent('#diff-note')));
+check('a saved session shows the level of its next mission on RESUME (started at 7, three flown: 9 since 0.32, two ranks earned)', /DIFFICULTY 9/.test(await page.textContent('#btn-resume')), await page.textContent('#btn-resume'));
+await tap('#btn-play'); await page.waitForTimeout(300);
+check('(0.37) and NEW OPERATION says starting one replaces the saved operation', /replaces the Quick Play operation/.test(await page.textContent('#lock-sub')), await page.textContent('#lock-sub'));
+await tap('#btn-lock-change'); await page.waitForTimeout(300);
 await tap('#btn-resume'); await page.waitForTimeout(500);
 check('resuming keeps the saved level', (await ev(() => window.__game.session.difficulty)) === 7);
 

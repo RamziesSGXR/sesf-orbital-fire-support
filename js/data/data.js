@@ -163,7 +163,7 @@ export const COMMS = {
   timeYes: (n) => t('c.timeYes', { n }),
   get timeNo() { return t('c.timeNo'); },
   get allClear() { return t('c.allClear'); },
-  sideNext: (k) => t('c.sideNext.' + (['radio', 'propaganda', 'rescue', 'arty'].includes(k) ? k : 'base')),
+  sideNext: (k) => t('c.sideNext.' + (['radio', 'propaganda', 'rescue', 'arty', 'jammer'].includes(k) ? k : 'base')),
   get artyUp() { return t('c.artyUp'); },
   get artyStart() { return t('c.artyStart'); },
   get jammed() { return t('c.jammed'); },

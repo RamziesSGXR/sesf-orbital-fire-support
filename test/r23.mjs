@@ -4,6 +4,7 @@
 import { Mission } from '../js/sim/mission.js';
 import { fireSlot, syncSlots } from '../js/sim/player.js';
 import { CONFIG as C } from '../js/config.js';
+C.sides.jammer.chance = 0;     // (0.37: no jammer sites here: these checks call strikes and walk to objectives on maps rolled before there were any)
 import { STRATS, rollLoadout, HD_ORB_IDS, STRAT_IDS, PLAYER_IDS } from '../js/data/strat.js';
 import { newKit, newWallet, shopItems, buy, equip, hangarStats, seafStats } from '../js/data/kit.js';
 import { makeBot, botStep } from '../js/sim/bot.js';

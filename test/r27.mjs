@@ -7,7 +7,7 @@ import { CONFIG as C } from '../js/config.js';
 import { STORY, CAST, chapterFor } from '../js/data/story.js';
 import { castLines, CastRadio, aarMission, aarSession, aarStand } from '../js/campaign.js';
 import { newSession, recordMission, finalise } from '../js/session.js';
-import { setLang, tl } from '../js/i18n.js';
+import { setLang, tl, t } from '../js/i18n.js';
 import { makeBot, botStep } from '../js/sim/bot.js';
 import { makePost } from '../js/sim/posts.js';
 
@@ -20,10 +20,14 @@ const run = (m, s, each) => { for (let i = 0, n = Math.round(s / dt); i < n && !
 {
   const s = newSession('KESTREL', 3);
   s.story = { id: STORY.id, ch: 1 };
-  const seq = [1, 2, 3, 4].map((n) => (chapterFor(s, n) || {}).n || 0);
-  check('a story session flies the chapters in order, then goes on as usual', seq.join() === '1,2,3,0', seq.join());
-  s.story.ch = 2;
-  check('started at chapter 2: its missions are chapters 2 and 3', [1, 2, 3].map((n) => (chapterFor(s, n) || {}).n || 0).join() === '2,3,0');
+  const seq = [1, 2, 3, 4, 5, 6].map((n) => (chapterFor(s, n) || {}).n || 0);
+  check('(0.38) a story session flies the five chapters in order, then goes on as usual', seq.join() === '1,2,3,4,5,0', seq.join());
+  s.story.ch = 4;
+  check('started at chapter 4: its missions are chapters 4 and 5', [1, 2, 3].map((n) => (chapterFor(s, n) || {}).n || 0).join() === '4,5,0');
+  const kinds = STORY.chapters.map((c) => c.play.objective);
+  check('(0.38) each chapter is a kind of mission not flown before: evac, oil, VIP, citadel, nuke', kinds.join() === 'evac,oil,vip,fortress,nuke' && new Set(kinds).size === 5, kinds.join());
+  check('(0.38) each chapter teaches something, and every lesson has its line and its tip in every language',
+    STORY.chapters.every((c) => c.teach && c.teach.length) && ['en', 'fr', 'es'].every((l) => { setLang(l); const ok = STORY.chapters.every((c) => c.teach.every((k) => /^\w+\|.{20,}/.test(t('teach.' + k)) && t('teach.' + k + '.tip').length > 20)); setLang('en'); return ok; }));
   check('every chapter can be played, each its own mission', STORY.chapters.every((c) => c.play && c.play.faction && c.play.objective && c.play.seed));
   check('(0.27.1) on Fronteria: Terminids on the desert, every chapter', STORY.planet === 'fronteria' && STORY.chapters.every((c) => c.play.faction === 'bugs' && c.play.biome === 'desert'));
   check('a session that is not a story has no chapters', chapterFor(newSession('X', 3), 1) === null);
@@ -76,13 +80,13 @@ const run = (m, s, each) => { for (let i = 0, n = Math.round(s / dt); i < n && !
   const r = aarMission(s, info, res), L = r.split('\n');
   check('after a mission: an after action report with a bold title', L[0] === '**ORBITAL FURY · AFTER ACTION REPORT**' && /^\*\*FREEDOM VISTA: VACATION'S OVER\*\* · Mission 1 · DIFFICULTY 3 MEDIUM$/.test(L[1]), L.slice(0, 2).join(' / '));
   check('...with the result, objective, kills, losses and score, a line each (and the damage split once there is any)', ['**Result:**', '**Objective:**', '**Kills:**', '**Helldivers:**', '**SEAF:**', '**Score:**'].every((k) => L.some((x) => x.startsWith(k))) && /EVACUATE CIVILIANS ✅/.test(r), r.replace(/\n/g, ' / ').slice(0, 300));
-  check('a campaign chapter: named, and the General\'s last word as a quote', /Campaign: Operation Freedom Vista, chapter 1 of 3 · Fronteria, Umlaut Sector/.test(r) && /^> RAMZIES: ".+"$/m.test(r));
+  check('a campaign chapter: named, and the General\'s last word as a quote', /Campaign: Operation Freedom Vista, chapter 1 of 5 · Fronteria, Umlaut Sector/.test(r) && /^> RAMZIES: ".+"$/m.test(r));
   check('short enough for one Discord message, no web address, the version at the foot', r.length < 2000 && !/https?:|\.com/i.test(r) && L[L.length - 1] === `Orbital Fury v${C.share.version}`, `${r.length} chars`);
   setLang('fr');
   check('in English whatever the language played in', aarMission(s, info, res) === r);
   setLang('en');
   const fin = finalise(s), b = aarSession(s, fin), B = b.split('\n');
-  check('at the end of a session: the totals and every mission on a numbered line', B[0] === '**ORBITAL FURY · SESSION AFTER ACTION REPORT**' && /FINAL SCORE/.test(B[1]) && /1 mission, 1 won/.test(B[2]) && /DIFFICULTY 3 MEDIUM/.test(B[2]) && B.some((x) => /^1\. FREEDOM VISTA: VACATION'S OVER · BUGS · /.test(x)) && B.some((x) => x.startsWith('**Totals:**')), b.replace(/\n/g, ' / ').slice(0, 300));
+  check('at the end of a session: the totals and every mission on a numbered line', B[0] === '**ORBITAL FURY · OPERATION AFTER ACTION REPORT**' && /FINAL SCORE/.test(B[1]) && /1 mission, 1 won/.test(B[2]) && /DIFFICULTY 3 MEDIUM/.test(B[2]) && B.some((x) => /^1\. VACATION'S OVER · BUGS · /.test(x)) && B.some((x) => x.startsWith('**Totals:**')), b.replace(/\n/g, ' / ').slice(0, 300));
   const t = aarStand({ outcome: 'glassed', kills: 260, civSaved: 134, lastStand: { held: 552, lifted: 9, pop: 200 } }, 'KESTREL'), T = t.split('\n');
   check('the tutorial\'s last stand has its own report: personnel off Mars, the hold, the rank', /LAST STAND AT THARSIS/.test(t) && /\*\*Personnel off Mars:\*\* 134 of 200 · 9 pelicans away · held 09:12/.test(t) && /Rank \d+, /.test(t) && /Gunner KESTREL/.test(t), T.slice(2, 5).join(' / '));
 }

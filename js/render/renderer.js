@@ -22,7 +22,7 @@ import { todAt, skyTint } from './sky.js';
 const SIZE = C.world.size;
 export const MINI_Q = 0.9;      // the share of the round minimap's width the (round) area of operations fills
 const TAU = Math.PI * 2;
-const TASK_LABEL = { base: 'lab.base', radio: 'lab.radio', propaganda: 'lab.prop', rescue: 'lab.rescue', arty: 'lab.artySite' };
+const TASK_LABEL = { base: 'lab.base', radio: 'lab.radio', propaganda: 'lab.prop', rescue: 'lab.rescue', arty: 'lab.artySite', jammer: 'lab.jam' };
 const slotCd = (m, i) => { const st = slotStats(m, i); return st ? st.cd : 0; };
 
 export class Renderer {
@@ -1155,7 +1155,7 @@ export class Renderer {
     else if (s.uses <= 0) { status = tr('ret.noUses'); bad = true; }
     else if (!info.inZone) { status = tr('ret.noCover'); bad = true; }
     else status = tr(isUav ? 'ret.scanReady' : info.lock ? 'ret.locked' : 'ret.ready');
-    if (info.jammed) { status = tr('ret.jammed'); bad = true; }     // a commander's jammer covers the aim point
+    if (info.jammed) { status = tr(info.jamSite ? 'ret.jamSite' : 'ret.jammed'); bad = true; }     // a commander's jammer covers the aim point
     const danger = info.danger && !isUav && !isGun;
     if (danger && !bad) status = tr('ret.danger');
     const col = danger ? '#ff4040' : bad ? '#ffb020' : isUav ? '#9dffb8' : '#7dff9b';
@@ -1321,7 +1321,7 @@ export class Renderer {
       else lab(o.x, o.y, tr('lab.citadel'), '#ffe600');
     }
     if (m.extraction.revealed) lab(m.extraction.x, m.extraction.y, tr(m.extraction.state === 'open' ? 'lab.extract' : 'lab.extractCalled'), '#ffe600');
-    for (const q of m.sides || []) if (!q.done && !q.failed && !q.hidden) lab(q.x, q.y, q.kind === 'radio' ? OPS.radio : q.kind === 'rescue' ? OPS.rescue : q.kind === 'arty' ? OPS.artySite : q.name, q.kind === 'propaganda' ? '#ffb020' : '#7fd8ff');
+    for (const q of m.sides || []) if (!q.done && !q.failed && !q.hidden) lab(q.x, q.y, q.kind === 'radio' ? OPS.radio : q.kind === 'rescue' ? OPS.rescue : q.kind === 'arty' ? OPS.artySite : q.name, q.kind === 'propaganda' || q.kind === 'jammer' ? '#ffb020' : '#7fd8ff');
     for (const bc of m.beacons || []) if (bc.relit || t < C.beacons.darkSec) lab(bc.x, bc.y, OPS.beacon, '#6fc0ff', 2.2);
     if (m.supply && m.supply.drop) lab(m.supply.drop.x, m.supply.drop.y, tr('lab.supply'), '#9dffb8');
     if (m.hdAlive.length) lab(m.hx, m.hy, tr('lab.squad'), '#e8f6ff', 2.4);
@@ -1412,6 +1412,7 @@ export class Renderer {
       const x = q.x * k, y = q.y * k;
       if (q.kind === 'radio') { c.strokeStyle = q.done ? 'rgba(127,216,255,0.6)' : '#7fd8ff'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x, y - 5); c.lineTo(x - 4, y + 4); c.moveTo(x, y - 5); c.lineTo(x + 4, y + 4); c.moveTo(x - 2.5, y + 1); c.lineTo(x + 2.5, y + 1); c.stroke(); }
       else if (q.kind === 'arty') { if (!q.done) { c.strokeStyle = '#7fd8ff'; c.lineWidth = 1.5; c.strokeRect(x - 3.5, y - 3.5, 7, 7); } }
+      else if (q.kind === 'jammer') { if (!q.done) { c.strokeStyle = '#ff6a4a'; c.lineWidth = 1.5; c.setLineDash([3, 3]); c.beginPath(); c.arc(x, y, q.R * k, 0, TAU); c.stroke(); c.setLineDash([]); c.fillStyle = '#ff6a4a'; c.beginPath(); c.moveTo(x, y - 5); c.lineTo(x + 4.5, y + 4); c.lineTo(x - 4.5, y + 4); c.closePath(); c.fill(); } }
       else if (!q.done) { c.strokeStyle = q.state === 'siege' ? '#ff8a6a' : '#9dd0ff'; c.lineWidth = 2; c.beginPath(); c.arc(x, y, 5, 0, TAU); c.stroke(); c.beginPath(); c.arc(x, y, 1.6, 0, TAU); c.stroke(); }
     }
     for (const g of m.posts || []) { if (g.dead) continue; c.fillStyle = g.what === 'arty' ? '#6fc0ff' : '#3da9ff'; const s = g.what === 'arty' ? 3 : 2; c.fillRect(g.x * k - s, g.y * k - s, s * 2, s * 2); }     // what SEAF built

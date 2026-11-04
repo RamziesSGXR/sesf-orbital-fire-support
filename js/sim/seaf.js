@@ -423,7 +423,7 @@ function updateSpecialists(m, dt) {
         for (const o of m.alive) if ((o.x - e.x) ** 2 + (o.y - e.y) ** 2 < P.minDist * P.minDist) return;
         best = e; bs = n;
       });
-      if (best && !jammedAt(m, best.x, best.y, 4)) {
+      if (best && !jammedAt(m, best.x, best.y, 4, true)) {
         sf.spotAt = t + st.spotCool;
         const d = SPOT();
         d.n = st.spotN; d.dmg = P.dmg * st.spotDmg;

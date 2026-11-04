@@ -23,7 +23,7 @@ import { initPlan, updatePlan } from './planner.js';
 import { initPlayer, updatePlayer, syncSlots, slotStats } from './player.js';
 import { initStrat, updateStrat, destroyAsset, mechDown } from './strat.js';
 import { setupObjectives, updateObjectives, completeObjective, startSetup } from './objectives.js';
-import { placeBase, setupLastStand, updateLastStand, lsBegin, lsSpawn } from './laststand.js';
+import { placeBase, setupLastStand, updateLastStand, lsBegin, lsSpawn, lsJammer, lsSupply } from './laststand.js';
 import { setupPois, updatePois, damagePoi, damageBreach } from './pois.js';
 import { setupCover } from './cover.js';
 import { updateChatter } from './chatter.js';
@@ -78,6 +78,8 @@ export class Mission {
     // The session's difficulty (difficulty.js): applied before anything reads the numbers it scales. 10 when not given.
     this.difficulty = clampAny(opts.difficulty ?? LEVELS);
     this.noDefenders = opts.defenders === false;      // (0.18: tests turn the SEAF already at the site off)
+    this.forceJam = opts.jammer === true;              // (0.38) a campaign chapter wants a jammer site on the map
+    this.noHbSides = opts.hellbombSides === false;     // (0.38) ...or none of the Hellbomb's side jobs yet (no jammer; towers fall to guns)
     applyDifficulty(this.difficulty);
     this.reward = reward(this.difficulty);     // credits and score multiplier
     this._crc = 0;                             // the fraction of a credit carried over between payouts
@@ -569,6 +571,8 @@ export class Mission {
   // (0.19) the last stand (laststand.js): the evacuation opens; a lesson's group comes at the base
   lsBegin() { return lsBegin(this); }
   lsSpawn(kind, ang) { return lsSpawn(this, kind, ang); }
+  lsJammer() { return lsJammer(this); }     // (0.37) the tutorial's Hellbomb and resupply lessons
+  lsSupply() { return lsSupply(this); }
   get dropIn() { return Math.max(0, this.dropAt - C.helldivers.initialDropSec - this.t); }
   seafTargets() { return targetSquads(this).filter((q) => q.n > 0); }
 

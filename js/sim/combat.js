@@ -45,8 +45,11 @@ export const revealed = (m, e) => e.revealUntil > m.t;
 export const locked = (m, e) => e.revealUntil > m.t && m.t - e.revealFrom >= C.reveal.lockSec;
 
 // A commander's jammer: the enemy jamming (x, y), if any. Nothing the destroyer or the squad calls down can land there.
-export function jammedAt(m, x, y, pad = 0) {
+// (0.37) A jammer site (sides.js: the spore spewer, stratagem jammer or cognitive disruptor) does the same over its reach R, but the
+// ship gun's direct fire and SEAF's grenades still get through it (gun: true leaves the sites out).
+export function jammedAt(m, x, y, pad = 0, gun = false) {
   for (const e of m.jammers || []) if (!e.dead && (e.x - x) ** 2 + (e.y - y) ** 2 <= (e.jamR + pad) ** 2) return e;
+  if (!gun) for (const s of m.sides || []) if (s.kind === 'jammer' && !s.done && !s.failed && (s.x - x) ** 2 + (s.y - y) ** 2 <= (s.R + pad) ** 2) return s;
   return null;
 }
 

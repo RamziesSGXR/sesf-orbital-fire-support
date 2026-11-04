@@ -34,20 +34,20 @@ await page.goto(PAGE); await page.waitForTimeout(600);
 // ---------------------------------------------------------------- the lock-in
 await tap('#btn-play'); await page.waitForTimeout(250);
 if (await page.isVisible('#btn-notice')) { await tap('#btn-notice'); await page.waitForTimeout(250); }
-check('PLAY shows the difficulty lock-in first', await on('s-lock') && (await ev(() => window.__game.state)) === 'title');
-const lk = await ev(() => ({ lv: document.getElementById('lock-level').textContent, name: document.getElementById('lock-name').textContent, rules: [...document.querySelectorAll('#lock-rules li')].map((l) => l.textContent), go: document.getElementById('btn-lock').textContent, big: getComputedStyle(document.getElementById('lock-level')).fontSize }));
-check('it shows the level big, with its name', lk.lv === '7' && lk.name.length > 2 && parseFloat(lk.big) >= 50, `${lk.lv} ${lk.name} ${lk.big}`);
-check('and how a session ends (lives, failing, retry, objective done)', lk.rules.length === 4 && /20 lives/.test(lk.rules[0]) && /fails/.test(lk.rules[1]) && /retry/.test(lk.rules[2]) && /objective/.test(lk.rules[3]), lk.rules[1]);
-check('the button says where the session starts', /START AT LEVEL 7/.test(lk.go), lk.go);
+check('(0.37) QUICK PLAY shows NEW OPERATION first', await on('s-lock') && (await ev(() => window.__game.state)) === 'title' && /NEW OPERATION/.test(await page.textContent('#lock-h')));
+const lk = await ev(() => ({ on: document.querySelector('#diff-row .dl.on')?.textContent, name: document.getElementById('diff-name').textContent, rules: [...document.querySelectorAll('#lock-rules li')].map((l) => l.textContent), go: document.getElementById('btn-lock').textContent, enemy: !!document.getElementById('enemy-row').offsetParent, cs: !!document.getElementById('callsign').offsetParent, names: !!document.getElementById('btn-names-t').offsetParent }));
+check('it has the callsign, SQUAD NAMES, the level (picked, with its name) and the enemy', lk.on === '7' && /7 · /.test(lk.name) && lk.enemy && lk.cs && lk.names, JSON.stringify(lk).slice(0, 200));
+check('(0.37) and how an operation works: what carries over, lives, failing, retry, objective done', lk.rules.length === 5 && /carries over/.test(lk.rules[0]) && /20 lives/.test(lk.rules[1]) && /fails/.test(lk.rules[2]) && /retry/.test(lk.rules[3]) && /objective/.test(lk.rules[4]), lk.rules[0]);
+check('the button says where the operation starts', /START AT LEVEL 7/.test(lk.go), lk.go);
+check('the note says the level is where you start, and that it climbs', /You start here/.test(await ev(() => document.getElementById('diff-note').textContent)) && /no cap/.test(await ev(() => document.getElementById('diff-note').textContent)));
 await shot('lock');
 await tap('#btn-lock-change'); await page.waitForTimeout(400);
-check('CHANGE DIFFICULTY goes back to the title, no session started', !(await on('s-lock')) && (await ev(() => window.__game.state)) === 'title' && !(await ev(() => window.__game.session)));
-check('the title says the level is where the session starts, and that it climbs', /where you start/.test(await ev(() => document.getElementById('diff-note').textContent)) && /past 10/.test(await ev(() => document.getElementById('diff-note').textContent)));
-await tap('#diff-row .dl:nth-child(5)'); await page.waitForTimeout(150);
+check('BACK goes back to the title, no operation started', !(await on('s-lock')) && (await ev(() => window.__game.state)) === 'title' && !(await ev(() => window.__game.session)));
 await tap('#btn-play'); await page.waitForTimeout(300);
-check('a new pick shows on the lock-in', (await ev(() => document.getElementById('lock-level').textContent)) === '5');
+await tap('#diff-row .dl:nth-child(5)'); await page.waitForTimeout(150);
+check('a new pick shows on the button', /START AT LEVEL 5/.test(await page.textContent('#btn-lock')));
 await tap('#btn-lock'); await page.waitForTimeout(500);
-check('LOCK IN starts the session at that level', (await ev(() => window.__game.state)) === 'shop' && (await ev(() => window.__game.session.difficulty)) === 5);
+check('START starts the operation at that level', (await ev(() => window.__game.state)) === 'shop' && (await ev(() => window.__game.session.difficulty)) === 5);
 
 // ---------------------------------------------------------------- the armory and the brief
 const shopTxt = await ev(() => document.getElementById('shop-root').textContent);
@@ -134,7 +134,7 @@ const d1 = await ev(() => ({ out: document.getElementById('d-outcome').textConte
 check('lives gone before the objective: DEFEAT', d1.out === 'DEFEAT' && /main objective/.test(d1.why), d1.why);
 check('the failed debrief offers RETRY MISSION, with the credits it goes back to', d1.retry === 'RETRY MISSION' && d1.note.includes(cr0.toLocaleString('en-US')), d1.note);
 // (0.27) the after action report, for Discord
-check('(0.19.4, 0.27) the mission\'s after action report is on the debrief, ready to copy', /^\*\*ORBITAL FURY · AFTER ACTION REPORT\*\*/.test(d1.text) && /Mission 1 · DIFFICULTY/.test(d1.text) && /\*\*Result:\*\* DEFEAT/.test(d1.text) && /session [\d,]+ after 1 mission/.test(d1.text) && d1.text.length < 2000 && !/SESSION ID|ORBITALFURY|https?:/.test(d1.text), d1.text.replace(/\n/g, ' / '));
+check('(0.19.4, 0.27) the mission\'s after action report is on the debrief, ready to copy', /^\*\*ORBITAL FURY · AFTER ACTION REPORT\*\*/.test(d1.text) && /Mission 1 · DIFFICULTY/.test(d1.text) && /\*\*Result:\*\* DEFEAT/.test(d1.text) && /operation [\d,]+ after 1 mission/.test(d1.text) && d1.text.length < 2000 && !/SESSION ID|ORBITALFURY|https?:/.test(d1.text), d1.text.replace(/\n/g, ' / '));
 check('a failed mission still ends the saved session', d1.saved === null);
 await tap('#btn-copy-d'); await page.waitForTimeout(300);
 const msg = await ev(() => document.getElementById('d-msg').textContent);

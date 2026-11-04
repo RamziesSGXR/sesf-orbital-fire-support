@@ -2475,3 +2475,79 @@ body.rts.lay-phone #hud #selpanel .tc-sel:has(.ts-doors) .ts-h { flex: 0 1 auto;
 body.rts.lay-phone #hud #selpanel .tc-sel:has(.ts-doors) .ts-h i, body.rts.lay-phone #hud #selpanel .tc-sel:has(.ts-doors) .ts-r { display: none; }
 body.rts.lay-phone #hud #selpanel .tc-sel:has(.ts-doors) .ts-hp { width: 32px; }
 body.rts.lay-phone #hud #selpanel .tsd { padding: 0 6px; letter-spacing: 0.02em; }
+
+/* ---------- (0.37) the title: the tutorial in the big window, QUICK PLAY under CAMPAIGN; NEW OPERATION; the campaign's progress ---------- */
+.tt-tut .tt-h { display: flex; align-items: center; gap: 10px; }
+.tt-new { font-style: normal; font-size: 10px; letter-spacing: 0.12em; padding: 2px 7px; border-radius: 2px; background: var(--yellow); color: #111; }
+.tt-tut-n { margin: 0 0 8px; text-align: left; font: 800 clamp(22px, 2.6vw, 30px)/1.05 var(--mono); letter-spacing: 0.02em; color: var(--yellow); }
+.tt-tut-p { margin: 0 0 14px; text-align: left; font-size: 13px; line-height: 1.55; color: #e6fff0; }
+.lockcard { max-height: calc(100dvh - 24px); overflow-y: auto; width: min(94vw, 520px); }
+.lock-sub { margin: 0 auto 12px; max-width: 460px; font-size: 12.5px; line-height: 1.5; color: var(--g-dim); }
+.lock-who { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; margin: 0 0 12px; }
+.lock-who .field { margin: 0; flex: 1 1 240px; justify-content: flex-start; }
+.lock-who .field input { flex: 1; width: auto; min-width: 0; }
+.lock-names { min-height: 34px; padding: 4px 12px; font-size: 11px; letter-spacing: 0.1em; }
+.lockcard .diff-row, .lockcard .enemy-row { max-width: none; }
+.lockcard .diff-h { text-align: left; }
+.lockcard .diff-note { max-width: none; text-align: left; min-height: 0; }
+.lockcard .diff.hidden, #lock-run.hidden { display: none; }
+.cp-prog { margin: -6px 0 14px; font-size: 12px; letter-spacing: 0.14em; color: #7dff9b; }
+.cp-ch .cp-btns { grid-column: 3; grid-row: 1 / span 3; display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+.cp-ch .cp-btns .btn, .cp-ch .cp-btns .cp-lock { grid-column: auto; grid-row: auto; }
+.cp-ch.done::before { color: #7dff9b; }
+.cp-ch.run { border-color: rgba(255, 230, 0, 0.6); }
+.cp-ok { font-style: normal; font-size: 9.5px; letter-spacing: 0.12em; padding: 1px 6px; margin-left: 6px; color: #7dff9b; border: 1px solid rgba(125, 255, 155, 0.6); vertical-align: 2px; }
+.cp-ch p.cp-teach { color: #9fd3ff; font-size: 11.5px; }
+@media (max-width: 560px) { .cp-ch .cp-btns { grid-column: 1 / -1; grid-row: auto; flex-direction: row; flex-wrap: wrap; } }
+@media (max-width: 600px) and (min-height: 521px) {
+  .tt-tut-n { font-size: 22px; margin-bottom: 4px; }
+  .tt-tut-p { font-size: 12px; margin-bottom: 8px; line-height: 1.45; }
+  .tt-menu { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .tt-menu .tt-item { grid-column: span 2; }
+  .tt-menu .tt-resume, .tt-menu #btn-campaign, .tt-menu #btn-play { grid-column: 1 / -1; }
+  .lockcard { padding: 14px 12px 12px; }
+  .lockcard h2 { margin-bottom: 4px; }
+  .lock-sub { margin-bottom: 8px; font-size: 12px; }
+  .lockcard .lock-rules { font-size: 11.5px; }
+}
+@media (max-height: 520px) and (min-width: 600px) {
+  .tt-tut-p { font-size: 11.5px; margin-bottom: 8px; }
+  .tt-tut-n { font-size: 20px; margin-bottom: 4px; }
+  .tt-menu .tt-resume, .tt-menu #btn-campaign, .tt-menu #btn-play { grid-column: 1 / -1; }
+}
+/* NEW OPERATION on a computer: the choices on the left, how an operation works and START on the right, all on one screen */
+@media (min-width: 900px) {
+  #s-lock:not([data-mode="tut"]) .lockcard { width: min(94vw, 1000px); }
+  #s-lock:not([data-mode="tut"]) .lock-cols { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 0 28px; text-align: left; }
+  #s-lock:not([data-mode="tut"]) .lock-r { display: flex; flex-direction: column; border-left: 1px solid var(--line); padding-left: 24px; }
+  #s-lock:not([data-mode="tut"]) .lock-r h3 { margin-top: 0; text-align: left; }
+  #s-lock:not([data-mode="tut"]) .lock-rules { margin: 0 0 10px; max-width: none; }
+  #s-lock:not([data-mode="tut"]) .lock-r .btns { margin-top: auto; justify-content: flex-start; }
+}
+/* NEW OPERATION on a phone: the long notes go, the callsign and SQUAD NAMES share a row, and START stays in view at the bottom */
+@media (max-width: 899px) {
+  #s-lock .lock-r .btns { position: sticky; bottom: -14px; margin: 8px -12px -14px; padding: 10px 12px 12px; background: linear-gradient(180deg, rgba(2, 10, 6, 0.85), rgba(2, 10, 6, 0.98) 30%); z-index: 2; }
+}
+@media (max-width: 600px) {
+  #s-lock .diff-note { display: none; }
+  #s-lock .lock-who { flex-wrap: nowrap; gap: 6px; }
+  #s-lock .lock-who .field { flex: 1 1 auto; gap: 6px; }
+  #s-lock .lock-names { padding: 4px 8px; font-size: 10px; letter-spacing: 0.06em; min-height: 36px; white-space: nowrap; }
+}
+/* (0.37) SUPPORT: GitHub Sponsors, on the title menu and the credits */
+.tt-item.sp { color: #ff9fd0; }
+.tt-item.sp:hover, .tt-item.sp:focus-visible { color: var(--yellow); }
+.cr-sp h4 { color: #ff9fd0; }
+.btn.sp:not(.tt-item) { border-color: rgba(255, 159, 208, 0.7); color: #ffb8dc; }
+@media (max-width: 600px) and (min-height: 521px) { .tt-menu .tt-item { grid-column: span 3; } }
+/* (0.37) the campaign on a computer: the progress line under the notice, five chapters that start at the top (the screen scrolls
+   when they do not all fit, so BACK is always in reach), each a little tighter */
+@media (min-width: 1000px) {
+  body:not(.touch) .cp { align-content: start; grid-template-areas: "back back" "eye eye" "title title" "story dev" "story prog" "story chs"; grid-template-rows: auto auto auto auto auto 1fr; }
+  body:not(.touch) .cp-prog { grid-area: prog; margin: 0 0 10px; }
+  body:not(.touch) .cp-ch { padding: 9px 12px; gap: 2px 12px; }
+  body:not(.touch) .cp-ch p { font-size: 11.5px; line-height: 1.45; }
+  body:not(.touch) .cp-ch p.cp-teach { font-size: 11px; }
+}
+#s-campaign { overflow-y: auto; }
+@media (min-width: 1000px) { body:not(.touch) #s-campaign { justify-content: safe center; } }

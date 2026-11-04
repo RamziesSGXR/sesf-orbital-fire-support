@@ -23,10 +23,15 @@ await page.addInitScript(() => { try { localStorage.clear(); localStorage.setIte
 await page.goto(`file://${ROOT}/dist/orbital-fury.html?skipstart`); await page.waitForTimeout(1500);
 
 // ---------------------------------------------------------------- the title screen
-const ids = ['#btn-play', '#btn-campaign', '#btn-tutorial', '#btn-names-t', '#btn-settings', '#btn-credits-t', '#lnk-fb-t', '#callsign', '#diff-row', '#enemy-row', '#langs'];
+const ids = ['#btn-play', '#btn-campaign', '#btn-tutorial', '#btn-settings', '#btn-credits-t', '#lnk-fb-t', '#lnk-sp-t', '#langs'];
 const missing = [];
 for (const q of ids) { await page.locator(q).scrollIntoViewIfNeeded(); if (!(await page.isVisible(q))) missing.push(q); }
-check('the title has everything it had, and CAMPAIGN', missing.length === 0, missing.join(' ') || 'all there');
+check('(0.37) the title: the tutorial, CAMPAIGN, QUICK PLAY, settings, credits, feedback, SUPPORT and the languages', missing.length === 0, missing.join(' ') || 'all there');
+const gone = await ev(() => ['callsign', 'diff-row', 'enemy-row', 'btn-names-t'].filter((id) => document.getElementById(id) && document.getElementById(id).offsetParent));
+check('(0.37) ...and no callsign, difficulty, enemy or SQUAD NAMES on it: NEW OPERATION asks for those', gone.length === 0, gone.join(' '));
+const order = await ev(() => [...document.querySelectorAll('.tt-menu > *')].filter((e) => !e.classList.contains('hidden')).map((e) => e.id));
+check('(0.37) QUICK PLAY sits under CAMPAIGN', order.indexOf('btn-play') === order.indexOf('btn-campaign') + 1, order.join(' '));
+check('(0.37) SUPPORT goes to GitHub Sponsors', /github\.com\/sponsors\/RamziesSGXR/.test(await ev(() => document.getElementById('lnk-sp-t').href)));
 await ev(() => { document.getElementById('s-title').scrollTop = 0; }); await page.waitForTimeout(300);
 const bg = await ev(() => { const c = document.getElementById('title-bg'), x = c.getContext('2d'); if (!c.width || getComputedStyle(c).display === 'none') return -1;
   const d = x.getImageData(0, 0, c.width, c.height).data; let lit = 0; for (let i = 0; i < d.length; i += 400) if (d[i] + d[i + 1] + d[i + 2] > 60) lit++; return lit; });
@@ -44,8 +49,9 @@ await shot('title');
 await tap('#btn-campaign'); await page.waitForTimeout(500);
 check('CAMPAIGN opens the test story', await page.isVisible('#s-campaign'));
 const cp = await ev(() => ({ t: document.getElementById('cp-title').textContent, dev: document.querySelector('.cp-dev').textContent, ch: document.querySelectorAll('.cp-ch').length, play: document.querySelectorAll('.cp-ch .btn').length, p: document.querySelectorAll('#cp-story p').length }));
-check('it has a title, a story, and a notice that it is in development', cp.t.length > 3 && cp.p === 3 && /in development/i.test(cp.dev) && /saved yet/i.test(cp.dev), JSON.stringify(cp).slice(0, 160));
-check('(0.27) three chapters, and every one can be played', cp.ch === 3 && cp.play === 3);
+check('it has a title, a story, and a notice that it is in development (and that progress is kept)', cp.t.length > 3 && cp.p === 3 && /in development/i.test(cp.dev) && /kept on this browser/i.test(cp.dev), JSON.stringify(cp).slice(0, 160));
+check('(0.38) five chapters; only the first is open on a fresh browser', cp.ch === 5 && cp.play === 1 && (await ev(() => document.querySelectorAll('.cp-ch.locked').length)) === 4, JSON.stringify(cp).slice(0, 160));
+check('(0.38) each says what it teaches', (await ev(() => document.querySelectorAll('.cp-ch .cp-teach').length)) === 5);
 const roster = await ev(() => [...document.querySelectorAll('.cp-cast li')].map((li) => li.textContent));
 check('(0.27) the command roster: General Ramzies, KTL, Rudolph the Red, Neonboot and Mota, with their units', roster.length === 5 && /GENERAL RAMZIES/.test(roster[0]) && /P\.H\.A\.N\.T\.O\.M\./.test(roster[1]) && /Tibit Tigers/.test(roster[2]) && /F\.E\.A\.R\..*Science/.test(roster[3]) && /Knight of Midnight.*Defense/.test(roster[4]), roster.join(' | ').slice(0, 200));
 const bg2 = await ev(() => getComputedStyle(document.getElementById('title-bg')).display);
@@ -56,7 +62,7 @@ check('BACK goes to the title', await page.isVisible('#s-title') && !(await page
 await tap('#btn-campaign'); await page.waitForTimeout(400);
 await tap('.cp-ch:first-child .btn'); await page.waitForTimeout(400);
 if (await page.isVisible('#btn-notice')) { await tap('#btn-notice'); await page.waitForTimeout(250); }
-check('PLAY CHAPTER 1 asks for the lock-in like a new session', await page.isVisible('#btn-lock'));
+check('(0.37) PLAY CHAPTER 1 asks NEW OPERATION: callsign, names and the level, no enemy (the story sets it)', await page.isVisible('#btn-lock') && await page.isVisible('#diff-row') && !(await page.isVisible('#enemy-row')) && /Chapter 1/.test(await page.textContent('#lock-sub')));
 await tap('#btn-lock'); await page.waitForTimeout(500);
 const st = await ev(() => JSON.stringify(window.__game.session.story));
 check('the session is the story\'s', /"ch":1/.test(st), st);
@@ -87,7 +93,10 @@ check('(0.27) a chapter ends with its debrief, before the debrief screen', db.on
 await tap('#cine-skip'); await page.waitForFunction(() => document.getElementById('s-debrief').classList.contains('on'), null, { timeout: 8000 });
 await page.waitForTimeout(600);
 const aar = await page.inputValue('#d-text');
-check('(0.27) the debrief screen has the after action report for Discord, the chapter in it', /^\*\*ORBITAL FURY · AFTER ACTION REPORT\*\*/.test(aar) && /chapter 1 of 3/.test(aar) && /> RAMZIES:/.test(aar) && /COPY FOR DISCORD/.test(await page.textContent('#btn-copy-d')), aar.split('\n').slice(0, 3).join(' / '));
+check('(0.27) the debrief screen has the after action report for Discord, the chapter in it', /^\*\*ORBITAL FURY · AFTER ACTION REPORT\*\*/.test(aar) && /chapter 1 of 5/.test(aar) && /> RAMZIES:/.test(aar) && /COPY FOR DISCORD/.test(await page.textContent('#btn-copy-d')), aar.split('\n').slice(0, 3).join(' / '));
+// (0.37) the chapter cleared is kept on this browser, with the run as it stood; the campaign run goes on in its own save
+const prog = await ev(() => ({ c: JSON.parse(localStorage.getItem('ofs.campaign') || 'null'), run: JSON.parse(localStorage.getItem('ofs.campRun') || 'null'), quick: localStorage.getItem('ofs.session') }));
+check('(0.37) clearing chapter 1 saves it: cleared, with the run as it stood, kept apart from QUICK PLAY', prog.c && prog.c.done.join() === '1' && prog.c.ck['1'] && prog.c.ck['1'].missions.length === 1 && prog.run && prog.run.story && !prog.quick, JSON.stringify({ done: prog.c && prog.c.done, run: !!prog.run, quick: !!prog.quick }));
 // the rest is a normal session
 await ev(() => { window.__game.session.story = null; });
 const win = async () => {

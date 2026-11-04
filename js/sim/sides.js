@@ -5,6 +5,9 @@
 //   hidden SEAF:       a SEAF squad lying low (the sheep of an old strategy game): nobody sees them or anything round them, and
 //                      they see nothing for the player, until a Helldiver or a SEAF trooper walks close by. Then they join.
 //                      (Nobody goes looking for them: they are near the ways the squad is likely to walk.)
+//   jammer (0.37):     an enemy structure only a Hellbomb brings down (a spore spewer, a stratagem jammer, a cognitive disruptor,
+//                      by the enemy): no orbital can be called within its reach while it stands. The squad clears round it and asks
+//                      the gunner for a Hellbomb (ops.js); the enemy broadcast tower takes one too.
 // Drop beacons: places the player can send a SEAF drop to without a strike zone. SEAF build them (seaf.js); a radio tower powered
 // up keeps the ground round it in view for the rest of the mission (a relay, mission.js visLevel).
 import { CONFIG as C } from '../config.js';
@@ -17,6 +20,9 @@ import { seafStats } from '../data/kit.js';
 import { aoScale, inAO } from './ao.js';
 import { findSpot } from './objectives.js';
 import { alertGroup } from './enemies.js';
+import { hbRequest, hbStep, hbCancel } from './ops.js';
+import { t as tr } from '../i18n.js';
+import { RNG } from '../util/rng.js';
 
 const SD = () => C.sides;
 
@@ -63,9 +69,25 @@ export function setupSides(m) {
       m.sides.push(s);
     }
   }
+  // (0.37) a jammer, rolled and placed from a stream of its own so the rest of the map (and everything after) rolls as it did
+  // before there were any
+  const jr = new RNG((m.seed ^ 0x3c6ef372) >>> 0);
+  const jamRoll = jr.next();
+  if (!m.noHbSides && (m.forceJam || ((m.missionN || 1) >= S.jammer.fromMission && jamRoll < S.jammer.chance))) {     // (0.38: a chapter can ask for one, or for none)
+    const r0 = m.rng; m.rng = jr;
+    try { const p = findSpot(m, avoid(), 70, way); addJammer(m, p.x, p.y); } finally { m.rng = r0; }
+  }
   // SEAF drop beacons are no longer on the map at the start: SEAF build them (seaf.js, the build order)
   m.beacons = [];
 }
+// (0.37) a jammer at (x, y) (the tutorial puts one down too)
+export function addJammer(m, x, y) {
+  const J = SD().jammer, fac = m.faction.id;
+  const s = { id: m.nextId++, side: true, kind: 'jammer', fac, get name() { return tr('side.jam.' + fac); }, x, y, r: J.r, R: J.R, state: 'idle', done: false, failed: false, callT: 0, face: m.rng.angle() };
+  m.sides.push(s);
+  return s;
+}
+
 
 export const beaconLit = (m, b) => b.relit || b.built || m.t < C.beacons.darkSec;
 // A lit beacon a SEAF drop at (x, y) can use, or null.
@@ -91,10 +113,13 @@ function finish(m, s, ok) {
 }
 
 // A propaganda tower has been destroyed (pois.js damagePoi).
-export function sideDestroyed(m, p) { if (!p.failed) finish(m, p, true); }
+export function sideDestroyed(m, p) { hbCancel(m, p); if (!p.failed) finish(m, p, true); }
 
 export function updateSides(m, dt) {
   const S = SD();
+  // (0.37) a Hellbomb already armed for a side that fell some other way still goes off
+  const hb = m.hellbomb;
+  if (hb && hb.state === 'armed' && hb.o && hb.o.side && (hb.o.done || hb.o.failed)) hbStep(m, hb.o, dt, null);
   for (const s of m.sides || []) {
     if (s.done || s.failed) continue;
     if (s.kind === 'radio') {
@@ -126,8 +151,14 @@ export function updateSides(m, dt) {
         m.emit('arty_new', { x: s.x, y: s.y, captured: true });
         finish(m, s, true);
       }
+    } else if (s.kind === 'jammer') {
+      // the squad there and the ground clear: a Hellbomb; it is the only thing that brings one down
+      if (m.hellbomb && m.hellbomb.o === s) { if (hbStep(m, s, dt, () => siteActivity(m, s, dt))) finish(m, s, true); continue; }
+      if (hbRequest(m, s, s, tr('c.hb.callSide', { name: s.name }))) { s.state = 'bomb'; m.emit('side_state', { kind: 'jammer', state: 'bomb', x: s.x, y: s.y }); }
     } else if (s.kind === 'propaganda') {
-      if (s.done) continue;
+      // (0.37) a tower still standing strong when the squad gets there: they call a Hellbomb on it (its guns still work on it too)
+      if (m.hellbomb && m.hellbomb.o === s) { if (hbStep(m, s, dt, null) && !s.done) { s.hp = 0; s.done = true; s.by = 'strat'; finish(m, s, true); m.emit('poi_down', { x: s.x, y: s.y, r: s.r, id: s.id }); } }
+      else if (!m.noHbSides && (m.missionN || 1) >= S.jammer.fromMission && s.hp > s.maxHp * S.propBomb) hbRequest(m, s, s, tr('c.hb.callSide', { name: s.name }));
       // while it stands it rallies the patrols round it onto the squad, when the squad is in its reach
       s.rallyT -= dt;
       if (s.rallyT <= 0) {

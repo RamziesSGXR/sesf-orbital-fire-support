@@ -5,6 +5,7 @@
 import { Mission } from '../js/sim/mission.js';
 import { fireSlot, syncSlots } from '../js/sim/player.js';
 import { CONFIG as C } from '../js/config.js';
+C.sides.jammer.chance = 0;     // (0.37: no jammer sites here: these checks call strikes and plan tours on maps rolled before there were any)
 import { STRATS, STRAT_IDS, HD_ORB_IDS, PLAYER_IDS } from '../js/data/strat.js';
 import { newKit, newWallet, shopItems, buy, tierFor, TIER_MAX, itemTier, shownAt, tierItems } from '../js/data/kit.js';
 

@@ -12,6 +12,8 @@ import { spawnGroup } from './director.js';
 import { damageArea } from './combat.js';
 import { COMMS } from '../data/data.js';
 import { t as tr } from '../i18n.js';
+import { addJammer } from './sides.js';
+import { askSupply } from './supply.js';
 
 export const LAST_STAND = { seed: 20185052, faction: 'squids', biome: 'mars', level: 3, tod: 5.6 };     // (0.19.5: level 1, and it climbs; 0.36.1: it starts at 3)
 const L = () => C.lastStand;
@@ -98,6 +100,28 @@ export function lsSpawn(m, kind, ang) {
   const g = spawnGroup(m, x, y, 'hunt', { kinds, alertT: 120 });
   g.target = { x: o.x, y: o.y }; g.tp = { x: o.x, y: o.y };
   return g;
+}
+
+// (0.37) The Hellbomb lesson: the Great Host drops a cognitive disruptor near the base (off to the side, so the base itself is
+// not jammed). The Helldivers go for it as a side task; it only falls to a Hellbomb.
+export function lsJammer(m) {
+  const o = m.objectives.find((q) => q.lastStand);
+  if (!o || m.over || m.lsJam) return m.lsJam || null;
+  const { px, py } = m.lsAxis || { px: 0, py: -1 }, D = L().jamOff;
+  let x = o.x + px * D, y = o.y + py * D;
+  if (!dryAt(m, x, y)) { x = o.x - px * D; y = o.y - py * D; }
+  if (!dryAt(m, x, y)) { const l = m.terrain.nearestLand(x, y, 60) || { x, y }; x = l.x; y = l.y; }
+  const s = addJammer(m, x, y);
+  s.R = L().jamR; s.must = true;
+  m.lsJam = s;
+  if (m.plan) m.plan.t = 0;       // (the squad looks at it now)
+  return s;
+}
+// (0.37) The resupply lesson: a Helldiver asks for a supply pod now (they have run low on stims and grenades).
+export function lsSupply(m) {
+  if (!m.hdAlive.length) return false;
+  for (const a of m.hdAlive) { a.stims = Math.min(a.stims, 1); a.gren = 0; }
+  return askSupply(m);
 }
 
 // The evacuation opens: the shelter doors and the waves.

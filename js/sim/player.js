@@ -267,7 +267,9 @@ function landUtil(m, u) {
 export function fireSlot(m, idx) {
   const p = m.player, s = p.slots[idx];
   if (!s || s.type === 'empty') return false;
-  if (s.type !== 'nuke' && jammedAt(m, p.aimX, p.aimY)) return deny(m, 'jammed', COMMS.jammed);   // a commander jams the ground round it
+  { const j = s.type !== 'nuke' && s.type !== 'gun' ? jammedAt(m, p.aimX, p.aimY) : null;     // a commander jams the ground round it; (0.37) so does a jammer site
+    if (j) return j.side ? deny(m, 'jamsite', tr('c.jamSite', { name: j.name })) : deny(m, 'jammed', COMMS.jammed); }
+  if (s.type === 'gun' && jammedAt(m, p.aimX, p.aimY, 0, true)) return deny(m, 'jammed', COMMS.jammed);
   if (s.type !== 'uav' && s.type !== 'nuke' && domeAt(m, p.aimX, p.aimY)) return deny(m, 'shielded', tr('c.shielded'));   // a shield dome (ops.js)
   if (s.type === 'uav') return fireUav(m, s);
   if (s.type === 'nuke') {   // works anywhere on the map, once the launch site is armed
@@ -320,7 +322,7 @@ export function updatePlayer(m, dt) {
     info.splash = (gs.spread + gs.bloom * g.bloom) * (m.evading ? C.objective.cannon.gunMul : 1); info.ready = info.inZone && g.ammo >= 1 && !g.dry;
     info.gun = { ammo: g.ammo, max: g.max, dry: g.dry };
   } else { info.inZone = false; info.ready = false; }
-  info.jammed = s.type !== 'nuke' && !!jammedAt(m, p.aimX, p.aimY);
+  { const j = s.type === 'nuke' ? null : jammedAt(m, p.aimX, p.aimY, 0, s.type === 'gun'); info.jammed = !!j; info.jamSite = !!(j && j.side); }     // (0.37: the ship gun still fires into a jammer site)
   info.shielded = s.type !== 'nuke' && s.type !== 'uav' && !!domeAt(m, p.aimX, p.aimY);
   if (info.jammed) info.ready = false;
   info.ok = info.ready;
@@ -382,7 +384,7 @@ export function updatePlayer(m, dt) {
 function updateGun(m, dt, pressed) {
   const p = m.player, g = p.gun, G = C.gun, gs = gunStats(m.kit), t = m.t;
   const holding = p.slots[p.weapon].type === 'gun' && p.firing && t >= p.swapUntil;
-  const jam = holding && (!!jammedAt(m, p.aimX, p.aimY) || !!domeAt(m, p.aimX, p.aimY));
+  const jam = holding && (!!jammedAt(m, p.aimX, p.aimY, 0, true) || !!domeAt(m, p.aimX, p.aimY));
   const seen = holding && !jam && (m.visLevel(p.aimX, p.aimY) > 0 || !!m.nearLock(p.aimX, p.aimY));   // a locked enemy can be shot unseen
   if (g.dry && g.ammo >= 45) g.dry = false;
   if (holding && pressed) {

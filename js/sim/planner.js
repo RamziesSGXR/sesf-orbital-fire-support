@@ -5,6 +5,7 @@
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
 import { activeObjective, objectiveGoal, startExtract } from './objectives.js';
+import { hellbombGoal } from './ops.js';
 import { aoScale } from './ao.js';
 import { t as tr } from '../i18n.js';
 
@@ -69,6 +70,7 @@ function choose(m) {
     const o = activeObjective(m), mp = mainPoint(m);
     const main = { kind: 'main', ref: o, x: mp ? mp.x : here.x, y: mp ? mp.y : here.y };
     if (!mp || mainBusy(m)) return main;
+    { const must = tasks.find((k) => k.ref && k.ref.must); if (must) return must; }     // (0.37) a side the tutorial (or a story) sends them to first
     const toMain = dist(here, main), detour = aoScale(m, P.detour);
     let best = null, bd = Infinity;
     for (const k of tasks) {
@@ -147,6 +149,13 @@ export function updatePlan(m, dt) {
   const stale = !cur || (cur.kind === 'main' ? (cur.ref.done || activeObjective(m) !== cur.ref) : !taskOpen(cur) || (m.phase === 'objective' && mainBusy(m)));
   // a full clear is called off as soon as the lives run down to clearLives: the squad breaks off and goes for extraction
   const abort = m.phase === 'clear' && !!cur && m.hd.lives <= PL().clearLives;
+  // (0.37) a Hellbomb under way for a side objective: that is the task (even if they were passing it on the way somewhere else),
+  // and nobody leaves it until it has gone off (or been called off)
+  const hb = m.hellbomb;
+  if (hb && hb.o && hb.o.side && ['fill', 'inbound', 'landed', 'armed'].includes(hb.state)) {
+    if (!cur || cur.ref !== hb.o) pl.task = { kind: hb.o.kind, ref: hb.o, x: hb.o.x, y: hb.o.y };
+    pl.t = PL().every; return;
+  }
   if (!stale && !abort && pl.t > 0) return;
   // keep at a task already being worked (a radio tower half powered, a base under fire, a rescue in progress)
   if (!stale && !abort && cur.kind !== 'main' && Math.hypot(m.squad.ax - cur.x, m.squad.ay - cur.y) < PL().keepR) { pl.t = PL().every; return; }
@@ -182,6 +191,9 @@ export function planGoal(m) {
   const k = m.plan && m.plan.task;
   if (!k || !taskOpen(k)) return null;
   if (k.kind === 'base') return { base: k.ref };
+  const hg = hellbombGoal(m, k.ref);       // (0.37) a Hellbomb for it: at the bomb to arm it, then well clear
+  if (hg) return { ...hg, side: k.ref };
+  if (k.kind === 'jammer') return { x: k.x, y: k.y, stop: 14, side: k.ref };
   if (k.kind === 'propaganda') return { x: k.x, y: k.y, stop: 20, side: k.ref };
   if (k.kind === 'radio') return { x: k.x, y: k.y, stop: 5, side: k.ref };
   return { x: k.x, y: k.y, stop: 10, side: k.ref };     // a rescue

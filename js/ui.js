@@ -79,22 +79,33 @@ export function anyOverlay() { return OVERLAYS.some((o) => $(o).classList.contai
 export function hideOverlays() { for (const o of OVERLAYS) overlay(o, false); }
 
 // (0.24) The campaign screen: the test story, and its chapters (only those that can be played have a button).
-export function fillCampaign(story, onPlay) {
+// (0.37) the chapters in order: cleared ones can be replayed, the next one is open, the rest wait for the one before. st: { prog
+// (session.js getCampaign), run (the campaign run under way, or null), onResume }
+export function fillCampaign(story, onPlay, st = {}) {
+  const prog = st.prog || { done: [], ck: {} }, run = st.run && st.run.story ? st.run : null;
   $('cp-title').textContent = t(`cp.${story.id}.t`);
-  const st = $('cp-story'); st.innerHTML = '';
-  for (const k of [1, 2, 3]) st.appendChild(el('p', '', esc(t(`cp.${story.id}.p${k}`))));
+  const box = $('cp-story'); box.innerHTML = '';
+  for (const k of [1, 2, 3]) box.appendChild(el('p', '', esc(t(`cp.${story.id}.p${k}`))));
   // (0.27) who is on the radio
-  st.appendChild(el('h3', 'cp-cast-h', esc(t('cp.cast'))));
+  box.appendChild(el('h3', 'cp-cast-h', esc(t('cp.cast'))));
   const ul = el('ul', 'cp-cast');
   for (const k of CAST_ORDER) { const c = CAST[k], li = el('li', '', `<b>${esc(c.name)}</b><small>${esc(t(c.unit))}</small>`); li.style.setProperty('--cc', c.col); ul.appendChild(li); }
-  st.appendChild(ul);
+  box.appendChild(ul);
+  const N = story.chapters.length, next = story.chapters.find((c) => !prog.done.includes(c.n));
+  const runCh = run ? story.chapters.find((c) => c.n === run.story.ch + (run.missions ? run.missions.length : 0)) : null;
+  $('cp-prog').textContent = t(prog.done.length >= N ? 'cp.progAll' : 'cp.prog', { n: prog.done.length, of: N });
   const ol = $('cp-chs'); ol.innerHTML = '';
   for (const c of story.chapters) {
-    const li = el('li', 'cp-ch' + (c.play ? '' : ' locked'));
-    li.appendChild(el('h3', '', esc(t(`cp.${story.id}.c${c.n}`))));
+    const done = prog.done.includes(c.n), open = done || c === next || (c.n > 1 && prog.done.includes(c.n - 1)) || c.n === 1;
+    const li = el('li', 'cp-ch' + (done ? ' done' : '') + (open ? '' : ' locked') + (c === runCh ? ' run' : ''));
+    li.appendChild(el('h3', '', `${esc(t(`cp.${story.id}.c${c.n}`))}${done ? ` <i class="cp-ok">${esc(t('cp.cleared'))}</i>` : ''}`));
     li.appendChild(el('p', '', esc(t(`cp.${story.id}.c${c.n}b`))));
-    if (c.play) { const b = el('button', 'btn primary', esc(t('cp.play', { n: c.n }))); b.type = 'button'; b.onclick = () => onPlay(c); li.appendChild(b); }
-    else li.appendChild(el('span', 'cp-lock', esc(t('cp.later'))));
+    if (c.teach) li.appendChild(el('p', 'cp-teach', esc(t(`cp.${story.id}.c${c.n}t`))));
+    const row = el('div', 'cp-btns');
+    if (c === runCh && st.onResume) { const b = el('button', 'btn primary', esc(t('cp.continue', { n: run.missions.length + 1 }))); b.type = 'button'; b.onclick = () => st.onResume(); row.appendChild(b); }
+    if (open && c.play) { const b = el('button', 'btn' + (c === runCh ? '' : ' primary'), esc(t(done ? 'cp.replay' : 'cp.play', { n: c.n }))); b.type = 'button'; b.onclick = () => onPlay(c); row.appendChild(b); }
+    else if (!open) row.appendChild(el('span', 'cp-lock', esc(t('cp.locked', { n: c.n - 1 }))));
+    li.appendChild(row);
     ol.appendChild(li);
   }
 }
@@ -1340,8 +1351,10 @@ export function squadStatus(m) {
     if (ao.type === 'fortress' && hb && hb.o === ao && hb.state === 'armed') return t('sq.runHb');
   }
   const k = m.plan && m.plan.task;
+  { const hb = m.hellbomb; if (k && k.ref && hb && hb.o === k.ref && hb.state === 'landed') return t('sq.armHb'); if (k && k.ref && hb && hb.o === k.ref && hb.state === 'armed') return t('sq.runHb'); }     // (0.37: a Hellbomb for a side task)
   if (k && k.kind !== 'main' && k.kind !== 'base' && !sq.engaged) {
     const near = Math.hypot(sq.ax - k.x, sq.ay - k.y) < 40, s = k.ref;
+    if (k.kind === 'jammer') return t(near ? 'sq.jamOn' : 'sq.jamGo', { name: s.name });
     if (k.kind === 'radio') return t(near && s.state === 'active' ? 'sq.radioOn' : 'sq.radioGo');
     if (k.kind === 'propaganda') return t(near ? 'sq.propOn' : 'sq.propGo');
     if (k.kind === 'arty') return t(near && s.state === 'active' ? 'sq.artyOn' : 'sq.artyGo');
@@ -1760,7 +1773,7 @@ function deathList(res) {
   return rows.join('');
 }
 export function fillDebrief(info, res, session, block = '', startCr = null) {
-  $('d-op').textContent = info.op;
+  $('d-op').textContent = info.chapter ? info.op : `${info.op} · ${t('hud.mission')} ${session && session.missions ? session.missions.length : 1}`;     // (0.37: the operation, and which mission of it)
   const o = $('d-outcome'); o.textContent = t('out.' + res.outcome); o.className = res.outcome;
   $('d-why').textContent = t('deb.why.' + res.outcome);
   const b = res.breakdown, s = res.stats;
@@ -1826,13 +1839,15 @@ export function armRetry(on) {
 export function fillFinal(session, fin, block) {
   const tt = sessionTotals(session);
   $('f-score').textContent = fmtNum(session.score);
+  $('f-eyebrow').textContent = session.op ? t('fin.eyebrowOp', { op: session.op }) : t('fin.eyebrow');     // (0.37: the operation's name)
   $('f-local').textContent = fin.isBest ? t('fin.best') : fin.bestBefore ? t('fin.bestWas', { n: fmtNum(Math.max(fin.bestBefore, session.score)) }) : '';
   const dl = session.difficulty || LEVELS, top = levelReached(session);
   $('f-diff').textContent = t('fin.diff', { n: dl, name: t(...levelName(dl)).toUpperCase() }) + (top > dl ? ' · ' + t('fin.reached', { n: top, name: t(...levelName(top)).toUpperCase() }) : '');
   $('f-totals').textContent = t('fin.totals', { e: fmtNum(tt.earned), s: fmtNum(tt.spent), k: fmtNum(tt.kills), h: tt.lostH, f: tt.lostS });
   $('f-table').innerHTML = session.missions.map((m, i) => {
     const boss = m.boss ? t('fin.boss', { name: bossName(m.boss), fate: t(m.boss.killed ? 'fin.killed' : 'fin.escaped') }) : '';
-    return `<tr><td>${i + 1}. ${esc(m.op)}<br><small style="color:var(--g-dim)">${esc(t('fin.row', { fac: FACTIONS[m.faction].name, biome: BIOMES[m.biome].name, out: t('out.' + m.outcome), kills: fmtNum(m.kills || 0) }) + boss)}</small></td><td>${fmtNum(m.score)}</td></tr>`;
+    const name = m.op && m.op !== session.op ? m.op.replace(/^Operation\s+/i, '') : t('hud.mission') + ' ' + (i + 1);     // (0.37: one operation; its missions by number)
+    return `<tr><td>${i + 1}. ${esc(name)}<br><small style="color:var(--g-dim)">${esc(t('fin.row', { fac: FACTIONS[m.faction].name, biome: BIOMES[m.biome].name, out: t('out.' + m.outcome), kills: fmtNum(m.kills || 0) }) + boss)}</small></td><td>${fmtNum(m.score)}</td></tr>`;
   }).join('') || `<tr><td>${esc(t('fin.none'))}</td><td>0</td></tr>`;
   $('f-text').value = block; $('f-text').rows = Math.min(14, block.split('\n').length);
   $('f-msg').textContent = '';
@@ -1977,20 +1992,30 @@ export function buildDiff(cur, saved, onPick) {
   $('diff-name').textContent = `${cur} · ${t('diff.' + cur).toUpperCase()}`;
   const f = levelFactors(cur), pay = f.reward.toFixed(2);
   let note = cur >= LEVELS ? t('title.diffMax', { pay }) : t('title.diffNote', { spawn: Math.round(f.spawn * 100), heavy: Math.round(f.heavy * 100), pay });
-  note += ' ' + t('title.diffLock');
-  if (saved && saved !== cur) note += ' ' + t('title.diffNew', { n: saved });
+  note += ' ' + t('lock.stay');      // (0.37: the climb, said once, in NEW OPERATION)
   $('diff-note').textContent = note;
 }
 
-// The notice before a new session: the level being locked in, and how a session ends.
-export function fillLock(level) {
-  const f = levelFactors(level), lives = C.helldivers.lives;
-  $('lock-level').textContent = String(level);
-  $('lock-name').textContent = t('diff.' + level).toUpperCase();
-  $('lock-pay').textContent = t('lock.pay', { x: f.reward.toFixed(2) });
-  $('lock-rules').innerHTML = ['lock.r1', 'lock.r2', 'lock.r3', 'lock.r4'].map((k) => `<li>${esc(t(k, { n: lives }))}</li>`).join('');
-  $('btn-lock').textContent = t('lock.go', { n: level });
-  $('s-lock').classList.toggle('hot', level >= 9);
+// (0.37) NEW OPERATION: what QUICK PLAY and a campaign chapter ask before they start (callsign, squad names, the starting level,
+// for QUICK PLAY the enemy, and how an operation works); the tutorial only asks the callsign. mode: 'quick', 'camp' or 'tut';
+// o: { level, chapter (the campaign's), from (a checkpoint: the chapter cleared it carries on from), replaces (a saved run goes) }
+export function fillLock(mode, o = {}) {
+  const lives = C.helldivers.lives, tut = mode === 'tut', camp = mode === 'camp', level = o.level || 3;
+  $('lock-eyebrow').textContent = t(tut ? 'lock.eyebrowTut' : camp ? 'lock.eyebrowCamp' : 'lock.eyebrowQuick');
+  $('lock-h').textContent = t(tut ? 'title.tutName' : 'lock.title');
+  let sub = '';
+  if (tut) sub = t('lock.subTut');
+  else if (camp && o.chapter) sub = t('lock.subCamp', { n: o.chapter.n, name: t(`cp.ember.c${o.chapter.n}`) }) + (o.from ? ' ' + t('lock.subFrom', { n: o.from }) : '');
+  else sub = t('lock.subQuick');
+  if (o.replaces) sub += ' ' + t(camp ? 'lock.replacesCamp' : 'lock.replaces');
+  $('lock-sub').textContent = sub;
+  $('diff').classList.toggle('hidden', tut);
+  $('enemy').classList.toggle('hidden', tut || camp);
+  $('lock-run').classList.toggle('hidden', tut);
+  $('lock-rules').innerHTML = ['lock.r0', 'lock.r1', 'lock.r2', 'lock.r3', 'lock.r4'].map((k) => `<li>${esc(t(k, { n: lives }))}</li>`).join('');
+  $('btn-lock').textContent = tut ? t('lock.goTut') : t('lock.go', { n: level });
+  $('s-lock').classList.toggle('hot', !tut && level >= 9);
+  $('s-lock').dataset.mode = mode;
 }
 
 // The field manual: everything the gunner can do, and the tips, by section (lists in the language tables).

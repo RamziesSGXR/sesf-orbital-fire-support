@@ -157,37 +157,45 @@ export function domeBlocks(m, b, fx, fy) {
 }
 
 // ---------------------------------------------------------------- the Hellbomb
+// (0.37) One Hellbomb job at a time, for whatever needs one: the citadel's keep (the objective), or a side objective only a
+// Hellbomb brings down (sides.js: the spore spewer, the stratagem jammer, the cognitive disruptor; the enemy broadcast tower takes
+// one too). owner: the objective or side it is for; tg: what it lands beside ({ x, y, r }). The job: fill (the gunner assembles it,
+// in slow motion) -> inbound -> landed (the nearest Helldiver arms it) -> armed (everyone runs) -> done (it goes off).
 const HB = () => O().hellbomb;
 export const HB_PARTS = ['casing', 'core', 'detonator', 'fuse'];
 export const hbFilling = (m) => !!(m.hellbomb && m.hellbomb.state === 'fill');
-
-// The citadel's step: called by objectives.js for a fortress objective each tick.
-export function updateKeep(m, o, dt, fns) {
-  const K = HB(), b = o.base, t = m.t;
-  if (b.destroyed) return;
-  const outer = (o.parts || []).filter((q) => q !== b);
-  let hb = m.hellbomb;
-  if (!hb || hb.o !== o) {
-    if (!outer.every((q) => q.destroyed)) return;
-    // the outer bases are down: the keep sends nobody more out, so it can be cleared; then call it in
-    b.quiet = true; o.outerDown = true;
-    let n = 0;
-    m.eGrid.near(b.x, b.y, K.clearR + b.r, () => { n++; });
-    o.keepClear = n < K.clearN;
-    if (o.keepClear && squadAt(m, b.x, b.y, b.r + K.clearR + 20) && t >= (o.hbRetry || 0)) startFill(m, o);
-    return;
-  }
+export const hbFree = (m) => !m.hellbomb || m.hellbomb.state === 'idle' || m.hellbomb.state === 'done';
+// Is the ground round tg clear enough to call one in (fewer than clearN enemies within clearR of it)?
+export function hbClear(m, tg) {
+  const K = HB();
+  let n = 0;
+  m.eGrid.near(tg.x, tg.y, K.clearR + (tg.r || 0), () => { n++; });
+  return n < K.clearN;
+}
+// Ask for a Hellbomb for owner, beside tg, once the squad is there, the ground is clear and no other job is running. callText: what
+// the squad says on the radio. Returns true when the gunner is asked.
+export function hbRequest(m, owner, tg, callText) {
+  const K = HB();
+  if (!hbFree(m) || m.t < (owner.hbRetry || 0)) return false;
+  if (!hbClear(m, tg) || !squadAt(m, tg.x, tg.y, (tg.r || 0) + K.clearR + 20)) return false;
+  startFill(m, owner, tg, callText);
+  return true;
+}
+// Run the job if it is owner's. siege(): called while the bomb sits on the ground being armed (the enemy comes for it). Returns true
+// on the tick it goes off (the caller does what it does to the target).
+export function hbStep(m, owner, dt, siege) {
+  const K = HB(), t = m.t, hb = m.hellbomb;
+  if (!hb || hb.o !== owner) return false;
   if (hb.state === 'fill') {
     hb.fill.t += dt;
-    if (hb.fill.t >= K.fillSec * K.slowmo) dud(m, o);
-    return;
+    if (hb.fill.t >= K.fillSec * K.slowmo) dud(m, owner);
+    return false;
   }
   if (hb.state === 'inbound') {
     if (t >= hb.landAt) { hb.state = 'landed'; m.emit('hellbomb_land', { x: hb.x, y: hb.y }); m.radio(tr('c.hb.landed'), 'hbland', 0); }
-    return;
+    return false;
   }
   if (hb.state === 'landed') {
-    b.quiet = false;                       // the keep turns everything out against the bomb
     // the nearest Helldiver goes to it and arms it
     if (!hb.armer || hb.armer.dead || !m.hdAlive.includes(hb.armer)) {
       let bd = Infinity; hb.armer = null;
@@ -200,18 +208,43 @@ export function updateKeep(m, o, dt, fns) {
       m.notice(tr('n.hbArmed', { n: K.fuseSec }), 'bad');
       m.emit('hellbomb_armed', { x: hb.x, y: hb.y, sec: K.fuseSec });
     }
-    fns.siege(m, o, b.x, b.y, dt);
-    return;
+    if (siege) siege();
+    return false;
   }
   if (hb.state === 'armed' && t >= hb.fuseAt) {
     hb.state = 'done';
     damageArea(m, hb.x, hb.y, K.blastR, K.dmg, ALL, 'strat', true, '');
-    b.bombOnly = false;
-    m.damageBase(b, b.hp + 1, 'strat');
     m.emit('boom', { x: hb.x, y: hb.y, r: K.blastR, dmg: K.dmg, by: 'strat', nuke: true });
-    m.emit('hellbomb_boom', { x: hb.x, y: hb.y, r: K.blastR });
+    m.emit('hellbomb_boom', { x: hb.x, y: hb.y, r: K.blastR, kind: owner.type || owner.kind || '' });
     m.stats.hellbombs = (m.stats.hellbombs || 0) + 1;
+    return true;
   }
+  return false;
+}
+// The job for owner is called off (its target fell some other way): a bomb not yet armed is dropped; one already armed goes off
+// where it is (sides.js keeps stepping it).
+export function hbCancel(m, owner) {
+  const hb = m.hellbomb;
+  if (!hb || hb.o !== owner || hb.state === 'armed' || hb.state === 'done') return;
+  m.hellbomb = { o: null, state: 'idle', n: hb.n };
+  m.emit('hellbomb_off', {});
+}
+
+// The citadel's step: called by objectives.js for a fortress objective each tick.
+export function updateKeep(m, o, dt, fns) {
+  const b = o.base;
+  if (b.destroyed) return;
+  const outer = (o.parts || []).filter((q) => q !== b), hb = m.hellbomb;
+  if (!hb || hb.o !== o) {
+    if (!outer.every((q) => q.destroyed)) return;
+    // the outer bases are down: the keep sends nobody more out, so it can be cleared; then call it in
+    b.quiet = true; o.outerDown = true;
+    o.keepClear = hbClear(m, b);
+    if (o.keepClear) hbRequest(m, o, b, tr('c.hb.call'));
+    return;
+  }
+  if (hb.state === 'landed') b.quiet = false;                       // the keep turns everything out against the bomb
+  if (hbStep(m, o, dt, () => fns.siege(m, o, b.x, b.y, dt))) { b.bombOnly = false; m.damageBase(b, b.hp + 1, 'strat'); }
 }
 // Where the squad should be for the Hellbomb right now (or null): at it to arm it, then well clear of it.
 export function hellbombGoal(m, o) {
@@ -219,7 +252,7 @@ export function hellbombGoal(m, o) {
   if (!hb || hb.o !== o) return null;
   if (hb.state === 'landed') return { x: hb.x, y: hb.y, stop: 2 };
   if (hb.state === 'armed') {
-    const K = HB(), b = o.base;
+    const K = HB(), b = hb.tg;
     let ux = hb.x - b.x, uy = hb.y - b.y; const L = Math.hypot(ux, uy) || 1; ux /= L; uy /= L;
     let x = hb.x + ux * (K.blastR + 30), y = hb.y + uy * (K.blastR + 30);
     if (!m.terrain.isLand(x, y)) { const l = m.terrain.nearestLand(x, y); x = l.x; y = l.y; }
@@ -227,11 +260,11 @@ export function hellbombGoal(m, o) {
   }
   return null;
 }
-function startFill(m, o) {
+function startFill(m, o, tg, callText) {
   const order = m.rng.shuffle(HB_PARTS.map((_, i) => i));
-  m.hellbomb = { o, state: 'fill', fill: { t: 0, order, i: 0, n: 0, wrong: 0, taps: 0 }, armT: 0, x: 0, y: 0, n: (m.hellbomb && m.hellbomb.n || 0) + 1 };
-  m.radio(tr('c.hb.call'), 'hbcall', 0);
-  m.emit('hellbomb_fill', {});
+  m.hellbomb = { o, tg, state: 'fill', fill: { t: 0, order, i: 0, n: 0, wrong: 0, taps: 0 }, armT: 0, x: 0, y: 0, n: (m.hellbomb && m.hellbomb.n || 0) + 1 };
+  m.radio(callText || tr('c.hb.call'), 'hbcall', 0);
+  m.emit('hellbomb_fill', { kind: o.type || o.kind || '' });
 }
 function dud(m, o) {
   const K = HB();
@@ -256,10 +289,10 @@ export function tapHellbomb(m, i) {
   return true;
 }
 function launch(m) {
-  const hb = m.hellbomb, o = hb.o, b = o.base, K = HB();
-  // beside the keep, on the side the squad is on
+  const hb = m.hellbomb, b = hb.tg, K = HB();
+  // beside the target, on the side the squad is on
   let ux = m.hx - b.x, uy = m.hy - b.y; const L = Math.hypot(ux, uy) || 1; ux /= L; uy /= L;
-  let x = b.x + ux * (b.r + K.off), y = b.y + uy * (b.r + K.off);
+  let x = b.x + ux * ((b.r || 0) + K.off), y = b.y + uy * ((b.r || 0) + K.off);
   if (!m.terrain.isLand(x, y)) { const l = m.terrain.nearestLand(x, y, 60); if (l) { x = l.x; y = l.y; } }
   hb.state = 'inbound'; hb.x = x; hb.y = y; hb.landAt = m.t + K.dropSec; hb.armT = 0;
   hb.secs = hb.fill.t / K.slowmo; hb.fill = null;

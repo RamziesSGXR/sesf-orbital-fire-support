@@ -12,7 +12,9 @@ const gone = (g) => !g || g.members.every((e) => e.dead);
 // events seen since it began), start(g, s) when it comes up, next: a button instead of a condition, hl: what to point at.
 // (0.19.5) Only the controls a new player needs, and each card says why, not just how: look round, the ship gun, an orbital, a SEAF
 // drop, picking troopers and ordering them (0.20: in the command panel, always up), then dropping the Helldivers (their lives are
-// the mission).
+// the mission). (0.37) Then building, cover, resupply and the Hellbomb, and how an operation carries over from mission to mission.
+// tick(g, s): every frame while the step is up (the resupply and Hellbomb lessons keep their moment going).
+const hdDown = (g) => g.mission.hdAlive.length > 0;
 export const STEPS = [
   { id: 'intro', next: true },
   { id: 'look', done: (g, s) => Math.hypot(g.cam.x - s.cx, g.cam.y - s.cy) > 20 || Math.abs(g.cam.view - s.view) > 25 },
@@ -22,7 +24,20 @@ export const STEPS = [
   { id: 'seaf', hl: '#tactical .tco.seaf', tab: 'units', done: (g) => g.mission.stats.seafCalls >= 1 },
   { id: 'select', hl: '#tactical #squads', tab: 'units', done: (g) => g.mission.seaf.sel !== -1 },
   { id: 'order', hl: '#tactical .tac-ord', tab: 'units', done: (g, s) => s.ev.some((e) => e.type === 'seaf_order' && e.kind !== 'build') },
+  // (0.37) a foxhole: free, and the squad digs it where it is put
+  { id: 'build', hl: '#tactical .bld[data-b="foxhole"]', tab: 'build', done: (g, s) => s.ev.some((e) => e.type === 'seaf_order' && e.kind === 'build') },
+  // (0.37) cover: the walls round the base, and troopers manning a post
+  { id: 'cover', start: (g) => g.lookBase && g.lookBase(), done: (g, s) => s.ev.some((e) => e.type === 'seaf_order' && (e.kind === 'post' || e.kind === 'protect')) },
   { id: 'deploy', hl: '#dropcd-go, #lives', done: (g, s) => g.mission.dropAt < s.drop0 - 1 || g.mission.t >= g.mission.dropAt },
+  // (0.37) resupply: once they are down, one of them asks; it is done when a pod goes out
+  { id: 'supply', hl: (g) => (g.mission.supply && g.mission.supply.state === 'fill' ? '#supgame' : '#co-sup'),
+    tick: (g, s) => { const S = g.mission.supply; if (S && S.state === 'idle' && !(g.mission.stats.supplies > 0) && hdDown(g) && g.mission.t - (s.askAt ?? -99) > 4) { s.askAt = g.mission.t; g.mission.lsSupply(); } },
+    done: (g) => g.mission.stats.supplies > 0 },
+  // (0.37) the Hellbomb: a cognitive disruptor comes down by the base; the squad clears round it and asks for one
+  { id: 'hellbomb', hl: (g) => (g.mission.hellbomb && g.mission.hellbomb.state === 'fill' ? '#hbgame' : null),
+    start: (g, s) => { s.j = g.mission.lsJammer(); if (s.j && g.lookAt) g.lookAt(s.j.x, s.j.y); },
+    done: (g, s) => !!(s.j && s.j.done) },
+  { id: 'run', next: true },
   { id: 'begin', next: true, last: true },
 ];
 
@@ -106,7 +121,7 @@ export class Tutorial {
     const st = this.step, g = this.g;
     if (this.stage !== 'lessons' || !st || !st.hl) return null;
     if (st.tab && g.tab !== st.tab) return `#tactical .tct[data-tab="${st.tab}"]`;
-    return st.hl;
+    return typeof st.hl === 'function' ? st.hl(g) : st.hl;
   }
   point(sel) {
     if (sel === this.cur && this.hl.length) { this.place(); return; }
@@ -160,6 +175,7 @@ export class Tutorial {
     if (now - this.pt > 150) { this.pt = now; this.point(this.target()); }
     if (this.stage !== 'lessons') return;
     const st = this.step;
+    if (st && st.tick && this.s && !this.held) st.tick(this.g, this.s);
     // done while the card held the game (the sheet opened, say): it lets go; a short pause, then the next card
     if (st && st.done && !this.s.doneAt && st.done(this.g, this.s)) { this.s.doneAt = this.g.mission.t; if (this.held) this.release(); }
     if (this.s && this.s.doneAt && this.g.mission.t - this.s.doneAt > 0.8) this.advance();

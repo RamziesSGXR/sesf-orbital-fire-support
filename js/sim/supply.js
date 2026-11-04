@@ -60,11 +60,7 @@ export function updateSupply(m, dt) {
     S.scanT = 1;
     const a = needy(m);
     if (!a) return;
-    S.state = 'ask';
-    S.ask = { by: a.id, tag: m.tag(a), team: a.team, at: t, until: t + P.askSec };
-    m.radio(COMMS.supplyAsk(m.tag(a)), 'supask', 0);
-    bark(m, a, 'supask', '', true);
-    m.emit('supply_ask', { x: a.x, y: a.y, team: a.team });
+    ask(m, a);
     return;
   }
   if (S.state === 'ask') {
@@ -81,6 +77,22 @@ export function updateSupply(m, dt) {
     const d = S.drop;
     if (t >= d.landAt) land(m);
   }
+}
+
+function ask(m, a) {
+  const S = m.supply, P = K(), t = m.t;
+  S.state = 'ask';
+  S.ask = { by: a.id, tag: m.tag(a), team: a.team, at: t, until: t + P.askSec };
+  m.radio(COMMS.supplyAsk(m.tag(a)), 'supask', 0);
+  bark(m, a, 'supask', '', true);
+  m.emit('supply_ask', { x: a.x, y: a.y, team: a.team });
+}
+// (0.37) The tutorial's resupply lesson: a Helldiver asks now (the one who needs it most, or the first), whatever the cooldown.
+export function askSupply(m) {
+  const S = m.supply;
+  if (!S || S.state !== 'idle' || !m.hdAlive.length || boardingNow(m)) return false;
+  ask(m, needy(m) || m.hdAlive[0]);
+  return true;
 }
 
 // The player takes the request: the loading game starts (the UI slows time while it runs).

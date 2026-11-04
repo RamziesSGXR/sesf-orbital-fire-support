@@ -220,7 +220,13 @@ export const CONFIG = {
               propaganda: { hp: 1400, reward: 200, guards: 1, every: 22, reach: 320 },
               rescue: { n: 5, claimR: 26, offR: 45, reward: 200 },
               // an abandoned SEAF artillery cannon: a Helldiver stands by it for holdSec and it is ours (weapon 9, once someone mans it)
-              arty: { holdR: 16, holdSec: 18, reward: 250 } },
+              arty: { holdR: 16, holdSec: 18, reward: 250 },
+              // (0.37) an enemy structure only a Hellbomb brings down (the spore spewer, the stratagem jammer, the cognitive disruptor):
+              // while it stands no orbital can be called within R of it. chance: how often a mission has one (from fromMission)
+              jammer: { R: 85, r: 10, reward: 320, chance: 0.6, fromMission: 2 },     // (from an operation's second mission: the first is a calm start)
+              // (0.37) the squad calls a Hellbomb on an enemy broadcast tower too (from jammer.fromMission), while it still has more than
+              // this share of its health
+              propBomb: 0.5 },
   // The Helldivers' plan (planner.js): side tasks within `detour` extra metres of the way to the main objective, if there is time to
   // spare (reserve seconds) for them, the objective and extraction. After the objective a full clear only with more than clearLives
   // lives left and the time for it. Time is estimated at pace x squad speed plus `work` seconds per task. Re-planned every `every` s.
@@ -228,7 +234,7 @@ export const CONFIG = {
   // (minutes rounded up, at most maxMin, costing perMin credits a minute; the player has askSec to answer; asks per mission).
   plan:     { detour: 320, reserve: 150, clearLives: 3, every: 6, keepR: 70, pace: 0.5, extractPad: 30,
               ask: { maxMin: 10, perMin: 40, askSec: 30, asks: 2 },
-              work: { base: 70, radio: 45, propaganda: 35, rescue: 60, arty: 40, nuke: 150, vip: 100, evac: 220, fortress: 240, oil: 260, cannon: 120, dome: 220 } },
+              work: { base: 70, radio: 45, propaganda: 35, rescue: 60, arty: 40, jammer: 60, nuke: 150, vip: 100, evac: 220, fortress: 240, oil: 260, cannon: 120, dome: 220 } },
   // An enemy that fires on an ally gives itself away: it shows for `sec` seconds after each shot, and once it has shown for lockSec
   // without a break it is locked: orbitals and the ship gun can hit it (within lockR of it) even outside the strike zone.
   reveal:   { sec: 5, lockSec: 3, lockR: 12 },
@@ -287,7 +293,8 @@ export const CONFIG = {
     { saved: 120, sec: 330, every: 3,  n: 20, mid: 0.5,  heavy: 2, heavyEvery: 0, grow: 2, hpPerMin: 1.2, dmgPerMin: 1.6 },
   ],
   lastStand: { personnel: 160, squad: 6, lzOff: 46, lives: 10, breakAt: 3, waveFirst: 5, waveEvery: [12, 3.5], rampSec: 150, waveSize: [9, 9], waveGrow: 8,
-               heavyEvery: 3, hpGrow: 0.6, dmgGrow: 0.9, levelEvery: 25, maxHold: 480, glassSec: 10, beamEvery: 0.09, beamR: 13, waveR: 230, lessonR: 160, countdown: 900 },
+               heavyEvery: 3, hpGrow: 0.6, dmgGrow: 0.9, levelEvery: 25, maxHold: 480, glassSec: 10, beamEvery: 0.09, beamR: 13, waveR: 230, lessonR: 160, countdown: 900,
+               jamOff: 115, jamR: 55 },     // (0.37) the Hellbomb lesson's disruptor: how far from the base, and the ground it jams
   difficulty: { start: 3, spawn: 0.55, medium: 0.6, heavy: 0.4, boss: 0.3, curve: 1, reward: [0.75, 1.2], ramp: 0.6, beyond: 1,     // (0.31: ramp 0.39 -> 0.6, a level nearly every mission)
                 // war minutes at each level (1 to 10), war minutes a level past 10, and the share of each real session minute that counts
                 war: [0, 15, 38, 41, 44, 47, 50, 53, 56, 60], warBeyond: 10, sessionRamp: 0.075,     // (0.19.2: ramp and sessionRamp halved)
@@ -452,6 +459,7 @@ export const CONFIG = {
   share:    { channelUrl: '',
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.36.1',
+              sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.37.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

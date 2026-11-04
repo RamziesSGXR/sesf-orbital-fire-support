@@ -67,7 +67,7 @@ const am = await ev(() => ({ on: document.getElementById('s-pause').classList.co
 check('its MENU opens the menu: settings and the main menu, no retire', am.on && am.out && am.names && am.set && am.home && !am.retire, JSON.stringify(am));
 await tap('#btn-resume-m'); await page.waitForTimeout(200);
 await tap('#shop-back'); await page.waitForTimeout(300);
-check('BACK goes back to the title screen, where the difficulty can be changed', (await ev(() => window.__game.state === 'title')) && await page.isVisible('#diff-row'));
+check('BACK goes back to the title screen', (await ev(() => window.__game.state === 'title')) && await page.isVisible('#btn-play'));
 await tap('#btn-play'); await page.waitForTimeout(250);
 if (await page.isVisible('#btn-notice')) { await tap('#btn-notice'); await page.waitForTimeout(250); }
 await tap('#btn-lock'); await page.waitForTimeout(500);

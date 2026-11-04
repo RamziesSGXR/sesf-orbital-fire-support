@@ -101,7 +101,7 @@ check('the HUD\'s radio is gone after the mission', !(await vis('#btn-radio')));
 
 // ---------------------------------------------------------------- the tutorial
 await page.goto(`file://${ROOT}/dist/orbital-fury.html`); await page.waitForTimeout(1200);
-await tap('#btn-tutorial'); await page.waitForTimeout(1500);
+await tap('#btn-tutorial'); await page.waitForTimeout(300); await tap('#btn-lock'); await page.waitForTimeout(1500);     // (0.37: it asks the callsign first)
 if (await vis('#cine-skip')) { await tap('#cine-skip'); await page.waitForTimeout(900); }
 check('the tutorial has the command radio too, with the opening narration in it', await vis('#btn-radio') && (await ev(() => window.__game.radioLog.items.filter((x) => x.narr).length)) >= 4);
 await ev(() => { const g = window.__game, m = g.mission; for (let i = 0; i < 30 * 200; i++) { m.step(1 / 30); g.tickRadio(); } });

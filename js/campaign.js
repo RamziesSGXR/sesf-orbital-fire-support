@@ -60,6 +60,20 @@ export class CastRadio {
     this.say = say; this.done = {}; this.q = []; this.nextAt = 0; this.t0 = null;
     this.lives0 = null; this.kp = []; this.big = 0; this.bigAt = -99;
     this.cues = opts.cues !== false; this.chatKeys = opts.chat || []; this.chatUsed = new Set(); this.chatAt = null; this.lastAt = -99;
+    // (0.38) the chapter's lessons: each topic once, when it comes up; tip(text): its how-to, shown with the line
+    this.teach = new Set(opts.teach || []); this.taught = new Set(); this.tip = opts.tip || null; this.seen = {};
+  }
+  // (0.38) a lesson: the cast member's line, and its tip with it (ahead of chatter, behind anything urgent)
+  lesson(topic, m) {
+    if (!this.teach.has(topic) || this.taught.has(topic)) return;
+    const raw = t('teach.' + topic);
+    if (!raw || raw === 'teach.' + topic) return;
+    this.taught.add(topic);
+    const bar = raw.indexOf('|'), who = bar > 0 ? raw.slice(0, bar) : 'ktl', text = bar > 0 ? raw.slice(bar + 1) : raw;
+    const tip = t('teach.' + topic + '.tip');
+    const item = { who: CAST[who] ? who : 'ktl', text, tip: tip !== 'teach.' + topic + '.tip' ? tip : '' };
+    const k = this.inChat ? -1 : this.q.findIndex((x) => x.flavor);
+    if (k >= 0) this.q.splice(k, 0, item); else this.q.push(item);
   }
   // (0.28) a short exchange between the cast: queued behind anything that matters
   chatter(m) {
@@ -91,6 +105,23 @@ export class CastRadio {
   }
   onEvent(ev, m) {
     if (!this.cues) return;
+    // (0.38) the lessons that come with a moment
+    if (this.teach.size) {
+      const L = (k) => this.lesson(k, m);
+      if (ev.type === 'objective_done') L('extract');
+      else if (ev.type === 'supply_ask') L('supply');
+      else if (ev.type === 'flare') L('flare');
+      else if (ev.type === 'hellbomb_fill') L('hellbomb');
+      else if (ev.type === 'time_ask') L('time');
+      else if (ev.type === 'task' && ev.kind && ev.kind !== 'base') L('sides');
+      else if (ev.type === 'deny' && ev.reason === 'jamsite') L('jammer');
+      else if (ev.type === 'built' || ev.type === 'post_new') this.seen.built = m.t;
+      else if (ev.type === 'obj_state') {
+        if (ev.state === 'carried') L('escort');     // (emit() puts its own type on the event: the state says which objective)
+        if (ev.state === 'hold' && !ev.missed) L('hold');
+        if (ev.state === 'pump') L('cover');
+      }
+    }
     switch (ev.type) {
       case 'boss': this.cue('boss', m, { first: true }); break;
       case 'boss_down': this.cue('bossDown', m, { first: true }); break;
@@ -112,14 +143,38 @@ export class CastRadio {
       if (t >= this.chatAt && !this.q.length && t - this.lastAt > 12) { this.chatter(m); this.chatAt = t + 70 + m.crng.next() * 50; }
     }
     if (this.cues) this.cueTick(m, t, since);
+    if (this.teach.size && this.cues) this.teachTick(m, t, since);
     // one line at a time, each up long enough to read (chatter, which is only in the log, a little quicker)
     if (this.q.length && t >= this.nextAt) {
       const it = this.q.shift();
       this.say(CAST[it.who], it.text, castLine(CAST[it.who], it.text, !!it.flavor));
+      if (it.tip && this.tip) this.tip(it.tip);
       this.lastAt = it.flavor ? this.lastAt : t;
       this.inChat = !!it.flavor && !!(this.q[0] && this.q[0].flavor);
       this.nextAt = t + (it.flavor ? Math.max(3.5, 1.5 + it.text.length * 0.04) : Math.max(7, 3 + it.text.length * 0.06));
     }
+  }
+  // (0.38) the lessons that come with the state of things (checked every frame, each said once)
+  teachTick(m, t, since) {
+    const L = (k) => this.lesson(k, m), T = this.teach, seen = (x, y) => m.visLevel(x, y) > 0;
+    if (T.has('gun') && since > 6) L('gun');
+    if (T.has('seaf') && since > 12) L('seaf');
+    if (T.has('night') && since > 6) L('night');
+    if (T.has('uav') && since > 20) L('uav');
+    if (T.has('build') && since > 20 && m.hdAlive.length) L('build');
+    if (T.has('orbital') && since > 18 && m.enemies.some((e) => !e.dead && e.kind !== 'L' && seen(e.x, e.y))) L('orbital');
+    if (T.has('orbital') && since > 70) L('orbital');
+    if (!this.seen.drop && m.stats.seafCalls > 0) this.seen.drop = t;
+    if (T.has('orders') && this.seen.drop && t - this.seen.drop > 10) L('orders');
+    if (T.has('orders') && since > 60 && m.seafAlive.length) L('orders');
+    if (T.has('garrison') && this.seen.built && t - this.seen.built > 4) L('garrison');
+    if (T.has('cover') && since > 120) L('cover');
+    if (T.has('lives') && this.lives0 !== null && m.hd.lives < this.lives0) L('lives');
+    if (T.has('demolish') && (m.posts || []).some((p) => !p.dead && !p.captured && p.maxHp && p.hp < p.maxHp * 0.45)) L('demolish');
+    if (T.has('demolish') && since > 300 && (m.posts || []).length) L('demolish');
+    if (T.has('bases') && since > 25 && m.bases.some((b) => !b.destroyed && seen(b.x, b.y))) L('bases');
+    if (T.has('jammer') && (m.sides || []).some((s) => s.kind === 'jammer' && !s.done && seen(s.x, s.y))) L('jammer');
+    if (T.has('escort') && m.objectives.some((o) => o.type === 'vip' && o.picked)) L('escort');
   }
   cueTick(m, t, since) {
     if (since > 2) this.cue('start', m);
@@ -160,7 +215,7 @@ export function aarMission(s, info, res) {
     `**Helldivers:** ${fmtNum(st.lostH)} lost · ${res.livesLeft}/${res.livesMax ?? '?'} lives left`,
     `**SEAF:** ${fmtNum(st.lostS)} lost` + (res.civSaved ? ` · ${fmtNum(res.civSaved)} civilians saved` : ''),
     res.share && res.share.player + res.share.squad + res.share.strat > 0 ? `**Damage:** gunner ${pct(res.share.player)} · Helldivers ${pct(res.share.squad)} · stratagems ${pct(res.share.strat)}` : '',
-    `**Score:** ${fmtNum(res.score)} · session ${fmtNum(total)} after ${n} mission${n === 1 ? '' : 's'}`,
+    `**Score:** ${fmtNum(res.score)} · operation ${fmtNum(total)} after ${n} mission${n === 1 ? '' : 's'}`,
   ];
   if (ch) { const last = castLines(ch, carriesOn(res.outcome) ? 'win' : 'lose', res, true).pop(); if (last) L.push(`> ${CAST[last.who].tag}: "${last.text}"`); }
   L.push(foot());
@@ -172,11 +227,11 @@ export function aarSession(s, fin) {
   const ms = s.missions, n = ms.length, wins = fin ? fin.wins : ms.filter((m) => carriesOn(m.outcome)).length;
   const sum = (k) => ms.reduce((a, m) => a + (m[k] || 0), 0), bosses = ms.filter((m) => m.boss && m.boss.killed).length;
   const L = [
-    '**ORBITAL FURY · SESSION AFTER ACTION REPORT**',
-    `${gunner(fin ? fin.callsign : s.callsign)} · **FINAL SCORE ${fmtNum(s.score)}**`,
+    '**ORBITAL FURY · OPERATION AFTER ACTION REPORT**',
+    `**${opShort(s.op || (ms[0] && ms[0].op))}** · ${gunner(fin ? fin.callsign : s.callsign)} · **FINAL SCORE ${fmtNum(s.score)}**`,
     `${n} mission${n === 1 ? '' : 's'}, ${wins} won · ${fmtTime(s.seconds)} · ${lvl(s.difficulty || LEVELS)}`,
     n ? '**Missions**' : '',
-    ...ms.map((m, i) => `${i + 1}. ${opShort(m.op)} · ${tEn('fac.' + m.faction)} · ${tEn('out.' + m.outcome)} · ${fmtNum(m.score)} · ${fmtNum(m.kills)} kills` + (m.boss ? ` · ${m.boss.name || tEn('boss.' + m.boss.fac)} ${m.boss.killed ? 'KILLED' : 'ESCAPED'}` : '')),
+    ...ms.map((m, i) => `${i + 1}. ${m.op && m.op !== s.op && /:/.test(m.op) ? opShort(m.op.split(':').pop().trim()) : 'Mission ' + (i + 1)} · ${tEn('fac.' + m.faction)} · ${tEn('out.' + m.outcome)} · ${fmtNum(m.score)} · ${fmtNum(m.kills)} kills` + (m.boss ? ` · ${m.boss.name || tEn('boss.' + m.boss.fac)} ${m.boss.killed ? 'KILLED' : 'ESCAPED'}` : '')),
     `**Totals:** ${fmtNum(sum('kills'))} kills · ${fmtNum(sum('lostH'))} Helldivers lost · ${fmtNum(sum('lostS'))} SEAF lost` + (bosses ? ` · ${bosses} super heav${bosses === 1 ? 'y' : 'ies'} killed` : ''),
     s.story ? `Campaign: ${tEn(`cp.${STORY.id}.t`)} · Fronteria, Umlaut Sector` : '',
     foot(),

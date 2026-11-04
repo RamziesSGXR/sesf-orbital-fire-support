@@ -210,29 +210,21 @@
         <p class="tt-tag" data-t="title.tag"></p>
       </header>
       <div id="langs" class="langs tt-langs" role="group" data-ta="set.lang"></div>
-      <section class="tt-deploy" aria-labelledby="tt-dh">
-        <h2 id="tt-dh" class="tt-h" data-t="title.newSession">New session</h2>
-        <label class="field"><span data-t="title.callsign">CALLSIGN</span> <input id="callsign" maxlength="16" data-tp="title.optional" autocomplete="off" spellcheck="false"></label>
-        <div id="diff" class="diff">
-          <div class="diff-h"><span data-t="title.diff">DIFFICULTY</span> <b id="diff-name"></b></div>
-          <div id="diff-row" class="diff-row" role="group" data-ta="title.diff"></div>
-          <p id="diff-note" class="fine diff-note"></p>
-        </div>
-        <div id="enemy" class="diff">
-          <div class="diff-h"><span data-t="title.enemy">ENEMY</span></div>
-          <div id="enemy-row" class="enemy-row" role="group" data-ta="title.enemy"></div>
-          <p id="enemy-note" class="fine diff-note"></p>
-        </div>
-        <button id="btn-play" class="btn primary big tt-play" data-t="title.play">PLAY</button>
+      <!-- (0.37) the tutorial in the big window; QUICK PLAY and the campaign ask for the rest (NEW OPERATION, s-lock) -->
+      <section class="tt-deploy tt-tut" aria-labelledby="tt-dh">
+        <h2 id="tt-dh" class="tt-h"><span data-t="title.tutH">TUTORIAL</span> <i id="tut-new" class="tt-new hidden" data-t="title.new">NEW</i></h2>
+        <p class="tt-tut-n" data-t="title.tutName">LAST STAND ON MARS</p>
+        <p class="tt-tut-p" data-t="title.tutP"></p>
+        <button id="btn-tutorial" class="btn primary big tt-play" type="button" data-t="title.tutPlay">PLAY TUTORIAL</button>
       </section>
       <nav class="tt-menu" data-ta="title.menu">
         <button id="btn-resume" class="btn tt-item tt-resume hidden" type="button"></button>
-        <button id="btn-campaign" class="btn tt-item" type="button"><span data-t="title.campaign">CAMPAIGN</span><i class="tt-dev" data-t="title.inDev">IN DEVELOPMENT</i><small data-t="title.campaignSub">A story across missions</small></button>
-        <button id="btn-tutorial" class="btn tt-item tut-b" type="button"><span data-t="title.tutorial">TUTORIAL: LAST STAND ON MARS</span><i id="tut-new" class="hidden" data-t="title.new">NEW</i><small data-t="title.tutSub">Learn the controls</small></button>
-        <button id="btn-names-t" class="btn tt-item" type="button"><span data-t="ui.names">SQUAD NAMES</span><small data-t="title.namesSub">Name your Helldivers</small></button>
+        <button id="btn-campaign" class="btn tt-item" type="button"><span data-t="title.campaign">CAMPAIGN</span><i class="tt-dev" data-t="title.inDev">IN DEVELOPMENT</i><small id="tt-cp-sub" data-t="title.campaignSub">A story across missions</small></button>
+        <button id="btn-play" class="btn tt-item" type="button"><span data-t="title.quick">QUICK PLAY</span><small data-t="title.quickSub">Mission after mission against the enemy you pick</small></button>
         <button id="btn-settings" class="btn tt-item" type="button"><span data-t="ui.settings">SETTINGS</span><small data-t="title.setSub">Sound, layout, language</small></button>
         <button id="btn-credits-t" class="btn tt-item" type="button"><span data-t="ui.credits">CREDITS</span><small data-t="title.aboutSub">The team, the tools and the story</small></button>
         <a id="lnk-fb-t" class="btn fb tt-item" target="_blank" rel="noopener"><span data-t="ui.feedback">FEEDBACK</span><small data-t="title.fbSub">The SESF Helldivers Discord</small></a>
+        <a id="lnk-sp-t" class="btn sp tt-item" target="_blank" rel="noopener"><span data-t="ui.support">SUPPORT</span><small data-t="title.spSub">Back the project on GitHub Sponsors</small></a>
       </nav>
       <footer class="tt-foot">
         <p class="fine fb-note" data-t="title.fbNote"></p>
@@ -250,6 +242,7 @@
       <p class="tt-eyebrow" data-t="cp.eyebrow">SUPER EARTH SPECIAL FORCES · CAMPAIGN</p>
       <h2 class="cp-title" id="cp-title"></h2>
       <div class="cp-dev" role="note"><b data-t="cp.devH">In development</b> <span data-t="cp.dev"></span></div>
+      <p class="cp-prog" id="cp-prog"></p>
       <div class="cp-story" id="cp-story"></div>
       <ol class="cp-chs" id="cp-chs"></ol>
     </div>
@@ -362,7 +355,7 @@
 
   <section id="s-final" class="screen">
     <div class="card wide">
-      <div class="eyebrow" data-t="fin.eyebrow">Session complete</div>
+      <div class="eyebrow" id="f-eyebrow"></div>
       <h2><span data-t="fin.score">FINAL SCORE</span> <b id="f-score">0</b></h2>
       <div class="f-local" id="f-local"></div>
       <div id="f-diff" class="f-diff"></div>
@@ -471,6 +464,7 @@
       <p class="fine cr-ver" id="credits-ver"></p>
       <div class="btns">
         <a id="lnk-fb-a" class="btn primary fb" target="_blank" rel="noopener" data-t="ui.feedback">FEEDBACK</a>
+        <a id="lnk-sp-a" class="btn sp" target="_blank" rel="noopener" data-t="ui.support">SUPPORT</a>
         <a id="lnk-proj" class="btn" target="_blank" rel="noopener" data-t="credits.project">SOURCE CODE</a>
         <button id="credits-close" class="btn" data-t="ui.closeBtn">CLOSE</button>
       </div>
@@ -513,17 +507,35 @@
     </div>
   </div>
 
+  <!-- (0.37) NEW OPERATION: what QUICK PLAY and a campaign chapter ask for (the tutorial only asks the callsign) -->
   <section id="s-lock" class="screen overlay">
     <div class="card lockcard">
-      <button class="x-close" data-close="s-lock" data-ta="lock.change">✕</button>
-      <div class="eyebrow" data-t="lock.eyebrow">New session</div>
-      <h2 data-t="lock.title">DIFFICULTY LOCKED IN</h2>
-      <div class="lock-big"><b id="lock-level">7</b><span id="lock-name"></span></div>
-      <div id="lock-pay" class="lock-pay"></div>
-      <p class="lock-stay" data-t="lock.stay"></p>
-      <h3 data-t="lock.howEnds">HOW A SESSION ENDS</h3>
-      <ul id="lock-rules" class="lock-rules"></ul>
-      <div class="btns"><button id="btn-lock" class="btn primary big" type="button"></button><button id="btn-lock-change" class="btn" type="button" data-t="lock.change">CHANGE DIFFICULTY</button></div>
+      <button class="x-close" data-close="s-lock" data-ta="ui.backBtn">✕</button>
+      <div class="eyebrow" id="lock-eyebrow"></div>
+      <h2 id="lock-h" data-t="lock.title">NEW OPERATION</h2>
+      <p id="lock-sub" class="lock-sub"></p>
+      <div class="lock-cols"><div class="lock-l">
+      <div class="lock-who">
+        <label class="field"><span data-t="title.callsign">CALLSIGN</span> <input id="callsign" maxlength="16" data-tp="title.optional" autocomplete="off" spellcheck="false"></label>
+        <button id="btn-names-t" class="btn lock-names" type="button" data-t="ui.names">SQUAD NAMES</button>
+      </div>
+      <div id="diff" class="diff">
+        <div class="diff-h"><span data-t="title.diff">DIFFICULTY</span> <b id="diff-name"></b></div>
+        <div id="diff-row" class="diff-row" role="group" data-ta="title.diff"></div>
+        <p id="diff-note" class="fine diff-note"></p>
+      </div>
+      <div id="enemy" class="diff">
+        <div class="diff-h"><span data-t="title.enemy">ENEMY</span></div>
+        <div id="enemy-row" class="enemy-row" role="group" data-ta="title.enemy"></div>
+        <p id="enemy-note" class="fine diff-note"></p>
+      </div>
+      </div><div class="lock-r">
+      <div id="lock-run">
+        <h3 data-t="lock.howEnds">HOW AN OPERATION WORKS</h3>
+        <ul id="lock-rules" class="lock-rules"></ul>
+      </div>
+      <div class="btns"><button id="btn-lock" class="btn primary big" type="button"></button><button id="btn-lock-change" class="btn" type="button" data-t="ui.backBtn">BACK</button></div>
+      </div></div>
     </div>
   </section>
 

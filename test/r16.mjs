@@ -5,6 +5,7 @@
 // Run: node test/r16.mjs
 import { Mission } from '../js/sim/mission.js';
 import { CONFIG as C } from '../js/config.js';
+C.sides.jammer.chance = 0;     // (0.37: no jammer sites here: these checks fire strikes on maps rolled before there were any)
 import { newKit, newWallet, shopItems, fixKit, buildStats } from '../js/data/kit.js';
 import { spawnGroup } from '../js/sim/director.js';
 import { hurtEnemy, jammedAt } from '../js/sim/combat.js';

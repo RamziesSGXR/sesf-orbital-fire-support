@@ -4,6 +4,7 @@
 // Run: node test/r15.mjs
 import { Mission } from '../js/sim/mission.js';
 import { CONFIG as C } from '../js/config.js';
+C.sides.jammer.chance = 0;     // (0.37: no jammer sites here: these checks call strikes and walk to objectives on maps rolled before there were any)
 import { newKit, newWallet, shopItems, buy, fixKit, buildStats, seafStats, barracksCost } from '../js/data/kit.js';
 import { initKit, restock, throwGrenade, fireUltimatum } from '../js/sim/helldiver.js';
 import { fireSlot } from '../js/sim/player.js';

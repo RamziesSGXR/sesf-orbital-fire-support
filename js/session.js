@@ -7,7 +7,8 @@ import { newKit, newWallet, fixKit, refundLives } from './data/kit.js';
 import { CONFIG as C } from './config.js';
 import { clampLevel, levelAt, levelName, LEVELS } from './difficulty.js';
 
-const K = { settings: 'ofs.settings', session: 'ofs.session', history: 'ofs.history', callsign: 'ofs.callsign', notice: 'ofs.notice', names: 'ofs.names' };
+const K = { settings: 'ofs.settings', session: 'ofs.session', history: 'ofs.history', callsign: 'ofs.callsign', notice: 'ofs.notice', names: 'ofs.names',
+  campaign: 'ofs.campaign', campRun: 'ofs.campRun' };     // (0.37) the campaign's progress on this browser, and its run under way
 
 export function load(key, fallback) {
   try { const v = localStorage.getItem(K[key]); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
@@ -58,8 +59,26 @@ export function rollMission(prev, rng = Math.random, enemy = 'random') {
 
 // ---- session ----
 // difficulty: the level the session started at, 1 to 10 (difficulty.js). Each mission is a little harder: levelNow.
-export function newSession(callsign, difficulty = C.difficulty.start) {
-  return { startedAt: Date.now(), callsign: callsign || '', difficulty: clampLevel(difficulty), missions: [], score: 0, seconds: 0, next: null, kit: newKit(), wallet: newWallet(), names: getNames() };
+// (0.37) op: the operation's name. One a session: every mission in it flies under it (QUICK PLAY rolls one; the campaign's is its own).
+export function newSession(callsign, difficulty = C.difficulty.start, op = null) {
+  return { startedAt: Date.now(), callsign: callsign || '', difficulty: clampLevel(difficulty), op: op || makeNames().op, missions: [], score: 0, seconds: 0, next: null, kit: newKit(), wallet: newWallet(), names: getNames() };
+}
+// The operation's name (a session saved before 0.37 takes its first mission's)
+export const opOf = (s) => (s && (s.op || (s.missions && s.missions[0] && s.missions[0].op))) || 'Operation';
+
+// ---- (0.37) the campaign's progress on this browser ----
+// done: the chapters cleared; ck: for each, the run as it stood when it was cleared (to carry on from, or to replay the next one)
+export function getCampaign() {
+  const c = load('campaign', null) || {};
+  return { done: Array.isArray(c.done) ? c.done.filter((n) => Number.isInteger(n)) : [], ck: c.ck && typeof c.ck === 'object' ? c.ck : {} };
+}
+export function chapterCleared(s, n) {
+  const c = getCampaign();
+  if (!c.done.includes(n)) c.done.push(n);
+  c.done.sort((a, b) => a - b);
+  c.ck[n] = JSON.parse(JSON.stringify({ ...s, held: null, fresh: null }));
+  save('campaign', c);
+  return c;
 }
 // Old saves are repaired rather than thrown away.
 export function fixSession(s) {
@@ -70,6 +89,7 @@ export function fixSession(s) {
   s.names = getNames();
   s.missions = Array.isArray(s.missions) ? s.missions : [];
   s.difficulty = clampLevel(s.difficulty ?? LEVELS);      // sessions saved before there were levels were played at the top one
+  if (!s.op) s.op = opOf(s) === 'Operation' ? makeNames().op : opOf(s);
   return s;
 }
 export function sessionMinutes(s) { return s.seconds / 60; }
@@ -136,7 +156,7 @@ export function missionReport(s, i = s.missions.length - 1) {
     head(s.callsign, `MISSION ${n}`, lvl(levelAt(s.difficulty ?? LEVELS, n))),
     [opShort(m.op), tEn('fac.' + m.faction), tEn('out.' + m.outcome)].join(' | '),
     [`SCORE ${fmtNum(m.score)}`, `${fmtNum(m.kills || 0)} KILLS`, m.lostH ? `HELLDIVERS LOST ${m.lostH}` : '', bossLine(m)].filter(Boolean).join(' | '),
-    `SESSION ${fmtNum(score)} AFTER ${n} MISSION${n === 1 ? '' : 'S'}`,
+    `TOTAL ${fmtNum(score)} AFTER ${n} MISSION${n === 1 ? '' : 'S'}`,
   ].join('\n');
 }
 // The whole session (fin: the finished session, finalise): the totals, then every mission on a line.
@@ -144,9 +164,9 @@ export function scoreBlock(s, fin) {
   const wins = fin ? fin.wins : s.missions.filter((m) => carriesOn(m.outcome)).length;
   const dl = s.difficulty || LEVELS, top = levelReached(s), n = s.missions.length;
   const lines = [
-    head(fin ? fin.callsign : s.callsign, `${fin ? 'FINAL SCORE' : 'SCORE'} ${fmtNum(s.score)}`),
+    head(fin ? fin.callsign : s.callsign, opShort(opOf(s)), `${fin ? 'FINAL SCORE' : 'SCORE'} ${fmtNum(s.score)}`),
     [`${n} MISSION${n === 1 ? '' : 'S'}, ${wins} WON`, fmtTime(s.seconds), lvl(dl) + (top > dl ? `, REACHED ${top} ${tEn(...levelName(top)).toUpperCase()}` : '')].join(' | '),
   ];
-  s.missions.forEach((m, i) => lines.push([`${i + 1}. ${opShort(m.op)}`, tEn('fac.' + m.faction), tEn('out.' + m.outcome), fmtNum(m.score), `${fmtNum(m.kills || 0)} KILLS`, bossLine(m)].filter(Boolean).join(' | ')));
+  s.missions.forEach((m, i) => lines.push([`${i + 1}. MISSION ${i + 1}`, tEn('fac.' + m.faction), tEn('out.' + m.outcome), fmtNum(m.score), `${fmtNum(m.kills || 0)} KILLS`, bossLine(m)].filter(Boolean).join(' | ')));
   return lines.join('\n');
 }
