@@ -6,14 +6,14 @@
 // glasses the plain (a rain of beams across the map) and the mission ends 'glassed'.
 import { CONFIG as C } from '../config.js';
 import { makePost } from './posts.js';
-import { rollRoles, setSquadOrder } from './seaf.js';
+import { rollRoles, setSquadOrder, pendingTroops } from './seaf.js';
 import { seafStats } from '../data/kit.js';
 import { spawnGroup } from './director.js';
 import { damageArea } from './combat.js';
 import { COMMS } from '../data/data.js';
 import { t as tr } from '../i18n.js';
 
-export const LAST_STAND = { seed: 20185052, faction: 'squids', biome: 'mars', level: 1, tod: 5.6 };     // (0.19.5: level 1, and it climbs)
+export const LAST_STAND = { seed: 20185052, faction: 'squids', biome: 'mars', level: 3, tod: 5.6 };     // (0.19.5: level 1, and it climbs; 0.36.1: it starts at 3)
 const L = () => C.lastStand;
 
 const dryAt = (m, x, y) => m.terrain.isLand(x, y) && m.terrain.speedAt(x, y) > 0.9;
@@ -69,19 +69,22 @@ export function setupLastStand(m) {
     put('lookout', o.hx + ax * 22, o.hy + ay * 22, Math.atan2(ay, ax)),
     put('foxhole', o.sx - ax * 16 + px * 10, o.sy - ay * 16 + py * 10, Math.atan2(-ay, -ax)),
   ].filter(Boolean);
-  // two squads already at their posts: S1 holds the shelter, S2 the hangar
-  const st = seafStats(m.kit);
-  [[o.sx, o.sy], [o.hx, o.hy]].forEach(([x, y], i) => {
-    const sq = m.seaf.squads[i];
-    for (const role of rollRoles(m, K.squad, st)) { const a = m.addAlly('S', x + m.rng.range(-8, 8), y + m.rng.range(-8, 8), { role }); a.sq = sq.i; }
-    setSquadOrder(m, sq, 'protect', x, y);
-    sq.n = K.squad;
-  });
+  // (0.36.1) one squad already at its post: S1 holds the shelter. The SEAF lesson drops the second (there is room for it under
+  // the cap); if the lessons are skipped, that squad is at the hangar when the shelter opens (lsBegin)
+  posted(m, 0, o.sx, o.sy);
   // the lessons ask for the UAV and an orbital: they are ready from the start
   for (const sl of m.player.slots) if (sl.readyAt !== undefined) sl.readyAt = 0;
   m.hd.lives = m.hd.max = K.lives;
   m.ls = { stage: 'lessons', glassT: 0, broke: false, fallen: false, waveT: K.waveFirst, waves: 0, lifted: 0, pop: K.personnel, holdT: 0, beamT: 0, dmg: 1, hp0: m.hpMul, level: m.difficulty || 1 };
   o.pop = K.personnel;
+}
+
+// A squad of SEAF already at its post (i: the squad, at x, y), holding it.
+function posted(m, i, x, y) {
+  const sq = m.seaf.squads[i], st = seafStats(m.kit);
+  for (const role of rollRoles(m, L().squad, st)) { const a = m.addAlly('S', x + m.rng.range(-8, 8), y + m.rng.range(-8, 8), { role }); a.sq = sq.i; }
+  setSquadOrder(m, sq, 'protect', x, y);
+  sq.n = L().squad;
 }
 
 // The lessons send small groups at the base, from where the camera can see them come: the north of the base, or bearing ang.
@@ -103,6 +106,8 @@ export function lsBegin(m) {
   if (!ls || !o || ls.stage !== 'lessons') return false;
   ls.stage = 'hold'; ls.holdT = 0;
   o.wait = false; o.state = 'run'; o.batchT = 1; o.open = false;
+  // (0.36.1) nobody dropped in the SEAF lesson (it was skipped): the hangar's squad is at its post now
+  if (!m.seafAlive.some((a) => a.sq === 1) && !m.pelicans.some((p) => p.squad === 1) && m.seafAlive.length + pendingTroops(m) <= L().squad) posted(m, 1, o.hx, o.hy);
   m.radio(COMMS.lsBegin, 'lsbegin', 0);
   m.emit('ls_stage', { stage: 'hold' });
   return true;

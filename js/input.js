@@ -192,11 +192,7 @@ export class Input {
       if (e.code === 'Enter' && this.h.deployNow) { this.h.deployNow(); return; }
       if (e.code === 'KeyA' && (e.ctrlKey || e.metaKey) && this.h.selectAll) { e.preventDefault(); this.keys.delete('KeyA'); this.h.selectAll(); return; }     // (0.31) Ctrl+A: every trooper on the map (A alone still pans)
       { const ad = /^Digit([1-9])$/.exec(e.code); if (ad && e.altKey && this.h.toSquad) { e.preventDefault(); this.h.toSquad(Number(ad[1]) - 1); return; } }
-      // the tactical build screen is open: 1 to 7 build, Z X C V B pick a formation (and no weapon keys)
-      if (this.h.buildKeys && this.h.buildKeys() && !e.shiftKey) {     // (0.20: in the build context, 1 to 8 pick a build)
-        const d = /^Digit([0-9])$/.exec(e.code);
-        if (d) { if (Number(d[1]) >= 1 && Number(d[1]) <= 8) this.h.tacBuild(Number(d[1]) - 1); return; }
-      }
+      // (0.36.1) the number keys always pick weapons, whatever tab of the command panel is open (builds are picked with a click)
       if (e.code === 'KeyP') { this.h.soft(); return; }            // the soft pause: the game stops, the menu stays shut
       if (e.code === 'Comma' && this.h.speed) { this.h.speed(); return; }   // half speed / normal speed
       if (!this.active()) return;

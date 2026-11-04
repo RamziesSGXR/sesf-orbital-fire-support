@@ -58,7 +58,7 @@ check('the HUD says TUTORIAL, no mission clock yet, and to get ready', s0.mb ===
 check('the drop countdown reads in minutes', /^\d+:\d\d$/.test(s0.cd), s0.cd);
 // (0.19.5) level 1, the Helldivers' lives beside the credits
 const s1 = await ev(() => ({ d: window.__game.mission.difficulty, diff: document.getElementById('mb-diff').textContent, lives: document.getElementById('lives-v').textContent, liveVis: !!document.getElementById('lives').getBoundingClientRect().width }));
-check('the tutorial starts at difficulty 1, and the Helldivers\' lives show beside the credits', s1.d === 1 && /DIFFICULTY 1/.test(s1.diff) && s1.lives === '10' && s1.liveVis, JSON.stringify(s1));
+check('(0.36.1) the tutorial starts at difficulty 3, and the Helldivers\' lives show beside the credits', s1.d === 3 && /DIFFICULTY 3/.test(s1.diff) && s1.lives === '10' && s1.liveVis, JSON.stringify(s1));
 let c = await card();
 check('the card: step 1, the base, the Great Host', !c.hidden && /STEP 1 OF 9/.test(c.k) && /THARSIS/.test(c.h) && /Great Host/.test(c.b), c.h);
 check('a card holds the game until it is read (nothing to point at: no spotlight)', c.held && !c.spot && await frozen());
@@ -136,7 +136,7 @@ const h2 = await ev(() => ({ saved: window.__game.mission.objectives[0].saved, w
 // stage one and getting stronger, not yet brutal
 check('the waves come faster and stronger, and personnel get out', h2.waves >= 6 && h2.dmg > 1.25 && h2.saved > 0, JSON.stringify(h2));
 const lv = await ev(() => ({ lv: window.__game.mission.ls.level, diff: document.getElementById('mb-diff').textContent }));
-check('(0.19.5) the difficulty climbs with the waves, a level every 25 s, and the clock box shows it', lv.lv === 3 && /DIFFICULTY 3/.test(lv.diff), JSON.stringify(lv));
+check('(0.19.5) the difficulty climbs with the waves, a level every 25 s, and the clock box shows it (from 3 since 0.36.1)', lv.lv === 5 && /DIFFICULTY 5/.test(lv.diff), JSON.stringify(lv));
 await shot('hold');
 await ev(() => { const m = window.__game.mission; m.hd.lives = 3; for (let i = 0; i < 3; i++) m.step(1 / 30); }); await page.waitForTimeout(1000);
 c = await card();

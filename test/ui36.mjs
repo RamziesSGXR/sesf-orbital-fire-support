@@ -39,6 +39,15 @@ if (!touch) {
   await page.mouse.move(W / 2, H / 2 - 100);
   await page.keyboard.press('Delete'); await page.waitForTimeout(300);
   check('Delete with a building selected sets its charges (and does not disband a squad)', await ev(() => !!window.__p.demo));
+  // (0.36.1) the number keys pick weapons in every tab of the command panel, the build tab too
+  await ev(() => { window.__game.deselect(); window.__game.hud.setTcTab('build'); window.__game.setTac(true); }); await page.waitForTimeout(200);
+  await page.keyboard.press('Digit8'); await page.waitForTimeout(250);
+  const k8 = await ev(() => ({ tab: window.__game.hud.tcTab, armed: window.__game.armed, w: window.__game.mission.player.weapon, placing: window.__game.placing }));
+  check('(0.36.1) on the BUILD tab, 8 arms the ship gun instead of picking a build', k8.armed && k8.w === 7 && !k8.placing, JSON.stringify(k8));
+  await page.keyboard.press('Digit2'); await page.waitForTimeout(250);
+  const k2 = await ev(() => ({ armed: window.__game.armed, w: window.__game.mission.player.weapon, placing: window.__game.placing }));
+  check('(0.36.1) and 2 an orbital', k2.armed && k2.w === 1 && !k2.placing, JSON.stringify(k2));
+  check('(0.36.1) the build buttons carry no number keys', await ev(() => !document.querySelector('#tactical .bld .k')));
 }
 check('no page errors', errs.length === 0, errs.join(' | '));
 await browser.close();

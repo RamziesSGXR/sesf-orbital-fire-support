@@ -180,12 +180,12 @@ export class Hud {
       e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); this.onOrder && this.onOrder(kind); });
       this.ord[kind] = { el: e, sub: e.querySelector('.s'), key: '' };
     });
-    // The tactical build screen (main.js opens it): what is selected, a picture of everything SEAF can build (keys 1 to 8), and
+    // The tactical build screen (main.js opens it): what is selected, a picture of everything SEAF can build (0.36.1: picked with a click; the number keys stay on the weapons), and
     // the formations for the selected squad (clicked: Z X C V and B are orders and BUILD since 0.20). It runs in real time.
     this.bld = {}; this.frm = {};
     const tb = document.querySelector('#tactical .tac-build'), tf = document.querySelector('#tactical .tac-form');
     POSTS.forEach((what, i) => {
-      const e = el('button', 'bld', `<canvas class="ic" width="112" height="112"></canvas><span class="k">${i + 1}</span><span class="c"></span><span class="n"></span><span class="s"></span>`);
+      const e = el('button', 'bld', `<canvas class="ic" width="112" height="112"></canvas><span class="c"></span><span class="n"></span><span class="s"></span>`);
       e.type = 'button'; e.dataset.b = what;
       postIcon(e.querySelector('canvas'), what);
       e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onBuild && this.onBuild(what); if (this.m) this.tip(e, () => buildShort(this.m, what), () => buildInfo(this.m, what)); });

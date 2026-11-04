@@ -19,7 +19,7 @@ const dt = 1 / 30;
 const run = (m, sec, each) => { for (let i = 0, n = Math.round(sec / dt); i < n && !m.over; i++) { m.step(dt); if (each && each(m) === true) break; } };
 
 // ---------------------------------------------------------------- the version
-check('version 0.36.0', C.share.version === '0.36.0' && JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url))).version === '0.36.0', C.share.version);
+check('version 0.36.1', C.share.version === '0.36.1' && JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url))).version === '0.36.1', C.share.version);
 
 // ---------------------------------------------------------------- the climb
 {
@@ -56,8 +56,11 @@ check('version 0.36.0', C.share.version === '0.36.0' && JSON.parse(fs.readFileSy
     m.objectives.length === 1 && o.type === 'evac' && o.lastStand && Math.hypot(o.x - m.ao.cx, o.y - m.ao.cy) < 260 && Math.hypot(m.lz.x - o.x, m.lz.y - o.y) < 80,
     `${Math.round(Math.hypot(o.x - m.ao.cx, o.y - m.ao.cy))} m from the middle`);
   check('nothing else on the map: no bases, patrols, side missions, finds or enemies yet', !m.bases.length && !m.sides.length && !m.pois.length && !m.loot.length && !m.enemies.length);
-  check('the base has its defences (two turret nests, a lookout, a foxhole) and two squads of SEAF holding it',
-    m.posts.filter((p) => p.what === 'mg').length === 2 && m.posts.some((p) => p.what === 'lookout') && m.seafAlive.length === 2 * C.lastStand.squad && m.seaf.squads[0].n > 0 && m.seaf.squads[1].n > 0);
+  check('(0.36.1) the base has its defences (two turret nests, a lookout, a foxhole) and one squad of SEAF at the shelter, so the SEAF lesson has room for a drop',
+    m.posts.filter((p) => p.what === 'mg').length === 2 && m.posts.some((p) => p.what === 'lookout') && m.seafAlive.length === C.lastStand.squad && m.seaf.squads[0].n > 0 && m.seaf.squads[1].n === 0);
+  check('(0.36.1) the tutorial starts at difficulty 3', L.level === 3 && m.difficulty === 3, `${m.difficulty}`);
+  { const m2 = mk(), o2 = m2.objectives[0]; run(m2, 1); const r = m2.callSeaf(o2.hx + 8, o2.hy + 8);
+    check('(0.36.1) the SEAF lesson\'s drop is not refused: a new squad comes in', r && r.ok && r.squad === 1 && r.n > 0, JSON.stringify(r)); }
   check('the Helldivers wait in their pods until DEPLOY NOW', m.dropAt > 600 && m.pods.length === 4);
   check('the HUD says to get ready; the shelter stays shut through the lessons', /READY/.test(JSON.stringify(objectiveStatus(m))) && o.wait && o.state === 'travel', JSON.stringify(objectiveStatus(m)));
   run(m, 5);
@@ -73,6 +76,7 @@ check('version 0.36.0', C.share.version === '0.36.0' && JSON.parse(fs.readFileSy
   run(m, 60, (mm) => g.members.every((e) => e.dead) && h.members.every((e) => e.dead));
   check('the base\'s defences, troops and Helldivers put them down', g.members.every((e) => e.dead), `${g.members.filter((e) => !e.dead).length} left`);
   check('the evacuation opens when the lessons end', m.lsBegin() === true && o.state === 'run' && m.ls.stage === 'hold' && m.lsBegin() === false);
+  check('(0.36.1) the lessons skipped without a drop: the hangar\'s squad is at its post when the shelter opens', m.allies.filter((a) => !a.dead && a.type === 'S' && a.sq === 1).length === C.lastStand.squad, `${m.allies.filter((a) => !a.dead && a.type === 'S' && a.sq === 1).length}`);
   check('the Helldivers have the last stand\'s lives', m.hd.lives <= C.lastStand.lives && m.hd.max === C.lastStand.lives, `${m.hd.lives}/${m.hd.max}`);
   let waves = 0, lifted = 0, gaps = [], lastW = null;
   run(m, 100, (mm) => { for (const e of mm.events) { if (e.type === 'reinf_spawn' && e.src === 'ls') { waves++; if (lastW !== null) gaps.push(mm.t - lastW); lastW = mm.t; } if (e.type === 'shuttle') lifted++; } mm.events.length = 0; });

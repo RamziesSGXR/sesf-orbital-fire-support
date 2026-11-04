@@ -196,9 +196,7 @@ const input = new Input(canvas, $('minimap'), cam, {
   speed: () => toggleSpeed(),
   tap: (type, x, y) => tapAt(type, x, y),
   tac: () => act(),                                    // (0.20: the command panel is always up; a left drag boxes troopers; 0.22: paused too)
-  buildKeys: () => act() && hud.tcTab === 'build',     // (the build context: the number keys pick builds)
   ctx: (c) => { if (!act()) return; audio.unlock(); hud.setTcTab(hud.tcTab === c ? 'units' : c); setTac(true); },
-  tacBuild: (i) => { const w = POSTS[i]; if (w) hud.onBuild(w); },
   tacForm: (i) => setForm(FORMS[i]),
   boxing: () => boxArm && live(),
   boxBegin: (x, y) => { if (act()) box = { x0: x, y0: y, x1: x, y1: y }; },
