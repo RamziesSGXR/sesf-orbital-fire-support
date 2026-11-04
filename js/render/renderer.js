@@ -7,6 +7,7 @@ import { drawSquadOrders, drawSeafMark, drawStroke, drawPelicans, drawMiniSeaf, 
 
 import { slotStats } from '../sim/player.js';
 import { drawAllyBody, drawEnemyBody, enemyR, drawBossBody, bossR } from './units.js';
+import { Launch } from './launch.js';
 import { drawAoEdge, drawSides, drawBeacons, drawRevealed, drawRadar, drawArty, drawCrates, drawMarks } from './ops.js';
 import { OPS } from '../data/data.js';
 import { t as tr } from '../i18n.js';
@@ -31,6 +32,7 @@ export class Renderer {
     this.W = 0; this.H = 0; this.dpr = 1;
     this.terrain = null; this.decal = null;
     this.fx = []; this.shake = 0;
+    this.launch = new Launch(this);   // bodies thrown by blasts (launch.js)
     this.ov = document.createElement('canvas');
     // The screen overlay (scanlines, grain, vignette, frame corners) never changes during play, so it is its own layer over the
     // view, composited by the browser, instead of a full-screen draw every frame.
@@ -110,10 +112,11 @@ export class Renderer {
   setTerrain(cv, keepDecals = false) {
     this.terrain = cv;
     if (!keepDecals || !this.decal) this.decal = makeDecals();
-    if (!keepDecals) { this.fx.length = 0; this.shake = 0; }
+    if (!keepDecals) { this.fx.length = 0; this.shake = 0; this.launch.clear(); }
   }
 
   handle(ev, now, m) {
+    this.launch.onEvent(ev, now);
     const fx = this.fx;
     if (fx.length > 320) return;
     const flash = this.settings.reduceFlash ? 0.5 : 1;
@@ -394,6 +397,7 @@ export class Renderer {
       ctx.globalAlpha = 1;
     }
 
+    this.launch.draw(ctx, m, now, px, pal, fid);   // bodies in the air: above every unit on the ground
     drawAssets(ctx, m, now, px, labels, scale, pal);
     drawPings(ctx, m, now, px, labels, scale);
 

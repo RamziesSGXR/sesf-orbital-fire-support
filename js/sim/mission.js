@@ -858,7 +858,7 @@ export class Mission {
       this.stats.killsAlly++;
     }
     this.earn('kills', C.credits.kill[e.kind] * rw, e.x, e.y);
-    this.emit('kill', { x: e.x, y: e.y, kind: e.kind, by, sub: e.sub || '' });
+    this.emit('kill', { x: e.x, y: e.y, kind: e.kind, by, sub: e.sub || '', id: e.id, face: e.face || 0, r: e.r, boss: !!e.boss });
   }
 
   _cause(by, src) {
@@ -893,7 +893,7 @@ export class Mission {
       this.noticeAt.seaf = t;
       this.notice(tr('n.kia', { who: this.tag(a), cause }), 'dim');
     }
-    this.emit('ally_down', { x: a.x, y: a.y, type: a.type, by });
+    this.emit('ally_down', { x: a.x, y: a.y, type: a.type, unit: a.type, by, id: a.id, face: a.face || 0, role: a.role, team: a.team });
   }
   destroyAsset(s, why) { destroyAsset(this, s, why); }
   mechDown(a) { mechDown(this, a); }
