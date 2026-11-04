@@ -387,6 +387,7 @@ export default {
   'set.st.dynamic': 'Dynamic', 'set.st.ambient': 'Ambient', 'set.st.off': 'Off',
   'set.sfx': 'Effects volume', 'set.sfxHint': 'Weapons, explosions, alarms and the ship',
   'set.bubbles': 'Speech bubbles', 'set.bubblesHint': 'What Helldivers and SEAF say before they act',
+  'set.light': 'Lighting', 'set.lightHint': 'Night on the ground, flashlights and lamps, muzzle flashes, the light of the hour',     // (0.38)
   'set.flash': 'Reduce flashing', 'set.flashHint': 'Slower strobes, softer explosions',
   'set.color': 'Color-safe palette', 'set.colorHint': 'Yellow enemies, bright blue allies',
   'set.lefty': 'Left-handed layout', 'set.leftyHint': 'Moves touch buttons to the left',

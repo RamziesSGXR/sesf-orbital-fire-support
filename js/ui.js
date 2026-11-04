@@ -1924,6 +1924,7 @@ export function buildSettings(settings, onChange) {
   row(t('set.thermal'), t('set.thermalHint'), select('polarity', [['white', t('set.white')], ['black', t('set.black')]]));
   row(t('set.relief'), t('set.reliefHint'), toggle('relief'));
   row(t('set.gfx'), t('set.gfxHint'), select('quality', [['auto', t('set.auto')], ['high', t('set.high')], ['low', t('set.low')]]));
+  row(t('set.light'), t('set.lightHint'), toggle('lighting'));
   row(t('set.bubbles'), t('set.bubblesHint'), toggle('bubbles'));
   row(t('set.cards'), t('set.cardsHint'), select('cards', [['side', t('set.on')], ['off', t('set.off')]]));
   row(t('set.flash'), t('set.flashHint'), toggle('reduceFlash'));

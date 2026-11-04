@@ -387,6 +387,7 @@ export default {
   'set.st.dynamic': 'Dynamique', 'set.st.ambient': 'Ambiance', 'set.st.off': 'Coupée',
   'set.sfx': 'Volume des effets', 'set.sfxHint': 'Armes, explosions, alarmes et le vaisseau',
   'set.bubbles': 'Bulles de dialogue', 'set.bubblesHint': 'Ce que disent Helldivers et SEAF avant d’agir',
+  'set.light': 'Éclairage', 'set.lightHint': 'La nuit au sol, lampes torches et projecteurs, éclairs des tirs, la lumière de l’heure',     // (0.38)
   'set.flash': 'Réduire les flashs', 'set.flashHint': 'Stroboscopes plus lents, explosions plus douces',
   'set.color': 'Palette daltonisme', 'set.colorHint': 'Ennemis jaunes, alliés bleu vif',
   'set.lefty': 'Disposition gaucher', 'set.leftyHint': 'Place les boutons tactiles à gauche',

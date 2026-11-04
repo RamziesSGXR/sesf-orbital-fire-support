@@ -1,6 +1,6 @@
 {
   "name": "orbital-fury",
-  "version": "0.37.0",
+  "version": "0.38.0",
   "description": "Orbital Fury - a Super Destroyer targeting minigame (unofficial fan project)",
   "main": "js/main.js",
   "scripts": {

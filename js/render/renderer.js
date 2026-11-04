@@ -18,6 +18,7 @@ import { drawPosts, postArt } from './posts.js';
 import { foxReach } from '../sim/posts.js';
 import { buildStats, uavStats, seafStats, buildLevel } from '../data/kit.js';
 import { todAt, skyTint } from './sky.js';
+import { Lighting, ambient, washKey, bakeWash } from './light.js';
 
 const SIZE = C.world.size;
 export const MINI_Q = 0.9;      // the share of the round minimap's width the (round) area of operations fills
@@ -39,6 +40,7 @@ export class Renderer {
     this.ov.className = 'ovfx';
     if (canvas.parentNode) canvas.parentNode.insertBefore(this.ov, canvas.nextSibling);
     this.fog = document.createElement('canvas'); // half-resolution mask that dims the map outside what the squad can see
+    this.light = new Lighting();                 // (0.38) the hour's light: the night on the ground, lights, the day's wash (light.js)
     this.labels = [];
     this.noise = null; this.noisePat = null;
     this.quality = 'high';
@@ -66,18 +68,21 @@ export class Renderer {
 
   // The ground as drawn: the terrain with the scorch marks on it and the hour's tint multiplied in. Kept as one canvas so a frame
   // draws the ground once instead of three full-screen passes; rebuilt only when the terrain, the decals or the tint change.
-  _ground(tint) {
+  // (0.38) wash: the hour's light baked in with it (light.js washKey): its colour in soft light, and the sun's side warmer when it
+  // is low, so the day's light costs nothing a frame
+  _ground(tint, wash = null) {
     const T = this.terrain;
     if (!T) return null;
     const n = T.width;
     if (!this.groundCv || this.groundCv.width !== n) { this.groundCv = document.createElement('canvas'); this.groundCv.width = this.groundCv.height = n; this.groundKey = null; }
-    const key = tint || '';
+    const key = (tint || '') + '|' + (wash ? wash.key : '');
     if (this.groundKey !== key || this.groundTerrain !== T || this.groundDecal !== this.decal) {
       const g = this.groundCv.getContext('2d');
       g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
       g.drawImage(T, 0, 0);
       if (this.decal) g.drawImage(this.decal, 0, 0, n, n);
       if (tint) { g.globalCompositeOperation = 'multiply'; g.fillStyle = tint; g.fillRect(0, 0, n, n); g.globalCompositeOperation = 'source-over'; }
+      if (wash) bakeWash(g, n, wash);
       this.groundKey = key; this.groundTerrain = T; this.groundDecal = this.decal;
     }
     return this.groundCv;
@@ -295,11 +300,17 @@ export class Renderer {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
     ctx.setTransform(scale, 0, 0, scale, tx, ty);
-    this._layers(ctx, scale, W, H, tx, ty, skyTint(Math.round(todAt(m) * 4) / 4).col);   // the tint moves in quarter-hour steps
+    // (0.38) the hour's light (light.js): its wash baked into the ground, the lights in view, and the night on the ground with them
+    // carved out of it (only the ground: every unit, building and label is drawn over it, so nothing is harder to see)
+    const lit = this.settings.lighting !== false, lowFx = this.quality === 'low' || this.perf.low, hq = Math.round(todAt(m) * 4) / 4;
+    const amb = lit ? ambient(todAt(m)) : null;
+    this._layers(ctx, scale, W, H, tx, ty, skyTint(hq).col, lit ? washKey(hq) : null);   // the tint (and the wash) move in quarter-hour steps
+    if (amb) this.light.collect(m, this.fx, now, { x0: -tx / scale, y0: -ty / scale, x1: (W - tx) / scale, y1: (H - ty) / scale }, this.settings, amb);
 
-    // Everything the squad cannot see is dimmed, so what they can see reads as a bright pool around them.
+    // Everything the squad cannot see is dimmed, so what they can see reads as a bright pool around them. (0.38) At night the fog's
+    // mask goes into the night's, and the two are laid on together.
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    this._fog(ctx, m, scale, tx, ty);
+    this._fog(ctx, m, scale, tx, ty, amb && amb.dark > 0.005 ? (fog) => this.light.shade(ctx, W, H, scale, tx, ty, amb, fog) : null);
     ctx.setTransform(scale, 0, 0, scale, tx, ty);
 
     const px = (n) => n / scale; // pixels -> meters
@@ -430,6 +441,8 @@ export class Renderer {
     // Effects, and the player's orbital shells coming down
     this._incoming(ctx, m, now, px);
     this._effects(ctx, now, px);
+    // (0.38) the lights' colour over everything, then the hour's wash
+    if (amb) this.light.glow(ctx, amb, lowFx);
 
     // ---- screen space ----
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -530,7 +543,8 @@ export class Renderer {
     });
   }
   // Dims the map outside what the squad (and any UAV) can see, and outlines the strike zone: the ring in which strikes can be called.
-  _fog(ctx, m, scale, tx, ty) {
+  // under: (0.38) given, it lays the mask on instead (the night's light, with the fog in it)
+  _fog(ctx, m, scale, tx, ty, under = null) {
     // A quarter-size mask: soft by nature, so a small canvas scaled up looks the same and costs a sixteenth of the pixels.
     const fc = this.fog.getContext('2d'), fw = this.fog.width, fh = this.fog.height, h = fw / this.W;
     fc.globalCompositeOperation = 'source-over';
@@ -549,7 +563,7 @@ export class Renderer {
     for (const u of m.relays || []) hole(u.x, u.y, u.r, 0.85);
     fc.globalCompositeOperation = 'source-over';
     ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(this.fog, 0, 0, this.W, this.H);
+    if (under) under(this.fog); else ctx.drawImage(this.fog, 0, 0, this.W, this.H);
 
     // The strike zone outline: the outer edge of the union of every ally's (and UAV's) circle, stroked as arcs. For each circle,
     // the parts of its rim that lie inside another circle are left out.
@@ -726,12 +740,12 @@ export class Renderer {
     ctx.textAlign = 'left';
   }
 
-  _layers(ctx, scale, W, H, tx, ty, tint = null) {
+  _layers(ctx, scale, W, H, tx, ty, tint = null, wash = null) {
     // Visible world rect, clipped to the map.
     const x0 = Math.max(0, -tx / scale), y0 = Math.max(0, -ty / scale);
     const x1 = Math.min(SIZE, (W - tx) / scale), y1 = Math.min(SIZE, (H - ty) / scale);
     if (x1 <= x0 || y1 <= y0) return;
-    const img = this._ground(tint);
+    const img = this._ground(tint, wash);
     if (img) { const k = img.width / SIZE; ctx.globalAlpha = 1; ctx.drawImage(img, x0 * k, y0 * k, (x1 - x0) * k, (y1 - y0) * k, x0, y0, x1 - x0, y1 - y0); }
     ctx.globalAlpha = 1;
     // Map edge
@@ -992,6 +1006,20 @@ export class Renderer {
   _drawTracer(ctx, f, now, px) {
     const tt = now - f.t0, hp = Math.min(1, tt / Math.max(0.001, f.fl)), black = this.settings.polarity === 'black';
     const dx = f.x2 - f.x, dy = f.y2 - f.y, d = f.d;
+    // (0.38) the muzzle flash: a star at the gun for a few frames, pointing where it fired (a bug's spit has none)
+    if (tt < 0.06 && f.kind !== 'slash' && f.kind !== 'glob' && f.kind !== 'zap') {
+      const q = 1 - tt / 0.06, s = Math.max(f.big ? 4.2 : 2.4, px(f.big ? 9 : 5)) * (0.7 + 0.3 * q), ang = Math.atan2(dy, dx);
+      const core = f.side === 'e' ? f.col : '#ffe9b0';
+      ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(ang);
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, s);
+      g.addColorStop(0, `rgba(255,255,255,${0.95 * q})`); g.addColorStop(0.45, this._rgba(core, 0.75 * q)); g.addColorStop(1, this._rgba(core, 0));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, s, 0, TAU); ctx.fill();
+      ctx.fillStyle = `rgba(255,250,225,${0.85 * q})`; ctx.beginPath();
+      ctx.moveTo(s * 2.2, 0); ctx.lineTo(s * 0.3, s * 0.34); ctx.lineTo(s * 0.3, -s * 0.34); ctx.closePath();      // the long spike, down the barrel
+      ctx.moveTo(s * 0.9, s * 0.95); ctx.lineTo(s * 0.15, s * 0.2); ctx.lineTo(s * 0.35, 0); ctx.closePath();        // and two short ones to the sides
+      ctx.moveTo(s * 0.9, -s * 0.95); ctx.lineTo(s * 0.15, -s * 0.2); ctx.lineTo(s * 0.35, 0); ctx.closePath();
+      ctx.fill(); ctx.restore();
+    }
     // arrival: a spark when it hits, a puff and a pit in the ground when it misses
     if (!f.imp && hp >= 1) {
       f.imp = true;
@@ -1021,6 +1049,7 @@ export class Renderer {
     let lift = 0;
     if (f.kind === 'shell' && f.fl >= 1) lift = Math.sin(Math.PI * hp) * Math.min(26, d * 0.3);   // lobbed shells arc up and come down
     if (f.kind === 'glob') {
+      ctx.fillStyle = this._rgba(f.col, 0.28); ctx.beginPath(); ctx.arc(hx, hy - lift, Math.max(2.2, px(5)), 0, TAU); ctx.fill();     // (0.38: it glows)
       ctx.fillStyle = this._rgba(f.col, 0.95); ctx.beginPath(); ctx.arc(hx, hy - lift, Math.max(1.1, px(2.4)), 0, TAU); ctx.fill();
       return;
     }
@@ -1034,6 +1063,7 @@ export class Renderer {
     const tx = f.x + dx * tp, ty = f.y + dy * tp;
     ctx.lineCap = 'round';
     if (f.kind === 'bolt') { ctx.strokeStyle = this._rgba(f.col, 0.28); ctx.lineWidth = px(f.w * 3.2); ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy); ctx.stroke(); }
+    else { ctx.strokeStyle = this._rgba(f.col, 0.18); ctx.lineWidth = Math.max(px(f.w * 2.6), 1.2); ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy); ctx.stroke(); }     // (0.38: a faint glow round every tracer)
     ctx.strokeStyle = this._rgba(f.col, 0.95); ctx.lineWidth = Math.max(px(f.w), 0.5); ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy); ctx.stroke();
     ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = Math.max(px(f.w * 0.4), 0.3); ctx.beginPath(); ctx.moveTo(tx + (hx - tx) * 0.5, ty + (hy - ty) * 0.5); ctx.lineTo(hx, hy); ctx.stroke();
     ctx.lineCap = 'butt';
