@@ -32,6 +32,22 @@ export function aoClamp(a, x, y, pad = 0) {
   return d <= R ? { x, y } : { x: a.cx + (dx / d) * R, y: a.cy + (dy / d) * R };
 }
 
+// (0.40) A way to go (dx, dy) for someone at (x, y), kept off the edge of the round area: within `band` metres of it, the part
+// that points out is taken away and it leans inward the nearer the edge it is, so whoever follows it slides along the edge (and
+// back in) instead of being pressed into it. Headed straight out, it turns along the edge, to the side `side` (1 or -1).
+export function offEdge(m, x, y, dx, dy, band = 50, side = 1) {
+  const A = m.ao, R = A.R || A.size / 2, ox = x - A.cx, oy = y - A.cy, d = Math.hypot(ox, oy) || 1, gap = R - d;
+  const L = Math.hypot(dx, dy);
+  if (gap > band || L < 1e-9) return { x: dx, y: dy };
+  const nx = ox / d, ny = oy / d, out = (dx * nx + dy * ny) / L;
+  let rx = dx / L, ry = dy / L;
+  if (out > 0) { rx -= nx * out; ry -= ny * out; }
+  if (Math.hypot(rx, ry) < 0.35) { const s = side >= 0 ? 1 : -1; rx = -ny * s; ry = nx * s; }     // (straight out: along the edge)
+  const k = Math.max(0, Math.min(1, 1 - gap / band));
+  rx -= nx * 0.7 * k; ry -= ny * 0.7 * k;
+  const l = Math.hypot(rx, ry) || 1;
+  return { x: (rx / l) * L, y: (ry / l) * L };
+}
 export const aoX = (m, x, pad = 0) => Math.max(m.ao.x0 + pad, Math.min(m.ao.x1 - pad, x));
 export const aoY = (m, y, pad = 0) => Math.max(m.ao.y0 + pad, Math.min(m.ao.y1 - pad, y));
 export const inAO = (m, x, y, pad = 0) => (x - m.ao.cx) ** 2 + (y - m.ao.cy) ** 2 <= ((m.ao.R || m.ao.size / 2) - pad) ** 2;

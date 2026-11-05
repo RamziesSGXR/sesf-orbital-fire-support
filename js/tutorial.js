@@ -4,6 +4,7 @@
 // The texts are in the language tables: tut.<step>.h (the heading) and tut.<step>.d / tut.<step>.t (desktop / touch), or
 // tut.<step>.b for both.
 import { t } from './i18n.js';
+import { CAST } from './data/story.js';
 
 const $ = (id) => document.getElementById(id);
 const gone = (g) => !g || g.members.every((e) => e.dead);
@@ -49,6 +50,7 @@ const vis = (e) => { if (!e) return false; const r = e.getBoundingClientRect(); 
 export class Tutorial {
   constructor(g) {
     this.g = g; this.i = -1; this.s = null; this.on = true; this.stage = 'lessons'; this.hl = []; this.held = false; this.cur = null; this.pt = 0;
+    this.queue = [];      // (0.40) a card that came while another held the game: it comes up once that one is let go
     this.el = $('tut'); this.spot = $('tut-spot');
     $('tut-next').onclick = () => this.advance();
     $('tut-ok').onclick = () => this.release();
@@ -90,9 +92,13 @@ export class Tutorial {
     this.point(this.target());
   }
   // a card: it holds the game until NEXT or GOT IT
+  // (0.40) o.who: someone on the radio says it (their name in the corner, in their colour)
   card(h, b, o) {
     this.o = o; this.held = true;
-    $('tut-k').textContent = o.n ? t('tut.step', { n: o.n, of: STEPS.length }) : t('tut.tag');
+    const k = $('tut-k'), c = o.who && CAST[o.who];
+    k.textContent = c ? c.name : o.n ? t('tut.step', { n: o.n, of: STEPS.length }) : t('tut.tag');
+    k.style.color = c ? c.col : '';
+    this.el.classList.toggle('say', !!c); if (c) this.el.style.setProperty('--cc', c.col);
     $('tut-h').textContent = h; $('tut-b').textContent = b;
     $('tut-next').textContent = t(this.step && this.step.last ? 'tut.holdBtn' : 'tut.next');
     this.el.classList.remove('fold', 'hidden');
@@ -115,6 +121,7 @@ export class Tutorial {
     this.held = false;
     this.el.classList.add('fold');
     this.buttons();
+    if (this.queue.length) this.queue.shift()();
   }
   // what the step points at now: on a tab of the sheet, TACTICAL while it is shut, then the tab, then the thing
   target() {
@@ -166,7 +173,10 @@ export class Tutorial {
   }
   onEvent(ev) {
     if (this.s) this.s.ev.push(ev);
-    if (ev.type === 'ls_stage' && ev.stage === 'breaking') { this.card(t('tut.breaking.h'), t('tut.breaking.b'), { ok: true }); this.el.classList.add('warn'); this.point(null); }
+    const later = (f) => { if (this.held && this.stage === 'hold') this.queue.push(f); else f(); };
+    if (ev.type === 'ls_stage' && ev.stage === 'breaking') later(() => { this.card(t('tut.breaking.h'), t('tut.breaking.b'), { ok: true }); this.el.classList.add('warn'); this.point(null); });
+    // (0.40) at 100 off Mars: Tharsis Control, plainly. They will not all get off.
+    if (ev.type === 'ls_stage' && ev.stage === 'truth') later(() => { this.card(t('tut.truth.h'), t('tut.truth.b', { saved: ev.saved }), { ok: true, who: 'tharsis' }); this.el.classList.remove('warn'); this.point(null); });
     if (ev.type === 'ls_stage' && ev.stage === 'glass') this.close();
   }
   update() {

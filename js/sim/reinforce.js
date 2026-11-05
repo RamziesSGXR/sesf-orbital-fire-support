@@ -26,9 +26,10 @@ export function initReinf(m) {
 }
 
 // How many groups one reinforcement brings (count: from how many places at once; a few more in all when it is several).
-function groupsFor(m, extra = 0, count = 1) {
+// (0.40) pMin: the pressure a call is at least sized for (a defended site: knocking bases out does not leave it quiet).
+function groupsFor(m, extra = 0, count = 1, pMin = 0, maxN = 0) {
   const M = R.multi, more = (count - 1) * M.perExtra;
-  const n = Math.min(R.maxGroups + (count - 1) * M.perCap, R.groups + Math.floor((m.pressure - 1) * R.perPressure + extra + more));
+  const n = Math.min(maxN || R.maxGroups + (count - 1) * M.perCap, R.groups + Math.floor((Math.max(m.pressure, pMin) - 1) * R.perPressure + extra + more));
   const per = m.faction.id === 'bugs' ? R.bugs.pack * R.bugs.packs : 1;     // (a bug hole spills more than a group's worth for each)
   const room = Math.floor((C.enemies.hardCap - m.enemies.length) / Math.max(1, m.groupSize * per));
   return Math.max(0, Math.min(n, room));
@@ -70,7 +71,7 @@ function dropSpot(m, x, y, dmin, dmax, ang = null) {
 export function callReinforcements(m, x, y, why = 'flare', opts = {}) {
   const st = m.reinf, fac = m.faction.id, t = m.t;
   let count = Math.max(1, opts.count || 1);
-  const n = groupsFor(m, opts.extra || 0, count);
+  const n = groupsFor(m, opts.extra || 0, count, opts.pMin || 0, opts.maxN || 0);
   if (n <= 0) return 0;
   count = Math.min(count, n);
   const ring = opts.dist || (why === 'flare' ? R.dist : R.siteDist), a0 = m.rrng.angle();

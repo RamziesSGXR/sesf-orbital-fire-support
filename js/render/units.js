@@ -222,6 +222,10 @@ export function drawEnemyBody(ctx, e, fac, r, col, now, px, hot) {
       ctx.fillStyle = body; ell(ctx, 0, 0, 0.75 * r, 0.42 * r); ctx.fill(); ctx.strokeStyle = dark; ctx.lineWidth = lw(0.8); ctx.stroke();
       for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(0.1 * r, s * 0.35 * r); ctx.lineTo(-0.25 * r, s * 0.95 * r); ctx.lineTo(-0.35 * r, s * 0.3 * r); ctx.closePath(); ctx.fill(); }
       ctx.fillStyle = '#ffffff'; circ(ctx, 0.62 * r, 0, Math.max(0.13 * r, px(1))); ctx.fill();
+      // (0.40) its rifle, held out in front: a dark barrel with a glowing emitter at the muzzle
+      ctx.strokeStyle = dark; ctx.lineWidth = lw(2.2); ctx.lineCap = 'butt'; line(ctx, 0.05 * r, 0.5 * r, 1.4 * r, 0.42 * r);
+      ctx.strokeStyle = '#e6d8ff'; ctx.lineWidth = lw(1.1); line(ctx, 0.15 * r, 0.5 * r, 1.35 * r, 0.42 * r);
+      ctx.fillStyle = rgba(col, 0.6 + 0.4 * pulse); circ(ctx, 1.4 * r, 0.42 * r, Math.max(0.1 * r, px(0.9))); ctx.fill();
     } else {
       // a drone: a floating dart with its eye at the point and two tendrils trailing
       ctx.strokeStyle = rgba(col, 0.75); ctx.lineWidth = lw(0.9);

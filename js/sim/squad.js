@@ -96,7 +96,7 @@ export function updateSquad(m, dt) {
       if (sq.setupT <= 0 || !g || g.state === 'hunt' || !g.members.some((e) => !e.dead) || engaged) {
         sq.state = 'attack'; sq.free = true; sq.setupCool = C.squad.setupCooldownSec; sq.attackT = 14;
       }
-    } else if (spot && !engaged && !threat && !mounted && sq.setupCool <= 0 && m.phase !== 'over' && !sq.staging) {
+    } else if (spot && !engaged && !threat && !mounted && sq.setupCool <= 0 && m.phase !== 'over' && !sq.staging && !sq.fallback) {
       sq.state = 'setup'; sq.setupT = C.squad.setupSec; sq.free = false; sq.spotG = spot.g;
       m.radio(COMMS.spotted(m.faction.name.toLowerCase(), compass(spot.x - m.hx, spot.y - m.hy)), 'spotted', 6);
       m.emit('spotted', { x: spot.g.cx, y: spot.g.cy });
@@ -113,6 +113,7 @@ export function updateSquad(m, dt) {
     if (m.phase === 'objective' || m.phase === 'clear') {
       // the plan (planner.js): a side task on the way, the main objective, or the next task of a full clear
       const og = planGoal(m);
+      sq.fallback = !!(og && og.fallback);        // (0.40) pulling back from a losing fight
       if (og && og.base) baseGoal = og.base;
       else if (og) {
         pointGoal = true;
@@ -124,6 +125,7 @@ export function updateSquad(m, dt) {
         if (sq.state === 'hold') sq.state = 'advance';
       } else sq.base = null;
     } else if (m.phase === 'extract') {
+      sq.fallback = false;
       // To the extraction point, then hold it until the pelican is down (the anchor stays on the pad).
       const ex = m.extraction;
       sq.dir = Math.atan2(ex.y - sq.ay, ex.x - sq.ax);
@@ -197,7 +199,7 @@ export function updateSquad(m, dt) {
     // what stands off beyond that, or it would be shot to pieces by longer guns while it waits)
     const holdingWalls = m.phase !== 'clear' && pointGoal && holdSites(m, sq.ax, sq.ay)
       && near && Math.hypot(near.x - sq.ax, near.y - sq.ay) <= C.combat.helldiver.range * 0.9;
-    if (near && !engaged && (sq.state === 'attack' || threat) && !(sq.staging && !threat) && !holdingWalls) {
+    if (near && !engaged && (sq.state === 'attack' || threat) && !(sq.staging && !threat) && !holdingWalls && !sq.fallback) {
       const lim = pointGoal ? 55 : baseGoal ? 60 : 1e9;
       if (Math.hypot(near.x - sq.ax, near.y - sq.ay) <= lim) { gx = near.x; gy = near.y; goal = 'attack'; }
     }
@@ -210,13 +212,13 @@ export function updateSquad(m, dt) {
     if (fightOn && !sq.fightOn) m.radio(COMMS.fightOn, 'fighton', 40);
     sq.fightOn = fightOn;
     const hbRun = !!(m.hellbomb && m.hellbomb.state === 'armed');     // (0.38.1) an armed Hellbomb: the squad moves off, fighting or not
-    const hold = !hbRun && ((engaged && !fightOn) || sq.state === 'setup');
+    const hold = !hbRun && !sq.fallback && ((engaged && !fightOn) || sq.state === 'setup');     // (0.40: pulling back, it keeps moving too)
     if (!hold && goal !== 'none') {
       const w = steer(m.terrain, sq, sq.ax, sq.ay, gx, gy, t);     // round the water, if there is any in the way
       let wx = aoX(m, w.x, 3), wy = aoY(m, w.y, 3);                  // (a corner of the route may lie just past the map's edge)
       if (goal !== 'attack') { const r = ringAvoid(m, sq, sq.ax, sq.ay, wx, wy, gx, gy, baseGoal); if (!m.terrain.blocked(r.x, r.y)) { wx = aoX(m, r.x, 3); wy = aoY(m, r.y, 3); } }
       const dx = wx - sq.ax, dy = wy - sq.ay, d = Math.hypot(dx, dy);
-      const v = hbRun ? C.squad.chaseSpeed * bm * C.objective.hellbomb.runMul : speed * (fightOn ? C.squad.fightOnSpeed : 1);
+      const v = hbRun ? C.squad.chaseSpeed * bm * C.objective.hellbomb.runMul : sq.fallback ? C.squad.chaseSpeed * bm * 0.9 : speed * (fightOn ? C.squad.fightOnSpeed : 1);
       if (d > 0.05) { const s = Math.min(v * dt, d); sq.ax += (dx / d) * s; sq.ay += (dy / d) * s; }
     }
   }
@@ -260,9 +262,9 @@ export function updateSquad(m, dt) {
       }
       const sw = steer(m.terrain, a, a.x, a.y, tx, ty, t);
       const dx = sw.x - a.x, dy = sw.y - a.y, d = Math.hypot(dx, dy);
-      const keepUp = sq.fightOn && d > 4;      // fighting forward: keep with the anchor, shooting on the move
+      const keepUp = (sq.fightOn || sq.fallback) && d > 4;      // fighting forward (or pulling back): keep with the anchor, shooting on the move
       if (d > 0.8 && (keepUp || (!selfEngaged && (!sq.engaged || d > 25))) && sq.state !== 'setup') {
-        const s = Math.min(chase * speedMul(m, a) * (keepUp ? 0.75 : 1), d), nx = a.x + (dx / d) * s, ny = a.y + (dy / d) * s;
+        const s = Math.min(chase * speedMul(m, a) * (keepUp && !sq.fallback ? 0.75 : 1), d), nx = a.x + (dx / d) * s, ny = a.y + (dy / d) * s;
         if (canStep(m, a, nx, ny)) { a.x = nx; a.y = ny; }
       }
     }

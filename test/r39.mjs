@@ -55,7 +55,18 @@ const land = (m, x, y) => (m.terrain.isLand(x, y) && !m.terrain.blocked(x, y) ? 
 
 // ---------------------------------------------------------------- concertina wire
 {
-  check('concertina wire is first among the builds, and the cheapest thing with a price', POSTS[0] === 'wire' && POSTS.slice(1).every((w) => buildStats(w, 1).cost === 0 || buildStats(w, 1).cost > buildStats('wire', 1).cost) && buildStats('wire', 1).cost > 0, `${buildStats('wire', 1).cost} CR`);
+  check('concertina wire is first among the builds, and free (0.39.2)', POSTS[0] === 'wire' && buildStats('wire', 1).cost === 0, `${buildStats('wire', 1).cost} CR`);
+  {
+    // (0.39.2) strung on the spot by the squad, like a foxhole: no crate comes down, nothing is paid
+    const m0 = mk(3910, 'bots'), h0 = m0.hdAlive[0];
+    m0.seaf.readyAt = 0; m0.callSeaf(h0.x + 10, h0.y); run(m0, 10);
+    const bal = m0.wallet.bal, cargo = m0.pelicans.filter((p) => p.cargo).length;
+    const p0 = land(m0, h0.x + 30, h0.y + 20), r0 = m0.seafBuild('wire', p0.x, p0.y, { face: 0 });
+    const c0 = m0.crates.find((c) => c.what === 'wire' && !c.used);
+    check('wire is strung on the spot: no crate from a pelican, nothing paid', r0.ok && c0 && c0.landed && c0.lay && m0.wallet.bal === bal && m0.pelicans.filter((p) => p.cargo).length === cargo);
+    const up = run(m0, 40, () => m0.posts.some((p) => p.what === 'wire'));
+    check('and the squad strings it in a few seconds', up, `${m0.crates.length} crates left`);
+  }
   const m = mk(3902, 'bugs'), h = m.hdAlive[0];
   const w = makePost(m, 'wire', h.x, h.y + 40, { face: Math.PI / 2 });
   check('nobody shoots at wire (it is not a target), and it is no cover', !m.assets.includes(w) && !m.cover.some((q) => q.post === w));
@@ -71,7 +82,7 @@ const land = (m, x, y) => (m.terrain.isLand(x, y) && !m.terrain.blocked(x, y) ? 
   removePost(m, w2);
   // lights walking into it stop, then crawl
   for (const a of m.allies) { a.x = w.x; a.y = w.y - 90; }
-  const g = spawnGroup(m, w.x, w.y + 25, 'patrol');
+  const g = spawnGroup(m, w.x, w.y + 25, 'hunt', { kinds: ['L', 'L', 'L', 'L', 'L', 'L'] });     // (lights, going for the allies on the far side of the wire)
   let stop = 0, slow = 0, minK = 9, maxStop = 0;
   const seen = new Map();
   for (let i = 0; i < 30 * 25; i++) {
@@ -155,6 +166,7 @@ const land = (m, x, y) => (m.terrain.isLand(x, y) && !m.terrain.blocked(x, y) ? 
   const d = land(m, h.x + 30, h.y);
   m.callSeaf(d.x, d.y); run(m, 12);
   const q = m.seaf.squads.find((s) => s.n > 0);
+  q.size0 = q.n;
   const n0 = m.countAlly('S');
   const z = land(m, h.x - 60, h.y + 20);
   const r = m.callPickup(z.x, z.y);
@@ -167,7 +179,7 @@ const land = (m, x, y) => (m.terrain.isLand(x, y) && !m.terrain.blocked(x, y) ? 
   m.seaf.readyAt = 0;
   const got = run(m, 60, () => (m.stats.seafPicked || 0) > 0 && !m.pelicans.some((p) => p.pick));
   const up = m.stats.seafPicked || 0;
-  check('once they are there a pelican comes and takes them up (at most its load)', got && up > 0 && up <= st.drop, `${up} of ${q.n || 'the squad'}, load ${st.drop}`);
+  check('once they are there a pelican comes and takes them all up (0.40: not just a drop\'s load)', got && up > 0 && up === q.size0, `${up} of ${q.size0}, load ${st.drop}`);
   check('they are aboard the destroyer: off the map, and they still count', m.seaf.reserve.length === up && m.countAlly('S') === n0 - up);
   check('the point goes once the last of them is up', !m.posts.some((p) => p.what === 'lz'));
   m.seaf.readyAt = 0;
@@ -182,6 +194,37 @@ const land = (m, x, y) => (m.terrain.isLand(x, y) && !m.terrain.blocked(x, y) ? 
   const r3 = m.callPickup(z2.x, z2.y);
   run(m, 1);
   check('a point put down on troops already standing there calls a pelican at once', r3.ok && r3.n > 0 && m.pelicans.some((p) => p.pick === r3.lz));
+  // (0.40) a zone more than twice as big, and everyone standing in it goes, more than a drop's load in one pelican
+  {
+    const m2 = mk(3906), h2 = m2.hdAlive[0], st2 = seafStats(m2.kit);
+    m2.kit.pel = 3; m2.seaf.readyAt = 0;
+    for (let k = 0; k < 2; k++) { const d = land(m2, h2.x + 30 + k * 4, h2.y + k * 4); m2.seaf.readyAt = 0; m2.callSeaf(d.x, d.y); run(m2, 1); }
+    run(m2, 14);
+    const zp = land(m2, h2.x + 40, h2.y + 40), S = m2.seafAlive.filter((a) => !a.dead);
+    S.forEach((a, k) => { const ang = (k / S.length) * Math.PI * 2, r = 4 + (k % 4) * 4.5; a.x = zp.x + Math.cos(ang) * r; a.y = zp.y + Math.sin(ang) * r; });
+    for (const q2 of m2.seaf.squads) if (q2.n) { q2.order = { kind: 'protect', x: zp.x, y: zp.y }; }
+    const far = S.reduce((b, a) => Math.max(b, Math.hypot(a.x - zp.x, a.y - zp.y)), 0);
+    check('(0.40) the pickup zone is more than twice the size it was (9 m)', C.pelican.pickR >= 18, `${C.pelican.pickR} m`);
+    m2.seaf.readyAt = 0;
+    const r5 = m2.callPickup(zp.x, zp.y), p0 = m2.stats.pickups || 0;
+    run(m2, 20, () => (m2.stats.seafPicked || 0) >= S.length);
+    check('(0.40) a pickup takes everyone standing in the zone (not only those sent to it), more than a drop\'s load, in one pelican', r5.ok && S.length > st2.drop && (m2.stats.seafPicked || 0) === S.length && (m2.stats.pickups || 0) - p0 === 1, `${m2.stats.seafPicked || 0} of ${S.length} (out to ${far.toFixed(0)} m), load ${st2.drop}, ${(m2.stats.pickups || 0) - p0} pelican`);
+  }
+  // (0.40) troopers a pickup took up come back down on a shorter turnaround, and what one drop cannot carry cuts the next one too
+  {
+    const m3 = mk(3907), h3 = m3.hdAlive[0], st3 = seafStats(m3.kit), cool = st3.cool, K = C.seaf.backCut;
+    m3.kit.pel = 1; m3.seaf.reserve = Array.from({ length: st3.drop + 2 }, () => ({ role: 'rifle' }));
+    const room = () => { for (const a of m3.seafAlive) a.dead = true; m3._refreshAlive(); };
+    room(); m3.seaf.readyAt = 0;
+    const p1 = land(m3, h3.x + 30, h3.y), c1 = m3.callSeaf(p1.x, p1.y), cd1 = Math.max(...m3.seaf.fleet) - m3.t;
+    check('(0.40) a drop that brings a full load of picked-up troopers back comes round much sooner', c1.ok && c1.back === st3.drop && Math.abs(cd1 - cool * (1 - K)) < 0.05, `${cd1.toFixed(1)} s, not ${cool} s`);
+    run(m3, 10); room(); m3.seaf.readyAt = 0;
+    const c2 = m3.callSeaf(p1.x, p1.y), cd2 = Math.max(...m3.seaf.fleet) - m3.t;
+    check('(0.40) those it could not carry come down in the next drop, and cut its cooldown for their share', c2.ok && c2.back === 2 && Math.abs(cd2 - cool * (1 - K * 2 / st3.drop)) < 0.05, `${c2.back} back, ${cd2.toFixed(1)} s`);
+    run(m3, 10); room(); m3.seaf.readyAt = 0;
+    const c3 = m3.callSeaf(p1.x, p1.y), cd3 = Math.max(...m3.seaf.fleet) - m3.t;
+    check('(0.40) a drop of new troops has the full cooldown', c3.ok && c3.back === 0 && Math.abs(cd3 - cool) < 0.05, `${cd3.toFixed(1)} s`);
+  }
   // called off
   const z3 = land(m, h.x - 30, h.y - 70), r4 = m.callPickup(z3.x, z3.y);
   const off = m.demolishPost(r4.lz);

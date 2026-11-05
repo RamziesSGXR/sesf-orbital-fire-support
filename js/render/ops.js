@@ -3,8 +3,8 @@
 // Labels are plain text from data/data.js (OPS); every function draws in metres, px(n) converts screen pixels to metres.
 import { CONFIG as C } from '../config.js';
 import { OPS } from '../data/data.js';
-import { postArt, trenchArt } from './posts.js';
-import { crateSec, foxholeSlots } from '../sim/posts.js';
+import { postArt, trenchArt, wireArt } from './posts.js';
+import { crateSec, foxholeSlots, wireEnds } from '../sim/posts.js';
 import { t as tr } from '../i18n.js';
 import { drawHellbomb } from './sites.js';
 
@@ -74,6 +74,19 @@ function jammerArt(ctx, s, now, px) {
   ctx.restore();
 }
 
+// (0.40) A spore tower's cloud: a slow, drifting haze of spores out to its reach, thicker toward the stalk, with its edge marked.
+function sporeCloud(ctx, s, now, px) {
+  const R = s.R;
+  const g = ctx.createRadialGradient(s.x, s.y, s.r, s.x, s.y, R);
+  g.addColorStop(0, 'rgba(150,190,80,0.26)'); g.addColorStop(0.7, 'rgba(120,160,70,0.14)'); g.addColorStop(1, 'rgba(110,150,60,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(s.x, s.y, R, 0, Math.PI * 2); ctx.fill();
+  for (let i = 0; i < 26; i++) {
+    const a = i * 2.39996 + now * (0.05 + (i % 5) * 0.01), d = R * (0.15 + 0.8 * ((i * 0.618) % 1)), x = s.x + Math.cos(a) * d, y = s.y + Math.sin(a) * d;
+    ctx.fillStyle = `rgba(200,235,120,${0.08 + 0.06 * Math.sin(now * 1.3 + i)})`; ctx.beginPath(); ctx.arc(x, y, 6 + (i % 4) * 3, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.strokeStyle = 'rgba(190,230,110,0.45)'; ctx.lineWidth = px(1.4); ctx.setLineDash([px(4), px(6)]); ctx.lineDashOffset = -now * px(4);
+  ctx.beginPath(); ctx.arc(s.x, s.y, R, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+}
 export function drawSides(ctx, m, now, px, labels, scale) {
   const S = C.sides, task = m.plan && m.plan.task ? m.plan.task.ref : null;
   // (0.37) a Hellbomb for a side task (the citadel's own is drawn with the citadel)
@@ -89,6 +102,11 @@ export function drawSides(ctx, m, now, px, labels, scale) {
       jammerArt(ctx, s, now, px);
       labels.push({ x: s.x, y: s.y, dy: -Math.max(s.r * scale, 12) - 8, text: s.name, col: JAM_COL[s.fac] || '#ff6a4a', pri: s === task ? 2 : 1 });
       labels.push({ x: s.x, y: s.y, dy: Math.max(s.r * scale, 12) + 10, text: tr(s === task ? 'lab.jamOn' : 'lab.jamHb'), col: 'rgba(255,220,200,0.85)', pri: s === task ? 2 : 0 });
+      continue;
+    }
+    if (s.kind === 'spore') {                // (0.40) drawn as a point of interest; its cloud here, and the squad's mark
+      if (!s.done) sporeCloud(ctx, s, now, px);
+      if (!s.done && s === task) labels.push({ x: s.x, y: s.y, dy: 26, text: OPS.squadOnIt, col: '#7fd8ff', pri: 1 });
       continue;
     }
     if (s.kind === 'propaganda') {           // drawn as a point of interest; mark it when the squad is on its way
@@ -176,6 +194,12 @@ export function drawCrates(ctx, m, now, px, labels) {
         ctx.fillStyle = `rgba(20,14,8,${0.35 + 0.5 * f})`; ctx.beginPath(); ctx.ellipse(c.x, c.y, 1 + 2.2 * f, 0.8 + 1.8 * f, 0, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = `rgba(120,96,60,${0.4 + 0.5 * f})`; ctx.lineWidth = Math.max(px(2), 0.8); ctx.beginPath(); ctx.ellipse(c.x, c.y, 1.4 + 2.2 * f, 1.2 + 1.8 * f, 0, 0, Math.PI * 2); ctx.stroke();
       }
+    } else if (c.lay) {
+      // (0.39.2) concertina wire being strung: its line pegged out end to end, then the coils going out along it from the middle
+      const E = wireEnds(c.x, c.y, c.face || 0);
+      ctx.strokeStyle = 'rgba(255,210,120,0.7)'; ctx.lineWidth = px(1.2); ctx.setLineDash([px(3), px(3)]);
+      ctx.beginPath(); ctx.moveTo(E[0].x, E[0].y); ctx.lineTo(E[1].x, E[1].y); ctx.stroke(); ctx.setLineDash([]);
+      if (f > 0) { const k = 0.5 - f / 2, l = 0.5 + f / 2, at = (u) => ({ x: E[0].x + (E[1].x - E[0].x) * u, y: E[0].y + (E[1].y - E[0].y) * u }); wireArt(ctx, at(k), at(l), Math.max(1, px(2)), 1); }
     } else if (stage <= 1) {
       // the crate: shut, or with its lid off beside it and the parts showing
       ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(c.x - s * 1.25, c.y - s * 1.25, s * 2.5, s * 2.5);

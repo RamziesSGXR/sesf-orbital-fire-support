@@ -161,6 +161,9 @@ export function updateLastStand(m, dt) {
     let st = 0;
     S.forEach((q, i) => { if (saved >= q.saved || ls.holdT >= q.sec) st = i; });
     if (st > (ls.st || 0)) { ls.st = st; if (st === S.length - 1) { ls.overAt = ls.holdT; ls.wavesAtOver = ls.waves; } m.notice(tr('n.lsStage' + st), st === S.length - 1 ? 'bad' : 'warn'); m.emit('ls_stage', { stage: 'wave' + st }); if (st === S.length - 1) m.radio(COMMS.lsBreaking, 'lsover', 0); }
+    // (0.40) at 100 off Mars (or once it turns overwhelming, if that comes first) Tharsis Control says it: they will not all get
+    // off. The tutorial's card holds the game for it (tutorial.js), and it goes on the radio log (main.js).
+    if (!ls.truth && (saved >= K.truthAt || ls.st === S.length - 1)) { ls.truth = true; m.emit('ls_stage', { stage: 'truth', saved }); }
     const Q = S[ls.st || 0], over = ls.overAt !== undefined ? (ls.holdT - ls.overAt) / 60 : 0;
     // tougher and harder-hitting a little every minute, and fast once it is overwhelming (director.js multiplies by ls.dmg)
     ls.dmg = 1 + K.dmgGrow * 0.35 * min + (Q.dmgPerMin || 0) * over;

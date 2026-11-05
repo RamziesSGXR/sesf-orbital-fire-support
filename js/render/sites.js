@@ -92,7 +92,16 @@ export function drawPoiArt(ctx, p, fac, col, seen, now, px) {
   const lit = seen ? 0.95 : 0.65, edge = '#ffb020';
   ctx.save(); ctx.translate(p.x, p.y);
   ctx.fillStyle = 'rgba(0,0,0,0.45)'; circ(ctx, 0, 0, r * 1.2); ctx.fill();
-  if (p.kind === 'propaganda') {
+  if (p.kind === 'spore') {
+    // (0.40) the spore tower: a ribbed fungal stalk, a swollen cap with vents, spores puffing out
+    ctx.fillStyle = `rgba(120,95,60,${lit})`; circ(ctx, 0, 0, r * 0.95); ctx.fill();
+    ctx.strokeStyle = `rgba(80,60,35,${lit})`; ctx.lineWidth = px(1.2);
+    for (let i = 0; i < 7; i++) { const a = a0 + i * 0.898; ctx.beginPath(); ctx.moveTo(Math.cos(a) * r * 0.35, Math.sin(a) * r * 0.35); ctx.lineTo(Math.cos(a) * r * 0.92, Math.sin(a) * r * 0.92); ctx.stroke(); }
+    ctx.fillStyle = `rgba(170,200,90,${lit})`; circ(ctx, 0, 0, r * 0.45); ctx.fill();
+    for (let i = 0; i < 5; i++) { const a = a0 + i * 1.257; ctx.fillStyle = 'rgba(60,70,30,0.9)'; circ(ctx, Math.cos(a) * r * 0.62, Math.sin(a) * r * 0.62, r * 0.09); ctx.fill(); }
+    const ph = (now * 0.5 + (id % 5) * 0.2) % 1;
+    ctx.fillStyle = `rgba(210,240,130,${0.45 * (1 - ph)})`; circ(ctx, 0, 0, r * (0.5 + ph * 1.6)); ctx.fill();
+  } else if (p.kind === 'propaganda') {
     // a broadcast tower: a mast with loudspeaker horns, sending out rings in the enemy's colour
     ctx.fillStyle = `rgba(120,115,110,${lit})`; ctx.fillRect(-r * 0.2, -r * 0.2, r * 0.4, r * 0.4);
     ctx.strokeStyle = `rgba(200,195,185,${lit})`; ctx.lineWidth = px(1.4);

@@ -152,6 +152,8 @@ export class Audio {
   objective() { if (!this.ctx) return; [440, 554, 659, 880].forEach((f, i) => this._tone(f, f, 0.22, 0.1, 'triangle', i * 0.1)); }
   siren() { if (!this.ctx) return; this._tone(500, 900, 0.7, 0.12, 'sawtooth'); this._tone(900, 500, 0.7, 0.12, 'sawtooth', 0.7); }
   beam() { if (!this._ok('beam', 0.3)) return; this._tone(220, 880, 0.5, 0.14, 'sawtooth'); this._noise(0.4, 2400, 300, 0.18, 'bandpass', 2); }
+  // (0.40) the nuke leaving the launch site: a long rising roar
+  nukeLaunch() { if (!this.ctx) return; this._noise(3.4, 180, 1400, 0.38, 'bandpass', 0.7); this._tone(48, 90, 3, 0.3); this._tone(96, 160, 2.6, 0.08, 'sawtooth'); }
   nukeBlast() { if (!this.ctx) return; this._noise(3.2, 1500, 30, 0.95); this._tone(60, 22, 2.8, 0.9); this._tone(120, 30, 1.8, 0.5, 'sawtooth'); }
   click() { if (!this.ctx) return; this._tone(900, 700, 0.04, 0.08, 'square'); }
   // (0.19) The Mars cinematics: a long low swell under a line of text, a heavy hit, and the hiss and crack of a glassing beam.
@@ -241,6 +243,7 @@ const VOICES = {
   civ:          { gap: 0.8, vol: 0.6, f: (a, v) => a._tone(520, 640, 0.15, 0.03 * v, 'sine') },
   // ---- Illuminate: cold hum, warble, deep pulse
   squidsL: { gap: 0.1,  vol: 1, f: (a, v) => a._tone(1700, 950, 0.09, 0.05 * v, 'triangle') },
-  squidsM: { gap: 0.15, vol: 1, f: (a, v) => { a._tone(700, 1150, 0.12, 0.07 * v, 'triangle'); a._tone(1150, 700, 0.12, 0.06 * v, 'triangle', 0.1); } },
+  // (0.40) an overseer's rifle: a sharp crack with a cold ring after it
+  squidsM: { gap: 0.1, vol: 1, f: (a, v) => { a._noise(0.06, 3200, 900, 0.09 * v, 'bandpass', 1.1); a._tone(980, 430, 0.06, 0.05 * v, 'square'); a._tone(1500, 1500, 0.07, 0.018 * v, 'triangle', 0.03); } },
   squidsH: { gap: 0.3,  vol: 1, f: (a, v) => { a._tone(95, 55, 0.4, 0.26 * v, 'sine'); a._tone(190, 130, 0.3, 0.08 * v, 'triangle', 0.05); a._noise(0.25, 600, 120, 0.1 * v); } },
 };

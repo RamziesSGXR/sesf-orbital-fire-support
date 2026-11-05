@@ -8,6 +8,7 @@ import { steer } from './terrain.js';
 import { softNear, baseNear } from './pois.js';
 import { bark } from './chatter.js';
 import { dropNear } from './reinforce.js';
+import { claim, claimedBy } from './helldiver.js';
 
 const DIRS = ['e', 'ne', 'n', 'nw', 'w', 'sw', 's', 'se'];
 // Compass word for a vector on the map (north is up, so -y).
@@ -117,13 +118,14 @@ export function updateAllies(m, dt) {
         if (a.spT <= 0) {
           const spec = C.combat.rocketeer;
           let e = dropNear(m, a.x, a.y, spec.range), bs = -Infinity;     // a dropship hovering in reach is the best target there is
-          if (!e) m.eGrid.near(a.x, a.y, spec.range, (q, d2) => { if (q.kind === 'L') return; const sc = (q.kind === 'H' ? 90 : 30) - Math.sqrt(d2) * 0.2; if (sc > bs) { bs = sc; e = q; } });
+          // (0.40) not a target another Specialist (or a Helldiver's Ultimatum) is on already: something else, or wait a moment
+          if (!e) m.eGrid.near(a.x, a.y, spec.range, (q, d2) => { if (q.kind === 'L') return; const sc = (q.kind === 'H' ? 90 : 30) - Math.sqrt(d2) * 0.2; if (sc > bs && !shared(m, a, q)) { bs = sc; e = q; } });
           const soft = !e && softNear(m, a.x, a.y, spec.range);
           if (e || soft) {
             a.spT = spec.every * (0.9 + 0.2 * m.rng.next());
             const t = e || soft, prof = { ...ROCKET };
             prof.dmg *= (a.dmgMul || 1) * (m.kitEat || 1);
-            if (e) fireShot(m, a, e, prof, 'squad', 'a', 'rocket');
+            if (e) { fireShot(m, a, e, prof, 'squad', 'a', 'rocket'); if (e.kind) claim(m, a, e, 'rocket', 1, C.hd.stagger.seafRocket); }
             else {
               m.emit('tracer', { x: a.x, y: a.y, tx: t.x, ty: t.y, s: 'a', hit: true, big: true, fl: prof.flight, snd: 'rocket' });
               m.shells.push({ x: t.x, y: t.y, at: m.t + prof.flight, dmg: prof.dmg, splash: prof.splash, mult: prof.mult, by: 'squad', friendly: false, quiet: true });
@@ -138,7 +140,8 @@ export function updateAllies(m, dt) {
           const spec = C.combat.grenadier;
           // the densest spot within reach; a lone light enemy is not worth a grenade
           let e = null, bn = 0;
-          m.eGrid.near(a.x, a.y, spec.range, (q, d2) => { if (d2 < spec.minR * spec.minR) return; let n = 0; m.eGrid.near(q.x, q.y, 6, () => { n++; }); if (q.kind === 'H') n += 2; if (n > bn) { bn = n; e = q; } });
+          // (0.40) not a spot someone else has just put a grenade (or an Ultimatum) on
+          m.eGrid.near(a.x, a.y, spec.range, (q, d2) => { if (d2 < spec.minR * spec.minR || claimedBy(m, a, q.x, q.y)) return; let n = 0; m.eGrid.near(q.x, q.y, 6, () => { n++; }); if (q.kind === 'H') n += 2; if (n > bn) { bn = n; e = q; } });
           if (bn < spec.group) e = null;
           if (e) {
             a.grT = spec.every * (0.9 + 0.2 * m.rng.next());
@@ -146,6 +149,7 @@ export function updateAllies(m, dt) {
             const prof = { ...GRENADE };
             if (a.dmgMul) prof.dmg *= a.dmgMul;
             fireShot(m, a, e, prof, 'squad', 'a', 'grenade');
+            claim(m, a, e, 'gren', 6, C.hd.stagger.seafGren);     // (6 m: the group it counted, not just the splash)
             bark(m, a, 'gren', '');
           } else a.grT = 0.5;
         }
@@ -154,6 +158,15 @@ export function updateAllies(m, dt) {
   }
 }
 
+// (0.40) A target someone else has a rocket (or an Ultimatum) on right now: a super heavy can take everyone's.
+function shared(m, a, q) {
+  if (q.boss || !m.hdClaims) return false;
+  for (const c of m.hdClaims) {
+    if (c.by === a || c.until <= m.t) continue;
+    if (c.kind === 'rocket' ? c.e === q : c.kind === 'ult' && (q.x - (c.e && !c.e.dead ? c.e.x : c.x)) ** 2 + (q.y - (c.e && !c.e.dead ? c.e.y : c.y)) ** 2 < c.r * c.r) return true;
+  }
+  return false;
+}
 // An enemy's attack: its kind's for the faction, or a special medium's own (CONFIG.special).
 export const profileOf = (fid, e) => (e.sub ? C.special[fid].atk : C.combat.atk[fid][e.kind]);
 
@@ -245,7 +258,10 @@ function squidHeavy(m, e, p, t) {
     if (t < c.t0 + c.dur - p.lock) { c.tx = c.tgt.x; c.ty = c.tgt.y; }   // tracks until the last moment, then locks
     e.aimA = Math.atan2(c.ty - e.y, c.tx - e.x); e.aimUntil = t + 0.5;
     if (t >= c.t0 + c.dur) {
-      const dx = c.tx - e.x, dy = c.ty - e.y, d = Math.hypot(dx, dy) || 1;
+      let dx = c.tx - e.x, dy = c.ty - e.y;
+      const d = Math.hypot(dx, dy) || 1;
+      // (0.40) it can miss: the beam goes wide, past the target's side by a few metres
+      if (m.rng.next() >= (p.acc ?? 1)) { const off = p.width / 2 + 3 + m.rng.next() * 4, s = m.rng.next() < 0.5 ? -1 : 1, a = Math.atan2(dy, dx) + s * Math.atan2(off, d); dx = Math.cos(a) * d; dy = Math.sin(a) * d; }
       const L = Math.max(p.range, d), ex = e.x + (dx / d) * L, ey = e.y + (dy / d) * L;
       for (const a of m.alive) if (!a.dead && !a.mounted && segDist(a.x, a.y, e.x, e.y, ex, ey) <= p.width / 2 + 1.5) hurtTarget(m, a, p.dmg * m.dmgMul, 'enemy', 'H', e.x, e.y);
       for (const cv of m.civs) if (!cv.dead && !cv.safe && segDist(cv.x, cv.y, e.x, e.y, ex, ey) <= p.width / 2 + 1.5) m.hurtCiv(cv, p.dmg * m.dmgMul, 'enemy');
@@ -285,9 +301,12 @@ function bossAttack(m, e, dt, t) {
       if (tg) {
         e.atk = D.stomp.every;
         e.aimA = Math.atan2(tg.y - e.y, tg.x - e.x); e.aimUntil = t + 0.6;
-        m.aGrid.near(tg.x, tg.y, D.stomp.splash, (o) => hurtTarget(m, o, D.stomp.dmg * dm, 'enemy', 'H', e.x, e.y));
-        m.tGrid.near(tg.x, tg.y, D.stomp.splash, (o) => hurtTarget(m, o, D.stomp.dmg * dm, 'enemy', 'H'));
-        m.emit('boom', { x: tg.x, y: tg.y, r: D.stomp.splash, dmg: D.stomp.dmg, by: 'enemy', stomp: true });
+        // (0.40) it can miss: the foot comes down beside the target instead
+        let sx = tg.x, sy = tg.y;
+        if (m.rng.next() >= (D.stomp.acc ?? 1)) { const a = m.rng.angle(), off = D.stomp.splash + 1.5; sx += Math.cos(a) * off; sy += Math.sin(a) * off; }
+        m.aGrid.near(sx, sy, D.stomp.splash, (o) => hurtTarget(m, o, D.stomp.dmg * dm, 'enemy', 'H', e.x, e.y));
+        m.tGrid.near(sx, sy, D.stomp.splash, (o) => hurtTarget(m, o, D.stomp.dmg * dm, 'enemy', 'H'));
+        m.emit('boom', { x: sx, y: sy, r: D.stomp.splash, dmg: D.stomp.dmg, by: 'enemy', stomp: true });
       } else e.atk = 0.3;
     }
     if (e.atk2 <= 0) {
@@ -426,7 +445,8 @@ export function updateEnemies(m, dt) {
   m.bubbles = (m.bubbles || []).filter((b) => b.dome);     // (the domes of a shield-generator mission stay; the harvesters' are rebuilt)
   for (const e of m.enemies) {
     if (e.dead) continue;
-    if (e.jamR) jam.push(e);
+    // (0.40) a commander jams for jamSec, then cools down for jamCool, over and over
+    if (e.jamR) { const J = C.special.bots, cyc = J.jamSec + J.jamCool, ph = (t - (e.born ?? 0) + (e.jamPh || 0)) % cyc; e.jamming = ph < J.jamSec; e.jamLeft = e.jamming ? J.jamSec - ph : cyc - ph; if (e.jamming) jam.push(e); }
     if (e.bubR && e.shield > 0) m.bubbles.push({ x: e.x, y: e.y, r: e.bubR, src: e });
     if (e.maxShield && !e.boss && e.shield < e.maxShield && t - e.shieldAt > e.regenDelay) e.shield = Math.min(e.maxShield, e.shield + e.regen * dt);
   }

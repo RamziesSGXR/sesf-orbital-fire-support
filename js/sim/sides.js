@@ -5,6 +5,8 @@
 //   hidden SEAF:       a SEAF squad lying low (the sheep of an old strategy game): nobody sees them or anything round them, and
 //                      they see nothing for the player, until a Helldiver or a SEAF trooper walks close by. Then they join.
 //                      (Nobody goes looking for them: they are near the ways the squad is likely to walk.)
+//   spore tower (0.40): the bugs' fungal stalk (a point of interest of its own kind, like the broadcast tower): allies near it
+//                      see a lot less far while it stands. Destroy it.
 //   jammer (0.37):     an enemy structure only a Hellbomb brings down (a spore spewer, a stratagem jammer, a cognitive disruptor,
 //                      by the enemy): no orbital can be called within its reach while it stands. The squad clears round it and asks
 //                      the gunner for a Hellbomb (ops.js); the enemy broadcast tower takes one too.
@@ -77,8 +79,28 @@ export function setupSides(m) {
     const r0 = m.rng; m.rng = jr;
     try { const p = findSpot(m, avoid(), 70, way); addJammer(m, p.x, p.y); } finally { m.rng = r0; }
   }
+  // (0.40) the bugs' spore tower, from a stream of its own too
+  const sr = new RNG((m.seed ^ 0x5bd1e995) >>> 0);
+  if (m.faction.id === 'bugs' && !m.ls && (m.forceSpore || sr.next() < S.spore.chance)) {
+    const r0 = m.rng; m.rng = sr;
+    try { const p = findSpot(m, avoid(), 70, way); addSpore(m, p.x, p.y); } finally { m.rng = r0; }
+  }
   // SEAF drop beacons are no longer on the map at the start: SEAF build them (seaf.js, the build order)
   m.beacons = [];
+}
+// (0.40) a spore tower at (x, y): a structure (a point of interest), so everything that hurts one hurts it
+export function addSpore(m, x, y) {
+  const P = SD().spore;
+  const s = { id: m.nextId++, isPoi: true, side: true, kind: 'spore', get name() { return tr('side.spore'); }, x, y, r: P.r, R: P.R,
+    hp: P.hp, maxHp: P.hp, reward: P.reward, guards: P.guards, woke: false, done: false, hurtAt: -9, by: null };
+  m.pois.push(s); m.sides.push(s);
+  return s;
+}
+// (0.40) How far an ally at (x, y) can see, as a share of how far he could (1, or less inside a spore tower's cloud).
+export function sporeMul(m, x, y) {
+  let k = 1;
+  for (const s of m.sides || []) if (s.kind === 'spore' && !s.done && !s.failed && (s.x - x) ** 2 + (s.y - y) ** 2 <= s.R * s.R) k = Math.min(k, SD().spore.sight);
+  return k;
 }
 // (0.37) a jammer at (x, y) (the tutorial puts one down too)
 export function addJammer(m, x, y) {

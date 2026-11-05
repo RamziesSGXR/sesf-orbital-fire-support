@@ -148,15 +148,19 @@ export function objectiveGoal(m) {
 
 // A wave at an objective site: the enemy reinforces it the faction's own way (a bug hole, a dropship, a warp ship). These come in
 // where everyone can see them. extra adds groups when the pressure is high.
-function wave(m, cx, cy, rmin, rmax, extra = 0) {
-  callReinforcements(m, cx, cy, 'site', { dist: [Math.max(50, rmin * 0.55), Math.max(90, rmax * 0.55)], extra, count: reinfCount(m, 'site') });
+function wave(m, cx, cy, rmin, rmax, extra = 0, D = null, held = 0) {
+  const count = D ? (held >= D.sides3At ? D.sides3 : D.sides) : reinfCount(m, 'site');
+  callReinforcements(m, cx, cy, 'site', { dist: [Math.max(50, rmin * 0.55), Math.max(90, rmax * 0.55)], extra, count, pMin: D ? D.pMin : 0, maxN: D ? D.maxN : 0 });
 }
 const waveSize = (m) => (m.pressure >= 1.7 ? 1 : 0);
 
 // The enemy closes in on an objective while it is being worked: its backup calls come faster and bigger the longer the squad
 // stays at it (CONFIG.siege). Four Helldivers alone are ground down by it; fire support from the gunner is what holds a site.
+// (0.40) A site the squad holds (DEFEND) is what the enemy wants them off most: it comes harder there (CONFIG.siege.defend).
+const DEFEND = new Set(['nuke', 'evac', 'oil']);
+export const defended = (o) => DEFEND.has(o.type) || (o.type === 'vip' && o.state === 'deliver');
 export function siege(m, o, x, y, dt, mul = 1) {
-  const G = C.siege;
+  const G = C.siege, D = defended(o) ? G.defend : null, every = D ? D.every : G.every, minEvery = D ? D.minEvery : G.minEvery;
   o.siegeT = (o.siegeT || 0) + dt;
   siteNoise(m, o, x, y, dt);
   o.waveT = (o.waveT ?? G.first) - dt;
@@ -164,10 +168,10 @@ export function siege(m, o, x, y, dt, mul = 1) {
   // Backup cannot be stopped, but it does not pile up without end: while the site already holds cap enemies, the next call waits.
   let near = 0;
   for (const e of m.enemies) if (!e.dead && (e.x - x) ** 2 + (e.y - y) ** 2 < G.capR * G.capR) near++;
-  if (near >= G.cap) { o.waveT = G.capWait; return; }
+  if (near >= (D ? D.cap : G.cap)) { o.waveT = G.capWait; return; }
   const k = Math.min(1, o.siegeT / G.rampSec);
-  o.waveT = (G.every - (G.every - G.minEvery) * k) * mul;
-  wave(m, x, y, 140, 230, waveSize(m) + Math.floor(k * G.extra + 1e-6));
+  o.waveT = (every - (every - minEvery) * k) * mul * (D && D.gap[o.type] || 1);
+  wave(m, x, y, 140, 230, waveSize(m) + Math.floor(k * (D ? D.extra : G.extra) + 1e-6), D, o.siegeT);
 }
 
 // Working an objective is loud: patrols for a long way round hear it.

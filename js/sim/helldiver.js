@@ -6,7 +6,7 @@
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { uavBuff } from '../data/kit.js';
-import { aoX, aoY } from './ao.js';
+import { aoX, aoY, offEdge, aoClamp } from './ao.js';
 import { fireShot, blocker } from './combat.js';
 import { bark } from './chatter.js';
 import { wakesBase } from './strat.js';
@@ -65,6 +65,21 @@ function friendNear(m, a, x, y, r) {
   return false;
 }
 const aware = (m, e) => m.squad.free || e.g.state === 'hunt' || m.squad.state === 'assault';
+// (0.40) Who has what on which target. A claim: another Helldiver's grenade (for a moment after the throw) or Ultimatum (aimed, or
+// in flight) on a target; the rest of the squad leaves anything within its blast to him, so they do not all spend theirs on one.
+export function claim(m, a, e, kind, r, sec) {
+  (m.hdClaims || (m.hdClaims = [])).push({ by: a, e, x: e.x, y: e.y, kind, r, until: m.t + sec });
+}
+export function claimedBy(m, a, x, y, pad = 0) {
+  const L = m.hdClaims;
+  if (!L || !L.length) return null;
+  for (const c of L) {
+    if (c.by === a || c.until <= m.t) continue;
+    const cx = c.e && !c.e.dead ? c.e.x : c.x, cy = c.e && !c.e.dead ? c.e.y : c.y;
+    if ((x - cx) ** 2 + (y - cy) ** 2 < (c.r + pad) ** 2) return c;
+  }
+  return null;
+}
 
 // The best spot for a grenade: a group (lights count 1, mediums 2, heavies 4) or a heavy on its own, in throwing range and not
 // on top of a friendly. A heavy is worth a grenade even alone: four of them bring one down.
@@ -77,6 +92,7 @@ function pickGrenade(m, a, avoid = null) {
     if (d2 < G.minRange * G.minRange || !aware(m, e)) return;
     if (e.kind === 'H' && d2 < G.heavyR * G.heavyR) heavy = true;
     if (avoid && (e.x - avoid.x) ** 2 + (e.y - avoid.y) ** 2 < G.splash * G.splash) return;
+    if (claimedBy(m, a, e.x, e.y)) return;            // (0.40) someone else's target (a grenade just thrown there, an Ultimatum on its way)
     let s = 0;
     m.eGrid.near(e.x, e.y, G.splash, (o) => { s += o.kind === 'L' ? 1 : o.kind === 'M' ? 2 : 4; });
     if (e.kind === 'H') s += 1;                       // the heavy itself is the point
@@ -102,6 +118,7 @@ function pickUltimatum(m, a, crowded) {
     if (e.kind === 'L' || (e.kind === 'M' && !crowded && !e.sub)) return;
     const s = (e.boss ? 200 : e.kind === 'H' ? 100 : e.sub === 'cmd' ? 90 : e.sub ? 60 : 30) + e.hp / 200 - Math.sqrt(d2);   // a jamming commander comes first after the heavies
     if (s <= bs || blocker(m, a, e.x, e.y)) return;
+    if (!e.boss) { const c = claimedBy(m, a, e.x, e.y); if (c && (c.kind === 'ult' || e.kind !== 'H' || c.e === e)) return; }     // (0.40) not someone else's: a super heavy can take more than one
     bs = s; best = e;
   });
   return best;
@@ -121,6 +138,7 @@ export function fireUltimatum(m, a, e) {
 
 export function updateHelldivers(m, dt) {
   const t = m.t, bm = m.biome.speed;
+  if (m.hdClaims && m.hdClaims.length) m.hdClaims = m.hdClaims.filter((c) => c.until > t && !c.by.dead);     // (SEAF's claims are in the same list: enemies.js)
   for (const a of m.hdAlive) {
     // heal over time, from a stim
     if (a.heal > 0) {
@@ -172,10 +190,16 @@ export function updateHelldivers(m, dt) {
         else { dx = ax; dy = ay; }
         L = Math.hypot(dx, dy) || 1;
       }
+      // (0.40) never into the edge of the map: along it, and back in, the way with fewer enemies
+      if (L > 1e-6) {
+        const A = m.ao, tx = -(a.y - A.cy), ty = a.x - A.cx;
+        let lw = 0; m.eGrid.near(a.x, a.y, R.enemyR * 1.6, (e) => { lw += Math.sign((e.x - a.x) * tx + (e.y - a.y) * ty); });
+        const o = offEdge(m, a.x, a.y, dx, dy, 55, lw > 0 ? -1 : 1); dx = o.x; dy = o.y; L = Math.hypot(dx, dy) || 1;
+      }
       if (L > 1e-6) {
         const sp = C.squad.chaseSpeed * bm * R.speed * speedMul(m, a) * dt;
         // inside the area of operations and on dry ground (slide along water rather than wade into it)
-        const nx = aoX(m, a.x + (dx / L) * sp, 8), ny = aoY(m, a.y + (dy / L) * sp, 8), tr0 = m.terrain;
+        const c = aoClamp(m.ao, a.x + (dx / L) * sp, a.y + (dy / L) * sp, 8), nx = c.x, ny = c.y, tr0 = m.terrain;
         if (!tr0.blocked(nx, ny)) { a.x = nx; a.y = ny; }
         else if (!tr0.blocked(nx, a.y)) a.x = nx;
         else if (!tr0.blocked(a.x, ny)) a.y = ny;
@@ -192,9 +216,13 @@ export function updateHelldivers(m, dt) {
         fireUltimatum(m, a, e);
         bark(m, a, 'ult', '');
       }
-    } else if (a.ult > 0 && t >= a.ultAt && thr) {
+    } else if (a.ult > 0 && t >= a.ultAt && thr && t >= (m.ultGapUntil || 0)) {      // (0.40: the squad's Ultimatums go one at a time)
       const e = pickUltimatum(m, a, (a.retreat || frac < 0.5) && crowd >= 3);
-      if (e) { a.ultAim = { e, at: t + K.ult.markSec }; a.ultAt = t + 3; mark(m, a, e, 'ult'); }
+      if (e) {
+        a.ultAim = { e, at: t + K.ult.markSec }; a.ultAt = t + 3; mark(m, a, e, 'ult');
+        claim(m, a, e, 'ult', K.ult.splash + 2, K.ult.markSec + K.ult.flight + 0.6);
+        m.ultGapUntil = t + K.stagger.ultGap;
+      }
     }
     // grenades: groups, and heavies (several to a heavy). (0.26) When it gets bad (a big crowd on one spot, a heavy close, or
     // falling back with enemies round him) he empties his pouch: every grenade, a quarter second apart.
@@ -203,7 +231,8 @@ export function updateHelldivers(m, dt) {
       let e = pickGrenade(m, a, burst ? a.grenLast : null);
       if (!e && burst) e = pickGrenade(m, a);
       if (e) {
-        if (!burst && (a.grenW >= G.dump || a.grenHeavy || (a.retreat && a.grenW >= G.group + 1)) && a.gren > 1) {
+        const dumping = m.hdAlive.some((o) => o !== a && o.grenBurst > 0);      // (0.40: one empties his pouch at a time)
+        if (!burst && !dumping && (a.grenW >= G.dump || a.grenHeavy || (a.retreat && a.grenW >= G.group + 1)) && a.gren > 1) {
           a.grenBurst = a.gren; m.stats.grenBursts = (m.stats.grenBursts || 0) + 1;
           bark(m, a, 'grenAll', '');
         } else if (!burst) bark(m, a, 'gren', '');
@@ -213,6 +242,7 @@ export function updateHelldivers(m, dt) {
         a.grenLast = { x: e.x, y: e.y };
         m.stats.grenades = (m.stats.grenades || 0) + 1;
         if (e.kind === 'H') mark(m, a, e, 'gren');
+        claim(m, a, e, 'gren', G.splash, K.stagger.claimSec);
         throwGrenade(m, a, e);
       } else if (burst) { a.grenBurst = 0; a.grenAt = t + G.every; }      // (nothing left worth one: the rest stay in the pouch)
     }

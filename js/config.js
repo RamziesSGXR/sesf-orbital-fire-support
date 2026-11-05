@@ -29,6 +29,12 @@ export const CONFIG = {
               // too hard for it). splashChance of rounds also burst round the target. A supply pod reloads it. markSec: the target is
               // marked on the map first.
               ult: { uses: 1, range: 60, acc: 0.92, flight: 0.6, kill: 1.05, bossFrac: 0.1, splash: 9, structDmg: 600, markSec: 0.8 },     // (0.26) a blast: every enemy in it dies
+              // (0.40) the squad shares its targets out: a target another Helldiver has a grenade (claimSec after the throw) or the
+              // Ultimatum (until it lands) on is left to him, and the squad's Ultimatums go at least ultGap seconds apart; only one of
+              // them empties his pouch at a time
+              // SEAF too: a spot another trooper (or a Helldiver) has just put a grenade on is left alone for seafGren seconds, and a
+              // target another Specialist has just fired an EAT-17 at for seafRocket seconds (they go for something else, or wait)
+              stagger: { claimSec: 2.5, ultGap: 2.5, seafGren: 2, seafRocket: 1.5 },
               dodge: { cool: 10, chance: 0.65, minHit: 9, dist: 3.6, sec: 0.35 },
               seafDodge: { cool: 14, chance: 0.12 },     // SEAF dodge too, far less often (a UAV overhead helps both)
               // no single enemy hit takes more than maxHit of a Helldiver's health: however late in the war, it takes two
@@ -39,7 +45,10 @@ export const CONFIG = {
   // SEAF arrive when the player calls a pod. By default they go and clear the nearest objective on their own.
   // (0.18) the first drop is ready at once (the mission starts on the tactical screen); until startSec a drop can go anywhere
   // within startR of the landing zone, before the Helldivers are down.
-  seaf:     { max: 12, dropSize: 5, dropCooldownSec: 45, firstDropSec: 0, startSec: 25, startR: 140, dropDelaySec: 6, patrolRadius: 30, patrolSpeed: 2.5,
+  // (0.40) backCut: troopers a pickup took up come back down on a shorter turnaround: each of them in a drop takes backCut / (a
+  // full load) off that pelican's cooldown, so a full load of them comes round in 40% of the time. What one drop cannot carry
+  // stays aboard, and cuts the next drop's cooldown the same way.
+  seaf:     { max: 12, dropSize: 5, dropCooldownSec: 45, firstDropSec: 0, backCut: 0.6, startSec: 25, startR: 140, dropDelaySec: 6, patrolRadius: 30, patrolSpeed: 2.5,
               followSpread: 28, protectR: 36, protectLeash: 80, clearR: 55, clearMaxSec: 70,
               // (0.26) four roles: a Squad Leader in every drop, Riflemen, Specialists (MG-43 and EAT-17) and Medics. Everyone carries
               // G-12 grenades (grenades each, plus the armory's G-12 upgrade).
@@ -56,15 +65,18 @@ export const CONFIG = {
   // shoots any enemy it can see while it is on station.
   // (0.39) Every pelican (SEAF drops, pickups, cargo) comes down from orbit to where it is going in inSec, takes workSec there to set
   // its load down (or take it aboard) and climbs away. A pickup point takes in whoever is within pickR of it; the pelican boards
-  // them from boardR.
+  // them from boardR. (0.40) The zone is more than twice as big (9 m before), and a pickup takes everyone standing in it, however
+  // many (not just a drop's load); troops sent to it stand on its lzSlots places, in three rings.
   pelican:  { speed: 92, approach: 330, inSec: 5, workSec: 3, climb: 4.5, gunRange: 66, gunEvery: 0.3, gunDmg: 30, gunSplash: 2.4, gunAcc: 0.85,
-              pickR: 9, boardR: 16, lzSlots: 12 },
+              pickR: 20, boardR: 23, lzSlots: 24 },
   // SEAF specialists. A medic patches up anyone near it. A spotter radios in an Eagle fire mission on a big group or a heavy.
   // (0.26) a Medic heals anyone hurt within 20 m with the stim pistol (a full stim when close), and revives downed SEAF: a trooper
   // who falls with a Medic in reach goes down instead, for downSec, and is back up reviveSec after the Medic gets to work.
   // downSight (0.31): a downed trooper sees only this share of his sight (and none of the player's view past it), and adds no strike zone.
   medic:    { range: 20, heal: 24, every: 1.3, hp: 90, close: 4, closeMul: 2, reviveR: 20, downSec: 14, reviveSec: 2.5, reviveHp: 0.4, downSight: 0.25 },
   spotter:  { coolSec: 70, minGroup: 6, minDist: 26, n: 7, len: 24, dmg: 240, splash: 8.5, delay: 5, span: 1.2, range: 150 },
+  // (0.40) a squad wiped out drops again together, wipeD metres from where it fell (on the quietest side, never near the map's edge)
+  wipe:     { d: [110, 170], quietR: 80, edge: 70, spread: 8 },
   squad:    { speed: 6, chaseSpeed: 8.5, engageRange: 38, pushAfterSec: 45,
               clusterRadius: 15, setupSec: 5, setupCooldownSec: 15, carrySlow: 0.85, fightOnSec: 12, fightOnSpeed: 0.5, spotRange: 95 },
   // Bases and the citadel. The Helldivers destroy them with rifles, support weapons and stratagems, exactly as the destroyer
@@ -97,12 +109,15 @@ export const CONFIG = {
   demolish: { fuseSec: 3, blastPad: 8, blastMin: 10, blastMax: 26, dmg: 650, mult: { L: 1, M: 1, H: 0.6, B: 0.5 } },
   build:    { r: 12, perHand: 0.5, maxHands: 12, builderR: 20, levels: 5, crateR: 16, repair: 14, repairQuiet: 4, repairClear: 40, slowmo: 0.3,
               // (0.39) concertina wire: a run of len metres that any section put down within snap metres of an end carries on from.
+              // (0.39.2) Free, and strung on the spot by the squad, like a foxhole (no crate, no pelican).
               // A light enemy that walks into it stops for stopSec, then crawls through at light x its speed; a medium wades through
               // at medium x, a heavy at heavy x (0.39.2: heavies are held up too); only a super heavy tears it (tear hp a second, of
               // hp), going on at boss x. Anything inside band metres of the wire is in it. Nobody aims at it, and it is no cover.
-              wire:    { cost: 25,  sec: 5, len: 12, snap: 10, band: 1.7, hp: 300, stopSec: 1.1, light: 0.3, medium: 0.6, heavy: 0.45, boss: 0.85, tear: 650 },
+              wire:    { cost: 0,   sec: 5, len: 12, snap: 10, band: 1.7, hp: 300, stopSec: 1.1, light: 0.3, medium: 0.6, heavy: 0.45, boss: 0.85, tear: 650 },
               // (0.39) link: foxholes whose ends are within link metres of each other are joined by a trench (cover all along it)
-              foxhole: { cost: 0,   sec: 6,  cap: 3, mul: 0.8, rof: 1.3, link: 12 },
+              // (0.40) link: a foxhole is trenched to the nearest foxhole whose end is within this many metres of its own (and to a
+              // second one off to another side, so a ring closes), each foxhole taking at most maxLinks trenches; not across water
+              foxhole: { cost: 0,   sec: 6,  cap: 3, mul: 0.8, rof: 1.3, link: 30, maxLinks: 3 },
               // (0.39) a line of bastions: the same walls side by side (lineLen metres each, lineGap apart) instead of a ring
               bastion: { cost: 100, sec: 14, n: 8, R: 10, mul: 0.55, unlock: 0, up: 120, lineLen: 4.2, lineGap: 0.5 },
               mg:      { cost: 380, sec: 28, cap: 2, hp: 5400, dmg: 1, crewMul: 0.3, unlock: 0, up: 220,
@@ -152,17 +167,18 @@ export const CONFIG = {
     back: { cos: -0.4, mul: 1.5, heavy: 2.2 },
     crit: { mul: 2, player: 0.14, gun: 0.10, ally: 0.06, enemy: 0.04 },
     turn: { ally: 9, L: 9, M: 5, H: { bugs: 2.2, bots: 1.2, squids: 1.6 } },
-    // Enemy attacks by faction and size: range (m), damage per hit, seconds between attacks, accuracy.
+    // Enemy attacks by faction and size: range (m), damage per hit, seconds between attacks, accuracy. (0.40) Every enemy can miss:
+    // nothing is above 0.9, the melee heavies, the specials and the harvester's beam included (a beam that misses goes wide).
     atk: {
-      bugs:   { L: { range: 5,  dmg: 5,  every: 0.8, acc: 0.95 },
+      bugs:   { L: { range: 5,  dmg: 5,  every: 0.8, acc: 0.9 },
                 M: { range: 18, dmg: 16, every: 1.5, acc: 0.8 },
-                H: { range: 5.5, dmg: 70, every: 1.3, acc: 1, speed: 7.5 } },       // heavy runs at allies
+                H: { range: 5.5, dmg: 70, every: 1.3, acc: 0.85, speed: 7.5 } },       // heavy runs at allies
       bots:   { L: { range: 38, dmg: 5,  every: 0.7, acc: 0.55 },
                 M: { range: 42, dmg: 17, every: 1.0, acc: 0.65 },
                 H: { range: 58, dmg: 50, every: 1.6, acc: 0.75, speed: 3.2, splash: 3.5 } },   // medium range cannon
       squids: { L: { range: 30, dmg: 6,  every: 0.9, acc: 0.7 },
-                M: { range: 34, dmg: 18, every: 1.3, acc: 0.75 },
-                H: { range: 62, dmg: 120, every: 7, acc: 1, speed: 2.4, charge: 2.6, lock: 0.7, width: 3.2 } }, // the longest reach of any enemy: a charged beam
+                M: { range: 36, dmg: 7,  every: 0.5, acc: 0.75 },     // (0.40) an overseer's rifle: quick shots (the same damage a second as its old bolt)
+                H: { range: 62, dmg: 120, every: 7, acc: 0.85, speed: 2.4, charge: 2.6, lock: 0.7, width: 3.2 } }, // the longest reach of any enemy: a charged beam
     },
   },
 
@@ -172,11 +188,13 @@ export const CONFIG = {
   // Each faction has a way of fighting. Bugs swarm in big loose packs that rush the squad from every side. Bots stop at a standoff
   // distance and form a firing line across the approach. Squids spread out and surround whoever they hunt.
   enemies:  { liveCap: 90, capPerMissionMin: 5, capPerSessionMin: 0.6, maxLive: 190, hardCap: 230, groupSize: 7, group: { bugs: 14, bots: 10, squids: 10 },
-              bag: { light: 32, medium: 6, heavy: 2 },
+              // (0.40) the heavy draws include the specials (C.special.share of them), so heavies and specials scale together: the
+              // difficulty's heavy factor, the war's heavy ramp (ramp.heavyEvery) and the heavy cap below are theirs together
+              bag: { light: 32, medium: 4.5, heavy: 3 },
               // Mediums and heavies die slowly, so they pile up in the field while the lights melt away. This keeps them in proportion:
               // only so many of each can be alive at once (more as the session goes on); the rest of the draws come out light.
-              // perMissionMinM/H: more of them allowed the longer a mission runs.
-              kindCap: { M: 14, H: 4, perMinM: 0.08, perMinH: 0.03, perMissionMinM: 0.6, perMissionMinH: 0.15, maxM: 44, maxH: 12 },
+              // perMissionMinM/H: more of them allowed the longer a mission runs. (0.40) H counts the heavies and the specials.
+              kindCap: { M: 12, H: 6, perMinM: 0.05, perMinH: 0.06, perMissionMinM: 0.6, perMissionMinH: 0.15, maxM: 38, maxH: 18 },     // (0.40: the specials' share moved from M to H)
               tactics: {
                 swarm: { callRadius: 130, rushMul: 1.25, rushN: 8, weave: 3.5, fan: 0.6, arc: 2.0, reach: 48 },
                 line:  { standoff: 0.62, spacing: 4.4, rank: 4.5, tankBack: 10, arm: 70 },
@@ -200,10 +218,13 @@ export const CONFIG = {
   //   bots: the Commander, who hangs back behind the line. Within jamR of it no stratagem, orbital, UAV, Ship Gun round or
   //         artillery shot can be called.
   //   squids: the Fleshmob, a slow melee mass that soaks damage (soak: the share of each hit it takes).
-  special:  { share: 0.25, cap: 2, perMin: 0.03, max: 6, reward: 3,
-              bugs:   { id: 'guard', hp: 1.7, speed: 1.25, r: 4.8, front: 0.55, frontCos: 0.5, atk: { range: 5.5, dmg: 22, every: 1.2, acc: 1 } },
-              bots:   { id: 'cmd',   hp: 1.4, speed: 0.9,  r: 4.3, jamR: 22, atk: { range: 44, dmg: 14, every: 1.1, acc: 0.65 } },
-              squids: { id: 'soak',  hp: 3,   speed: 1.1,  r: 5.2, soak: 0.6, atk: { range: 5.5, dmg: 38, every: 1.5, acc: 1 } } },
+  // (0.40) Specials (the hive guard, the bot commander, the fleshmob: medium-sized, and paid reward x a medium) are drawn from the
+  // heavy draws: share of them come out special. They share the heavies' cap and scale with them.
+  special:  { share: 0.34, reward: 3,
+              bugs:   { id: 'guard', hp: 1.7, speed: 1.25, r: 4.8, front: 0.55, frontCos: 0.5, atk: { range: 5.5, dmg: 22, every: 1.2, acc: 0.85 } },
+              // (0.40) the commander jams in bursts: jamSec on, then jamCool off (it shows when the next burst is coming)
+              bots:   { id: 'cmd',   hp: 1.4, speed: 0.9,  r: 4.3, jamR: 22, jamSec: 10, jamCool: 20, atk: { range: 44, dmg: 14, every: 1.1, acc: 0.65 } },
+              squids: { id: 'soak',  hp: 3,   speed: 1.1,  r: 5.2, soak: 0.6, atk: { range: 5.5, dmg: 38, every: 1.5, acc: 0.85 } } },
   // Patrols: every base keeps perBase (more later in the session and the mission, up to maxPerBase) out on a route of its own, radius
   // metres out, replacing a lost one every `every` seconds while it stands; atStart are out at the drop. An intercept is a patrol
   // already waiting out of sight where the squad is heading (interceptLead seconds ahead), every interceptSec; forgotten once the
@@ -229,6 +250,10 @@ export const CONFIG = {
   sides:    { min: 2, perAoM: 250, max: 5, callMul: 1.1,
               radio: { holdR: 16, holdSec: 25, relightR: 520, reward: 220 },
               propaganda: { hp: 1400, reward: 200, guards: 1, every: 22, reach: 320 },
+              // (0.40) the bugs' spore tower: a fungal stalk that breathes spores out round it. While it stands, every ally within R of
+              // it sees only sight x as far (the ground round them stays darker). Shoot it down: hp, guards like the broadcast tower.
+              // chance: how often a bug map has one (rolled from a stream of its own, so the rest of the map is as it was)
+              spore: { hp: 1600, reward: 220, guards: 1, R: 150, sight: 0.45, chance: 0.6, r: 12 },
               rescue: { n: 5, claimR: 26, offR: 45, reward: 200 },
               // an abandoned SEAF artillery cannon: a Helldiver stands by it for holdSec and it is ours (weapon 9, once someone mans it)
               arty: { holdR: 16, holdSec: 18, reward: 250 },
@@ -247,7 +272,15 @@ export const CONFIG = {
   // mission has run so far.
   plan:     { detour: 320, reserve: 150, clearLives: 3, every: 6, keepR: 70, pace: 0.5, extractPad: 30,
               ask: { maxMin: 10, perMin: 40, perMinIn: 0.1, askSec: 30, asks: 2 },
-              work: { base: 70, radio: 45, propaganda: 35, rescue: 60, arty: 40, jammer: 60, nuke: 150, vip: 100, evac: 220, fortress: 240, oil: 260, cannon: 120, dome: 220 } },
+              // (0.40) breaking off a losing fight: `deaths` Helldivers down within deathR of the squad inside deathSec, or a wave of
+              // hunting enemies within waveR weighing more than `wave` (w per kind; less with fewer Helldivers up), and the squad
+              // pulls out of the task: to a side objective at least sideR from the trouble if one is open (kept for forceSec), or
+              // else falls back fallD metres to the safest spot near it (for fallSec, running, fighting as it goes). A side task it
+              // broke off from is left alone for avoidSec. Not while it holds a site or carries the VIP, nor during a Hellbomb, nor
+              // more often than every cool seconds.
+              breakOff: { deaths: 3, deathSec: 120, deathR: 170, wave: 200, waveR: 150, w: { L: 1, M: 3, H: 8, boss: 25 }, sideR: 200, reach: 700,
+                          forceSec: 150, fallD: 150, fallSec: 35, avoidSec: 240, cool: 120, every: 1 },
+              work: { base: 70, radio: 45, propaganda: 35, spore: 40, rescue: 60, arty: 40, jammer: 60, nuke: 150, vip: 100, evac: 220, fortress: 240, oil: 260, cannon: 120, dome: 220 } },
   // An enemy that fires on an ally gives itself away: it shows for `sec` seconds after each shot, and once it has shown for lockSec
   // without a break it is locked: orbitals and the ship gun can hit it (within lockR of it) even outside the strike zone.
   reveal:   { sec: 5, lockSec: 3, lockR: 12 },
@@ -272,7 +305,13 @@ export const CONFIG = {
   // Objective sites under siege (objectives.js siege): while the squad works an objective the enemy calls backup every `every`
   // seconds, down to `minEvery`, with up to `extra` more groups, over rampSec seconds at the site. A call waits (capWait s) while
   // cap enemies are already within capR metres of the site.
-  siege:    { first: 10, every: 18, minEvery: 10, rampSec: 150, extra: 3, fortressR: 120, cap: 60, capR: 200, capWait: 4 },
+  // (0.40) defend: a site the squad has to hold (the nuke, the evacuation, the oil pump, the VIP's landing zone) is what the enemy
+  // most wants them off, so it comes harder there: calls every `every` down to minEvery, from `sides` places at once (sides3 once
+  // the site has been held sides3At seconds), each call at least as big as at pressure pMin however many bases are down (and at
+  // most maxN groups in all), and up to cap enemies round it before a call waits. gap: the time between calls times this, by
+  // objective (the evacuation was already the hardest of them to hold).
+  siege:    { first: 10, every: 18, minEvery: 10, rampSec: 150, extra: 3, fortressR: 120, cap: 60, capR: 200, capWait: 4,
+              defend: { every: 17, minEvery: 11, extra: 1, sides: 2, sides3: 2, sides3At: 180, pMin: 1.2, cap: 70, maxN: 4, gap: { oil: 1.6, evac: 1.6 } } },
   // The citadel: a cluster of bases round a central keep (parts bases partR metres out, partHp each), guarded by a super heavy that
   // turns out when the squad arrives (its health x guardHp at level 1, rising to full at level 10). Every part has to come down.
   fortress: { hp: 4500, radius: 24, parts: 3, partHp: 2000, partR: 62, guardHp: 0.55, garrisonGroups: 2, garrisonCap: 24, spawnSec: 22, minFromLz: 650, detectR: 150 },
@@ -305,12 +344,15 @@ export const CONFIG = {
     { saved: 90,  sec: 225, every: 6,  n: 13, mid: 0.45, heavy: 1, heavyEvery: 0 },
     { saved: 120, sec: 330, every: 3,  n: 20, mid: 0.5,  heavy: 2, heavyEvery: 0, grow: 2, hpPerMin: 1.2, dmgPerMin: 1.6 },
   ],
-  lastStand: { personnel: 160, squad: 6, lzOff: 46, lives: 10, breakAt: 3, waveFirst: 5, waveEvery: [12, 3.5], rampSec: 150, waveSize: [9, 9], waveGrow: 8,
+  // (0.40) truthAt: at this many off Mars Tharsis Control stops the game to say it plainly: not everyone is getting off
+  lastStand: { personnel: 160, truthAt: 100, squad: 6, lzOff: 46, lives: 10, breakAt: 3, waveFirst: 5, waveEvery: [12, 3.5], rampSec: 150, waveSize: [9, 9], waveGrow: 8,
                heavyEvery: 3, hpGrow: 0.6, dmgGrow: 0.9, levelEvery: 25, maxHold: 480, glassSec: 10, beamEvery: 0.09, beamR: 13, waveR: 230, lessonR: 160, countdown: 900,
                jamOff: 115, jamR: 55 },     // (0.37) the Hellbomb lesson's disruptor: how far from the base, and the ground it jams
-  difficulty: { start: 3, spawn: 0.55, medium: 0.6, heavy: 0.4, boss: 0.3, curve: 1, reward: [0.75, 1.2], ramp: 0.6, beyond: 1,     // (0.31: ramp 0.39 -> 0.6, a level nearly every mission)
+  // (0.40) opBonus: credits are worth 0.2 more for every mission already done in the operation (the second mission x1.2, the
+  // third x1.4 and so on), on top of the level's pay; score is not.
+  difficulty: { start: 3, spawn: 0.55, medium: 0.6, heavy: 0.4, boss: 0.3, curve: 1, reward: [0.75, 1.2], opBonus: 0.2, ramp: 0.6, beyond: 1,     // (0.31: ramp 0.39 -> 0.6, a level nearly every mission)
                 // war minutes at each level (1 to 10), war minutes a level past 10, and the share of each real session minute that counts
-                war: [0, 15, 38, 41, 44, 47, 50, 53, 56, 60], warBeyond: 10, sessionRamp: 0.075,     // (0.19.2: ramp and sessionRamp halved)
+                war: [0, 15, 37, 38, 39, 40, 40.5, 41, 41.5, 42], warBeyond: 10, sessionRamp: 0.075,     // (0.19.2: ramp and sessionRamp halved; 0.40: the top flattened, so a session started at 10 can win its first mission)
                 // (0.31) rankStep: a rank reached (ranks.at, missions done) makes every mission after it this much of a level harder too,
                 // so the more of the armory is open, the harder it gets. From level 3: missions 1-14 at 3 4 4 5 6 7 7 8 9 9 10 11 11 12.
                 rankStep: 0.25 },
@@ -456,11 +498,11 @@ export const CONFIG = {
   // giveUpSec: once the squad has waited this long at the extraction point with it still alive, it withdraws (no bounty).
   boss: { chance: 0.12, perSessionMin: 0.003, maxChance: 0.5, window: [170, 450], dist: [190, 240], reward: 700, score: 3000, giveUpSec: 210,
           bugs:   { hp: 4500, r: 10, speed: 2.3, stop: 7,
-                    spit: { range: 50, dmg: 38, splash: 6, every: 3.8, flight: 1.1, acc: 0.8 }, stomp: { range: 10, dmg: 85, every: 1.8, splash: 5.5 } },
+                    spit: { range: 50, dmg: 38, splash: 6, every: 3.8, flight: 1.1, acc: 0.8 }, stomp: { range: 10, dmg: 85, every: 1.8, splash: 5.5, acc: 0.8 } },
           bots:   { hp: 5500, r: 11, speed: 1.7, stop: 40,
                     cannon: { range: 62, dmg: 26, splash: 4, every: 1.6, acc: 0.7 }, deploy: { every: 30 } },
           squids: { hp: 3800, shield: 2000, regen: 120, regenDelay: 7, r: 12, speed: 1.9, stop: 48,
-                    beam: { range: 78, dmg: 120, charge: 2.6, every: 7.5, width: 4.5, lock: 0.7 } } },
+                    beam: { range: 78, dmg: 120, charge: 2.6, every: 7.5, width: 4.5, lock: 0.7, acc: 0.85 } } },
   // Resupply on request: the Helldivers ask, the player loads a pod in slow motion (cells per compartment, fillSec real seconds at
   // the most), and a load finished within fastSec real seconds boosts the Helldivers' damage and pace for boostSec.
   supply:   { firstSec: 60, need: 1.5, askSec: 30, cells: 4, fillSec: 13, slowmo: 0.25, fastSec: 5, dropSec: 3.5, cooldownSec: 75, declineCooldownSec: 60,
@@ -483,6 +525,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.39.2',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.40.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

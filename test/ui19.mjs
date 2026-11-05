@@ -172,6 +172,15 @@ check('the waves come faster and stronger, and personnel get out', h2.waves >= 6
 const lv = await ev(() => ({ lv: window.__game.mission.ls.level, diff: document.getElementById('mb-diff').textContent }));
 check('(0.19.5) the difficulty climbs with the waves, a level every 25 s, and the clock box shows it (from 3 since 0.36.1)', lv.lv === 5 && /DIFFICULTY 5/.test(lv.diff), JSON.stringify(lv));
 await shot('hold');
+// (0.40) at 100 off Mars Tharsis Control stops the game to say it: they will not all get off
+await ev(() => { const m = window.__game.mission, o = m.objectives[0]; o.saved = Math.max(100, o.saved); for (let i = 0; i < 3; i++) m.step(1 / 30); }); await page.waitForTimeout(900);
+c = await card();
+const said = await ev(() => window.__game.radioLog ? window.__game.radioLog.items.some((it) => it.tag === 'THARSIS' && /Special Forces/.test(it.text)) : null);
+check('(0.40) at 100 off Mars Tharsis Control holds the game: not everyone gets out', c.k === 'THARSIS CONTROL' && /NOT EVERYONE/.test(c.h) && c.held && !c.fold && /Special Forces on Mars/.test(c.b) && await frozen(), `${c.k} / ${c.h}`);
+check('(0.40) ...and it goes on the command radio log', said === true, String(said));
+await shot('truth');
+await tap('#tut-ok'); await page.waitForTimeout(300);
+check('(0.40) GOT IT and the hold goes on', !(await card()).held && !(await frozen()));
 await ev(() => { const m = window.__game.mission; m.hd.lives = 3; for (let i = 0; i < 3; i++) m.step(1 / 30); }); await page.waitForTimeout(1000);
 c = await card();
 check('the line breaking: the card comes back, the screen goes orange', /BREAKING/.test(c.h) && !c.fold && await ev(() => document.body.classList.contains('ls-warn')), c.h);

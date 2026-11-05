@@ -32,10 +32,7 @@ function quiet(faction = 'bots', seed = 77, opts = {}) {
 }
 // one enemy of a kind (and sub-kind), standing still and facing +x
 function one(m, kind, x, y, sub = '', hunt = false) {
-  m.bag = Array(60).fill(kind);
-  const share = C.special.share; C.special.share = sub ? 1 : 0;
-  const g = spawnGroup(m, x, y, hunt ? 'hunt' : 'patrol', { alertT: 1e9 });
-  C.special.share = share; m.bag = [];
+  const g = spawnGroup(m, x, y, hunt ? 'hunt' : 'patrol', { alertT: 1e9, kinds: Array(m.groupSize || 7).fill(sub ? 'S' : kind) });     // (0.40: a special is an 'S' draw)
   g.hold = hunt ? 0 : 1e9;
   let e = g.members.find((q) => q.kind === kind && (!sub || q.sub === sub));
   if (!e) { e = g.members[0]; e.kind = kind; }
@@ -93,16 +90,18 @@ function troops(m, n, sq = 0, x = m.hx + 10, y = m.hy + 6) {
 {
   for (const [fac, sub] of [['bugs', 'guard'], ['bots', 'cmd'], ['squids', 'soak']]) {
     const m = new Mission({ seed: 4242, faction: fac, biome: 'grass', events: false, sessionMinutes: 60, missionN: 4 });
-    let seen = 0, other = 0, maxAlive = 0;
+    let seen = 0, other = 0, maxAliveHS = 0;
     const ids = new Set();
-    run(m, 300, (mm) => { let n = 0; for (const e of mm.enemies) { if (e.dead) continue; if (e.sub) { n++; if (!ids.has(e.id)) { ids.add(e.id); if (e.sub === sub) seen++; else other++; } } } maxAlive = Math.max(maxAlive, n); });
-    const cap = Math.min(C.special.max, C.special.cap + C.special.perMin * 60);
-    check(`${fac}: the ${sub} turns up among the mediums`, seen > 0 && other === 0, `${seen} seen`);
-    check(`${fac}: never more than the cap alive at once`, maxAlive <= Math.ceil(cap), `${maxAlive} (cap ${cap.toFixed(1)})`);
+    run(m, 300, (mm) => { let n = 0; for (const e of mm.enemies) { if (e.dead || e.boss) continue; if (e.sub || e.kind === 'H') n++; if (e.sub && !ids.has(e.id)) { ids.add(e.id); if (e.sub === sub) seen++; else other++; } } maxAliveHS = Math.max(maxAliveHS, n); });
+    // (0.40) specials come out of the heavy draws and share the heavies' cap
+    const K = C.enemies.kindCap, cap = Math.min(K.maxH, K.H + K.perMinH * 60 + K.perMissionMinH * (m.t / 60));
+    check(`${fac}: the ${sub} turns up (among the heavy draws)`, seen > 0 && other === 0, `${seen} seen`);
+    check(`${fac}: never more specials and heavies alive at once than the heavy cap`, maxAliveHS <= Math.ceil(cap), `${maxAliveHS} (cap ${cap.toFixed(1)})`);
   }
   const m = quiet('bots', 1604);
   const e = one(m, 'M', m.hx + 120, m.hy, 'cmd');
   if (e.sub !== 'cmd') { e.sub = 'cmd'; e.jamR = C.special.bots.jamR; }
+  { const J = C.special.bots, cyc = J.jamSec + J.jamCool; e.jamPh = ((cyc - (m.t % cyc)) % cyc) + 0.5; }     // (0.40: it jams in bursts: this is the start of one)
   run(m, 0.2);
   check('a commander jams the ground round it', !!jammedAt(m, e.x + 5, e.y) && !jammedAt(m, e.x + C.special.bots.jamR + 8, e.y));
   // the gunner cannot call anything there, the ship gun included

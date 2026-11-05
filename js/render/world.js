@@ -463,7 +463,12 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal) {
 // A special medium: the commander's jammer bubble (shown wherever the commander is known), a ring and health bar, and its name.
 function drawSpecialExtras(ctx, m, e, now, px, labels, scale, col) {
   const r = Math.max(e.r, px(8));
-  if (e.jamR) {
+  if (e.jamR && !e.jamming && e.jamLeft !== undefined && e.jamLeft < 3) {
+    // (0.40) cooling down: a thin ring closing in for the last seconds before it jams again
+    ctx.strokeStyle = 'rgba(255,110,120,0.45)'; ctx.lineWidth = px(1); ctx.setLineDash([px(2), px(5)]);
+    ring(ctx, e.x, e.y, e.jamR * (1 - e.jamLeft / 3 * 0.5)); ctx.stroke(); ctx.setLineDash([]);
+  }
+  if (e.jamR && (e.jamming || e.jamLeft === undefined)) {
     const p = 0.5 + 0.5 * Math.sin(now * 5 + e.id);
     ctx.fillStyle = `rgba(255,70,90,${0.06 + 0.05 * p})`; ring(ctx, e.x, e.y, e.jamR); ctx.fill();
     ctx.strokeStyle = `rgba(255,110,120,${0.5 + 0.4 * p})`; ctx.lineWidth = px(1.6); ctx.setLineDash([px(3), px(3)]);
@@ -472,7 +477,7 @@ function drawSpecialExtras(ctx, m, e, now, px, labels, scale, col) {
   ctx.strokeStyle = rgba(col, 0.8); ctx.lineWidth = px(1); ring(ctx, e.x, e.y, r * 1.3); ctx.stroke();
   if (e.vis >= 2) {
     if (e.hp < e.maxHp) hpBar(ctx, e.x, e.y - r * 1.8, r * 2.4, px(2.6), e.hp / e.maxHp, col);
-    labels.push({ x: e.x, y: e.y, dy: -r * scale * 1.4 - 8, text: tr(`kind.${m.faction.id}.${e.sub}`) + (e.jamR ? ' · ' + tr('lab.jammer') : ''), col, pri: 1 });
+    labels.push({ x: e.x, y: e.y, dy: -r * scale * 1.4 - 8, text: tr(`kind.${m.faction.id}.${e.sub}`) + (e.jamR ? ' · ' + (e.jamming || e.jamLeft === undefined ? tr('lab.jammer') : tr('lab.jamIn', { n: Math.ceil(e.jamLeft) })) : ''), col, pri: 1 });
   }
 }
 

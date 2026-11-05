@@ -180,18 +180,44 @@ export function makePost(m, what, x, y, opts = {}) {
   return p;
 }
 
-// (0.39) A foxhole joins any other foxhole whose nearest end is within C.build.foxhole.link metres of one of its own: a trench is dug
-// between them (cover all along it, facing the way the two face), so a ring of foxholes round an objective is one trench.
+// (0.39) Foxholes close together are joined by a trench (cover all along it, facing the way the two face), so a ring of foxholes
+// round an objective is one trench. (0.40) A new foxhole is trenched to the nearest foxhole whose end is within
+// C.build.foxhole.link metres of one of its own, and to a second one if that lies off to another side (so a chain carries on and
+// a ring closes), never across water and never to a foxhole that already has maxLinks trenches. trenchPlan is what the build's
+// ghost shows; linkTrenches digs it.
 const foxEnds = (p) => (p.cap > 3 && p.slots && p.slots.length > 1 ? [p.slots[0], p.slots[p.slots.length - 1]] : [{ x: p.x, y: p.y }]);
+const trenchN = (m, q) => (m.trenches || []).reduce((n, k) => n + (k.a === q || k.b === q ? 1 : 0), 0);
+function wetShare(m, a, b) {
+  let w = 0; const n = 8;
+  for (let k = 1; k < n; k++) { const x = a.x + (b.x - a.x) * (k / n), y = a.y + (b.y - a.y) * (k / n); if (!m.terrain.isLand(x, y) || m.terrain.blocked(x, y)) w++; }
+  return w / (n - 1);
+}
+export function trenchPlan(m, ends, self = null) {
+  const F = C.build.foxhole, cands = [];
+  for (const q of m.posts) {
+    if (q === self || q.dead || q.what !== 'foxhole') continue;
+    if (self && (m.trenches || []).some((k) => (k.a === self && k.b === q) || (k.a === q && k.b === self))) continue;
+    if (trenchN(m, q) >= F.maxLinks) continue;
+    let best = null;
+    for (const a of ends) for (const b of foxEnds(q)) { const d = Math.hypot(a.x - b.x, a.y - b.y); if (d <= F.link && d >= 0.8 && (!best || d < best.d)) best = { a, b, d, q }; }
+    if (best && wetShare(m, best.a, best.b) < 0.3) cands.push(best);
+  }
+  cands.sort((u, v) => u.d - v.d);
+  const out = [];
+  for (const c of cands) {
+    if (out.length >= 2) break;
+    if (out.length) {     // a second only off to another side, not along the first
+      const o = out[0], a1 = Math.atan2(o.b.y - o.a.y, o.b.x - o.a.x), a2 = Math.atan2(c.b.y - c.a.y, c.b.x - c.a.x);
+      if (Math.abs(Math.atan2(Math.sin(a2 - a1), Math.cos(a2 - a1))) < Math.PI / 3) continue;
+    }
+    out.push(c);
+  }
+  return out;
+}
 export function linkTrenches(m, p) {
   const F = C.build.foxhole, gap = FOX_GAP;
-  for (const q of m.posts) {
-    if (q === p || q.dead || q.what !== 'foxhole') continue;
-    if ((m.trenches || []).some((k) => (k.a === p && k.b === q) || (k.a === q && k.b === p))) continue;
-    let best = null;
-    for (const a of foxEnds(p)) for (const b of foxEnds(q)) { const d = Math.hypot(a.x - b.x, a.y - b.y); if (d <= F.link && (!best || d < best.d)) best = { a, b, d }; }
-    if (!best || best.d < 0.8) continue;
-    const { a, b, d } = best, dx = (b.x - a.x) / d, dy = (b.y - a.y) / d;
+  for (const best of trenchPlan(m, foxEnds(p), p)) {
+    const q = best.q, { a, b, d } = best, dx = (b.x - a.x) / d, dy = (b.y - a.y) / d;
     // the trench's front: the side of it the two foxholes face
     const fx = Math.cos(p.face0 ?? p.face) + Math.cos(q.face0 ?? q.face), fy = Math.sin(p.face0 ?? p.face) + Math.sin(q.face0 ?? q.face);
     let nx = -dy, ny = dx; if (nx * fx + ny * fy < 0) { nx = -nx; ny = -ny; }
@@ -207,6 +233,21 @@ export function linkTrenches(m, p) {
     (m.trenches || (m.trenches = [])).push({ a: p, b: q, pts, face: ang, site });
     m.emit('trench_link', { a: p.id, b: q.id });
   }
+}
+
+// (0.40) Nothing is built on an enemy base (or a fortress part, an operation's structure, an outpost or an enemy side structure)
+// while it stands. buildFoot: how far a build reaches from its spot; onEnemy: the enemy structure it would stand on, or null.
+export function buildFoot(what, lvl = 1, shape) {
+  const B = C.build;
+  if (what === 'wire') return B.wire.len / 2;
+  if (what === 'bastion') { const S = buildStats('bastion', Math.max(1, lvl)); return shape === 'line' ? (S.n * (B.bastion.lineLen + B.bastion.lineGap)) / 2 : S.R + 1; }
+  if (what === 'foxhole') return 6;
+  return 5;
+}
+export function onEnemy(m, x, y, foot = 5) {
+  for (const b of m.bases) if (!b.destroyed && (b.x - x) ** 2 + (b.y - y) ** 2 < (b.r + foot) ** 2) return b;
+  for (const p of m.pois) if (p.isPoi && p.maxHp > 0 && !p.done && (p.x - x) ** 2 + (p.y - y) ** 2 < ((p.r || 10) + foot) ** 2) return p;
+  return null;
 }
 
 // Gone: the walls and places come off the map, a cannon or tower stops working, and any garrison goes back to a squad.

@@ -20,20 +20,13 @@ function heavyKit(fid, e) {
   if (H.crit) e.critUp = H.crit;
   if (H.shield) { e.shield = e.maxShield = Math.round(e.maxHp * H.shield); e.shieldAt = -99; e.regen = H.regen; e.regenDelay = H.regenDelay; if (H.bubR) e.bubR = H.bubR; }
 }
-// Is this medium draw one of the faction's specials? (its own random stream, so the rest of the mission is unchanged)
-function wantSpecial(m) {
-  const S = C.special;
-  if (m.srng.next() >= S.share) return false;
-  let n = 0;
-  for (const e of m.enemies) if (!e.dead && e.sub) n++;
-  return n < Math.min(S.max, S.cap + S.perMin * (m.W ?? m.S ?? 0));
-}
+// (0.40) A special comes out of the heavy draws (mission.js drawToken: an 'S'): a medium-sized body with its faction's kit.
 function specialKit(fid, e) {
   const P = C.special[fid];
   e.sub = P.id; e.hp = e.maxHp = Math.round(e.maxHp * P.hp); e.speed *= P.speed; e.r = P.r;
   if (P.front) { e.front = P.front; e.frontCos = P.frontCos; }
   if (P.soak) e.soak = P.soak;
-  if (P.jamR) e.jamR = P.jamR;
+  if (P.jamR) { e.jamR = P.jamR; e.jamPh = (e.id * 7.31) % (P.jamSec + P.jamCool); }     // (0.40: where in its on / off cycle it starts)
 }
 
 export function spawnGroup(m, x, y, state = 'patrol', opts = {}) {
@@ -45,7 +38,7 @@ export function spawnGroup(m, x, y, state = 'patrol', opts = {}) {
   };
   // opts.kinds: exactly these (the last stand's scripted groups), not drawn from the bag
   for (let i = 0, n = opts.kinds ? opts.kinds.length : opts.size || m.groupSize; i < n; i++) {     // (opts.size: a smaller pack, 0.31)
-    const kind = opts.kinds ? opts.kinds[i] : m.drawToken(), st = SUBTYPES[kind];
+    const tok = opts.kinds ? opts.kinds[i] : m.drawToken(), special = tok === 'S', kind = special ? 'M' : tok, st = SUBTYPES[kind];
     const [ox, oy] = rng.inDisc(opts.emerge ? Math.min(4, fac.spread) : fac.spread);   // out of a hole or off a ship: bunched up
     let px = aoX(m, x + ox, 3), py = aoY(m, y + oy, 3);
     if (m.terrain.blocked(px, py)) { const l = m.terrain.nearestLand(px, py); px = l.x; py = l.y; }   // never in deep water
@@ -58,7 +51,7 @@ export function spawnGroup(m, x, y, state = 'patrol', opts = {}) {
     };
     // Heavies have their own pace: the charger sprints, the tank rolls, the harvester stalks.
     if (kind === 'H') { e.speed = attackProfile(fac.id, 'H').speed * m.biome.speed; heavyKit(fac.id, e); }
-    else if (kind === 'M' && wantSpecial(m)) specialKit(fac.id, e);
+    else if (special) specialKit(fac.id, e);
     g.members.push(e); m.enemies.push(e);
   }
   m.groups.push(g);

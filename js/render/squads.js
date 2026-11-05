@@ -257,7 +257,7 @@ export function drawPelicans(ctx, m, now, px, labels, scale, pal) {
       ring(ctx, p.x, p.y, s * (1.3 + 0.25 * Math.sin(now * 9))); ctx.stroke();
     }
     if (p.pick) {     // (0.39) a pickup
-      const text = p.state === 'in' ? tr('lab.pickSec', { n: Math.max(1, Math.ceil(P.inSec - (m.t - p.t0))) }) : p.state === 'hover' ? tr('lab.picking', { a: p.aboard, b: p.cap }) : tr('lab.pickedUp', { n: p.aboard });
+      const text = p.state === 'in' ? tr('lab.pickSec', { n: Math.max(1, Math.ceil(P.inSec - (m.t - p.t0))) }) : p.state === 'hover' ? tr('lab.picking', { a: p.aboard, b: p.aboard + (p.left || 0) }) : tr('lab.pickedUp', { n: p.aboard });
       labels.push({ x: p.x, y: p.y, dy: -s * scale - 8, text, col: '#5fd0ff', pri: 1 });
       continue;
     }

@@ -16,7 +16,7 @@ import { drawFlares, drawHoles, drawDrops, drawEvac, drawExtraction, critText, d
 import { drawBaseArt, drawBaseRuin, drawCover, drawCitadelWalls, drawCannonArt, drawNodeArt } from './sites.js';
 import { drawPosts, postArt, lzArt } from './posts.js';
 const lzArtGhost = (ctx, x, y, R, now, px, ok) => lzArt(ctx, x, y, R, now, px, ok);
-import { foxReach, wirePlan, wireEnds, bastionLine, foxholeSlots, turns } from '../sim/posts.js';
+import { foxReach, wirePlan, wireEnds, bastionLine, foxholeSlots, turns, trenchPlan, onEnemy, buildFoot } from '../sim/posts.js';
 import { buildStats, uavStats, seafStats, buildLevel } from '../data/kit.js';
 import { todAt, skyTint } from './sky.js';
 import { Lighting, ambient, washKey, bakeWash } from './light.js';
@@ -24,7 +24,7 @@ import { Lighting, ambient, washKey, bakeWash } from './light.js';
 const SIZE = C.world.size;
 export const MINI_Q = 0.9;      // the share of the round minimap's width the (round) area of operations fills
 const TAU = Math.PI * 2;
-const TASK_LABEL = { base: 'lab.base', radio: 'lab.radio', propaganda: 'lab.prop', rescue: 'lab.rescue', arty: 'lab.artySite', jammer: 'lab.jam' };
+const TASK_LABEL = { base: 'lab.base', radio: 'lab.radio', propaganda: 'lab.prop', rescue: 'lab.rescue', arty: 'lab.artySite', jammer: 'lab.jam', spore: 'lab.spore' };
 const slotCd = (m, i) => { const st = slotStats(m, i); return st ? st.cd : 0; };
 
 export class Renderer {
@@ -253,7 +253,8 @@ export class Renderer {
       if (ev.melee) { kind = 'slash'; flight = 0.001; w = ev.k === 'H' ? 2.6 : 1.4; }
       else if (ev.f === 'bugs') { kind = 'glob'; w = 2; flight = cl(d / 40, 0.12, 0.6); }
       else if (ev.f === 'bots') { w = ev.k === 'H' ? 3 : ev.k === 'M' ? 1.5 : 1; flight = cl(d / 120, 0.08, 0.45); len = ev.k === 'H' ? 11 : 6; if (ev.k === 'H') kind = 'shell'; }
-      else { kind = 'bolt'; w = ev.k === 'M' ? 2 : 1.3; flight = cl(d / 90, 0.1, 0.5); }
+      else if (ev.k === 'M') { w = 1.3; flight = cl(d / 130, 0.07, 0.4); len = 6; }     // (0.40) a squid overseer's rifle: gunfire, not a bolt
+      else { kind = 'bolt'; w = 1.3; flight = cl(d / 90, 0.1, 0.5); }
     } else {
       col = ev.s === 't' ? '#a8f0ff' : '#cfe9ff';
       w = ev.big ? 2.6 : ev.s === 't' ? 1.5 : 1.1; len = ev.big ? 11 : 7;
@@ -441,7 +442,8 @@ export class Renderer {
     const gp = ui.placing ? ui.ghost || ui.aim : null;
     if (gp) this._ghost(ctx, m, ui.placing, gp, now, px, labels, scale, pal, ui.snap, ui);
 
-    // Effects, and the player's orbital shells coming down
+    // Effects, and the player's orbital shells coming down (0.40: and the nuke on its way from the launch site)
+    this._icbm(ctx, m, now, px);
     this._incoming(ctx, m, now, px);
     this._effects(ctx, now, px);
     // (0.38) the lights' colour over everything, then the hour's wash
@@ -502,6 +504,7 @@ export class Renderer {
         let face = Number.isFinite(ui.pface) ? ui.pface : Math.atan2(ay - m.hy, ax - m.hx), snapAt = null;
         if (bk === 'wire') { const w = wirePlan(m, ax, ay, face); ax = w.x; ay = w.y; face = w.face; snapAt = w.snap; }
         const line = bk === 'bastion' && ui.pshape === 'line';
+        if (ok && onEnemy(m, ax, ay, buildFoot(bk, lvl, line ? 'line' : undefined))) { ok = false; why = tr('deny.onbase'); }     // (0.40)
         const R = bk === 'bastion' ? buildStats('bastion', lvl).R : C.build.r;
         const reach = bk === 'sam' || bk === 'tower' ? uavStats(m.kit.uav).r : bk === 'mg' ? 46 : 0;
         if (reach) { ctx.strokeStyle = 'rgba(255,230,0,0.4)'; ctx.lineWidth = px(1.2); ctx.setLineDash([px(4), px(6)]); ctx.beginPath(); ctx.arc(ax, ay, reach, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
@@ -523,19 +526,15 @@ export class Renderer {
         if (snapAt) { ctx.fillStyle = 'rgba(61,224,255,0.9)'; ctx.beginPath(); ctx.arc(snapAt.x, snapAt.y, Math.max(px(4), 1), 0, TAU); ctx.fill(); }
         if (dig) {
           const own = dig.size > 3 ? foxholeSlots(ax, ay, face, dig.size) : null, ends = own ? [own[0], own[own.length - 1]] : [{ x: ax, y: ay }];
-          ctx.strokeStyle = 'rgba(61,224,255,0.6)'; ctx.lineWidth = px(2); ctx.setLineDash([px(4), px(4)]);
-          for (const p of m.posts) {
-            if (p.dead || p.what !== 'foxhole') continue;
-            const pe = p.cap > 3 && p.slots ? [p.slots[0], p.slots[p.slots.length - 1]] : [{ x: p.x, y: p.y }];
-            let best = null; for (const a of ends) for (const b of pe) { const d = Math.hypot(a.x - b.x, a.y - b.y); if (d <= C.build.foxhole.link && d > 0.8 && (!best || d < best.d)) best = { a, b, d }; }
-            if (best) { ctx.beginPath(); ctx.moveTo(best.a.x, best.a.y); ctx.lineTo(best.b.x, best.b.y); ctx.stroke(); }
-          }
+          // (0.40) the trenches it will be joined by (posts.js trenchPlan: the nearest foxhole in reach, and one off to another side)
+          ctx.strokeStyle = ok ? 'rgba(61,224,255,0.75)' : 'rgba(255,74,74,0.5)'; ctx.lineWidth = px(2.4); ctx.setLineDash([px(5), px(4)]);
+          for (const l of trenchPlan(m, ends)) { ctx.beginPath(); ctx.moveTo(l.a.x, l.a.y); ctx.lineTo(l.b.x, l.b.y); ctx.stroke(); }
           ctx.setLineDash([]);
         }
         const b = ok ? this._builder(m, ax, ay) : null;
         if (dig) gr = dig.size > 3 ? foxReach(dig.size) + 2 : 0;
         text = !ok ? why : dig && dig.sq.length ? tr('lab.ghost.dig', { what: tr('build.' + bk), n: dig.size, sq: dig.sq.slice().sort((p, q) => p.i - q.i).map((q) => 'S' + (q.i + 1)).join('+'), m: Math.round(Math.hypot(dig.sq[0].cx - ax, dig.sq[0].cy - ay)) })
-          : b ? tr('lab.ghost.build', { what: tr('build.' + bk), sq: 'S' + (b.q.i + 1), m: Math.round(b.d), cr: cost }) : tr('lab.place.build', { what: tr('build.' + bk) });
+          : b ? tr(cost ? 'lab.ghost.build' : 'lab.ghost.buildFree', { what: tr('build.' + bk), sq: 'S' + (b.q.i + 1), m: Math.round(b.d), cr: cost }) : tr('lab.place.build', { what: tr('build.' + bk) });
       }
       ctx.strokeStyle = ok ? 'rgba(61,224,255,0.9)' : 'rgba(255,74,74,0.9)'; ctx.lineWidth = px(1.6); ctx.setLineDash([px(5), px(4)]); ctx.lineDashOffset = -now * px(10);
       ctx.beginPath(); ctx.arc(ax, ay, Math.max(px(12), bk === 'bastion' && ui.pshape !== 'line' ? buildStats('bastion', Math.max(1, buildLevel(m.kit, 'bastion'))).R + 3 : bk === 'wire' ? C.build.wire.len / 2 + 1 : gr || 7), 0, TAU); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
@@ -1026,12 +1025,54 @@ export class Renderer {
     }
   }
 
+  // (0.40) The nuke in flight: it climbs off the launch site on a pillar of fire, arcs over (screen-up is the sky, as for the
+  // shells) and dives onto the mark, with a long smoke trail behind it. Its place comes from mission time, so it lands with the
+  // blast whatever the game speed.
+  _icbm(ctx, m, now, px) {
+    const t = m.t;
+    for (const sh of m.shells) {
+      if (!sh.nuke || sh.sx === undefined) continue;
+      const T = sh.at - sh.t0, u = Math.max(0, Math.min(1, (t - sh.t0) / T));
+      if (u >= 1) continue;
+      const dx = sh.x - sh.sx, dy = sh.y - sh.sy, d = Math.hypot(dx, dy), H = Math.max(240, d * 0.55);
+      // along the ground it starts slow and ends fast (boost, then the dive); up, a high arc
+      const at = (v) => { const g = v * v * (1.6 - 0.6 * v), h = H * Math.sin(Math.PI * Math.min(1, v)); return { x: sh.sx + dx * g + h * 0.18, y: sh.sy + dy * g - h, h }; };
+      // the launch: smoke round the pad, thinning out over the flight
+      const pad = Math.max(0, 1 - u * 1.6);
+      if (pad > 0) {
+        const g = ctx.createRadialGradient(sh.sx, sh.sy, 0, sh.sx, sh.sy, 26 + 30 * u);
+        g.addColorStop(0, `rgba(235,230,220,${0.55 * pad})`); g.addColorStop(1, 'rgba(200,200,200,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sh.sx, sh.sy, 26 + 30 * u, 0, TAU); ctx.fill();
+      }
+      // the trail: the last part of the path, oldest faintest and widest
+      const tail = Math.max(0, u - 0.5), N = 28;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < N; i++) {
+        const v0 = tail + ((u - tail) * i) / N, v1 = tail + ((u - tail) * (i + 1)) / N, p0 = at(v0), p1 = at(v1), age = 1 - i / N;
+        ctx.strokeStyle = `rgba(228,225,218,${0.6 * (1 - age) + 0.08})`; ctx.lineWidth = Math.max(px(3.5 + 10 * age), 1.5 + 5 * age);
+        ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+        if (age < 0.3) { ctx.strokeStyle = `rgba(255,214,150,${0.8 * (1 - age / 0.3)})`; ctx.lineWidth = px(1.6); ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke(); }     // (the hot end of it)
+      }
+      // the missile, pointing the way it goes, its exhaust flaring behind it
+      const p = at(u), q = at(Math.min(1, u + 0.01)), ang = Math.atan2(q.y - p.y, q.x - p.x), L = px(18), fl = 0.8 + 0.2 * Math.sin(now * 40);
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, px(18));
+      g.addColorStop(0, `rgba(255,255,240,${0.95 * fl})`); g.addColorStop(0.35, `rgba(255,190,90,${0.7 * fl})`); g.addColorStop(1, 'rgba(255,110,40,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x - Math.cos(ang) * L * 0.6, p.y - Math.sin(ang) * L * 0.6, px(18), 0, TAU); ctx.fill();
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(ang);
+      ctx.fillStyle = '#eef0f2'; ctx.strokeStyle = 'rgba(30,34,40,0.9)'; ctx.lineWidth = px(1);
+      ctx.beginPath(); ctx.moveTo(L * 0.55, 0); ctx.lineTo(L * 0.25, -L * 0.13); ctx.lineTo(-L * 0.5, -L * 0.13); ctx.lineTo(-L * 0.62, -L * 0.24); ctx.lineTo(-L * 0.62, L * 0.24); ctx.lineTo(-L * 0.5, L * 0.13); ctx.lineTo(L * 0.25, L * 0.13); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ffe600'; ctx.fillRect(-L * 0.1, -L * 0.13, L * 0.12, L * 0.26);     // a Super Earth band
+      ctx.restore();
+      ctx.lineCap = 'butt';
+    }
+  }
+
   // The last moments of every orbital shell: a glowing round streaking down out of the sky (screen-up is the sky) with its trail,
   // and a shrinking ring on the ground where it will hit.
   _incoming(ctx, m, now, px) {
     const t = m.t, fall = 0.75;
     for (const sh of m.shells) {
-      if (sh.quiet || sh.by !== 'player') continue;
+      if (sh.quiet || sh.by !== 'player' || sh.sx !== undefined) continue;     // (the nuke has its own flight: _icbm)
       const left = sh.at - t;
       if (left <= 0 || left > fall) continue;
       const q = 1 - left / fall, h = (sh.nuke ? 260 : sh.big ? 170 : 120) * (1 - q), x = sh.x + h * 0.18, y = sh.y - h;
@@ -1395,7 +1436,7 @@ export class Renderer {
       else lab(o.x, o.y, tr('lab.citadel'), '#ffe600');
     }
     if (m.extraction.revealed) lab(m.extraction.x, m.extraction.y, tr(m.extraction.state === 'open' ? 'lab.extract' : 'lab.extractCalled'), '#ffe600');
-    for (const q of m.sides || []) if (!q.done && !q.failed && !q.hidden) lab(q.x, q.y, q.kind === 'radio' ? OPS.radio : q.kind === 'rescue' ? OPS.rescue : q.kind === 'arty' ? OPS.artySite : q.name, q.kind === 'propaganda' || q.kind === 'jammer' ? '#ffb020' : '#7fd8ff');
+    for (const q of m.sides || []) if (!q.done && !q.failed && !q.hidden) lab(q.x, q.y, q.kind === 'radio' ? OPS.radio : q.kind === 'rescue' ? OPS.rescue : q.kind === 'arty' ? OPS.artySite : q.name, q.kind === 'propaganda' || q.kind === 'jammer' || q.kind === 'spore' ? '#ffb020' : '#7fd8ff');
     for (const bc of m.beacons || []) if (bc.relit || t < C.beacons.darkSec) lab(bc.x, bc.y, OPS.beacon, '#6fc0ff', 2.2);
     if (m.supply && m.supply.drop) lab(m.supply.drop.x, m.supply.drop.y, tr('lab.supply'), '#9dffb8');
     if (m.hdAlive.length) lab(m.hx, m.hy, tr('lab.squad'), '#e8f6ff', 2.4);
@@ -1463,6 +1504,11 @@ export class Renderer {
       if (o.done) continue;
       c.strokeStyle = '#ffe600'; c.fillStyle = '#ffe600'; c.lineWidth = 2;
       if (o.type === 'nuke') { c.beginPath(); c.arc(o.x * k, o.y * k, 6, 0, TAU); c.stroke(); c.beginPath(); c.arc(o.x * k, o.y * k, 2.5, 0, TAU); c.fill(); }
+      if (o.type === 'nuke') for (const sh of m.shells) {     // (0.40) the nuke on its way, a white dot over the map
+        if (!sh.nuke || sh.sx === undefined) continue;
+        const u = Math.max(0, Math.min(1, (t - sh.t0) / (sh.at - sh.t0))), g = u * u * (1.6 - 0.6 * u);
+        c.fillStyle = '#ffffff'; c.beginPath(); c.arc((sh.sx + (sh.x - sh.sx) * g) * k, (sh.sy + (sh.y - sh.sy) * g) * k, 2.5, 0, TAU); c.fill(); c.fillStyle = '#ffe600';
+      }
       else if (o.type === 'oil') { c.beginPath(); c.arc(o.x * k, o.y * k, 5, 0, TAU); c.stroke(); c.fillRect(o.x * k - 1, o.y * k - 5, 2, 5); }
       else if (o.type === 'dome') { if (o.dome.up) { c.strokeStyle = 'rgba(170,225,255,0.9)'; c.beginPath(); c.arc(o.x * k, o.y * k, Math.max(6, o.dome.r * k), 0, TAU); c.stroke(); } }
       else if (o.type === 'cannon') { c.beginPath(); c.arc(o.x * k, o.y * k, 7, 0, TAU); c.stroke(); }
@@ -1483,6 +1529,7 @@ export class Renderer {
     // Side missions: radio towers (a mast), SEAF under fire (a ring); and the SEAF drop beacons (blue while lit)
     for (const q of m.sides || []) {
       if (q.kind === 'propaganda' || q.failed) continue;
+      if (q.kind === 'spore') { if (!q.done) { const x = q.x * k, y = q.y * k; c.strokeStyle = 'rgba(190,230,110,0.8)'; c.lineWidth = 1.2; c.setLineDash([2, 3]); c.beginPath(); c.arc(x, y, q.R * k, 0, TAU); c.stroke(); c.setLineDash([]); } continue; }     // (0.40: its cloud)
       const x = q.x * k, y = q.y * k;
       if (q.kind === 'radio') { c.strokeStyle = q.done ? 'rgba(127,216,255,0.6)' : '#7fd8ff'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x, y - 5); c.lineTo(x - 4, y + 4); c.moveTo(x, y - 5); c.lineTo(x + 4, y + 4); c.moveTo(x - 2.5, y + 1); c.lineTo(x + 2.5, y + 1); c.stroke(); }
       else if (q.kind === 'arty') { if (!q.done) { c.strokeStyle = '#7fd8ff'; c.lineWidth = 1.5; c.strokeRect(x - 3.5, y - 3.5, 7, 7); } }

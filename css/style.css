@@ -1395,6 +1395,9 @@ body.touch #dropcd { top: calc(max(8px, env(safe-area-inset-top)) + var(--mmw) *
 #tut.fold .tut-x { transform: rotate(180deg); }
 #tut.warn { border-color: rgba(255, 120, 40, 0.9); box-shadow: 0 0 30px rgba(255, 110, 30, 0.35); }
 #tut.warn h3 { color: #ffb070; }
+#tut.say { border-color: var(--cc); box-shadow: 0 0 26px color-mix(in srgb, var(--cc) 30%, transparent); }     /* (0.40) someone on the radio */
+#tut.say p { font-style: italic; }
+.r-opb { color: var(--yellow); }     /* (0.40) the operation's credit bonus on the briefing */
 /* phones: a compact card across the top, over the objective line, clear of the drop countdown under it */
 body.touch #tut { right: auto; left: 50%; transform: translateX(-50%); top: max(6px, env(safe-area-inset-top)); width: min(58vw, 480px);
   max-height: calc(var(--mmw) + 4px); overflow-y: auto; padding: 6px 10px 8px; }

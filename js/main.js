@@ -508,6 +508,10 @@ function hbTap(i) { if (live() && i >= 0 && i < 4) tapHellbomb(mission, i); }
 
 // ---------------- supply requests, the loading game and pulling the camera to a callout ----------------
 let camPan = null;     // { x, y, w (how much of the way from the squad), untilT (mission time), track() (a moving target) }
+// (0.40) the nuke's landing: just before it hits the camera goes there (pulled back to take in the blast), holds a moment after,
+// then goes back where it was
+let nukeCue = null;
+const CUE = { lead: 1.3, hold: 1.6, back: 1.0 };
 function lookAt(x, y, sec = 3.5, w = 1, track = null) { if (mission) camPan = { x, y, w, untilT: mission.t + sec, track }; }
 function supTap(i) { if (live() && fillSupply(mission, i)) { /* sounds come with the event */ } }
 function supplyCall(k) {
@@ -601,7 +605,7 @@ hud.onMerge = (L) => {
 
 // ---------------- orders: SEAF drop and SEAF orders ----------------
 // Why a call or a purchase was refused: deny.<reason> in the language tables.
-const DENY_KEYS = new Set(['artyrange', 'nocoverage', 'cooldown', 'full', 'noseaf', 'nohd', 'noallies', 'nomark', 'funds', 'between', 'maxed', 'locked', 'novisual', 'gundry',
+const DENY_KEYS = new Set(['onbase', 'artyrange', 'nocoverage', 'cooldown', 'full', 'noseaf', 'nohd', 'noallies', 'nomark', 'funds', 'between', 'maxed', 'locked', 'novisual', 'gundry',
   'short', 'water', 'jammed', 'nocrew', 'nogarrison', 'boxnone', 'boxnosquad', 'noweapon', 'picksquad', 'postfull', 'nosight', 'nospan', 'merge', 'planfull', 'shielded', 'rearm', 'nodemo', 'jamsite']);
 const deny = (r) => (DENY_KEYS.has(r) ? t('deny.' + r) : '');
 function setPlacing(kind) {
@@ -886,7 +890,7 @@ function goBrief(again = false) {
   const ovLoad = (qs.get('loadout') || '').split(',').filter((id) => STRAT_IDS.includes(id)), ovObj = (qs.get('objective') || '').split(',').filter(Boolean);
   if (!ovObj.length && ch && ch.play && ch.play.objective) ovObj.push(ch.play.objective);
   info.ovObj = ovObj;
-  const pre = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: false, missionN: n, difficulty: S.levelNow(session),
+  const pre = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: false, missionN: n, opDone: n - 1, difficulty: S.levelNow(session),
     loadout: ovLoad.length ? ovLoad : undefined, objectives: ovObj, kit: session.kit, wallet: session.wallet, names: session.names, defenders: !qs.has('skipstart') });
   info.loadout = pre.loadout.slice();
   if (keep) { info.ovObj = keep.ovObj || []; info.loadout = keep.loadout.slice(); }
@@ -895,7 +899,7 @@ function goBrief(again = false) {
   if (briefCtl) briefCtl.cancel();
   const ctl = briefCtl = UI.runBriefing({
     info, mission: n, touch: input.touch, canEnd: session.missions.length > 0, again: !!keep,
-    pre: { objectives: pre.objectives.map((o) => o.type), defenders: pre.defenders, teams: pre.teams, ao: Math.round(pre.ao.size), difficulty: pre.difficulty, start: session.difficulty, lives: pre.hd.max },
+    pre: { objectives: pre.objectives.map((o) => o.type), defenders: pre.defenders, teams: pre.teams, ao: Math.round(pre.ao.size), difficulty: pre.difficulty, start: session.difficulty, lives: pre.hd.max, opBonus: pre.opBonus, opDone: pre.opDone },
     onReveal: () => audio.chirp(),
     onContinue: () => { briefCtl = null; audio.click(); deploy(); },
     onEnd: () => { briefCtl = null; endSession(); },
@@ -944,7 +948,7 @@ function deploy() {
   audio.unlock();
   startSnap = JSON.stringify(session);      // what RETRY MISSION puts back: credits, kit, score and time as they were at the drop
   if (terrainKey !== `${info.biome}|${info.seed}`) buildFor(info.biome, info.seed);
-  mission = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: true, missionN: session.missions.length + 1, difficulty: S.levelNow(session),
+  mission = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: true, missionN: session.missions.length + 1, opDone: session.missions.length, difficulty: S.levelNow(session),
     loadout: info.loadout, keepOrder: true, objectives: info.ovObj, kit: session.kit, wallet: session.wallet, names: session.names, tod: info.tod,
     countdown: qs.has('skipstart') || BOT ? 0 : C.helldivers.countdown, defenders: !qs.has('skipstart'), ...chapterOpts() });
   bot = BOT ? makeBot() : null;
@@ -952,7 +956,7 @@ function deploy() {
 }
 // Into the mission just made: the camera on the landing zone, the HUD, and (0.18) the tactical screen open for the countdown.
 function enterPlay() {
-  cam.x = mission.lz.x; cam.y = mission.lz.y; cam.follow = false; cam.ao = mission.ao;   // the camera is the player's: it only follows the squad when locked on
+  cam.x = mission.lz.x; cam.y = mission.lz.y; cam.follow = false; cam.ao = mission.ao; nukeCue = null;   // the camera is the player's: it only follows the squad when locked on
   cam.view = window.innerWidth >= window.innerHeight ? C.world.viewWidth : 280;
   firePending = false; acc = 0; endHandled = false; overAt = 0; wantAbort = false;
   drawing = false; stroke = null; armed = false; tac = false; sel = null; box = null;
@@ -1476,6 +1480,7 @@ function onEvent(ev, now) {
   if (castRadio) castRadio.onEvent(ev, mission);
   if (ev.type === 'ls_stage' && ev.stage === 'breaking') { document.body.classList.add('ls-warn'); audio.siren(); }
   if (ev.type === 'ls_stage' && ev.stage === 'glass') { lsGlass(now); audio.nukeBlast(); }
+  if (ev.type === 'ls_stage' && ev.stage === 'truth') { const c = CAST.tharsis; radioLog.add('mission', { tag: c.tag, col: c.col, unit: t(c.unit), text: t('tut.truth.b', { saved: ev.saved }) }); audio.cineSwell(6); }     // (0.40)
   const L = ev.x !== undefined ? loudness(ev.x, ev.y) : 1, P = ev.x !== undefined ? pan(ev.x) : 0;
   if (ev.type === 'glassbeam') audio.glassBeam(Math.max(0.35, L), P);
   if (ev.type === 'ls_level') { hud.toast(t('ls.levelUp', { n: ev.level, name: t(...levelName(ev.level)).toUpperCase() }), 1800); audio.chirp(); }
@@ -1539,7 +1544,7 @@ function onEvent(ev, now) {
     case 'strat_call': audio.stratCall(); break;
     case 'strike_call': audio.strikeCall(ev.id); afterCall(); break;
     case 'uav': audio.uav(); afterCall(); break;
-    case 'nuke_call': audio.siren(); hud.message(t('msg.nukeCall'), 2400); afterCall(); break;
+    case 'nuke_call': audio.siren(); audio.nukeLaunch(); hud.message(t('msg.nukeCall'), 2400); afterCall(); if (!BOT) nukeCue = { x: ev.x, y: ev.y, r: ev.r || 230, at: mission.t + ev.delay, on: false }; break;     // (0.40)
     case 'obj_state':
       if (ev.type === 'nuke' && ev.state === 'armed') {
         audio.siren(); hud.message(t('msg.nukeArmed'), 3200);
@@ -1610,6 +1615,16 @@ function frame(ts) {
       if (cp) { fx += (cp.x - fx) * cp.w; fy += (cp.y - fy) * cp.w; }
       const k = 1 - Math.exp(-3 * dt);
       cam.x += (fx - cam.x) * k; cam.y += (fy - cam.y) * k;
+    }
+    if (nukeCue && mission) {
+      const c = nukeCue, mt = mission.t;
+      if (!c.on && mt >= c.at - CUE.lead) { c.on = true; c.x0 = cam.x; c.y0 = cam.y; c.view0 = cam.view; c.follow = cam.follow; cam.follow = false; camPan = { x: c.x, y: c.y, w: 1, untilT: c.at + CUE.hold }; }
+      if (c.on) {
+        const need = Math.min(C.world.zoomMax * 1.4, c.r * 2.6), kz = 1 - Math.exp(-3 * dt);
+        if (mt < c.at + CUE.hold) { if (cam.view < need) cam.view += (need - cam.view) * kz; }
+        else if (mt < c.at + CUE.hold + CUE.back) { cam.view += (c.view0 - cam.view) * kz; if (c.follow) cam.follow = true; else camPan = { x: c.x0, y: c.y0, w: 1, untilT: c.at + CUE.hold + CUE.back }; }
+        else { cam.view = c.view0; cam.follow = c.follow; nukeCue = null; }
+      }
     }
     if (glassCam && mission.ls) {     // (0.19) the glassing: the camera pulls back over the whole plain, onto the base
       const o = mission.objectives[0], u = Math.min(1, (now - glassCam.t0) / 8), k = u * u * (3 - 2 * u), to = (mission.ao.size || 900) * 1.3;

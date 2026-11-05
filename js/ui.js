@@ -1390,6 +1390,7 @@ export function squadStatus(m) {
     if (k.kind === 'jammer') return t(near ? 'sq.jamOn' : 'sq.jamGo', { name: s.name });
     if (k.kind === 'radio') return t(near && s.state === 'active' ? 'sq.radioOn' : 'sq.radioGo');
     if (k.kind === 'propaganda') return t(near ? 'sq.propOn' : 'sq.propGo');
+    if (k.kind === 'spore') return t(near ? 'sq.sporeOn' : 'sq.sporeGo');     // (0.40)
     if (k.kind === 'arty') return t(near && s.state === 'active' ? 'sq.artyOn' : 'sq.artyGo');
   }
   if (sq.staging && sq.stage === 'mark') return t('sq.staged', { n: Math.max(0, Math.ceil(sq.stageT || 0)) });
@@ -1423,7 +1424,7 @@ export function runBriefing({ info, mission, touch, onContinue, onEnd, onCancel,
   $('r-obj').innerHTML = `${t('brief.objective')} <b style="color:var(--yellow)">${pre.objectives.map((o) => OBJ_NAME[o]).join(' + ')}</b>`
     + (pre.defenders ? `<br><b class="r-def">${esc(t('brief.defenders', { n: pre.defenders.n, place: t('place.' + (pre.defenders.type === 'nuke' ? 'launch' : pre.defenders.type === 'vip' ? 'pickup' : pre.defenders.type)) }))}</b>` : '');   // (0.18) SEAF already holding the site
   const dl = pre.difficulty || LEVELS, st = pre.start || dl;      // (0.19) the level climbs each mission from where the session started
-  $('r-diff').innerHTML = `${t('brief.diff')} <b>${dl} · ${esc(t(...levelName(dl)).toUpperCase())}</b> <span style="color:var(--g-dim)">· ${esc(t('brief.pay', { x: reward(dl).toFixed(2) }))}</span> <span class="lockchip">${esc(t(dl > st ? 'brief.climbed' : 'brief.climbs', { n: st }))}</span>`;
+  $('r-diff').innerHTML = `${t('brief.diff')} <b>${dl} · ${esc(t(...levelName(dl)).toUpperCase())}</b> <span style="color:var(--g-dim)">· ${esc(t('brief.pay', { x: reward(dl).toFixed(2) }))}</span>${pre.opBonus > 1 ? ` <span class="r-opb">· ${esc(t('brief.opBonus', { n: pre.opDone, x: pre.opBonus.toFixed(1) }))}</span>` : ''} <span class="lockchip">${esc(t(dl > st ? 'brief.climbed' : 'brief.climbs', { n: st }))}</span>`;
   $('r-fail').innerHTML = `${esc(t('brief.fail'))} <b>${esc(t('brief.failIf', { n: pre.lives || C.helldivers.lives }))}</b>`;
 
   // The squad's twelve stratagems appear group by group while the mission loads.
@@ -1839,7 +1840,7 @@ export function fillDebrief(info, res, session, block = '', startCr = null) {
   $('d-credits').innerHTML = tbl([
     [t('deb.c.kills'), c.kills], [t('deb.c.bases'), c.bases], [t('deb.c.pois'), c.pois], [t('deb.c.sides'), c.sides || 0], [t('deb.r.clear'), c.clear || 0], [t('deb.c.breaches'), c.breaches],
     [t('deb.c.drops'), c.drops || 0], [t('deb.c.civ'), c.civ || 0], [t('deb.c.boss'), c.boss || 0], [t('deb.c.objective'), c.objective], [t('deb.c.extraction'), c.extraction],
-    [t('deb.c.earned'), c.total, 'sum'], [t('deb.c.spent'), -c.spent], [t(res.leftS ? 'deb.c.seafLivesLeft' : 'deb.c.seafLives', { n: c.seafLost || 0, k: res.leftS || 0 }), -(c.seafLives || 0)], [t('deb.c.balance'), c.balance, 'sum', true],
+    [res.opBonus > 1 ? t('deb.c.earnedB', { x: res.opBonus.toFixed(1) }) : t('deb.c.earned'), c.total, 'sum'], [t('deb.c.spent'), -c.spent], [t(res.leftS ? 'deb.c.seafLivesLeft' : 'deb.c.seafLives', { n: c.seafLost || 0, k: res.leftS || 0 }), -(c.seafLives || 0)], [t('deb.c.balance'), c.balance, 'sum', true],
   ].filter(([, v, , keep]) => v !== 0 || keep));
   $('d-deaths').innerHTML = deathList(res);
   const top = Object.entries(s.stratBy).sort((a, q) => q[1] - a[1]).slice(0, 3).map(([id, n]) => `${STRATS[id].name} x${n}`).join(', ');
@@ -2231,7 +2232,7 @@ export function fillMissionInfo(m, info) {
     + `<li class="${ex.state === 'boarding' ? 'now' : ex.state === 'away' ? 'done' : ''}">${esc(t('info.then.board'))}</li></ol>`);
   parts.push(`<h3>${esc(t('info.enemy', { name: f.name }))}</h3><p>${esc(t('info.fac.' + m.faction.id))}</p>`);
   parts.push(`<h3>${t('info.patrols')}</h3><p>${esc(t('info.patrolsV'))}</p>`);
-  parts.push(`<h3>${t('info.sides')}</h3><p>${t('info.sidesV')}</p>`);
+  parts.push(`<h3>${t('info.sides')}</h3><p>${t('info.sidesV')}${m.faction.id === 'bugs' ? ' ' + t('info.side.spore') : ''}</p>`);     // (0.40: the bugs' spore tower)
   parts.push(`<h3>${t('info.beacons')}</h3><p>${esc(t('info.beaconsV', { n: Math.round(C.beacons.darkSec / 60) }))}</p>`);
   parts.push(`<h3>${t('info.build')}</h3><p>${t('info.buildV')}</p>`);
   parts.push(`<h3>${t('info.cover')}</h3><p>${t('info.coverV')}</p>`);
