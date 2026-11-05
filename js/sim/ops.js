@@ -11,7 +11,10 @@
 //                   everyone runs.
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
-import { damageArea } from './combat.js';
+import { damageArea, hurtAlly } from './combat.js';
+import { steer } from './terrain.js';
+import { speedMul } from './helldiver.js';
+import { canStep } from './safety.js';
 
 const O = () => C.objective;
 const TAU = Math.PI * 2;
@@ -183,6 +186,38 @@ export function hbRequest(m, owner, tg, callText) {
 }
 // Run the job if it is owner's. siege(): called while the bomb sits on the ground being armed (the enemy comes for it). Returns true
 // on the tick it goes off (the caller does what it does to the target).
+// (0.38.1) One ally inside an armed Hellbomb's reach runs straight away from it (round water), at a sprint. True while he is in it.
+export function runClear(m, a, hb, R, step) {
+  let dx = a.x - hb.x, dy = a.y - hb.y, d = Math.hypot(dx, dy);
+  if (d >= R) return false;
+  if (d < 0.5) { const k = (a.id * 2.399) % (Math.PI * 2); dx = Math.cos(k); dy = Math.sin(k); d = 1; }
+  const tx = hb.x + (dx / d) * (R + 4), ty = hb.y + (dy / d) * (R + 4);
+  const w = steer(m.terrain, a, a.x, a.y, tx, ty, m.t), wx = w.x - a.x, wy = w.y - a.y, wd = Math.hypot(wx, wy);
+  if (wd > 0.05) {
+    const s = Math.min(step * speedMul(m, a), wd), nx = a.x + (wx / wd) * s, ny = a.y + (wy / wd) * s;
+    if (canStep(m, a, nx, ny)) { a.x = nx; a.y = ny; } else { a.x += (dx / d) * s * 0.5; a.y += (dy / d) * s * 0.5; }
+  }
+  a.face = Math.atan2(wy, wx);
+  return true;
+}
+
+// (0.38.1) The Hellbomb goes off: who is still inside its blast and dives clear. The nearer the rim, the likelier (dodge.mid at the
+// centre to dodge.edge at the rim; a SEAF trooper at dodge.seaf x that); a mech, or anyone mounted or inside a building, does not.
+export function hbDives(m, hb) {
+  const K = C.objective.hellbomb, D = K.dodge, t = m.t, dived = new Set();
+  m.aGrid.near(hb.x, hb.y, K.blastR, (a) => {
+    if (a.dead || a.inside || a.mounted || (a.mech && a.mech.hp > 0)) return;
+    const f = Math.min(1, Math.hypot(a.x - hb.x, a.y - hb.y) / K.blastR), p = (D.mid + (D.edge - D.mid) * f) * (a.type === 'H' ? 1 : D.seaf);
+    if (m.rng.next() >= p) return;
+    dived.add(a);
+    const ang = Math.atan2(a.y - hb.y, a.x - hb.x), dv = C.hd.dodge;
+    if (a.type === 'H') a.dv = { vx: Math.cos(ang) * dv.dist * 1.6 / dv.sec, vy: Math.sin(ang) * dv.dist * 1.6 / dv.sec, until: t + dv.sec };
+    a.diveAt = t;
+    m.stats.hbDives = (m.stats.hbDives || 0) + 1;
+    m.emit('dodge', { id: a.id, x: a.x, y: a.y, ang, hb: true });
+  });
+  return dived;
+}
 export function hbStep(m, owner, dt, siege) {
   const K = HB(), t = m.t, hb = m.hellbomb;
   if (!hb || hb.o !== owner) return false;
@@ -213,7 +248,11 @@ export function hbStep(m, owner, dt, siege) {
   }
   if (hb.state === 'armed' && t >= hb.fuseAt) {
     hb.state = 'done';
-    damageArea(m, hb.x, hb.y, K.blastR, K.dmg, ALL, 'strat', true, '');
+    const dived = hbDives(m, hb), D = K.dodge;     // (0.38.1) anyone still inside may dive clear (and the dive still hurts)
+    damageArea(m, hb.x, hb.y, K.blastR, K.dmg, ALL, 'strat', false, '');
+    m.aGrid.near(hb.x, hb.y, K.blastR, (a) => { if (!a.dead) hurtAlly(m, a, dived.has(a) ? a.maxHp * D.graze : K.dmg, 'enemy', true, 'enemy'); });
+    for (const c of m.civs) if (!c.dead && (c.x - hb.x) ** 2 + (c.y - hb.y) ** 2 <= K.blastR * K.blastR) m.hurtCiv(c, K.dmg, 'strat');
+    if (dived.size) m.notice(tr(dived.size > 1 ? 'n.hbDives' : 'n.hbDive', { n: dived.size }), 'good');
     m.emit('boom', { x: hb.x, y: hb.y, r: K.blastR, dmg: K.dmg, by: 'strat', nuke: true });
     m.emit('hellbomb_boom', { x: hb.x, y: hb.y, r: K.blastR, kind: owner.type || owner.kind || '' });
     m.stats.hellbombs = (m.stats.hellbombs || 0) + 1;

@@ -8,6 +8,7 @@ import { updateSeaf } from './seaf.js';
 import { speedMul } from './helldiver.js';
 import { canStep } from './safety.js';
 import { steer } from './terrain.js';
+import { runClear } from './ops.js';
 import { boardingNow } from './extract.js';
 import { aoX, aoY } from './ao.js';
 import { siteAt, threatSlot, holdSites } from './cover.js';
@@ -208,13 +209,14 @@ export function updateSquad(m, dt) {
     const fightOn = engaged && (pointGoal || goal === 'base') && (goal === 'point' || goal === 'extract' || goal === 'base') && sq.engT >= C.squad.fightOnSec;
     if (fightOn && !sq.fightOn) m.radio(COMMS.fightOn, 'fighton', 40);
     sq.fightOn = fightOn;
-    const hold = (engaged && !fightOn) || sq.state === 'setup';
+    const hbRun = !!(m.hellbomb && m.hellbomb.state === 'armed');     // (0.38.1) an armed Hellbomb: the squad moves off, fighting or not
+    const hold = !hbRun && ((engaged && !fightOn) || sq.state === 'setup');
     if (!hold && goal !== 'none') {
       const w = steer(m.terrain, sq, sq.ax, sq.ay, gx, gy, t);     // round the water, if there is any in the way
       let wx = aoX(m, w.x, 3), wy = aoY(m, w.y, 3);                  // (a corner of the route may lie just past the map's edge)
       if (goal !== 'attack') { const r = ringAvoid(m, sq, sq.ax, sq.ay, wx, wy, gx, gy, baseGoal); if (!m.terrain.blocked(r.x, r.y)) { wx = aoX(m, r.x, 3); wy = aoY(m, r.y, 3); } }
       const dx = wx - sq.ax, dy = wy - sq.ay, d = Math.hypot(dx, dy);
-      const v = speed * (fightOn ? C.squad.fightOnSpeed : 1);
+      const v = hbRun ? C.squad.chaseSpeed * bm * C.objective.hellbomb.runMul : speed * (fightOn ? C.squad.fightOnSpeed : 1);
       if (d > 0.05) { const s = Math.min(v * dt, d); sq.ax += (dx / d) * s; sq.ay += (dy / d) * s; }
     }
   }
@@ -230,11 +232,16 @@ export function updateSquad(m, dt) {
     updateSeaf(m, dt, speed, bm);
     return;
   }
+  // (0.38.1) A Hellbomb armed: every Helldiver inside its blast (with a margin) runs straight out of it, whatever is shooting at
+  // him; the rest of the squad goes on as usual
+  const hb = m.hellbomb && m.hellbomb.state === 'armed' ? m.hellbomb : null;
+  const clearR = hb ? C.objective.hellbomb.blastR + C.objective.hellbomb.runPad : 0;
   // Helldivers drift to their slots around the anchor; they stand and fight while engaged.
   if (hds.length) {
     const chase = C.squad.chaseSpeed * bm * dt * Math.max(1, mod);
     const sites = m.phase !== 'clear' ? holdSites(m, sq.ax, sq.ay) : null;     // (0.26: an evacuation's two rings, split between them)
     for (const a of hds) {
+      if (hb && !a.mounted && runClear(m, a, hb, clearR, C.squad.chaseSpeed * bm * C.objective.hellbomb.runMul * dt)) continue;
       if (a.mounted || a.retreat) continue;   // a Helldiver who is falling back is not drifting to his slot
       const selfEngaged = eg.nearest(a.x, a.y, C.squad.engageRange);
       let tx = sq.ax + a.ox, ty = sq.ay + a.oy;

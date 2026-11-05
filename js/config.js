@@ -407,7 +407,11 @@ export const CONFIG = {
     //   Helldiver arms it (armSec within armR), and everyone runs: after fuseSec it goes off (blastR, everything in it).
     //   Not put together in time: a dud; another can be called after retrySec.
     hellbomb: { cells: 2, fillSec: 12, slowmo: 0.3, wrongSec: 0.6, dropSec: 3, armSec: 5, armR: 6, fuseSec: 10, blastR: 48, dmg: 30000, retrySec: 15,
-                clearR: 45, clearN: 4, off: 18 },
+                clearR: 45, clearN: 4, off: 18,
+                // (0.38.1) armed, everyone in the blast (and runPad more) sprints out of it at runMul x the chase speed, fighting or
+                // not; anyone still in it when it goes off may dive clear: dodge.edge at the rim, dodge.mid at the centre (a SEAF
+                // trooper at seaf x that), and a dive that clears it still costs dodge.graze of his health
+                runMul: 1.3, runPad: 10, dodge: { edge: 0.85, mid: 0.2, seaf: 0.5, graze: 0.35 } },
   },
 
   // Stratagems. Sixteen distinct picks, dealt into four groups of four. Each group belongs to one Helldiver.
@@ -460,6 +464,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.38.0',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.38.1',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

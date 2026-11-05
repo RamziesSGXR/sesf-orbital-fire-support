@@ -1609,6 +1609,8 @@ export default {
   'tac.multi': 'Las órdenes van a cada escuadra, tal cual. Mayús+clic (un dedo mantenido) añade o quita una.',
   'n.bridgeIn': 'PUENTE DE LUZ EN CAMINO: ABAJO EN {s} S ({cr} CR)',
   'n.bridgeDown': 'PUENTE DE LUZ DESPLEGADO',
+  'n.hbDive': 'UN HELLDIVER SE LANZÓ FUERA DEL ALCANCE DE LA HELLBOMB',
+  'n.hbDives': '{n} SE LANZARON FUERA DEL ALCANCE DE LA HELLBOMB',
   'ask.garrison': '{sq} aguanta junto a: {what}. ¿Mandarlos dentro para manejarlo? Dejan su escuadra.',
   'ask.goIn': 'ENTRAR',
   'ask.stayOut': 'QUEDARSE FUERA',

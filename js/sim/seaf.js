@@ -11,6 +11,7 @@ import { nearestObjective } from './pois.js';
 import { strikeAt } from './strat.js';
 import { bark } from './chatter.js';
 import { canStep } from './safety.js';
+import { runClear } from './ops.js';
 import { steer } from './terrain.js';
 import { speedMul } from './helldiver.js';
 import { shoreToward } from './enemies.js';
@@ -459,6 +460,9 @@ export function updateSeaf(m, dt, speed, bm) {
     q.cx = cx / q.n; q.cy = cy / q.n;
   });
   if (!m.seafAlive.length) return;
+  // (0.38.1) a Hellbomb armed: every trooper inside its blast (with a margin) runs straight out of it, whatever his orders were
+  const hb = m.hellbomb && m.hellbomb.state === 'armed' ? m.hellbomb : null, HB = C.objective.hellbomb, hbR = HB.blastR + HB.runPad;
+  const runs = hb ? m.seafAlive.filter((a) => !a.down && !a.inside && !a.mounted && (a.x - hb.x) ** 2 + (a.y - hb.y) ** 2 < hbR * hbR).map((a) => [a, a.x, a.y]) : null;
   keepLeaders(m, by);
   const claimed = new Set();
   for (const q of sf.squads) if (q.n && q.tgt && q.order.kind === 'auto') claimed.add(q.tgt.obj.id);
@@ -467,6 +471,7 @@ export function updateSeaf(m, dt, speed, bm) {
   if (!(m.phase === 'extract' && m.pelicans.some((p) => p.evac))) stepFormations(m, by, dt, bm);
   stepGarrisons(m, held, dt, speed);
   updateSpecialists(m, dt);
+  if (runs) for (const [a, x, y] of runs) { a.x = x; a.y = y; runClear(m, a, hb, hbR, C.squad.chaseSpeed * bm * HB.runMul * dt); }
 }
 
 // The work on every crate on the ground: each trooper of a squad sent to build it who is at it and not under fire works on it (an

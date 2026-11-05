@@ -1609,6 +1609,8 @@ export default {
   'tac.multi': 'Orders go to each squad, as itself. Shift+click (a held finger) adds or drops one.',
   'n.bridgeIn': 'LIGHT BRIDGE ON ITS WAY: DOWN IN {s}S ({cr} CR)',
   'n.bridgeDown': 'LIGHT BRIDGE DOWN',
+  'n.hbDive': 'HELLDIVER DIVED CLEAR OF THE HELLBOMB',
+  'n.hbDives': '{n} DIVED CLEAR OF THE HELLBOMB',
   'ask.garrison': '{sq} holds beside the {what}. Send them inside to crew it? They leave their squad.',
   'ask.goIn': 'GO INSIDE',
   'ask.stayOut': 'STAY OUT',

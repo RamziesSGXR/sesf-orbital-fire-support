@@ -1609,6 +1609,8 @@ export default {
   'tac.multi': 'Les ordres vont à chaque escouade, telle quelle. Maj+clic (un doigt gardé) en ajoute ou en retire une.',
   'n.bridgeIn': 'PONT DE LUMIÈRE EN ROUTE : POSÉ DANS {s} S ({cr} CR)',
   'n.bridgeDown': 'PONT DE LUMIÈRE POSÉ',
+  'n.hbDive': 'UN HELLDIVER A PLONGÉ HORS DU SOUFFLE DE LA HELLBOMB',
+  'n.hbDives': '{n} ONT PLONGÉ HORS DU SOUFFLE DE LA HELLBOMB',
   'ask.garrison': '{sq} tient à côté de : {what}. Les envoyer dedans pour l’armer ? Ils quittent leur escouade.',
   'ask.goIn': 'ENTRER',
   'ask.stayOut': 'RESTER DEHORS',
