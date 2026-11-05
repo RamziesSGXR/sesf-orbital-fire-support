@@ -165,7 +165,8 @@ export const profileOf = (fid, e) => (e.sub ? C.special[fid].atk : C.combat.atk[
 let NAV = null, NAVT = 0, AOB = null, FB = null;   // FB: the group being moved (its members fall back toward its centre)
 const WIRES = [];                                  // (0.39) the concertina wire standing this tick (posts.js)
 // (0.39) How fast an enemy can go where it is, in concertina wire (1: it is in none). A light one stops when it first walks into a
-// section, then crawls through; a medium wades; a heavy tears the section down as it goes (posts.js takes it off the map).
+// section, then crawls through; mediums and (0.39.2) heavies wade through slowly; only a super heavy tears the section down as it
+// goes (posts.js takes it off the map).
 function wireMul(o, dt) {
   if (!WIRES.length || !o.kind) return 1;
   const W = C.build.wire, reach = (W.len / 2 + W.band) ** 2;
@@ -175,9 +176,12 @@ function wireMul(o, dt) {
     if (segDist(o.x, o.y, p.ends[0].x, p.ends[0].y, p.ends[1].x, p.ends[1].y) <= W.band) { inW = p; break; }
   }
   if (!inW) { o.wireIn = null; return 1; }
-  if (o.kind === 'H' || o.boss) { inW.wireHp -= W.tear * dt; inW.tornBy = o; return W.heavy; }
+  const first = o.wireIn !== inW;
+  o.wireIn = inW;
+  if (o.boss) { inW.wireHp -= W.tear * dt; inW.tornBy = o; return W.boss; }
+  if (o.kind === 'H') return W.heavy;
   if (o.kind === 'M') return W.medium;
-  if (o.wireIn !== inW) { o.wireIn = inW; o.wireUntil = NAVT + W.stopSec; o.wireAt = NAVT; }
+  if (first) { o.wireUntil = NAVT + W.stopSec; o.wireAt = NAVT; }
   return NAVT < o.wireUntil ? 0 : W.light;
 }
 // The dry ground nearest a blocked spot on the mover's own side of it (walking back from the spot toward the mover), so the stand-in

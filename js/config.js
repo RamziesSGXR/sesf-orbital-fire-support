@@ -98,9 +98,9 @@ export const CONFIG = {
   build:    { r: 12, perHand: 0.5, maxHands: 12, builderR: 20, levels: 5, crateR: 16, repair: 14, repairQuiet: 4, repairClear: 40, slowmo: 0.3,
               // (0.39) concertina wire: a run of len metres that any section put down within snap metres of an end carries on from.
               // A light enemy that walks into it stops for stopSec, then crawls through at light x its speed; a medium wades through
-              // at medium x; a heavy tears it (tear hp a second, of hp) and keeps going at heavy x. Anything inside band metres of
-              // the wire is in it. Nobody aims at it, and it is no cover.
-              wire:    { cost: 25,  sec: 5, len: 12, snap: 10, band: 1.7, hp: 300, stopSec: 1.1, light: 0.3, medium: 0.6, heavy: 0.85, tear: 650 },
+              // at medium x, a heavy at heavy x (0.39.2: heavies are held up too); only a super heavy tears it (tear hp a second, of
+              // hp), going on at boss x. Anything inside band metres of the wire is in it. Nobody aims at it, and it is no cover.
+              wire:    { cost: 25,  sec: 5, len: 12, snap: 10, band: 1.7, hp: 300, stopSec: 1.1, light: 0.3, medium: 0.6, heavy: 0.45, boss: 0.85, tear: 650 },
               // (0.39) link: foxholes whose ends are within link metres of each other are joined by a trench (cover all along it)
               foxhole: { cost: 0,   sec: 6,  cap: 3, mul: 0.8, rof: 1.3, link: 12 },
               // (0.39) a line of bastions: the same walls side by side (lineLen metres each, lineGap apart) instead of a ring
@@ -483,6 +483,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.39.1',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.39.2',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

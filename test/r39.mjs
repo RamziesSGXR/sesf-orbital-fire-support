@@ -84,17 +84,30 @@ const land = (m, x, y) => (m.terrain.isLand(x, y) && !m.terrain.blocked(x, y) ? 
   for (const v of seen.values()) maxStop = Math.max(maxStop, v);
   check('light enemies that walk into the wire stop, then crawl through', g && stop > 0 && slow > 0 && maxStop > C.build.wire.stopSec * 0.6, `${seen.size} stopped, up to ${maxStop.toFixed(1)} s`);
   // how fast each kind goes through it
-  const pace = (kind) => { const o = { kind, x: w.x, y: w.y, id: -1 }; return o; };
-  void pace;
-  check('mediums wade at a little over half speed, lights crawl at under a third', C.build.wire.medium > 0.5 && C.build.wire.medium < 0.7 && C.build.wire.light <= 0.3);
-  // a heavy tears it down
-  // (a charger, rushing the squad on the far side)
+  check('mediums wade at a little over half speed, lights crawl at under a third, heavies under half', C.build.wire.medium > 0.5 && C.build.wire.medium < 0.7 && C.build.wire.light <= 0.3 && C.build.wire.heavy < 0.5);
+  // (0.39.2) a heavy is held up, and the wire stands (a charger, rushing the squad on the far side)
   const m2 = mk(3903, 'bugs'), h2 = m2.hdAlive[0];
   const w3 = makePost(m2, 'wire', h2.x, h2.y + 40, { face: Math.PI / 2 });
   for (const a of m2.allies) { a.x = w3.x + (a.id % 5) - 2; a.y = w3.y - 18; a.hp = a.maxHp = 1e6; }
-  const gg = spawnGroup(m2, w3.x, w3.y + 22, 'hunt', { kinds: ['H'] });
-  const tore = run(m2, 40, () => w3.dead);
-  check('a heavy walking through tears the section down and it comes off the map', tore && !m2.posts.includes(w3) && (m2.stats.wireTorn || 0) >= 1, `hp ${Math.round(w3.wireHp)}`);
+  const gg = spawnGroup(m2, w3.x, w3.y + 22, 'hunt', { kinds: ['H'] }), hv = gg.members[0];
+  let inMax = 0, outMax = 0, wasIn = false;
+  for (let i = 0; i < 30 * 30; i++) {
+    const x0 = hv.x, y0 = hv.y; m2.step(dt); if (hv.dead) break;
+    const d = Math.hypot(hv.x - x0, hv.y - y0);
+    if (hv.wireIn) { inMax = Math.max(inMax, d); wasIn = true; } else outMax = Math.max(outMax, d);
+  }
+  check('a heavy walking into the wire is slowed to under half its pace', wasIn && inMax > 0 && inMax < outMax * 0.55, `${(inMax * 30).toFixed(1)} m/s in it, ${(outMax * 30).toFixed(1)} out`);
+  check('and it cannot tear the wire down', !w3.dead && m2.posts.includes(w3) && w3.wireHp === w3.wireMax && !(m2.stats.wireTorn || 0));
+  // only a super heavy tears it
+  const m3 = mk(3909, 'bugs'), h3 = m3.hdAlive[0];
+  const w4 = makePost(m3, 'wire', h3.x, h3.y + 40, { face: Math.PI / 2 });
+  for (const a of m3.allies) { a.x = w4.x + (a.id % 5) - 2; a.y = w4.y - 22; a.hp = a.maxHp = 1e6; }
+  const { spawnBoss } = await import('../js/sim/boss.js');
+  const bs = spawnBoss(m3, { at: { x: w4.x - 10, y: w4.y + 20, r: 1e-3 } });     // (straight across the wire from the squad)
+  for (const en of m3.enemies) if (en !== bs) en.dead = true;
+  if (bs) bs.hp = bs.maxHp = 1e9;
+  const tore = run(m3, 60, () => w4.dead);
+  check('only a super heavy walking through tears the section down, and it comes off the map', bs && tore && !m3.posts.includes(w4) && (m3.stats.wireTorn || 0) >= 1, `hp ${Math.round(w4.wireHp)}`);
 }
 
 // ---------------------------------------------------------------- the Hangar, its pelicans
