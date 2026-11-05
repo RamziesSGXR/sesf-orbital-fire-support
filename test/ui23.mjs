@@ -33,7 +33,7 @@ const tabs = await ev(() => [...document.querySelectorAll('.shop-tabs .tab[data-
 check('the armory has a HANGAR tab', /eagle:HANGAR/i.test(tabs), tabs);
 await ev(() => { const b = [...document.querySelectorAll('.shop-tabs .tab[data-tab="eagle"]')].find((x) => x.getClientRects().length); if (b) b.click(); }); await page.waitForTimeout(250);
 const locked = await ev(() => { const p = [...document.querySelectorAll('.tabpane[data-tab="eagle"]')].find((x) => x.getClientRects().length); return p ? (p.textContent.match(/needs the hangar/gi) || []).length : -1; });
-check('Eagles say they need the Hangar until it is bought', locked > 0, `${locked} locked`);
+check('(0.39) the Hangar is open from the start: no Eagle says it needs it', locked === 0, `${locked} locked`);
 await shot('armory');
 await ev(() => { window.__game.session.missions = []; window.__game.goShop(); }); await page.waitForTimeout(300);
 

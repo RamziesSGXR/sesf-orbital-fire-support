@@ -3,7 +3,7 @@
 // pixels in metres at the current zoom.
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
-import { pelicanBody } from './squads.js';
+import { pelicanBody, pelicanDetail } from './squads.js';
 import { drawCivBody } from './units.js';
 
 const TAU = Math.PI * 2;
@@ -299,15 +299,19 @@ export function drawExtraction(ctx, m, now, px, labels, scale) {
     if (ex.state === 'boarding') {   // the ramp at the back
       ctx.fillStyle = 'rgba(220,235,245,0.6)'; ctx.fillRect(x - 2.5, y + s * 0.95, 5, 6);
     }
+    // (0.39) the rockets: hard down coming in to land and climbing out, idling on the pad
+    const thrust = ex.state === 'boarding' ? 0.3 : 1, down = ex.state === 'away' ? Math.max(0, 1 - (t - ex.awayAt) / 1.5) : 1;
+    pelicanDetail(ctx, x, y, ang, s, now, thrust, down, null);
     pelicanBody(ctx, x, y, ang, s);
     ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = px(4); ctx.stroke();
     ctx.fillStyle = 'rgba(215,236,255,0.95)'; ctx.fill();
     ctx.strokeStyle = '#ffe600'; ctx.lineWidth = px(1.8); ctx.stroke();
+    pelicanDetail(ctx, x, y, ang, s, now, 0, down, '#ffe600');
     if (ex.state === 'boarding') {
       const hds = m.hdAlive.length;
       text = tr(hds ? 'lab.boardingLeft' : 'lab.boarding', { on: ex.boardedH || 0, left: hds, n: Math.max(0, Math.ceil(ex.leaveBy - t)) });
     } else if (ex.state === 'landing') text = tr('lab.pelicanLanding');
-    else text = tr('lab.pelicanAway', { n: ex.boardedH || 0 });
+    else text = tr(m.seafAlive.length ? 'lab.orbitLeaveN' : 'lab.pelicanAway', { n: ex.boardedH || 0, s: Math.max(0, Math.ceil((ex.leaveAt || t) - t)), k: m.seafAlive.length });
   }
   labels.push({ x: ex.x, y: ex.y, dy: -R * scale - 10, text, col: '#ffe600', pri: 3 });
 }

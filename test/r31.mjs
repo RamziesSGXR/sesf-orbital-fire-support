@@ -185,23 +185,13 @@ for (const fac of ['bugs', 'bots', 'squids']) {
   check('and when he bleeds out he is gone', d.dead && !m.alive.includes(d));
 }
 
-// ---------------------------------------------------------------- the Hangar comes with a Strafing Run
+// ---------------------------------------------------------------- (0.39) the Hangar is open from the start: nothing to buy first
 {
-  const { newKit, newWallet, buy, HANGAR_GIFT } = await import('../js/data/kit.js');
-  const k = newKit(), w = newWallet(); w.bal = 10000; k.slots = 4;
-  const r = buy(k, w, 'hangar', false);
-  check('buying the Hangar gives a free Eagle Strafing Run, into a free slot', r.ok && r.gift === HANGAR_GIFT && k.owned[HANGAR_GIFT] === 1 && k.loadout.includes(HANGAR_GIFT), `${r.giftName}, loadout ${k.loadout.filter(Boolean).join(' ')}`);
-  const r2 = buy(k, w, 'hangar', false);
-  check('only with its first level', r2.ok && !r2.gift);
-  const k3 = newKit(), w3 = newWallet(); w3.bal = 10000;
-  const r3 = buy(k3, w3, 'hangar', false);
-  check('with every slot full it is still yours (equip it in the armory)', r3.gift && k3.owned[HANGAR_GIFT] === 1 && !k3.loadout.includes(HANGAR_GIFT) && r3.equipped === false);
-  const k4 = newKit(), w4 = newWallet(); w4.bal = 10000; k4.owned[HANGAR_GIFT] = 1;
-  check('nothing extra if you already own one', !buy(k4, w4, 'hangar', false).gift);
-  const m = new Mission({ seed: 3111, faction: 'squids', biome: 'desert', events: true, sessionMinutes: 0, missionN: 2, difficulty: 1, lastStand: true, defenders: false, boss: false, countdown: 60, wallet: w3 });
-  m.wallet.bal = 10000;
-  const r5 = m.spend('hangar', 9);
-  check('in the tutorial it goes straight onto the bar', r5.ok && m.kit.loadout.includes(HANGAR_GIFT), m.kit.loadout.join(' '));
+  const { newKit, newWallet, buy, shopItems } = await import('../js/data/kit.js');
+  const k = newKit(), w = newWallet(); w.bal = 10000;
+  check('there is no Hangar to buy any more', !buy(k, w, 'hangar', false).ok);
+  const it = shopItems(k).find((x) => x.id === 'own:eagle_strafe');
+  check('an Eagle is bought like anything else, with nothing needed first', it && !it.locked && !it.needs);
 }
 console.log(fails ? `${fails} FAILED` : 'ALL PASS');
 process.exit(fails ? 1 : 0);

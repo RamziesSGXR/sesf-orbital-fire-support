@@ -185,10 +185,10 @@ for (const fac of ['bugs', 'bots', 'squids']) {
   run(m, ex.wait * 0.4 + C.extract.landSec + 1);
   check('the pelican lands', ex.state === 'boarding' || ex.state === 'away' || m.over, ex.state);
   const sp = m.pelicans.filter((p) => p.evac).length;
-  run(m, C.extract.boardSec + 12);
+  run(m, C.extract.boardSec + 12 + C.extract.orbitSec);
   check('every Helldiver boards and the mission ends extracted', m.over && m.extracted && ex.boardedH >= 1, `${ex.boardedH} aboard, ${m.outcome}`);
   check('the boarding window is 20 seconds', C.extract.boardSec === 20);
-  check('SEAF squads get pelicans of their own and board them', sp >= 1 && (ex.boardedS || 0) >= 1, `${sp} SEAF pelicans, ${ex.boardedS || 0} troopers aboard`);
+  check('(0.39) SEAF get no pelicans of their own: those not picked up are left behind', sp === 0 && (m.stats.leftS || 0) >= 1, `${sp} SEAF pelicans, ${m.stats.leftS || 0} left behind`);
 }
 
 // ---------------------------------------------------------------- evacuation

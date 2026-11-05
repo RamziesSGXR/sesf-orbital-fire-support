@@ -7,7 +7,7 @@ import { STRATS } from '../data/strat.js';
 import { seafTargets } from './squads.js';
 import { TEAM_COLOR } from '../data/names.js';
 import { drawPoiArt, drawNukeSite, drawCrash, drawPad, drawLootArt, drawOilSite, drawDome, drawDomeHit, drawHellbomb } from './sites.js';
-import { pelicanBody } from './squads.js';
+import { pelicanBody, pelicanDetail } from './squads.js';
 import { sentryArt } from './posts.js';
 
 const TAU = Math.PI * 2;
@@ -289,7 +289,9 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
         else if (o.pel.state === 'out') { const u = Math.min(1, k / K.outSec), e = u * u; x = o.px + 160 * e; y = o.py - 110 * e; alt = e; }
         const s = 14 * (1 + 0.3 * alt), off = 4 + alt * 26, ang = Math.atan2(o.py - sy, o.px - sx);
         ctx.fillStyle = 'rgba(0,0,0,0.38)'; pelicanBody(ctx, x + off * 0.6, y + off, ang, s * 0.92); ctx.fill();
+        pelicanDetail(ctx, x, y, ang, s, now, 1, 1, null);
         pelicanBody(ctx, x, y, ang, s); ctx.fillStyle = '#d8e8f2'; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = px(2); ctx.stroke();
+        pelicanDetail(ctx, x, y, ang, s, now, 0, 1, null);
       }
       const K = O.oil;
       const txt = o.done ? tr('lab.oilDone') : o.state === 'load' ? tr('lab.oilLoad', { n: o.trips + 1, of: K.trips }) : o.state === 'pump' ? tr('lab.oilPump', { p: Math.round(o.fill * 100), n: o.trips + 1, of: K.trips }) : tr('lab.oil');

@@ -16,7 +16,7 @@ import { steer } from './terrain.js';
 import { speedMul } from './helldiver.js';
 import { shoreToward } from './enemies.js';
 import { siteAt, coverSlot } from './cover.js';
-import { makePost, GARRISON, INSIDE, crateSec } from './posts.js';
+import { makePost, removePost, GARRISON, INSIDE, crateSec } from './posts.js';
 
 const SIZE = C.world.size;
 const S = C.seaf;
@@ -61,11 +61,35 @@ export function newOrder(kind = 'auto', x = 0, y = 0, until = 0) {
 // pick single troopers or a box of them (PICKED: sel is PICKED and pick lists them); an order to them forms them into a squad.
 export const LOOSE = -3, PICKED = -2;
 export function initSeaf() {
-  return {
-    readyAt: C.seaf.firstDropSec, sel: -1, pick: null, spotAt: 0, fid: 0,      // the first troop drop is a little way into the mission
+  const sf = {
+    sel: -1, pick: null, spotAt: 0, fid: 0,
+    // (0.39) the hangar's pelicans: when each is next ready (SEAF drops and pickups share them; fleet() grows this to the kit's
+    // number), and the troopers a pickup has taken up to the destroyer (the next drops bring them back down first)
+    fleet: [C.seaf.firstDropSec], reserve: [],
     squads: Array.from({ length: S.squads }, (_, i) => ({ i, order: newOrder(), tgt: null, tgtT: 0, clearT: 0, skip: new Map(), stand: null, ax: 0, ay: 0, n: 0, cx: 0, cy: 0 })),
   };
+  // readyAt: when the first pelican is ready (setting it sets every pelican: the old single cooldown, kept for the bot and tests)
+  Object.defineProperty(sf, 'readyAt', { get() { return Math.min(...this.fleet); }, set(v) { this.fleet.fill(v); }, enumerable: true });
+  return sf;
 }
+// (0.39) The hangar's pelicans, as many as the kit has (one bought mid-mission is ready at once).
+export function fleet(m) {
+  const F = m.seaf.fleet, n = hangarStats(m.kit).fleet;
+  while (F.length < n) F.push(m.t);
+  if (F.length > n) F.length = n;
+  return F;
+}
+export const pelicansReady = (m) => fleet(m).filter((t) => t <= m.t).length;
+// the next one ready (or -1), sent out now: it is back and ready again after the SEAF drop cooldown
+export function takePelican(m) {
+  const F = fleet(m);
+  let k = -1;
+  for (let i = 0; i < F.length; i++) if (F[i] <= m.t && (k < 0 || F[i] < F[k])) k = i;
+  if (k >= 0) F[k] = m.t + seafStats(m.kit).cool;
+  return k;
+}
+// SEAF in the field, coming down and aboard the destroyer (a pickup): all of them count against the most you can have
+export const seafHeld = (m) => m.countAlly('S') + m.pendingPods('S') + m.seaf.reserve.length;
 // Squads an order applies to: the selected one, or every squad that has troops.
 function recount(m) {
   for (const q of m.seaf.squads) q.n = 0;
@@ -136,7 +160,7 @@ export function builtCount(m, what) { return (m.posts || []).filter((p) => !p.de
 function finishBuild(m, q, o) {
   const cr = o.crate, crew = cr ? m.seaf.squads.filter((x) => x !== q && x.n && x.order.kind === 'build' && x.order.crate === cr) : [];     // (0.28: everyone who dug a trench mans it)
   if (cr) { cr.used = true; m.crates = m.crates.filter((c) => c !== cr); }
-  const p = makePost(m, o.what, o.x, o.y, cr && cr.span ? { span: cr.span } : cr && cr.dig ? { size: cr.size, face: cr.face } : {});
+  const p = makePost(m, o.what, cr ? cr.x : o.x, cr ? cr.y : o.y, cr && cr.span ? { span: cr.span } : cr && cr.dig ? { size: cr.size, face: cr.face } : cr ? { face: cr.face, shape: cr.shape } : {});
   if (o.what === 'arty') m.radio(COMMS.artyUp, 'artyup', 0);
   m.stats.built = (m.stats.built || 0) + 1;
   m.notice(tr(o.what === 'foxhole' ? 'n.dug' : 'n.built', { what: tr('build.' + o.what), cr: buildStats(o.what, p.lvl).cost }), 'good');
@@ -234,13 +258,17 @@ function keepLeaders(m, by) {
 
 // A cargo pelican: brings a crate for SEAF to deploy (a wall, an MG nest, a drop beacon, a howitzer), drops it and leaves.
 export function callCargo(m, x, y, crate) {
-  const P = C.pelican, base = (m.squad.dir || 0) + Math.PI + m.rng.range(-0.7, 0.7);
-  const dx = Math.cos(base + Math.PI), dy = Math.sin(base + Math.PI);
-  m.pelicans.push({
-    id: m.nextId++, x: x - dx * P.approach, y: y - dy * P.approach, tx: x, ty: y, dx, dy, state: 'in', alt: 1, cargo: crate,
-    roles: [], dropped: 0, dropT: 0, hoverT: Math.min(P.hover, 3), outT: 0, gunT: 0.4, squad: -1, born: m.t, vis: 0,
-  });
+  m.pelicans.push(newPelican(m, x, y, { cargo: crate }));
   m.emit('cargo_call', { x, y, what: crate.what });
+}
+// (0.39) A pelican on its way: it comes down from orbit to (x, y) in CONFIG.pelican.inSec, from behind the squad (or from `from`
+// radians), works there for workSec and climbs away (updatePelicans).
+export function newPelican(m, x, y, o = {}) {
+  const P = C.pelican, base = o.from ?? (m.squad.dir || 0) + Math.PI + m.rng.range(-0.7, 0.7);
+  const dx = Math.cos(base + Math.PI), dy = Math.sin(base + Math.PI);     // heading: toward (x, y)
+  const sx = x - dx * P.approach, sy = y - dy * P.approach;
+  return { id: m.nextId++, x: sx, y: sy, sx, sy, tx: x, ty: y, dx, dy, t0: m.t, state: 'in', alt: 1.6, roles: [], dropped: 0, dropT: 0,
+    hoverT: P.workSec, outT: 0, gunT: 0.4, squad: -1, born: m.t, vis: 0, ...o };
 }
 
 // (0.27.3) A new squad down from a pelican waits for orders: it holds the drop (and fights whatever comes at it), unless there is
@@ -260,17 +288,16 @@ export function dropHold(m, q, x, y) {
   else setSquadOrder(m, q, 'protect', x, y);
 }
 export function callPelican(m, x, y, n, squad, hold = false) {
-  const st = seafStats(m.kit), P = C.pelican;
-  const base = (m.squad.dir || 0) + Math.PI + m.rng.range(-0.7, 0.7);   // comes in from behind the squad
-  const dx = Math.cos(base + Math.PI), dy = Math.sin(base + Math.PI);   // heading: toward the drop point
-  m.pelicans.push({
-    id: m.nextId++, x: x - dx * P.approach, y: y - dy * P.approach, tx: x, ty: y, dx, dy, state: 'in', alt: 1,
-    roles: rollRoles(m, n, st), dropped: 0, dropT: 0, hoverT: P.hover, outT: 0, gunT: 0.4, squad, born: m.t, vis: 0, hold,
-  });
+  const st = seafStats(m.kit);
+  // (0.39) troopers a pickup took up to the destroyer come back down first (the new ones make up the rest)
+  const back = m.seaf.reserve.splice(0, n).map((r) => r.role || 'rifle');
+  const roles = back.length ? [...back, ...rollRoles(m, n - back.length, st).filter((r, k) => k > 0 || !back.includes('leader'))].slice(0, n) : rollRoles(m, n, st);
+  while (roles.length < n) roles.push('rifle');
+  m.pelicans.push(newPelican(m, x, y, { roles, squad, hold, back: back.length }));
   if (hold && m.seaf.squads[squad]) setSquadOrder(m, m.seaf.squads[squad], 'protect', x, y);      // (the first ones down hold too)
 }
 
-function pelicanGun(m, p, dt) {
+export function pelicanGun(m, p, dt) {
   const P = C.pelican;
   p.gunT -= dt;
   if (p.gunT > 0) return;
@@ -284,22 +311,23 @@ export function updatePelicans(m, dt) {
   const P = C.pelican, ps = m.pelicans;
   for (let i = ps.length - 1; i >= 0; i--) {
     const p = ps[i];
-    if (p.evac && p.state === 'hover') {
-      // an extraction pelican waits for its squad, then leaves
-      p.hoverT -= dt;
-      pelicanGun(m, p, dt);
-      if (p.hoverT <= 0 || !m.seafAlive.some((a) => !a.dead && a.sq === p.squad)) { p.state = 'out'; p.outT = 0; }
-      continue;
-    }
     if (p.state === 'in') {
-      const d = Math.hypot(p.tx - p.x, p.ty - p.y), sp = P.speed / hangarStats(m.kit).pelican * Math.min(1, 0.28 + d / 70);     // (0.23: the Hangar speeds them up)
-      step(p, p.tx, p.ty, sp, dt);
-      p.alt = 0.3 + 0.7 * Math.min(1, d / 160);
-      if (d <= 2) { p.state = 'hover'; p.dropT = 0.35; p.alt = 0.3; m.emit('pelican_arrive', { x: p.x, y: p.y, evac: !!p.evac }); }
-      if (d < P.gunRange * 1.2) pelicanGun(m, p, dt);
+      // (0.39) down from orbit in inSec: fast at first, easing in over the spot, coming down all the way
+      const k = Math.min(1, (m.t - (p.t0 ?? m.t)) / P.inSec), e = 1 - (1 - k) ** 3;
+      p.x = (p.sx ?? p.x) + (p.tx - (p.sx ?? p.x)) * e; p.y = (p.sy ?? p.y) + (p.ty - (p.sy ?? p.y)) * e;
+      if (p.sx === undefined) { p.sx = p.x; p.sy = p.y; }
+      p.alt = 0.3 + 1.3 * (1 - k) ** 2;
+      if (k >= 1) {
+        p.state = 'hover'; p.x = p.tx; p.y = p.ty; p.alt = 0.3; p.hoverT = P.workSec;
+        const n = p.roles.length;
+        p.dropT = p.cargo ? P.workSec * 0.45 : p.pick ? 0.25 : 0.3; p.dropEvery = n ? (P.workSec * 0.8) / n : 0.3;
+        m.emit('pelican_arrive', { x: p.x, y: p.y, evac: !!p.evac, pick: !!p.pick });
+      }
+      if (Math.hypot(p.tx - p.x, p.ty - p.y) < P.gunRange * 1.2) pelicanGun(m, p, dt);
     } else if (p.state === 'hover') {
       p.hoverT -= dt; p.dropT -= dt;
       pelicanGun(m, p, dt);
+      if (p.pick) { if (pickStep(m, p) || p.hoverT <= 0) { pickDone(m, p); p.state = 'out'; p.outT = 0; } continue; }     // (0.39) a pickup
       if (p.cargo && !p.cargo.landed && p.dropT <= 0) {           // a cargo pelican lowers its crate
         p.cargo.landed = true; p.cargo.at = m.t;
         m.emit('crate_drop', { x: p.cargo.x, y: p.cargo.y, what: p.cargo.what });
@@ -312,7 +340,7 @@ export function updatePelicans(m, dt) {
         const role = p.roles[p.dropped++], ang = m.rng.angle(), d = m.rng.range(4, 12);
         const a = m.addAlly('S', p.x + Math.cos(ang) * d, p.y + Math.sin(ang) * d, { role });
         a.sq = p.squad;
-        p.dropT = P.dropEvery;
+        p.dropT = p.dropEvery || 0.3;
         m.emit('pelican_drop', { x: a.x, y: a.y, role });
       }
       if (p.dropped >= p.roles.length && p.hoverT <= 0) {
@@ -335,6 +363,94 @@ export function updatePelicans(m, dt) {
       if (p.outT >= P.climb) ps.splice(i, 1);
     }
   }
+}
+
+// ---------------------------------------------------------------- (0.39) pickups
+// A pickup point (PICKUP, beside SEAF DROP) goes down anywhere in the strike zone. When SEAF are standing in it and one of the
+// hangar's pelicans is ready, a pelican comes for them (once everyone sent to it is there, or it has a full load, or the first have
+// waited a while): it takes up to its load (the SEAF drop size) aboard and they go up to the destroyer (m.seaf.reserve), for the
+// next SEAF drops to bring back down anywhere. A point nobody is in waits like a building: select it and send troops to it. It goes
+// once a pelican has taken the last of them (or it is called off). SEAF drops and pickups share the hangar's pelicans.
+const LZ_WAIT = 8;      // seconds the first troopers in a point wait for the rest before a pelican is sent anyway
+export function makeLz(m, x, y) {
+  const P = C.pelican, n = P.lzSlots, slots = [];
+  for (let k = 0; k < n; k++) { const inner = k < n / 2, j = inner ? k : k - n / 2, ang = (j / (n / 2)) * Math.PI * 2 + (inner ? 0 : Math.PI / (n / 2)), r = inner ? 2.8 : 5.6; slots.push({ x: x + Math.cos(ang) * r, y: y + Math.sin(ang) * r }); }
+  const lz = { id: m.nextId++, kind: 'post', what: 'lz', sid: 'post_lz', x, y, lvl: 1, born: m.t, dead: false, hurtAt: -9, face: 0, face0: 0, cap: 0, hp: 0, maxHp: 0,
+    r: P.pickR, crew: 0, crewH: 0, crewS: 0, garrison: 0, captured: false, built: true, repairing: false, slots, pel: null, waiting: 0, owed: 0, firstIn: null,
+    get name() { return tr('build.lz'); } };
+  lz.site = { x, y, R: P.pickR, pieces: [], kind: 'built', post: lz };
+  m.posts.push(lz);
+  m.emit('lz_new', { id: lz.id, x, y });
+  return lz;
+}
+const canBoard = (a) => !a.dead && !a.down && !a.inside && a.sq !== GARRISON && !a.mounted;
+// who is in the point, and how many sent to it are still on their way
+export function lzCount(m, lz, R = C.pelican.pickR) {
+  let n = 0;
+  for (const a of m.seafAlive) if (canBoard(a) && (a.x - lz.x) ** 2 + (a.y - lz.y) ** 2 <= R * R) n++;
+  return n;
+}
+function lzOwed(m, lz) {
+  const R2 = C.pelican.pickR ** 2;
+  let n = 0;
+  for (const q of m.seaf.squads) {
+    if (!q.n || q.order.kind !== 'post' || q.order.post !== lz) continue;
+    for (const a of m.seafAlive) if (a.sq === q.i && canBoard(a) && (a.x - lz.x) ** 2 + (a.y - lz.y) ** 2 > R2) n++;
+  }
+  return n;
+}
+export function updatePickups(m) {
+  const t = m.t;
+  for (const lz of m.posts) {
+    if (lz.what !== 'lz' || lz.dead) continue;
+    lz.waiting = lzCount(m, lz); lz.owed = lzOwed(m, lz);
+    if (lz.waiting && lz.firstIn === null) lz.firstIn = t;
+    if (!lz.waiting) lz.firstIn = null;
+    if (lz.pel || !lz.waiting || m.over) continue;
+    const cap = seafStats(m.kit).drop;
+    if (lz.waiting < cap && lz.owed > 0 && t - lz.firstIn < LZ_WAIT) continue;      // (the rest are on their way)
+    if (takePelican(m) < 0) { lz.noPel = true; continue; }
+    lz.noPel = false;
+    const p = newPelican(m, lz.x, lz.y, { pick: lz, cap, aboard: 0 });
+    m.pelicans.push(p); lz.pel = p;
+    m.stats.pickups = (m.stats.pickups || 0) + 1;
+    m.radio(COMMS.pickupIn, 'pickupin', 0);
+    m.emit('pickup_call', { x: lz.x, y: lz.y, n: Math.min(cap, lz.waiting) });
+  }
+}
+// what a pickup point is doing, in a few words (its label on the map and its panel)
+export function lzStatus(m, lz) {
+  const p = lz.pel;
+  if (p && p.state === 'in') return tr('lz.in', { n: Math.max(1, Math.ceil(C.pelican.inSec - (m.t - p.t0))) });
+  if (p && p.state === 'hover') return tr('lz.boarding', { a: p.aboard, b: p.cap });
+  if (lz.waiting && lz.noPel) return tr('lz.noPel', { n: lz.waiting, s: Math.max(1, Math.ceil(Math.min(...fleet(m)) - m.t)) });
+  if (lz.waiting) return tr(lz.owed ? 'lz.inOwed' : 'lz.inN', { n: lz.waiting, k: lz.owed });
+  if (lz.owed) return tr('lz.owed', { n: lz.owed });
+  return tr('lz.empty');
+}
+// a pickup pelican over its point: one trooper aboard every so often, nearest first, up to its load. True once it is full.
+function pickStep(m, p) {
+  const P = C.pelican;
+  if (!p.dropEvery || p.dropEvery === 0.3) p.dropEvery = (P.workSec * 0.8) / Math.max(1, p.cap);
+  if (p.aboard >= p.cap) return true;
+  if (p.dropT > 0) return false;
+  let best = null, bd = P.boardR * P.boardR;
+  for (const a of m.seafAlive) { if (!canBoard(a)) continue; const d = (a.x - p.tx) ** 2 + (a.y - p.ty) ** 2; if (d < bd) { bd = d; best = a; } }
+  if (!best) return false;
+  best.dead = true; best.boarded = true; best.picked = true; m.dirtyA = true;
+  m.seaf.reserve.push({ role: best.role || 'rifle' });
+  p.aboard++; p.dropT = p.dropEvery;
+  m.stats.seafPicked = (m.stats.seafPicked || 0) + 1;
+  m.emit('seaf_pickup', { x: best.x, y: best.y, id: best.id, role: best.role });
+  return p.aboard >= p.cap;
+}
+// it climbs away: the point goes once nobody is left in it or on the way to it
+function pickDone(m, p) {
+  const lz = p.pick;
+  if (lz) lz.pel = null;
+  m._refreshAlive();
+  if (p.aboard) { m.notice(tr('n.seafUp', { n: p.aboard }), 'good'); m.radio(COMMS.pickupUp(p.aboard), 'pickupup', 0); }
+  if (lz && !lz.dead && !lzCount(m, lz) && !lzOwed(m, lz)) removePost(m, lz);
 }
 
 // ---------------------------------------------------------------- medics, and the Squad Leader's radio
@@ -443,6 +559,7 @@ export function updateSeaf(m, dt, speed, bm) {
   const sf = m.seaf;
   { const st = seafStats(m.kit); m.kitDmg = st.dmgMul; m.kitEat = st.eatMul; }
   updatePelicans(m, dt);
+  updatePickups(m);
   const by = sf.squads.map(() => []), held = [];
   for (const a of m.seafAlive) {
     if (a.down) continue;                    // (0.26) down: he lies where he fell until a Medic gets him up

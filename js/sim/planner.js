@@ -111,9 +111,11 @@ function choose(m) {
 export function initPlan(m) { m.plan = { task: null, at: -99, full: false, decided: false, ask: null, asks: 0, denied: false, bought: 0 }; }
 
 // ---- more time for a full clear ----
+// (0.39) holding orbit costs fuel: each minute dearer the longer the mission has run
+export const timeCost = (m, min) => Math.round((min * PL().ask.perMin * (1 + PL().ask.perMinIn * Math.max(0, m.t) / 60)) / 5) * 5;
 function askTime(m, min) {
   const A = PL().ask, a = m.hdAlive[0], pl = m.plan;
-  pl.ask = { min, cost: min * A.perMin, until: m.t + A.askSec, tag: a ? m.tag(a) : '' };
+  pl.ask = { min, cost: timeCost(m, min), until: m.t + A.askSec, tag: a ? m.tag(a) : '' };
   pl.asks = (pl.asks || 0) + 1;
   m.radio(COMMS.timeAsk(min, pl.ask.cost), 'timeask', 0);
   m.emit('time_ask', { min, cost: pl.ask.cost });

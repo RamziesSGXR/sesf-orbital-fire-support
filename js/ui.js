@@ -4,11 +4,12 @@ import { FACTIONS, BIOMES } from './data/data.js';
 import { fmtTime, fmtNum, sessionTotals, MAX_NAME, carriesOn, levelReached } from './session.js';
 import { STRATS, CAT_COLOR } from './data/strat.js';
 import { LETTERS, TEAM_COLOR } from './data/names.js';
-import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, hangarStats, shownAt, TIER_MAX, tierItems, itemTier } from './data/kit.js';
+import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, hangarStats, shownAt, TIER_MAX, tierItems, itemTier, FLAT_BUILDS, fleetSize } from './data/kit.js';
 import { stratReady, stratOnline } from './sim/strat.js';
 import { slotStats } from './sim/player.js';
 import { compass } from './sim/enemies.js';
-import { builtCount, FORMS } from './sim/seaf.js';
+import { builtCount, FORMS, fleet, seafHeld, lzStatus } from './sim/seaf.js';
+const noLvl = (what) => FLAT_BUILDS.has(what) || what === 'lz';      // (0.39) no levels: wire, foxholes, pickup points
 import { POSTS, INSIDE, crateSec } from './sim/posts.js';
 import { objectiveStatus, OBJ_NAME } from './sim/objectives.js';
 import { SQUAD_COLOR } from './sim/seaf.js';
@@ -227,6 +228,8 @@ export class Hud {
     // (0.22) PLACE and CANCEL for a ghost on a touch screen; UNDO for the plan made in the pause
     $('po-go').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onPlaceOk && this.onPlaceOk(); });
     $('po-x').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onPlaceCancel && this.onPlaceCancel(); });
+    $('po-turn').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onPlaceTurn && this.onPlaceTurn(); });
+    $('po-shape').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onPlaceShape && this.onPlaceShape(); });
     $('sp-undo').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onPlanUndo && this.onPlanUndo(); });
     // (0.21) phones have no INFO button: a tap on the clock or the objective opens the mission info
     for (const q of ['#mbox', '#objective']) document.querySelector(q).addEventListener('click', () => { if (document.body.classList.contains('lay-phone')) this.onInfo && this.onInfo(); });
@@ -241,7 +244,7 @@ export class Hud {
       this.setTcTab(b.dataset.tab === this.tcTab && b.dataset.tab !== 'units' ? 'units' : b.dataset.tab);     // (0.21: pressed again, back to the troops)
     }));
     const ordBox = document.querySelector('#tactical .tac-ord');
-    for (const [o, k] of [['seaf', 'G'], ['auto', 'X'], ['move', 'V'], ['protect', 'Z'], ['attack', 'N'], ['escort', 'C']]) {     // (0.20: DISBAND is on the squad bar, once)
+    for (const [o, k] of [['seaf', 'G'], ['pickup', '⇧G'], ['auto', 'X'], ['move', 'V'], ['protect', 'Z'], ['attack', 'N'], ['escort', 'C']]) {     // (0.20: DISBAND is on the squad bar, once; 0.39: PICKUP)
       const e = el('button', 'tco ' + o, `<span class="k">${k}</span><span class="n"></span><span class="s"></span>`);
       e.type = 'button'; e.dataset.o = o;
       e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); if (o === 'disband') this.onSquadAct && this.onSquadAct('disband'); else this.onOrder && this.onOrder(o); });
@@ -274,6 +277,8 @@ export class Hud {
     this.dkSq.addEventListener('pointerdown', (e) => { e.preventDefault(); if (this.drawing) this.onSquadAct && this.onSquadAct('draw'); else this.onTac && this.onTac(true, 'units'); });
     $('dk-hd').addEventListener('pointerdown', (e) => { e.preventDefault(); this.onTac && this.onTac(true, 'hd'); });
     this.dkDrop.addEventListener('pointerdown', (e) => { e.preventDefault(); this.onOrder && this.onOrder('seaf'); });
+    this.dkPick = $('dk-pick');
+    this.dkPick.addEventListener('pointerdown', (e) => { e.preventDefault(); this.onOrder && this.onOrder('pickup'); });
     $('tray').addEventListener('pointerdown', () => this.trayBump());
     document.querySelector('.tray-x').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); this.trayToggle(false); });
     document.querySelectorAll('.fadeable').forEach((n) => n.addEventListener('pointerdown', () => this.hot(n, 3000)));
@@ -713,8 +718,20 @@ export class Hud {
   }
   // (0.22) Touch: the ghost of what is being placed, with PLACE and CANCEL (a tap on the map moves the ghost).
   placeOk(text) {
-    const e = $('place-ok'); e.classList.toggle('hidden', !text);
-    if (text) e.querySelector('.po-t').textContent = text;
+    this._poText = text;
+    const e = $('place-ok'); e.classList.toggle('hidden', !text && !this._poTools);
+    e.querySelector('.po-t').textContent = text || (this._poTools && !document.body.classList.contains('touch') ? t(this._poTools.shape ? 'place.keysShape' : 'place.keys') : '');
+  }
+  // (0.39) the turn button, and ring / line for the bastions, while a build that can be turned is placed (on a computer, the bar
+  // shows them with the keys; the click on the map still puts it down)
+  placeTools(o) {
+    this._poTools = o;
+    $('po-turn').classList.toggle('hidden', !o);
+    const sh = $('po-shape');
+    sh.classList.toggle('hidden', !(o && o.shape));
+    if (o && o.shape) { sh.querySelector('i').textContent = o.shape === 'line' ? '▭' : '◯'; sh.querySelector('span').textContent = t(o.shape === 'line' ? 'place.line' : 'place.ring'); }
+    document.body.classList.toggle('place-tools', !!o);
+    this.placeOk(this._poText);
   }
   // (0.22) MERGE: tap the squads to merge (they light up and are listed over the button), then MERGE; a tap anywhere else lets it go.
   mergeStart() {
@@ -811,7 +828,9 @@ export class Hud {
 
   update(m, cam, session) {
     // (0.19: on Mars the clock counts how long the base has held, once the evacuation is open)
-    const left = m.ls ? (m.ls.stage === 'lessons' ? null : m.ls.holdT) : Math.max(0, m.limitSec - m.t);
+    // (0.39) once the Helldivers are away, the clock counts down to the destroyer leaving orbit
+    const orbit = !m.ls && m.extraction && m.extraction.state === 'away' && m.extraction.leaveAt ? Math.max(0, m.extraction.leaveAt - m.t) : null;
+    const left = m.ls ? (m.ls.stage === 'lessons' ? null : m.ls.holdT) : orbit !== null ? orbit : Math.max(0, m.limitSec - m.t);
     this._set('timer', $('timer'), left === null ? '--:--' : fmtTime(left));
     $('timer').classList.toggle('low', m.ls ? m.ls.broke : left < 120);
 
@@ -825,7 +844,7 @@ export class Hud {
       else if (ex.state === 'called') { obj = t('obj.ex.called', { n: Math.max(0, Math.ceil(ex.landAt - m.t)) }); prog = 1 - Math.max(0, ex.landAt - m.t) / Math.max(1, ex.wait || 60); }
       else if (ex.state === 'landing') { obj = t('obj.ex.landing'); prog = 1; }
       else if (ex.state === 'boarding') { obj = t('obj.ex.boarding', { on: ex.boardedH || 0, n: Math.max(0, Math.ceil(ex.leaveBy - m.t)) }); prog = 1; urgent = true; }
-      else if (ex.state === 'away') obj = t('obj.ex.away');
+      else if (ex.state === 'away') { const n = m.seafAlive.length; obj = t(n ? 'obj.ex.orbitN' : 'obj.ex.orbit', { s: Math.max(0, Math.ceil((ex.leaveAt || m.t) - m.t)), n }); urgent = n > 0; }
       else if (m.boss && !m.boss.dead) { obj = t('obj.ex.boss', { name: m.boss.name }); urgent = true; prog = 1 - m.boss.hp / m.boss.maxHp; }
       else obj = t('obj.ex.go');
     } else obj = t('hud.over');
@@ -934,12 +953,12 @@ export class Hud {
   }
 
   _supply(m) {
-    const sf = m.countAlly('S'), pods = m.pendingPods('S'), st = seafStats(m.kit), lives = m.hd.lives;
-    const key = `${lives}|${m.hd.max}|${sf}|${pods}|${st.max}|${getLang()}`;
+    const sf = m.countAlly('S'), pods = m.pendingPods('S'), st = seafStats(m.kit), lives = m.hd.lives, up = m.seaf.reserve.length;
+    const key = `${lives}|${m.hd.max}|${sf}|${pods}|${st.max}|${up}|${getLang()}`;
     if (this.last.supply === key) return;
     this.last.supply = key;
-    // (0.20) SEAF on the ground, out of the most there can be, on the resource bar
-    $('seafc-v').innerHTML = `${sf}<small>/${st.max}</small>${pods ? ` <i>+${pods}</i>` : ''}`;
+    // (0.20) SEAF on the ground, out of the most there can be, on the resource bar (0.39: and ▲ those aboard the destroyer)
+    $('seafc-v').innerHTML = `${sf}<small>/${st.max}</small>${pods ? ` <i>+${pods}</i>` : ''}${up ? ` <i class="up">▲${up}</i>` : ''}`;
     $('supply').innerHTML = `<span>${t('hud.lives')} <b class="lives${lives <= 4 ? ' low' : ''}">${lives}</b></span><span>SEAF <b>${sf}</b>/${st.max}${pods ? ` <i>+${pods}</i>` : ''}</span>`;
   }
 
@@ -973,15 +992,21 @@ export class Hud {
       if (o.key === key) return;
       o.key = key; o.sub.textContent = sub; o.el.className = 'ord ' + cls;
       if (kind === 'seaf') { this.dkDrop.className = 'dkb drop ' + cls; this.dkDrop.lastElementChild.textContent = sub; }
+      if (kind === 'pickup' && this.dkPick) { this.dkPick.className = 'dkb drop ' + cls; this.dkPick.lastElementChild.textContent = sub; }
     };
     const act = (kind, sub, cls) => set(kind, placing === kind ? t('hud.o.place') : sub, placing === kind ? 'active' : cls);
-    const st = seafStats(m.kit), room = st.max - m.countAlly('S') - m.pendingPods('S');
+    // (0.39) the hangar's pelicans are shared by drops and pickups: ready ones (of how many), or when the next is back
+    const st = seafStats(m.kit), room = Math.max(0, st.max - seafHeld(m)) + sf.reserve.length;
+    const F = fleet(m), rdy = F.filter((v) => v <= tt).length, next = Math.min(...F), pels = F.length > 1 ? ` · ${t('hud.o.pels', { a: rdy, b: F.length })}` : '';
 
     const dropTo = sf.sel >= 0 ? `S${sf.sel + 1}` : '';
     if (!m.alive.length) act('seaf', t('hud.o.noAllies'), 'off');
     else if (room <= 0) act('seaf', t('hud.o.full'), 'off');
-    else if (tt < sf.readyAt) act('seaf', t('hud.o.sec', { n: Math.ceil(sf.readyAt - tt) }), 'cd');
-    else act('seaf', `+${Math.min(st.drop, room)}${dropTo ? ' ' + dropTo : ''}`, 'ready');
+    else if (!rdy) act('seaf', t('hud.o.sec', { n: Math.ceil(next - tt) }), 'cd');
+    else act('seaf', `+${Math.min(st.drop, room)}${dropTo ? ' ' + dropTo : ''}${pels}`, 'ready');
+    if (!m.seafAlive.length) act('pickup', t('hud.o.noSeaf'), 'off');
+    else if (!rdy) act('pickup', t('hud.o.sec', { n: Math.ceil(next - tt) }), 'cd');
+    else act('pickup', t('hud.o.pickN', { n: st.drop }) + pels, 'ready');
 
     const RDY = t('hud.o.ready');
     const cur = (kind, ready) => (none ? [t('hud.o.noSeaf'), 'off'] : kinds.size === 1 && one.kind === kind ? [t('hud.o.active'), 'active'] : [ready, 'ready']);   // orders never run out
@@ -1017,7 +1042,7 @@ export class Hud {
     for (const [what, b] of Object.entries(this.bld)) {
       const lvl = buildLevel(m.kit, what), B = buildStats(what, lvl), n = builtCount(m, what);
       const cls = !lvl ? 'off' : m.wallet.bal < B.cost ? 'poor' : 'ready';
-      const name = t('build.' + what) + (what !== 'foxhole' && lvl ? ` L${lvl}` : '');
+      const name = t('build.' + what) + (!FLAT_BUILDS.has(what) && lvl ? ` L${lvl}` : '');
       const sub = !lvl ? t('hud.b.locked') : B.cost ? t('hud.b.costN', { cr: B.cost }) : t('hud.b.freeShort');
       const on = this.placing === 'build:' + what, key = `${name}|${sub}|${cls}|${n}|${on}`;
       if (b.key !== key) { b.key = key; b.n.textContent = name; b.s.textContent = sub; b.c.textContent = n ? `×${n}` : ''; b.el.className = 'bld ' + cls + (on ? ' on' : ''); }
@@ -1043,7 +1068,7 @@ export class Hud {
       const o = b.dataset.o, src = this.ord[o];
       const n = o === 'disband' ? t('hud.disband') : src ? src.el.querySelector('.n').textContent : o;
       const s = o === 'disband' ? '' : src ? src.sub.textContent : '';
-      const off = o === 'disband' ? !selN : o !== 'seaf' && !any;
+      const off = o === 'disband' ? !selN : o === 'pickup' ? !any : o !== 'seaf' && !any;
       const key = `${n}|${s}|${off}|${src ? src.el.className : ''}`;
       if (b._k === key) return; b._k = key;
       b.querySelector('.n').textContent = n; b.querySelector('.s').textContent = s; fitEl(b.querySelector('.n')); fitEl(b.querySelector('.s'));
@@ -1146,12 +1171,18 @@ export class Hud {
       return `<button type="button" class="tt r-${a.role || 'rifle'}${a.down ? ' down' : ''}" data-pick="${a.id}" title="${esc(m.tag(a))}" style="--sc:${a.sq >= 0 ? (SQUAD_COL[a.sq] || '#9dd8ff') : '#c8d2cc'}"><b>${ROLE_GLYPH[a.role || 'rifle'] || '•'}</b><u style="width:${Math.round(hp * 100)}%"></u></button>`;
     }).join('')}${list.length > max ? `<span class="tt-more">+${list.length - max}</span>` : ''}</div>`;
     let h;
-    if (sel && !sel.dead) {
-      const post = sel.kind === 'post' ? sel : null, hp = sel.maxHp ? Math.round((100 * sel.hp) / sel.maxHp) : null;
+    if (sel && !sel.dead && sel.what === 'lz') {
+      // (0.39) a pickup point: what it is doing, SEND (the troops picked go to it) and CALL OFF
+      const who = sf.sel >= 0 ? `S${sf.sel + 1}` : sf.sel === -2 ? t('tac.picked') : t('hud.all');
+      h = `<div class="ts-h">${esc(t('build.lz').toUpperCase())}</div><div class="ts-r">${esc(lzStatus(m, sel))}</div>`
+        + `<div class="ts-doors"><button type="button" class="btn tsd" data-sa="man">${esc(t('sel.lzSend', { who }))}</button><button type="button" class="btn tsd demo" data-sa="demo">${esc(t('sel.lzOff'))}</button></div>`
+        + `<div class="ts-b">${esc(t('sel.lz'))}</div>`;
+    } else if (sel && !sel.dead) {
+      const post = sel.kind === 'post' ? sel : null, hp = sel.maxHp ? Math.round((100 * sel.hp) / sel.maxHp) : sel.wireMax ? Math.round((100 * Math.max(0, sel.wireHp)) / sel.wireMax) : null;
       const name = post ? t('build.' + post.what) : sel.kind === 'turret' ? sel.name || t('lab.sentry') : t('sel.site');
       const crew = post ? m.seafAlive.filter((a) => a.post === post) : [];
       const who = sf.sel >= 0 ? `S${sf.sel + 1}` : sf.sel === -2 ? t('tac.picked') : t('hud.all');
-      h = `<div class="ts-h">${esc(name.toUpperCase())}${post && post.what !== 'foxhole' ? ` <i>${esc(t('card.level', { n: post.lvl }))}</i>` : ''}</div>`
+      h = `<div class="ts-h">${esc(name.toUpperCase())}${post && !noLvl(post.what) ? ` <i>${esc(t('card.level', { n: post.lvl }))}</i>` : ''}</div>`
         + (hp !== null ? `<i class="ts-hp"><u style="width:${hp}%"></u></i>` : '')
         + (post && post.cap ? `<div class="ts-r">${esc(t('sel.crew'))} <b>${post.crew}/${post.cap}</b>${post.crew ? '' : ` · <em class="ts-solo">${esc(t('sel.solo'))}</em>`}</div>` : '')
         + (crew.length ? tiles(crew) : '')
@@ -1183,17 +1214,19 @@ export class Hud {
     this.selObj = s && !s.dead ? s : null;
     if (!s || !m || !pos) { if (!c.classList.contains('hidden')) c.classList.add('hidden'); this.selKey = ''; return; }
     const post = s.kind === 'post' ? s : null, sentry = s.kind === 'turret' ? s : null, site = !post && !sentry ? s : null;
-    const hp = s.maxHp ? Math.round((100 * s.hp) / s.maxHp) : null;
-    const key = [s.id || s.kind, post && post.crew, post && post.garrison, hp, post && post.repairing, sentry && Math.round(sentry.ammo), m.seaf.sel, getLang()].join('|');
+    const hp = s.maxHp ? Math.round((100 * s.hp) / s.maxHp) : s.wireMax ? Math.round((100 * Math.max(0, s.wireHp)) / s.wireMax) : null;
+    const lzs = post && post.what === 'lz' ? lzStatus(m, post) : '';
+    const key = [s.id || s.kind, post && post.crew, post && post.garrison, hp, post && post.repairing, sentry && Math.round(sentry.ammo), m.seaf.sel, getLang(), lzs].join('|');
     if (force || key !== this.selKey) {
       this.selKey = key;
       const who = m.seaf.sel >= 0 ? `S${m.seaf.sel + 1}` : t('hud.all');
       let name, sub = '', btns = '';
       if (post) {
-        name = `${esc(t('build.' + post.what).toUpperCase())}${post.what !== 'foxhole' ? ` <i>${esc(t('card.lvShort', { n: post.lvl }))}</i>` : ''}`;
+        name = `${esc(t('build.' + post.what).toUpperCase())}${!noLvl(post.what) ? ` <i>${esc(t('card.lvShort', { n: post.lvl }))}</i>` : ''}`;
         if (post.cap) sub = `${esc(t('sel.crew'))} ${post.crew}/${post.cap}${post.garrison ? ` · ${esc(t('sel.garrison'))} ${post.garrison}` : ''}`;
         if (post.cap && post.garrison < post.cap && INSIDE.has(post.what)) btns += `<button class="dr in" type="button" data-sa="in" title="${esc(t('sel.inT', { who }))}" aria-label="${esc(t('sel.inT', { who }))}">${DOOR_IN}</button>`;
         if (post.garrison) btns += `<button class="dr out" type="button" data-sa="out" title="${esc(t('sel.outT'))}" aria-label="${esc(t('sel.outT'))}">${DOOR_OUT}</button>`;
+        if (lzs) { sub = esc(lzs); btns += `<button class="dr in" type="button" data-sa="man" title="${esc(t('sel.lzSend', { who }))}" aria-label="${esc(t('sel.lzSend', { who }))}">${DOOR_IN}</button>`; }
       } else if (sentry) {
         name = esc((sentry.name || t('lab.sentry')).toUpperCase());
         sub = `${esc(t('card.ammo'))} ${Math.max(0, Math.round(sentry.ammo))}/${sentry.maxAmmo}`;
@@ -1450,7 +1483,7 @@ export function runBriefing({ info, mission, touch, onContinue, onEnd, onCancel,
 
 // ---------------- the armory ----------------
 // css class per armory section (the styles predate the section ids)
-const SEC_SLUG = { classified: 'classified', loadout: 'loadout', orbitals: 'orbitals', utilities: 'utilities', eagles: 'eagles', defense: 'minefields', gun: 'ship-gun', uav: 'uav-scan', seaf: 'seaf-troops', specialists: 'seaf-specialists', build: 'buildables', support: 'squad-support' };
+const SEC_SLUG = { classified: 'classified', loadout: 'loadout', orbitals: 'orbitals', utilities: 'utilities', hangar: 'hangar', eagles: 'eagles', defense: 'minefields', gun: 'ship-gun', uav: 'uav-scan', seaf: 'seaf-troops', specialists: 'seaf-specialists', build: 'buildables', support: 'squad-support' };
 const pips = (lv, max) => { let s = ''; for (let i = 0; i < max; i++) s += i < lv ? '●' : '○'; return s; };
 
 // One line of numbers under an item's name.
@@ -1465,13 +1498,13 @@ function statLine(it, kit) {
     }
     if (o.k === 'beam') return `${t('st.beam', { dps: Math.round(o.beam.dps), s: f0(o.beam.dur) })} · ${rc(o.cd)}`;
     // (0.23) an Eagle calls on the Hangar's Eagle (its calls, then a rearm); a minefield: how many mines, how hard they hit
-    const H = hangarStats(kit), eg = o.cat === 'EAGLE' ? (H.level ? ` · ${t('st.eagle', { n: H.uses, s: H.rearm })}` : ` · ${t('st.needsHangar')}`) : '';
+    const H = hangarStats(kit), eg = o.cat === 'EAGLE' ? ` · ${t('st.eagle', { n: H.uses, s: H.rearm })}` : '';
     if (o.k === 'mines') return `${t('st.mines', { n: o.n, dmg: Math.round(o.dmg), s: f0(o.life) })}${o.heavyOnly ? ` · ${t('st.minesAT')}` : o.fire ? ` · ${t('st.minesFire')}` : ''} · ${rc(o.cd)}`;
     if (o.k === 'zone') return `${t('st.zone', { r: f0(o.zone.r), s: f0(o.zone.sec) })}${eg || ` · ${rc(o.cd)}`}`;
     return `${t('st.strike', { dmg: Math.round(o.dmg), n: o.n, r: f0(o.splash) })}${eg || ` · ${rc(o.cd)}`}`;
   }
-  if (id === 'hangar') { const H = hangarStats(kit); return H.level ? t('st.hangar', { n: H.uses, s: H.rearm, p: Math.round((1 / H.pelican - 1) * 100) }) : t('st.hangar0'); }
   const s = seafStats(kit);
+  if (id === 'pel') return t('st.pel', { n: fleetSize(kit), s: Math.round(s.cool) });      // (0.39) the hangar's pelicans
   if (id === 'uav') { const u = uavStats(kit.uav), lv = Math.min(C.radar.every.length, kit.uav); return t('st.uav', { r: u.r, s: u.sec, cd: u.cd, rad: C.radar.every[lv - 1] }); }
   if (id === 'seaf.cap') return t('st.seafCap', { n: s.max });
   if (id === 'seaf.drop') return t('st.seafDrop', { n: s.drop, s: s.cool });
@@ -1507,7 +1540,7 @@ function statLine(it, kit) {
 function kitAt(kit, it, L) {
   const k = JSON.parse(JSON.stringify(kit)), id = it.id;
   if (it.orb) k.owned[it.orb] = Math.max(1, L);
-  else if (id === 'hangar') k.hangar = L;
+  else if (id === 'pel') k.pel = C.hangar.fleet.start + L;
   else if (id === 'uav') k.uav = L;
   else if (id.startsWith('uavb.')) { k.uavb = k.uavb || {}; k.uavb[id.slice(5)] = L; }
   else if (id.startsWith('seaf.')) k.seaf[id.slice(5)] = L;
@@ -1527,7 +1560,7 @@ function keyAt(it, kit, L) {
     if (o.k === 'mines') return `${o.n}×${Math.round(o.dmg)}`;
     return String(Math.round(o.dmg));
   }
-  if (id === 'hangar') { const H = hangarStats(k); return H.level ? t('st.k.hangar', { n: H.uses, s: H.rearm }) : '—'; }
+  if (id === 'pel') return String(fleetSize(k));
   if (id === 'uav') return t('st.k.m', { n: uavStats(L).r });
   if (id.startsWith('uavb.')) { const b = uavBuff(k); return `+${pc(id === 'uavb.speed' ? b.speed : b.dodge)}`; }
   const s = seafStats(k), g = gunStats(k);
@@ -1578,7 +1611,7 @@ function upgradeLines(it, kit) {
 
 // Draw the armory into root. opts: { kit, wallet, live, onBuy(id), onEquip(id), onUnequip(slot), note }
 // The armory's tabs, and which sections each holds.
-export const SHOP_TABS = [{ id: 'orb', secs: ['loadout', 'orbitals', 'utilities', 'defense'] }, { id: 'eagle', secs: ['eagles'] }, { id: 'ship', secs: ['gun', 'uav', 'support'] }, { id: 'seaf', secs: ['seaf', 'specialists'] }, { id: 'build', secs: ['build'] }, { id: 'classified', secs: ['classified'] }];
+export const SHOP_TABS = [{ id: 'orb', secs: ['loadout', 'orbitals', 'utilities', 'defense'] }, { id: 'eagle', secs: ['hangar', 'eagles'] }, { id: 'ship', secs: ['gun', 'uav', 'support'] }, { id: 'seaf', secs: ['seaf', 'specialists'] }, { id: 'build', secs: ['build'] }, { id: 'classified', secs: ['classified'] }];
 // (0.25) The rank bar: your rank and its name, one segment a rank (filled as far as your missions go), and what comes next.
 export function rankBar(tier, done, kills = false) {
   const at = kills ? C.ranks.tutKills : C.ranks.at, N = at.length, box = el('div', 'rankbar');
@@ -1806,7 +1839,7 @@ export function fillDebrief(info, res, session, block = '', startCr = null) {
   $('d-credits').innerHTML = tbl([
     [t('deb.c.kills'), c.kills], [t('deb.c.bases'), c.bases], [t('deb.c.pois'), c.pois], [t('deb.c.sides'), c.sides || 0], [t('deb.r.clear'), c.clear || 0], [t('deb.c.breaches'), c.breaches],
     [t('deb.c.drops'), c.drops || 0], [t('deb.c.civ'), c.civ || 0], [t('deb.c.boss'), c.boss || 0], [t('deb.c.objective'), c.objective], [t('deb.c.extraction'), c.extraction],
-    [t('deb.c.earned'), c.total, 'sum'], [t('deb.c.spent'), -c.spent], [t('deb.c.seafLives', { n: c.seafLost || 0 }), -(c.seafLives || 0)], [t('deb.c.balance'), c.balance, 'sum', true],
+    [t('deb.c.earned'), c.total, 'sum'], [t('deb.c.spent'), -c.spent], [t(res.leftS ? 'deb.c.seafLivesLeft' : 'deb.c.seafLives', { n: c.seafLost || 0, k: res.leftS || 0 }), -(c.seafLives || 0)], [t('deb.c.balance'), c.balance, 'sum', true],
   ].filter(([, v, , keep]) => v !== 0 || keep));
   $('d-deaths').innerHTML = deathList(res);
   const top = Object.entries(s.stratBy).sort((a, q) => q[1] - a[1]).slice(0, 3).map(([id, n]) => `${STRATS[id].name} x${n}`).join(', ');
@@ -2097,7 +2130,7 @@ export function weaponInfo(m, i) {
 // A buildable, for the tactical menu's hover card: what it does, its cost and build time at the armory level.
 export function buildInfo(m, what) {
   const lvl = buildLevel(m.kit, what), B = buildStats(what, Math.max(1, lvl));
-  let h = `<div class="ic-h">${esc(t('build.' + what).toUpperCase())}${what !== 'foxhole' ? ` <i>${lvl ? t('card.level', { n: lvl }) : t('hud.b.locked')}</i>` : ''}</div>`;
+  let h = `<div class="ic-h">${esc(t('build.' + what).toUpperCase())}${!noLvl(what) ? ` <i>${lvl ? t('card.level', { n: lvl }) : t('hud.b.locked')}</i>` : ''}</div>`;
   h += row(t('card.cost'), B.cost ? `${B.cost} CR` : t('hud.b.freeShort')) + row(t('card.buildTime'), `${B.sec} S`);
   if (B.hp) h += row(t('sel.hp'), String(B.hp));
   if (B.cap) h += row(t('sel.crew'), String(B.cap));
@@ -2156,7 +2189,7 @@ export function buildShort(m, what) {
   if (!lvl) return tl1(t('build.' + what), '', [], t('hud.b.locked'), true);
   const parts = [B.cost ? t('hud.b.costN', { cr: B.cost }) : t('hud.b.freeShort'), t('tip.build', { n: Math.round(B.sec / seafStats(m.kit).buildSpeed) })];
   if (B.cap) parts.push(t('tip.crew', { n: B.cap }));
-  return tl1(t('build.' + what), what !== 'foxhole' ? `L${lvl}` : '', parts, m.wallet.bal < B.cost ? t('tip.poor') : '', m.wallet.bal < B.cost);
+  return tl1(t('build.' + what), !noLvl(what) ? `L${lvl}` : '', parts, m.wallet.bal < B.cost ? t('tip.poor') : '', m.wallet.bal < B.cost);
 }
 export function formShort(m, f) { return tl1(t('form.' + f), '', [t('form.' + f + '.b')], ''); }
 export function stratShort(m, id) {

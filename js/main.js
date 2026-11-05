@@ -22,7 +22,7 @@ const handsBusy = (m) => !!m && (supplyFilling(m) || hbFilling(m));     // the s
 import { t, tEn, setLang, getLang, applyDom, startLang } from './i18n.js';
 import { clampLevel, LEVELS, levelName } from './difficulty.js';
 import { answerTime } from './sim/planner.js';
-import { POSTS, makePost, foxholeSlots } from './sim/posts.js';
+import { POSTS, makePost, foxholeSlots, turns, wirePlan } from './sim/posts.js';
 import { addJammer } from './sim/sides.js';
 import { FORMS, targetSquads } from './sim/seaf.js';
 import { fireSlot } from './sim/player.js';
@@ -63,7 +63,10 @@ let firePending = false;
 let acc = 0, lastT = 0, overAt = 0, endHandled = false;
 let focusT = 0, focusTo = 0.5;
 let terrainKey = '', briefCtl = null, settingsReturn = null, namesReturn = null, armNote, armBal = 0;
-let placing = null; // desktop placement mode for orders: 'seaf' | 'move' | 'protect' | 'attack' | 'build:<what>'
+let placing = null; // desktop placement mode for orders: 'seaf' | 'pickup' | 'move' | 'protect' | 'attack' | 'build:<what>'
+// (0.39) while a build is being placed: which way it faces (null: away from the Helldivers' landing, as before) and, for the
+// bastions, ring or line. Q / E (or the turn button) turn it; R (or the shape button) switches ring and line.
+let placeFace = null, placeShape = 'ring';
 let sel = null;      // the selected post, sentry or defence site (posts.js): a panel over it shows, and its reach on the map
 let tac = false;     // the tactical screen (troops, builds, ship weapons, armory) is open; it runs in real time (0.18)
 let armed = false;   // a weapon is armed: the reticle shows and a click calls it. Otherwise the cursor selects things.
@@ -163,6 +166,7 @@ document.body.classList.add('rts');     // (0.20: the HUD as an RTS, css)
 const input = new Input(canvas, $('minimap'), cam, {
   weapon: (i) => { if (!act()) return; if (live() && hbFilling(mission)) { hbTap(i); return; } if (live() && supplyFilling(mission)) { supTap(i); return; } setDrawing(false); arm(i); },
   cycle: (d) => {
+    if (placeTurn(d * Math.PI / 12)) return;      // (0.39) placing a build: Q / E turn it
     if (!live() || handsBusy(mission)) return;
     const p = mission.player, n = p.slots.length;
     let i = armed ? p.weapon : d > 0 ? n - 1 : 0;
@@ -548,10 +552,10 @@ const plan = () => state === 'play' && soft && !!mission && !mission.over;
 const act = () => live() || plan();
 let planQ = [];
 function selNow() { const sf = mission.seaf; if (sf.sel === -2) targetSquads(mission); return { sel: sf.sel, multi: sf.multi ? sf.multi.slice() : null }; }
-function queuePlan(kind, x, y, run) {
+function queuePlan(kind, x, y, run, o = null) {
   if (planQ.length >= 24) { audio.deny(); hud.toast(t('plan.full'), 1400); return { ok: false, reason: 'planfull' }; }
   const s0 = selNow();
-  planQ.push({ kind, x, y, sq: s0.sel >= 0 ? [s0.sel] : s0.multi || [], sel: s0, run });
+  planQ.push({ kind, x, y, sq: s0.sel >= 0 ? [s0.sel] : s0.multi || [], sel: s0, run, face: o ? o.face : undefined, shape: o ? o.shape : undefined });
   audio.chirp(); hud.setPlanCount(planQ.length); if (tac) hud.fillTactical(mission, sel);
   return { ok: true, queued: true };
 }
@@ -602,7 +606,9 @@ const DENY_KEYS = new Set(['artyrange', 'nocoverage', 'cooldown', 'full', 'nosea
 const deny = (r) => (DENY_KEYS.has(r) ? t('deny.' + r) : '');
 function setPlacing(kind) {
   if (kind) { setDrawing(false); disarm(); }
+  if (kind !== placing) placeFace = null;           // (0.39) a new build starts facing the default way (the bastions keep their shape)
   placing = kind; hud.setPlacing(kind); document.body.classList.toggle('placing', !!kind);
+  placeTools();
   ghostAt = kind && input.touch ? aimWorld() : null;
   hud.placeOk(kind && input.touch ? t('place.tapTo', { what: kind.startsWith('build:') ? t('build.' + kind.slice(6)) : t('hud.p.' + kind) }) : '');
   // (0.21) phones: the build drawer folds away once a build is picked, so the map is clear to place it
@@ -629,6 +635,7 @@ function squadAct(kind, viaKey) {
   if (!live()) return;
   audio.unlock();
   if (kind === 'draw') {
+    if (viaKey && placing && placing.startsWith('build:')) { placeShapeToggle(); return; }     // (0.39) placing a build: R is the bastions' ring or line
     if (!drawing && !mission.seafAlive.length) { audio.deny(); hud.toast(deny('noseaf')); return; }
     setDrawing(!drawing);
   } else if (kind === 'disband' && viaKey && sel && sel.kind === 'post' && !sel.dead) { const r = mission.demolishPost(sel); if (r && r.ok) audio.chirp(); else { audio.deny(); hud.toast(deny(r && r.reason), 1400); } if (tac) hud.fillTactical(mission, sel); }     // (0.36) Delete with a building selected: blow it up
@@ -670,13 +677,36 @@ function snap(x, y) {
   return best ? { x: best.x, y: best.y } : { x, y };
 }
 function runOrder(kind, x, y) {
-  if (plan()) return queuePlan(kind, x, y, () => runOrderNow(kind, x, y));
-  return runOrderNow(kind, x, y);
+  const o = kind.startsWith('build:') ? buildOpts(kind.slice(6), x, y) : null;
+  if (plan()) return queuePlan(kind, x, y, () => runOrderNow(kind, x, y, o), o);
+  return runOrderNow(kind, x, y, o);
 }
-function runOrderNow(kind, x, y) {
+// (0.39) how a build is put down: which way it faces and (bastions) its shape
+function buildOpts(what, x, y) {
+  return { face: Number.isFinite(placeFace) ? placeFace : Math.atan2(y - mission.hy, x - mission.hx), shape: what === 'bastion' ? placeShape : undefined };
+}
+function placeTurn(d) {
+  if (!placing || !placing.startsWith('build:') || !act() || !turns(placing.slice(6))) return false;
+  const g = ghostAt || aimWorld();
+  const base = Number.isFinite(placeFace) ? placeFace : g ? Math.atan2(g.y - mission.hy, g.x - mission.hx) : 0;
+  placeFace = base + d; audio.click(); placeTools();
+  return true;
+}
+function placeShapeToggle() {
+  if (!placing || placing !== 'build:bastion' || !act()) return false;
+  placeShape = placeShape === 'line' ? 'ring' : 'line'; audio.click(); placeTools();
+  return true;
+}
+// the turn and shape buttons for what is being placed (and, on a computer, the keys for them)
+function placeTools() {
+  const what = placing && placing.startsWith('build:') ? placing.slice(6) : null;
+  hud.placeTools(what && turns(what) ? { turn: true, shape: what === 'bastion' ? placeShape : null } : null);
+}
+function runOrderNow(kind, x, y, o = null) {
   const m = mission;
-  if (kind.startsWith('build:')) return m.seafBuild(kind.slice(6), x, y);
+  if (kind.startsWith('build:')) return m.seafBuild(kind.slice(6), x, y, o || {});
   if (kind === 'seaf') return m.callSeaf(x, y);
+  if (kind === 'pickup') return m.callPickup(x, y);      // (0.39) a pickup point
   if (kind === 'auto' || kind === 'escort') return m.seafOrder(kind);
   const p = snap(x, y);
   return m.seafOrder(kind, p.x, p.y);
@@ -707,6 +737,8 @@ function placeAt(x, y) {
 let ghostAt = null;
 hud.onPlaceOk = () => { if (!placing || !ghostAt || !act()) return; audio.unlock(); placeAt(ghostAt.x, ghostAt.y); };
 hud.onPlaceCancel = () => { setPlacing(null); audio.click(); };
+hud.onPlaceTurn = () => { audio.unlock(); placeTurn(Math.PI / 4); };      // (0.39) the turn button: an eighth of a turn
+hud.onPlaceShape = () => { audio.unlock(); placeShapeToggle(); };
 
 // ---------------- screens and flow ----------------
 function toTitle() {
@@ -1483,7 +1515,7 @@ function onEvent(ev, now) {
     case 'supply_launch': audio.slowOut(); audio.supLaunch(ev.fast); break;
     case 'supply_down': audio.supDown(L, P); break;
     case 'supply_no': audio.deny(); break;
-    case 'board': audio.board(); break;
+    case 'board': case 'seaf_pickup': audio.board(); break;     // (0.39: a trooper going up into a pickup pelican too)
     case 'shuttle': audio.shuttle(Math.max(0.5, L), P); break;
     case 'civ_down': audio.civDown(L, P); break;
     case 'extract_call': audio.alarm(); hud.message(t('msg.exCall'), 2400); break;
@@ -1593,7 +1625,7 @@ function frame(ts) {
     const p = mission.player;
     if (sel && (sel.dead || (sel.kind !== 'post' && sel.kind && !mission.assets.includes(sel)))) deselect();
     const ga = placing ? ghostAt || (input.touch ? null : aimWorld()) : null;     // (0.22: the ghost of what is being placed)
-    renderer.draw(mission, cam, { now, aim: drawing || box ? null : { x: p.aimX, y: p.aimY }, armed, placing, ghost: ga, plan: planQ, draw: stroke, snap: (x, y) => snap(x, y), sel, box });
+    renderer.draw(mission, cam, { now, aim: drawing || box ? null : { x: p.aimX, y: p.aimY }, armed, placing, ghost: ga, plan: planQ, draw: stroke, snap: (x, y) => snap(x, y), sel, box, pface: placeFace, pshape: placeShape });
     if (sel) placeSel();
     sizeMini();
     renderer.drawMinimap($('minimap'), mission, cam);
@@ -1672,5 +1704,6 @@ window.__game = { hud, audio, music,
   setSetting: (k, v) => { settings[k] = v; onSettingChange(k); },
   makePost: (w, x, y, o) => (mission ? makePost(mission, w, x, y, o) : null), addJammer: (x, y) => (mission ? addJammer(mission, x, y) : null), select: (o) => select(o), get sel() { return sel; }, buildMenu, setTac, get tac() { return tac; },
   radioLog, tickRadio: () => { if (castRadio && mission && !mission.over) castRadio.tick(mission); }, get castRadio() { return castRadio; },
+  wirePlan: (x, y, f) => (mission ? wirePlan(mission, x, y, f) : null), placeTurn: (d) => placeTurn(d), placeShapeToggle: () => placeShapeToggle(), get placeFace() { return placeFace; }, get placeShape() { return placeShape; },
   arm, disarm, get armed() { return armed; }, clickAt, commandAt, get plan() { return planQ.length; }, get ghost() { return ghostAt; }, get placing2() { return placing; }, setPlacing, deselect, setHideUi, get hideUi() { return hideUi; }, get held() { return session && session.held; }, goHome,
 };

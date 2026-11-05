@@ -2,7 +2,8 @@
 // a crew and has none), its health when hurt, a wrench while it is being patched up, and, when selected, its reach and brackets.
 // Turrets the Helldivers called (sentries) show their reach only when selected too.
 import { t as tr } from '../i18n.js';
-import { postReach, foxholeSlots, demoRadius } from '../sim/posts.js';
+import { postReach, foxholeSlots, demoRadius, wireEnds } from '../sim/posts.js';
+import { lzStatus } from '../sim/seaf.js';
 
 const TAU = Math.PI * 2;
 function ring(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, Math.max(0.01, r), 0, TAU); }
@@ -48,12 +49,52 @@ export function trenchArt(ctx, pts, face, f, a = 0, b = 1) {
   ctx.strokeStyle = 'rgba(70,56,36,0.9)'; ctx.lineWidth = 0.35 * f; path(-fx * 1.15, -fy * 1.15); ctx.stroke();     // the back lip
   ctx.restore();
 }
+// (0.39) Concertina wire from end to end: a stake at each end, and the coils, loop after loop, a shadow under them. k: how much
+// of it is still standing (a heavy tearing it flattens the coils).
+export function wireArt(ctx, a, b, f, k = 1, ghost = false) {
+  const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, ang = Math.atan2(dy, dx);
+  // the coils: overlapping loops, a little apart, so from above they read as one springy roll (flatter as it is torn)
+  const z = Math.min(1.6, f), n = Math.max(4, Math.round(L / 0.5)), rx = 0.95 * z, ry = 0.95 * z * (0.3 + 0.7 * k);
+  ctx.save(); ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1.7 * ry; ctx.beginPath(); ctx.moveTo(a.x + 0.4, a.y + 0.4); ctx.lineTo(b.x + 0.4, b.y + 0.4); ctx.stroke();
+  ctx.strokeStyle = ghost ? 'rgba(220,235,245,0.85)' : `rgba(190,198,205,${0.45 + 0.4 * k})`; ctx.lineWidth = Math.max(0.06, 0.075 * f);
+  for (let i = 0; i < n; i++) {
+    const s = (i + 0.5) / n, x = a.x + dx * s, y = a.y + dy * s;
+    ctx.beginPath(); ctx.ellipse(x, y, rx * 0.55, ry, ang, 0, TAU); ctx.stroke();
+  }
+  ctx.strokeStyle = ghost ? 'rgba(230,240,250,0.7)' : `rgba(220,226,230,${0.3 + 0.3 * k})`;
+  for (let i = 0; i < n; i += 2) { const s = (i + 1) / n, x = a.x + dx * s, y = a.y + dy * s; ctx.beginPath(); ctx.arc(x - ux * 0.2, y - uy * 0.2, Math.max(0.05, 0.08 * f), 0, TAU); ctx.stroke(); }     // (the barbs)
+  ctx.strokeStyle = 'rgba(150,158,164,0.55)'; ctx.beginPath(); ctx.moveTo(a.x - uy * ry * 0.8, a.y + ux * ry * 0.8); ctx.lineTo(b.x - uy * ry * 0.8, b.y + ux * ry * 0.8); ctx.moveTo(a.x + uy * ry * 0.8, a.y - ux * ry * 0.8); ctx.lineTo(b.x + uy * ry * 0.8, b.y - ux * ry * 0.8); ctx.stroke();      // the two strands it is pegged out on
+  ctx.fillStyle = '#4a3a26';
+  for (const e of [a, b]) { ctx.beginPath(); ctx.arc(e.x, e.y, Math.max(0.28, 0.24 * f), 0, TAU); ctx.fill(); }
+  ctx.restore();
+}
+// (0.39) A pickup point: a ring of blinking blue lights round the spot, chevrons pointing in, and the pelican's mark in the middle.
+export function lzArt(ctx, x, y, R, now, px, busy = false) {
+  ctx.save();
+  ctx.strokeStyle = `rgba(95,208,255,${busy ? 0.9 : 0.7})`; ctx.lineWidth = px(1.6); ctx.setLineDash([px(6), px(5)]); ctx.lineDashOffset = -now * px(8);
+  ring(ctx, x, y, R); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(95,208,255,0.08)'; ring(ctx, x, y, R); ctx.fill();
+  for (let k = 0; k < 8; k++) {
+    const a = (k / 8) * TAU, on = Math.floor(now * 3 + k * 0.5) % 2 === 0;
+    ctx.fillStyle = on ? '#8fe0ff' : 'rgba(95,208,255,0.35)'; ring(ctx, x + Math.cos(a) * R, y + Math.sin(a) * R, Math.max(0.5, px(2.4))); ctx.fill();
+  }
+  ctx.strokeStyle = 'rgba(143,224,255,0.85)'; ctx.lineWidth = px(1.8);
+  for (let k = 0; k < 4; k++) {
+    const a = (k / 4) * TAU + Math.PI / 4, r1 = R * 0.62, r2 = R * 0.42, w = 0.32;
+    ctx.beginPath(); ctx.moveTo(x + Math.cos(a - w) * r1, y + Math.sin(a - w) * r1); ctx.lineTo(x + Math.cos(a) * r2, y + Math.sin(a) * r2); ctx.lineTo(x + Math.cos(a + w) * r1, y + Math.sin(a + w) * r1); ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(143,224,255,0.9)'; ctx.beginPath(); ctx.moveTo(x + R * 0.18, y); ctx.lineTo(x - R * 0.12, y - R * 0.12); ctx.lineTo(x - R * 0.05, y); ctx.lineTo(x - R * 0.12, y + R * 0.12); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
 // How much bigger than its true size a post is drawn when zoomed out: the same as the troopers (render/units.js), so whoever is
 // in a post's places (sim/posts.js) stays inside it at any zoom.
 const grow = (px) => Math.max(1, px(2));
 function art(ctx, p, now, px, t) {
   const x = p.x, y = p.y, hit = t - p.hurtAt < 0.12, f = grow(px);
   if (p.what === 'bridge') { bridgeArt(ctx, p, now, px); return; }
+  if (p.what === 'wire') { const E = p.ends || wireEnds(x, y, p.face0 ?? p.face ?? 0); wireArt(ctx, E[0], E[1], f, p.wireMax ? Math.max(0, p.wireHp) / p.wireMax : 1, !!p.ghost); return; }
+  if (p.what === 'lz') { lzArt(ctx, x, y, p.r || 9, now, px, !!p.pel); return; }
   if (p.what === 'foxhole' && (p.cap || 3) > 3) { trenchArt(ctx, p.slots || foxholeSlots(x, y, p.face0 ?? p.face ?? 0, p.cap), p.face0 ?? p.face ?? 0, f); return; }
   if (p.what === 'foxhole') {
     // a dug pit with its spoil heaped round the rim
@@ -205,7 +246,7 @@ export function sentryArt(ctx, s, now, px, hit, col) {
 }
 
 // A small picture of a build for the tactical build screen (its tile), drawn with the same art as on the map.
-const ICON_K = { foxhole: 14, bastion: 7.5, mg: 11, lookout: 11, bridge: 2.6, tower: 12, sam: 13, arty: 6.4 };
+const ICON_K = { wire: 7.5, foxhole: 14, bastion: 7.5, mg: 11, lookout: 11, bridge: 2.6, tower: 12, sam: 13, arty: 6.4 };
 export function postIcon(cv, what) {
   const ctx = cv.getContext('2d'), S = cv.width, k = (ICON_K[what] || 8) * (S / 112), px = (n) => n / k;
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, S, S);
@@ -213,7 +254,8 @@ export function postIcon(cv, what) {
   g.addColorStop(0, 'rgba(70,96,74,0.95)'); g.addColorStop(1, 'rgba(20,34,24,0.95)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
   ctx.setTransform(k, 0, 0, k, S / 2 + (what === 'arty' ? -S * 0.12 : 0), S / 2 + (what === 'arty' ? S * 0.06 : 0));
-  const p = { what, x: 0, y: 0, face: what === 'arty' ? -0.5 : -0.6, hurtAt: -99, manned: true, r: 5.2, reach: 60, span: what === 'bridge' ? { x1: -16, y1: 10, x2: 16, y2: -10 } : null, w: 12 };
+  const p = { what, x: 0, y: 0, face: what === 'arty' ? -0.5 : -0.6, hurtAt: -99, manned: true, r: 5.2, reach: 60, span: what === 'bridge' ? { x1: -16, y1: 10, x2: 16, y2: -10 } : null, w: 12,
+    ends: what === 'wire' ? [{ x: -5.6, y: 2.2 }, { x: 5.6, y: -2.2 }] : undefined };
   if (what === 'bastion') {
     // the ring of walls (on the map they are drawn with the rest of the cover)
     for (let i = 0; i < 8; i++) {
@@ -237,9 +279,11 @@ function useRing(ctx, x, y, R, px, now) {
 export function drawPosts(ctx, m, now, px, labels, scale, sel) {
   const t = m.t;
   for (const s of m.coverSites || []) if (s.kind !== 'built' && !s.dead && s !== sel) useRing(ctx, s.x, s.y, Math.max(px(10), (s.R || 8) * 0.8), px, now);
+  for (const k of m.trenches || []) trenchArt(ctx, k.pts, k.face, grow(px));      // (0.39) the trenches between foxholes
   for (const p of m.posts || []) {
     if (p.dead) continue;
     art(ctx, p, now, px, t);
+    if (p.what === 'lz') { labels.push({ x: p.x, y: p.y, dy: -p.r * scale - 8, text: `${tr('build.lz').toUpperCase()} · ${lzStatus(m, p)}`, col: '#8fe0ff', pri: 2 }); continue; }
     const R = p.what === 'bastion' || (p.what === 'foxhole' && p.cap > 3) ? p.r : p.what === 'bridge' ? 3 : Math.max(4, px(9));     // (0.28: round the whole trench)
     if (p.cap && p !== sel) useRing(ctx, p.x, p.y, R + px(4), px, now);
     if (p.maxHp > 0 && p.hp < p.maxHp) hpBar(ctx, p.x, p.y + R + px(4), Math.max(8, px(26)), px(3), p.hp / p.maxHp, p.hp > p.maxHp * 0.35 ? '#7dff9b' : '#ff4a4a');

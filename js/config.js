@@ -54,7 +54,11 @@ export const CONFIG = {
               defendChance: 0.4, defendN: 5 },
   // The troop pelican: flies in, hovers a moment while the troops fast-rope down, then climbs away. Its belly autocannon
   // shoots any enemy it can see while it is on station.
-  pelican:  { speed: 92, approach: 330, hover: 1.6, climb: 4.5, dropEvery: 0.22, gunRange: 66, gunEvery: 0.3, gunDmg: 30, gunSplash: 2.4, gunAcc: 0.85 },
+  // (0.39) Every pelican (SEAF drops, pickups, cargo) comes down from orbit to where it is going in inSec, takes workSec there to set
+  // its load down (or take it aboard) and climbs away. A pickup point takes in whoever is within pickR of it; the pelican boards
+  // them from boardR.
+  pelican:  { speed: 92, approach: 330, inSec: 5, workSec: 3, climb: 4.5, gunRange: 66, gunEvery: 0.3, gunDmg: 30, gunSplash: 2.4, gunAcc: 0.85,
+              pickR: 9, boardR: 16, lzSlots: 12 },
   // SEAF specialists. A medic patches up anyone near it. A spotter radios in an Eagle fire mission on a big group or a heavy.
   // (0.26) a Medic heals anyone hurt within 20 m with the stim pistol (a full stim when close), and revives downed SEAF: a trooper
   // who falls with a Medic in reach goes down instead, for downSec, and is back up reviveSec after the Medic gets to work.
@@ -92,8 +96,15 @@ export const CONFIG = {
   // blastMin, at most blastMax) for dmg (x mult by kind). The charges are shaped: allies take nothing.
   demolish: { fuseSec: 3, blastPad: 8, blastMin: 10, blastMax: 26, dmg: 650, mult: { L: 1, M: 1, H: 0.6, B: 0.5 } },
   build:    { r: 12, perHand: 0.5, maxHands: 12, builderR: 20, levels: 5, crateR: 16, repair: 14, repairQuiet: 4, repairClear: 40, slowmo: 0.3,
-              foxhole: { cost: 0,   sec: 6,  cap: 3, mul: 0.8, rof: 1.3 },
-              bastion: { cost: 100, sec: 14, n: 8, R: 10, mul: 0.55, unlock: 0, up: 120 },
+              // (0.39) concertina wire: a run of len metres that any section put down within snap metres of an end carries on from.
+              // A light enemy that walks into it stops for stopSec, then crawls through at light x its speed; a medium wades through
+              // at medium x; a heavy tears it (tear hp a second, of hp) and keeps going at heavy x. Anything inside band metres of
+              // the wire is in it. Nobody aims at it, and it is no cover.
+              wire:    { cost: 25,  sec: 5, len: 12, snap: 10, band: 1.7, hp: 300, stopSec: 1.1, light: 0.3, medium: 0.6, heavy: 0.85, tear: 650 },
+              // (0.39) link: foxholes whose ends are within link metres of each other are joined by a trench (cover all along it)
+              foxhole: { cost: 0,   sec: 6,  cap: 3, mul: 0.8, rof: 1.3, link: 12 },
+              // (0.39) a line of bastions: the same walls side by side (lineLen metres each, lineGap apart) instead of a ring
+              bastion: { cost: 100, sec: 14, n: 8, R: 10, mul: 0.55, unlock: 0, up: 120, lineLen: 4.2, lineGap: 0.5 },
               mg:      { cost: 380, sec: 28, cap: 2, hp: 5400, dmg: 1, crewMul: 0.3, unlock: 0, up: 220,
                          gun: { range: 60, every: 0.32, dmg: 70, acc: 0.85, splash: 1.6, style: 'heavy', prefer: 'MH' } },
               // lookout: while someone is up it, the ground round it stays in view and strikes can be called there (reach, times the
@@ -232,8 +243,10 @@ export const CONFIG = {
   // lives left and the time for it. Time is estimated at pace x squad speed plus `work` seconds per task. Re-planned every `every` s.
   // ask: once the objective is done, a squad with lives to spare but too little time for a full clear asks the gunner for more
   // (minutes rounded up, at most maxMin, costing perMin credits a minute; the player has askSec to answer; asks per mission).
+  // (0.39) Holding orbit over the zone burns the destroyer's fuel: each minute costs perMinIn more of perMin for every minute the
+  // mission has run so far.
   plan:     { detour: 320, reserve: 150, clearLives: 3, every: 6, keepR: 70, pace: 0.5, extractPad: 30,
-              ask: { maxMin: 10, perMin: 40, askSec: 30, asks: 2 },
+              ask: { maxMin: 10, perMin: 40, perMinIn: 0.1, askSec: 30, asks: 2 },
               work: { base: 70, radio: 45, propaganda: 35, rescue: 60, arty: 40, jammer: 60, nuke: 150, vip: 100, evac: 220, fortress: 240, oil: 260, cannon: 120, dome: 220 } },
   // An enemy that fires on an ally gives itself away: it shows for `sec` seconds after each shot, and once it has shown for lockSec
   // without a break it is locked: orbitals and the ship gun can hit it (within lockR of it) even outside the strike zone.
@@ -347,7 +360,9 @@ export const CONFIG = {
   // are bunched up. The pelican leaves once every Helldiver is aboard, or after boardSec.
   // The extraction pad is on the map from the drop (locked until the objective is done). A Helldiver on it throws the blue beacon
   // (it falls for beaconSec); then the pelican takes callSec to arrive, waits boardSec on the pad, and the enemy comes in waves.
-  extract:  { minFromLz: 600, minFromBase: 150, radius: 25, callSec: 120, beaconSec: 2.2, landSec: 3.5, boardSec: 20, boardR: 6, seafBoardSec: 16 },
+  // (0.39) orbitSec: once the Helldivers are aboard and away, the destroyer leaves orbit this many seconds later; SEAF still on the
+  // ground then are left behind (lost, and paid for like any lost trooper)
+  extract:  { minFromLz: 600, minFromBase: 150, radius: 25, callSec: 120, beaconSec: 2.2, landSec: 5, boardSec: 20, boardR: 6, orbitSec: 10, warnSec: 60 },
   // At the start of a mission the ship gun is ready and selected; the UAV and every orbital start part-way through a cooldown.
   weapons:  { swapSec: 0.3, warmupSec: 8, startCdFrac: 0.5, startCdMin: 12 },
   // The destroyer's free-fire Ship Gun (its one gatling). It fires wherever the player can see, so it is not tied to the strike zone, and it is the
@@ -371,7 +386,11 @@ export const CONFIG = {
   // (0.23) The Hangar (armory): level 1 lets the gunner buy Eagles. The Eagle has `uses` calls (usesBase, +1 every two levels), each
   // callCd apart; when they are spent it flies back to rearm for rearm[level] seconds. Every level also makes pelicans quicker:
   // pelican[level] scales their flight time (SEAF drops, cargo), seafCool[level] the SEAF drop's recharge.
-  hangar:   { levels: 5, price: [700, 600, 900, 1250, 1700], usesBase: 2, callCd: 8, rearm: [0, 110, 98, 86, 75, 64], pelican: [1, 0.92, 0.85, 0.78, 0.72, 0.66], seafCool: [1, 0.95, 0.9, 0.85, 0.8, 0.75] },
+  // (0.39) The Hangar is open from the start (it is no longer bought; a save that bought levels keeps them). fleet: the pelicans in
+  // it (one to start, max with the armory's Pelican Fleet, each one dearer): SEAF drops and pickups share them, each pelican
+  // turning round in the SEAF drop cooldown. The Helldivers' extraction pelican is not one of them.
+  hangar:   { levels: 5, usesBase: 2, callCd: 8, rearm: [0, 110, 98, 86, 75, 64], seafCool: [1, 0.95, 0.9, 0.85, 0.8, 0.75],
+              fleet: { start: 1, max: 6, price: [1100, 1400, 1800, 2300, 2900] } },
   // (0.24) Ranks (0.25: they were milestones): missions done in a session raise your rank, which opens more of the armory and
   // pays a level bonus. Everything shows in the armory from the start; what your rank has not reached is locked. Ranks 6 to 9
   // each declassify one stratagem; 30 missions is the top. Which item comes at which rank: ITEM_TIER in data/kit.js.
@@ -464,6 +483,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.38.1',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.39.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

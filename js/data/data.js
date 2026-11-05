@@ -57,6 +57,13 @@ export const COMMS = {
   spotted: (f, dir) => t('c.spotted', { f, dir }),
   get seafDrop() { return t('c.seafDrop'); },
   get seafLanded() { return t('c.seafLanded'); },
+  // (0.39) pickups, and the destroyer leaving orbit
+  get lzDown() { return t('c.lzDown'); },
+  get seafToLz() { return t('c.seafToLz'); },
+  get pickupIn() { return t('c.pickupIn'); },
+  pickupUp: (n) => t('c.pickupUp', { n }),
+  get exSeaf() { return t('c.exSeaf'); },
+  orbitLeave: (s, n) => t(n ? 'c.orbitLeaveN' : 'c.orbitLeave', { s, n }),
   get seafAuto() { return t('c.seafAuto'); },
   get seafMove() { return t('c.seafMove'); },
   get seafProtect() { return t('c.seafProtect'); },

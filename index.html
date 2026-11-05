@@ -99,6 +99,7 @@
     </div>
     <div id="orders" class="panel">
       <button class="ord" data-o="seaf"><span class="k">G</span><span class="n" data-t="hud.seafDrop">SEAF DROP</span><span class="s">--</span></button>
+      <button class="ord" data-o="pickup"><span class="k">⇧G</span><span class="n" data-t="hud.pickup">PICKUP</span><span class="s">--</span></button>
       <button class="ord" data-o="auto"><span class="k">X</span><span class="n" data-t="hud.auto">AUTO</span><span class="s">--</span></button>
       <button class="ord" data-o="move"><span class="k">V</span><span class="n" data-t="hud.move">MOVE</span><span class="s">--</span></button>
       <button class="ord" data-o="protect"><span class="k">Z</span><span class="n" data-t="hud.protect">PROTECT</span><span class="s">--</span></button>
@@ -148,6 +149,7 @@
       <button id="dk-hd" class="dkb dkh" type="button" data-ta="tac.tHd"><span class="hdc"></span></button>
       <button id="dk-sq" class="dkb"><span class="n"></span><span class="s">--</span></button>
       <button id="dk-drop" class="dkb"><span class="n" data-t="hud.seafDrop">SEAF DROP</span><span class="s">--</span></button>
+      <button id="dk-pick" class="dkb"><span class="n" data-t="hud.pickup">PICKUP</span><span class="s">--</span></button>
       
       <button id="dk-tac" class="dkb tacb" type="button"><span class="n" data-t="hud.tactical">TACTICAL</span></button>
     </div>
@@ -195,7 +197,7 @@
       <div id="ask" class="panel hidden" role="alertdialog"><span class="ask-t"></span><span class="ask-b"></span></div>
     </div>
     <!-- (0.22) touch: the ghost of what is being placed waits for PLACE (a tap on the map moves it) -->
-    <div id="place-ok" class="panel hidden" role="group"><span class="po-t"></span><button id="po-go" class="btn primary" type="button" data-t="place.go">PLACE</button><button id="po-x" class="btn" type="button" data-t="place.cancel">CANCEL</button></div>
+    <div id="place-ok" class="panel hidden" role="group"><span class="po-t"></span><button id="po-turn" class="btn po-tool hidden" type="button" data-ta="place.turn"><i>↻</i><span data-t="place.turnS">TURN</span></button><button id="po-shape" class="btn po-tool hidden" type="button"><i></i><span></span></button><button id="po-go" class="btn primary" type="button" data-t="place.go">PLACE</button><button id="po-x" class="btn" type="button" data-t="place.cancel">CANCEL</button></div>
     <!-- (0.22) MERGE: the squads to merge, over the button -->
     <div id="merge-pop" class="panel hidden" role="dialog"><span class="mp-t"></span><button id="mp-go" class="btn primary" type="button" data-t="merge.go">MERGE</button><button id="mp-x" class="btn" type="button">✕</button></div>
     <div id="toast"></div>

@@ -81,7 +81,7 @@ if (sq) {
   await tap('#tactical .tct[data-tab="build"]'); await page.waitForTimeout(300);
   const menu = await page.isVisible('#tactical');
   const items = await ev(() => [...document.querySelectorAll('#tactical .bld')].map((b) => b.textContent));
-  check('TACTICAL opens its screen: eight builds with their prices (the SAM site and the cannon unlocked in the armory)', menu && items.length === 8 && /FREE/.test(items[0]) && items.slice(1, 6).every((x) => /CR/.test(x)) && /UNLOCK/.test(items[6]) && /UNLOCK/.test(items[7]), items.join(' | '));
+  check('TACTICAL opens its screen: nine builds with their prices (0.39: the wire first; the SAM site and the cannon unlocked in the armory)', menu && items.length === 9 && /CONCERTINA/.test(items[0]) && /CR/.test(items[0]) && /FREE/.test(items[1]) && items.slice(2, 7).every((x) => /CR/.test(x)) && /UNLOCK/.test(items[7]) && /UNLOCK/.test(items[8]), items.join(' | '));
   await shot('buildmenu');
   const fit = await ev(() => { const r = document.getElementById('tactical').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth + 1 && r.top >= 0 && r.bottom <= innerHeight + 1; });
   check('the screen fits', fit);

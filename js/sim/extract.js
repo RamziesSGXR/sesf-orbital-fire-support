@@ -5,14 +5,17 @@
 //             the beacon lands (drop ships, or bugs breaching), then more every so often. Nobody has to clear the map to leave.
 // (The pad is on the map from the drop, locked until the objective is done, so SEAF can dig in round it early.)
 //   landing   the pelican comes down on the pad
-//   boarding  every Helldiver runs for the ramp and boards; SEAF squads get pelicans of their own wherever they are bunched up
-//   away      the pelican climbs out; the mission ends
+//   boarding  every Helldiver runs for the ramp and boards
+//   away      the pelican climbs out; (0.39) the destroyer leaves orbit CONFIG.extract.orbitSec later and the mission ends. SEAF
+//             go home only by a pickup (seaf.js): anyone still on the ground then is left behind. The extraction pelican's belly
+//             autocannon fires on the way down and while it waits.
 import { t as tr } from '../i18n.js';
 import { bossAlive } from './boss.js';
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
 import { callReinforcements, reinfCount } from './reinforce.js';
 import { bark } from './chatter.js';
+import { pelicanGun } from './seaf.js';
 
 const X = C.extract, SIZE = C.world.size;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -35,22 +38,6 @@ function board(m, a) {
     m.notice(tr(ex.boardedH > 1 ? 'n.aboardN' : 'n.aboard1', { who: m.tag(a), n: ex.boardedH }), 'good');
   } else ex.boardedS++;
   m.emit('board', { x: a.x, y: a.y, type: a.type });
-}
-
-// A pelican for every SEAF squad, set down where that squad is bunched up.
-function seafShips(m) {
-  const tr = m.terrain;
-  for (const q of m.seaf.squads) {
-    const list = m.seafAlive.filter((a) => a.sq === q.i);
-    if (!list.length) continue;
-    let x = 0, y = 0;
-    for (const a of list) { x += a.x; y += a.y; }
-    x /= list.length; y /= list.length;
-    if (!tr.isLand(x, y)) { const l = tr.nearestLand(x, y); x = l.x; y = l.y; }
-    const ang = m.rng.angle(), dx = Math.cos(ang), dy = Math.sin(ang);
-    m.pelicans.push({ id: m.nextId++, evac: true, x: clamp(x - dx * 330, -200, SIZE + 200), y: clamp(y - dy * 330, -200, SIZE + 200), tx: x, ty: y, dx, dy,
-      state: 'in', alt: 1, roles: [], dropped: 0, dropT: 0, hoverT: X.seafBoardSec, outT: 0, gunT: 0.4, squad: q.i, born: m.t, vis: 0 });
-  }
 }
 
 export function updateExtract(m, dt) {
@@ -81,6 +68,7 @@ export function updateExtract(m, dt) {
     ex.waveAt = t + C.reinf.extractEvery / Math.max(0.8, Math.min(1.5, m.pressure));
     m.radio(COMMS.extractCalled(wait), 'excall', 0);
     m.notice(tr('n.exCalled', { n: wait }), 'warn');
+    if (m.seafAlive.length && !m.ls) { m.notice(tr('n.exSeaf'), 'warn'); m.radio(COMMS.exSeaf, 'exseaf', 0); }     // (0.39) get the SEAF picked up
     m.emit('extract_call', { x: ex.x, y: ex.y });
     ex.calledAt = t;
     callReinforcements(m, ex.x, ex.y, 'extract', { dist: [55, 105], extra: 1, count: reinfCount(m, 'extract', { first: true }) });      // the enemy always comes for an extraction (0.31: from more than one side)
@@ -98,36 +86,34 @@ export function updateExtract(m, dt) {
     }
     return;
   }
+  // (0.39) the extraction pelican's autocannon, on the way down and on the pad
+  if (ex.state === 'landing' || ex.state === 'boarding') pelicanGun(m, ex.gun || (ex.gun = { id: -7, x: ex.x, y: ex.y, gunT: 0.4 }), dt);
   if (ex.state === 'landing') {
     if (t >= ex.touchAt) {
       ex.state = 'boarding'; ex.leaveBy = t + X.boardSec;
-      seafShips(m);
       m.radio(COMMS.board, 'exboard', 0);
       m.notice(tr('msg.exDown'), 'good');
       m.emit('extract_down', { x: ex.x, y: ex.y });
     }
     return;
   }
-  // SEAF board their own pelicans (seaf.js walks them over), for as long as those pelicans wait
-  if (ex.state === 'boarding' || ex.state === 'away') {
-    for (const p of m.pelicans) {
-      if (!p.evac || p.state !== 'hover') continue;
-      for (const a of m.seafAlive) if (!a.dead && a.sq === p.squad && (a.x - p.x) ** 2 + (a.y - p.y) ** 2 <= (X.boardR + 2) ** 2) board(m, a);
-    }
-  }
   if (ex.state === 'boarding') {
     for (const a of m.hdAlive) if (!a.mounted && !a.dead && (a.x - ex.x) ** 2 + (a.y - ex.y) ** 2 <= X.boardR * X.boardR) board(m, a);
     const waiting = m.hdAlive.filter((a) => !a.dead).length + m.pendingPods('H');
     if ((waiting === 0 && ex.boardedH > 0) || t >= ex.leaveBy || (waiting === 0 && m.hd.lives <= 0)) {
-      ex.state = 'away'; ex.awayAt = t;
+      ex.state = 'away'; ex.awayAt = t; ex.leaveAt = t + X.orbitSec;
       m.radio(ex.boardedH ? COMMS.victory : COMMS.extractEmpty, 'exaway', 0);
       m.emit('extract_away', { x: ex.x, y: ex.y, n: ex.boardedH });
+      // (0.39) the destroyer will not wait: SEAF still on the ground have orbitSec to be picked up
+      const left = m.seafAlive.filter((a) => !a.dead).length;
+      m.notice(tr(left ? 'n.orbitLeaveN' : 'n.orbitLeave', { s: X.orbitSec, n: left }), left ? 'bad' : 'info');
+      m.radio(COMMS.orbitLeave(X.orbitSec, left), 'orbitleave', 0);
+      m.emit('orbit_leave', { at: ex.leaveAt, n: left });
     }
     return;
   }
   if (ex.state === 'away') {
-    const seafLeft = m.pelicans.some((p) => p.evac && p.state !== 'out');
     // the mission is won only by getting Helldivers out: a pelican that leaves without one is a failed mission
-    if (t >= ex.awayAt + 2.5 && (!seafLeft || t >= ex.awayAt + X.seafBoardSec)) m.finish(ex.boardedH > 0 ? 'victory' : m.objDone ? 'complete' : 'defeat');
+    if (t >= ex.leaveAt) m.finish(ex.boardedH > 0 ? 'victory' : m.objDone ? 'complete' : 'defeat');
   }
 }

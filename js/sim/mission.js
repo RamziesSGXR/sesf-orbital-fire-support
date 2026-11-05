@@ -11,8 +11,8 @@ import { newKit, newWallet, seafStats, maxLives, zoneExtra, buy, equip, loadoutI
 import { seafName } from '../data/names.js';
 import { updateSquad } from './squad.js';
 import { setupDefenders } from './defenders.js';
-import { initSeaf, targetSquads, setSquadOrder, drawOrder, callPelican, pendingTroops, dropSquad, callCargo, boxSelect, setForm, pickTroops, toSquad, disband, PICKED, LOOSE, selectSquads as seafSelectSquads, mergeSquads as seafMergeSquads } from './seaf.js';
-import { updatePosts, updateSam, garrisonPost, releaseGarrison, POSTS, makePost, INSIDE, foxSize, GARRISON, demolish } from './posts.js';
+import { initSeaf, targetSquads, setSquadOrder, drawOrder, callPelican, pendingTroops, dropSquad, callCargo, boxSelect, setForm, pickTroops, toSquad, disband, PICKED, LOOSE, takePelican, seafHeld, makeLz, lzCount, selectSquads as seafSelectSquads, mergeSquads as seafMergeSquads } from './seaf.js';
+import { updatePosts, updateSam, garrisonPost, releaseGarrison, POSTS, makePost, INSIDE, foxSize, GARRISON, demolish, wirePlan, removePost } from './posts.js';
 import { updateEnemies, updateAllies } from './enemies.js';
 import { updateDirector, alertBase } from './director.js';
 import { initPatrols, updatePatrols } from './patrols.js';
@@ -130,7 +130,7 @@ export class Mission {
     this.enemies = []; this.groups = []; this.allies = []; this.alive = []; this.hdAlive = []; this.seafAlive = [];
     this.shells = []; this.beams = []; this.bridgeQ = []; this.markers = []; this.pods = []; this.pelicans = []; this.incoming = []; this.uavs = []; this.relays = []; this.spotters = []; this.bubbles = []; this.evading = false; this.hellbomb = null;
     this.assets = []; this.zones = []; this.civs = [];
-    this.crates = []; this.arty = []; this.posts = [];   // supply crates SEAF deploy into defences; artillery cannons; everything SEAF built (posts.js)
+    this.crates = []; this.arty = []; this.posts = []; this.trenches = [];   // supply crates SEAF deploy into defences; artillery cannons; everything SEAF built (posts.js)
     this.pois = []; this.breaches = [];
     this.locked = [];                      // enemies that have given themselves away long enough to be hit from orbit
     this.radar = { nextAt: 3, at: -99, blips: [], n: 0 };   // the UAV's radar sweeps
@@ -311,10 +311,10 @@ export class Mission {
     const bc = beaconAt(this, x, y);
     if (bc) { x = bc.x; y = bc.y; }      // a drop beacon takes it anywhere on the map (while it is lit)
     else if (!atLz && !this.inZone(x, y, -5)) return this._deny('nocoverage', COMMS.noCoverage);
-    const room = st.max - this.countAlly('S') - this.pendingPods('S');
+    // (0.39) troopers aboard the destroyer (picked up) come down first; new ones only as far as there is room
+    const room = Math.max(0, st.max - seafHeld(this)) + sf.reserve.length;
     if (room <= 0) return this._deny('full');
-    if (t < sf.readyAt) return this._deny('cooldown');
-    sf.readyAt = t + st.cool;
+    if (takePelican(this) < 0) return this._deny('cooldown');      // (0.39: one of the hangar's pelicans, shared with pickups)
     const n = Math.min(st.drop, room), squad = dropSquad(this);
     const fresh = !this.seafAlive.some((a) => a.sq === squad) && !this.pelicans.some((p) => p.squad === squad);
     callPelican(this, x, y, n, squad, fresh && opts.hold !== false);
@@ -322,6 +322,36 @@ export class Mission {
     this.radio(COMMS.seafDrop, 'seafDrop', 0);
     this.emit('pod_call', { type: 'S', x, y, n });
     return { ok: true, n, squad };
+  }
+
+  // (0.39) PICKUP: a pickup point at (x, y), anywhere in the strike zone (or at a lit drop beacon). If SEAF are already standing
+  // there a pelican comes for them as soon as one is ready; if not, it waits like a building for troops to be sent to it
+  // (seafMan). One already close by is used instead of a second.
+  callPickup(x, y) {
+    if (this.over) return { ok: false, reason: 'over' };
+    if (!this.seafAlive.length) return this._deny('noseaf');
+    const bc = beaconAt(this, x, y);
+    if (bc) { x = bc.x; y = bc.y; }
+    else if (!this.inZone(x, y, -5)) return this._deny('nocoverage', COMMS.noCoverage);
+    ({ x, y } = aoClamp(this.ao, x, y, 20));
+    if (!this.terrain.isLand(x, y) || this.terrain.blocked(x, y)) return this._deny('water', COMMS.noWater);
+    const P = C.pelican;
+    const lz = this.posts.find((p) => p.what === 'lz' && !p.dead && Math.hypot(p.x - x, p.y - y) < P.pickR * 1.5) || makeLz(this, x, y);
+    const n = lzCount(this, lz);
+    this.radio(COMMS.lzDown, 'lzdown', 1);
+    this.notice(tr(n ? 'n.lzIn' : 'n.lzWait', { n }), 'info');
+    this.emit('lz_call', { x: lz.x, y: lz.y, n });
+    return { ok: true, lz, n };
+  }
+  // (0.39) The squads picked (every one of them) go to a pickup point and wait in it for the pelican.
+  seafToLz(lz) {
+    if (this.over || !lz || lz.dead) return { ok: false, reason: 'over' };
+    const sq = targetSquads(this).filter((q) => q.n > 0);
+    if (!sq.length) return this._deny('noseaf');
+    for (const q of sq) setSquadOrder(this, q, 'post', lz.x, lz.y, { post: lz, site: lz.site });
+    this.radio(COMMS.seafToLz, 'seaftolz', 1);
+    this.emit('seaf_order', { kind: 'post', x: lz.x, y: lz.y, sq: sq[0].i, lz: true });
+    return { ok: true, squad: sq[0].i, n: sq.reduce((k, q) => k + q.n, 0) };
   }
 
   // Give the selected squad (or every squad) an order: auto (clear the nearest objective), move, protect, attack or escort.
@@ -340,7 +370,9 @@ export class Mission {
   // Send the selected squad (one squad: the selected one, or the nearest to the spot when all are selected) to build at (x, y)
   // (posts.js lists what can be built). Paid for when it is ordered; there is no limit on how many. The foxhole is free and dug
   // on the spot; everything else comes down as a crate from a cargo pelican.
-  seafBuild(what, x, y) {
+  // (0.39) opts: { face (which way it faces: turned before it was put down; default away from the Helldivers' landing), shape
+  // ('line' for a line of bastions) }. Concertina wire carries on from a free end of wire near the spot (posts.js wirePlan).
+  seafBuild(what, x, y, opts = {}) {
     if (this.over) return { ok: false, reason: 'over' };
     const B = C.build[what];
     if (!B || !POSTS.includes(what)) return { ok: false, reason: 'kind' };
@@ -362,15 +394,21 @@ export class Mission {
       ({ x, y } = aoClamp(this.ao, x, y, 20));
       if (!this.terrain.isLand(x, y) || this.terrain.blocked(x, y)) return this._deny('water', COMMS.noWater);
     }
+    let face = Number.isFinite(opts.face) ? opts.face : Math.atan2(y - this.hy, x - this.hx);
+    if (what === 'wire') { const w = wirePlan(this, x, y, face); x = w.x; y = w.y; face = w.face; }
+    const shape = what === 'bastion' && opts.shape === 'line' ? 'line' : undefined;
     // a crate of this kind already on the ground near the spot (from an order that was changed) is used again, at no charge
-    let crate = this.crates.find((c) => c.what === what && !c.used && Math.hypot(c.x - x, c.y - y) < C.build.crateR);
+    // (0.39: wire and foxholes only right on the spot, so a row of them is a row, not one)
+    const reuseR = what === 'wire' || what === 'foxhole' ? 2.5 : C.build.crateR;
+    let crate = this.crates.find((c) => c.what === what && !c.used && Math.hypot(c.x - x, c.y - y) < reuseR);
+    if (crate) { crate.face = face; crate.shape = shape; }
     // (0.28) a foxhole is dug by the squads picked (or the nearest, with every squad picked), as long as there are troopers in them
     const diggers = what === 'foxhole' ? this.diggers(sq, x, y) : null;
-    if (!crate && what === 'foxhole') { crate = { id: this.nextId++, what, x, y, landed: true, used: false, dig: true, prog: 0, born: this.t, size: foxSize(diggers.reduce((n, q) => n + q.n, 0)), face: Math.atan2(y - this.hy, x - this.hx) }; this.crates.push(crate); }
+    if (!crate && what === 'foxhole') { crate = { id: this.nextId++, what, x, y, landed: true, used: false, dig: true, prog: 0, born: this.t, size: foxSize(diggers.reduce((n, q) => n + q.n, 0)), face }; this.crates.push(crate); }
     if (!crate) {
       if (this.wallet.bal < st.cost) return this._deny('funds');
       this.wallet.bal -= st.cost; this.wallet.spent += st.cost;     // paid now: a cargo pelican brings the crate
-      crate = { id: this.nextId++, what, x, y, landed: false, used: false, prog: 0, born: this.t, span };
+      crate = { id: this.nextId++, what, x, y, landed: false, used: false, prog: 0, born: this.t, span, face, shape };
       this.crates.push(crate);
       callCargo(this, x, y, crate);
       this.notice(tr('n.crateIn', { what: tr('build.' + what), cr: st.cost }), 'info');
@@ -460,6 +498,7 @@ export class Mission {
   // (one of the walled sites a defence is held at): they take its places and stay there.
   seafMan(target) {
     if (this.over || !target) return { ok: false, reason: 'over' };
+    if (target.what === 'lz') return this.seafToLz(target);     // (0.39) a pickup point: everyone picked goes
     const sq = targetSquads(this).filter((q) => q.n > 0);
     if (!sq.length) return this._deny('noseaf');
     const post = target.kind === 'post' ? target : null, site = post ? post.site : target;
@@ -673,7 +712,14 @@ export class Mission {
   damageDrop(d, dmg, by) { damageDrop(this, d, dmg, by); }
   callReinf(x, y, why = 'site', opts = {}) { return callReinforcements(this, x, y, why, opts); }     // (tests and the browser checks)
   // (0.36) blow up one of your own buildings (again before it blows: the charges come off)
-  demolishPost(p) { if (this.over) return { ok: false, reason: 'over' }; return demolish(this, p); }
+  demolishPost(p) {
+    if (this.over) return { ok: false, reason: 'over' };
+    if (p && p.what === 'lz') {     // (0.39) a pickup point is called off, not blown up (a pelican on its way still comes)
+      if (p.dead) return { ok: false, reason: 'nodemo' };
+      removePost(this, p); this.notice(tr('n.lzOff'), 'info'); this.emit('lz_off', { x: p.x, y: p.y }); return { ok: true, cancelled: true };
+    }
+    return demolish(this, p);
+  }
   hurtCiv(c, dmg, by) { hurtCiv(this, c, dmg, by); }
   damageBreach(b, dmg, by) { damageBreach(this, b, dmg, by); }
 
@@ -986,9 +1032,16 @@ export class Mission {
       if (this.extracted) { this.sc.extraction = s.extraction; this.earn('extraction', C.credits.extraction); }
       this.earn('extraction', C.credits.perMission);
     }
+    // (0.39) the destroyer leaves orbit (the Helldivers away, or the time up): SEAF still on the ground are left behind, lost like
+    // any other (and replaced at a cost); those taken up by a pickup are safe aboard
+    const aboardS = this.seaf.reserve.length;
+    if (!this.ls && (outcome === 'victory' || outcome === 'timeout')) {
+      const left = this.seafAlive.filter((a) => !a.dead).length;
+      if (left) { this.stats.lostS = (this.stats.lostS || 0) + left; this.stats.leftS = left; this.notice(tr('n.leftBehind', { n: left }), 'bad'); this.emit('seaf_left', { n: left }); }
+    }
     if (outcome === 'victory' || outcome === 'timeout' || outcome === 'complete') {
-      const ex = this.extraction;
-      this.sc.survivor = (this.countAlly('H') + (ex.boardedH || 0)) * s.survivorHelldiver + (this.countAlly('S') + (ex.boardedS || 0)) * s.survivorSeaf;
+      const ex = this.extraction, groundS = !this.ls && (outcome === 'victory' || outcome === 'timeout') ? 0 : this.countAlly('S');
+      this.sc.survivor = (this.countAlly('H') + (ex.boardedH || 0)) * s.survivorHelldiver + (groundS + aboardS + (ex.boardedS || 0)) * s.survivorSeaf;
     }
     // every SEAF trooper lost is replaced for the next mission, each one dearer than the last
     const lost = this.stats.lostS || 0, L = C.seaf;
@@ -1020,7 +1073,7 @@ export class Mission {
       score: Math.max(0, Math.round(raw)), raw: Math.round(raw), breakdown: { ...sc }, base: Math.round(this._baseScore()), difficulty: this.difficulty, reward: this.reward,
       kills: this.stats.killsPlayer + this.stats.killsAlly, stats: { ...this.stats }, bossName: this.boss ? this.boss.name : null,
       bases: this.stats.bases, baseTotal: this.baseTotal, pois: this.stats.pois, poiTotal: this.pois.length, breaches: this.stats.breaches, sides: (this.sides || []).filter((q) => q.done).length, sideTotal: (this.sides || []).length, fullClear: !!(this.plan && this.plan.full),
-      livesLeft: this.hd.lives, livesMax: this.hd.max, survivorsH: this.countAlly('H') + (this.extraction.boardedH || 0), survivorsS: this.countAlly('S') + (this.extraction.boardedS || 0),
+      livesLeft: this.hd.lives, livesMax: this.hd.max, survivorsH: this.countAlly('H') + (this.extraction.boardedH || 0), survivorsS: (this.stats.leftS !== undefined || ((this.outcome === 'victory' || this.outcome === 'timeout') && !this.ls) ? 0 : this.countAlly('S')) + this.seaf.reserve.length + (this.extraction.boardedS || 0), leftS: this.stats.leftS || 0,
       civSaved: this.stats.civSaved || 0, civLost: this.stats.civLost || 0,
       lastStand: this.ls ? { lifted: this.ls.lifted, held: Math.round(this.ls.holdT), fallen: this.ls.fallen, pop: this.ls.pop } : null,
       objectives: this.objectives.map((o) => ({ type: o.type, done: o.done })), objDone: this.objDone, extracted: this.extracted,

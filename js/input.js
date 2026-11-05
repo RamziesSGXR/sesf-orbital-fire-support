@@ -205,7 +205,7 @@ export class Input {
       else if (e.code === 'Delete' || e.code === 'Backspace') this.h.squadAct('disband');
       else if (e.code === 'KeyQ') this.h.cycle(-1);
       else if (e.code === 'KeyE') this.h.cycle(1);
-      else if (e.code === 'KeyG') this.h.order('seaf', true);
+      else if (e.code === 'KeyG') this.h.order(e.shiftKey ? 'pickup' : 'seaf', true);     // (0.39) Shift+G: a pickup point
       else if (e.code === 'KeyX') this.h.order('auto', true);
       else if (e.code === 'KeyV') this.h.order('move', true);
       else if (e.code === 'KeyZ') this.h.order('protect', true);

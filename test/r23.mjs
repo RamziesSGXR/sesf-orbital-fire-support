@@ -34,16 +34,16 @@ check('every squad\'s sixteen hold at least two orbitals', draws.every((n) => n 
 {
   const kit = newKit(), w = newWallet(1e6);
   const eagleItems = shopItems(kit).filter((it) => it.section === 'eagles' && it.orb);
-  check('Eagles are in the armory, locked until the Hangar is bought', eagleItems.length === 7 && eagleItems.every((it) => it.locked && it.needs === 'hangar') && !buy(kit, w, 'own:eagle_air').ok);
-  check('the Hangar is bought between missions', buy(kit, w, 'hangar').ok && kit.hangar === 1 && !shopItems(kit).find((it) => it.id === 'own:eagle_air').locked);
-  const h1 = hangarStats(kit); buy(kit, w, 'hangar'); buy(kit, w, 'hangar'); const h3 = hangarStats(kit);
-  check('each Hangar level: more Eagle calls, a shorter rearm, quicker pelicans, the SEAF drop back sooner', h3.uses > h1.uses && h3.rearm < h1.rearm && h3.pelican < h1.pelican && seafStats(kit).cool < seafStats(newKit()).cool, `${h1.uses}/${h1.rearm}s -> ${h3.uses}/${h3.rearm}s`);
+  // (0.39) the Hangar is open from the start: the Eagles can be bought straight away, and a save that bought Hangar levels keeps them
+  check('Eagles are in the armory, open from the start (0.39: the Hangar is not bought)', eagleItems.length === 7 && eagleItems.every((it) => !it.locked) && buy(kit, w, 'own:eagle_air').ok && hangarStats(kit).level === 1);
+  const h1 = hangarStats(kit), old = newKit(); old.hangar = 3; const h3 = hangarStats(old);
+  check('a save with Hangar levels keeps them: more Eagle calls, a shorter rearm, the SEAF drop back sooner', h3.uses > h1.uses && h3.rearm < h1.rearm && seafStats(old).cool < seafStats(newKit()).cool, `${h1.uses}/${h1.rearm}s -> ${h3.uses}/${h3.rearm}s`);
   check('the gunner\'s list holds the orbitals, utilities, Eagles and minefields', ['orb_120', 'util_med', 'eagle_500', 'mine_at'].every((id) => PLAYER_IDS.includes(id)));
 }
 {
   const m = new Mission({ seed: 31, faction: 'bots', biome: 'grass', difficulty: 2, events: false });
   const k = m.kit, w = newWallet(1e6);
-  buy(k, w, 'hangar'); buy(k, w, 'own:eagle_500'); buy(k, w, 'own:mine_ap'); buy(k, w, 'own:mine_at'); buy(k, w, 'slot:4'); buy(k, w, 'slot:5');
+  buy(k, w, 'own:eagle_500'); buy(k, w, 'own:mine_ap'); buy(k, w, 'own:mine_at'); buy(k, w, 'slot:4'); buy(k, w, 'slot:5');
   k.loadout = ['eagle_500', 'mine_ap', 'mine_at', 'orb_120', ''];
   syncSlots(m); m.deployNow(); run(m, 20);
   const p = m.player, ie = p.slots.findIndex((s) => s.id === 'eagle_500');

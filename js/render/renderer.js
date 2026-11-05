@@ -14,8 +14,9 @@ import { t as tr } from '../i18n.js';
 import { beaconAt } from '../sim/sides.js';
 import { drawFlares, drawHoles, drawDrops, drawEvac, drawExtraction, critText, drawSupply } from './reinf.js';
 import { drawBaseArt, drawBaseRuin, drawCover, drawCitadelWalls, drawCannonArt, drawNodeArt } from './sites.js';
-import { drawPosts, postArt } from './posts.js';
-import { foxReach } from '../sim/posts.js';
+import { drawPosts, postArt, lzArt } from './posts.js';
+const lzArtGhost = (ctx, x, y, R, now, px, ok) => lzArt(ctx, x, y, R, now, px, ok);
+import { foxReach, wirePlan, wireEnds, bastionLine, foxholeSlots, turns } from '../sim/posts.js';
 import { buildStats, uavStats, seafStats, buildLevel } from '../data/kit.js';
 import { todAt, skyTint } from './sky.js';
 import { Lighting, ambient, washKey, bakeWash } from './light.js';
@@ -232,6 +233,8 @@ export class Renderer {
       case 'reinf_spawn': fx.push({ k: 'flash', x: ev.x, y: ev.y, r: 8, t0: now, life: 0.4, a: flash * 0.8, col: this.enemyColor(m) }); if (ev.src === 'warp') fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 14, t0: now, life: 0.5, a: 1, col: '#e6c8ff' }); break;
       case 'drop_down': fx.push({ k: 'flash', x: ev.x, y: ev.y, r: 24, t0: now, life: 0.6, a: flash }); fx.push({ k: 'text', x: ev.x, y: ev.y - 8, text: tr(ev.kind === 'ship' ? 'lab.dropshipDown' : 'lab.warpDown'), col: '#7dff9b', t0: now, life: 1.8 }); this.shake = Math.min(14, this.shake + 6); break;
       case 'board': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 7, t0: now, life: 0.5, a: 1, col: '#7dff9b' }); break;
+      case 'seaf_pickup': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 8, t0: now, life: 0.5, a: 1, col: '#8fe0ff' }); break;     // (0.39)
+      case 'wire_torn': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 8, t0: now, life: 0.6, a: 0.8, col: '#c4ccd2' }); break;
       case 'civ_down': fx.push({ k: 'x', x: ev.x, y: ev.y, r: 3, t0: now, life: 1.2, col: '#ff8080' }); break;
       case 'shuttle': fx.push({ k: 'shuttle', x: ev.x, y: ev.y, ang: ev.ang, t0: now, life: 4 }); break;
       case 'extract_landing': case 'extract_down': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 30, t0: now, life: 1, a: 1, col: '#ffe600' }); break;
@@ -436,7 +439,7 @@ export class Renderer {
     // drop's size and the squad it joins, who will build it; red where it cannot go. ui.ghost: where it is (the cursor, or on a
     // touch screen where it was put); the aim otherwise.
     const gp = ui.placing ? ui.ghost || ui.aim : null;
-    if (gp) this._ghost(ctx, m, ui.placing, gp, now, px, labels, scale, pal, ui.snap);
+    if (gp) this._ghost(ctx, m, ui.placing, gp, now, px, labels, scale, pal, ui.snap, ui);
 
     // Effects, and the player's orbital shells coming down
     this._incoming(ctx, m, now, px);
@@ -468,9 +471,10 @@ export class Renderer {
     for (const q of L) { const d = Math.hypot(q.cx - x, q.cy - y); if (d < bd) { bd = d; b = q; } }
     return b ? { q: b, d: bd } : null;
   }
-  _ghost(ctx, m, k, at, now, px, labels, scale, pal, snapFn) {
-    const bc = k === 'seaf' ? beaconAt(m, at.x, at.y) : null;     // over a lit drop beacon: it snaps there
-    const sp = bc || (snapFn && k !== 'seaf' && !k.startsWith('build:') ? snapFn(at.x, at.y) : at), ax = sp.x, ay = sp.y;
+  _ghost(ctx, m, k, at, now, px, labels, scale, pal, snapFn, ui = {}) {
+    const bc = k === 'seaf' || k === 'pickup' ? beaconAt(m, at.x, at.y) : null;     // over a lit drop beacon: it snaps there
+    const sp = bc || (snapFn && k !== 'seaf' && k !== 'pickup' && !k.startsWith('build:') ? snapFn(at.x, at.y) : at);
+    let ax = sp.x, ay = sp.y;
     const bk = k.startsWith('build:') ? k.slice(6) : null;
     let ok = true, why = '', text = '', gr = 0;
     const pulse = 0.55 + 0.45 * Math.sin(now * 6);
@@ -493,21 +497,56 @@ export class Renderer {
         text = ok ? tr('lab.ghost.bridge', { s: C.build.bridge.dropSec, cr: cost }) : why;
       } else {
         if (ok && (!m.terrain.isLand(ax, ay) || m.terrain.blocked(ax, ay))) { ok = false; why = tr('deny.water'); }
+        // (0.39) which way it faces (turned, or away from the landing), wire carried on from a free end near the cursor, and the
+        // bastions' ring or line
+        let face = Number.isFinite(ui.pface) ? ui.pface : Math.atan2(ay - m.hy, ax - m.hx), snapAt = null;
+        if (bk === 'wire') { const w = wirePlan(m, ax, ay, face); ax = w.x; ay = w.y; face = w.face; snapAt = w.snap; }
+        const line = bk === 'bastion' && ui.pshape === 'line';
         const R = bk === 'bastion' ? buildStats('bastion', lvl).R : C.build.r;
         const reach = bk === 'sam' || bk === 'tower' ? uavStats(m.kit.uav).r : bk === 'mg' ? 46 : 0;
         if (reach) { ctx.strokeStyle = 'rgba(255,230,0,0.4)'; ctx.lineWidth = px(1.2); ctx.setLineDash([px(4), px(6)]); ctx.beginPath(); ctx.arc(ax, ay, reach, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
         ctx.save(); ctx.globalAlpha = ok ? 0.5 + 0.15 * pulse : 0.3;
-        if (bk === 'bastion') { ctx.strokeStyle = ok ? '#d8e4dc' : '#ff4a4a'; ctx.lineWidth = px(3); ctx.setLineDash([px(7), px(4)]); ctx.beginPath(); ctx.arc(ax, ay, R, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
+        if (line) {
+          const B = buildStats('bastion', lvl), L = C.build.bastion.lineLen, ux = -Math.sin(face), uy = Math.cos(face);
+          ctx.strokeStyle = ok ? '#d8e4dc' : '#ff4a4a'; ctx.lineWidth = Math.max(px(3), 1.1); ctx.lineCap = 'butt';
+          for (const q of bastionLine(ax, ay, face, B.n)) { ctx.beginPath(); ctx.moveTo(q.x - ux * L / 2, q.y - uy * L / 2); ctx.lineTo(q.x + ux * L / 2, q.y + uy * L / 2); ctx.stroke(); }
+        } else if (bk === 'bastion') { ctx.strokeStyle = ok ? '#d8e4dc' : '#ff4a4a'; ctx.lineWidth = px(3); ctx.setLineDash([px(7), px(4)]); ctx.beginPath(); ctx.arc(ax, ay, R, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
         const dig = bk === 'foxhole' ? m.digPlan(ax, ay) : null;     // (0.28: a foxhole the size of the squads that dig it)
-        postArt(ctx, { what: bk, x: ax, y: ay, face: Math.atan2(ay - m.hy, ax - m.hx), face0: Math.atan2(ay - m.hy, ax - m.hx), hurtAt: -99, r: 3.5, lvl, manned: false, crew: 0, cap: dig ? dig.size : st.cap || 0 }, now, px, m.t);
+        postArt(ctx, { what: bk, x: ax, y: ay, face, face0: face, hurtAt: -99, r: 3.5, lvl, manned: false, crew: 0, cap: dig ? dig.size : st.cap || 0, ends: bk === 'wire' ? wireEnds(ax, ay, face) : undefined, ghost: true }, now, px, m.t);
         ctx.restore();
+        // the way it faces (the front), and what it joins: the wire's end it carries on from, the foxholes it is trenched to
+        if ((turns(bk) && bk !== 'wire' && bk !== 'bastion') || line) {
+          const fl = (bk === 'bastion' && !line ? R : 6) + px(10), fx = Math.cos(face), fy = Math.sin(face), tx = ax + fx * fl, ty = ay + fy * fl, hw = px(5);
+          ctx.strokeStyle = ok ? 'rgba(61,224,255,0.85)' : 'rgba(255,74,74,0.8)'; ctx.lineWidth = px(1.8);
+          ctx.beginPath(); ctx.moveTo(ax + fx * (fl - px(14)), ay + fy * (fl - px(14))); ctx.lineTo(tx, ty); ctx.moveTo(tx - fx * hw - fy * hw, ty - fy * hw + fx * hw); ctx.lineTo(tx, ty); ctx.lineTo(tx - fx * hw + fy * hw, ty - fy * hw - fx * hw); ctx.stroke();
+        }
+        if (snapAt) { ctx.fillStyle = 'rgba(61,224,255,0.9)'; ctx.beginPath(); ctx.arc(snapAt.x, snapAt.y, Math.max(px(4), 1), 0, TAU); ctx.fill(); }
+        if (dig) {
+          const own = dig.size > 3 ? foxholeSlots(ax, ay, face, dig.size) : null, ends = own ? [own[0], own[own.length - 1]] : [{ x: ax, y: ay }];
+          ctx.strokeStyle = 'rgba(61,224,255,0.6)'; ctx.lineWidth = px(2); ctx.setLineDash([px(4), px(4)]);
+          for (const p of m.posts) {
+            if (p.dead || p.what !== 'foxhole') continue;
+            const pe = p.cap > 3 && p.slots ? [p.slots[0], p.slots[p.slots.length - 1]] : [{ x: p.x, y: p.y }];
+            let best = null; for (const a of ends) for (const b of pe) { const d = Math.hypot(a.x - b.x, a.y - b.y); if (d <= C.build.foxhole.link && d > 0.8 && (!best || d < best.d)) best = { a, b, d }; }
+            if (best) { ctx.beginPath(); ctx.moveTo(best.a.x, best.a.y); ctx.lineTo(best.b.x, best.b.y); ctx.stroke(); }
+          }
+          ctx.setLineDash([]);
+        }
         const b = ok ? this._builder(m, ax, ay) : null;
         if (dig) gr = dig.size > 3 ? foxReach(dig.size) + 2 : 0;
         text = !ok ? why : dig && dig.sq.length ? tr('lab.ghost.dig', { what: tr('build.' + bk), n: dig.size, sq: dig.sq.slice().sort((p, q) => p.i - q.i).map((q) => 'S' + (q.i + 1)).join('+'), m: Math.round(Math.hypot(dig.sq[0].cx - ax, dig.sq[0].cy - ay)) })
           : b ? tr('lab.ghost.build', { what: tr('build.' + bk), sq: 'S' + (b.q.i + 1), m: Math.round(b.d), cr: cost }) : tr('lab.place.build', { what: tr('build.' + bk) });
       }
       ctx.strokeStyle = ok ? 'rgba(61,224,255,0.9)' : 'rgba(255,74,74,0.9)'; ctx.lineWidth = px(1.6); ctx.setLineDash([px(5), px(4)]); ctx.lineDashOffset = -now * px(10);
-      ctx.beginPath(); ctx.arc(ax, ay, Math.max(px(12), bk === 'bastion' ? buildStats('bastion', Math.max(1, buildLevel(m.kit, 'bastion'))).R + 3 : gr || 7), 0, TAU); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      ctx.beginPath(); ctx.arc(ax, ay, Math.max(px(12), bk === 'bastion' && ui.pshape !== 'line' ? buildStats('bastion', Math.max(1, buildLevel(m.kit, 'bastion'))).R + 3 : bk === 'wire' ? C.build.wire.len / 2 + 1 : gr || 7), 0, TAU); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+    } else if (k === 'pickup') {
+      // (0.39) a pickup point: where it goes and who is in it already
+      ok = !!bc || m.inZone(ax, ay, -5);
+      if (ok && (!m.terrain.isLand(ax, ay) || m.terrain.blocked(ax, ay))) { ok = false; why = tr('deny.water'); }
+      const R = C.pelican.pickR;
+      let n = 0; for (const a of m.seafAlive) if (!a.down && !a.inside && (a.x - ax) ** 2 + (a.y - ay) ** 2 <= R * R) n++;
+      ctx.save(); ctx.globalAlpha = ok ? 0.6 + 0.3 * pulse : 0.35; lzArtGhost(ctx, ax, ay, R, now, px, ok); ctx.restore();
+      text = !ok ? (why || tr('ret.noCover')) : tr(n ? 'lab.ghost.lzIn' : 'lab.ghost.lz', { n });
     } else if (k === 'seaf') {
       // a SEAF drop: where the pelican puts them down, how many, and the squad they join
       ok = !!bc || m.inZone(ax, ay, -5);
@@ -533,7 +572,12 @@ export class Renderer {
       if (it.x === undefined || it.y === undefined) return;
       const x = it.x, y = it.y, k = it.kind, fire = k.startsWith('fire:'), bk = k.startsWith('build:') ? k.slice(6) : null;
       const col = fire ? '255,210,74' : bk ? '61,224,255' : k === 'seaf' ? '95,168,255' : '157,255,184';
-      if (bk && bk !== 'bridge') { ctx.save(); ctx.globalAlpha = 0.4; postArt(ctx, { what: bk, x, y, face: Math.atan2(y - m.hy, x - m.hx), face0: Math.atan2(y - m.hy, x - m.hx), hurtAt: -99, r: 3.5, lvl: 1 }, now, px, m.t); ctx.restore(); }
+      if (bk && bk !== 'bridge') {
+        const f = Number.isFinite(it.face) ? it.face : Math.atan2(y - m.hy, x - m.hx);
+        ctx.save(); ctx.globalAlpha = 0.4; postArt(ctx, { what: bk, x, y, face: f, face0: f, hurtAt: -99, r: 3.5, lvl: 1, ends: bk === 'wire' ? wireEnds(x, y, f) : undefined }, now, px, m.t);
+        if (bk === 'bastion' && it.shape === 'line') { const L = C.build.bastion.lineLen, ux = -Math.sin(f), uy = Math.cos(f); ctx.strokeStyle = '#d8e4dc'; ctx.lineWidth = px(3); for (const q of bastionLine(x, y, f, buildStats('bastion', Math.max(1, buildLevel(m.kit, 'bastion'))).n)) { ctx.beginPath(); ctx.moveTo(q.x - ux * L / 2, q.y - uy * L / 2); ctx.lineTo(q.x + ux * L / 2, q.y + uy * L / 2); ctx.stroke(); } }
+        ctx.restore();
+      }
       ctx.strokeStyle = `rgba(${col},0.85)`; ctx.lineWidth = px(1.6); ctx.setLineDash([px(3), px(4)]);
       ctx.beginPath(); ctx.arc(x, y, Math.max(px(11), fire ? 10 : 6), 0, TAU); ctx.stroke(); ctx.setLineDash([]);
       // a line from the squad that will do it

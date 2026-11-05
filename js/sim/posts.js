@@ -2,7 +2,10 @@
 // dug on the spot), a cargo pelican drops its crate and the squad deploys it. There is no limit on how many stand.
 //   foxhole:  places in light cover, one for each trooper who digs it (a pit for three, a trench for more, a crescent for eight or
 //             more; 0.28); whoever shoots from one fires faster. Not in the armory: it has no levels.
-//   bastion:  the Defilade Bastions, a full ring of low walls round the spot.
+//   wire:     (0.39) concertina wire: a run of coils that slows the enemy (a light one stops when it walks into it, then crawls
+//             through; a heavy tears it down). Sections put down end to end join into a fence. No levels, the cheapest build.
+//   foxhole:  (0.39) turned to face any way; foxholes close to each other are joined by a trench.
+//   bastion:  the Defilade Bastions, a full ring of low walls round the spot, or (0.39) the same walls in a line.
 //   mg:       the Heavy Turret Nest: a manned heavy gun (it hits like a heavy weapon) behind a thick wall, with three times the
 //             old MG post's health. It only fires with someone on it (faster with two), and the crew sit inside the wall.
 //   lookout:  the Lookout Tower: while someone is up it, the ground a long way round it stays in view (strikes can be called
@@ -18,18 +21,20 @@
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
-import { buildStats, buildLevel, uavStats } from '../data/kit.js';
+import { buildStats, buildLevel, uavStats, FLAT_BUILDS } from '../data/kit.js';
 import { turretStep } from './strat.js';
 import { damageDrop } from './reinforce.js';
 import { damageArea } from './combat.js';
 
-export const POSTS = ['foxhole', 'bastion', 'mg', 'lookout', 'bridge', 'tower', 'sam', 'arty'];      // the tactical menu's order (keys 1 to 8)
+export const POSTS = ['wire', 'foxhole', 'bastion', 'mg', 'lookout', 'bridge', 'tower', 'sam', 'arty'];      // the tactical menu's order
 export const GARRISON = -2;                                                                // a.sq of a garrisoned trooper
 const TAU = Math.PI * 2;
 const B = () => C.build;
 
 // The level a post is built at (the foxhole is always 1; a captured cannon fires at level 1 at least).
-export const postLevel = (m, what) => (what === 'foxhole' ? 1 : Math.max(0, buildLevel(m.kit, what)));
+export const postLevel = (m, what) => (FLAT_BUILDS.has(what) ? 1 : Math.max(0, buildLevel(m.kit, what)));
+// (0.39) the builds that can be turned before they are put down (a light bridge lies the way the water does)
+export const turns = (what) => what !== 'bridge';
 // (0.18) Nothing needs a crew any more: the guns, towers and the cannon work on their own (they take longer to build), and a crew is a
 // bonus. The buildings (INSIDE) take their crew in: troopers sent to man one leave their squad and are hidden inside it (selecting
 // the post shows them); they fight from it, and the post takes the hits. Foxholes and bastions are cover: whoever stands in them
@@ -60,6 +65,49 @@ export function foxholeSlots(x, y, face, size = 3) {
 export const crateSec = (m, c) => buildStats(c.what, Math.max(1, buildLevel(m.kit, c.what))).sec * (c.dig ? 1 + (foxSize(c.size) - 3) * 0.12 : 1);
 // how far a foxhole of that size reaches from its middle (to select it, and for anyone over its places)
 export const foxReach = (n) => (foxSize(n) <= 3 ? 3.5 : ((foxSize(n) - 1) * FOX_GAP) / 2 + 2);
+// (0.39) Concertina wire: its two ends, a run of len metres across `face` (the way it faces the enemy) through (x, y).
+export function wireEnds(x, y, face, len = C.build.wire.len) {
+  const ux = -Math.sin(face), uy = Math.cos(face), h = len / 2;
+  return [{ x: x - ux * h, y: y - uy * h }, { x: x + ux * h, y: y + uy * h }];
+}
+// every end of wire on the map or on its way (crates), with the way it points out of its section; an end another section already
+// meets is taken
+function wireEndsAll(m) {
+  const L = [];
+  const add = (o, what) => { const E = wireEnds(o.x, o.y, o.face ?? 0); for (const e of E) L.push({ x: e.x, y: e.y, ox: e.x - o.x, oy: e.y - o.y, o }); };
+  for (const p of m.posts) if (!p.dead && p.what === 'wire') add(p);
+  for (const c of m.crates) if (!c.used && c.what === 'wire') add(c);
+  for (const e of L) e.taken = L.some((q) => q !== e && q.o !== e.o && Math.hypot(q.x - e.x, q.y - e.y) < 1);
+  return L.filter((e) => !e.taken);
+}
+// (0.39) Where a section of wire goes for the cursor at (x, y), facing `face`: if a free end of wire is within snap metres, the new
+// run starts at that end and heads for the cursor (straight on when the cursor is on the end), so sections chain into a fence;
+// otherwise it lies across `face` at the cursor. A run does not double back over its own section (a corner is fine). The ghost and
+// the order both use this, so what is shown is what gets built.
+export function wirePlan(m, x, y, face) {
+  const W = C.build.wire;
+  let best = null, bd = W.snap, bdx = 0, bdy = 0;
+  for (const e of wireEndsAll(m)) {
+    const d = Math.hypot(e.x - x, e.y - y);
+    if (d >= bd) continue;
+    let dx = x - e.x, dy = y - e.y, k = Math.hypot(dx, dy);
+    const ol = Math.hypot(e.ox, e.oy) || 1;
+    if (k < 3) { dx = e.ox; dy = e.oy; k = ol; }
+    dx /= k; dy /= k;
+    if ((dx * e.ox + dy * e.oy) / ol < -0.35) continue;      // (back over its own section)
+    bd = d; best = e; bdx = dx; bdy = dy;
+  }
+  if (!best) return { x, y, face, snap: null };
+  const dx = bdx, dy = bdy;
+  return { x: best.x + dx * W.len / 2, y: best.y + dy * W.len / 2, face: Math.atan2(-dx, dy), snap: { x: best.x, y: best.y } };
+}
+// (0.39) a line of bastions: n walls side by side across `face`, each facing it
+export function bastionLine(x, y, face, n, B = C.build.bastion) {
+  const ux = -Math.sin(face), uy = Math.cos(face), step = B.lineLen + B.lineGap, half = ((n - 1) * step) / 2, L = [];
+  for (let k = 0; k < n; k++) { const r = k * step - half; L.push({ x: x + ux * r, y: y + uy * r }); }
+  return L;
+}
+export const bastionLineHalf = (n, B = C.build.bastion) => ((n - 1) * (B.lineLen + B.lineGap) + B.lineLen) / 2;
 function placeSlots(p) {
   if (p.what === 'bastion') return p.site.pieces.map((q) => ({ x: q.x - q.nx * 1.6, y: q.y - q.ny * 1.6 }));
   if (p.what === 'foxhole') return foxholeSlots(p.x, p.y, p.face0 ?? p.face, p.cap);
@@ -77,19 +125,32 @@ const towerReach = (m, p) => Math.round(uavStats(m.kit.uav).r * (p.what === 'tow
 // How far out a lookout spots for the fire support (enemies there, inside the strike zone, are shown).
 export const spotReach = (m, p) => Math.round(towerReach(m, p) * buildStats('lookout', p.lvl).spot);
 
-// Put one up at (x, y), facing away from the Helldivers (toward the enemy). opts: { captured, lvl, size (a foxhole's places) }.
+// Put one up at (x, y), facing away from the Helldivers (toward the enemy) unless turned. opts: { captured, lvl, size (a foxhole's
+// places), face, shape ('line' for a line of bastions) }.
 export function makePost(m, what, x, y, opts = {}) {
   const lvl = Math.max(1, opts.lvl || postLevel(m, what)), S = buildStats(what, lvl);
   const face = opts.face ?? Math.atan2(y - m.hy, x - m.hx);
   const fox = what === 'foxhole' ? foxSize(opts.size || S.cap) : 0;
+  const line = what === 'bastion' && opts.shape === 'line';
   const p = { id: m.nextId++, kind: 'post', what, sid: 'post_' + what, x, y, lvl, born: m.t, dead: false, hurtAt: -9, face, face0: face, cap: fox || S.cap || 0,
-    hp: S.hp || 0, maxHp: S.hp || 0, r: what === 'bastion' ? S.R : what === 'arty' ? 4.5 : what === 'bridge' ? 4 : fox ? foxReach(fox) : 3.5, crew: 0, crewH: 0, crewS: 0, garrison: 0,
+    hp: S.hp || 0, maxHp: S.hp || 0, r: line ? bastionLineHalf(S.n) : what === 'bastion' ? S.R : what === 'arty' ? 4.5 : what === 'bridge' ? 4 : what === 'wire' ? S.len / 2 : fox ? foxReach(fox) : 3.5,
+    crew: 0, crewH: 0, crewS: 0, garrison: 0, shape: line ? 'line' : undefined,
     captured: !!opts.captured, built: !opts.captured, repairing: false, get name() { return postName(this.what); } };
+  if (what === 'wire') { p.ends = wireEnds(x, y, face, S.len); p.wireHp = S.wireHp; p.wireMax = S.wireHp; }
   // cover: the places are cover pieces (the bastions are a ring of walls), so whoever stands in one is in cover, and the
   // Helldivers and SEAF holding near it spread out to them
-  const site = { x, y, R: what === 'bastion' ? S.R : fox ? Math.max(4, p.r) : 4, pieces: [], kind: 'built', post: p };
+  const site = { x, y, R: what === 'bastion' ? p.r : fox ? Math.max(4, p.r) : 4, pieces: [], kind: 'built', post: p };
   p.site = site;
-  if (what === 'bastion') {
+  if (line) {
+    // (0.39) the walls side by side, all facing the front
+    const nx = Math.cos(face), ny = Math.sin(face);
+    bastionLine(x, y, face, S.n).forEach((q, k) => {
+      if (m.terrain.blocked(q.x, q.y)) return;
+      site.pieces.push({ x: q.x, y: q.y, nx, ny, ang: face, len: C.build.bastion.lineLen, style: k % 2 ? 0 : 2, k, built: true, mul: S.mul, lvl, post: p });
+    });
+  } else if (what === 'wire') {
+    /* no cover, no places: it only slows the enemy (enemies.js) */
+  } else if (what === 'bastion') {
     for (let k = 0; k < S.n; k++) {
       const ang = face + (k / S.n) * TAU, px = x + Math.cos(ang) * S.R, py = y + Math.sin(ang) * S.R;
       if (m.terrain.blocked(px, py)) continue;
@@ -114,16 +175,47 @@ export function makePost(m, what, x, y, opts = {}) {
   if (what === 'tower') m.beacons.push({ id: m.nextId++, x, y, relit: true, built: true, post: p });
   if (p.maxHp > 0) m.assets.push(p);          // the enemy can shoot it down (the foxhole and the bastions cannot be destroyed)
   m.posts.push(p);
+  if (what === 'foxhole') linkTrenches(m, p);
   m.emit('post_new', { what, x, y, id: p.id });
   return p;
+}
+
+// (0.39) A foxhole joins any other foxhole whose nearest end is within C.build.foxhole.link metres of one of its own: a trench is dug
+// between them (cover all along it, facing the way the two face), so a ring of foxholes round an objective is one trench.
+const foxEnds = (p) => (p.cap > 3 && p.slots && p.slots.length > 1 ? [p.slots[0], p.slots[p.slots.length - 1]] : [{ x: p.x, y: p.y }]);
+export function linkTrenches(m, p) {
+  const F = C.build.foxhole, gap = FOX_GAP;
+  for (const q of m.posts) {
+    if (q === p || q.dead || q.what !== 'foxhole') continue;
+    if ((m.trenches || []).some((k) => (k.a === p && k.b === q) || (k.a === q && k.b === p))) continue;
+    let best = null;
+    for (const a of foxEnds(p)) for (const b of foxEnds(q)) { const d = Math.hypot(a.x - b.x, a.y - b.y); if (d <= F.link && (!best || d < best.d)) best = { a, b, d }; }
+    if (!best || best.d < 0.8) continue;
+    const { a, b, d } = best, dx = (b.x - a.x) / d, dy = (b.y - a.y) / d;
+    // the trench's front: the side of it the two foxholes face
+    const fx = Math.cos(p.face0 ?? p.face) + Math.cos(q.face0 ?? q.face), fy = Math.sin(p.face0 ?? p.face) + Math.sin(q.face0 ?? q.face);
+    let nx = -dy, ny = dx; if (nx * fx + ny * fy < 0) { nx = -nx; ny = -ny; }
+    const n = Math.max(1, Math.ceil(d / gap)), pts = [{ x: a.x, y: a.y }], pieces = [], ang = Math.atan2(ny, nx);
+    for (let k = 1; k < n; k++) {
+      const x = a.x + dx * d * (k / n), y = a.y + dy * d * (k / n);
+      pts.push({ x, y });
+      if (!m.terrain.blocked(x, y)) pieces.push({ x, y, nx, ny, ang, len: 2.5, style: 1, k, built: true, mul: F.mul, lvl: 1, post: p, link: q, hole: true });
+    }
+    pts.push({ x: b.x, y: b.y });
+    const site = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, R: d / 2 + 2, pieces, kind: 'built', post: p, link: q };
+    if (pieces.length) { m.coverSites.push(site); m.cover.push(...pieces); }
+    (m.trenches || (m.trenches = [])).push({ a: p, b: q, pts, face: ang, site });
+    m.emit('trench_link', { a: p.id, b: q.id });
+  }
 }
 
 // Gone: the walls and places come off the map, a cannon or tower stops working, and any garrison goes back to a squad.
 export function removePost(m, p) {
   p.dead = true; p.demo = null;
   m.posts = m.posts.filter((q) => q !== p);
-  m.coverSites = m.coverSites.filter((s) => s !== p.site);
-  m.cover = m.cover.filter((q) => q.post !== p);
+  m.coverSites = m.coverSites.filter((s) => s !== p.site && s.post !== p && s.link !== p);
+  m.cover = m.cover.filter((q) => q.post !== p && q.link !== p);
+  if (m.trenches) m.trenches = m.trenches.filter((k) => k.a !== p && k.b !== p);     // (0.39: and the trenches to it)
   if (p.what === 'arty') m.arty = m.arty.filter((g) => g !== p);
   if (p.what === 'tower') m.beacons = m.beacons.filter((b) => b.post !== p);
   releaseGarrison(m, p);
@@ -191,6 +283,8 @@ export function releaseGarrison(m, p, to = -1) {
 export function updatePosts(m, dt) {
   const t = m.t;
   for (const p of m.posts.slice()) if (p.demo && !p.dead && t >= p.demo.at) blowPost(m, p);     // (0.36) the charges blow
+  // (0.39) wire a heavy has torn down comes off the map
+  for (const p of m.posts.slice()) if (p.what === 'wire' && !p.dead && p.wireHp <= 0) { removePost(m, p); m.stats.wireTorn = (m.stats.wireTorn || 0) + 1; m.emit('wire_torn', { x: p.x, y: p.y, id: p.id }); }
   for (const a of m.alive) { a.inPost = null; a.inside = null; }
   // the tower's cover is rebuilt each tick from the manned towers
   if (m.relays.some((u) => u.tower)) m.relays = m.relays.filter((u) => !u.tower);
@@ -199,11 +293,13 @@ export function updatePosts(m, dt) {
     if (p.dead) continue;
     // who is on it: anyone standing in one of its places (at most one per place)
     let n = 0, nh = 0, ns = 0;
-    const R = p.what === 'bastion' ? p.r + 3 : p.r, inside = INSIDE.has(p.what);
+    if (p.what === 'wire') continue;             // (no crew: it is only wire)
+    const line = p.shape === 'line', R = p.what === 'bastion' ? p.r + 3 : p.r, inside = INSIDE.has(p.what);
     for (const a of m.alive) {
       if (a.dead || a.mounted || (a.x - p.x) ** 2 + (a.y - p.y) ** 2 > R * R) continue;
       if (inside && a.type === 'S' && a.post !== p) continue;          // a building's crew is its garrison (Helldivers at it help too)
-      if (p.what === 'bastion') { if (Math.hypot(a.x - p.x, a.y - p.y) < p.r - 3.5) continue; }
+      if (line) { if (!p.slots.some((s) => (s.x - a.x) ** 2 + (s.y - a.y) ** 2 <= 9)) continue; }     // (0.39) a line: at one of its walls
+      else if (p.what === 'bastion') { if (Math.hypot(a.x - p.x, a.y - p.y) < p.r - 3.5) continue; }
       else if (n >= p.cap) continue;
       a.inPost = p; n++; if (a.type === 'H') nh++; else ns++;
     }

@@ -60,8 +60,8 @@ await step(8);
 await tap('#tactical .tct[data-tab="build"]'); await page.waitForTimeout(300);     // (0.19.1: the sheet opens on its last tab)
 const tiles = await ev(() => [...document.querySelectorAll('#tactical .bld')].map((b) => b.dataset.b));
 const pics = await ev(() => [...document.querySelectorAll('#tactical .bld canvas')].map((c) => { const d = c.getContext('2d').getImageData(c.width / 2 - 10, c.height / 2 - 10, 20, 20).data; let v = 0; for (let i = 0; i < d.length; i += 4) v += d[i] + d[i + 1] + d[i + 2]; return v; }));
-check('eight builds, with the lookout and the light bridge and no bunker', tiles.length === 8 && tiles.includes('lookout') && tiles.includes('bridge') && !tiles.includes('bunker'), tiles.join(','));
-check('each has a picture', pics.length === 8 && pics.every((v) => v > 0));
+check('nine builds (0.39: concertina wire first), with the lookout and the light bridge and no bunker', tiles.length === 9 && tiles[0] === 'wire' && tiles.includes('lookout') && tiles.includes('bridge') && !tiles.includes('bunker'), tiles.join(','));
+check('each has a picture', pics.length === 9 && pics.every((v) => v > 0));
 const names = await ev(() => ['mg', 'lookout', 'bridge'].map((b) => document.querySelector(`#tactical .bld[data-b="${b}"] .n`).textContent));
 check('the MG nest is the Heavy Turret Nest', /HEAVY TURRET/.test(names[0]) && /LOOKOUT/.test(names[1]) && /BRIDGE/.test(names[2]), names.join(' | '));
 const fit = await ev(() => { const g = document.querySelector('#tactical .tac-build').getBoundingClientRect(); return [...document.querySelectorAll('#tactical .bld')].every((b) => { const r = b.getBoundingClientRect(); return r.right <= g.right + 1 && r.left >= g.left - 1 && r.width > 30; }); });

@@ -169,18 +169,50 @@ export function drawStroke(ctx, m, now, px, labels, scale, dr) {
 }
 
 // ---------- the troop pelican ----------
+// (0.39) A rocket VTOL from above, nose along +x: a long armoured hull, swept wings with a big rocket pod at each tip, canards with
+// two smaller pods by the nose, and twin tail fins. pelicanBody lays its outline as one path (for the shadow and the body);
+// pelicanDetail adds the canopy, the pods' nozzles and, under thrust, the rocket flames.
+const PODS = [[-0.47, 0.78, 0.27, 0.1], [0.42, 0.47, 0.17, 0.075]];     // [x, ±y, half-length, half-width] as fractions of s
 export function pelicanBody(ctx, x, y, ang, s) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
   ctx.beginPath();
-  ctx.moveTo(s, 0); ctx.lineTo(s * 0.5, -s * 0.2); ctx.lineTo(-s * 0.55, -s * 0.22); ctx.lineTo(-s, -s * 0.1); ctx.lineTo(-s, s * 0.1); ctx.lineTo(-s * 0.55, s * 0.22); ctx.lineTo(s * 0.5, s * 0.2); ctx.closePath();
-  ctx.moveTo(s * 0.15, -s * 0.18); ctx.lineTo(-s * 0.25, -s * 0.95); ctx.lineTo(-s * 0.5, -s * 0.95); ctx.lineTo(-s * 0.42, -s * 0.18); ctx.closePath();
-  ctx.moveTo(s * 0.15, s * 0.18); ctx.lineTo(-s * 0.25, s * 0.95); ctx.lineTo(-s * 0.5, s * 0.95); ctx.lineTo(-s * 0.42, s * 0.18); ctx.closePath();
+  // the hull
+  ctx.moveTo(s, 0); ctx.lineTo(s * 0.84, -s * 0.12); ctx.lineTo(s * 0.32, -s * 0.18); ctx.lineTo(-s * 0.72, -s * 0.16); ctx.lineTo(-s, -s * 0.08);
+  ctx.lineTo(-s, s * 0.08); ctx.lineTo(-s * 0.72, s * 0.16); ctx.lineTo(s * 0.32, s * 0.18); ctx.lineTo(s * 0.84, s * 0.12); ctx.closePath();
+  for (const g of [-1, 1]) {
+    // a swept wing out to its pod, a canard out to the small pod, a tail fin
+    ctx.moveTo(s * 0.08, g * s * 0.16); ctx.lineTo(-s * 0.36, g * s * 0.72); ctx.lineTo(-s * 0.6, g * s * 0.72); ctx.lineTo(-s * 0.52, g * s * 0.16); ctx.closePath();
+    ctx.moveTo(s * 0.6, g * s * 0.14); ctx.lineTo(s * 0.47, g * s * 0.42); ctx.lineTo(s * 0.35, g * s * 0.42); ctx.lineTo(s * 0.38, g * s * 0.14); ctx.closePath();
+    ctx.moveTo(-s * 0.74, g * s * 0.12); ctx.lineTo(-s * 1.06, g * s * 0.32); ctx.lineTo(-s * 1.0, g * s * 0.09); ctx.closePath();
+    for (const [px, py, hl, hw] of PODS) { ctx.moveTo((px + hl) * s, g * py * s); ctx.ellipse(px * s, g * py * s, hl * s, hw * s, 0, 0, Math.PI * 2); }
+  }
+  ctx.restore();
+}
+// thrust: 0 none, then how hard the rockets burn; down: 1 when they fire straight down (hovering), 0 when they push it along
+export function pelicanDetail(ctx, x, y, ang, s, now, thrust = 1, down = 1, col = null) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+  // the rocket flames: long streaks behind the pods under way, a round flickering glow under them in the hover
+  if (thrust > 0) for (const g of [-1, 1]) for (const [px, py, hl, hw] of PODS) {
+    const fl = 0.75 + 0.25 * Math.sin(now * 38 + px * 9 + g * 3), cx = (px - hl) * s, cy = g * py * s, len = s * (0.25 + 0.9 * (1 - down)) * thrust * fl;
+    const gr = ctx.createRadialGradient(cx - len * 0.3, cy, 0, cx - len * 0.3, cy, Math.max(0.5, hw * s * 2.6 + len * 0.6));
+    gr.addColorStop(0, `rgba(255,250,225,${0.95 * thrust})`); gr.addColorStop(0.35, `rgba(255,180,70,${0.7 * thrust})`); gr.addColorStop(1, 'rgba(255,90,20,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(cx - len * 0.45, cy, len * 0.6 + hw * s * 1.4, hw * s * (0.9 + 1.3 * down), 0, 0, Math.PI * 2); ctx.fill();
+  }
+  // the pods' nozzles and bands, the canopy, the spine
+  ctx.fillStyle = 'rgba(40,52,64,0.85)';
+  for (const g of [-1, 1]) for (const [px, py, hl, hw] of PODS) { ctx.beginPath(); ctx.ellipse((px - hl * 0.82) * s, g * py * s, hw * s * 0.45, hw * s * 0.85, 0, 0, Math.PI * 2); ctx.fill(); }
+  ctx.strokeStyle = col || 'rgba(60,80,96,0.75)'; ctx.lineWidth = Math.max(0.15, s * 0.035);
+  for (const g of [-1, 1]) for (const [px, py, hl, hw] of PODS) { ctx.beginPath(); ctx.moveTo((px + hl * 0.35) * s, g * (py - hw * 0.9) * s); ctx.lineTo((px + hl * 0.35) * s, g * (py + hw * 0.9) * s); ctx.stroke(); }
+  ctx.fillStyle = 'rgba(24,46,72,0.92)'; ctx.beginPath(); ctx.ellipse(s * 0.66, 0, s * 0.16, s * 0.075, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(150,210,255,0.55)'; ctx.beginPath(); ctx.ellipse(s * 0.7, -s * 0.02, s * 0.06, s * 0.025, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(60,80,96,0.55)'; ctx.beginPath(); ctx.moveTo(s * 0.45, 0); ctx.lineTo(-s * 0.85, 0); ctx.stroke();
   ctx.restore();
 }
 export function drawPelicans(ctx, m, now, px, labels, scale, pal) {
   const P = C.pelican, multi = squadsInUse(m) > 1 || m.seaf.sel >= 0;
   for (const p of m.pelicans) {
-    const ang = Math.atan2(p.dy, p.dx), alt = p.alt, s = Math.max(8, px(14)) * (1 + 0.18 * alt), col = multi ? squadColor(p.squad) : pal.ally;
+    // (0.39) it comes down from orbit: big and high to start with (its shadow far off), settling to its working height
+    const ang = Math.atan2(p.dy, p.dx), alt = p.alt, s = Math.max(8, px(14)) * (1 + 0.4 * alt), col = p.pick ? '#5fd0ff' : multi ? squadColor(p.squad) : pal.ally;
     // where it is going to land
     if (p.state === 'in') {
       ctx.strokeStyle = col; ctx.lineWidth = px(1.6); ctx.setLineDash([px(5), px(5)]); ctx.lineDashOffset = -now * px(10);
@@ -192,18 +224,17 @@ export function drawPelicans(ctx, m, now, px, labels, scale, pal) {
     const off = 4 + alt * 26;
     ctx.fillStyle = 'rgba(0,0,0,0.18)'; pelicanBody(ctx, p.x + off * 0.6, p.y + off, ang, s * 1.08); ctx.fill();
     ctx.fillStyle = 'rgba(0,0,0,0.42)'; pelicanBody(ctx, p.x + off * 0.6, p.y + off, ang, s * 0.92); ctx.fill();
-    // the craft: dark halo, then a bright thermal body
+    // the craft: dark halo, then a bright thermal body, its rockets burning (pushing it along on the way in and out, straight down
+    // over the spot)
+    const fx = Math.cos(ang), fy = Math.sin(ang);
+    const kIn = p.state === 'in' ? Math.min(1, (m.t - (p.t0 ?? m.t)) / P.inSec) : 1;
+    const down = p.state === 'hover' ? 1 : p.state === 'in' ? Math.max(0, (kIn - 0.55) / 0.45) : Math.max(0, 1 - p.outT / 1.2);
+    pelicanDetail(ctx, p.x, p.y, ang, s, now, 1, down, null);
     pelicanBody(ctx, p.x, p.y, ang, s);
     ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = px(4); ctx.stroke();
     ctx.fillStyle = 'rgba(205,232,255,0.92)'; ctx.fill();
     ctx.strokeStyle = col; ctx.lineWidth = px(1.6); ctx.stroke();
-    // rotor discs at the wing tips, blurred into a spinning ring
-    const nx = -Math.sin(ang), ny = Math.cos(ang), fx = Math.cos(ang), fy = Math.sin(ang);
-    for (const sg of [-1, 1]) {
-      const rx = p.x + nx * s * 0.95 * sg - fx * s * 0.38, ry = p.y + ny * s * 0.95 * sg - fy * s * 0.38;
-      ctx.strokeStyle = 'rgba(205,232,255,0.65)'; ctx.lineWidth = px(1.4); ctx.setLineDash([px(3), px(3)]); ctx.lineDashOffset = -now * px(40) * sg;
-      ring(ctx, rx, ry, s * 0.3); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
-    }
+    pelicanDetail(ctx, p.x, p.y, ang, s, now, 0, down, col);
     // the belly cannon
     ctx.fillStyle = '#ffd24a'; ring(ctx, p.x + fx * s * 0.35, p.y + fy * s * 0.35, Math.max(px(2.2), 1.2)); ctx.fill();
     // a cargo pelican carries its crate slung underneath until it is down
@@ -212,19 +243,24 @@ export function drawPelicans(ctx, m, now, px, labels, scale, pal) {
       ctx.fillStyle = 'rgba(255,214,120,0.95)'; ctx.fillRect(p.x - cs, p.y - cs, cs * 2, cs * 2);
       ctx.strokeStyle = 'rgba(80,50,10,0.9)'; ctx.lineWidth = px(1); ctx.strokeRect(p.x - cs, p.y - cs, cs * 2, cs * 2);
     }
-    // rotor wash while it hovers
+    // the rockets' blast on the ground while it hovers
     if (p.state === 'hover') {
-      ctx.strokeStyle = rgba('#cfe9ff', 0.4); ctx.lineWidth = px(1.2);
+      ctx.strokeStyle = rgba('#ffd9a0', 0.35); ctx.lineWidth = px(1.2);
       ring(ctx, p.x, p.y, s * (1.3 + 0.25 * Math.sin(now * 9))); ctx.stroke();
+    }
+    if (p.pick) {     // (0.39) a pickup
+      const text = p.state === 'in' ? tr('lab.pickSec', { n: Math.max(1, Math.ceil(P.inSec - (m.t - p.t0))) }) : p.state === 'hover' ? tr('lab.picking', { a: p.aboard, b: p.cap }) : tr('lab.pickedUp', { n: p.aboard });
+      labels.push({ x: p.x, y: p.y, dy: -s * scale - 8, text, col: '#5fd0ff', pri: 1 });
+      continue;
     }
     const left = p.roles.length - p.dropped;
     if (p.cargo) {
-      const text = p.state === 'in' ? tr('lab.cargoSec', { n: Math.max(1, Math.ceil(Math.hypot(p.tx - p.x, p.ty - p.y) / P.speed)) }) : p.cargo.landed ? tr('lab.pelicanOut') : tr('lab.cargoDrop');
+      const text = p.state === 'in' ? tr('lab.cargoSec', { n: Math.max(1, Math.ceil(P.inSec - (m.t - (p.t0 ?? m.t)))) }) : p.cargo.landed ? tr('lab.pelicanOut') : tr('lab.cargoDrop');
       labels.push({ x: p.x, y: p.y, dy: -s * scale - 8, text, col: '#ffd27a', pri: 1 });
       continue;
     }
     let text = tr('lab.pelican');
-    if (p.state === 'in') text = tr('lab.pelicanSec', { n: Math.max(1, Math.ceil(Math.hypot(p.tx - p.x, p.ty - p.y) / P.speed)) });
+    if (p.state === 'in') text = tr('lab.pelicanSec', { n: Math.max(1, Math.ceil(P.inSec - (m.t - (p.t0 ?? m.t)))) });
     else if (p.state === 'hover') text = tr('lab.deploying', { a: p.dropped, b: p.roles.length });
     else if (left <= 0) text = tr('lab.pelicanOut');
     labels.push({ x: p.x, y: p.y, dy: -s * scale - 8, text: multi ? `${text}  S${p.squad + 1}` : text, col , pri: 1 });

@@ -163,6 +163,23 @@ export const profileOf = (fid, e) => (e.sub ? C.special[fid].atk : C.combat.atk[
 // in the water does not leave its enemy standing at the shore. And anyone who has made no headway for a while takes a short step
 // sideways and plans again, so nothing stays wedged in a corner.
 let NAV = null, NAVT = 0, AOB = null, FB = null;   // FB: the group being moved (its members fall back toward its centre)
+const WIRES = [];                                  // (0.39) the concertina wire standing this tick (posts.js)
+// (0.39) How fast an enemy can go where it is, in concertina wire (1: it is in none). A light one stops when it first walks into a
+// section, then crawls through; a medium wades; a heavy tears the section down as it goes (posts.js takes it off the map).
+function wireMul(o, dt) {
+  if (!WIRES.length || !o.kind) return 1;
+  const W = C.build.wire, reach = (W.len / 2 + W.band) ** 2;
+  let inW = null;
+  for (const p of WIRES) {
+    if (p.wireHp <= 0 || (o.x - p.x) ** 2 + (o.y - p.y) ** 2 > reach) continue;
+    if (segDist(o.x, o.y, p.ends[0].x, p.ends[0].y, p.ends[1].x, p.ends[1].y) <= W.band) { inW = p; break; }
+  }
+  if (!inW) { o.wireIn = null; return 1; }
+  if (o.kind === 'H' || o.boss) { inW.wireHp -= W.tear * dt; inW.tornBy = o; return W.heavy; }
+  if (o.kind === 'M') return W.medium;
+  if (o.wireIn !== inW) { o.wireIn = inW; o.wireUntil = NAVT + W.stopSec; o.wireAt = NAVT; }
+  return NAVT < o.wireUntil ? 0 : W.light;
+}
 // The dry ground nearest a blocked spot on the mover's own side of it (walking back from the spot toward the mover), so the stand-in
 // does not flip from one shore to the other as the spot moves. Falls back to the nearest dry ground anywhere.
 export function shoreToward(tr, tx, ty, x, y) {
@@ -171,6 +188,7 @@ export function shoreToward(tr, tx, ty, x, y) {
   return tr.nearestLand(tx, ty);
 }
 function moveToward(o, tx, ty, speed, dt, size) {
+  if (WIRES.length) { const k = wireMul(o, dt); if (k <= 0) { o.vx = 0; o.vy = 0; return; } speed *= k; }
   if (AOB) {      // (the round area: nobody goes out of it; done in place, this runs for every enemy every tick)
     const R = (AOB.R || AOB.size / 2) - 3, dx = tx - AOB.cx, dy = ty - AOB.cy, d2 = dx * dx + dy * dy;
     if (d2 > R * R) { const k = R / Math.sqrt(d2); tx = AOB.cx + dx * k; ty = AOB.cy + dy * k; }
@@ -395,6 +413,7 @@ export function updateEnemies(m, dt) {
   const fac = m.faction, rng = m.rng, size = C.world.size, A = C.enemies.alert, t = m.t, T = C.enemies.tactics;
   const sightE = fac.sight * m.biome.ping;
   NAV = m.terrain; NAVT = m.t; AOB = m.ao;
+  WIRES.length = 0; for (const p of m.posts) if (p.what === 'wire' && !p.dead && p.wireHp > 0) WIRES.push(p);
   const atk = C.combat.atk[fac.id], SP = C.special[fac.id], prof = (e) => (e.sub ? SP.atk : atk[e.kind]);
   if (fac.id === 'squids') { m.ringT = (m.ringT || 0) - dt; if (m.ringT <= 0) { m.ringT = 0.5; assignRings(m); } }
   // Commanders jam the ground round them (see jammedAt); a heavy's shield comes back once it has been left alone a while.

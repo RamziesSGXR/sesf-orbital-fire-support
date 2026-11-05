@@ -29,7 +29,7 @@ export function newKit() {
   for (const id of C.kit.startLoadout) owned[id] = 1;
   const loadout = Array(C.kit.slotsMax).fill('');
   C.kit.startLoadout.forEach((id, i) => { loadout[i] = id; });
-  return { slots: C.kit.slotsStart, loadout, owned, hangar: 0, uav: 1, uavb: { speed: 0, dodge: 0 }, seaf: { cap: 0, drop: 0, hp: 0, gren: 0, rocket: 0, medic: 0, spot: 0, build: 0 }, sup: { lives: 0, zone: 0 }, gun: { dmg: 0, ammo: 0, regen: 0, spread: 0 },
+  return { slots: C.kit.slotsStart, loadout, owned, hangar: 1, pel: 1, uav: 1, uavb: { speed: 0, dodge: 0 }, seaf: { cap: 0, drop: 0, hp: 0, gren: 0, rocket: 0, medic: 0, spot: 0, build: 0 }, sup: { lives: 0, zone: 0 }, gun: { dmg: 0, ammo: 0, regen: 0, spread: 0 },
     build: { bastion: 1, mg: 1, lookout: 1, bridge: 1, tower: 1, sam: 0, arty: 0 } };
 }
 // Old or partial saves are filled in rather than thrown away.
@@ -89,10 +89,12 @@ export function orbStats(id, level = 1) {
 }
 // (0.23) The Hangar: how many calls the Eagle has before it goes back to rearm, how long that takes, and how much faster pelicans
 // (SEAF drops and cargo) come. Level 0: no Eagles.
+// (0.39) The Hangar is always open (level 1 at least: it is no longer bought); fleet is how many pelicans are in it.
 export function hangarStats(kit) {
-  const H = C.hangar, l = Math.max(0, Math.min(H.levels, (kit && kit.hangar) | 0));
-  return { level: l, uses: l ? H.usesBase + Math.floor(l / 2) : 0, rearm: H.rearm[l], callCd: H.callCd, pelican: H.pelican[l], seafCool: H.seafCool[l] };
+  const H = C.hangar, l = Math.max(1, Math.min(H.levels, (kit && kit.hangar) | 0));
+  return { level: l, uses: H.usesBase + Math.floor(l / 2), rearm: H.rearm[l], callCd: H.callCd, seafCool: H.seafCool[l], fleet: fleetSize(kit) };
 }
+export const fleetSize = (kit) => Math.max(1, Math.min(C.hangar.fleet.max, (kit && kit.pel) || C.hangar.fleet.start));
 export const uavStats = (lvl = 1) => {
   const i = Math.max(1, Math.min(C.uav.r.length, lvl)) - 1;
   return { r: C.uav.r[i], sec: C.uav.sec[i], cd: C.uav.cd[i] };
@@ -135,6 +137,7 @@ export function buildStats(what, level = 1) {
   const B = C.build[what], L = Math.max(1, Math.min(C.build.levels, level | 0 || 1)), k = L - 1, A = C.arty;
   const hp = (f) => Math.round(B.hp * (1 + f * k));
   if (what === 'foxhole') return { cost: B.cost, sec: B.sec, cap: B.cap, mul: B.mul, rof: B.rof };
+  if (what === 'wire') return { cost: B.cost, sec: B.sec, len: B.len, wireHp: B.hp };     // (not hp: nobody shoots at wire)
   if (what === 'bastion') return { cost: B.cost, sec: B.sec, n: B.n + 2 * k, R: B.R + 0.75 * k, mul: Math.max(0.35, B.mul - 0.05 * k) };
   if (what === 'mg') return { cost: B.cost, sec: B.sec, cap: B.cap, hp: hp(0.25), dmg: 1 + 0.15 * k, crewMul: Math.max(0.2, B.crewMul - 0.03 * k) };
   if (what === 'lookout') return { cost: B.cost, sec: B.sec, cap: B.cap, hp: hp(0.25), reach: +(B.reach * (1 + 0.08 * k)).toFixed(2), spot: B.spot };
@@ -143,7 +146,8 @@ export function buildStats(what, level = 1) {
   if (what === 'sam') return { cost: B.cost, sec: B.sec, hp: hp(0.25), dmg: Math.round(B.dmg * (1 + 0.2 * k)), every: +(B.every * (1 - 0.08 * k)).toFixed(2) };
   return { cost: B.cost, sec: B.sec, cap: B.cap, hp: hp(0.25), cd: Math.round(A.cd * (1 - A.cdUp * k)), r: Math.round(A.r * (1 + A.rUp * k)), dmg: Math.round(A.dmg * (1 + A.dmgUp * k)), range: A.range + A.rangeUp * k };
 }
-export const buildLevel = (kit, what) => (what === 'foxhole' ? 1 : ((kit && kit.build) || {})[what] || 0);
+export const FLAT_BUILDS = new Set(['foxhole', 'wire']);     // (0.39) no levels, never in the armory: always there, at level 1
+export const buildLevel = (kit, what) => (FLAT_BUILDS.has(what) ? 1 : ((kit && kit.build) || {})[what] || 0);
 export const BUILDS = ['bastion', 'mg', 'lookout', 'bridge', 'tower', 'sam', 'arty'];       // in the armory (the foxhole is free and has no levels)
 // The SEAF Barracks has no top level: each level adds troops and costs a little more than the last.
 export const barracksCost = (lvl) => price(300 * (lvl + 1) ** 1.4);
@@ -173,7 +177,7 @@ export const slotCost = (n) => price(n === 4 ? 700 : 1500);
 const ITEM_TIER = {
   'slot:4': 0, util_smoke: 0, orb_ems: 0, 'gun.dmg': 0, 'gun.ammo': 0, uav: 0, 'seaf.cap': 0, 'seaf.drop': 0, 'seaf.hp': 0, 'bld:bastion': 0, 'bld:mg': 0,
   util_med: 1, orb_gas: 1, orb_walk: 1, 'gun.regen': 1, 'uavb.speed': 1, 'seaf.build': 1, 'seaf.gren': 1, 'bld:lookout': 1, 'bld:bridge': 1, 'sup.zone': 1,
-  hangar: 2, eagle_smoke: 2, eagle_strafe: 2, eagle_air: 2, mine_ap: 2, orb_napalm: 2, util_shield: 2, 'gun.spread': 2, 'uavb.dodge': 2, 'seaf.rocket': 2, 'seaf.medic': 2, 'bld:tower': 2,
+  pel: 2, eagle_smoke: 2, eagle_strafe: 2, eagle_air: 2, mine_ap: 2, orb_napalm: 2, util_shield: 2, 'gun.spread': 2, 'uavb.dodge': 2, 'seaf.rocket': 2, 'seaf.medic': 2, 'bld:tower': 2,
   'slot:5': 3, eagle_cluster: 3, eagle_napalm: 3, mine_inc: 3, orb_380: 3, util_sentry: 3, 'seaf.spot': 3, 'bld:sam': 3,
   eagle_rockets: 4, mine_at: 4, orb_rail: 4,
   orb_laser: 5, eagle_500: 5, 'bld:arty': 5,
@@ -195,14 +199,15 @@ export function shopItems(kit) {
     if (kit.slots >= n) continue;
     items.push({ id: `slot:${n}`, section: 'loadout', name: t('kit.slot', { n }), blurb: t('kit.slot.b'), level: 0, max: 1, cost: kit.slots === n - 1 ? slotCost(n) : null, locked: kit.slots !== n - 1, live: false });
   }
-  // (0.23) The Hangar: Eagles, and faster pelicans
-  { const lvl = kit.hangar || 0, mx = C.hangar.levels;
-    items.push({ id: 'hangar', section: 'eagles', ...named('hangar'), level: lvl, max: mx, cost: lvl >= mx ? null : price(C.hangar.price[lvl]), live: lvl > 0 }); }
+  // (0.39) The Hangar is open from the start: what is bought there is more pelicans (the Pelican Fleet) and bigger loads (seaf.drop,
+  // below, listed in the Hangar)
+  { const F = C.hangar.fleet, n = fleetSize(kit), lvl = n - F.start, mx = F.max - F.start;
+    items.push({ id: 'pel', section: 'hangar', ...named('pel'), level: lvl, max: mx, cost: lvl >= mx ? null : price(F.price[lvl]), live: true }); }
   // Orbitals, utilities, (0.23) Eagles and minefields
   for (const id of ORB_LIST) {
     const d = STRATS[id], lvl = kit.owned[id] || 0;
     const sec = d.secret ? 'classified' : d.cat === 'EAGLE' ? 'eagles' : d.cat === 'DEFENSE' ? 'defense' : d.util ? 'utilities' : 'orbitals';    // (all of them equip in the same slots)
-    const locked = d.cat === 'EAGLE' && !(kit.hangar > 0), mx = d.secret ? 1 : MAXL;     // (0.25: a classified one has one level)
+    const locked = false, mx = d.secret ? 1 : MAXL;     // (0.25: a classified one has one level; 0.39: the Hangar is always open)
     if (!lvl) items.push({ id: `own:${id}`, section: sec, name: d.name, blurb: d.blurb, level: 0, max: mx, cost: ORB_PRICE[id], orb: id, live: false, locked, needs: locked ? 'hangar' : null, secret: !!d.secret });
     else items.push({ id: `up:${id}`, section: sec, name: d.name, blurb: d.blurb, level: lvl, max: mx, cost: lvl >= mx ? null : orbUpCost(id, lvl), orb: id, owned: true, live: true, secret: !!d.secret });
   }
@@ -219,7 +224,7 @@ export function shopItems(kit) {
   }
   for (const [k, u] of Object.entries(SEAF_UP)) {
     const lvl = kit.seaf[k];
-    items.push({ id: `seaf.${k}`, section: k === 'medic' || k === 'spot' || k === 'gren' || k === 'rocket' ? 'specialists' : 'seaf', ...named(`seaf.${k}`), level: lvl, max: u.max,
+    items.push({ id: `seaf.${k}`, section: k === 'medic' || k === 'spot' || k === 'gren' || k === 'rocket' ? 'specialists' : k === 'drop' ? 'hangar' : 'seaf', ...named(`seaf.${k}`), level: lvl, max: u.max,
       cost: lvl >= u.max ? null : u.endless ? barracksCost(lvl) : price(u.price * (lvl + 1)), live: true, endless: !!u.endless });
   }
   // Buildables: what SEAF can put up. Bastions, heavy turret nests, lookouts, light bridges and propaganda towers come at level 1; the SAM site and the
@@ -251,15 +256,7 @@ export function buy(kit, wallet, id, inMission = false, tier = TIER_MAX) {
   else if (kind === 'own') { kit.owned[arg] = 1; equip(kit, arg); }
   else if (kind === 'up') kit.owned[arg] = Math.min(MAXL, kit.owned[arg] + 1);
   else if (kind === 'uav') kit.uav++;
-  else if (kind === 'hangar') {
-    kit.hangar = (kit.hangar || 0) + 1;
-    // (0.31) the Hangar's first level comes with an Eagle to fly: the Strafing Run, free, into a free slot if there is one
-    if (kit.hangar === 1 && !kit.owned[HANGAR_GIFT]) {
-      const g = shopItems(kit).find((x) => x.id === 'own:' + HANGAR_GIFT);
-      kit.owned[HANGAR_GIFT] = 1;
-      return { ok: true, item: it, gift: HANGAR_GIFT, giftName: g ? g.name : HANGAR_GIFT, equipped: equip(kit, HANGAR_GIFT) };
-    }
-  }
+  else if (kind === 'pel') kit.pel = fleetSize(kit) + 1;      // (0.39) one more pelican in the hangar
   else if (kind === 'uavb') { kit.uavb = kit.uavb || { speed: 0, dodge: 0 }; kit.uavb[arg] = (kit.uavb[arg] || 0) + 1; }
   else if (kind === 'seaf') kit.seaf[arg]++;
   else if (kind === 'gun') kit.gun[arg]++;

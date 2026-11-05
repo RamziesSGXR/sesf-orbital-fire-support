@@ -921,7 +921,7 @@ body.touch #tray #buildmenu { grid-template-columns: repeat(4, minmax(0, 1fr)); 
 .tac-x { position: absolute; top: -2px; right: -2px; width: 28px; height: 26px; font-size: 13px; }
 .tac-l { font-size: 9.5px; letter-spacing: 0.2em; color: var(--g-dim); margin-top: 2px; }
 .tac-row { display: grid; gap: 4px; }
-.tac-build { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+.tac-build { grid-template-columns: repeat(9, minmax(0, 1fr)); }
 .tac-form { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .bld { position: relative; height: 52px; padding: 5px 3px 3px; }
 .bld .k, .frm .k { position: absolute; top: 2px; right: 4px; color: var(--g-dim); font-size: 8.5px; }
@@ -968,7 +968,7 @@ body.boxing #view { cursor: crosshair; }
   #minimap { width: 104px; height: 104px; }
   .hr { grid-template-columns: 14px minmax(0, 1fr) 104px; } .hr .sc { height: 20px; }
   #tray { bottom: 72px; }
-  .tac-build { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .tac-build { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 
 /* ---------- phones (touch) ---------- */
@@ -997,7 +997,7 @@ body.touch .hr .sc { height: 18px; } body.touch .hr .sc .g { font-size: 7px; }
 body.touch #tray #squads { grid-template-columns: repeat(5, minmax(0, 1fr)); background: rgba(2, 14, 7, 0.9); }
 body.touch #tray #orders { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; background: rgba(2, 14, 7, 0.9); }
 body.touch #tray #buildmenu { background: rgba(2, 14, 7, 0.95); }
-body.touch .tac-build { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+body.touch .tac-build { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 body.touch .bld { height: 46px; } body.touch .bld .k, body.touch .frm .k { display: none; }
 body.touch #selcard { left: max(8px, env(safe-area-inset-left)); right: calc(max(8px, env(safe-area-inset-right)) + 92px); width: auto; max-width: 420px; bottom: calc(max(8px, env(safe-area-inset-bottom)) + 96px); }
 body.touch #radio { display: none !important; }
@@ -1128,7 +1128,7 @@ body.touch #objective { right: calc(max(8px, env(safe-area-inset-right)) + var(-
 .tp { width: 9px; height: 9px; border-radius: 50%; background: #9dd8ff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5); }
 .tp.r-medic { background: #7dff9b; } .tp.r-rocket { background: #ff8a4a; } .tp.r-gren { background: #ffd34a; } .tp.r-spotter { background: #c58bff; }
 .tc-l { font-size: 9.5px; letter-spacing: 0.24em; color: #7fd8ff; margin-bottom: 5px; }
-.tc-grid.tac-build { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
+.tc-grid.tac-build { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 6px; }
 .tc-grid.tac-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
 #tactical .bld { position: relative; height: auto; min-width: 0; padding: 5px 4px 6px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
 #tactical .bld .ic { display: block; width: 100%; max-width: 66px; aspect-ratio: 1; height: auto; border-radius: 6px; border: 1px solid rgba(157, 255, 184, 0.28); }
@@ -1208,7 +1208,7 @@ body.touch .tl-btns .tacb kbd { display: none; }
 body.touch #tactical .bld .ic { max-width: 50px; }
 /* phones held sideways: a low console, one row of builds */
 @media (max-height: 520px) and (orientation: landscape) {
-  body.touch .tc-grid.tac-build { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 3px; }
+  body.touch .tc-grid.tac-build { grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 3px; }
   body.touch #tactical .bld { padding: 2px 2px 3px; gap: 1px; }
   body.touch #tactical .bld .ic { max-width: 36px; }
   body.touch #tactical .bld .n { font-size: 7.5px; min-height: 17px; }
@@ -1333,7 +1333,7 @@ body.touch .bigcr b { font-size: 22px; } body.touch .bigcr { padding: 1px 8px 2p
 #tactical .tc-sec { display: none; grid-column: 3; }
 #tactical[data-tab="units"] .tc-u, #tactical[data-tab="units"] .tc-f, #tactical[data-tab="build"] .tc-b, #tactical[data-tab="ship"] .tc-s { display: block; }
 #tactical[data-tab="units"] .tc-f { grid-column: 3; margin-top: 6px; }
-.tc-grid.tac-ord { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; margin-bottom: 6px; }
+.tc-grid.tac-ord { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; margin-bottom: 6px; }
 .tco { position: relative; height: 42px; padding: 3px 2px; font: inherit; color: var(--g); background: rgba(0, 0, 0, 0.35); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
 .tco .k { position: absolute; top: 1px; right: 3px; font-size: 8px; color: var(--g-dim); }
 .tco .n { display: block; font-size: 9.5px; margin-top: 7px; } .tco .s { display: block; font-size: 8.5px; color: #fff; }
@@ -1358,7 +1358,7 @@ body.touch .bigcr b { font-size: 22px; } body.touch .bigcr { padding: 1px 8px 2p
   .tc-tabs { grid-template-columns: repeat(4, 1fr); } .tct { height: 34px; }
   #tactical .tc-sec { grid-column: 1; }
   #tactical[data-tab="units"] .tc-f { grid-column: 1; }
-  .tc-grid.tac-ord { grid-template-columns: repeat(3, minmax(0, 1fr)); } .tc-grid.tac-ship { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .tc-grid.tac-ord { grid-template-columns: repeat(4, minmax(0, 1fr)); } .tc-grid.tac-ship { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-height: 520px) and (orientation: landscape) {
   body.touch .tc-body { grid-template-columns: 70px 140px minmax(0, 1fr) !important; }
@@ -1747,12 +1747,12 @@ body.rts #hud #tactical .tc-l { margin: 0; font-size: 8.5px; }
 body.rts #hud #tactical .tc-sqs { margin: 0; }
 body.rts #hud #tactical #squads { position: static; display: grid !important; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)) !important; gap: 4px; padding: 0; background: none; border: 0; width: auto; }
 body.rts #hud #tactical #squads .sqb, body.rts #hud #tactical #squads .sqa { height: 30px; }
-body.rts #hud #tactical .tc-grid.tac-ord { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; margin: 0; }
+body.rts #hud #tactical .tc-grid.tac-ord { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin: 0; }
 body.rts #hud #tactical .tco { height: 32px; } body.rts #hud #tactical .tco .n { margin-top: 3px; }
 body.rts #hud #tactical .tc-grid.tac-sq { grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 3px; } body.rts #hud #tactical .tcq { height: 22px; }
 body.rts #hud #tactical .tc-b { flex-direction: column; }
 body.rts #hud #tactical .tc-b .tc-list { flex: none; max-height: 28px; overflow: hidden; display: flex; flex-wrap: nowrap; gap: 4px; }
-body.rts #hud #tactical .tc-grid.tac-build { flex: 1; min-height: 0; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 5px; }
+body.rts #hud #tactical .tc-grid.tac-build { flex: 1; min-height: 0; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 5px; }
 body.rts #hud #tactical .bld { height: 100%; min-height: 0; justify-content: flex-end; padding: 3px 3px 4px; }
 body.rts #hud #tactical .bld .ic { flex: 1; min-height: 0; width: auto; max-width: 100%; aspect-ratio: 1; }
 body.rts #hud #weapons { position: absolute; left: var(--cl); right: var(--cr); bottom: calc(var(--B) + var(--bb) + var(--g)); top: auto; height: var(--wsh); transform: none; display: flex; justify-content: center; gap: 5px; }
@@ -1808,11 +1808,11 @@ body.rts #hud #softpause .sp-bar { top: auto; bottom: calc(var(--dcb, 210px) + v
   body.rts:not(.lay-phone) #hud .hud-tr { top: calc(var(--T) + 34px); width: 190px; }
   body.rts:not(.lay-phone) #hud #center-msg { left: var(--L); right: calc(var(--R) + 200px); top: calc(var(--T) + 34px); font-size: 12px; }
   body.rts:not(.lay-phone) #hud #tactical .tc-tabs { width: 40px; } body.rts:not(.lay-phone) #hud #tactical .tct span { display: none; }
-  body.rts:not(.lay-phone) #hud #tactical .tc-grid.tac-ord { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  body.rts:not(.lay-phone) #hud #tactical .tc-grid.tac-ord { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   body.rts:not(.lay-phone) #hud #tactical .tac-sq, body.rts:not(.lay-phone) #hud #tactical .tc-l { display: none !important; }
   body.rts:not(.lay-phone) #hud #tactical .tco { height: 24px; } body.rts:not(.lay-phone) #hud #tactical .tco .k { display: none; } body.rts:not(.lay-phone) #hud #tactical .tco .n { margin-top: 0; font-size: 8.5px; } body.rts:not(.lay-phone) #hud #tactical .tco .s { font-size: 8px; }
   body.rts:not(.lay-phone) #hud #tactical #squads .sqb, body.rts:not(.lay-phone) #hud #tactical #squads .sqa { height: 22px; }
-  body.rts:not(.lay-phone) #hud #tactical .tc-grid.tac-build { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  body.rts:not(.lay-phone) #hud #tactical .tc-grid.tac-build { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   body.rts:not(.lay-phone) #hud #tactical .bld .n, body.rts:not(.lay-phone) #hud #tactical .bld .k, body.rts:not(.lay-phone) #hud #tactical .bld .c { display: none; }
 }
 
@@ -2003,10 +2003,10 @@ body.rts.lay-phone #hud #tactical #squads .sqb, body.rts.lay-phone #hud #tactica
 body.rts.lay-phone #hud #tactical #squads .sqa .n { font-size: 10.5px; }
 body.rts.lay-phone #hud #tactical #squads .fcyc { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
 body.rts.lay-phone #hud #tactical #squads .fcyc .fg { transform: scale(0.8); }
-body.rts.lay-phone #hud #tactical .tc-grid.tac-ord { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
+body.rts.lay-phone #hud #tactical .tc-grid.tac-ord { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 body.rts.lay-phone #hud #tactical .tco { height: var(--pb); padding: 0 2px; } body.rts.lay-phone #hud #tactical .tco .n { margin-top: 2px; font-size: 10.5px; letter-spacing: 0; } body.rts.lay-phone #hud #tactical .tco .s { font-size: 10px; }
 body.rts.lay-phone #hud #tactical .tc-b .tc-list { max-height: 34px; } body.rts.lay-phone #hud #tactical .tc-b .tc-list .btn { min-height: 32px; font-size: 10.5px; }
-body.rts.lay-phone #hud #tactical .tc-grid.tac-build { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 4px; }
+body.rts.lay-phone #hud #tactical .tc-grid.tac-build { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 4px; }
 body.rts.lay-phone #hud #tactical .bld .n { display: block; font-size: 9.5px; } body.rts.lay-phone #hud #tactical .bld .c { font-size: 9.5px; }
 body.rts.lay-phone #hud .la-tab { height: 32px; font-size: 10.5px; padding: 0 8px; } body.rts.lay-phone #hud .la-p { width: 34px; height: 32px; }
 body.rts.lay-phone #hud .la-it .la-n { font-size: 11px; } body.rts.lay-phone #hud .la-it .la-s { font-size: 10.5px; }
@@ -2551,3 +2551,16 @@ body.rts.lay-phone #hud #selpanel .tsd { padding: 0 6px; letter-spacing: 0.02em;
 }
 #s-campaign { overflow-y: auto; }
 @media (min-width: 1000px) { body:not(.touch) #s-campaign { justify-content: safe center; } }
+
+/* (0.39) placing a build: the turn button, and ring / line for the bastions. On a computer the bar shows them with the keys (the
+   click on the map still puts the build down), so PLACE and CANCEL are left to the touch screen. */
+#hud #place-ok .po-tool { display: inline-flex; align-items: center; gap: 5px; padding: 0 10px; }
+#hud #place-ok .po-tool i { font-style: normal; font-size: 15px; line-height: 1; }
+#hud #place-ok .po-tool.hidden { display: none; }
+body:not(.touch) #hud #place-ok #po-go, body:not(.touch) #hud #place-ok #po-x { display: none; }
+body:not(.touch) #hud #place-ok { bottom: calc(var(--dcb, 210px) + 8px); }
+body.touch #dk-pick { width: 74px; }
+/* (0.39) the mid-mission armory has a HANGAR tab now (the Pelican Fleet can be bought there): the tabs share the row and shrink */
+.la-top { min-width: 0; overflow: hidden; }
+.la-tab { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.rts.lay-tab #hud .la-tab { padding: 0 8px; }

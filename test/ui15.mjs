@@ -125,7 +125,7 @@ check('and back to full speed', await ev(() => window.__game.speed === 1 && docu
 await ev(() => { const m = window.__game.mission; m.seaf.readyAt = 0; m.callSeaf(m.hx + 20, m.hy + 10); for (let i = 0; i < 30 * 14; i++) m.step(1 / 30); });
 await tap('#tactical .tct[data-tab="build"]'); await page.waitForTimeout(300);
 const bm = await ev(() => [...document.querySelectorAll('#tactical .bld')].map((b) => b.textContent));
-check('the tactical build screen has the artillery cannon, locked until the armory unlocks it', bm.length === 8 && /ARTILLERY CANNON/.test(bm[7]) && /UNLOCK/.test(bm[7]), bm.join(' | '));
+check('the tactical build screen has the artillery cannon, locked until the armory unlocks it', bm.length === 9 && /ARTILLERY CANNON/.test(bm[8]) && /UNLOCK/.test(bm[8]), bm.join(' | '));     // (0.39: nine, the wire first)
 check('and (0.18) the game runs on while it is open', await ev(async () => { const g = window.__game, t0 = g.mission.t; await new Promise((r) => setTimeout(r, 300)); return g.tac && g.mission.t > t0; }));
 await shot('buildmenu');
 await toTroops(); await page.waitForTimeout(250);

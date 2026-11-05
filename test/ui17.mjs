@@ -194,7 +194,7 @@ const t0 = await ev(() => window.__game.mission.t); await page.waitForTimeout(40
 check('and (0.18) the game runs on', (await ev(() => window.__game.mission.t)) > t0);
 await tap('#tactical .tct[data-tab="build"]'); await page.waitForTimeout(200);
 const pics = await ev(() => [...document.querySelectorAll('#tactical .bld canvas')].map((c) => { const d = c.getContext('2d').getImageData(c.width / 2 - 8, c.height / 2 - 8, 16, 16).data; let v = 0; for (let i = 0; i < d.length; i += 4) v += d[i] + d[i + 1] + d[i + 2]; return v; }));
-check('each build has a picture', pics.length === 8 && pics.every((v) => v > 0), pics.length + ' pictures');
+check('each build has a picture', pics.length === 9 && pics.every((v) => v > 0), pics.length + ' pictures');     // (0.39: and the wire)
 await toTroops(); await page.waitForTimeout(200);
 check('TROOPS has the squad bar; the Helldivers stay on show', (await page.isVisible('#squads')) && (await page.isVisible('#sqpanel')));
 await tap('#tactical .tct[data-tab="build"]'); await page.waitForTimeout(200);

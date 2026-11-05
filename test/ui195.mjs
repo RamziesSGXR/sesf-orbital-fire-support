@@ -34,7 +34,7 @@ check('with few left they turn red', await ev(() => document.getElementById('liv
 await ev(() => { const m = window.__game.mission; m.hd.lives = m.hd.max; }); await page.waitForTimeout(300);
 
 // ---------------------------------------------------------------- SEAF on the ground, held still
-await ev(() => { const m = window.__game.mission; m.seaf.readyAt = 0; m.callSeaf(m.hx + 20, m.hy + 14); for (let i = 0; i < 30 * 16; i++) m.step(1 / 30); });
+await ev(() => { const m = window.__game.mission; m.seaf.readyAt = 0; m.callSeaf(m.hx + 20, m.hy + 14); for (let i = 0; i < 30 * 24; i++) m.step(1 / 30); });     // (0.39: a pelican takes 5 s down and 3 there)
 const squad = await ev(() => { const m = window.__game.mission, q = m.seaf.squads.find((x) => x.n >= 3); return q ? q.i : -1; });
 check('a squad of SEAF is down', squad >= 0, String(squad));
 // the camera on them, close in
