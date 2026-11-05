@@ -8,15 +8,31 @@ import { CONFIG as C } from './config.js';
 import { clampLevel, levelAt, levelName, LEVELS } from './difficulty.js';
 
 const K = { settings: 'ofs.settings', session: 'ofs.session', history: 'ofs.history', callsign: 'ofs.callsign', notice: 'ofs.notice', names: 'ofs.names',
-  campaign: 'ofs.campaign', campRun: 'ofs.campRun' };     // (0.37) the campaign's progress on this browser, and its run under way
+  campaign: 'ofs.campaign', campRun: 'ofs.campRun',     // (0.37) the campaign's progress on this browser, and its run under way
+  slots: 'ofs.slots' };     // (0.41) the three save slots
 
 export function load(key, fallback) {
   try { const v = localStorage.getItem(K[key]); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
 }
 export function save(key, val) {
-  try { localStorage.setItem(K[key], JSON.stringify(val)); } catch { /* storage blocked: the game still works */ }
+  try { localStorage.setItem(K[key], JSON.stringify(val)); return true; } catch { return false; /* storage blocked (or full): the game still works */ }
 }
 export function drop(key) { try { localStorage.removeItem(K[key]); } catch { /* ignore */ } }
+
+// (0.41) Three save slots on this browser, each a run (QUICK PLAY's or the campaign's) as it stood between missions: { at (when
+// saved), key ('session' | 'campRun'), run }. A run saved to a slot remembers it (run.slot, 1-3) and saves itself there again
+// after every mission (main.js persist).
+export const SLOTS = 3;
+export function getSlots() {
+  const a = load('slots', []);
+  return Array.from({ length: SLOTS }, (_, i) => { const s = Array.isArray(a) ? a[i] : null; return s && s.run && s.run.missions ? s : null; });
+}
+export function putSlot(n, key, run, at = Date.now()) {
+  if (!(n >= 1 && n <= SLOTS) || !run) return false;
+  const a = getSlots(); a[n - 1] = { at, key: key === 'campRun' ? 'campRun' : 'session', run: { ...JSON.parse(JSON.stringify(run)), slot: n } };
+  return save('slots', a);
+}
+export function clearSlot(n) { const a = getSlots(); if (n >= 1 && n <= SLOTS) { a[n - 1] = null; save('slots', a); } }
 
 export const DEFAULT_SETTINGS = {
   enemy: 'random',        // (0.18) the enemy for the session's missions: 'random' or a faction id; a change counts from the next mission

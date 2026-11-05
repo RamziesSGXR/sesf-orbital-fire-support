@@ -754,7 +754,7 @@ function toTitle() {
   const rb = $('btn-resume');
   rb.classList.toggle('hidden', !resumable(saved));
   if (saved && saved.missions) rb.textContent = t('title.resume', { op: S.opOf(saved).replace(/^Operation\s+/i, '').toUpperCase(), n: saved.missions.length, score: S.fmtNum(saved.score), d: S.levelNow(saved) });
-  $('tt-cp-sub').textContent = campSub();
+  $('tt-cp-sub').textContent = campSub(); drawLoadBtn();
   UI.buildLangs(getLang(), pickLang);
   drawDiff();
   $('tut-new').classList.toggle('hidden', !!S.load('tutSeen', false));      // (0.19) NEW on the tutorial until it has been opened
@@ -766,7 +766,11 @@ function toTitle() {
 // (0.37) the campaign's line on the title screen: where it stands on this browser
 function campSub() {
   const prog = S.getCampaign(), run = S.load('campRun', null), N = STORY.chapters.length;
-  if (run && run.story) { const ch = chapterFor(run, (run.missions ? run.missions.length : 0) + 1); if (ch) return t('title.cpRun', { n: ch.n, of: N }); }
+  if (run && run.story) {
+    const n = (run.missions ? run.missions.length : 0) + 1, ch = chapterFor(run, n);
+    if (ch) return t('title.cpRun', { n: ch.n, of: N });
+    if (resumable(run)) return t('title.cpEndless', { n });     // (0.41) the story flown, the run goes on: endless, with its armory
+  }
   const next = STORY.chapters.find((c) => !prog.done.includes(c.n));
   if (!prog.done.length) return t('title.campaignSub');
   return next ? t('title.cpNext', { n: next.n, of: N, done: prog.done.length }) : t('title.cpAll', { of: N });
@@ -798,7 +802,7 @@ function beginSession(resume, key = 'session') {
       // kit, credits and ranks), at the level picked now
       const ck = storyPick.n > 1 ? S.getCampaign().ck[storyPick.n - 1] : null;
       session = ck ? S.fixSession(JSON.parse(JSON.stringify(ck))) : S.newSession(cs, chosenDiff(), tEn('cp.ember.t'));
-      session.callsign = cs; session.difficulty = chosenDiff(); session.held = null; session.op = tEn('cp.ember.t');
+      session.callsign = cs; session.difficulty = chosenDiff(); session.held = null; session.op = tEn('cp.ember.t'); delete session.slot;     // (0.41: a new run, in no slot until saved to one)
       session.story = { id: STORY.id, ch: storyPick.n - session.missions.length };     // (its next mission is the chapter picked)
     } else session = S.newSession(cs, chosenDiff());
   }
@@ -812,14 +816,26 @@ function goShop(focus = false) {
   state = 'shop'; mission = null; paused = false; audio.humStop(); hud.reset(); setPlacing(null); setHideUi(false); $('s-pause').classList.remove('out');
   UI.hideOverlays(); UI.showScreen('s-shop');
   const n = session.missions.length + 1;
-  $('shop-eyebrow').textContent = n === 1 ? t('arm.eyebrow1') : t('arm.eyebrowN', { n });
+  $('shop-eyebrow').textContent = n === 1 ? t('arm.eyebrow1') : session.story && !chapterFor(session, n) ? t('arm.eyebrowEnd', { n }) : t('arm.eyebrowN', { n });     // (0.41: past the campaign's last chapter)
   $('shop-go').textContent = t('arm.deploy', { n });
   if (BOT) botShop(session.kit, session.wallet);
   drawShop(undefined, focus);
 }
 // (0.37) QUICK PLAY's run and the campaign's are kept apart, so starting one never loses the other
 const runKey = (s) => (s && s.story ? 'campRun' : 'session');
-function persist() { if (session && !session.tutorial) S.save(runKey(session), session); }
+// (0.41) What is kept of the run: between missions, the run as it is; during one, the run as it was at the drop (with that mission
+// held, so it is the one that comes back after a reload), never credits half earned. A run with a save slot is saved there too,
+// so it saves itself after every mission.
+function keptRun() {
+  if (state === 'play' && mission && !mission.over && startSnap) return JSON.parse(startSnap);
+  return session;
+}
+function persist() {
+  if (!session || session.tutorial) return;
+  const key = runKey(session), run = { ...keptRun(), slot: session.slot || undefined };
+  S.save(key, run);
+  if (session.slot) S.putSlot(session.slot, key, run);
+}
 // (0.24) Milestones: missions done this session (a failed one ends it, so it is every mission that carried on) and the
 // milestone that makes. The tutorial has the whole armory.
 const doneN = (s) => (s && s.missions ? s.missions.filter((r) => S.carriesOn(r.outcome)).length : 0);
@@ -913,7 +929,7 @@ function goBrief(again = false) {
 // MENU on the armory and the briefing: the same menu as in a mission (settings, controls, the field manual, squad names, the main
 // menu), without what only makes sense in one.
 function outMenu(on) {
-  $('s-pause').classList.toggle('out', !!on);
+  $('s-pause').classList.toggle('out', !!on); saveBtn();
   $('home-confirm').classList.add('hidden'); wantHome = false;
   UI.overlay('s-pause', !!on);
 }
@@ -933,7 +949,7 @@ function goHome() {
   }
   if (state === 'play' && mission && !mission.over) {
     if (!wantHome) { wantHome = true; $('home-confirm').classList.remove('hidden'); audio.click(); return; }
-    if (startSnap) session = S.fixSession(JSON.parse(startSnap));
+    if (startSnap) { const slot = session.slot; session = S.fixSession(JSON.parse(startSnap)); session.slot = slot; }     // (0.41: it stays in its slot)
     holdMission();
   } else if (state === 'brief') holdMission();
   audio.click(); wantHome = false;
@@ -946,7 +962,9 @@ const BIOME_OK = (b) => ['ice', 'grass', 'desert', 'jungle', 'moon', 'mars'].inc
 
 function deploy() {
   audio.unlock();
+  holdMission();     // (0.41) the run is kept as it is now, with this mission waiting in it, until the mission is over
   startSnap = JSON.stringify(session);      // what RETRY MISSION puts back: credits, kit, score and time as they were at the drop
+  persist();
   if (terrainKey !== `${info.biome}|${info.seed}`) buildFor(info.biome, info.seed);
   mission = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: true, missionN: session.missions.length + 1, opDone: session.missions.length, difficulty: S.levelNow(session),
     loadout: info.loadout, keepOrder: true, objectives: info.ovObj, kit: session.kit, wallet: session.wallet, names: session.names, tod: info.tod,
@@ -1121,7 +1139,7 @@ function retryMission() {
   if (!startSnap || !info) return;
   if (!retryArm) { retryArm = true; audio.click(); UI.armRetry(true); return; }
   audio.click(); retryArm = false;
-  session = S.fixSession(JSON.parse(startSnap));
+  { const slot = session.slot; session = S.fixSession(JSON.parse(startSnap)); session.slot = slot; }     // (0.41: it stays in its slot)
   lastRes = null;
   persist();
   goBrief(true);
@@ -1138,6 +1156,7 @@ function endSession() {
 }
 
 function togglePause(force) {
+  if (UI.isOn('s-saves')) { closeSaves(); return; }
   if (UI.isOn('s-controls')) { closePanel('s-controls'); return; }
   if (UI.isOn('s-manual')) { closePanel('s-manual'); return; }
   if (UI.isOn('s-map')) { closeMap(); return; }
@@ -1151,7 +1170,7 @@ function togglePause(force) {
   if (soft) { soft = false; hud.setSoft(false); paused = false; force = true; }   // a soft pause opens into the full menu
   paused = force !== undefined ? force : !paused;
   firePending = false; setPlacing(null); setDrawing(false); disarm(); setTac(false); if (mission) mission.setFiring(false);
-  $('s-pause').classList.remove('out');
+  $('s-pause').classList.remove('out'); saveBtn();
   UI.overlay('s-pause', paused);
   $('abort-confirm').classList.add('hidden'); wantAbort = false; $('home-confirm').classList.add('hidden'); wantHome = false;
   if (paused) audio.humStop(); else { audio.unlock(); audio.humStart(); }
@@ -1285,6 +1304,64 @@ function closeMap() {
   $('map-close').onclick = () => closeMap();
 }
 
+// ---------------- (0.41) SAVE GAME and LOAD GAME: three slots on this browser ----------------
+// SAVE GAME (the menu, in an operation): the run as it stands between missions, or during one as it was at the drop. Saved to a
+// slot, the run keeps saving itself there after every mission. LOAD GAME (the title): a slot's run carries on from the armory.
+let svMode = 'load', svArm = null, svNote = '';
+const saveBtn = () => $('btn-save-m').classList.toggle('hidden', !session || !!session.tutorial);
+function slotInfo(s, n) {
+  if (!s) return null;
+  const r = s.run, ch = r.story ? chapterFor(r, r.missions.length + 1) : null;
+  return { n, at: s.at, camp: !!r.story, ch: ch ? ch.n : 0, chT: ch ? t(`cp.${STORY.id}.c${ch.n}`) : '', op: S.opOf(r), cs: r.callsign || '',
+    done: doneN(r), next: r.missions.length + 1, level: S.levelNow(r), rank: tierFor(doneN(r)), cr: (r.wallet && r.wallet.bal) || 0, cur: !!(session && session.slot === n) };
+}
+function drawSaves() {
+  const slots = S.getSlots(), mid = svMode === 'save' && state === 'play' && mission && !mission.over;
+  const live = (k) => S.load(k, null);
+  UI.fillSaves(svMode, slots.map((s, i) => slotInfo(s, i + 1)), {
+    arm: svArm, note: svNote, mid,
+    replaces: (n) => { const s = slots[n - 1], cur = s && live(s.key); return !!(cur && resumable(cur) && cur.slot !== n) ? (s.key === 'campRun' ? 'camp' : 'quick') : null; },
+    onSave: (n) => {
+      if (slots[n - 1] && svArm !== `save${n}`) { svArm = `save${n}`; svNote = ''; audio.click(); drawSaves(); return; }
+      svArm = null;
+      const ok = S.putSlot(n, runKey(session), keptRun());
+      if (ok) { session.slot = n; persist(); audio.ready(); svNote = t('sv.saved', { n }); } else { audio.deny(); svNote = t('sv.fail'); }
+      drawSaves();
+    },
+    onLoad: (n) => {
+      const s = slots[n - 1]; if (!s) return;
+      const rep = live(s.key);
+      if (rep && resumable(rep) && rep.slot !== n && svArm !== `load${n}`) { svArm = `load${n}`; svNote = ''; audio.click(); drawSaves(); return; }
+      svArm = null;
+      S.save(s.key, s.run); storyPick = null;
+      UI.overlay('s-saves', false);
+      beginSession(true, s.key);
+    },
+    onDelete: (n) => {
+      if (svArm !== `del${n}`) { svArm = `del${n}`; svNote = ''; audio.click(); drawSaves(); return; }
+      svArm = null; S.clearSlot(n);
+      if (session && session.slot === n) { session.slot = null; persist(); }
+      audio.click(); svNote = t('sv.deleted', { n }); drawSaves(); drawLoadBtn();
+    },
+  });
+}
+function openSaves(mode) {
+  audio.unlock(); audio.click();
+  svMode = mode; svArm = null; svNote = '';
+  if (mode === 'save') UI.overlay('s-pause', false);
+  drawSaves();
+  UI.overlay('s-saves', true);
+}
+function closeSaves() {
+  UI.overlay('s-saves', false); audio.click();
+  if (svMode === 'save') UI.overlay('s-pause', true); else drawLoadBtn();
+}
+// the title's LOAD GAME: how many of the slots hold an operation
+function drawLoadBtn() { const n = S.getSlots().filter(Boolean).length; $('tt-load-sub').textContent = n ? t('title.loadSub', { n, of: S.SLOTS }) : t('title.loadNone'); }
+$('btn-save-m').onclick = () => openSaves('save');
+$('btn-load-t').onclick = () => openSaves('load');
+$('sv-back').onclick = closeSaves; $('sv-x').onclick = closeSaves;
+
 function openCredits(from) {
   creditsFrom = from;
   if (from === 'pause') UI.overlay('s-pause', false);
@@ -1336,7 +1413,12 @@ function playChapter(c) {
   noticeFirst(() => askLock('camp', { chapter: c, from: ck ? c.n - 1 : 0 }));
 }
 function resumeCampaign() { audio.unlock(); storyPick = null; beginSession(true, 'campRun'); }
-function drawCampaign() { UI.fillCampaign(STORY, playChapter, { prog: S.getCampaign(), run: S.load('campRun', null), onResume: resumeCampaign }); }
+function drawCampaign() {
+  const run = S.load('campRun', null), n = run && run.missions ? run.missions.length + 1 : 1;
+  // (0.41) a run that has flown the story goes on as an endless one, its armory and all: the campaign screen carries it on
+  const end = run && run.story && !chapterFor(run, n) && resumable(run) ? { n, level: S.levelNow(run), cr: (run.wallet && run.wallet.bal) || 0, rank: tierFor(doneN(run)) } : null;
+  UI.fillCampaign(STORY, playChapter, { prog: S.getCampaign(), run, end, onResume: resumeCampaign });
+}
 function openCampaign() {
   audio.unlock(); audio.click(); state = 'campaign';
   drawCampaign();

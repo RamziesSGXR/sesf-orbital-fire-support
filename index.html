@@ -223,6 +223,7 @@
         <button id="btn-resume" class="btn tt-item tt-resume hidden" type="button"></button>
         <button id="btn-campaign" class="btn tt-item" type="button"><span data-t="title.campaign">CAMPAIGN</span><i class="tt-dev" data-t="title.inDev">IN DEVELOPMENT</i><small id="tt-cp-sub" data-t="title.campaignSub">A story across missions</small></button>
         <button id="btn-play" class="btn tt-item" type="button"><span data-t="title.quick">QUICK PLAY</span><small data-t="title.quickSub">Mission after mission against the enemy you pick</small></button>
+        <button id="btn-load-t" class="btn tt-item" type="button"><span data-t="title.load">LOAD GAME</span><small id="tt-load-sub" data-t="title.loadNone">Save an operation from the menu to keep it here</small></button>
         <button id="btn-settings" class="btn tt-item" type="button"><span data-t="ui.settings">SETTINGS</span><small data-t="title.setSub">Sound, layout, language</small></button>
         <button id="btn-credits-t" class="btn tt-item" type="button"><span data-t="ui.credits">CREDITS</span><small data-t="title.aboutSub">The team, the tools and the story</small></button>
         <a id="lnk-fb-t" class="btn fb tt-item" target="_blank" rel="noopener"><span data-t="ui.feedback">FEEDBACK</span><small data-t="title.fbSub">The SESF Helldivers Discord</small></a>
@@ -390,6 +391,7 @@
         <button id="btn-settings-m" class="btn" data-t="ui.settings">SETTINGS</button>
         <button id="btn-ctl-m" class="btn" type="button" data-t="pause.help">HELP</button>
         <button id="btn-radio-m" class="btn play-only radio-only" type="button" data-t="radio.log">RADIO LOG</button>
+        <button id="btn-save-m" class="btn pm-w hidden" type="button" data-t="pause.save">SAVE GAME</button>
         <button id="btn-home-m" class="btn pm-out" type="button" data-t="pause.home">MAIN MENU</button>
         <button id="btn-abort" class="btn danger pm-out play-only" data-t="pause.retire">RETIRE</button>
       </div>
@@ -399,6 +401,18 @@
     </div>
   </section>
 
+
+  <!-- (0.41) SAVE GAME / LOAD GAME: three slots on this browser -->
+  <section id="s-saves" class="screen overlay">
+    <div class="card">
+      <button id="sv-x" class="x-close" type="button" data-ta="sv.close">✕</button>
+      <h2 id="sv-h" data-t="sv.loadH">LOAD GAME</h2>
+      <p id="sv-intro" class="fine"></p>
+      <ol id="sv-list" class="sv-list"></ol>
+      <p id="sv-note" class="sv-note" role="status"></p>
+      <div class="btns"><button id="sv-back" class="btn" type="button" data-t="ui.backBtn">BACK</button></div>
+    </div>
+  </section>
 
   <section id="s-names" class="screen overlay">
     <div class="card">

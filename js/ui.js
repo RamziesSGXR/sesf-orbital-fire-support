@@ -82,6 +82,38 @@ export function hideOverlays() { for (const o of OVERLAYS) overlay(o, false); }
 // (0.24) The campaign screen: the test story, and its chapters (only those that can be played have a button).
 // (0.37) the chapters in order: cleared ones can be replayed, the next one is open, the rest wait for the one before. st: { prog
 // (session.js getCampaign), run (the campaign run under way, or null), onResume }
+// (0.41) SAVE GAME / LOAD GAME: the three slots. mode 'save' | 'load'; slots: what main.js slotInfo says of each (null: empty);
+// h.arm: the button waiting for a second tap ('save2', 'load1', 'del3'); h.replaces(n): 'camp' | 'quick' when loading slot n would
+// replace a run under way; h.mid: saving during a mission (the run as it was at the drop).
+export function fillSaves(mode, slots, h) {
+  const save = mode === 'save';
+  $('sv-h').textContent = t(save ? 'sv.saveH' : 'sv.loadH');
+  $('sv-intro').textContent = save ? t(h.mid ? 'sv.saveMid' : 'sv.saveNote') : t(slots.some(Boolean) ? 'sv.loadNote' : 'sv.none');
+  $('sv-note').textContent = h.note || '';
+  const ol = $('sv-list'); ol.innerHTML = '';
+  const when = (at) => { try { return new Date(at).toLocaleString(getLang(), { dateStyle: 'medium', timeStyle: 'short' }); } catch { return new Date(at).toLocaleString(); } };
+  slots.forEach((s, i) => {
+    const n = i + 1, li = el('li', 'sv-slot' + (s ? '' : ' empty') + (s && s.cur ? ' cur' : ''));
+    const b = el('div', 'sv-b');
+    b.appendChild(el('div', 'sv-k', esc(t('sv.slot', { n })) + (s && s.cur ? ` <i>${esc(t('sv.cur'))}</i>` : '')));
+    if (s) {
+      b.appendChild(el('div', 'sv-t', esc(s.camp ? (s.ch ? t('sv.camp', { n: s.ch, t: s.chT }) : t('sv.campEnd', { n: s.next })) : t('sv.quick', { op: s.op.toUpperCase() }))));
+      b.appendChild(el('div', 'sv-l', esc(t('sv.line', { cs: s.cs, done: s.done, level: s.level, rank: t('rank.' + s.rank), cr: Math.round(s.cr).toLocaleString('en-US') }))));
+      b.appendChild(el('div', 'sv-at', esc(t('sv.at', { at: when(s.at) }))));
+      const rp = !save && h.replaces(n);
+      if (rp && h.arm === `load${n}`) b.appendChild(el('div', 'sv-warn', esc(t(rp === 'camp' ? 'sv.replaceCamp' : 'sv.replaceQuick'))));
+    } else b.appendChild(el('div', 'sv-t sv-e', esc(t('sv.empty'))));
+    li.appendChild(b);
+    const acts = el('div', 'sv-acts');
+    const btn = (cls, key, f, dis = false) => { const x = el('button', 'btn ' + cls, esc(t(key))); x.type = 'button'; x.disabled = dis; x.onclick = () => f(n); acts.appendChild(x); return x; };
+    if (save) btn(h.arm === `save${n}` ? 'danger' : 'primary', h.arm === `save${n}` ? 'sv.overwrite' : 'sv.saveHere', h.onSave);
+    else if (s) btn(h.arm === `load${n}` ? 'danger' : 'primary', h.arm === `load${n}` ? 'sv.loadArm' : 'sv.load', h.onLoad);
+    if (s && !save) btn(h.arm === `del${n}` ? 'danger sv-del' : 'sv-del', h.arm === `del${n}` ? 'sv.deleteArm' : 'sv.delete', h.onDelete);
+    li.appendChild(acts);
+    ol.appendChild(li);
+  });
+}
+
 export function fillCampaign(story, onPlay, st = {}) {
   const prog = st.prog || { done: [], ck: {} }, run = st.run && st.run.story ? st.run : null;
   $('cp-title').textContent = t(`cp.${story.id}.t`);
@@ -108,6 +140,15 @@ export function fillCampaign(story, onPlay, st = {}) {
     else if (!open) row.appendChild(el('span', 'cp-lock', esc(t('cp.locked', { n: c.n - 1 }))));
     li.appendChild(row);
     ol.appendChild(li);
+  }
+  // (0.41) every chapter flown: the run goes on as an endless one, with everything in its armory
+  if (st.end && st.onResume) {
+    const e = st.end, li = el('li', 'cp-ch cp-end run');
+    li.appendChild(el('h3', '', esc(t('cp.endH'))));
+    li.appendChild(el('p', '', esc(t('cp.endB'))));
+    li.appendChild(el('p', 'cp-teach', esc(t('cp.endRun', { n: e.n, level: e.level, rank: t('rank.' + e.rank), cr: fmtNum(e.cr) }))));
+    const row = el('div', 'cp-btns'), b = el('button', 'btn primary', esc(t('cp.continue', { n: e.n })));
+    b.type = 'button'; b.onclick = () => st.onResume(); row.appendChild(b); li.appendChild(row); ol.prepend(li);     // (first: it is what comes next)
   }
 }
 
