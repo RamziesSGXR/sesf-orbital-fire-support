@@ -115,12 +115,11 @@ const arm = await ev(() => { const h = [...document.querySelectorAll('#shop-root
   return { ms: (document.querySelector('#shop-root .rankbar') || {}).textContent || '', fill: parseFloat((document.querySelector('#shop-root .rb-fill') || { style: {} }).style.width) || 0,
     hangar: h ? { lock: h.classList.contains('ranklock'), btn: h.querySelector('.btn.buy').textContent, dis: h.querySelector('.btn.buy').disabled } : null, fresh: document.querySelectorAll('#shop-root .item.fresh').length,
     cls: [...document.querySelectorAll('#shop-root .tabpane[data-tab="classified"] .item')].map((x) => ({ red: x.classList.contains('redacted'), bars: !!x.querySelector('.bars'), txt: x.textContent })) }; });
-check('(0.25) the armory shows your rank, its name and a bar to the next one', /RANK 1/.test(arm.ms) && /Certified Patriot/.test(arm.ms) && /rank 2, Liber-Tea Sommelier, at 3 missions/.test(arm.ms) && arm.fill > 11 && arm.fill < 23, `${arm.ms.replace(/\s+/g, ' ').slice(0, 160)} | fill ${arm.fill}%`);
+check('(0.25) the armory shows your rank, its name and a bar to the next one', /RANK 1/.test(arm.ms) && /Certified Patriot/.test(arm.ms) && /rank 2, Liber-Tea Sommelier, at 2 missions/.test(arm.ms) && arm.fill > 11 && arm.fill < 23, `${arm.ms.replace(/\s+/g, ' ').slice(0, 160)} | fill ${arm.fill}%`);
 check('(0.25; 0.39 the Pelican Fleet) the Hangar\'s Pelican Fleet shows at rank 1, but locked: it needs rank 2', arm.hangar && arm.hangar.lock && arm.hangar.dis && /RANK 2/.test(arm.hangar.btn), JSON.stringify(arm.hangar));
 check('(0.25) CLASSIFIED shows four blacked-out stratagems, their names not given away', arm.cls.length === 4 && arm.cls.every((c) => c.red && c.bars && !/Storm|Squadron|Lance|Final/.test(c.txt) && /rank [6-9]/i.test(c.txt)), arm.cls.map((c) => c.txt.slice(0, 50)).join(' | '));
 check('what milestone 1 brought is marked NEW', arm.fresh >= 3, `${arm.fresh} new`);
-// two more missions done (the second is set up here; the third is flown)
-await ev(() => { const s = window.__game.session; s.missions.push({ ...s.missions[0] }); });
+// (0.40.1: a rank every mission) the second mission is flown
 await tap('#shop-go'); await page.waitForTimeout(600);
 await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
 await tap('#b-continue'); await page.waitForTimeout(1500);
@@ -128,7 +127,7 @@ const bal0 = await ev(() => window.__game.session.wallet.bal);
 await win();
 sp = await ev(() => { const b = document.getElementById('ms-splash'); return b.hidden ? null : { k: document.getElementById('ms-k').textContent, list: [...document.querySelectorAll('#ms-list li')].map((l) => l.textContent) }; });
 const bal1 = await ev(() => window.__game.session.wallet.bal);
-check('three missions done: rank 2, with the Pelican Fleet', sp && /RANK 2: Liber-Tea Sommelier/.test(sp.k) && sp.list.some((n) => /Pelican Fleet/.test(n)), JSON.stringify(sp));
+check('two missions done: rank 2, with the Pelican Fleet', sp && /RANK 2: Liber-Tea Sommelier/.test(sp.k) && sp.list.some((n) => /Pelican Fleet/.test(n)), JSON.stringify(sp));
 check('the level bonus is paid', bal1 - bal0 >= 600, `${bal0} → ${bal1}`);
 await shot('splash2');
 await tap('#ms-show'); await page.waitForTimeout(900);

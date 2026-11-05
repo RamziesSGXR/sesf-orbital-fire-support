@@ -1162,7 +1162,7 @@ export default {
     'Quitter une mission (dans le menu pause) la fait toujours échouer, même avec l’objectif accompli.',
     'Une mission ratée met fin à l’opération sauf si vous la RETENTEZ : la même carte, avec vos crédits revenus à ceux du largage.',
     'COPIER LE SCORE sur n’importe quel bilan copie votre score d’opération jusqu’ici pour le canal de la communauté.',
-    'Rangs : les missions réussies font monter votre rang, de Recrue toute fraîche au départ jusqu’au rang 9 à 30 missions. Chaque rang rapporte un bonus de niveau et ouvre davantage l’armurerie. Vous voyez tout dès le début, mais ce que votre rang n’a pas atteint reste verrouillé et indique le rang nécessaire. Les rangs 6 à 9 (15, 20, 25 et 30 missions) déclassifient chacun un stratagème caviardé de l’onglet CLASSIFIÉ. Un bandeau montre ce que vous avez débloqué, et MONTRER vous y emmène.',
+    'Rangs : les missions réussies font monter votre rang, d’un rang par mission, de Recrue toute fraîche au départ jusqu’au rang 9 à 9 missions. Chaque rang rapporte un bonus de niveau et ouvre davantage l’armurerie. Vous voyez tout dès le début, mais ce que votre rang n’a pas atteint reste verrouillé et indique le rang nécessaire. Les rangs 6 à 9 (15, 20, 25 et 30 missions) déclassifient chacun un stratagème caviardé de l’onglet CLASSIFIÉ. Un bandeau montre ce que vous avez débloqué, et MONTRER vous y emmène.',
   ],
   // ---------- 0.16: enemies, posts, the tactical menu, the four-corner HUD ----------
   'lab.armor': 'BLINDAGE',

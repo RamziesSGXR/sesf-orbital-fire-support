@@ -1,5 +1,5 @@
-// 0.25 checks (the sim side): ranks (they were milestones) run to 9 at 30 missions; everything shows in the armory but what your
-// rank has not reached cannot be bought; four classified stratagems open at ranks 6 to 9 (15, 20, 25 and 30 missions), each
+// 0.25 checks (the sim side): ranks (they were milestones) run to 9 (0.40.1: one a mission, so at 9 missions); everything shows in
+// the armory but what your rank has not reached cannot be bought; four classified stratagems open at ranks 6 to 9, each
 // one level, the gunner's alone, and over the top.
 // Run: node test/r25.mjs
 import { Mission } from '../js/sim/mission.js';
@@ -16,8 +16,8 @@ const run = (m, s, each) => { for (let i = 0, n = Math.round(s / dt); i < n && !
 const SECRET = ['orb_storm', 'eagle_squad', 'orb_lance', 'orb_final'];
 
 // ---------------------------------------------------------------- ranks
-check('nine ranks, the last at 30 missions; it stops there', TIER_MAX === 9 && C.ranks.at[8] === 30 && tierFor(0) === 0 && tierFor(1) === 1 && tierFor(14) === 5 && tierFor(15) === 6 && tierFor(30) === 9 && tierFor(99) === 9,
-  [0, 1, 3, 10, 14, 15, 20, 25, 30, 99].map((n) => `${n}:${tierFor(n)}`).join(' '));
+check('nine ranks, one a mission (0.40.1), the last at 9 missions; it stops there', TIER_MAX === 9 && C.ranks.at.every((a, i) => a === i + 1) && tierFor(0) === 0 && tierFor(1) === 1 && tierFor(5) === 5 && tierFor(6) === 6 && tierFor(9) === 9 && tierFor(99) === 9,
+  [0, 1, 3, 5, 6, 9, 99].map((n) => `${n}:${tierFor(n)}`).join(' '));
 check('every rank pays a bigger level bonus than the last', C.ranks.bonus.length === 9 && C.ranks.bonus.every((b, i) => i === 0 || b > C.ranks.bonus[i - 1]), C.ranks.bonus.join(' '));
 check('ranks 6 to 9 each declassify one stratagem', [6, 7, 8, 9].every((r, i) => { const l = tierItems(newKit(), r); return l.length === 1 && l[0] === 'own:' + SECRET[i]; }), [6, 7, 8, 9].map((r) => tierItems(newKit(), r).join()).join(' / '));
 {

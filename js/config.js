@@ -354,8 +354,9 @@ export const CONFIG = {
                 // war minutes at each level (1 to 10), war minutes a level past 10, and the share of each real session minute that counts
                 war: [0, 15, 37, 38, 39, 40, 40.5, 41, 41.5, 42], warBeyond: 10, sessionRamp: 0.075,     // (0.19.2: ramp and sessionRamp halved; 0.40: the top flattened, so a session started at 10 can win its first mission)
                 // (0.31) rankStep: a rank reached (ranks.at, missions done) makes every mission after it this much of a level harder too,
-                // so the more of the armory is open, the harder it gets. From level 3: missions 1-14 at 3 4 4 5 6 7 7 8 9 9 10 11 11 12.
-                rankStep: 0.25 },
+                // so the more of the armory is open, the harder it gets. (0.40.1: halved, with a rank every mission, so the climb stays
+                // where it was.) From level 3: missions 1-14 at 3 4 4 5 6 7 7 8 9 10 10 11 11 12.
+                rankStep: 0.125 },
   // Pressure drives how fast the field fills: it climbs through the session and, faster, through each mission.
   pressure: { start: 1, perSessionMin: 0.035, perMissionMin: 0.12, onBaseKill: 0.6, floor: 0.5 },
   // The war escalates with every minute of the session, so the run only ends in failure: tougher, harder-hitting enemies and more heavies.
@@ -435,8 +436,9 @@ export const CONFIG = {
               fleet: { start: 1, max: 6, price: [1100, 1400, 1800, 2300, 2900] } },
   // (0.24) Ranks (0.25: they were milestones): missions done in a session raise your rank, which opens more of the armory and
   // pays a level bonus. Everything shows in the armory from the start; what your rank has not reached is locked. Ranks 6 to 9
-  // each declassify one stratagem; 30 missions is the top. Which item comes at which rank: ITEM_TIER in data/kit.js.
-  ranks:    { at: [1, 3, 5, 7, 10, 15, 20, 25, 30], bonus: [400, 600, 800, 1000, 1500, 2000, 2500, 3000, 4000],
+  // each declassify one stratagem. (0.40.1) A rank every mission: 9 missions is the top (it was 1, 3, 5, 7, 10, 15, 20, 25, 30).
+  // Which item comes at which rank: ITEM_TIER in data/kit.js.
+  ranks:    { at: [1, 2, 3, 4, 5, 6, 7, 8, 9], bonus: [400, 600, 800, 1000, 1500, 2000, 2500, 3000, 4000],
               // (0.26) the tutorial has one mission: its ranks come with kills instead (and everything open can be bought mid-mission)
               tutKills: [10, 25, 45, 70, 100, 140, 190, 250, 320] },
   econ:     { priceMul: 1.1, earnPerMin: 640, maxAtMin: 300 },     // (0.17.3: prices up about a quarter; 0.18: two more buildables; 0.23: the Hangar and minefields add about an hour)
@@ -525,6 +527,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.40.0',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.40.1',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

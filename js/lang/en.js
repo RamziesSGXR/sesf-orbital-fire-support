@@ -1162,7 +1162,7 @@ export default {
     'Retiring from a mission (in the pause menu) always fails it, even with the objective done.',
     'A failed mission ends the operation unless you RETRY it: the same map, with your credits back where they were at the drop.',
     'COPY SCORE on any debrief copies your operation score so far for the community channel.',
-    'Ranks: missions done raise your rank, from Fresh Recruit at the start to rank 9 at 30 missions. Each rank pays a level bonus and opens more of the armory. You can see everything from the start, but what your rank hasn\'t reached stays locked and says which rank it needs. Ranks 6 to 9 (15, 20, 25 and 30 missions) each declassify one blacked-out stratagem in the CLASSIFIED tab. A splash shows what you\'ve unlocked, and SHOW ME takes you to it.',
+    'Ranks: missions done raise your rank, one rank for every mission, from Fresh Recruit at the start to rank 9 at 9 missions. Each rank pays a level bonus and opens more of the armory. You can see everything from the start, but what your rank hasn\'t reached stays locked and says which rank it needs. Ranks 6 to 9 (15, 20, 25 and 30 missions) each declassify one blacked-out stratagem in the CLASSIFIED tab. A splash shows what you\'ve unlocked, and SHOW ME takes you to it.',
   ],
   // ---------- 0.16: enemies, posts, the tactical menu, the four-corner HUD ----------
   'lab.armor': 'ARMOR',

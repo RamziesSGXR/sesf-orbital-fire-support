@@ -1162,7 +1162,7 @@ export default {
     'Abandonar una misión (en el menú de pausa) siempre la hace fracasar, aunque el objetivo esté cumplido.',
     'Una misión fallida termina la operación salvo que la REINTENTES: el mismo mapa, con tus créditos como estaban en el despliegue.',
     'COPIAR PUNTUACIÓN en cualquier informe copia tu puntuación de la operación hasta ahora para el canal de la comunidad.',
-    'Rangos: las misiones cumplidas suben tu rango, de Recluta recién salido al principio hasta el rango 9 con 30 misiones. Cada rango paga un bono de nivel y abre más del arsenal. Lo ves todo desde el principio, pero lo que tu rango aún no alcanza sigue bloqueado y dice qué rango necesita. Los rangos 6 a 9 (15, 20, 25 y 30 misiones) desclasifican cada uno una estratagema tachada de la pestaña CLASIFICADO. Un rótulo muestra lo que has desbloqueado, y MOSTRAR te lleva hasta ello.',
+    'Rangos: las misiones cumplidas suben tu rango, un rango por misión, de Recluta recién salido al principio hasta el rango 9 con 9 misiones. Cada rango paga un bono de nivel y abre más del arsenal. Lo ves todo desde el principio, pero lo que tu rango aún no alcanza sigue bloqueado y dice qué rango necesita. Los rangos 6 a 9 (15, 20, 25 y 30 misiones) desclasifican cada uno una estratagema tachada de la pestaña CLASIFICADO. Un rótulo muestra lo que has desbloqueado, y MOSTRAR te lleva hasta ello.',
   ],
   // ---------- 0.16: enemies, posts, the tactical menu, the four-corner HUD ----------
   'lab.armor': 'BLINDAJE',
