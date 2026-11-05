@@ -169,43 +169,51 @@ export function drawStroke(ctx, m, now, px, labels, scale, dr) {
 }
 
 // ---------- the troop pelican ----------
-// (0.39) A rocket VTOL from above, nose along +x: a long armoured hull, swept wings with a big rocket pod at each tip, canards with
-// two smaller pods by the nose, and twin tail fins. pelicanBody lays its outline as one path (for the shadow and the body);
-// pelicanDetail adds the canopy, the pods' nozzles and, under thrust, the rocket flames.
-const PODS = [[-0.47, 0.78, 0.27, 0.1], [0.42, 0.47, 0.17, 0.075]];     // [x, ±y, half-length, half-width] as fractions of s
+// (0.39.1) The heavy dropship from above, nose along +x: a wide armoured troop bay with a ramp at the back, broad wings with a big
+// jet pod slung under each (they swivel down to hover and back to fly), and a tall tail with its stabilisers. pelicanBody lays its
+// outline as one path (for the shadow and the body); pelicanDetail adds the jets' flames, the pods' nozzles, the cockpit and the
+// panel lines. thrust: how hard the jets burn (0: details only); down: 1 hovering (the jets point down), 0 flying (they push it on).
+const POD = { x: -0.04, y: 0.58, hl: 0.26, hw: 0.13 };     // the jet pods, as fractions of s
 export function pelicanBody(ctx, x, y, ang, s) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
   ctx.beginPath();
-  // the hull
-  ctx.moveTo(s, 0); ctx.lineTo(s * 0.84, -s * 0.12); ctx.lineTo(s * 0.32, -s * 0.18); ctx.lineTo(-s * 0.72, -s * 0.16); ctx.lineTo(-s, -s * 0.08);
-  ctx.lineTo(-s, s * 0.08); ctx.lineTo(-s * 0.72, s * 0.16); ctx.lineTo(s * 0.32, s * 0.18); ctx.lineTo(s * 0.84, s * 0.12); ctx.closePath();
+  // the troop bay
+  ctx.moveTo(s, -s * 0.1); ctx.lineTo(s, s * 0.1); ctx.lineTo(s * 0.78, s * 0.26); ctx.lineTo(-s * 0.8, s * 0.24); ctx.lineTo(-s, s * 0.12);
+  ctx.lineTo(-s, -s * 0.12); ctx.lineTo(-s * 0.8, -s * 0.24); ctx.lineTo(s * 0.78, -s * 0.26); ctx.closePath();
   for (const g of [-1, 1]) {
-    // a swept wing out to its pod, a canard out to the small pod, a tail fin
-    ctx.moveTo(s * 0.08, g * s * 0.16); ctx.lineTo(-s * 0.36, g * s * 0.72); ctx.lineTo(-s * 0.6, g * s * 0.72); ctx.lineTo(-s * 0.52, g * s * 0.16); ctx.closePath();
-    ctx.moveTo(s * 0.6, g * s * 0.14); ctx.lineTo(s * 0.47, g * s * 0.42); ctx.lineTo(s * 0.35, g * s * 0.42); ctx.lineTo(s * 0.38, g * s * 0.14); ctx.closePath();
-    ctx.moveTo(-s * 0.74, g * s * 0.12); ctx.lineTo(-s * 1.06, g * s * 0.32); ctx.lineTo(-s * 1.0, g * s * 0.09); ctx.closePath();
-    for (const [px, py, hl, hw] of PODS) { ctx.moveTo((px + hl) * s, g * py * s); ctx.ellipse(px * s, g * py * s, hl * s, hw * s, 0, 0, Math.PI * 2); }
+    // a broad wing, a tail stabiliser, the jet pod under the wing
+    ctx.moveTo(s * 0.2, g * s * 0.24); ctx.lineTo(s * 0.02, g * s * 0.95); ctx.lineTo(-s * 0.3, g * s * 0.95); ctx.lineTo(-s * 0.36, g * s * 0.24); ctx.closePath();
+    ctx.moveTo(-s * 0.78, g * s * 0.16); ctx.lineTo(-s * 0.92, g * s * 0.44); ctx.lineTo(-s * 1.02, g * s * 0.44); ctx.lineTo(-s * 0.98, g * s * 0.12); ctx.closePath();
+    ctx.moveTo((POD.x + POD.hl) * s, g * POD.y * s); ctx.ellipse(POD.x * s, g * POD.y * s, POD.hl * s, POD.hw * s, 0, 0, Math.PI * 2);
   }
   ctx.restore();
 }
-// thrust: 0 none, then how hard the rockets burn; down: 1 when they fire straight down (hovering), 0 when they push it along
 export function pelicanDetail(ctx, x, y, ang, s, now, thrust = 1, down = 1, col = null) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
-  // the rocket flames: long streaks behind the pods under way, a round flickering glow under them in the hover
-  if (thrust > 0) for (const g of [-1, 1]) for (const [px, py, hl, hw] of PODS) {
-    const fl = 0.75 + 0.25 * Math.sin(now * 38 + px * 9 + g * 3), cx = (px - hl) * s, cy = g * py * s, len = s * (0.25 + 0.9 * (1 - down)) * thrust * fl;
-    const gr = ctx.createRadialGradient(cx - len * 0.3, cy, 0, cx - len * 0.3, cy, Math.max(0.5, hw * s * 2.6 + len * 0.6));
-    gr.addColorStop(0, `rgba(255,250,225,${0.95 * thrust})`); gr.addColorStop(0.35, `rgba(255,180,70,${0.7 * thrust})`); gr.addColorStop(1, 'rgba(255,90,20,0)');
-    ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(cx - len * 0.45, cy, len * 0.6 + hw * s * 1.4, hw * s * (0.9 + 1.3 * down), 0, 0, Math.PI * 2); ctx.fill();
+  const nx = (POD.x - POD.hl * 0.85) * s;     // where each pod's nozzle is
+  if (thrust > 0) for (const g of [-1, 1]) {
+    // the jet: a long streak behind the pod in flight, a round glow spilling out under it in the hover
+    const fl = 0.78 + 0.22 * Math.sin(now * 37 + g * 2.3), r = s * 0.11, L = s * (1 - down) * thrust * fl, cy = g * POD.y * s;
+    const gr = ctx.createRadialGradient(nx - L * 0.35, cy, 0, nx - L * 0.35, cy, r * (2 + down * 1.4) + L * 0.6);
+    gr.addColorStop(0, `rgba(255,250,228,${0.95 * thrust})`); gr.addColorStop(0.35, `rgba(255,186,80,${0.72 * thrust})`); gr.addColorStop(1, 'rgba(255,90,20,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(nx - L * 0.45 + down * s * 0.12, cy, L * 0.6 + r * (1.2 + 1.3 * down), r * (0.8 + 1.6 * down), 0, 0, Math.PI * 2); ctx.fill();
   }
-  // the pods' nozzles and bands, the canopy, the spine
-  ctx.fillStyle = 'rgba(40,52,64,0.85)';
-  for (const g of [-1, 1]) for (const [px, py, hl, hw] of PODS) { ctx.beginPath(); ctx.ellipse((px - hl * 0.82) * s, g * py * s, hw * s * 0.45, hw * s * 0.85, 0, 0, Math.PI * 2); ctx.fill(); }
-  ctx.strokeStyle = col || 'rgba(60,80,96,0.75)'; ctx.lineWidth = Math.max(0.15, s * 0.035);
-  for (const g of [-1, 1]) for (const [px, py, hl, hw] of PODS) { ctx.beginPath(); ctx.moveTo((px + hl * 0.35) * s, g * (py - hw * 0.9) * s); ctx.lineTo((px + hl * 0.35) * s, g * (py + hw * 0.9) * s); ctx.stroke(); }
-  ctx.fillStyle = 'rgba(24,46,72,0.92)'; ctx.beginPath(); ctx.ellipse(s * 0.66, 0, s * 0.16, s * 0.075, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = 'rgba(150,210,255,0.55)'; ctx.beginPath(); ctx.ellipse(s * 0.7, -s * 0.02, s * 0.06, s * 0.025, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = 'rgba(60,80,96,0.55)'; ctx.beginPath(); ctx.moveTo(s * 0.45, 0); ctx.lineTo(-s * 0.85, 0); ctx.stroke();
+  if (thrust > 0) { ctx.restore(); return; }
+  // the nozzles: dark, and white-hot inside when they point down at the ground
+  for (const g of [-1, 1]) {
+    const cy = g * POD.y * s, rx = s * 0.06 + s * 0.05 * down, ry = s * 0.1;
+    ctx.fillStyle = 'rgba(40,52,64,0.88)'; ctx.beginPath(); ctx.ellipse(nx + s * 0.04, cy, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+    if (down > 0.3) {
+      const hot = ctx.createRadialGradient(nx + s * 0.04, cy, 0, nx + s * 0.04, cy, ry);
+      hot.addColorStop(0, `rgba(255,244,210,${0.9 * down})`); hot.addColorStop(0.6, `rgba(255,160,60,${0.6 * down})`); hot.addColorStop(1, 'rgba(255,120,40,0)');
+      ctx.fillStyle = hot; ctx.beginPath(); ctx.ellipse(nx + s * 0.04, cy, rx * 0.85, ry * 0.85, 0, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  // the cockpit, the bay's armour seams and its ramp
+  ctx.fillStyle = 'rgba(24,46,72,0.92)'; ctx.fillRect(s * 0.72, -s * 0.16, s * 0.16, s * 0.32);
+  ctx.fillStyle = 'rgba(150,210,255,0.45)'; ctx.fillRect(s * 0.8, -s * 0.12, s * 0.04, s * 0.1);
+  ctx.strokeStyle = col || 'rgba(60,80,96,0.6)'; ctx.lineWidth = Math.max(0.15, s * 0.03);
+  ctx.beginPath(); ctx.moveTo(s * 0.55, -s * 0.2); ctx.lineTo(-s * 0.7, -s * 0.2); ctx.moveTo(s * 0.55, s * 0.2); ctx.lineTo(-s * 0.7, s * 0.2); ctx.moveTo(-s * 0.7, -s * 0.18); ctx.lineTo(-s * 0.7, s * 0.18); ctx.stroke();
   ctx.restore();
 }
 export function drawPelicans(ctx, m, now, px, labels, scale, pal) {
