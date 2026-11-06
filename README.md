@@ -4,7 +4,7 @@ A Super Destroyer targeting minigame for the **Super Earth Special Forces** comm
 
 ## ▶ [Play Orbital Fury](https://orbitalfury.com/)
 
-It runs in your browser on a computer, phone or tablet. There is nothing to install. Turn the sound on. Your progress and best scores stay on your own device.
+It runs in your browser on a computer, phone or tablet. There is nothing to install. Turn the sound on. Your progress and best scores stay on your own device. The one thing the game sends out is the **SESF feed**: a short post to the SESF Discord when an operation starts and ends (see [Share your score](#share-your-score)). You can turn it off in **Settings**.
 
 **Languages:** English, Français and Español. Pick one on the title screen or in **Settings**. Operation names, callsigns, ship names and the reports you post stay as they are, so posts read the same in the channel whoever wrote them.
 
@@ -22,6 +22,8 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 ## What's new
 
 Recent changes, by version. The guide sections after this cover everything in full.
+
+**The SESF feed (0.43).** The game now posts to the SESF Helldivers Discord when an operation first drops (the callsign, the operation and the difficulty) and when it ends (the final score, missions flown and won, the difficulty reached, the time, the campaign chapter, and how it ended). A retry never posts twice. It only posts from the live site at orbitalfury.com, and **Settings > SESF feed** turns it off.
 
 **The enemy never runs out (0.31).** Patrols keep walking in from beyond the edge of the map for the whole mission, even once every base is down: more often as the mission goes on (and when the map is nearly empty, or extraction is open), and in bigger numbers after the first ten minutes or so. They walk past where the squad is and on out the far side; if they spot the squad, they hunt it like any patrol. A dim line in the feed says where one came in.
 
@@ -395,6 +397,17 @@ The war gets worse every mission: the level climbs, so there are more enemies, t
 
 ## Share your score
 
+**The SESF feed (0.43).** Every operation is announced in the SESF Discord on its own, with no copying needed. It gets one line when it first drops, for example:
+
+> 🛰️ Super Destroyer in orbit · Gunner **RAMZIES** starts **OPERATION STEEL HAMMER** · Difficulty 3 Medium
+
+and the score when it ends:
+
+> 💀 **OPERATION STEEL HAMMER** is over · Gunner **RAMZIES** · final score **23,456**
+> 3 missions, 2 won · Difficulty 3 → 4 Challenging · 40:00 · fell on mission 3 (SQUIDS, DEFEAT)
+
+It sends only what the post shows. **Settings > SESF feed** turns it off.
+
 Every ending screen has an **after action report**, ready to paste into Discord: the debrief after each mission, the final screen when a session ends, and the end of the tutorial. Press **COPY FOR DISCORD**; copying never ends anything. It uses Discord's bold, so it reads cleanly in a channel:
 
 ```
@@ -478,6 +491,6 @@ And every SESF member who has played, tested and sent feedback.
 **Legal notice.**
 - Orbital Fury is a free, unofficial fan project. It is not affiliated with, endorsed by or sponsored by Arrowhead Game Studios or Sony Interactive Entertainment.
 - Helldivers, Super Earth, Super Destroyer, SEAF and all related names, factions and settings are the property of their respective owners, and are used here only to refer to them. If a rights holder asks for anything to be changed or removed, it will be.
-- The game is free, has no ads, sells nothing and collects no data: progress and scores stay on your device. It is provided as is, without warranty.
+- The game is free, has no ads, sells nothing and collects no data: progress and scores stay on your device. The one exception is the SESF feed: when an operation starts and ends, it posts the callsign, the difficulty, how far you got and the score to the SESF Discord. Settings > SESF feed turns it off. It is provided as is, without warranty.
 
 If you add an outside asset (a font, an image, a sound, a library), add it here and to the CREDITS screen with its author and licence.

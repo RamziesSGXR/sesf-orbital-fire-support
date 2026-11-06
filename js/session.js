@@ -45,6 +45,7 @@ export const DEFAULT_SETTINGS = {
   mini: 2,           // the minimap's size (x its old size)
   layout: 'auto',   // (0.21) the HUD's layout: 'auto' (by the screen), 'phone', 'tab' or 'desk'
   difficulty: C.difficulty.start,     // the level the next new session starts at (a session keeps its own)
+  feed: true,         // (0.43) the SESF feed: a post to the SESF Discord when an operation starts and ends (feed.js)
   lighting: true,     // (0.38) the hour's light: night on the ground, flashlights and lamps, muzzle flashes, the day's wash (render/light.js)
 };
 export const getSettings = () => ({ ...DEFAULT_SETTINGS, ...load('settings', {}) });

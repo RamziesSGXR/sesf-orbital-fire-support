@@ -14,6 +14,7 @@ import * as S from './session.js';
 import { startTitleBg } from './render/titlebg.js';
 import { STORY, CAST, chapterFor } from './data/story.js';
 import { castLines, CastRadio, RadioLog, aarMission, aarSession, aarStand } from './campaign.js';
+import { feedStart, feedEnd } from './feed.js';
 import * as UI from './ui.js';
 import { sunAt, todName, todClock } from './render/sky.js';
 import { acceptSupply, declineSupply, fillSupply, launchSupply, supplyFilling } from './sim/supply.js';
@@ -818,6 +819,7 @@ function beginSession(resume, key = 'session') {
       session.callsign = cs; session.difficulty = chosenDiff(); session.held = null; session.op = tEn('cp.ember.t'); delete session.slot;     // (0.41: a new run, in no slot until saved to one)
       session.story = { id: STORY.id, ch: storyPick.n - session.missions.length };     // (its next mission is the chapter picked)
     } else session = S.newSession(cs, chosenDiff());
+    session.feed = 1;     // (0.43) a new operation: the SESF feed hears of it at its first drop
   }
   storyPick = null;
   goShop();
@@ -982,6 +984,7 @@ const BIOME_OK = (b) => ['ice', 'grass', 'desert', 'jungle', 'moon', 'mars'].inc
 function deploy() {
   audio.unlock();
   holdMission();     // (0.41) the run is kept as it is now, with this mission waiting in it, until the mission is over
+  if (session.feed === 1) { session.feed = 2; if (!BOT) feedStart(session, settings, info.chapter); }     // (0.43) before the snapshot, so a retry never posts it again
   startSnap = JSON.stringify(session);      // what RETRY MISSION puts back: credits, kit, score and time as they were at the drop
   persist();
   if (terrainKey !== `${info.biome}|${info.seed}`) buildFor(info.biome, info.seed);
@@ -1173,6 +1176,7 @@ function endSession() {
   state = 'final'; audio.humStop();
   const fin = S.finalise(session);
   const block = aarSession(session, fin);      // (0.27: the after action report, ready for Discord)
+  if (session.feed !== 3 && !BOT) { session.feed = 3; feedEnd(session, fin, settings); }     // (0.43) the SESF feed: the score, and how far it got
   lastFin = { fin, block };
   UI.fillFinal(session, fin, block);
   S.drop(runKey(session));

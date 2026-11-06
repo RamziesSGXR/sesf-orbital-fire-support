@@ -2000,6 +2000,7 @@ export function buildSettings(settings, onChange) {
   sec('set.sec.game');
   row(t('set.lang'), t('set.langHint'), select('lang', Object.entries(LANGS).map(([k, v]) => [k, v.name])));
   row(t('set.enemy'), t('set.enemyHint'), select('enemy', ENEMIES.map((e) => [e, t('enemy.' + e)])));
+  row(t('set.feed'), t('set.feedHint'), toggle('feed'));     // (0.43)
   sec('set.sec.audio');
   row(t('set.volume'), t('set.volumeHint'), range('volume', 0, 1, 0.05));
   row(t('set.music'), t('set.musicHint'), range('music', 0, 1, 0.05));

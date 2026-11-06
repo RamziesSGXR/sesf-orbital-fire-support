@@ -391,6 +391,7 @@ export default {
   'set.sfx': 'Effects volume', 'set.sfxHint': 'Weapons, explosions, alarms and the ship',
   'set.bubbles': 'Speech bubbles', 'set.bubblesHint': 'What Helldivers and SEAF say before they act',
   'set.light': 'Lighting', 'set.lightHint': 'Night on the ground, flashlights and lamps, muzzle flashes, the light of the hour',     // (0.38)
+  'set.feed': 'SESF feed', 'set.feedHint': 'Posts to the SESF Discord when your operation starts and ends: your callsign, the difficulty, how far you got and the score',     // (0.43)
   'set.flash': 'Reduce flashing', 'set.flashHint': 'Slower strobes, softer explosions',
   'set.color': 'Color-safe palette', 'set.colorHint': 'Yellow enemies, bright blue allies',
   'set.lefty': 'Left-handed layout', 'set.leftyHint': 'Moves touch buttons to the left',
@@ -422,7 +423,7 @@ export default {
     + '<section><h4>INSPIRED BY</h4><p><b>Helldivers 2</b> by Arrowhead Game Studios, published by Sony Interactive Entertainment. Orbital Fury is a tribute to its setting, its factions and its squads.</p></section>'
     + '<section><h4>FEEDBACK</h4><p>Bug reports and ideas are welcome on the <b>SESF Helldivers Discord</b> (the FEEDBACK button). Every post is read: tell us what you played on, what happened, and what you would change.</p></section>'
     + '<section class="cr-sp"><h4>SUPPORT</h4><p>Orbital Fury is free. If you would like to help keep it going, you can support its developer, Robert Troumbley, on <b>GitHub Sponsors</b> (the SUPPORT button).</p></section>'
-    + '<section class="cr-legal"><h4>LEGAL NOTICE</h4><p>Orbital Fury is a free, unofficial fan project. It is not affiliated with, endorsed by or sponsored by Arrowhead Game Studios or Sony Interactive Entertainment. Helldivers, Super Earth, Super Destroyer, SEAF and all related names, factions and settings are the property of their respective owners and are used here only to refer to them. If a rights holder asks for anything to be changed or removed, it will be.</p><p>The game is free, has no ads, sells nothing and collects no data: your progress and scores stay on your device. It is provided as is, without warranty.</p></section></div>',
+    + '<section class="cr-legal"><h4>LEGAL NOTICE</h4><p>Orbital Fury is a free, unofficial fan project. It is not affiliated with, endorsed by or sponsored by Arrowhead Game Studios or Sony Interactive Entertainment. Helldivers, Super Earth, Super Destroyer, SEAF and all related names, factions and settings are the property of their respective owners and are used here only to refer to them. If a rights holder asks for anything to be changed or removed, it will be.</p><p>The game is free, has no ads, sells nothing and collects no data: your progress and scores stay on your device. The one exception is the SESF feed: when an operation starts and ends it posts your callsign, the difficulty, how far you got and the score to the SESF Discord. Settings > SESF feed turns it off. It is provided as is, without warranty.</p></section></div>',
   'flash.title': 'FLASHING LIGHTS',
   'flash.text': 'This game uses blinking infrared strobes and bright explosion flashes. Turn on Reduce flashing in Settings if that bothers you.',
   'flash.ok': 'UNDERSTOOD',
