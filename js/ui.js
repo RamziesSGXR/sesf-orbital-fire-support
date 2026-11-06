@@ -475,7 +475,7 @@ export class Hud {
     set('--dcb', px((H - top + G) / z));
     // the top centre (the drop countdown and the big alerts): the highest band, centred on the screen, that is wide enough between
     // the blocks at the top left and the top right (on a phone that is often just under the top row)
-    const tops = ['#topbar', '#btn-menu', '#btn-pause', '#btn-speed', '#hdpanel', '#hud .hud-tr', '#minimap', '#btn-follow', '#hud .hud-br', '#hud .mm-btns']
+    const tops = ['#topbar', '#btn-menu', '#btn-pause', '#btn-speed', '#hdpanel', '#hud .hud-tr', '#minimap', '#btn-follow', '#btn-mini', '#btn-radio', '#hud .hud-br', '#hud .mm-btns']
       .map(R).filter((r) => r && r.top < H * 0.35);
     const need = (phone ? 170 : 260) * z, T0 = (R('#topbar') || { top: G }).top;
     let at = null;
@@ -493,7 +493,7 @@ export class Hud {
     // (0.28) the command radio: a computer or a tablet has its button on the minimap's corner and its log above the minimap; a phone
     // has the button by the camera button and the log in the minimap's place (the minimap steps aside while it is open)
     if (this.radioOn) {
-      const rb = $('btn-radio'), rl = $('radiolog'), mm = R('#minimap') || this._mmR, fb = R('#btn-follow');
+      const rb = $('btn-radio'), rl = $('radiolog'), mm = R('#minimap') || R('#btn-mini') || this._mmR, fb = R('#btn-follow');     // (0.42: folded, the MAP button is its place)
       if (mm) this._mmR = mm;
       const port = H > W, S = (e, o) => { for (const k of ['left', 'top', 'right', 'bottom', 'width', 'height', 'maxHeight']) e.style[k] = o[k] === undefined ? '' : px(o[k] / z); };
       if (phone && fb) S(rb, port ? { left: fb.left, top: fb.bottom + G, width: fb.width, height: 32 * z } : { left: fb.left, top: fb.top - G - 34 * z, width: fb.width, height: 34 * z });
@@ -1999,6 +1999,7 @@ export function buildSettings(settings, onChange) {
   row(t('set.thermal'), t('set.thermalHint'), select('polarity', [['white', t('set.white')], ['black', t('set.black')]]));
   row(t('set.relief'), t('set.reliefHint'), toggle('relief'));
   row(t('set.gfx'), t('set.gfxHint'), select('quality', [['auto', t('set.auto')], ['high', t('set.high')], ['low', t('set.low')]]));
+  row(t('set.fps'), t('set.fpsHint'), select('fps', [['auto', t('set.fpsAuto')], ['30', '30'], ['60', '60'], ['max', t('set.fpsMax')]]));     // (0.42)
   row(t('set.light'), t('set.lightHint'), toggle('lighting'));
   row(t('set.bubbles'), t('set.bubblesHint'), toggle('bubbles'));
   row(t('set.cards'), t('set.cardsHint'), select('cards', [['side', t('set.on')], ['off', t('set.off')]]));

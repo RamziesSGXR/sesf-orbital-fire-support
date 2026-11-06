@@ -37,6 +37,8 @@ export function clearSlot(n) { const a = getSlots(); if (n >= 1 && n <= SLOTS) {
 export const DEFAULT_SETTINGS = {
   enemy: 'random',        // (0.18) the enemy for the session's missions: 'random' or a faction id; a change counts from the next mission
   polarity: 'white', relief: false, quality: 'auto', reduceFlash: false, colorblind: false,
+  fps: 'auto',            // (0.42) the frame rate cap: 'auto' (30 on a phone, 60 otherwise), '30', '60' or 'max'
+  miniOpen: false,        // (0.42) a phone's minimap: folded away (MAP opens it) unless this is set
   volume: 0.6, muted: false, lefty: false,
   music: 0.5, sfx: 1, musicStyle: 'dynamic',   // (0.29) the music's volume, the effects' volume, and the music: 'dynamic' | 'ambient' | 'off'
   touchSens: 1, bubbles: true, cards: 'side', lang: 'en', uiScale: 1,

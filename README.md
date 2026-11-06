@@ -25,6 +25,14 @@ Recent changes, by version. The guide sections after this cover everything in fu
 
 **The enemy never runs out (0.31).** Patrols keep walking in from beyond the edge of the map for the whole mission, even once every base is down: more often as the mission goes on (and when the map is nearly empty, or extraction is open), and in bigger numbers after the first ten minutes or so. They walk past where the squad is and on out the far side; if they spot the squad, they hunt it like any patrol. A dim line in the feed says where one came in.
 
+**Phones (0.42).**
+- **A stratagem armed, a tap aims it.** With a stratagem or weapon armed, a tap on the map slides the map so the reticle sits on that spot, ready for CALL. It no longer orders the selected SEAF there. With nothing armed, a tap still orders them.
+- **Cooler phones.** The game now draws at most 30 frames a second on a phone and 60 elsewhere. Before, a 90 or 120 Hz screen drew it as often as the screen refreshed. A phone also draws at 1.5x its screen's CSS pixels at most, the minimap redraws 10 times a second, and the pause menu redraws the still game only a few times a second. **Settings > Frame rate** changes the cap (30, 60 or no limit), and Graphics: High lifts the resolution cap.
+- **The HUD fits the screen.** The HUD is as tall as what the browser actually shows, so the command panel at the bottom is no longer half hidden behind the browser's toolbars (the Discord and Chrome in-app browsers among them).
+- **The minimap is folded away** on a phone until **MAP** opens it (MAP sits at the end of the top row when the phone is upright). A small − on its corner folds it again, and the choice is remembered. Folded, it leaves a narrow column at the right, so the Helldivers' chips and the objective get the room.
+- **No overlaps.** The tutorial's card no longer covers the camera and radio buttons, and a rank in the tutorial is one short line low on the screen for a moment, with nothing to answer (what's new waits in the ARMORY).
+- **Credits:** SESF tester Muffin has been added.
+
 **AI tools in the credits (0.41.1).** The CREDITS screen lists Claude (Anthropic) under Technology, as the AI tool used as a coding assistant during development.
 
 **Save slots (0.41).** Three save slots. **SAVE GAME** in the pause menu saves your operation, QUICK PLAY or campaign, and from then on it saves itself to that slot after every mission. **LOAD GAME** on the title screen picks it back up from the armory. Saving during a mission keeps the run as it was at the drop, so that mission starts over when you load it. A failed mission leaves the slot as it was. The run under way is also kept safely now if the tab closes mid-mission: you come back to the same mission. Saves are kept in the browser's storage, on this browser only. See [how a session works](#how-a-session-works).
@@ -435,6 +443,7 @@ The same text is on the **CREDITS** screen in the game (title screen and pause m
 | rudolphtheredscare | Tibit Tigers Helldivers | playtesting |
 | squally_wally740 | Super Earth Special Forces Helldivers | playtesting |
 | Radio Controlled | Super Earth Special Forces Helldivers | playtesting |
+| Muffin | Super Earth Special Forces Helldivers | playtesting |
 | d3c4p1t4p3r | | playtesting, design feedback |
 
 And every SESF member who has played, tested and sent feedback.

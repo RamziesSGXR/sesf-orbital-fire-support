@@ -91,6 +91,11 @@ function pickLayout() {
 function applyLayout() {
   const b = document.body, lay = pickLayout(), port = window.innerHeight > window.innerWidth;
   for (const k of ['phone', 'tab', 'desk']) b.classList.toggle('lay-' + k, k === lay);
+  // (0.42) the HUD is as tall as what the browser shows (its own toolbars kept out), and a phone's minimap is folded away until MAP
+  document.documentElement.style.setProperty('--appH', `${Math.round((window.visualViewport ? window.visualViewport.height : window.innerHeight) || window.innerHeight)}px`);
+  b.classList.toggle('mini-off', lay === 'phone' && !settings.miniOpen);
+  { const mb = document.querySelector('#btn-mini .n'); if (mb) mb.textContent = settings.miniOpen ? '−' : t('hud.miniBtn'); }
+  if (renderer.phone !== (lay === 'phone')) { renderer.phone = lay === 'phone'; renderer.resize(); }     // (0.42: the phone's resolution cap)
   b.classList.toggle('lay-port', port); b.classList.toggle('lay-land', !port);
   if (lay !== applyLayout.last) { applyLayout.last = lay; if (state === 'play') hud.layout(true); if (mission && tac && hud.tcTab === 'armory') drawArmory(); }
   return lay;
@@ -98,7 +103,7 @@ function applyLayout() {
 
 function applySettings() {
   renderer.setSettings(settings);
-  renderer.quality = settings.quality === 'low' ? 'low' : 'high';
+  renderer.quality = settings.quality === 'low' ? 'low' : 'high'; renderer.qset = settings.quality;     // (0.42: AUTO caps a phone's resolution; HIGH does not)
   audio.set(settings.volume, settings.muted, settings.music, settings.sfx);
   music.setStyle(settings.musicStyle);
   document.body.classList.toggle('lefty', !!settings.lefty);
@@ -464,6 +469,13 @@ function tapAt(type, x, y) {
   if (placing && act()) {     // (0.22) the ghost goes where the tap was; PLACE puts it down
     const w = renderer.screenToWorld(x, y, canvas);
     if (w) { ghostAt = { x: w.x, y: w.y }; audio.click(); }
+    return;
+  }
+  // (0.42) a stratagem or weapon armed: the tap aims it (the map slides so the reticle sits on the spot). It never orders the
+  // SEAF or picks anything: CALL is what throws it.
+  if (armed && act()) {
+    const w = renderer.screenToWorld(x, y, canvas), a = aimWorld();
+    if (w && a) { cam.x += w.x - a.x; cam.y += w.y - a.y; cam.follow = false; input._clamp(); audio.click(); }
     return;
   }
   if (!tac && $('hud').classList.contains('tray-open')) { hud.trayToggle(false); return; }
@@ -855,6 +867,12 @@ function tutRank() {
   mission.wallet.bal += bonus; session.fresh = fresh;
   const names = fresh.map((id) => shopItems(session.kit).find((it) => it.id === id)).filter(Boolean).map((it) => (it.orb ? UI.shortName(it.orb) : it.name));
   audio.ready();
+  // (0.42) on a phone, one short line low on the screen for a few seconds, and nothing to answer: the fight is on and the screen is
+  // small (what is new waits in the ARMORY, marked NEW)
+  if (applyLayout.last === 'phone') {
+    hud.toast(`${t('ms.kShort', { k: t1 })} · +${S.fmtNum(bonus)} CR${names.length ? ' · ' + t('ms.newN', { n: names.length }) : ''}`, 3500);
+    return;
+  }
   hud.ask(`${t('ms.k', { k: t1, name: t('rank.' + t1) })} · ${t('ms.bonus', { cr: S.fmtNum(bonus) })}${names.length ? ' · ' + t('ms.new') + ': ' + names.slice(0, 4).join(', ') + (names.length > 4 ? '…' : '') : ''}`, [
     { label: t('ms.show'), primary: true, fn: () => { armFocus = true; openArmory('rank'); } },
     { label: t('ms.later') },
@@ -1496,6 +1514,9 @@ $('btn-share').onclick = async () => { try { await navigator.share({ text: $('f-
 $('callsign').value = S.load('callsign', '');
 { const old = S.load('session', null); if (old && old.story && !S.load('campRun', null)) { S.save('campRun', old); S.drop('session'); } }     // (0.37: runs from before are kept apart)
 document.addEventListener('visibilitychange', () => { if (document.hidden && live()) togglePause(true); });
+if (window.visualViewport) window.visualViewport.addEventListener('resize', () => applyLayout());     // (0.42: the browser's toolbars come and go)
+// (0.42) MAP on a phone: the minimap opens, or folds away again (kept in the settings)
+$('btn-mini').addEventListener('click', (e) => { e.stopPropagation(); audio.click(); settings.miniOpen = !settings.miniOpen; S.save('settings', settings); applyLayout(); if (state === 'play') { hud.layout(true); hud.layout(true); } if (tut) tut.poke(); });
 window.addEventListener('resize', () => { applyLayout(); renderer.resize(); if (soft) hud.placeSoft(); if (state === 'play') { hud.layout(true); hud.layout(true); } if (mission && tac && hud.tcTab === 'armory') drawArmory(); if (tut) tut.poke(); });
 window.addEventListener('orientationchange', () => setTimeout(() => renderer.resize(), 200));
 
@@ -1661,8 +1682,15 @@ function onEvent(ev, now) {
 }
 
 // ---------------- main loop ----------------
+// (0.42) The frame rate cap (Settings > Frame rate): AUTO is 30 a second on a phone and 60 elsewhere, so a 90 or 120 Hz screen does
+// not draw the game twice as often as it needs, and a phone does not run hot. A frame that comes too soon is skipped whole.
+let frameAt = 0;
+function fpsCap() { const f = settings.fps; return f === 'max' ? 0 : f === '30' ? 30 : f === '60' ? 60 : applyLayout.last === 'phone' ? 30 : 60; }
 function frame(ts) {
   requestAnimationFrame(frame);
+  const cap = paused && state === 'play' ? 12 : fpsCap();     // (the pause menu over a still game: no need to redraw it often)
+  if (cap && ts - frameAt < 1000 / cap - 4) return;
+  frameAt = ts; frame.n = (frame.n || 0) + 1;
   const now = ts / 1000;
   const dt = Math.min(0.25, Math.max(0, now - lastT)); lastT = now;
   { const sc = musicScene(); music.update(dt, sc, musicHeat(dt), { run: state === 'play' ? mission : null, crowd: crowdV, mood: state === 'final' || state === 'glass' ? 'lose' : state === 'play' && mission && mission.over ? (mission.outcome === 'victory' || mission.outcome === 'complete' ? 'win' : 'lose') : endMood, faction: mission && mission.faction ? mission.faction.id : null }); }
@@ -1671,7 +1699,7 @@ function frame(ts) {
   // Frame-time watchdog for the auto quality setting.
   ema = ema * 0.95 + dt * 1000 * 0.05;
   if (settings.quality === 'auto' && state === 'play' && !paused && !renderer.perf.low) {
-    slowFor = ema > 30 ? slowFor + dt : 0;
+    slowFor = ema > (cap ? Math.max(30, 1800 / cap) : 30) ? slowFor + dt : 0;     // (0.42: slow for the cap, not for 60)
     if (slowFor > 4) { renderer.perf.low = true; renderer.resize(); }
   }
   fpsT += dt; fpsN++; if (fpsT >= 0.5) { fps = fpsN / fpsT; fpsT = 0; fpsN = 0; }
@@ -1725,7 +1753,8 @@ function frame(ts) {
     renderer.draw(mission, cam, { now, aim: drawing || box ? null : { x: p.aimX, y: p.aimY }, armed, placing, ghost: ga, plan: planQ, draw: stroke, snap: (x, y) => snap(x, y), sel, box, pface: placeFace, pshape: placeShape });
     if (sel) placeSel();
     sizeMini();
-    renderer.drawMinimap($('minimap'), mission, cam);
+    // (0.42) the minimap at 10 a second, and not at all while it is folded away
+    if (!document.body.classList.contains('mini-off') && now - (frame.miniAt || 0) > 0.1) { frame.miniAt = now; renderer.drawMinimap($('minimap'), mission, cam); }
     hover(now);
     if (UI.isOn('s-map')) renderer.drawBigMap($('bigmap'), mission, cam);
     hud.update(mission, cam, session);
@@ -1794,7 +1823,7 @@ toTitle();
 requestAnimationFrame((t) => { lastT = t / 1000; frame(t); });
 
 // Test hooks (used by the Playwright checks; harmless in production).
-window.__game = { hud, audio, music,
+window.__game = { hud, audio, music, get tut() { return tut; }, get frames() { return frame.n || 0; },
   get state() { return state; }, get mission() { return mission; }, get session() { return session; }, get info() { return info; },
   get paused() { return paused; }, get soft() { return soft; }, get speed() { return speed; }, softPause, retryMission, toggleSpeed,
   cam, input, renderer, settings, order, get placing() { return placing; }, get drawing() { return drawing; }, squadAct, selectSquad, focusTeam, strokeBegin, strokeMove, strokeEnd, goShop, openArmory, closeArmory,

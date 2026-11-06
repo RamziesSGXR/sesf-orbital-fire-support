@@ -1715,7 +1715,7 @@ body.touch #hud.ls #mb-diff { display: block; font-size: 8.5px; letter-spacing: 
    just above it; bottom centre, the command panel (troops, build or armory: one at a time, and it always fits), the weapons
    above it; bottom right, the minimap with the buttons round it and a short log above. Every block has one place; nothing moves
    when something is picked, and nothing scrolls. The whole HUD scales with Settings > UI size. */
-body.rts #hud { zoom: var(--ui, 1); width: calc(100vw / var(--ui, 1)); height: calc(100vh / var(--ui, 1)); right: auto; bottom: auto;
+body.rts #hud { zoom: var(--ui, 1); width: calc(100vw / var(--ui, 1)); height: calc(var(--appH, 100dvh) / var(--ui, 1)); right: auto; bottom: auto;
   --L: max(8px, env(safe-area-inset-left)); --R: max(8px, env(safe-area-inset-right)); --T: max(8px, env(safe-area-inset-top)); --B: max(8px, env(safe-area-inset-bottom));
   --g: 8px; --bb: 150px; --wsh: 46px; --selw: 236px; --mmp: calc(min(200px, 26vh) * var(--mm) / 2); --mbw: 36px; --rcol: calc(var(--mmp) + var(--mbw) + var(--g));
   --cl: calc(var(--L) + var(--selw) + var(--g)); --cr: calc(var(--R) + var(--rcol) + var(--g)); }
@@ -2041,6 +2041,16 @@ body.rts.lay-phone.touch #hud #fire-btn { position: absolute; right: var(--R); b
 body.rts.lay-phone #hud #minimap { position: absolute; right: var(--R); bottom: calc(var(--B) + var(--bb) + var(--g)); top: auto; left: auto; width: var(--mmp); height: var(--mmp); }
 body.rts.lay-phone #hud .mm-btns #btn-follow { top: auto; right: calc(var(--R) + var(--mmp) + var(--g)); bottom: calc(var(--B) + var(--bb) + var(--g)); left: auto; width: 40px; }
 body.rts.lay-phone #hud .mm-btns #btn-follow .n { font-size: 16px; }
+/* (0.42) the minimap folded away on a phone: MAP in its place (its column is narrow then), and a small − on its corner when open */
+#hud #btn-mini { display: none; }
+body.rts.lay-phone #hud .mm-btns #btn-mini { display: flex; position: absolute; z-index: 6; min-height: 0; padding: 0; align-items: center; justify-content: center; font-size: 10.5px; letter-spacing: 0.08em; color: var(--g); }
+body.rts.lay-phone.mini-off #hud { --mmp: 40px; }
+body.rts.lay-phone.mini-off #hud #minimap { display: none; }
+body.rts.lay-phone.mini-off #hud .mm-btns #btn-mini { right: var(--R); bottom: calc(var(--B) + var(--bb) + var(--g)); top: auto; left: auto; width: var(--mmp); height: var(--mmp); }
+body.rts.lay-phone:not(.mini-off) #hud .mm-btns #btn-mini { right: calc(var(--R) + var(--mmp) - 24px); bottom: calc(var(--B) + var(--bb) + var(--g) + var(--mmp) - 24px); top: auto; left: auto; width: 26px; height: 26px; border-radius: 50%; font-size: 15px; background: rgba(4, 20, 11, 0.95); border: 1px solid rgba(157, 255, 184, 0.75); }
+body.rts.lay-phone.lay-port.mini-off #hud .mm-btns #btn-mini { top: var(--T); bottom: auto; height: var(--tb); }     /* (upright: in the top row, at its end) */
+body.rts.lay-phone.lay-port:not(.mini-off) #hud .mm-btns #btn-mini { top: calc(var(--T) + var(--tb) + var(--g) - 4px); bottom: auto; right: calc(var(--R) + var(--mmp) - 22px); }
+body.rts.lay-phone.lay-port.mini-off #hud .mm-btns #btn-follow { top: calc(var(--T) + var(--tb) + var(--g)); }
 /* what is picked: one line over the command panel, only when something is */
 body.rts.lay-phone #hud #selpanel { left: var(--L); right: calc(var(--R) + var(--mmp) + 2 * var(--g) + 40px); bottom: calc(var(--B) + var(--bbn) + var(--g)); width: auto; height: 36px; padding: 2px 8px; }
 body.rts.lay-phone #hud #selpanel.empty { display: none; }

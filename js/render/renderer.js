@@ -53,7 +53,9 @@ export class Renderer {
 
   resize() {
     const low = this.quality === 'low' || this.perf.low;
-    this.dpr = Math.min(window.devicePixelRatio || 1, low ? 1.25 : 2);
+    // (0.42) a phone draws at 1.5x its CSS pixels at most (a phone screen is 2.5-3x): far fewer pixels to fill every frame, and
+    // little to see between them on a small screen
+    this.dpr = Math.min(window.devicePixelRatio || 1, low ? 1.25 : this.phone && this.qset !== 'high' ? 1.5 : 2);
     const w = Math.max(320, Math.round(window.innerWidth * this.dpr)), h = Math.max(240, Math.round(window.innerHeight * this.dpr));
     this.cv.width = this.W = w; this.cv.height = this.H = h;
     this._cr = null;

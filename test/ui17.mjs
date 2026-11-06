@@ -140,7 +140,8 @@ const sup = await box('#co-sup'), ob = await box('#objective');
 check('(0.20) the supply pod request sits on the right, under the objective', sup && ob && sup.t >= ob.b - 1 && Math.abs(sup.r - ob.r) < 3, sup && `${Math.round(sup.l)},${Math.round(sup.t)}`);
 await shot('feed');
 await ev(() => { const S = window.__game.mission.supply; if (S) { S.state = 'idle'; S.ask = null; } });
-// the minimap: twice as big, with a setting
+// the minimap: twice as big, with a setting (0.42: a phone folds it away until MAP opens it)
+if (await ev(() => document.body.classList.contains('mini-off'))) { await ev(() => document.getElementById('btn-mini').click()); await page.waitForTimeout(400); }
 const mm0 = (await box('#minimap')).w;
 check('the minimap is big enough to read (0.19.2: smaller on a computer, a quarter of the height or so; 0.21: a phone keeps it small in a corner, a tap opens the big map)', (await ev(() => document.body.classList.contains('lay-phone'))) ? mm0 >= 80 : touch ? mm0 >= 110 : mm0 >= 200 && mm0 <= 270, Math.round(mm0) + ' px');
 await ev(() => window.__game.setSetting('mini', 1)); await page.waitForTimeout(150);

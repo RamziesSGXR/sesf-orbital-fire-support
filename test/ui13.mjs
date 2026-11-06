@@ -100,7 +100,7 @@ if (await page.isVisible('#hdbar .hdb:nth-child(2)')) {
 }
 if (false) {}   // (0.19.1: the squads chip opens the sheet, paused too)
 // a panel opened from the soft pause comes back to it
-if (touch) { await page.tap('#minimap'); } else await page.keyboard.press('KeyL');
+if (touch) { if (await ev(() => document.body.classList.contains('mini-off'))) { await page.tap('#btn-mini'); await page.waitForTimeout(300); } await page.tap('#minimap'); } else await page.keyboard.press('KeyL');     // (0.42: a phone opens its minimap first)
 await page.waitForTimeout(300);
 check('the tactical map opens from the soft pause', await on('s-map'));
 await tap('#map-close'); await page.waitForTimeout(300);

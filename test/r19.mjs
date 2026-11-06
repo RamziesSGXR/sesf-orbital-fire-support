@@ -19,13 +19,13 @@ const dt = 1 / 30;
 const run = (m, sec, each) => { for (let i = 0, n = Math.round(sec / dt); i < n && !m.over; i++) { m.step(dt); if (each && each(m) === true) break; } };
 
 // ---------------------------------------------------------------- the version
-check('version 0.41.1', C.share.version === '0.41.1' && JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url))).version === '0.41.1', C.share.version);
+check('version 0.42.0', C.share.version === '0.42.0' && JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url))).version === '0.42.0', C.share.version);
 
 // ---------------------------------------------------------------- the climb
 {
   const lv = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => levelAt(3, n));
-  check('(0.31) a session started at 3 climbs about three fifths of a level a mission and a little more for every rank (0.41.1: an eighth, a rank a mission): missions 1-10 at 3 4 4 5 6 7 7 8 9 10, its nineteenth at 15', lv.join(' ') === '3 4 4 5 6 7 7 8 9 10' && levelAt(3, 19) === 15 && lv.every((v, i) => i === 0 || v >= lv[i - 1]), lv.join(' '));
-  check('(0.31; 0.41.1 an eighth) every rank earned adds to the level', C.difficulty.rankStep === 0.125 && rankAt(0) === 0 && rankAt(1) === 1 && rankAt(9) === 9 && rankAt(30) === 9 && levelAt(3, 31) === Math.round(3 + C.difficulty.ramp * 30 + 0.125 * 9), `${levelAt(3, 31)}`);
+  check('(0.31) a session started at 3 climbs about three fifths of a level a mission and a little more for every rank (0.42.0: an eighth, a rank a mission): missions 1-10 at 3 4 4 5 6 7 7 8 9 10, its nineteenth at 15', lv.join(' ') === '3 4 4 5 6 7 7 8 9 10' && levelAt(3, 19) === 15 && lv.every((v, i) => i === 0 || v >= lv[i - 1]), lv.join(' '));
+  check('(0.31; 0.42.0 an eighth) every rank earned adds to the level', C.difficulty.rankStep === 0.125 && rankAt(0) === 0 && rankAt(1) === 1 && rankAt(9) === 9 && rankAt(30) === 9 && levelAt(3, 31) === Math.round(3 + C.difficulty.ramp * 30 + 0.125 * 9), `${levelAt(3, 31)}`);
   check('the climb: 0.6 a mission (0.31; it was 0.39), the session ramp as before', C.difficulty.ramp === 0.6 && C.difficulty.sessionRamp === 0.075);
   check('started at 10, the first mission is at 10 and the climb goes on past it', levelAt(10, 1) === 10 && levelAt(10, 3) === 11 && levelAt(10, 6) === 14, `${levelAt(10, 3)} ${levelAt(10, 6)}`);
   check('starting levels stay 1 to 10; a mission\'s level does not', clampLevel(14) === 10 && clampAny(14) === 14 && clampAny(0) === 1);
