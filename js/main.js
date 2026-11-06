@@ -798,6 +798,7 @@ let lockMode = 'quick', lockCtx = {};
 function askLock(mode = 'quick', o = {}) {
   lockMode = mode; lockCtx = o;
   $('callsign').value = S.load('callsign', '');
+  rollOpName();     // (0.45) QUICK PLAY: a name ready to keep, change or roll again
 { const old = S.load('session', null); if (old && old.story && !S.load('campRun', null)) { S.save('campRun', old); S.drop('session'); } }     // (0.37: runs from before are kept apart)
   drawDiff(); fillLockNow();
   UI.overlay('s-lock', true);
@@ -807,6 +808,8 @@ function fillLockNow() {
   const replaces = lockMode === 'quick' ? resumable(S.load('session', null)) : lockMode === 'camp' ? !!S.load('campRun', null) : false;
   UI.fillLock(lockMode, { ...lockCtx, level: chosenDiff(), replaces });
 }
+// (0.45) the operation's name on the lock-in (QUICK PLAY): a rolled one to start with; ROLL picks another, or type your own
+function rollOpName() { $('op-name').value = S.makeNames().op.replace(/^Operation\s+/, ''); }
 const typedCallsign = () => { const cs = $('callsign').value.trim().toUpperCase().replace(/[^\w \-.]/g, '').slice(0, 16); S.save('callsign', cs); return cs; };
 // key: where a run is kept ('session' for QUICK PLAY, 'campRun' for the campaign's)
 function beginSession(resume, key = 'session') {
@@ -821,7 +824,7 @@ function beginSession(resume, key = 'session') {
       session = ck ? S.fixSession(JSON.parse(JSON.stringify(ck))) : S.newSession(cs, chosenDiff(), tEn('cp.ember.t'));
       session.callsign = cs; session.difficulty = chosenDiff(); session.held = null; session.op = tEn('cp.ember.t'); delete session.slot;     // (0.41: a new run, in no slot until saved to one)
       session.story = { id: STORY.id, ch: storyPick.n - session.missions.length };     // (its next mission is the chapter picked)
-    } else session = S.newSession(cs, chosenDiff());
+    } else session = S.newSession(cs, chosenDiff(), S.opName($('op-name').value));     // (0.45: the name typed, or a rolled one if blank)
     session.feed = 1;     // (0.43) a new operation: the SESF feed hears of it at its first drop
   }
   storyPick = null;
@@ -1490,6 +1493,7 @@ $('btn-settings').onclick = () => { audio.unlock(); openSettings('title'); };
 $('btn-settings-m').onclick = () => openSettings('pause');
 $('btn-settings-close').onclick = closeSettings;
 $('btn-names-t').onclick = () => { audio.click(); openNames('lock'); };
+$('btn-op-roll').onclick = () => { audio.click(); rollOpName(); };     // (0.45)
 $('shop-menu').onclick = () => { audio.unlock(); audio.click(); outMenu(true); };
 $('shop-back').onclick = () => { audio.unlock(); goHome(); };
 $('btn-home-m').onclick = () => goHome();

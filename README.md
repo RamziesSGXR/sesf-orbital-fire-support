@@ -23,6 +23,8 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Name your operation (0.45).** QUICK PLAY's **NEW OPERATION** screen has an **OPERATION** field, under your callsign. It starts with a rolled name: keep it, press **ROLL** for another, or type your own (up to 24 letters, digits, spaces and - . ' & !). "Operation" goes in front for you. Leave it blank for a rolled one. The name is used everywhere: the briefing, the HUD, the save slots, the after action report and the SESF feed. The campaign keeps its own name.
+
 **END OPERATION and the SESF coin (0.44).** **END OPERATION** is easier to find: it's now in the armory as well as on the briefing and on the debrief after a mission that counts. It takes two taps. Ending an operation yourself earns an **SESF coin**. In a later operation's armory, press **SPEND A COIN** and pick any unlock or upgrade open at your rank, except the Classified stratagems: it's free. You can hold up to 3 coins, and each operation pays only once (loading the same run from a save slot and ending it again pays nothing). A failed mission's ending pays no coin.
 
 **The SESF feed (0.43).** The game now posts to the SESF Helldivers Discord when an operation first drops (the callsign, the operation and the difficulty) and when it ends (the final score, missions flown and won, the difficulty reached, the time, the campaign chapter, and how it ended). A retry never posts twice. It only posts from the live site at orbitalfury.com, and **Settings > SESF feed** turns it off.
@@ -377,7 +379,7 @@ The percentages compare each level with level 10 (past 10 they keep climbing: tw
 
 ## How a session works
 
-**A session is an operation (0.37).** Quick Play and the campaign are each an operation, with one name for all its missions. **Everything carries over from one mission to the next:** your credits, your rank, and everything you buy and equip in the armory. Quick Play's operation and the campaign's are saved apart, so starting one never loses the other.
+**A session is an operation (0.37).** Quick Play and the campaign are each an operation, with one name for all its missions. In Quick Play you can name it yourself (0.45), or keep the one rolled for you. **Everything carries over from one mission to the next:** your credits, your rank, and everything you buy and equip in the armory. Quick Play's operation and the campaign's are saved apart, so starting one never loses the other.
 
 Missions follow one another until one fails. A mission fails when **all 20 Helldiver lives are lost before the primary objective is done**, or the clock runs out before it is done. Retiring from the pause menu always fails the mission, even with the objective done, so you can't skip ahead by leaving early. Otherwise, once the primary objective is done, the mission counts whatever happens next.
 

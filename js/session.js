@@ -86,6 +86,13 @@ const pick = (rng, a) => a[Math.floor(rng() * a.length)];
 export function makeNames(rng = Math.random) {
   return { op: `Operation ${pick(rng, ADJECTIVES)} ${pick(rng, NOUNS)}` };
 }
+// (0.45) An operation name the player typed (QUICK PLAY): letters (accents too), digits, spaces and - . ' & !, at most 24, after
+// "Operation" (added here, and not twice if they typed it). Blank: null, and the session rolls one.
+export const OP_MAX = 24;
+export function opName(typed) {
+  const s = String(typed || '').normalize('NFC').replace(/[^\p{L}\p{N} \-.'&!]/gu, '').replace(/\s+/g, ' ').trim().replace(/^(op[eé]ration|operaci[oó]n|op\.?)(\s+|$)/iu, '').trim().slice(0, OP_MAX).trim();
+  return s ? `Operation ${s}` : null;
+}
 
 // enemy: 'random' or the faction every mission is against (Settings, and the title screen).
 export function rollMission(prev, rng = Math.random, enemy = 'random') {

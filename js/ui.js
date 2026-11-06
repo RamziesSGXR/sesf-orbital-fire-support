@@ -2125,6 +2125,7 @@ export function fillLock(mode, o = {}) {
   $('lock-sub').textContent = sub;
   $('diff').classList.toggle('hidden', tut);
   $('enemy').classList.toggle('hidden', tut || camp);
+  $('lock-op').classList.toggle('hidden', tut || camp);     // (0.45) the campaign's operation has its name
   $('lock-run').classList.toggle('hidden', tut);
   $('lock-rules').innerHTML = ['lock.r0', 'lock.r1', 'lock.r2', 'lock.r3', 'lock.r4', 'lock.r5'].map((k) => `<li>${esc(t(k, { n: lives }))}</li>`).join('');
   $('btn-lock').textContent = tut ? t('lock.goTut') : t('lock.go', { n: level });

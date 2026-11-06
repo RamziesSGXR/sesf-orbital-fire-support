@@ -392,6 +392,7 @@ export default {
   'set.bubbles': 'Speech bubbles', 'set.bubblesHint': 'What Helldivers and SEAF say before they act',
   'set.light': 'Lighting', 'set.lightHint': 'Night on the ground, flashlights and lamps, muzzle flashes, the light of the hour',     // (0.38)
   'set.feed': 'SESF feed', 'set.feedHint': 'Posts to the SESF Discord when your operation starts and ends: your callsign, the difficulty, how far you got and the score',     // (0.43)
+  'lock.opName': 'OPERATION', 'lock.opRoll': 'ROLL', 'lock.opPh': 'Name it, or leave it blank',     // (0.45) the operation's name
   'end.confirm': 'TAP AGAIN TO END',     // (0.44) END OPERATION and the SESF coin
   'end.coin': '+1 SESF COIN',
   'end.paid': 'COIN ALREADY PAID',
@@ -2086,7 +2087,7 @@ export default {
   'lock.eyebrowQuick': 'QUICK PLAY',
   'lock.eyebrowCamp': 'CAMPAIGN',
   'lock.eyebrowTut': 'TUTORIAL',
-  'lock.subQuick': 'The operation gets its own name, and every mission flies under it until one fails.',
+  'lock.subQuick': 'Name your operation, or keep the one rolled for you: every mission flies under it until the operation ends.',
   'lock.subCamp': 'Chapter {n}: {name}. The story sets the enemy, the ground and the hour.',
   'lock.subFrom': 'You carry on from where chapter {n} was cleared, with the kit, credits and rank you had then.',
   'lock.subTut': 'One short fight at Base Tharsis, always at difficulty 3. Your callsign goes on its after action report.',

@@ -392,6 +392,7 @@ export default {
   'set.bubbles': 'Bulles de dialogue', 'set.bubblesHint': 'Ce que disent Helldivers et SEAF avant d’agir',
   'set.light': 'Éclairage', 'set.lightHint': 'La nuit au sol, lampes torches et projecteurs, éclairs des tirs, la lumière de l’heure',     // (0.38)
   'set.feed': 'Fil SESF', 'set.feedHint': 'Publie sur le Discord SESF quand votre opération commence et se termine : votre indicatif, la difficulté, jusqu’où vous êtes allé et le score',     // (0.43)
+  'lock.opName': 'OPÉRATION', 'lock.opRoll': 'TIRER', 'lock.opPh': 'Nommez-la, ou laissez vide',     // (0.45) the operation's name
   'end.confirm': 'TOUCHEZ ENCORE POUR FINIR',     // (0.44) END OPERATION and the SESF coin
   'end.coin': '+1 PIÈCE SESF',
   'end.paid': 'PIÈCE DÉJÀ VERSÉE',
@@ -2086,7 +2087,7 @@ export default {
   'lock.eyebrowQuick': 'PARTIE RAPIDE',
   'lock.eyebrowCamp': 'CAMPAGNE',
   'lock.eyebrowTut': 'TUTORIEL',
-  'lock.subQuick': 'L’opération reçoit son propre nom, et chaque mission se déroule sous ce nom jusqu’à ce que l’une échoue.',
+  'lock.subQuick': 'Nommez votre opération, ou gardez le nom tiré pour vous : chaque mission se déroule sous ce nom jusqu’à la fin de l’opération.',
   'lock.subCamp': 'Chapitre {n} : {name}. L’histoire fixe l’ennemi, le terrain et l’heure.',
   'lock.subFrom': 'Vous reprenez là où le chapitre {n} a été terminé, avec l’équipement, les crédits et le rang que vous aviez alors.',
   'lock.subTut': 'Un court combat à la base Tharsis, toujours en difficulté 3. Votre indicatif figure sur son rapport après action.',
