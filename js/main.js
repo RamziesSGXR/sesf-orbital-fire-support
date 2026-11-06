@@ -57,6 +57,8 @@ let paused = false;
 let soft = false;             // a soft pause: the game is frozen (paused is true too) but the menu stays shut, so the player can look around
 let startSnap = null;         // the session as it was at the drop, for RETRY MISSION (same map, credits as they were)
 let retryArm = false;         // RETRY MISSION asks for a second tap
+let coinMode = false;         // (0.44) the armory: the next thing picked is paid with an SESF coin
+let endArmed = null, endT = 0;     // (0.44) END OPERATION asks for a second tap (the button's id)
 let menuSoft = false;         // the HUD menu stopped the game (closing it, or a panel opened from it, plays on)
 let speed = 1;                // game speed: 1, or 0.5 (half speed: everything still works, only slower)
 let session = null, info = null, mission = null, bot = null, lastRes = null;
@@ -149,6 +151,7 @@ function relang() {
   if (UI.isOn('s-lock')) fillLockNow();
   else if (state === 'shop') { const n = session.missions.length + 1; $('shop-eyebrow').textContent = n === 1 ? t('arm.eyebrow1') : t('arm.eyebrowN', { n }); $('shop-go').textContent = t('arm.deploy', { n }); drawShop(); }
   else if (state === 'debrief' && lastRes) UI.fillDebrief(info, lastRes, session, aarMission(session, info, lastRes), startCredits());
+  if (session && (state === 'shop' || state === 'brief' || state === 'debrief')) endLabels();     // (0.44)
   else if (state === 'glass' && lastRes) UI.fillGlass(lastRes, aarStand(lastRes, session && session.callsign));
   else if (state === 'final' && lastFin) UI.fillFinal(session, lastFin.fin, lastFin.block);
   if (UI.isOn('s-info') && mission) UI.fillMissionInfo(mission, info);
@@ -620,7 +623,7 @@ hud.onMerge = (L) => {
 // ---------------- orders: SEAF drop and SEAF orders ----------------
 // Why a call or a purchase was refused: deny.<reason> in the language tables.
 const DENY_KEYS = new Set(['onbase', 'artyrange', 'nocoverage', 'cooldown', 'full', 'noseaf', 'nohd', 'noallies', 'nomark', 'funds', 'between', 'maxed', 'locked', 'novisual', 'gundry',
-  'short', 'water', 'jammed', 'nocrew', 'nogarrison', 'boxnone', 'boxnosquad', 'noweapon', 'picksquad', 'postfull', 'nosight', 'nospan', 'merge', 'planfull', 'shielded', 'rearm', 'nodemo', 'jamsite']);
+  'short', 'water', 'jammed', 'nocrew', 'nogarrison', 'boxnone', 'boxnosquad', 'noweapon', 'picksquad', 'postfull', 'nosight', 'nospan', 'merge', 'planfull', 'shielded', 'rearm', 'nodemo', 'jamsite', 'coin']);
 const deny = (r) => (DENY_KEYS.has(r) ? t('deny.' + r) : '');
 function setPlacing(kind) {
   if (kind) { setDrawing(false); disarm(); }
@@ -834,6 +837,7 @@ function goShop(focus = false) {
   $('shop-eyebrow').textContent = n === 1 ? t('arm.eyebrow1') : session.story && !chapterFor(session, n) ? t('arm.eyebrowEnd', { n }) : t('arm.eyebrowN', { n });     // (0.41: past the campaign's last chapter)
   $('shop-go').textContent = t('arm.deploy', { n });
   if (BOT) botShop(session.kit, session.wallet);
+  coinMode = false; endLabels();
   drawShop(undefined, focus);
 }
 // (0.37) QUICK PLAY's run and the campaign's are kept apart, so starting one never loses the other
@@ -892,10 +896,14 @@ function rankLine() {
 function drawShop(note, focus = false) {
   UI.renderShop($('shop-root'), {
     kit: session.kit, wallet: session.wallet, live: false, note, tier: tierNow(), done: doneN(session), fresh: session.fresh, focus,
+    coins: session.tutorial ? 0 : S.getCoins(), coinMode,
+    onCoin: () => { coinMode = !coinMode; audio.click(); drawShop(coinMode ? t('arm.coinPickNote') : undefined); },     // (0.44) SPEND A COIN / CANCEL
     onBuy: (id) => {
-      const r = buy(session.kit, session.wallet, id, false, tierNow());
+      const free = coinMode && !session.tutorial && S.getCoins() > 0;      // (0.44) paid with an SESF coin
+      const r = buy(session.kit, session.wallet, id, false, tierNow(), free);
+      if (r.ok && free) { S.spendCoin(); coinMode = false; }
       if (r.ok && session.fresh) session.fresh = session.fresh.filter((f) => f !== id);      // (bought: no longer new)
-      if (r.ok) { audio.ready(); persist(); drawShop(t('arm.bought', { name: r.item.name.toUpperCase() }) + (r.gift ? ' · ' + t(r.equipped ? 'arm.gift' : 'arm.giftOwned', { name: String(r.giftName).toUpperCase() }) : '')); } else { audio.deny(); drawShop(deny(r.reason)); }
+      if (r.ok) { audio.ready(); persist(); drawShop(t(free ? 'arm.coinBought' : 'arm.bought', { name: r.item.name.toUpperCase() }) + (r.gift ? ' · ' + t(r.equipped ? 'arm.gift' : 'arm.giftOwned', { name: String(r.giftName).toUpperCase() }) : '')); } else { audio.deny(); drawShop(deny(r.reason)); }
     },
     onEquip: (id) => { if (equip(session.kit, id)) { audio.click(); persist(); drawShop(); } else { audio.deny(); drawShop(t('arm.noSlot')); } },
     onUnequip: (slot) => { unequip(session.kit, slot); audio.click(); persist(); drawShop(); },
@@ -939,11 +947,12 @@ function goBrief(again = false) {
     pre: { objectives: pre.objectives.map((o) => o.type), defenders: pre.defenders, teams: pre.teams, ao: Math.round(pre.ao.size), difficulty: pre.difficulty, start: session.difficulty, lives: pre.hd.max, opBonus: pre.opBonus, opDone: pre.opDone },
     onReveal: () => audio.chirp(),
     onContinue: () => { briefCtl = null; audio.click(); deploy(); },
-    onEnd: () => { briefCtl = null; endSession(); },
+    onEnd: (stop) => endTap('btn-end', () => { stop(); briefCtl = null; endSession(true); }),     // (0.44: a second tap; ending by choice pays an SESF coin)
     // CANCEL: back to the armory. The mission keeps its map, enemy and hour for when you deploy again.
     onCancel: () => { briefCtl = null; audio.click(); holdMission(); persist(); goShop(); },
     onMenu: () => { audio.unlock(); audio.click(); outMenu(true); },
   });
+  endLabels();
   // Build the terrain while the loading bar runs. The bar always lasts at least C.ui.minLoadSec.
   setTimeout(() => { if (briefCtl !== ctl) return; buildFor(info.biome, info.seed); ctl.terrainReady(); }, 80);
 }
@@ -1147,6 +1156,7 @@ function finishMission() {
   if (session.story && info.chapter && S.carriesOn(res.outcome)) S.chapterCleared(session, info.chapter);
   retryArm = false;
   UI.fillDebrief(info, res, session, aarMission(session, info, res), startCredits());
+  endArmed = null; endLabels();
   state = 'debrief'; audio.humStop(); hud.reset(); castRadio = null;
   const show = () => {
     if (state !== 'debrief') return;
@@ -1172,13 +1182,31 @@ function retryMission() {
   goBrief(true);
 }
 
-function endSession() {
-  state = 'final'; audio.humStop();
+// (0.44) END OPERATION: in the armory, the briefing (from the second mission) and the debrief after a mission that carried on. It
+// takes a second tap, and ending by choice pays an SESF coin (session.js earnCoin) for a later operation's armory.
+function coinNow() { const last = session && session.missions[session.missions.length - 1]; return !session || session.tutorial || !last || !S.carriesOn(last.outcome) ? null : S.coinPreview(session); }
+function endLabels() {
+  if (!session) return;
+  const cn = coinNow(), sub = cn ? t('end.' + cn, { n: S.COIN_MAX }) : '';
+  for (const id of ['shop-end', 'btn-end', 'btn-end-d']) UI.endBtn($(id), endArmed === id, sub);
+  $('shop-end').classList.toggle('hidden', !session.missions.length || !!session.tutorial);
+}
+function endTap(id, go) {
+  if (endArmed !== id) {
+    endArmed = id; audio.click(); endLabels(); clearTimeout(endT);
+    endT = setTimeout(() => { if (endArmed === id) { endArmed = null; endLabels(); } }, 5000);
+    return;
+  }
+  clearTimeout(endT); endArmed = null; audio.click(); go();
+}
+function endSession(byChoice = false) {
+  state = 'final'; audio.humStop(); endArmed = null; coinMode = false;
+  const coin = byChoice && coinNow() ? S.earnCoin(session) : null;      // (0.44) an SESF coin for ending it by choice
   const fin = S.finalise(session);
   const block = aarSession(session, fin);      // (0.27: the after action report, ready for Discord)
   if (session.feed !== 3 && !BOT) { session.feed = 3; feedEnd(session, fin, settings); }     // (0.43) the SESF feed: the score, and how far it got
   lastFin = { fin, block };
-  UI.fillFinal(session, fin, block);
+  UI.fillFinal(session, fin, block, coin);
   S.drop(runKey(session));
   UI.showScreen('s-final');
 }
@@ -1499,7 +1527,8 @@ $('btn-abort').onclick = () => {
 };
 $('btn-continue').onclick = () => { audio.click(); if (lastRes && S.carriesOn(lastRes.outcome)) goShop(); else endSession(); };
 $('btn-retry').onclick = () => retryMission();
-$('btn-end-d').onclick = () => { audio.click(); endSession(); };
+$('btn-end-d').onclick = () => endTap('btn-end-d', () => endSession(true));
+$('shop-end').onclick = () => { audio.unlock(); endTap('shop-end', () => endSession(true)); };     // (0.44)
 $('btn-again').onclick = () => { audio.click(); session = null; toTitle(); };
 $('btn-tutorial').onclick = () => { audio.unlock(); audio.click(); askLock('tut'); };
 $('glass-title').onclick = () => { audio.click(); session = null; toTitle(); };

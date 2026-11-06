@@ -260,6 +260,7 @@
       <div id="shop-root"></div>
       <div class="btns shop-go">
         <button id="shop-go" class="btn primary big"></button>
+        <button id="shop-end" class="btn endop hidden" type="button">END OPERATION</button>
         <button id="shop-menu" class="btn" type="button" data-t="hud.menu">MENU</button>
         <button id="shop-back" class="btn" type="button" data-t="ui.backBtn">BACK</button>
       </div>
@@ -286,7 +287,7 @@
             <button id="b-continue" class="btn primary big" disabled></button>
             <button id="b-cancel" class="btn big" type="button" data-t="brief.cancel">CANCEL</button>
             <button id="b-menu" class="btn" type="button" data-t="hud.menu">MENU</button>
-            <button id="btn-end" class="btn" data-t="ui.endSession">END SESSION</button>
+            <button id="btn-end" class="btn endop" type="button">END OPERATION</button>
           </div>
         </div>
         <div class="b-right">
@@ -344,7 +345,7 @@
       </div>
       <!-- (0.27.3) what to do next and the report: beside the results on a computer, under them on a phone -->
       <div class="d-side">
-        <div class="btns"><button id="btn-continue" class="btn primary big"></button><button id="btn-retry" class="btn retry" type="button"></button><button id="btn-end-d" class="btn" data-t="ui.endSession">END SESSION</button></div>
+        <div class="btns"><button id="btn-continue" class="btn primary big"></button><button id="btn-retry" class="btn retry" type="button"></button><button id="btn-end-d" class="btn endop" type="button">END OPERATION</button></div>
         <p id="d-retry-note" class="fine retry-note"></p>
         <div class="d-copy">
           <h3 data-t="deb.copyTitle">MISSION REPORT</h3>
@@ -363,6 +364,7 @@
       <div class="eyebrow" id="f-eyebrow"></div>
       <h2><span data-t="fin.score">FINAL SCORE</span> <b id="f-score">0</b></h2>
       <div class="f-local" id="f-local"></div>
+      <p id="f-coin" class="f-coin hidden"></p>
       <div id="f-diff" class="f-diff"></div>
       <div id="f-totals" class="fine"></div>
       <table id="f-table"></table>

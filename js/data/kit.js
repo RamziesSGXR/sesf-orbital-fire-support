@@ -243,14 +243,18 @@ export function shopItems(kit) {
 
 // Buy an item. inMission only allows live upgrades (levels), not new unlocks or slots.
 export const HANGAR_GIFT = 'eagle_strafe';     // (0.31) what the Hangar's first level comes with
-export function buy(kit, wallet, id, inMission = false, tier = TIER_MAX) {
+// (0.44) What an SESF coin can buy: anything open in the armory that has a next level, but the Classified stratagems.
+export const coinOk = (it) => !!it && it.cost !== null && !it.locked && !it.secret && it.section !== 'classified';
+// free: (0.44) paid with an SESF coin, not credits (the caller takes the coin)
+export function buy(kit, wallet, id, inMission = false, tier = TIER_MAX, free = false) {
   const it = shopItems(kit).find((x) => x.id === id);
   if (!it) return { ok: false, reason: 'unknown' };
   if (!shownAt(it, tier)) return { ok: false, reason: 'locked' };     // (0.24) not in the armory yet
   if (it.cost === null || it.locked) return { ok: false, reason: it.locked ? 'locked' : 'maxed' };
   if (inMission && !it.live) return { ok: false, reason: 'between' };
-  if (wallet.bal < it.cost) return { ok: false, reason: 'funds' };
-  wallet.bal -= it.cost; wallet.spent += it.cost;
+  if (free && !coinOk(it)) return { ok: false, reason: 'coin' };
+  if (!free && wallet.bal < it.cost) return { ok: false, reason: 'funds' };
+  if (!free) { wallet.bal -= it.cost; wallet.spent += it.cost; }
   const [kind, arg] = id.split(/[:.]/);
   if (kind === 'slot') kit.slots = Number(arg);
   else if (kind === 'own') { kit.owned[arg] = 1; equip(kit, arg); }

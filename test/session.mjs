@@ -41,7 +41,7 @@ while (Date.now() - t0 < 600000) {
     console.log('  debrief:', outcome, 'mission', missions);
     if (await page.isVisible('#ms-splash')) { await page.click('#ms-later'); await page.waitForTimeout(200); }   // (0.24) a milestone's splash
     if (missions >= maxM && outcome !== 'VICTORY') { await page.click('#btn-continue'); }
-    else if (missions >= maxM) { await page.click('#btn-end-d'); }
+    else if (missions >= maxM) { await page.click('#btn-end-d'); await page.click('#btn-end-d'); }     // (0.44: a second tap ends it)
     else await page.click('#btn-continue');
   }
   else if (st === 'final') { await page.waitForTimeout(400); await page.screenshot({ path: out('final') }); console.log((await page.inputValue('#f-text')).slice(0, 900)); break; }

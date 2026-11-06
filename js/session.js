@@ -9,7 +9,8 @@ import { clampLevel, levelAt, levelName, LEVELS } from './difficulty.js';
 
 const K = { settings: 'ofs.settings', session: 'ofs.session', history: 'ofs.history', callsign: 'ofs.callsign', notice: 'ofs.notice', names: 'ofs.names',
   campaign: 'ofs.campaign', campRun: 'ofs.campRun',     // (0.37) the campaign's progress on this browser, and its run under way
-  slots: 'ofs.slots' };     // (0.41) the three save slots
+  slots: 'ofs.slots',      // (0.41) the three save slots
+  coins: 'ofs.coins' };    // (0.44) SESF coins
 
 export function load(key, fallback) {
   try { const v = localStorage.getItem(K[key]); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
@@ -18,6 +19,26 @@ export function save(key, val) {
   try { localStorage.setItem(K[key], JSON.stringify(val)); return true; } catch { return false; /* storage blocked (or full): the game still works */ }
 }
 export function drop(key) { try { localStorage.removeItem(K[key]); } catch { /* ignore */ } }
+
+// (0.44) SESF coins, kept on this browser: one for every operation ended by choice (END OPERATION after a mission that carried
+// on), at most COIN_MAX held. Each is one free unlock or upgrade in a later operation's armory (anything open at your rank but the
+// Classified ones: kit.js coinOk). An operation pays once: the runs that paid are remembered by when they started, so ending the
+// same run again (from a save slot or a campaign checkpoint) pays nothing.
+export const COIN_MAX = 3;
+function coinBox() { const c = load('coins', null) || {}; return { n: Math.max(0, Math.min(COIN_MAX, Number(c.n) | 0)), paid: Array.isArray(c.paid) ? c.paid.slice(-50) : [] }; }
+export const getCoins = () => coinBox().n;
+// What ending this run would pay, without paying it: 'coin', 'paid' or 'full'.
+export function coinPreview(run) { const c = coinBox(), id = run && run.startedAt; return id && c.paid.includes(id) ? 'paid' : c.n >= COIN_MAX ? 'full' : 'coin'; }
+// The coin for ending this run: { got: true, n } (n: now held), or { got: false, why: 'paid' | 'full', n }.
+export function earnCoin(run) {
+  const c = coinBox(), id = run && run.startedAt;
+  if (id && c.paid.includes(id)) return { got: false, why: 'paid', n: c.n };
+  if (c.n >= COIN_MAX) return { got: false, why: 'full', n: c.n };
+  c.n++; if (id) c.paid.push(id);
+  save('coins', c);
+  return { got: true, n: c.n };
+}
+export function spendCoin() { const c = coinBox(); if (c.n <= 0) return false; c.n--; save('coins', c); return true; }
 
 // (0.41) Three save slots on this browser, each a run (QUICK PLAY's or the campaign's) as it stood between missions: { at (when
 // saved), key ('session' | 'campRun'), run }. A run saved to a slot remembers it (run.slot, 1-3) and saves itself there again

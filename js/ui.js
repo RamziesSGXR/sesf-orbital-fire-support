@@ -4,7 +4,7 @@ import { FACTIONS, BIOMES } from './data/data.js';
 import { fmtTime, fmtNum, sessionTotals, MAX_NAME, carriesOn, levelReached } from './session.js';
 import { STRATS, CAT_COLOR } from './data/strat.js';
 import { LETTERS, TEAM_COLOR } from './data/names.js';
-import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, hangarStats, shownAt, TIER_MAX, tierItems, itemTier, FLAT_BUILDS, fleetSize } from './data/kit.js';
+import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, hangarStats, shownAt, TIER_MAX, tierItems, itemTier, FLAT_BUILDS, fleetSize, coinOk } from './data/kit.js';
 import { stratReady, stratOnline } from './sim/strat.js';
 import { slotStats } from './sim/player.js';
 import { compass } from './sim/enemies.js';
@@ -1528,7 +1528,7 @@ export function runBriefing({ info, mission, touch, onContinue, onEnd, onCancel,
   };
   raf = requestAnimationFrame(tick);
   cont.onclick = () => { if (!finished) return; cancelled = true; clearTimeout(tipT); onContinue(); };
-  $('btn-end').onclick = () => { cancelled = true; clearTimeout(tipT); cancelAnimationFrame(raf); onEnd(); };
+  $('btn-end').onclick = () => onEnd(() => { cancelled = true; clearTimeout(tipT); cancelAnimationFrame(raf); });     // (0.44: onEnd asks for a second tap first)
   $('b-cancel').onclick = () => { cancelled = true; clearTimeout(tipT); cancelAnimationFrame(raf); onCancel && onCancel(); };
   $('b-menu').onclick = () => onMenu && onMenu();
   return {
@@ -1690,6 +1690,14 @@ export function renderShop(root, opts) {
   const scroll = root.querySelector('.shop-scroll'), keep = scroll ? scroll.scrollTop : 0;
   root.innerHTML = '';
   root.appendChild(el('div', 'shop-cr', `${t('arm.credits')} <b>${fmtNum(wallet.bal)}</b>${opts.note ? `<span class="note">${esc(opts.note)}</span>` : ''}`));
+  // (0.44) SESF coins: SPEND A COIN, then pick anything open but the Classified ones, free
+  const coinMode = !live && opts.coinMode && opts.coins > 0;
+  if (!live && opts.coins > 0) {
+    const cb = el('div', 'coinbar' + (coinMode ? ' on' : ''), `<i class="coin" aria-hidden="true"></i><span>${esc(t(coinMode ? 'arm.coinPick' : 'arm.coinHave', { n: opts.coins }))}</span>`);
+    const b = el('button', 'btn small' + (coinMode ? '' : ' primary'), esc(t(coinMode ? 'arm.coinCancel' : 'arm.coinUse')));
+    b.type = 'button'; b.id = 'coin-use'; b.onclick = () => opts.onCoin && opts.onCoin();
+    cb.appendChild(b); root.appendChild(cb);
+  }
 
   // Loadout row
   const lo = el('div', 'shop-lo');
@@ -1715,7 +1723,7 @@ export function renderShop(root, opts) {
   const shownTabs = SHOP_TABS.filter((tb) => items.some((it) => tb.secs.includes(it.section)));      // (0.24: the Hangar's comes with its milestone)
   if (!shownTabs.some((tb) => tb.id === shopTab)) shopTab = (shownTabs[0] || SHOP_TABS[0]).id;
   for (const tb of shownTabs) {
-    const can = items.some((it) => tb.secs.includes(it.section) && it.cost !== null && !it.locked && open(it) && wallet.bal >= it.cost && !(live && !it.live));
+    const can = items.some((it) => tb.secs.includes(it.section) && it.cost !== null && !it.locked && open(it) && (coinMode ? coinOk(it) : wallet.bal >= it.cost) && !(live && !it.live));
     const b = el('button', 'btn tab' + (shopTab === tb.id ? ' on' : '') + (can ? ' can' : ''), esc(t('arm.tab.' + tb.id)));
     b.type = 'button'; b.dataset.tab = tb.id; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(shopTab === tb.id));
     b.onclick = () => { shopTab = tb.id; root.querySelectorAll('.shop-tabs .tab').forEach((x) => { x.classList.toggle('on', x.dataset.tab === shopTab); x.setAttribute('aria-selected', String(x.dataset.tab === shopTab)); }); root.querySelectorAll('.tabpane').forEach((x) => x.classList.toggle('on', x.dataset.tab === shopTab)); const sc = root.querySelector('.shop-scroll'); if (sc) sc.scrollTop = 0; };
@@ -1751,6 +1759,11 @@ export function renderShop(root, opts) {
       else if (it.cost === null) { b.textContent = t(it.locked ? 'arm.locked' : 'arm.max'); b.disabled = true; }
       else if (it.locked && it.needs) { b.innerHTML = `${t('arm.needs.' + it.needs)}<small>${t('arm.cr', { n: fmtNum(it.cost) })}</small>`; b.disabled = true; b.classList.add('small'); }     // (0.23: Eagles need the Hangar)
       else if (live && !it.live) { b.textContent = t('arm.between'); b.disabled = true; b.classList.add('small'); }
+      else if (coinMode && !coinOk(it)) { b.innerHTML = `${t('arm.coinNo')}<small></small>`; b.disabled = true; b.classList.add('small'); }      // (0.44) no coin for the Classified ones
+      else if (coinMode) {
+        b.innerHTML = `${t(it.orb || it.build ? (it.owned ? 'arm.upgrade' : 'arm.unlock') : it.id.startsWith('slot') ? 'arm.buy' : 'arm.upgrade')}<small>${t('arm.coinFree')}</small>`;
+        b.classList.add('coinb'); b.onclick = () => opts.onBuy(it.id);
+      }
       else {
         const verb = t(it.orb || it.build ? (it.owned ? 'arm.upgrade' : 'arm.unlock') : it.id.startsWith('slot') ? 'arm.buy' : 'arm.upgrade');
         b.innerHTML = `${verb}<small>${t('arm.cr', { n: fmtNum(it.cost) })}</small>`;
@@ -1916,6 +1929,12 @@ export function fillDebrief(info, res, session, block = '', startCr = null) {
   const ta = $('d-text'); ta.value = block; ta.rows = Math.min(15, block.split('\n').length);
   $('d-msg').textContent = '';
 }
+// (0.44) END OPERATION: what ending pays under it (an SESF coin), and TAP AGAIN TO END after the first tap.
+export function endBtn(b, armed, sub) {
+  if (!b) return;
+  b.classList.add('endop'); b.classList.toggle('armed', !!armed);
+  b.innerHTML = `${esc(t(armed ? 'end.confirm' : 'ui.endSession'))}${sub ? `<small>${esc(sub)}</small>` : ''}`;
+}
 // The first tap on RETRY MISSION says what it does; the second does it.
 export function armRetry(on) {
   const b = $('btn-retry');
@@ -1925,11 +1944,14 @@ export function armRetry(on) {
 }
 
 // ---------------- final ----------------
-export function fillFinal(session, fin, block) {
+export function fillFinal(session, fin, block, coin = null) {
   const tt = sessionTotals(session);
   $('f-score').textContent = fmtNum(session.score);
   $('f-eyebrow').textContent = session.op ? t('fin.eyebrowOp', { op: session.op }) : t('fin.eyebrow');     // (0.37: the operation's name)
   $('f-local').textContent = fin.isBest ? t('fin.best') : fin.bestBefore ? t('fin.bestWas', { n: fmtNum(Math.max(fin.bestBefore, session.score)) }) : '';
+  // (0.44) the SESF coin this ending paid (or why it paid none)
+  $('f-coin').classList.toggle('hidden', !coin);
+  if (coin) $('f-coin').innerHTML = `<i class="coin" aria-hidden="true"></i><span>${esc(coin.got ? t('fin.coin', { n: coin.n }) : t('fin.coin.' + coin.why, { n: coin.n }))}</span>`;
   const dl = session.difficulty || LEVELS, top = levelReached(session);
   $('f-diff').textContent = t('fin.diff', { n: dl, name: t(...levelName(dl)).toUpperCase() }) + (top > dl ? ' · ' + t('fin.reached', { n: top, name: t(...levelName(top)).toUpperCase() }) : '');
   $('f-totals').textContent = t('fin.totals', { e: fmtNum(tt.earned), s: fmtNum(tt.spent), k: fmtNum(tt.kills), h: tt.lostH, f: tt.lostS });
@@ -2104,7 +2126,7 @@ export function fillLock(mode, o = {}) {
   $('diff').classList.toggle('hidden', tut);
   $('enemy').classList.toggle('hidden', tut || camp);
   $('lock-run').classList.toggle('hidden', tut);
-  $('lock-rules').innerHTML = ['lock.r0', 'lock.r1', 'lock.r2', 'lock.r3', 'lock.r4'].map((k) => `<li>${esc(t(k, { n: lives }))}</li>`).join('');
+  $('lock-rules').innerHTML = ['lock.r0', 'lock.r1', 'lock.r2', 'lock.r3', 'lock.r4', 'lock.r5'].map((k) => `<li>${esc(t(k, { n: lives }))}</li>`).join('');
   $('btn-lock').textContent = tut ? t('lock.goTut') : t('lock.go', { n: level });
   $('s-lock').classList.toggle('hot', !tut && level >= 9);
   $('s-lock').dataset.mode = mode;

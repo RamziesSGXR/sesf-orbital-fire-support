@@ -2598,3 +2598,19 @@ body.touch #dk-pick { width: 74px; }
 .la-top { min-width: 0; overflow: hidden; }
 .la-tab { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 body.rts.lay-tab #hud .la-tab { padding: 0 8px; }
+
+/* (0.44) END OPERATION, and the SESF coin it pays */
+.btn.endop { border-color: var(--amber); color: var(--amber); }
+.btn.endop small { color: #ffe27a; font-size: 10px; letter-spacing: 0.08em; margin-top: 1px; }
+.btn.endop.armed { background: var(--amber); color: #000; font-weight: 700; }
+.btn.endop.armed small { color: #000; opacity: 0.85; }
+.coin { display: inline-block; flex: none; width: 18px; height: 18px; border-radius: 50%; vertical-align: -4px;
+  background: radial-gradient(circle at 35% 30%, #fff6b0 0 18%, #ffd23a 40%, #b8860b 100%); box-shadow: 0 0 0 2px #6b4e00 inset, 0 0 8px rgba(255, 210, 58, 0.5); }
+.coinbar { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; padding: 6px 10px; border: 1px solid rgba(255, 210, 58, 0.45); background: rgba(255, 210, 58, 0.06); font-size: 12px; color: #ffe27a; }
+.coinbar span { flex: 1 1 auto; min-width: 0; }
+.coinbar .btn { flex: none; }
+.coinbar.on { border-color: #ffd23a; background: rgba(255, 210, 58, 0.14); }
+.btn.buy.coinb { border-color: #ffd23a !important; color: #ffd23a; }
+.btn.buy.coinb small { color: #ffd23a; }
+.f-coin { display: flex; align-items: center; gap: 10px; margin: 6px 0 10px; padding: 8px 10px; border: 1px solid rgba(255, 210, 58, 0.45); background: rgba(255, 210, 58, 0.06); color: #ffe27a; font-size: 13px; }
+.f-coin.hidden { display: none; }
