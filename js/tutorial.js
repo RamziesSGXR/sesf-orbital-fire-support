@@ -19,6 +19,7 @@ const hdDown = (g) => g.mission.hdAlive.length > 0;
 export const STEPS = [
   { id: 'intro', next: true },
   { id: 'look', done: (g, s) => Math.hypot(g.cam.x - s.cx, g.cam.y - s.cy) > 20 || Math.abs(g.cam.view - s.view) > 25 },
+  { id: 'radio', hl: '#btn-radio', next: true },     // (0.42.1) the news goes in the radio log (on a phone, all of it): where it is
   { id: 'gun', hl: '#weapons .gun-w', start: (g, s) => { s.g = g.mission.lsSpawn('light', -Math.PI / 2); g.look(s.g); },
     done: (g, s) => gone(s.g) || g.mission.stats.killsPlayer >= 4 },
   { id: 'orbital', hl: '#weapons .orb-w', start: (g, s) => { s.g = g.mission.lsSpawn('medium', 0); g.look(s.g); }, done: (g) => g.mission.stats.orbCalls >= 1 },
@@ -100,6 +101,7 @@ export class Tutorial {
     k.style.color = c ? c.col : '';
     this.el.classList.toggle('say', !!c); if (c) this.el.style.setProperty('--cc', c.col);
     $('tut-h').textContent = h; $('tut-b').textContent = b;
+    if (this.stage === 'hold' && this.g.log) this.g.log(h, b);     // (0.42.1: kept in the radio tab, to read again)
     $('tut-next').textContent = t(this.step && this.step.last ? 'tut.holdBtn' : 'tut.next');
     this.el.classList.remove('fold', 'hidden');
     this.buttons();
@@ -119,7 +121,8 @@ export class Tutorial {
   release() {
     if (!this.held) return;
     this.held = false;
-    this.el.classList.add('fold');
+    // (0.42.1) in the hold, a card goes once it is read (it is in the radio tab); a lesson folds to its heading, the step to do
+    if (this.stage === 'hold') { this.el.classList.add('hidden'); this.spot.classList.add('hidden'); document.body.classList.remove('tut-dim'); } else this.el.classList.add('fold');
     this.buttons();
     if (this.queue.length) this.queue.shift()();
   }

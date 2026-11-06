@@ -499,8 +499,11 @@ export class Hud {
       if (phone && fb) S(rb, port ? { left: fb.left, top: fb.bottom + G, width: fb.width, height: 32 * z } : { left: fb.left, top: fb.top - G - 34 * z, width: fb.width, height: 34 * z });
       else if (mm) S(rb, { left: mm.left - 4 * z, top: mm.top - 4 * z, width: 30 * z, height: 30 * z });
       if (this.radioOpen && mm) {
-        if (phone && port) { const tr2 = R('#hud .hud-tr'); const top = Math.max(mm.top, tr2 ? tr2.bottom + G : mm.top); S(rl, { right: G, top, width: Math.min(W - 2 * G, 420 * z), height: Math.min(H * 0.34, 300 * z) }); }
-        else if (phone) { const tr2 = R('#hud .hud-tr'), top = tr2 && tr2.left < W && tr2.bottom < mm.bottom - 120 * z ? tr2.bottom + G : 40 * z; S(rl, { right: W - mm.right, bottom: H - mm.bottom, width: Math.min(W * 0.46, 340 * z), height: Math.min(mm.bottom - top, 250 * z) }); }
+        // (0.42.1) the open log never covers its own button (or the camera button and MAP by it): upright it starts under them,
+        // on its side it sits to their left
+        const rr = rb.getBoundingClientRect(), bl = Math.min(rr.left, fb ? fb.left : rr.left);
+        if (phone && port) { const tr2 = R('#hud .hud-tr'); const top = Math.max(mm.top, tr2 ? tr2.bottom + G : mm.top, rr.bottom + G); S(rl, { right: G, top, width: Math.min(W - 2 * G, 420 * z), height: Math.min(H * 0.34, 300 * z) }); }
+        else if (phone) { const tr2 = R('#hud .hud-tr'), top = tr2 && tr2.left < W && tr2.bottom < mm.bottom - 120 * z ? tr2.bottom + G : 40 * z; S(rl, { right: Math.max(W - mm.right, W - bl + G), bottom: H - mm.bottom, width: Math.min(W * 0.46, 340 * z), height: Math.min(mm.bottom - top, 250 * z) }); }
         else S(rl, { right: W - mm.right, bottom: H - mm.top + G, width: Math.min(W * 0.36, 380 * z), maxHeight: Math.max(140 * z, Math.min(360 * z, mm.top - 130 * z)) });
       }
     }
@@ -603,8 +606,17 @@ export class Hud {
 
   // One feed, at the top left: radio lines join the notices (acknowledgements of your own button presses are dropped, and a line
   // the feed already shows is not shown twice).
+  // (0.42.1) a phone puts the whole feed in the radio tab (the button by the minimap lights; red when it is bad news) and keeps the
+  // map clear: feed(text, tone) is main.js's way into the radio log
+  toTab(text, tone) {
+    if (!this.feed || !document.body.classList.contains('lay-phone') || !this.radioOn) return false;
+    this.feed(text, tone);
+    if (tone === 'bad' && !this.radioOpen) $('btn-radio').classList.add('alert');
+    return true;
+  }
   radio(text, key = '') {
     if (/^(seaf|deny|uav|gundry|landed|nomark|assault)/.test(key)) return;
+    if (this.toTab(text, 'radio')) return;
     const box = $('notices'), last = box.lastElementChild;
     if (last && last.textContent === text && !last.classList.contains('old')) return;
     this.notice(text, 'radio');
@@ -612,6 +624,7 @@ export class Hud {
   clearRadio() { /* (radio lines are notices now) */ }
   // (0.27) the campaign's cast on the radio: their tag in their colour, then the line; up longer than other news (it is read)
   cast(c, text) {
+    if (document.body.classList.contains('lay-phone') && this.radioOn) return;     // (0.42.1: a phone has it in the radio tab already)
     const touch = document.body.classList.contains('touch');
     const box = $('notices'), d = el('div', 'nt cast'); d.style.setProperty('--cc', c.col);
     const b = document.createElement('b'); b.textContent = c.tag; d.append(b, document.createTextNode(text)); box.appendChild(d);
@@ -625,6 +638,7 @@ export class Hud {
   notice(text, tone = 'info') {
     const touch = document.body.classList.contains('touch');
     if (touch && tone === 'dim') return;   // phones: only news worth a glance
+    if (this.toTab(text, tone)) return;
     const box = $('notices'), d = el('div', 'nt ' + tone); d.textContent = text; box.appendChild(d);
     while (box.children.length > (touch ? 3 : 6)) box.removeChild(box.firstChild);
     const life = touch ? (tone === 'bad' || tone === 'warn' ? 5600 : 3800) : (tone === 'bad' ? 8000 : tone === 'dim' ? 3800 : 5600);
@@ -665,7 +679,7 @@ export class Hud {
     this.layout(true);
     if (open) requestAnimationFrame(() => { const b = $('rl-body'); b.scrollTop = b.scrollHeight; });     // (the newest at the bottom, once it has its size)
   }
-  radioRead(log) { if (log) log.unread = 0; $('btn-radio').classList.remove('new'); }
+  radioRead(log) { if (log) log.unread = 0; $('btn-radio').classList.remove('new', 'alert'); }
   radioAdd(log, it) {
     this._rlog = log;
     if (!it) { $('rl-body').innerHTML = ''; $('btn-radio').classList.remove('new'); return; }
@@ -2031,7 +2045,7 @@ function fillRadioBox(box, log) {
   let h = '', part = '';
   for (const it of items) {
     if (it.part !== part) { part = it.part; h += `<h4 class="rl-sec">${esc(t(part === 'brief' ? 'radio.brief' : part === 'debrief' ? 'radio.debrief' : 'radio.mission'))}</h4>`; }
-    h += `<p class="rl-l${it.flavor ? ' fl' : ''}${it.narr ? ' nr' : ''}"${it.col ? ` style="--cc:${esc(it.col)}"` : ''}>${it.tag ? `<b title="${esc(it.unit || '')}">${esc(it.tag)}</b>` : ''}<span>${esc(it.text)}</span></p>`;
+    h += `<p class="rl-l${it.flavor ? ' fl' : ''}${it.narr ? ' nr' : ''}${it.tone ? ' t-' + esc(it.tone) : ''}"${it.col ? ` style="--cc:${esc(it.col)}"` : ''}>${it.tag ? `<b title="${esc(it.unit || '')}">${esc(it.tag)}</b>` : ''}<span>${esc(it.text)}</span></p>`;
   }
   box.innerHTML = h;
 }

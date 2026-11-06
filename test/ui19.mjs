@@ -63,7 +63,7 @@ check('the drop countdown reads in minutes', /^\d+:\d\d$/.test(s0.cd), s0.cd);
 const s1 = await ev(() => ({ d: window.__game.mission.difficulty, diff: document.getElementById('mb-diff').textContent, lives: document.getElementById('lives-v').textContent, liveVis: !!document.getElementById('lives').getBoundingClientRect().width }));
 check('(0.36.1) the tutorial starts at difficulty 3, and the Helldivers\' lives show beside the credits', s1.d === 3 && /DIFFICULTY 3/.test(s1.diff) && s1.lives === '10' && s1.liveVis, JSON.stringify(s1));
 let c = await card();
-check('the card: step 1, the base, the Great Host', !c.hidden && /STEP 1 OF 14/.test(c.k) && /THARSIS/.test(c.h) && /Great Host/.test(c.b), c.h);
+check('the card: step 1, the base, the Great Host', !c.hidden && /STEP 1 OF 15/.test(c.k) && /THARSIS/.test(c.h) && /Great Host/.test(c.b), c.h);
 check('a card holds the game until it is read (nothing to point at: no spotlight)', c.held && !c.spot && await frozen());
 check('...and sits under the top corners, clear of the middle of the screen', await ev(() => { const a = document.getElementById('tut').getBoundingClientRect(); return a.bottom < innerHeight * 0.5 && a.top > 0; }));
 await shot('intro');
@@ -81,7 +81,10 @@ check('...at the top, out of the way', await ev(() => { const a = document.getEl
   return a.bottom < innerHeight * 0.4 && (!b || a.top >= b.bottom || a.bottom <= b.top || a.right <= b.left || a.left >= b.right); }));
 if (touch) { await page.touchscreen.tap(W / 2, H / 3); await ev(() => { window.__game.cam.x += 50; }); }
 else { await page.mouse.move(W / 2, H / 3); await page.mouse.down({ button: 'right' }); await page.mouse.move(W / 2 - 260, H / 3 + 60, { steps: 10 }); await page.mouse.up({ button: 'right' }); }
-check('moving the map does it', await waitStep('THE SHIP GUN'));
+check('moving the map does it: (0.42.1) the command radio is next', await waitStep('THE COMMAND RADIO'));
+check('(0.42.1) its button is lit, and the card says the news is kept in its log', await ev(() => document.getElementById('btn-radio').classList.contains('tut-hl')) && /radio log/.test((await card()).b) && (!touch || /On a phone/.test((await card()).b)), (await card()).b);
+await tap('#tut-next');
+check('NEXT: the ship gun', await waitStep('THE SHIP GUN'));
 const g1 = await ev(() => window.__game.mission.enemies.filter((e) => !e.dead).length);
 check('the gun lesson sends drones at the base, and the camera looks at them', g1 === 10, String(g1));
 check('the ship gun on the weapon bar is lit, the card beside it', await ev(() => document.querySelector('#weapons .gun-w').classList.contains('tut-hl')) && await beside('#weapons .gun-w'));
@@ -154,7 +157,7 @@ check('(0.37) ...it says what carries over from mission to mission', /carry over
 await tap('#tut-next');
 check('NEXT: the last card', await waitStep('OPEN THE SHELTER', 9000));
 c = await card();
-check('the last step: HOLD THE LINE', /HOLD THE LINE/.test(await page.textContent('#tut-next')) && /STEP 14 OF 14/.test(c.k));
+check('the last step: HOLD THE LINE', /HOLD THE LINE/.test(await page.textContent('#tut-next')) && /STEP 15 OF 15/.test(c.k));
 await shot('begin');
 await tap('#tut-next'); await page.waitForTimeout(1500);
 const h1 = await ev(() => ({ stage: window.__game.mission.ls.stage, timer: document.getElementById('timer').textContent, obj: document.getElementById('obj-main').textContent }));
@@ -163,7 +166,8 @@ check('the evacuation opens: the clock counts the hold, the objective line who i
 check('one more card, holding the game', c.held && !c.hidden && /HOLD/.test(c.h));
 await tap('#tut-ok'); await page.waitForTimeout(300);
 c = await card();
-check('GOT IT folds it away and the hold begins', c.fold && !c.hidden && !c.held);
+check('GOT IT puts it away (0.42.1: gone, not folded: the objective line says HOLD) and the hold begins', c.hidden && !c.held);
+check('(0.42.1) ...and the card is kept in the radio log, to read again', await ev(() => window.__game.radioLog.items.some((it) => /HOLD THARSIS/.test(it.text))));
 await ev(() => { const m = window.__game.mission; for (let i = 0; i < 30 * 70; i++) m.step(1 / 30); }); await page.waitForTimeout(800);
 const h2 = await ev(() => ({ saved: window.__game.mission.objectives[0].saved, waves: window.__game.mission.ls.waves, dmg: window.__game.mission.ls.dmg, st: window.__game.mission.ls.st || 0 }));
 // (0.26) it builds in stages (by personnel off Mars, or by time) and only turns overwhelming at 120 saved: at 70 s it is past

@@ -49,6 +49,17 @@ await shot('open');
 await page.locator('#btn-mini').tap(); await page.waitForTimeout(400);
 check('...and its − folds it away again', await ev(() => document.body.classList.contains('mini-off')));
 
+// (0.42.1) the feed goes in the radio tab on a phone, not over the map
+const fd = await ev(() => { const g = window.__game, n0 = document.querySelectorAll('#notices .nt').length, r0 = g.radioLog.items.length;
+  g.hud.notice('Test news line', 'info'); g.hud.notice('Test bad news', 'bad'); g.hud.radio('Test radio line', 'x');
+  const b = document.getElementById('btn-radio');
+  return { btn: !b.classList.contains('hidden'), notices: document.querySelectorAll('#notices .nt').length - n0, logged: g.radioLog.items.length - r0, nw: b.classList.contains('new'), alert: b.classList.contains('alert') }; });
+check('(0.42.1) a phone: every mission has the radio button, and the news goes in its log, not over the map (it lights; red for bad news)', fd.btn && fd.notices === 0 && fd.logged === 3 && fd.nw && fd.alert, JSON.stringify(fd));
+await page.locator('#btn-radio').tap(); await page.waitForTimeout(400);
+const rl = await ev(() => ({ open: !document.getElementById('radiolog').classList.contains('hidden'), txt: document.getElementById('rl-body').textContent, alert: document.getElementById('btn-radio').classList.contains('alert') }));
+check('(0.42.1) ...tapping it shows them, and puts the light out', rl.open && /Test bad news/.test(rl.txt) && /Test radio line/.test(rl.txt) && !rl.alert, JSON.stringify(rl).slice(0, 200));
+await shot('radio');
+await page.locator('#btn-radio').tap(); await page.waitForTimeout(300);
 // a stratagem armed and a squad selected: a tap on the map aims, it does not move the squad
 const before = await ev(() => { const g = window.__game, m = g.mission; g.setTac(false); m.selectSquad(0); const sq = m.seaf.squads[0]; g.arm(0); return { order: JSON.stringify(sq.order || null), armed: g.armed, sel: m.seaf.sel, cx: g.cam.x, cy: g.cam.y, n: m.seaf.squads[0].n }; });
 await page.waitForTimeout(300);

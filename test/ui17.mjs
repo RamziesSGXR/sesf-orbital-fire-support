@@ -133,7 +133,8 @@ if (!touch) {
 // one feed at the top left: radio lines and the supply request join it; nothing at the top middle
 await ev(() => { const m = window.__game.mission; m.radio('Testing the one feed, over.', 'test', 3); });
 await step(0.1); await page.waitForTimeout(200);
-check('(0.20) radio lines go to the short log above the minimap (no radio at the top middle)', (await ev(() => [...document.querySelectorAll('#notices .nt')].some((n) => /one feed/.test(n.textContent)))) && !(await page.isVisible('#radio')));
+if (await ev(() => document.body.classList.contains('lay-phone'))) check('(0.42.1) on a phone radio lines go to the radio tab, not over the map', (await ev(() => window.__game.radioLog.items.some((it) => /one feed/.test(it.text)) && ![...document.querySelectorAll('#notices .nt')].some((n) => /one feed/.test(n.textContent)))) && !(await page.isVisible('#radio')));
+else check('(0.20) radio lines go to the short log above the minimap (no radio at the top middle)', (await ev(() => [...document.querySelectorAll('#notices .nt')].some((n) => /one feed/.test(n.textContent)))) && !(await page.isVisible('#radio')));
 await ev(() => { const m = window.__game.mission, S = m.supply; if (S) { S.state = 'ask'; S.ask = { by: m.hdAlive[0].id, tag: 'A1', until: m.t + 30 }; } });
 await page.waitForTimeout(300);
 const sup = await box('#co-sup'), ob = await box('#objective');
@@ -269,7 +270,7 @@ const opNow = await ev(() => window.__game.info.op), flown0 = await ev(() => win
 await tap('#btn-menu'); await page.waitForTimeout(250);
 check('the pause menu has MAIN MENU', await page.isVisible('#btn-home-m'));
 const pm = await ev(() => [...document.querySelectorAll('#s-pause .pm .btn')].filter((b) => b.offsetParent).map((b) => b.textContent.trim()));
-check('the pause menu is short: RESUME, MISSION INFO, ARMORY, SETTINGS, HELP, SAVE GAME (0.41), MAIN MENU, RETIRE', pm.length === 8 && /RESUME/.test(pm[0]) && /HELP/.test(pm.join()) && /SAVE GAME/.test(pm.join()), pm.join(' | '));
+check('the pause menu is short: RESUME, MISSION INFO, ARMORY, SETTINGS, HELP, SAVE GAME (0.41), MAIN MENU, RETIRE (and on a phone RADIO LOG: 0.42.1)', pm.length === (/RADIO LOG/.test(pm.join()) ? 9 : 8) && (!/RADIO LOG/.test(pm.join()) || (await ev(() => document.body.classList.contains('lay-phone')))) && /RESUME/.test(pm[0]) && /HELP/.test(pm.join()) && /SAVE GAME/.test(pm.join()), pm.join(' | '));
 check('feedback and credits are small links under it', (await page.isVisible('#s-pause .pm-foot #lnk-fb-m')) && await page.isVisible('#s-pause .pm-foot #btn-credits-m'));
 await shot('pause');
 await tap('#btn-home-m'); await page.waitForTimeout(200);

@@ -2467,6 +2467,8 @@ body.lay-phone #hud #btn-radio { border-radius: 6px; }
 /* something new on the radio: a dot that breathes once in a while */
 #hud #btn-radio .rdot { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 6px var(--yellow); display: none; }
 #hud #btn-radio.new .rdot { display: block; animation: rdot 2.4s ease-in-out infinite; }
+#hud #btn-radio.alert .rdot { display: block; background: #ff4a3a; box-shadow: 0 0 6px #ff4a3a; }     /* (0.42.1) bad news waiting in the tab */
+#radiolog .rl-l.t-bad span, #s-radio .rl-l.t-bad span { color: #ff8a7a; } #radiolog .rl-l.t-good span, #s-radio .rl-l.t-good span { color: #9dffb8; } #radiolog .rl-l.t-warn span, #s-radio .rl-l.t-warn span { color: #ffd24a; }
 @keyframes rdot { 0%, 70%, 100% { opacity: 1; } 85% { opacity: 0.35; } }
 @media (prefers-reduced-motion: reduce) { #hud #btn-radio.new .rdot { animation: none; } }
 /* the log by the minimap */

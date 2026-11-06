@@ -24,7 +24,8 @@ await page.goto(`file://${ROOT}/dist/orbital-fury.html?seed=5150&faction=bugs&bi
 await tap('#btn-play'); await page.waitForTimeout(300); await tap('#btn-lock'); await page.waitForTimeout(500);
 await tap('#shop-go'); await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
 await tap('#b-continue'); await page.waitForTimeout(1200);
-check('a plain mission has no command radio', !(await vis('#btn-radio')));
+if (await ev(() => document.body.classList.contains('lay-phone'))) check('(0.42.1) on a phone a plain mission has the command radio too (the feed goes there)', await vis('#btn-radio'));
+else check('a plain mission has no command radio', !(await vis('#btn-radio')));
 // foxholes: the ghost and the trench for two squads picked together
 const fx = await ev(() => {
   const g = window.__game, m = g.mission, calm = () => { for (const e of m.enemies) e.dead = true; m.enemies = []; m.groups = []; };

@@ -96,6 +96,7 @@ function applyLayout() {
   b.classList.toggle('mini-off', lay === 'phone' && !settings.miniOpen);
   { const mb = document.querySelector('#btn-mini .n'); if (mb) mb.textContent = settings.miniOpen ? '−' : t('hud.miniBtn'); }
   if (renderer.phone !== (lay === 'phone')) { renderer.phone = lay === 'phone'; renderer.resize(); }     // (0.42: the phone's resolution cap)
+  if (typeof state !== 'undefined' && state === 'play' && mission && hud.radioOn !== radioWanted()) hud.radioShow(radioWanted());     // (0.42.1)
   b.classList.toggle('lay-port', port); b.classList.toggle('lay-land', !port);
   if (lay !== applyLayout.last) { applyLayout.last = lay; if (state === 'play') hud.layout(true); if (mission && tac && hud.tcTab === 'armory') drawArmory(); }
   return lay;
@@ -1000,6 +1001,7 @@ function enterPlay() {
   hud.reset(); hud.setOp(info.op); hud.setMission(mission); UI.showScreen(null); UI.hideOverlays();
   state = 'play'; paused = false; soft = false; hud.setSoft(false); menuSoft = false; toggleSpeed(1); clearPlan();
   audio.humStart();
+  castRadio = null; radioLog.clear(); hud.radioShow(radioWanted());     // (0.42.1: first, so the opening lines go in a phone's radio tab too)
   hud.message(t('msg.start', { op: info.op.toUpperCase(), tod: todName(info.tod), clock: todClock(info.tod) }), 2600);
   hud.radio(COMMS.startDrop);
   if (input.touch && window.innerHeight > window.innerWidth) mission.notice(t('ui.rotate'), 'info');     // (0.19.1: in the feed, not over the map)
@@ -1011,7 +1013,7 @@ function enterPlay() {
   }
   hud.setTcTab('units'); setTac(true);     // (0.20: the command panel is up from the start, on the troops)
   // (0.27) a campaign chapter: the briefing first (the game waits under it), then the cast on the radio through the mission
-  castRadio = null; radioLog.clear(); hud.radioShow(!!mission.ls && !BOT);
+  // (the radio was set up above: on a phone, every mission has it, since the feed lives there)
   const ch = storyChapter();
   if (ch && !BOT) {
     castRadio = new CastRadio(castSay, { chat: ['chat.camp', `chat.camp.c${ch.n}`], teach: ch.teach || [], tip: (txt) => { radioLog.add('mission', { tag: '', col: '', text: txt, narr: true }); hud.notice(txt, 'info'); } });
@@ -1024,6 +1026,9 @@ function enterPlay() {
 // (0.28) the command radio: what the cast says goes in its log (and the feed, unless it is just chatter); tutorial and campaign only
 const radioLog = new RadioLog();
 radioLog.onAdd = (it) => { hud.radioAdd(radioLog, it); if (UI.isOn('s-radio')) UI.fillRadio(radioLog); };
+// (0.42.1) a phone's feed (the notices and radio lines that went over the map) goes in the radio tab instead
+hud.feed = (text, tone) => radioLog.add('mission', { tag: '', col: '', text, narr: true, tone });
+const radioWanted = () => !BOT && !!mission && (!!mission.ls || !!(session && session.story) || applyLayout.last === 'phone');
 function castSay(c, text, line) { radioLog.add('mission', line); if (!line.flavor) { audio.chirp(); hud.cast(c, text); } }
 let radioFrom = null;
 function openRadioLog(from) {
@@ -1077,7 +1082,8 @@ function startLastStand() {
     look: (g) => { if (!g || !mission) return; const o = mission.objectives[0]; cam.follow = false; cam.x = o.x + (g.cx - o.x) * 0.65; cam.y = o.y + (g.cy - o.y) * 0.65; },     // (the group, and the base at the edge of the view)
     lookAt: (x, y) => { if (!mission) return; const o = mission.objectives[0]; cam.follow = false; cam.x = (o.x + x) / 2; cam.y = (o.y + y) / 2; },     // (0.37: a spot and the base)
     lookBase: () => { if (!mission) return; const o = mission.objectives[0]; cam.follow = false; cam.x = o.x; cam.y = o.y; },
-    onStep: (id) => { audio.chirp(); if (id === 'hold') hud.toast(t('tut.hold.h'), 2200); },
+    onStep: () => { audio.chirp(); },     // (0.42.1: no HOLD THARSIS toast; the objective line says it)
+    log: (h, b) => radioLog.add('mission', { tag: '', col: '', text: `${h}. ${b}`, narr: true }),     // (0.42.1) a card in the hold, kept in the radio tab
   });
   S.save('tutSeen', true);
   // the story first (the game waits under it), then the lessons
