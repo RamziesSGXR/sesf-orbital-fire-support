@@ -25,6 +25,8 @@ Recent changes, by version. The guide sections after this cover everything in fu
 
 **The enemy never runs out (0.31).** Patrols keep walking in from beyond the edge of the map for the whole mission, even once every base is down: more often as the mission goes on (and when the map is nearly empty, or extraction is open), and in bigger numbers after the first ten minutes or so. They walk past where the squad is and on out the far side; if they spot the squad, they hunt it like any patrol. A dim line in the feed says where one came in.
 
+**AI tools in the credits (0.41.1).** The CREDITS screen lists Claude (Anthropic) under Technology, as the AI tool used as a coding assistant during development.
+
 **Save slots (0.41).** Three save slots. **SAVE GAME** in the pause menu saves your operation, QUICK PLAY or campaign, and from then on it saves itself to that slot after every mission. **LOAD GAME** on the title screen picks it back up from the armory. Saving during a mission keeps the run as it was at the drop, so that mission starts over when you load it. A failed mission leaves the slot as it was. The run under way is also kept safely now if the tab closes mid-mission: you come back to the same mission. Saves are kept in the browser's storage, on this browser only. See [how a session works](#how-a-session-works).
 
 **The war goes on after the campaign (0.41).** Once the last chapter is flown, the campaign's run carries on as an endless run, with everything in its armory: credits, rank, and all you bought and equipped. It always did this if you went straight on. Now it can also be picked up later: the campaign screen has a **THE WAR GOES ON** card with **CONTINUE** at the top, the title screen says which mission is next, and a save slot shows it.
@@ -457,6 +459,7 @@ And every SESF member who has played, tested and sent feedback.
 - **Built with** JavaScript, HTML5 Canvas and the Web Audio API.
 - **Nothing else in the game:** no game engine, frameworks or third-party libraries, and nothing loads from other sites while you play.
 - **Build and test tools** (not part of the game): esbuild (MIT) and Playwright (Apache 2.0).
+- **AI tools:** Claude (Anthropic), used as a coding assistant during development.
 - **Hosting:** GitHub Pages, at orbitalfury.com.
 
 **Inspired by** Helldivers 2 by Arrowhead Game Studios, published by Sony Interactive Entertainment.

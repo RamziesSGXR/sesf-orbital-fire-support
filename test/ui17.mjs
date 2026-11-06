@@ -268,7 +268,7 @@ const opNow = await ev(() => window.__game.info.op), flown0 = await ev(() => win
 await tap('#btn-menu'); await page.waitForTimeout(250);
 check('the pause menu has MAIN MENU', await page.isVisible('#btn-home-m'));
 const pm = await ev(() => [...document.querySelectorAll('#s-pause .pm .btn')].filter((b) => b.offsetParent).map((b) => b.textContent.trim()));
-check('the pause menu is short: RESUME, MISSION INFO, ARMORY, SETTINGS, HELP, MAIN MENU, RETIRE', pm.length === 7 && /RESUME/.test(pm[0]) && /HELP/.test(pm.join()), pm.join(' | '));
+check('the pause menu is short: RESUME, MISSION INFO, ARMORY, SETTINGS, HELP, SAVE GAME (0.41), MAIN MENU, RETIRE', pm.length === 8 && /RESUME/.test(pm[0]) && /HELP/.test(pm.join()) && /SAVE GAME/.test(pm.join()), pm.join(' | '));
 check('feedback and credits are small links under it', (await page.isVisible('#s-pause .pm-foot #lnk-fb-m')) && await page.isVisible('#s-pause .pm-foot #btn-credits-m'));
 await shot('pause');
 await tap('#btn-home-m'); await page.waitForTimeout(200);
