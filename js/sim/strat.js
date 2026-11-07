@@ -71,6 +71,9 @@ function safeSpot(m, x, y, r) {
 }
 // A call lands only inside the caller's own strike zone (not another Helldiver's, not a UAV circle).
 const inOwn = (ctx, x, y) => (x - ctx.cx) ** 2 + (y - ctx.cy) ** 2 <= ctx.zone * ctx.zone;
+// (0.47) An attack stratagem's beacon is thrown: it lands no farther than C.sight.throw from the Helldiver (less than his rifle
+// reaches, the vision ladder), and inside his own strike zone. Support weapons are not thrown (their pod lands by him).
+const inThrow = (ctx, x, y) => inOwn(ctx, x, y) && (x - ctx.cx) ** 2 + (y - ctx.cy) ** 2 <= C.sight.throw * C.sight.throw;
 
 // What one caller can see and needs. owner is a Helldiver; null means the whole squad (for squad-wide items).
 function buildCtx(m, owner) {
@@ -78,7 +81,8 @@ function buildCtx(m, owner) {
   const zone = owner ? owner.zone - 5 : (m.hdAlive.length ? Math.min(...m.hdAlive.map((a) => a.zone)) - 5 : 120);
   // How far out a call can reach: a bit past what the caller can see, so a pack is hit on the way in and not on top of the squad,
   // and never past the caller's own strike zone.
-  const reach = Math.min(190, zone, (owner ? owner.vision : C.sight.helldiver + C.sight.playerBonus) + 55);
+  // (0.47) and never past a throw (plus the lead a pack on the move is given)
+  const reach = Math.min(190, zone, (owner ? owner.vision : C.sight.helldiver + C.sight.playerBonus) + 55, C.sight.throw + 12);
   const c = { owner, cx, cy, dir: sq.dir || 0, vis: [], heavies: [], hunt: 0, near: 0, centroid: null, reach, zone,
     engaged: owner ? !!m.eGrid.nearest(cx, cy, C.squad.engageRange) : !!sq.engaged, goalDist: sq.goalDist ?? 0, cl: null,
     panic: !!(owner && owner.retreat) };   // a Helldiver who is running for it calls whatever might save him
@@ -115,7 +119,9 @@ function clusters(m, ctx) {
 // everything, so a 380 barrage could land almost on the thrower. An attack stratagem now keeps its whole footprint clear: its
 // spread plus half a shell's splash (or its own `safe`, if bigger), 9 to 45 m. Placed things (turrets, mines, shields, supply)
 // still go close.
-const clearance = (d) => Math.max(9, Math.min(45, Math.max(d.safe || 0, blastOf(d) + (d.splash || 0) * 0.5)));
+// (0.47) a throw is 20-40 m: never under C.sight.throwMin, and capped 4 m short of the throw so every attack stratagem has somewhere
+// to land (the walking barrage was 45 m).
+const clearance = (d) => Math.max(C.sight.throwMin, Math.min(C.sight.throw - 4, Math.max(d.safe || 0, blastOf(d) + (d.splash || 0) * 0.5)));
 // (0.46) Another attack stratagem already on its way to (or burning on) this ground: a second one there is a waste, so the
 // Helldivers spread their calls out. Defensive things don't count.
 function crowded(m, x, y, r) {
@@ -151,7 +157,7 @@ function pickCluster(m, d, ctx) {
     if (c.n < need) continue;
     // aim where the pack will be when the strike lands
     const p = ahead(c.x, c.y, c.vx, c.vy, lead);
-    if (safeSpot(m, p.x, p.y, clearance(d)) && inOwn(ctx, p.x, p.y) && m.terrain.isLand(p.x, p.y) && !wakesBase(m, p.x, p.y, blastOf(d)) && !crowded(m, p.x, p.y, spreadR(d))) return p;
+    if (safeSpot(m, p.x, p.y, clearance(d)) && inThrow(ctx, p.x, p.y) && m.terrain.isLand(p.x, p.y) && !wakesBase(m, p.x, p.y, blastOf(d)) && !crowded(m, p.x, p.y, spreadR(d))) return p;
   }
   return null;
 }
@@ -161,15 +167,19 @@ function pickHeavy(m, d, ctx) {
   for (const e of ctx.heavies) {
     // Aim where it will be when the strike lands.
     const p = ahead(e.x, e.y, e.vx, e.vy, lead);
-    if (safeSpot(m, p.x, p.y, clearance(d)) && inOwn(ctx, p.x, p.y) && !wakesBase(m, p.x, p.y, blastOf(d)) && !crowded(m, p.x, p.y, 10)) return { x: p.x, y: p.y, e };
+    if (safeSpot(m, p.x, p.y, clearance(d)) && inThrow(ctx, p.x, p.y) && !wakesBase(m, p.x, p.y, blastOf(d)) && !crowded(m, p.x, p.y, 10)) return { x: p.x, y: p.y, e };
   }
   return null;
 }
 function pickBase(m, d, ctx) {
   const sq = m.squad, b = sq.base;
   if (!b || b.destroyed || sq.state !== 'hold' || !(b.alert || sq.assault)) return null;   // (not a base still being staged on)
-  if (!inOwn(ctx, b.x, b.y) || !safeSpot(m, b.x, b.y, clearance(d))) return null;
-  return { x: b.x, y: b.y, base: b };
+  // (0.47) a base too far for a throw is hit at its near side: the throw's length toward its middle, if that is still on the base
+  let x = b.x, y = b.y;
+  const dd = Math.hypot(b.x - ctx.cx, b.y - ctx.cy), T = C.sight.throw - 1;
+  if (dd > T) { if (dd - T > (b.r || 14)) return null; x = ctx.cx + (b.x - ctx.cx) * (T / dd); y = ctx.cy + (b.y - ctx.cy) * (T / dd); }
+  if (!inThrow(ctx, x, y) || !safeSpot(m, x, y, clearance(d))) return null;
+  return { x, y, base: b };
 }
 
 // Where a placed asset goes: ahead of the squad toward the threat, kept inside the caller's own zone.

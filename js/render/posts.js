@@ -7,6 +7,8 @@ import { lzStatus } from '../sim/seaf.js';
 
 const TAU = Math.PI * 2;
 function ring(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, Math.max(0.01, r), 0, TAU); }
+// (0.47) a 180-degree half disc of radius r toward `face` (a lookout's view)
+export function cone(ctx, x, y, r, face) { ctx.beginPath(); ctx.moveTo(x, y); ctx.arc(x, y, r, face - Math.PI / 2, face + Math.PI / 2); ctx.closePath(); }
 function hpBar(ctx, x, y, w, h, f, col) {
   ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(x - w / 2 - 0.3, y - 0.3, w + 0.6, h + 0.6);
   ctx.fillStyle = col; ctx.fillRect(x - w / 2, y, w * Math.max(0, Math.min(1, f)), h);
@@ -95,13 +97,7 @@ function art(ctx, p, now, px, t) {
   if (p.what === 'bridge') { bridgeArt(ctx, p, now, px); return; }
   if (p.what === 'wire') { const E = p.ends || wireEnds(x, y, p.face0 ?? p.face ?? 0); wireArt(ctx, E[0], E[1], f, p.wireMax ? Math.max(0, p.wireHp) / p.wireMax : 1, !!p.ghost); return; }
   if (p.what === 'lz') { lzArt(ctx, x, y, p.r || 9, now, px, !!p.pel); return; }
-  if (p.what === 'foxhole' && (p.cap || 3) > 3) { trenchArt(ctx, p.slots || foxholeSlots(x, y, p.face0 ?? p.face ?? 0, p.cap), p.face0 ?? p.face ?? 0, f); return; }
-  if (p.what === 'foxhole') {
-    // a dug pit with its spoil heaped round the rim
-    ctx.fillStyle = 'rgba(20,14,8,0.85)'; ctx.beginPath(); ctx.ellipse(x, y, 2.3 * f, 2.0 * f, p.face, 0, TAU); ctx.fill();
-    ctx.strokeStyle = 'rgba(120,96,60,0.95)'; ctx.lineWidth = 0.7 * f; ctx.beginPath(); ctx.ellipse(x, y, 2.6 * f, 2.3 * f, p.face, 0, TAU); ctx.stroke();
-    return;
-  }
+  if (p.what === 'foxhole') { trenchArt(ctx, p.slots || foxholeSlots(x, y, p.face0 ?? p.face ?? 0, p.cap), p.face0 ?? p.face ?? 0, f); return; }
   if (p.what === 'bastion') {
     // (the walls are drawn with the rest of the cover) a flag at the middle so the ring reads as one place
     ctx.strokeStyle = '#d8e4dc'; ctx.lineWidth = px(1.4); ctx.beginPath(); ctx.moveTo(x, y + px(6)); ctx.lineTo(x, y - px(10)); ctx.stroke();
@@ -284,7 +280,7 @@ export function drawPosts(ctx, m, now, px, labels, scale, sel) {
     if (p.dead) continue;
     art(ctx, p, now, px, t);
     if (p.what === 'lz') { labels.push({ x: p.x, y: p.y, dy: -p.r * scale - 8, text: `${tr('build.lz').toUpperCase()} · ${lzStatus(m, p)}`, col: '#8fe0ff', pri: 2 }); continue; }
-    const R = p.what === 'bastion' || (p.what === 'foxhole' && p.cap > 3) ? p.r : p.what === 'bridge' ? 3 : Math.max(4, px(9));     // (0.28: round the whole trench)
+    const R = p.what === 'bastion' || p.what === 'foxhole' ? p.r : p.what === 'bridge' ? 3 : Math.max(4, px(9));     // (0.28: round the whole trench)
     if (p.cap && p !== sel) useRing(ctx, p.x, p.y, R + px(4), px, now);
     if (p.maxHp > 0 && p.hp < p.maxHp) hpBar(ctx, p.x, p.y + R + px(4), Math.max(8, px(26)), px(3), p.hp / p.maxHp, p.hp > p.maxHp * 0.35 ? '#7dff9b' : '#ff4a4a');
     if (p.repairing) { const k = (now * 2) % 1; ctx.strokeStyle = `rgba(125,255,155,${1 - k})`; ctx.lineWidth = px(1.5); ring(ctx, p.x, p.y, R + px(4 + 6 * k)); ctx.stroke(); }
@@ -307,8 +303,10 @@ export function drawPosts(ctx, m, now, px, labels, scale, sel) {
   bracket(ctx, sel.x, sel.y, R, px(2), `rgba(255,230,0,${0.7 + 0.3 * pulse})`);
   if (reach > 0) {
     ctx.strokeStyle = 'rgba(255,230,0,0.7)'; ctx.lineWidth = px(1.6); ctx.setLineDash([px(8), px(6)]); ctx.lineDashOffset = -now * px(8);
-    ring(ctx, sel.x, sel.y, reach); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
-    ctx.fillStyle = 'rgba(255,230,0,0.05)'; ring(ctx, sel.x, sel.y, reach); ctx.fill();
+    // (0.47) a lookout sees down a half disc toward its face
+    const shape = () => (sel.what === 'lookout' ? cone(ctx, sel.x, sel.y, reach, sel.face) : ring(ctx, sel.x, sel.y, reach));
+    shape(); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+    ctx.fillStyle = 'rgba(255,230,0,0.05)'; shape(); ctx.fill();
     labels.push({ x: sel.x, y: sel.y - reach, dy: -6, text: tr('lab.reach', { n: Math.round(reach) }), col: '#ffe600', pri: 2 });
   }
 }

@@ -11,8 +11,8 @@ import { newKit, newWallet, seafStats, maxLives, zoneExtra, buy, equip, loadoutI
 import { seafName } from '../data/names.js';
 import { updateSquad } from './squad.js';
 import { setupDefenders } from './defenders.js';
-import { initSeaf, targetSquads, setSquadOrder, drawOrder, callPelican, pendingTroops, dropSquad, callCargo, boxSelect, setForm, pickTroops, toSquad, disband, PICKED, LOOSE, takePelican, backCut, seafHeld, makeLz, lzCount, selectSquads as seafSelectSquads, mergeSquads as seafMergeSquads } from './seaf.js';
-import { updatePosts, updateSam, garrisonPost, releaseGarrison, POSTS, makePost, INSIDE, foxSize, GARRISON, demolish, wirePlan, removePost, onEnemy, buildFoot } from './posts.js';
+import { initSeaf, busyWith, targetSquads, setSquadOrder, drawOrder, callPelican, pendingTroops, dropSquad, callCargo, boxSelect, setForm, pickTroops, toSquad, disband, PICKED, LOOSE, takePelican, backCut, seafHeld, makeLz, lzCount, selectSquads as seafSelectSquads, mergeSquads as seafMergeSquads } from './seaf.js';
+import { updatePosts, updateSam, garrisonPost, releaseGarrison, POSTS, makePost, INSIDE, foxSize, GARRISON, demolish, chains, chainPlan, wallShape, removePost, onEnemy, buildFoot, inCone } from './posts.js';
 import { updateEnemies, updateAllies } from './enemies.js';
 import { updateDirector, alertBase, detectR } from './director.js';
 import { initPatrols, updatePatrols } from './patrols.js';
@@ -400,17 +400,20 @@ export class Mission {
       if (!this.terrain.isLand(x, y) || this.terrain.blocked(x, y)) return this._deny('water', COMMS.noWater);
     }
     let face = Number.isFinite(opts.face) ? opts.face : Math.atan2(y - this.hy, x - this.hx);
-    if (what === 'wire') { const w = wirePlan(this, x, y, face); x = w.x; y = w.y; face = w.face; }
-    const shape = what === 'bastion' && opts.shape === 'line' ? 'line' : undefined;
+    // (0.28) a foxhole is dug by the squads picked (or the nearest, with every squad picked), as long as there are troopers in them
+    const diggers = what === 'foxhole' ? this.diggers(sq, x, y) : null;
+    const digSize = diggers ? foxSize(diggers.reduce((n, q) => n + q.n, 0)) : undefined;
+    // (0.47) wire and foxholes carry on from a free end near the spot (posts.js chainPlan). A section planned in the pause was
+    // snapped when it was planned (opts.exact), so it goes exactly where the plan showed it.
+    if (chains(what) && !opts.exact) { const w = chainPlan(this, what, x, y, face, { size: digSize }); x = w.x; y = w.y; face = w.face; }
+    const shape = what === 'bastion' ? wallShape(opts.shape) : undefined;     // (0.47: a line or a corner)
     if (what !== 'bridge' && onEnemy(this, x, y, buildFoot(what, lvl, shape))) return this._deny('onbase');     // (0.40) not on a base that still stands
     // a crate of this kind already on the ground near the spot (from an order that was changed) is used again, at no charge
     // (0.39: wire and foxholes only right on the spot, so a row of them is a row, not one)
     const reuseR = what === 'wire' || what === 'foxhole' ? 2.5 : C.build.crateR;
     let crate = this.crates.find((c) => c.what === what && !c.used && Math.hypot(c.x - x, c.y - y) < reuseR);
     if (crate) { crate.face = face; crate.shape = shape; }
-    // (0.28) a foxhole is dug by the squads picked (or the nearest, with every squad picked), as long as there are troopers in them
-    const diggers = what === 'foxhole' ? this.diggers(sq, x, y) : null;
-    if (!crate && what === 'foxhole') { crate = { id: this.nextId++, what, x, y, landed: true, used: false, dig: true, prog: 0, born: this.t, size: foxSize(diggers.reduce((n, q) => n + q.n, 0)), face }; this.crates.push(crate); }
+    if (!crate && what === 'foxhole') { crate = { id: this.nextId++, what, x, y, landed: true, used: false, dig: true, prog: 0, born: this.t, size: Number.isFinite(opts.size) ? foxSize(opts.size) : digSize, face }; this.crates.push(crate); }
     // (0.39.2) concertina wire is free and strung on the spot, like a foxhole: no crate comes down for it
     if (!crate && what === 'wire') { crate = { id: this.nextId++, what, x, y, landed: true, used: false, lay: true, prog: 0, born: this.t, face }; this.crates.push(crate); }
     if (!crate) {
@@ -423,7 +426,9 @@ export class Mission {
     }
     const q = diggers ? diggers[0] : sq.slice().sort((a, b) => Math.hypot(a.cx - x, a.cy - y) - Math.hypot(b.cx - x, b.cy - y))[0];
     if (span && !crate.span) crate.span = span;
-    for (const d of diggers || [q]) setSquadOrder(this, d, 'build', crate.x, crate.y, { what, crate });
+    // (0.47) the build queue: a squad already building something nearby finishes it first and comes to this one after (seaf.js
+    // nextCrate); it is only sent straight here when it has nothing to build close by
+    for (const d of diggers || [q]) if (!busyWith(this, d, crate.x, crate.y)) setSquadOrder(this, d, 'build', crate.x, crate.y, { what, crate });
     this.radio(COMMS.seafBuild(what), 'seafbuild', 1);
     this.emit('seaf_order', { kind: 'build', what, x, y, sq: q.i });
     return { ok: true, squad: q.i };
@@ -764,8 +769,8 @@ export class Mission {
     a.sight0 = base.sight * this.biome.ping;   // flat-ground sight; a rise adds to it (see _refreshAlive)
     a.zone0 = (C.sight.zoneBase[type === 'H' ? 'helldiver' : 'seaf'] || base.sight) * this.biome.ping;   // the strike zone does not grow with sight
     const sm = this.terrain.sightMul(a.x, a.y);
-    a.sight = a.sight0 * sm; a.vision = a.sight + C.sight.playerBonus;
-    a.zone = a.zone0 * sm + C.sight.playerBonus + C.sight.strikeBonus + zoneExtra(this.kit);
+    a.sight = a.sight0 * sm; a.vision = a.sight + C.sight.playerBonus + zoneExtra(this.kit);     // (0.47) strike range upgrades widen the view too
+    a.zone = Math.min(a.vision, a.zone0 * sm + C.sight.playerBonus + C.sight.strikeBonus + zoneExtra(this.kit));     // (0.47) never past what the player sees
     this.allies.push(a);
     return a;
   }
@@ -795,7 +800,7 @@ export class Mission {
   _refreshAlive() {
     this.alive.length = 0; this.hdAlive.length = 0; this.seafAlive.length = 0;
     let sx = 0, sy = 0, hx = 0, hy = 0;
-    const zx = C.sight.strikeBonus + zoneExtra(this.kit);
+    const zx = C.sight.strikeBonus + zoneExtra(this.kit), vx = zoneExtra(this.kit);
     const tr = this.terrain;
     const spores = this.sides && this.sides.some((s) => s.kind === 'spore' && !s.done && !s.failed);
     for (const a of this.allies) {
@@ -804,8 +809,8 @@ export class Mission {
       if (a.down) {     // (0.31) a downed trooper lies low: he sees only what is right round him, and gives the strike zone nothing
         a.sight = a.sight0 * C.medic.downSight; a.vision = a.sight; a.zone = 0;
       } else {
-        a.sight = a.sight0 * sm * spm; a.vision = a.sight + C.sight.playerBonus * spm;   // high ground sees farther
-        a.zone = (a.zone0 ?? a.sight0) * sm + C.sight.playerBonus + zx;
+        a.sight = a.sight0 * sm * spm; a.vision = a.sight + (C.sight.playerBonus + vx) * spm;   // high ground sees farther (0.47: strike range upgrades too)
+        a.zone = Math.min(a.vision, (a.zone0 ?? a.sight0) * sm + C.sight.playerBonus + zx);     // (0.47) the strike zone sits inside the view
       }
       this.alive.push(a); sx += a.x; sy += a.y;
       if (a.type === 'H') { this.hdAlive.push(a); hx += a.x; hy += a.y; } else if (!a.pinned) this.seafAlive.push(a);   // pinned SEAF are not the player's (yet)
@@ -830,7 +835,7 @@ export class Mission {
       G.near(a.x, a.y, a.vision, (e, d2) => { if (d2 <= s2) e.vis = 2; else if (e.vis < 1) e.vis = 1; });
     }
     // a lookout spots for the fire support: anything in its long ring and inside the strike zone shows on the map
-    for (const u of this.spotters) G.near(u.x, u.y, u.r, (e) => { if (e.vis < 1 && this.inZone(e.x, e.y)) { e.vis = 1; e.spotted = true; } });
+    for (const u of this.spotters) G.near(u.x, u.y, u.r, (e) => { if (e.vis < 1 && inCone(u, e.x, e.y) && this.inZone(e.x, e.y)) { e.vis = 1; e.spotted = true; } });     // (0.47: down the lookout's cone)
   }
   // What the squad can see (2), what only the player can see just beyond that (1), or nothing (0). A UAV circle counts as seen by all.
   visLevel(x, y) {

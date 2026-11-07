@@ -14,9 +14,9 @@ import { t as tr } from '../i18n.js';
 import { beaconAt } from '../sim/sides.js';
 import { drawFlares, drawHoles, drawDrops, drawEvac, drawExtraction, critText, drawSupply } from './reinf.js';
 import { drawBaseArt, drawBaseRuin, drawCover, drawCitadelWalls, drawCannonArt, drawNodeArt } from './sites.js';
-import { drawPosts, postArt, lzArt } from './posts.js';
+import { drawPosts, postArt, lzArt, cone } from './posts.js';
 const lzArtGhost = (ctx, x, y, R, now, px, ok) => lzArt(ctx, x, y, R, now, px, ok);
-import { foxReach, wirePlan, wireEnds, bastionLine, foxholeSlots, turns, trenchPlan, onEnemy, buildFoot } from '../sim/posts.js';
+import { foxReach, wireEnds, bastionWalls, wallShape, foxholeSlots, turns, onEnemy, buildFoot, lookoutReach, chains, chainPlan, planChain } from '../sim/posts.js';
 import { buildStats, uavStats, seafStats, buildLevel } from '../data/kit.js';
 import { todAt, skyTint } from './sky.js';
 import { Lighting, ambient, washKey, bakeWash } from './light.js';
@@ -27,6 +27,11 @@ const TAU = Math.PI * 2;
 const TASK_LABEL = { base: 'lab.base', radio: 'lab.radio', propaganda: 'lab.prop', rescue: 'lab.rescue', arty: 'lab.artySite', jammer: 'lab.jam', spore: 'lab.spore' };
 const slotCd = (m, i) => { const st = slotStats(m, i); return st ? st.cd : 0; };
 
+// (0.47) the bastions' walls of a line or a corner, as strokes (each wall across the way it faces)
+function wallsArt(ctx, walls) {
+  const L = C.build.bastion.lineLen;
+  for (const q of walls) { const ux = -Math.sin(q.ang), uy = Math.cos(q.ang); ctx.beginPath(); ctx.moveTo(q.x - ux * L / 2, q.y - uy * L / 2); ctx.lineTo(q.x + ux * L / 2, q.y + uy * L / 2); ctx.stroke(); }
+}
 export class Renderer {
   constructor(canvas) {
     this.cv = canvas;
@@ -504,19 +509,20 @@ export class Renderer {
         // (0.39) which way it faces (turned, or away from the landing), wire carried on from a free end near the cursor, and the
         // bastions' ring or line
         let face = Number.isFinite(ui.pface) ? ui.pface : Math.atan2(ay - m.hy, ax - m.hx), snapAt = null;
-        if (bk === 'wire') { const w = wirePlan(m, ax, ay, face); ax = w.x; ay = w.y; face = w.face; snapAt = w.snap; }
-        const line = bk === 'bastion' && ui.pshape === 'line';
-        if (ok && onEnemy(m, ax, ay, buildFoot(bk, lvl, line ? 'line' : undefined))) { ok = false; why = tr('deny.onbase'); }     // (0.40)
+        const dig = bk === 'foxhole' ? m.digPlan(ax, ay) : null;     // (0.28: a foxhole the size of the squads that dig it)
+        // (0.47) wire and foxholes carry on from a free end near the cursor, sections planned in the pause included
+        if (chains(bk)) { const w = chainPlan(m, bk, ax, ay, face, { size: dig ? dig.size : undefined, extra: planChain(ui.plan, bk) }); ax = w.x; ay = w.y; face = w.face; snapAt = w.snap; }
+        const shp = bk === 'bastion' ? wallShape(ui.pshape) : undefined, line = !!shp;     // (0.47: a line or a corner)
+        if (ok && onEnemy(m, ax, ay, buildFoot(bk, lvl, shp))) { ok = false; why = tr('deny.onbase'); }     // (0.40)
         const R = bk === 'bastion' ? buildStats('bastion', lvl).R : C.build.r;
         const reach = bk === 'sam' || bk === 'tower' ? uavStats(m.kit.uav).r : bk === 'mg' ? 46 : 0;
         if (reach) { ctx.strokeStyle = 'rgba(255,230,0,0.4)'; ctx.lineWidth = px(1.2); ctx.setLineDash([px(4), px(6)]); ctx.beginPath(); ctx.arc(ax, ay, reach, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
+        if (bk === 'lookout') { ctx.strokeStyle = 'rgba(255,230,0,0.45)'; ctx.lineWidth = px(1.2); ctx.setLineDash([px(4), px(6)]); cone(ctx, ax, ay, lookoutReach(m, { lvl }), face); ctx.stroke(); ctx.setLineDash([]); }     // (0.47) what it will see
         ctx.save(); ctx.globalAlpha = ok ? 0.5 + 0.15 * pulse : 0.3;
         if (line) {
-          const B = buildStats('bastion', lvl), L = C.build.bastion.lineLen, ux = -Math.sin(face), uy = Math.cos(face);
           ctx.strokeStyle = ok ? '#d8e4dc' : '#ff4a4a'; ctx.lineWidth = Math.max(px(3), 1.1); ctx.lineCap = 'butt';
-          for (const q of bastionLine(ax, ay, face, B.n)) { ctx.beginPath(); ctx.moveTo(q.x - ux * L / 2, q.y - uy * L / 2); ctx.lineTo(q.x + ux * L / 2, q.y + uy * L / 2); ctx.stroke(); }
+          wallsArt(ctx, bastionWalls(ax, ay, face, buildStats('bastion', lvl).n, shp));
         } else if (bk === 'bastion') { ctx.strokeStyle = ok ? '#d8e4dc' : '#ff4a4a'; ctx.lineWidth = px(3); ctx.setLineDash([px(7), px(4)]); ctx.beginPath(); ctx.arc(ax, ay, R, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
-        const dig = bk === 'foxhole' ? m.digPlan(ax, ay) : null;     // (0.28: a foxhole the size of the squads that dig it)
         postArt(ctx, { what: bk, x: ax, y: ay, face, face0: face, hurtAt: -99, r: 3.5, lvl, manned: false, crew: 0, cap: dig ? dig.size : st.cap || 0, ends: bk === 'wire' ? wireEnds(ax, ay, face) : undefined, ghost: true }, now, px, m.t);
         ctx.restore();
         // the way it faces (the front), and what it joins: the wire's end it carries on from, the foxholes it is trenched to
@@ -526,20 +532,13 @@ export class Renderer {
           ctx.beginPath(); ctx.moveTo(ax + fx * (fl - px(14)), ay + fy * (fl - px(14))); ctx.lineTo(tx, ty); ctx.moveTo(tx - fx * hw - fy * hw, ty - fy * hw + fx * hw); ctx.lineTo(tx, ty); ctx.lineTo(tx - fx * hw + fy * hw, ty - fy * hw - fx * hw); ctx.stroke();
         }
         if (snapAt) { ctx.fillStyle = 'rgba(61,224,255,0.9)'; ctx.beginPath(); ctx.arc(snapAt.x, snapAt.y, Math.max(px(4), 1), 0, TAU); ctx.fill(); }
-        if (dig) {
-          const own = dig.size > 3 ? foxholeSlots(ax, ay, face, dig.size) : null, ends = own ? [own[0], own[own.length - 1]] : [{ x: ax, y: ay }];
-          // (0.40) the trenches it will be joined by (posts.js trenchPlan: the nearest foxhole in reach, and one off to another side)
-          ctx.strokeStyle = ok ? 'rgba(61,224,255,0.75)' : 'rgba(255,74,74,0.5)'; ctx.lineWidth = px(2.4); ctx.setLineDash([px(5), px(4)]);
-          for (const l of trenchPlan(m, ends)) { ctx.beginPath(); ctx.moveTo(l.a.x, l.a.y); ctx.lineTo(l.b.x, l.b.y); ctx.stroke(); }
-          ctx.setLineDash([]);
-        }
         const b = ok ? this._builder(m, ax, ay) : null;
-        if (dig) gr = dig.size > 3 ? foxReach(dig.size) + 2 : 0;
+        if (dig) gr = foxReach(dig.size) + 2;
         text = !ok ? why : dig && dig.sq.length ? tr('lab.ghost.dig', { what: tr('build.' + bk), n: dig.size, sq: dig.sq.slice().sort((p, q) => p.i - q.i).map((q) => 'S' + (q.i + 1)).join('+'), m: Math.round(Math.hypot(dig.sq[0].cx - ax, dig.sq[0].cy - ay)) })
           : b ? tr(cost ? 'lab.ghost.build' : 'lab.ghost.buildFree', { what: tr('build.' + bk), sq: 'S' + (b.q.i + 1), m: Math.round(b.d), cr: cost }) : tr('lab.place.build', { what: tr('build.' + bk) });
       }
       ctx.strokeStyle = ok ? 'rgba(61,224,255,0.9)' : 'rgba(255,74,74,0.9)'; ctx.lineWidth = px(1.6); ctx.setLineDash([px(5), px(4)]); ctx.lineDashOffset = -now * px(10);
-      ctx.beginPath(); ctx.arc(ax, ay, Math.max(px(12), bk === 'bastion' && ui.pshape !== 'line' ? buildStats('bastion', Math.max(1, buildLevel(m.kit, 'bastion'))).R + 3 : bk === 'wire' ? C.build.wire.len / 2 + 1 : gr || 7), 0, TAU); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      ctx.beginPath(); ctx.arc(ax, ay, Math.max(px(12), bk === 'bastion' && !wallShape(ui.pshape) ? buildStats('bastion', Math.max(1, buildLevel(m.kit, 'bastion'))).R + 3 : bk === 'wire' ? C.build.wire.len / 2 + 1 : gr || 7), 0, TAU); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
     } else if (k === 'pickup') {
       // (0.39) a pickup point: where it goes and who is in it already
       ok = !!bc || m.inZone(ax, ay, -5);
@@ -575,8 +574,8 @@ export class Renderer {
       const col = fire ? '255,210,74' : bk ? '61,224,255' : k === 'seaf' ? '95,168,255' : '157,255,184';
       if (bk && bk !== 'bridge') {
         const f = Number.isFinite(it.face) ? it.face : Math.atan2(y - m.hy, x - m.hx);
-        ctx.save(); ctx.globalAlpha = 0.4; postArt(ctx, { what: bk, x, y, face: f, face0: f, hurtAt: -99, r: 3.5, lvl: 1, ends: bk === 'wire' ? wireEnds(x, y, f) : undefined }, now, px, m.t);
-        if (bk === 'bastion' && it.shape === 'line') { const L = C.build.bastion.lineLen, ux = -Math.sin(f), uy = Math.cos(f); ctx.strokeStyle = '#d8e4dc'; ctx.lineWidth = px(3); for (const q of bastionLine(x, y, f, buildStats('bastion', Math.max(1, buildLevel(m.kit, 'bastion'))).n)) { ctx.beginPath(); ctx.moveTo(q.x - ux * L / 2, q.y - uy * L / 2); ctx.lineTo(q.x + ux * L / 2, q.y + uy * L / 2); ctx.stroke(); } }
+        ctx.save(); ctx.globalAlpha = 0.4; postArt(ctx, { what: bk, x, y, face: f, face0: f, hurtAt: -99, r: 3.5, lvl: 1, cap: it.size || 3, ends: bk === 'wire' ? wireEnds(x, y, f) : undefined }, now, px, m.t);
+        if (bk === 'bastion' && wallShape(it.shape)) { ctx.strokeStyle = '#d8e4dc'; ctx.lineWidth = px(3); wallsArt(ctx, bastionWalls(x, y, f, buildStats('bastion', Math.max(1, buildLevel(m.kit, 'bastion'))).n, it.shape)); }
         ctx.restore();
       }
       ctx.strokeStyle = `rgba(${col},0.85)`; ctx.lineWidth = px(1.6); ctx.setLineDash([px(3), px(4)]);

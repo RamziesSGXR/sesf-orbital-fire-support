@@ -52,42 +52,51 @@ const IN = { foxhole: [[0.3, -1.1], [0.3, 1.1], [-0.9, 0]], mg: [[-1.4, -0.9], [
 // its fire steps staggered; eight or more a longer one bent into a crescent, the ends curled back. Its places, end to end.
 export const FOX_MAX = 12, FOX_GAP = 2.4;
 export const foxSize = (n) => Math.max(3, Math.min(FOX_MAX, Math.round(n || 3)));
+// (0.47) A foxhole is always a straight line of places across its face (a short one for three, longer for more), so foxholes chain
+// end to end like wire (the pit and the crescent are gone).
 export function foxholeSlots(x, y, face, size = 3) {
-  const n = foxSize(size), c = Math.cos(face), s = Math.sin(face);
-  let L = IN.foxhole;
-  if (n > 3) {
-    const half = (n - 1) / 2; L = [];
-    for (let k = 0; k < n; k++) { const r = (k - half) * FOX_GAP; L.push([(k % 2 ? -0.35 : 0.35) - (n >= 8 ? 0.03 * r * r : 0), r]); }
-  }
+  const n = foxSize(size), c = Math.cos(face), s = Math.sin(face), half = (n - 1) / 2, L = [];
+  for (let k = 0; k < n; k++) { const r = (k - half) * FOX_GAP; L.push([k % 2 ? -0.35 : 0.35, r]); }
   return L.map(([f, r]) => ({ x: x + c * f - s * r, y: y + s * f + c * r }));
 }
+// (0.47) a foxhole's length end to end: its places FOX_GAP apart and half a gap past each end, so two put end to end keep the gap
+export const foxLen = (n) => foxSize(n) * FOX_GAP;
 // how long a crate takes to deploy (in seconds of one pair of hands): a longer trench takes longer to dig
 export const crateSec = (m, c) => buildStats(c.what, Math.max(1, buildLevel(m.kit, c.what))).sec * (c.dig ? 1 + (foxSize(c.size) - 3) * 0.12 : 1);
 // how far a foxhole of that size reaches from its middle (to select it, and for anyone over its places)
-export const foxReach = (n) => (foxSize(n) <= 3 ? 3.5 : ((foxSize(n) - 1) * FOX_GAP) / 2 + 2);
+export const foxReach = (n) => ((foxSize(n) - 1) * FOX_GAP) / 2 + 2;
 // (0.39) Concertina wire: its two ends, a run of len metres across `face` (the way it faces the enemy) through (x, y).
 export function wireEnds(x, y, face, len = C.build.wire.len) {
   const ux = -Math.sin(face), uy = Math.cos(face), h = len / 2;
   return [{ x: x - ux * h, y: y - uy * h }, { x: x + ux * h, y: y + uy * h }];
 }
-// every end of wire on the map or on its way (crates), with the way it points out of its section; an end another section already
-// meets is taken
-function wireEndsAll(m) {
+// (0.47) Chained builds: wire, and foxholes (as lines). A section's length: wire's is fixed, a foxhole's goes with its places.
+const CHAIN = new Set(['wire', 'foxhole']);
+export const chains = (what) => CHAIN.has(what);
+// (0.47) the sections of that kind in a pause plan (main.js planQ), as chainPlan's extra
+export const planChain = (plan, what) => (plan || []).filter((it) => it.kind === 'build:' + what && Number.isFinite(it.x)).map((it) => ({ x: it.x, y: it.y, face: it.face, size: it.size }));
+const segLen = (what, o) => (what === 'wire' ? C.build.wire.len : foxLen(o.size ?? o.cap ?? 3));
+// every free end of that kind on the map, on its way (crates) or (0.47) planned in the pause (extra: { x, y, face, size }), with the
+// way it points out of its section; an end another section already meets is taken
+function chainEndsAll(m, what, extra = []) {
   const L = [];
-  const add = (o, what) => { const E = wireEnds(o.x, o.y, o.face ?? 0); for (const e of E) L.push({ x: e.x, y: e.y, ox: e.x - o.x, oy: e.y - o.y, o }); };
-  for (const p of m.posts) if (!p.dead && p.what === 'wire') add(p);
-  for (const c of m.crates) if (!c.used && c.what === 'wire') add(c);
+  const add = (o) => { const f = o.face0 ?? o.face ?? 0; for (const e of wireEnds(o.x, o.y, f, segLen(what, o))) L.push({ x: e.x, y: e.y, ox: e.x - o.x, oy: e.y - o.y, o }); };
+  for (const p of m.posts) if (!p.dead && p.what === what) add(p);
+  for (const c of m.crates) if (!c.used && c.what === what) add(c);
+  for (const o of extra) add(o);
   for (const e of L) e.taken = L.some((q) => q !== e && q.o !== e.o && Math.hypot(q.x - e.x, q.y - e.y) < 1);
   return L.filter((e) => !e.taken);
 }
 // (0.39) Where a section of wire goes for the cursor at (x, y), facing `face`: if a free end of wire is within snap metres, the new
 // run starts at that end and heads for the cursor (straight on when the cursor is on the end), so sections chain into a fence;
 // otherwise it lies across `face` at the cursor. A run does not double back over its own section (a corner is fine). The ghost and
-// the order both use this, so what is shown is what gets built.
-export function wirePlan(m, x, y, face) {
-  const W = C.build.wire;
-  let best = null, bd = W.snap, bdx = 0, bdy = 0;
-  for (const e of wireEndsAll(m)) {
+// the order both use this, so what is shown is what gets built. (0.47) Foxholes chain the same way (chainPlan; size: its places),
+// and sections planned in the pause count (extra), so a fence or a trench line can be laid out while paused.
+export const wirePlan = (m, x, y, face, extra) => chainPlan(m, 'wire', x, y, face, { extra });
+export function chainPlan(m, what, x, y, face, opts = {}) {
+  const W = C.build[what] || C.build.wire, len = segLen(what, opts);
+  let best = null, bd = W.snap ?? C.build.wire.snap, bdx = 0, bdy = 0;
+  for (const e of chainEndsAll(m, what, opts.extra || [])) {
     const d = Math.hypot(e.x - x, e.y - y);
     if (d >= bd) continue;
     let dx = x - e.x, dy = y - e.y, k = Math.hypot(dx, dy);
@@ -99,7 +108,7 @@ export function wirePlan(m, x, y, face) {
   }
   if (!best) return { x, y, face, snap: null };
   const dx = bdx, dy = bdy;
-  return { x: best.x + dx * W.len / 2, y: best.y + dy * W.len / 2, face: Math.atan2(-dx, dy), snap: { x: best.x, y: best.y } };
+  return { x: best.x + dx * len / 2, y: best.y + dy * len / 2, face: Math.atan2(-dx, dy), snap: { x: best.x, y: best.y } };
 }
 // (0.39) a line of bastions: n walls side by side across `face`, each facing it
 export function bastionLine(x, y, face, n, B = C.build.bastion) {
@@ -108,6 +117,19 @@ export function bastionLine(x, y, face, n, B = C.build.bastion) {
   return L;
 }
 export const bastionLineHalf = (n, B = C.build.bastion) => ((n - 1) * (B.lineLen + B.lineGap) + B.lineLen) / 2;
+// (0.47) The bastions' walls for a line or a corner: { x, y, ang (the way the wall faces) }. A corner (an L) has its angle at (x, y):
+// one arm runs across `face` and faces it, the other runs back from the angle and faces the left flank (turn it with Q / E to
+// cover another pair of sides). Half the walls a side.
+export function bastionWalls(x, y, face, n, shape, B = C.build.bastion) {
+  if (shape !== 'corner') return bastionLine(x, y, face, n, B).map((q) => ({ x: q.x, y: q.y, ang: face }));
+  const step = B.lineLen + B.lineGap, ux = -Math.sin(face), uy = Math.cos(face), fx = Math.cos(face), fy = Math.sin(face);
+  const k1 = Math.ceil(n / 2), L = [];
+  for (let i = 0; i < k1; i++) { const r = step * i + B.lineLen / 2; L.push({ x: x + ux * r, y: y + uy * r, ang: face }); }
+  for (let i = 0; i < n - k1; i++) { const r = step * i + B.lineLen / 2 + B.lineGap; L.push({ x: x - fx * r, y: y - fy * r, ang: face - Math.PI / 2 }); }
+  return L;
+}
+export const bastionCornerR = (n, B = C.build.bastion) => Math.ceil(n / 2) * (B.lineLen + B.lineGap) + 1;
+export const wallShape = (s) => (s === 'line' || s === 'corner' ? s : undefined);
 function placeSlots(p) {
   if (p.what === 'bastion') return p.site.pieces.map((q) => ({ x: q.x - q.nx * 1.6, y: q.y - q.ny * 1.6 }));
   if (p.what === 'foxhole') return foxholeSlots(p.x, p.y, p.face0 ?? p.face, p.cap);
@@ -123,7 +145,22 @@ export function postReach(m, p) {
 }
 const towerReach = (m, p) => Math.round(uavStats(m.kit.uav).r * (p.what === 'tower' ? 1 + 0.05 * (p.lvl - 1) : p.what === 'lookout' ? buildStats('lookout', p.lvl).reach : 1));
 // How far out a lookout spots for the fire support (enemies there, inside the strike zone, are shown).
-export const spotReach = (m, p) => Math.round(towerReach(m, p) * buildStats('lookout', p.lvl).spot);
+export const spotReach = (m, p) => Math.round(lookoutReach(m, p) * C.build.lookout.spotMul);
+// (0.47) How far a lookout sees down its cone: twice a Helldiver's sight (on this biome) at level 1, 8% more a level.
+export const lookoutReach = (m, p) => Math.round(C.build.lookout.coneMul * C.sight.helldiver * ((m.biome && m.biome.ping) || 1) * (buildStats('lookout', p.lvl || 1).reach / C.build.lookout.reach));
+// (0.47) A lookout's view as relay circles: one all round it (an ally's sight) and a fan along its face. Each fan circle has the
+// tower and the point R out along its own bearing as its diameter, so together the bearings -72..72 cover the half disc toward the
+// face out to R (95% of R at the cone's sides).
+export function lookoutFan(m, p, R) {
+  const L = [{ x: p.x, y: p.y, r: Math.round(C.sight.helldiver * ((m.biome && m.biome.ping) || 1)), kind: 'lookout', tower: true }];
+  for (let k = -3; k <= 3; k++) {
+    const a = p.face + k * 0.4189;          // 24 degrees
+    L.push({ x: p.x + Math.cos(a) * R / 2, y: p.y + Math.sin(a) * R / 2, r: R / 2, kind: 'lookout', tower: true, fan: true });
+  }
+  return L;
+}
+// is (x, y) inside a lookout's cone (a 180-degree half disc toward its face)?
+export const inCone = (u, x, y) => u.dir == null || (x - u.x) * Math.cos(u.dir) + (y - u.y) * Math.sin(u.dir) >= 0;
 
 // Put one up at (x, y), facing away from the Helldivers (toward the enemy) unless turned. opts: { captured, lvl, size (a foxhole's
 // places), face, shape ('line' for a line of bastions) }.
@@ -131,10 +168,10 @@ export function makePost(m, what, x, y, opts = {}) {
   const lvl = Math.max(1, opts.lvl || postLevel(m, what)), S = buildStats(what, lvl);
   const face = opts.face ?? Math.atan2(y - m.hy, x - m.hx);
   const fox = what === 'foxhole' ? foxSize(opts.size || S.cap) : 0;
-  const line = what === 'bastion' && opts.shape === 'line';
+  const shape = what === 'bastion' ? wallShape(opts.shape) : undefined, line = !!shape;     // (0.47: a line or a corner)
   const p = { id: m.nextId++, kind: 'post', what, sid: 'post_' + what, x, y, lvl, born: m.t, dead: false, hurtAt: -9, face, face0: face, cap: fox || S.cap || 0,
-    hp: S.hp || 0, maxHp: S.hp || 0, r: line ? bastionLineHalf(S.n) : what === 'bastion' ? S.R : what === 'arty' ? 4.5 : what === 'bridge' ? 4 : what === 'wire' ? S.len / 2 : fox ? foxReach(fox) : 3.5,
-    crew: 0, crewH: 0, crewS: 0, garrison: 0, shape: line ? 'line' : undefined,
+    hp: S.hp || 0, maxHp: S.hp || 0, r: shape === 'corner' ? bastionCornerR(S.n) : line ? bastionLineHalf(S.n) : what === 'bastion' ? S.R : what === 'arty' ? 4.5 : what === 'bridge' ? 4 : what === 'wire' ? S.len / 2 : fox ? foxReach(fox) : 3.5,
+    crew: 0, crewH: 0, crewS: 0, garrison: 0, shape,
     captured: !!opts.captured, built: !opts.captured, repairing: false, get name() { return postName(this.what); } };
   if (what === 'wire') { p.ends = wireEnds(x, y, face, S.len); p.wireHp = S.wireHp; p.wireMax = S.wireHp; }
   // cover: the places are cover pieces (the bastions are a ring of walls), so whoever stands in one is in cover, and the
@@ -142,11 +179,10 @@ export function makePost(m, what, x, y, opts = {}) {
   const site = { x, y, R: what === 'bastion' ? p.r : fox ? Math.max(4, p.r) : 4, pieces: [], kind: 'built', post: p };
   p.site = site;
   if (line) {
-    // (0.39) the walls side by side, all facing the front
-    const nx = Math.cos(face), ny = Math.sin(face);
-    bastionLine(x, y, face, S.n).forEach((q, k) => {
+    // (0.39) the walls side by side, all facing the front; (0.47) or an L, each arm facing its own way
+    bastionWalls(x, y, face, S.n, shape).forEach((q, k) => {
       if (m.terrain.blocked(q.x, q.y)) return;
-      site.pieces.push({ x: q.x, y: q.y, nx, ny, ang: face, len: C.build.bastion.lineLen, style: k % 2 ? 0 : 2, k, built: true, mul: S.mul, lvl, post: p });
+      site.pieces.push({ x: q.x, y: q.y, nx: Math.cos(q.ang), ny: Math.sin(q.ang), ang: q.ang, len: C.build.bastion.lineLen, style: k % 2 ? 0 : 2, k, built: true, mul: S.mul, lvl, post: p });
     });
   } else if (what === 'wire') {
     /* no cover, no places: it only slows the enemy (enemies.js) */
@@ -159,8 +195,8 @@ export function makePost(m, what, x, y, opts = {}) {
   } else if (what !== 'bridge') {
     p.slots = placeSlots(p);
     const mul = what === 'foxhole' ? S.mul : what === 'mg' ? S.crewMul : 0.6;
-    // (a pit's places face out all round; a trench's face the front)
-    p.slots.forEach((s, k) => { const ang = fox > 3 ? face : Math.atan2(s.y - y, s.x - x) || face; site.pieces.push({ x: s.x, y: s.y, nx: Math.cos(ang), ny: Math.sin(ang), ang, len: 2.5, style: 1, k, built: true, mul, lvl, post: p, hole: what === 'foxhole' }); });
+    // (a foxhole's places face the front, 0.47: a foxhole is always a line; a building's face out all round)
+    p.slots.forEach((s, k) => { const ang = fox ? face : Math.atan2(s.y - y, s.x - x) || face; site.pieces.push({ x: s.x, y: s.y, nx: Math.cos(ang), ny: Math.sin(ang), ang, len: 2.5, style: 1, k, built: true, mul, lvl, post: p, hole: what === 'foxhole' }); });
   }
   if (what === 'bastion') p.slots = placeSlots(p);
   if (site.pieces.length) { m.coverSites.push(site); m.cover.push(...site.pieces); }
@@ -175,7 +211,7 @@ export function makePost(m, what, x, y, opts = {}) {
   if (what === 'tower') m.beacons.push({ id: m.nextId++, x, y, relit: true, built: true, post: p });
   if (p.maxHp > 0) m.assets.push(p);          // the enemy can shoot it down (the foxhole and the bastions cannot be destroyed)
   m.posts.push(p);
-  if (what === 'foxhole') linkTrenches(m, p);
+  // (0.47) no automatic trench links any more: foxholes are lines that snap end to end (chainPlan)
   m.emit('post_new', { what, x, y, id: p.id });
   return p;
 }
@@ -240,7 +276,7 @@ export function linkTrenches(m, p) {
 export function buildFoot(what, lvl = 1, shape) {
   const B = C.build;
   if (what === 'wire') return B.wire.len / 2;
-  if (what === 'bastion') { const S = buildStats('bastion', Math.max(1, lvl)); return shape === 'line' ? (S.n * (B.bastion.lineLen + B.bastion.lineGap)) / 2 : S.R + 1; }
+  if (what === 'bastion') { const S = buildStats('bastion', Math.max(1, lvl)); return shape === 'corner' ? bastionCornerR(S.n) : shape === 'line' ? (S.n * (B.bastion.lineLen + B.bastion.lineGap)) / 2 : S.R + 1; }
   if (what === 'foxhole') return 6;
   return 5;
 }
@@ -335,7 +371,7 @@ export function updatePosts(m, dt) {
     // who is on it: anyone standing in one of its places (at most one per place)
     let n = 0, nh = 0, ns = 0;
     if (p.what === 'wire') continue;             // (no crew: it is only wire)
-    const line = p.shape === 'line', R = p.what === 'bastion' ? p.r + 3 : p.r, inside = INSIDE.has(p.what);
+    const line = p.shape === 'line' || p.shape === 'corner', R = p.what === 'bastion' ? p.r + 3 : p.r, inside = INSIDE.has(p.what);
     for (const a of m.alive) {
       if (a.dead || a.mounted || (a.x - p.x) ** 2 + (a.y - p.y) ** 2 > R * R) continue;
       if (inside && a.type === 'S' && a.post !== p) continue;          // a building's crew is its garrison (Helldivers at it help too)
@@ -367,15 +403,20 @@ export function updatePosts(m, dt) {
       turretStep(m, p, dt);
     } else if (p.what === 'sam') samStep(m, p, dt);
     else if (p.what === 'lookout') {
-      const k = 0.8 + 0.2 * crewFrac(p);                 // a crew up it sees a fifth farther
-      p.reach = Math.round(towerReach(m, p) * k); p.spot = Math.round(spotReach(m, p) * k);
-      m.relays.push({ x: p.x, y: p.y, r: p.reach, kind: 'lookout', tower: true });
-      m.spotters.push({ x: p.x, y: p.y, r: p.spot });
+      // (0.47) The lookout owns vision, in the way it faces: an ally's sight all round it, and inside a 180-degree cone toward its
+      // face at least twice an ally's sight (more with levels and a crew). The cone is a fan of relay circles (lookoutFan), so the
+      // fog, the strike zone and the map all show it as they do any relay. It spots for the fire support a quarter farther, in the
+      // same cone.
+      const k = 1 + 0.2 * crewFrac(p);                   // a crew up it sees a fifth farther
+      p.reach = Math.round(lookoutReach(m, p) * k); p.spot = Math.round(p.reach * C.build.lookout.spotMul);
+      for (const u of lookoutFan(m, p, p.reach)) m.relays.push(u);
+      m.spotters.push({ x: p.x, y: p.y, r: p.spot, dir: p.face });
     } else if (p.what === 'tower') {
+      // (0.47) The Propaganda Tower gives no vision any more (that is the lookout's job). While it stands, every ally within reach
+      // has the UAV's lift (speed and dodge, at the UAV upgrades bought), crewed or not; a crew widens it.
       p.reach = Math.round(towerReach(m, p) * (0.8 + 0.2 * crewFrac(p)));
-      m.relays.push({ x: p.x, y: p.y, r: p.reach, kind: 'tower', tower: true });
       const r2 = p.reach * p.reach;
-      if (p.crewed) for (const a of m.alive) if ((a.x - p.x) ** 2 + (a.y - p.y) ** 2 <= r2) a.uavAt = t;      // manned: the UAV's lift for allies under it
+      for (const a of m.alive) if ((a.x - p.x) ** 2 + (a.y - p.y) ** 2 <= r2) a.uavAt = t;
     }
     // repairs: troopers at it (or sent to it) patch it up while nothing is shooting at them
     p.repairing = false;

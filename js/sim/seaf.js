@@ -173,10 +173,30 @@ function finishBuild(m, q, o) {
   m.stats.built = (m.stats.built || 0) + 1;
   m.notice(tr(o.what === 'foxhole' ? 'n.dug' : o.what === 'wire' ? 'n.strung' : 'n.built', { what: tr('build.' + o.what), cr: buildStats(o.what, p.lvl).cost }), 'good');
   m.emit('built', { what: o.what, x: o.x, y: o.y, sq: q.i, post: p });     // (0.25.1: a building with room inside: the game asks)
+  // (0.47) The build queue: with more laid out nearby and not yet built, the builders go straight on to the nearest of them (one
+  // nobody is building first), so a whole position can be laid out and one squad works through it.
+  const next = nextCrate(m, p.x, p.y);
+  if (next) { for (const x of [q, ...crew]) setSquadOrder(m, x, 'build', next.x, next.y, { what: next.what, crate: next }); return true; }
   if (o.what === 'bridge') setSquadOrder(m, q, 'protect', o.x, o.y);       // (nothing to man on a bridge)
   else for (const x of [q, ...crew]) setSquadOrder(m, x, 'post', p.x, p.y, { post: p, site: p.site, garrison: INSIDE.has(o.what) ? false : undefined });     // (0.22: they hold beside a building; nobody goes in unless told to)
   return true;
 }
+
+// (0.47) The build queue: the nearest crate (or foxhole or wire laid out) within C.build.queueR of (x, y) still to build, the ones
+// no squad is on first. busyWith: is a squad already building a crate near (x, y) (then a new one there waits its turn)?
+export function nextCrate(m, x, y, R = C.build.queueR) {
+  let best = null, bs = Infinity;
+  for (const c of m.crates) {
+    if (c.used) continue;
+    const d = Math.hypot(c.x - x, c.y - y);
+    if (d > R) continue;
+    const taken = m.seaf.squads.some((q) => q.n && q.order.kind === 'build' && q.order.crate === c);
+    const sc = d + (taken ? 1000 : 0);
+    if (sc < bs) { bs = sc; best = c; }
+  }
+  return best;
+}
+export const busyWith = (m, q, x, y, R = C.build.queueR) => q.n > 0 && q.order.kind === 'build' && q.order.crate && !q.order.crate.used && Math.hypot(q.order.crate.x - x, q.order.crate.y - y) <= R;
 
 // ---- drawn plays ----
 // Thin a freehand stroke to a few waypoints (a point is kept when it is at least `gap` from the last kept one).

@@ -785,7 +785,7 @@ export class Hud {
     $('po-turn').classList.toggle('hidden', !o);
     const sh = $('po-shape');
     sh.classList.toggle('hidden', !(o && o.shape));
-    if (o && o.shape) { sh.querySelector('i').textContent = o.shape === 'line' ? '▭' : '◯'; sh.querySelector('span').textContent = t(o.shape === 'line' ? 'place.line' : 'place.ring'); }
+    if (o && o.shape) { sh.querySelector('i').textContent = o.shape === 'corner' ? '⌞' : o.shape === 'line' ? '▭' : '◯'; sh.querySelector('span').textContent = t('place.' + o.shape); }
     document.body.classList.toggle('place-tools', !!o);
     this.placeOk(this._poText);
   }
@@ -1584,7 +1584,7 @@ function statLine(it, kit) {
     const B = buildStats(it.build, Math.max(1, buildLevel(kit, it.build)));
     if (it.build === 'bastion') return t('st.bBastion', { n: B.n, p: Math.round((1 - B.mul) * 100), cr: B.cost });
     if (it.build === 'mg') return t('st.bMg', { hp: fmtNum(B.hp), d: B.dmg.toFixed(2), p: Math.round((1 - B.crewMul) * 100), cr: B.cost });
-    if (it.build === 'lookout') return t('st.bLookout', { hp: fmtNum(B.hp), r: Math.round(uavStats(kit.uav).r * B.reach), sp: Math.round(uavStats(kit.uav).r * B.reach * B.spot), cr: B.cost });
+    if (it.build === 'lookout') { const r = Math.round(C.build.lookout.coneMul * C.sight.helldiver * (B.reach / C.build.lookout.reach)); return t('st.bLookout', { hp: fmtNum(B.hp), r, sp: Math.round(r * C.build.lookout.spotMul), cr: B.cost }); }     // (0.47) down its cone
     if (it.build === 'bridge') return t('st.bBridge', { m: B.span, w: B.w, s: B.sec, cr: B.cost });
     if (it.build === 'tower') return t('st.bTower', { hp: fmtNum(B.hp), s: B.sec, p: Math.round(B.reachUp * 100), cr: B.cost });
     if (it.build === 'sam') return t('st.bSam', { hp: fmtNum(B.hp), dmg: B.dmg, s: B.every, cr: B.cost });
