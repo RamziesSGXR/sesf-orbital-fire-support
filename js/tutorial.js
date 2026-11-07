@@ -149,6 +149,9 @@ export class Tutorial {
     const W = window.innerWidth, H = window.innerHeight, M = 8, G = 14;
     const tg = this.held ? this.hl.find(vis) : null, r = el.getBoundingClientRect(), w = r.width, h = r.height;
     const cl = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    // (0.47) The card sits in the HUD, which is zoomed by the UI Size setting (on a computer): everything here is measured in screen
+    // pixels, so it is put back in the HUD's own (zoomed) pixels. At 130% it used to land partly off the screen.
+    const host = el.offsetParent || document.body, hb = host.getBoundingClientRect(), z = (host.offsetWidth ? hb.width / host.offsetWidth : 1) || 1, ox = hb.left, oy = hb.top;
     let x, y, side = '';
     if (tg) {
       const b = tg.getBoundingClientRect(), cx = b.left + b.width / 2, cy = b.top + b.height / 2;
@@ -156,10 +159,10 @@ export class Tutorial {
       else if (b.bottom + h + G <= H - M) { side = 'down'; y = b.bottom + G; x = cl(cx - w / 2, M, W - w - M); }
       else if (b.right + w + G <= W - M) { side = 'right'; x = b.right + G; y = cl(cy - h / 2, M, H - h - M); }
       else { side = 'left'; x = Math.max(M, b.left - w - G); y = cl(cy - h / 2, M, H - h - M); }
-      el.style.setProperty('--ax', `${Math.round(cl(cx - x, 14, w - 14))}px`);
-      el.style.setProperty('--ay', `${Math.round(cl(cy - y, 14, h - 14))}px`);
+      el.style.setProperty('--ax', `${Math.round(cl(cx - x, 14, w - 14) / z)}px`);
+      el.style.setProperty('--ay', `${Math.round(cl(cy - y, 14, h - 14) / z)}px`);
       const P = 5;
-      sp.style.left = `${b.left - P}px`; sp.style.top = `${b.top - P}px`; sp.style.width = `${b.width + 2 * P}px`; sp.style.height = `${b.height + 2 * P}px`;
+      sp.style.left = `${(b.left - P - ox) / z}px`; sp.style.top = `${(b.top - P - oy) / z}px`; sp.style.width = `${(b.width + 2 * P) / z}px`; sp.style.height = `${(b.height + 2 * P) / z}px`;
     } else {
       // nothing to point at: at the top, in the gap between the left-hand and right-hand corners if it fits, else across the middle
       // (0.26: the drop countdown too, where it sits at the top; 0.42: and the minimap's column, so a phone's card is not over it)
@@ -170,7 +173,7 @@ export class Tutorial {
       for (const b of tops) if (b.left < a1 && b.right > a0) top = Math.max(top, b.bottom + M);
       x = cl((a0 + a1) / 2 - w / 2, M, W - w - M); y = Math.min(top, Math.max(M, H * (H > W ? 0.62 : 0.42) - h));     // (0.27.3: upright, under the drop countdown, not over it)
     }
-    el.style.left = `${Math.round(x)}px`; el.style.top = `${Math.round(y)}px`;
+    el.style.left = `${Math.round((x - ox) / z)}px`; el.style.top = `${Math.round((y - oy) / z)}px`;
     el.dataset.side = side;
     sp.classList.toggle('hidden', !tg);
     document.body.classList.toggle('tut-dim', !!(this.held && !tg));

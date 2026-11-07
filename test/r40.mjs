@@ -274,10 +274,8 @@ function seafShare(seed, role, n, targets, sec = 10) {
   for (let k = 0; k < 40; k++) { const x = sq.ax + Math.cos(k) * k * 6, y = sq.ay + Math.sin(k) * k * 6; let dry = true; for (let j = 0; j < 16; j++) { const a = (j / 16) * Math.PI * 2; if (!m.terrain.isLand(x + Math.cos(a) * 40, y + Math.sin(a) * 40) || m.terrain.blocked(x + Math.cos(a) * 40, y + Math.sin(a) * 40)) dry = false; } if (dry) { cx = x; cy = y; break; } }
   const n = 6, R = 24, F = [];
   for (let k = 0; k < n; k++) { const a = (k / n) * Math.PI * 2; F.push(makePost(m, 'foxhole', cx + Math.cos(a) * R, cy + Math.sin(a) * R, { size: 3, face: a })); }
-  const T = m.trenches || [], has = (p, q) => T.some((k) => (k.a === p && k.b === q) || (k.a === q && k.b === p));
-  const ring = F.every((p, k) => has(p, F[(k + 1) % n]));
-  check('foxholes put down 24 m apart round a point join up by themselves into one ring of trench', ring && T.length === n, `${T.length} trenches for ${n} foxholes`);
-  check('and no foxhole has more than three trenches (no web of them)', F.every((p) => T.filter((k) => k.a === p || k.b === p).length <= C.build.foxhole.maxLinks));
+  const T = m.trenches || [];
+  check('(0.47) foxholes 24 m apart are not trenched together by themselves (they snap end to end instead)', T.length === 0, `${T.length} trenches for ${n} foxholes`);
   // a base that stands: nothing goes down on it; once it is down, it can
   const m2 = mk(4502, 'bots'), b = m2.bases.find((q) => !q.destroyed && !q.op), q = m2.seaf;
   m2.seaf.readyAt = 0; const s0 = m2.hdAlive[0]; m2.callSeaf(s0.x + 10, s0.y + 10); run(m2, 14);

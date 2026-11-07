@@ -117,14 +117,18 @@ export const CONFIG = {
               // (0.39) link: foxholes whose ends are within link metres of each other are joined by a trench (cover all along it)
               // (0.40) link: a foxhole is trenched to the nearest foxhole whose end is within this many metres of its own (and to a
               // second one off to another side, so a ring closes), each foxhole taking at most maxLinks trenches; not across water
-              foxhole: { cost: 0,   sec: 6,  cap: 3, mul: 0.8, rof: 1.3, link: 30, maxLinks: 3 },
+              foxhole: { cost: 0,   sec: 6,  cap: 3, mul: 0.8, rof: 1.3, link: 30, maxLinks: 3, snap: 10 },     // (0.47: snap like wire; link/maxLinks no longer used)
+              // (0.47) the build queue: builders who finish go on to the nearest thing still to build within queueR metres
+              queueR: 60,
               // (0.39) a line of bastions: the same walls side by side (lineLen metres each, lineGap apart) instead of a ring
               bastion: { cost: 100, sec: 14, n: 8, R: 10, mul: 0.55, unlock: 0, up: 120, lineLen: 4.2, lineGap: 0.5 },
               mg:      { cost: 380, sec: 28, cap: 2, hp: 5400, dmg: 1, crewMul: 0.3, unlock: 0, up: 220,
                          gun: { range: 60, every: 0.32, dmg: 70, acc: 0.85, splash: 1.6, style: 'heavy', prefer: 'MH' } },
               // lookout: while someone is up it, the ground round it stays in view and strikes can be called there (reach, times the
               // UAV's circle), and any enemy within spot (times reach) that is inside the strike zone is shown on the map.
-              lookout: { cost: 400, sec: 30, cap: 2, hp: 1500, reach: 1.35, spot: 1.6, unlock: 0, up: 200 },
+              // (0.47) the lookout sees down a 180-degree cone toward its face: coneMul x a Helldiver's sight (x its level's reach
+              // factor, below; a crew adds a fifth), and spots for the fire support spotMul farther in the same cone.
+              lookout: { cost: 400, sec: 30, cap: 2, hp: 1500, reach: 1.35, spot: 1.6, unlock: 0, up: 200, coneMul: 2, spotMul: 1.25 },
               // bridge: a hard-light span across water (at most span metres of it), built from a crate on the near bank. Anyone
               // walks it: Helldivers, SEAF and the enemy.
               bridge:  { cost: 250, sec: 16, span: 110, w: 14, unlock: 0, up: 160, dropSec: 30 },     // (0.22: dropped from the ship where an ally can see, dropSec after the call; nobody builds it)
@@ -145,7 +149,10 @@ export const CONFIG = {
   // Relays: a side mission the Helldivers or SEAF win (a radio tower powered, a pinned SEAF squad freed, a broadcast tower destroyed)
   // keeps the ground around it in view for the rest of the mission, and strikes can be called there: r metres round it.
   relay:    { r: 200 },
-  sight:    { helldiver: 125, seaf: 90, zoneBase: { helldiver: 92, seaf: 60 }, playerBonus: 26, strikeBonus: 76, despawnMargin: 35, spawnMin: 6, spawnMax: 34 },
+  // (0.47) The vision ladder: an ally sees farthest (more from a rise), shoots less far than he sees, and throws a stratagem's beacon
+  // less far than he shoots: 20-40 m (`throwMin`..`throw`, never closer than throwMin to any ally; support weapons are not thrown). The strike zone sits inside the player's view: it
+  // is capped at each ally's vision, and the strike range upgrades (kit.zonePer) widen the view with it.
+  sight:    { helldiver: 125, seaf: 90, zoneBase: { helldiver: 92, seaf: 60 }, playerBonus: 26, strikeBonus: 76, despawnMargin: 35, spawnMin: 6, spawnMax: 34, throw: 40, throwMin: 20 },
 
   // Damage model. Allies have hit points. Enemies hurt them by their own attack profile, so light
   // enemies do light damage and heavies do heavy damage. armor scales incoming damage.
@@ -405,7 +412,7 @@ export const CONFIG = {
   // (it falls for beaconSec); then the pelican takes callSec to arrive, waits boardSec on the pad, and the enemy comes in waves.
   // (0.39) orbitSec: once the Helldivers are aboard and away, the destroyer leaves orbit this many seconds later; SEAF still on the
   // ground then are left behind (lost, and paid for like any lost trooper)
-  extract:  { minFromLz: 600, minFromBase: 150, radius: 25, callSec: 120, beaconSec: 2.2, landSec: 5, boardSec: 20, boardR: 6, orbitSec: 10, warnSec: 60 },
+  extract:  { minFromLz: 600, minFromBase: 150, minFromObj: 60, radius: 25, callSec: 120, beaconSec: 2.2, landSec: 5, boardSec: 20, boardR: 6, orbitSec: 10, warnSec: 60 },
   // At the start of a mission the ship gun is ready and selected; the UAV and every orbital start part-way through a cooldown.
   weapons:  { swapSec: 0.3, warmupSec: 8, startCdFrac: 0.5, startCdMin: 12 },
   // The destroyer's free-fire Ship Gun (its one gatling). It fires wherever the player can see, so it is not tied to the strike zone, and it is the
@@ -527,6 +534,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.46.0',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.47.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

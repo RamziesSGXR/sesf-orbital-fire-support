@@ -785,7 +785,7 @@ export class Hud {
     $('po-turn').classList.toggle('hidden', !o);
     const sh = $('po-shape');
     sh.classList.toggle('hidden', !(o && o.shape));
-    if (o && o.shape) { sh.querySelector('i').textContent = o.shape === 'line' ? '▭' : '◯'; sh.querySelector('span').textContent = t(o.shape === 'line' ? 'place.line' : 'place.ring'); }
+    if (o && o.shape) { sh.querySelector('i').textContent = o.shape === 'corner' ? '⌞' : o.shape === 'line' ? '▭' : '◯'; sh.querySelector('span').textContent = t('place.' + o.shape); }
     document.body.classList.toggle('place-tools', !!o);
     this.placeOk(this._poText);
   }
@@ -1584,7 +1584,7 @@ function statLine(it, kit) {
     const B = buildStats(it.build, Math.max(1, buildLevel(kit, it.build)));
     if (it.build === 'bastion') return t('st.bBastion', { n: B.n, p: Math.round((1 - B.mul) * 100), cr: B.cost });
     if (it.build === 'mg') return t('st.bMg', { hp: fmtNum(B.hp), d: B.dmg.toFixed(2), p: Math.round((1 - B.crewMul) * 100), cr: B.cost });
-    if (it.build === 'lookout') return t('st.bLookout', { hp: fmtNum(B.hp), r: Math.round(uavStats(kit.uav).r * B.reach), sp: Math.round(uavStats(kit.uav).r * B.reach * B.spot), cr: B.cost });
+    if (it.build === 'lookout') { const r = Math.round(C.build.lookout.coneMul * C.sight.helldiver * (B.reach / C.build.lookout.reach)); return t('st.bLookout', { hp: fmtNum(B.hp), r, sp: Math.round(r * C.build.lookout.spotMul), cr: B.cost }); }     // (0.47) down its cone
     if (it.build === 'bridge') return t('st.bBridge', { m: B.span, w: B.w, s: B.sec, cr: B.cost });
     if (it.build === 'tower') return t('st.bTower', { hp: fmtNum(B.hp), s: B.sec, p: Math.round(B.reachUp * 100), cr: B.cost });
     if (it.build === 'sam') return t('st.bSam', { hp: fmtNum(B.hp), dmg: B.dmg, s: B.every, cr: B.cost });
@@ -1804,6 +1804,8 @@ export function renderLiveArmory(root, opts) {
   // opts.focus opens the tab with the first of them
   const fresh = new Set(opts.fresh || []), isNew = (it) => fresh.has(it.id) || (it.orb && fresh.has('own:' + it.orb));
   const all = shopItems(kit).filter((it) => (it.live || opts.any) && it.cost !== null && !it.locked && shownAt(it, opts.tier ?? TIER_MAX));
+  // (0.47) the tutorial: a stratagem owned but out of the bar (a new one took its slot) can be put back, from the front of its tab
+  if (opts.onEquip) for (const it of shopItems(kit)) if (it.orb && kit.owned[it.orb] && !kit.loadout.slice(0, kit.slots).includes(it.orb) && (it.id.startsWith('up:'))) all.unshift({ ...it, id: 'equip:' + it.orb, equip: true, cost: 0 });
   const tabOf = (it) => (SHOP_TABS.find((x) => x.secs.includes(it.section)) || SHOP_TABS[0]).id;
   if (opts.focus) { const f = firstNew(all, opts.fresh); if (f) { liveTab = tabOf(f); livePage = 0; } }
   if (!all.some((it) => tabOf(it) === liveTab)) { const f = SHOP_TABS.find((tb) => all.some((it) => tabOf(it) === tb.id)); if (f) liveTab = f.id; }
@@ -1834,11 +1836,12 @@ export function renderLiveArmory(root, opts) {
   const grid = el('div', 'la-grid'); grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`; grid.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
   if (!list.length) grid.appendChild(el('p', 'fine la-none', esc(t('arm.noneLive'))));
   for (const it of list.slice(livePage * per, livePage * per + per)) {
-    const poor = wallet.bal < it.cost, name = it.orb ? shortName(it.orb) : it.name;
+    const poor = !it.equip && wallet.bal < it.cost, name = it.orb ? shortName(it.orb) : it.name;
     const lv = it.max > 1 && isFinite(it.max) ? `L${it.level}→${it.level + 1}` : '';
-    const b = el('button', 'la-it sec-' + (SEC_SLUG[it.section] || it.section) + (poor ? ' poor' : '') + (isNew(it) ? ' fresh' : ''), `<span class="la-n">${esc(name)}${isNew(it) ? `<em>${esc(t('arm.new'))}</em>` : ''}</span><span class="la-s">${lv ? `<i>${lv}</i>` : ''}<b>${fmtNum(it.cost)}</b></span>`);
+    const b = el('button', 'la-it sec-' + (SEC_SLUG[it.section] || it.section) + (poor ? ' poor' : '') + (isNew(it) ? ' fresh' : ''), `<span class="la-n">${esc(name)}${isNew(it) ? `<em>${esc(t('arm.new'))}</em>` : ''}</span><span class="la-s">${it.equip ? `<b>${esc(t('arm.equip'))}</b>` : `${lv ? `<i>${lv}</i>` : ''}<b>${fmtNum(it.cost)}</b>`}</span>`);
     b.type = 'button'; b.title = `${name}: ${it.blurb}`;
-    b.onclick = () => (poor ? opts.onPoor && opts.onPoor(it) : opts.onBuy(it.id));
+    if (it.equip) b.classList.add('la-eq');
+    b.onclick = () => (it.equip ? opts.onEquip(it.orb) : poor ? opts.onPoor && opts.onPoor(it) : opts.onBuy(it.id));
     if (opts.onTip) { b.addEventListener('pointerenter', (ev) => { if (ev.pointerType === 'mouse') opts.onTip(b, it, 0); }); b.addEventListener('pointerleave', (ev) => { if (ev.pointerType === 'mouse' && opts.onTipLeave) opts.onTipLeave(); }); }
     if (touch && opts.onTip) { let ht = 0; b.addEventListener('pointerdown', () => { ht = setTimeout(() => opts.onTip(b, it, 3000), 450); }); b.addEventListener('pointerup', () => clearTimeout(ht)); b.addEventListener('pointerleave', () => clearTimeout(ht)); }
     grid.appendChild(b);

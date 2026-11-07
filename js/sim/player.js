@@ -281,19 +281,10 @@ export function fireSlot(m, idx) {
   return fireOrbital(m, idx);
 }
 
-export function updatePlayer(m, dt) {
-  for (let i = m.utilQ.length - 1; i >= 0; i--) if (m.t >= m.utilQ[i].at) landUtil(m, m.utilQ.splice(i, 1)[0]);
-  if (m.player.eagle) eagleTick(m);
-  const p = m.player, t = m.t, info = p.aim;
-  if (((m.arty || []).length > 0) !== (p.slots[SLOT_ARTY].type === 'arty')) syncSlots(m);
-  // The nuke slot is only usable while the launch site is armed; fall back to the first orbital when it is spent.
-  if (p.slots[p.weapon].type === 'nuke' && !m.nukeReady()) {
-    const j = p.slots.findIndex((q, i) => i >= 1 && i <= ORB_SLOTS && q.type === 'orb');
-    p.weapon = j >= 0 ? j : 0;
-  }
-  const s = p.slots[p.weapon];
-
-  // Aim readout for the HUD and the reticle: coverage, whether the shot is ready, danger close.
+// Aim readout for the HUD and the reticle: coverage, whether the shot is ready, danger close. (0.47) Its own function, so the soft
+// pause can refresh it too: a weapon picked while paused used to show the last weapon's rings until the game ran again.
+export function refreshAim(m) {
+  const p = m.player, t = m.t, info = p.aim, s = p.slots[p.weapon];
   const st = slotStats(m, p.weapon) || {};
   info.name = st.name || '';
   info.delay = st.delay || 0;
@@ -332,6 +323,20 @@ export function updatePlayer(m, dt) {
   if (info.dangerR > 0) {
     for (const a of m.alive) if (!a.dead && Math.hypot(a.x - p.aimX, a.y - p.aimY) <= info.dangerR) { info.danger = true; break; }
   }
+}
+export function updatePlayer(m, dt) {
+  for (let i = m.utilQ.length - 1; i >= 0; i--) if (m.t >= m.utilQ[i].at) landUtil(m, m.utilQ.splice(i, 1)[0]);
+  if (m.player.eagle) eagleTick(m);
+  const p = m.player, t = m.t, info = p.aim;
+  if (((m.arty || []).length > 0) !== (p.slots[SLOT_ARTY].type === 'arty')) syncSlots(m);
+  // The nuke slot is only usable while the launch site is armed; fall back to the first orbital when it is spent.
+  if (p.slots[p.weapon].type === 'nuke' && !m.nukeReady()) {
+    const j = p.slots.findIndex((q, i) => i >= 1 && i <= ORB_SLOTS && q.type === 'orb');
+    p.weapon = j >= 0 ? j : 0;
+  }
+  const s = p.slots[p.weapon];
+
+  refreshAim(m);
 
   // Fire on the press of the button (one strike per press). The gun fires for as long as the trigger is held.
   const pressed = p.firePress || (p.firing && !p.prevFiring);

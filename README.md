@@ -23,6 +23,23 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Fixes 2 (0.47).**
+- **The vision ladder.** An ally sees farthest, shoots less far than he sees, and throws a stratagem beacon less far than he shoots. Your strike zone never reaches past what you can see (it used to reach about 40 m past it), and a strike range upgrade widens your view with it.
+- **Helldivers throw 20–40 m.** Strikes, barrages and zones land 20–40 m from the Helldiver who calls them, and at least 20 m from every ally. Support weapons (recoilless, autocannon, flamethrower, railgun, MG-43, Spear, EAT) aren't thrown: their pod lands beside him and each fires at its own range.
+- **Lookout and Propaganda towers do different jobs.** The **Lookout Tower** owns vision: turn it as you place it, and it sees at least twice as far as an ally inside a 180° cone the way it faces, with that ground open to strikes. The **Propaganda Tower** gives no vision. While it stands, every ally near it gets your UAV's boost (speed and dodge), crewed or not.
+- **The build queue.** A squad that finishes a build goes straight on to the nearest thing still to build within 60 m. Lay out a whole position and one squad works through it. A squad already building nearby isn't pulled off to the newest order.
+- **Foxholes are lines.** Every foxhole is a straight line of places. A foxhole put down near the end of another snaps on and carries the line on, like wire. The automatic trench links are gone.
+- **Building while paused.** Wire and foxholes planned in the pause snap to each other as you lay them out, and go down exactly where the plan showed.
+- **The Defilade Bastions' corner.** A third layout beside RING and LINE: an L of walls, one arm across the front and one down the left flank (turn it with Q / E).
+- **Bug fixes from the SESF testers:**
+  - Tutorial cards stay on screen at any UI Size (at 130% they landed partly off it).
+  - In the tutorial, a stratagem bumped out of a full bar by a new one can be put back: it shows at the front of its armory tab with **EQUIP**.
+  - In the pause, a stratagem you pick shows its own rings at once, and squads' order lines start from where the squads are now (after picking troops into a new squad, say).
+  - Calling stratagems in the pause and then picking the ship gun before you unpause keeps the ship gun in hand.
+  - Formations (Loose, Wedge, Line, Column, Ring) can be picked in the pause.
+  - The extraction pad is never put on an objective (it once landed on an evacuation bunker).
+  - A pickup point with more troops than one pelican carries gets a pelican per load, all at once, while the fleet has them.
+
 **Fixes 1 (0.46).**
 - **Every operation saves itself.** A new operation takes the first free save slot when it first drops, and saves there after every mission: no need for **SAVE GAME** (it's still in the menu to pick a slot yourself). The armory says "Operation saved to slot n" after each mission. If all three slots are in use, the game asks which one to overwrite before the first drop, or you can **DEPLOY WITHOUT SAVING**.
 - **An ended operation can't be loaded again.** Ending an operation, by choice or with a failed mission, now clears its save slot too. **RETRY MISSION** after a failed mission still keeps it: the slot comes back with the retry.
@@ -190,12 +207,12 @@ From difficulty 3 up the Helldivers can't win this alone. Left to themselves the
 - **Credits** show big at the top left, with a flash of what just came in or went out.
 - **SEAF build.** There is no limit on how many you put up, but each one costs credits and takes time, so each one is worth having:
   - **Concertina Wire** (0.39, the first build, no levels; free since 0.39.2 and strung on the spot by the squad, like a foxhole): a 12 m run of coils. A section placed near a free end carries on from it. A light enemy that walks into it stops, then crawls through; mediums and heavies wade through slowly (heavies at under half speed); only a super heavy tears the section down (0.39.2). Nobody shoots at it, and it isn't cover.
-  - **Foxhole** (free): light cover, and troopers in it shoot faster. It is dug, so no crate is needed. It is dug for the troops who dig it (0.28): a place for each trooper of the squads you picked, so three or fewer get a pit, four to seven a straight trench across the front, and eight or more (up to twelve) a longer trench bent into a crescent. Pick two squads together and both dig it and man it; with every squad picked, the nearest one digs its own size. The ghost shows the shape and who digs it before you place it. A foxhole is joined by a trench (0.39) to the nearest foxhole within about 30 m, and to a second one off to another side, so a chain carries on and a ring closes by itself (0.40). The trench is cover along its whole length, never crosses water, and the ghost shows it before you place the foxhole. Nothing can be built on an enemy base while it stands (0.40).
-  - **Defilade Bastions**: a ring of walls the troops fight from, or (0.39) a line of them: `R` or the RING / LINE button while placing.
+  - **Foxhole** (free): light cover, and troopers in it shoot faster. It is dug, so no crate is needed. It is dug for the troops who dig it (0.28): a place for each trooper of the squads you picked (three to twelve), in a straight line across the front (0.47: always a line; the pit and the crescent are gone). Pick two squads together and both dig it and man it; with every squad picked, the nearest one digs its own size. (0.47) Foxholes chain like wire: one put down near the end of another snaps on and carries the line on, so a trench line is laid out a section at a time (in the pause too). The ghost shows the shape, where it snaps and who digs it before you place it. Nothing can be built on an enemy base while it stands (0.40).
+  - **Defilade Bastions**: a ring of walls the troops fight from, (0.39) a line of them, or (0.47) a corner: an L, one arm across the front and one down the left flank. `R` or the RING / LINE / CORNER button while placing; Q / E turn it.
   - **Heavy Turret Nest**: a heavy gun behind a thick concrete wall, with three times the health the old MG nest had. It hits like a heavy weapon. It needs a crew (they stand inside the wall), and two crew fire faster than one.
-  - **Lookout Tower**: while someone is up it, the ground a long way round it stays in view and you can call strikes there. It also spots for you: enemies farther out that are inside your strike zone show up on the map with a red mark.
+  - **Lookout Tower**: (0.47) it owns vision. Turn it as you place it: it sees at least twice as far as an ally inside a 180° cone the way it faces (and an ally's sight all round it), and that ground is open to strikes. A crew sees a fifth farther. It also spots a quarter farther down the cone: enemies there show up on the map with a red mark (seen, but not yet in strike range).
   - **Light Bridge** (0.22: from the ship): place its ghost on a river or a lake shore anywhere an ally (or a UAV) can see, and 30 seconds later a hard-light span comes down across to the far bank. Nobody has to build it. Helldivers, SEAF and the enemy all walk it.
-  - **Propaganda Tower**: covers the same ground as a UAV scan and gives the same boosts while it is manned. SEAF drops can land at it from anywhere on the map.
+  - **Propaganda Tower**: (0.47) no vision (that is the Lookout's job). While it stands, every ally within a UAV scan's reach of it gets the UAV's boosts (speed and dodge, at your UAV upgrades), crewed or not; a crew widens it. SEAF drops can land at it from anywhere on the map.
   - **SAM site** (unlock in the armory): automatic, with the reach of a UAV scan. It shoots down dropships and warp ships.
   - **Artillery cannon** (unlock in the armory): see below.
 

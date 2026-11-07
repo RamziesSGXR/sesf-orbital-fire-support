@@ -23,10 +23,10 @@ const handsBusy = (m) => !!m && (supplyFilling(m) || hbFilling(m));     // the s
 import { t, tEn, setLang, getLang, applyDom, startLang } from './i18n.js';
 import { clampLevel, LEVELS, levelName } from './difficulty.js';
 import { answerTime } from './sim/planner.js';
-import { POSTS, makePost, foxholeSlots, turns, wirePlan } from './sim/posts.js';
+import { POSTS, makePost, foxholeSlots, turns, wirePlan, chains, chainPlan, planChain } from './sim/posts.js';
 import { addJammer } from './sim/sides.js';
-import { FORMS, targetSquads } from './sim/seaf.js';
-import { fireSlot } from './sim/player.js';
+import { squadCentres, FORMS, targetSquads } from './sim/seaf.js';
+import { fireSlot, refreshAim } from './sim/player.js';
 import { LAST_STAND } from './sim/laststand.js';
 import { Tutorial } from './tutorial.js';
 import { Cinema } from './render/cinema.js';
@@ -335,7 +335,7 @@ function setHideUi(on) {
   } else if (hideUi && UI.isOn('s-pause')) togglePause(false);
 }
 function setForm(f) {
-  if (!live() || !f) return;
+  if (!act() || !f) return;      // (0.47) in the pause too: a formation takes effect at once, nothing to plan
   const sq = mission.seafTargets();
   if (!sq.length) { audio.deny(); hud.toast(deny('noseaf')); return; }
   for (const q of sq) mission.setForm(q.i, f);
@@ -405,7 +405,7 @@ function holdOn(o) {
 function crateAt(x, y) {
   const r = Math.max(6, cam.view * 0.03);
   let best = null, bd = r;
-  for (const c of mission.crates) { if (c.used || !c.landed) continue; const d = c.dig && c.size > 3 ? Math.min(...foxholeSlots(c.x, c.y, c.face || 0, c.size).map((q) => Math.hypot(q.x - x, q.y - y))) : Math.hypot(c.x - x, c.y - y); if (d < bd) { bd = d; best = c; } }
+  for (const c of mission.crates) { if (c.used || !c.landed) continue; const d = c.dig ? Math.min(...foxholeSlots(c.x, c.y, c.face || 0, c.size).map((q) => Math.hypot(q.x - x, q.y - y))) : Math.hypot(c.x - x, c.y - y); if (d < bd) { bd = d; best = c; } }
   return best;
 }
 function commandAt(sx, sy) {
@@ -576,14 +576,14 @@ function selNow() { const sf = mission.seaf; if (sf.sel === -2) targetSquads(mis
 function queuePlan(kind, x, y, run, o = null) {
   if (planQ.length >= 24) { audio.deny(); hud.toast(t('plan.full'), 1400); return { ok: false, reason: 'planfull' }; }
   const s0 = selNow();
-  planQ.push({ kind, x, y, sq: s0.sel >= 0 ? [s0.sel] : s0.multi || [], sel: s0, run, face: o ? o.face : undefined, shape: o ? o.shape : undefined });
+  planQ.push({ kind, x, y, sq: s0.sel >= 0 ? [s0.sel] : s0.multi || [], sel: s0, run, face: o ? o.face : undefined, shape: o ? o.shape : undefined, size: o ? o.size : undefined });
   audio.chirp(); hud.setPlanCount(planQ.length); if (tac) hud.fillTactical(mission, sel);
   return { ok: true, queued: true };
 }
 function runPlan() {
   if (!planQ.length || !live()) return;
   const q = planQ; planQ = []; hud.setPlanCount(0);
-  const sf = mission.seaf, keep = { sel: sf.sel, pick: sf.pick, multi: sf.multi };
+  const sf = mission.seaf, keep = { sel: sf.sel, pick: sf.pick, multi: sf.multi }, w0 = mission.player.weapon;
   let bad = 0;
   for (const it of q) {
     sf.sel = it.sel.sel; sf.pick = null; sf.multi = it.sel.multi;
@@ -591,6 +591,9 @@ function runPlan() {
     if (!r || r.ok === false) bad++;
   }
   sf.sel = keep.sel; sf.pick = keep.pick; sf.multi = keep.multi;
+  // (0.47) the weapons the plan called were picked to call them: the one in hand when the game ran again (the ship gun, say) is
+  // put back, so it is not dropped for the last stratagem called
+  if (mission.player.weapon !== w0 && mission.player.slots[w0] && mission.player.slots[w0].type !== 'empty') { mission.player.weapon = w0; mission.player.swapUntil = mission.t; mission.player.queued = -1; }
   hud.toast(t(bad ? 'plan.ranSome' : 'plan.ran', { n: q.length - bad, all: q.length }), 1800);
   if (tac) hud.fillTactical(mission, sel);
 }
@@ -699,7 +702,17 @@ function snap(x, y) {
 }
 function runOrder(kind, x, y) {
   const o = kind.startsWith('build:') ? buildOpts(kind.slice(6), x, y) : null;
-  if (plan()) return queuePlan(kind, x, y, () => runOrderNow(kind, x, y, o), o);
+  if (plan()) {
+    // (0.47) wire and foxholes planned in the pause snap to each other (and to what is already there) as they are planned, and go
+    // out exactly where the plan shows them (it used to snap only to what was built, so a paused fence went wrong after one section)
+    const what = kind.startsWith('build:') ? kind.slice(6) : null;
+    if (what && chains(what)) {
+      const size = what === 'foxhole' ? mission.digPlan(x, y).size : undefined;
+      const w = chainPlan(mission, what, x, y, o.face, { size, extra: planChain(planQ, what) });
+      x = w.x; y = w.y; o.face = w.face; o.exact = true; o.size = size;
+    }
+    return queuePlan(kind, x, y, () => runOrderNow(kind, x, y, o), o);
+  }
   return runOrderNow(kind, x, y, o);
 }
 // (0.39) how a build is put down: which way it faces and (bastions) its shape
@@ -715,7 +728,7 @@ function placeTurn(d) {
 }
 function placeShapeToggle() {
   if (!placing || placing !== 'build:bastion' || !act()) return false;
-  placeShape = placeShape === 'line' ? 'ring' : 'line'; audio.click(); placeTools();
+  placeShape = placeShape === 'ring' ? 'line' : placeShape === 'line' ? 'corner' : 'ring'; audio.click(); placeTools();     // (0.47: ring, line, corner)
   return true;
 }
 // the turn and shape buttons for what is being placed (and, on a computer, the keys for them)
@@ -1317,6 +1330,13 @@ function drawArmory(note) {
       const msg = r.slot >= 0 && r.slot !== undefined ? t(out ? 'arm.swapped' : 'arm.slotted', { name: r.item.name.toUpperCase(), n: r.slot + 2, old: out ? out.name.toUpperCase() : '' }) : t('arm.bought', { name: r.item.name.toUpperCase() });
       if (r.ok) { audio.ready(); persist(); hud.toast(msg, 2200); drawArmory(); } else { audio.deny(); drawArmory(deny(r.reason)); }
     },
+    // (0.47) the tutorial: put a stratagem back in the bar (one a new purchase took the slot of)
+    onEquip: session.tutorial ? (sid) => {
+      const r = mission.equipLive(sid);
+      if (!r.ok) { audio.deny(); drawArmory(); return; }
+      const nm = (k) => (shopItems(session.kit).find((it) => it.orb === k) || {}).name || k;
+      audio.ready(); hud.toast(t(r.swapped ? 'arm.eqSwap' : 'arm.eqIn', { name: String(nm(sid)).toUpperCase(), n: r.slot + 2, old: r.swapped ? String(nm(r.swapped)).toUpperCase() : '' }), 2200); drawArmory();
+    } : null,
     onPoor: () => { audio.deny(); hud.toast(deny('funds'), 1400); },
     onTip: (b, it, ms) => hud.tip(b, () => `<b>${it.orb ? it.orb.toUpperCase() : it.name.toUpperCase()}</b> ${it.blurb}`, null, ms),
     onTipLeave: () => hud.tipLeave(),
@@ -1780,7 +1800,7 @@ function frame(ts) {
     if (session && session.tutorial && live()) tutRank();     // (0.26) the tutorial's ranks come with kills
     hud.doorsPlace((p) => { const R = p.what === 'bastion' ? p.r + 2 : 5; return renderer.worldToScreen(p.x, p.y - R, canvas); });
     if (hud.askAnchor) { const an = hud.askAnchor; if (an.dead) hud.askEnd(); else { const p = renderer.worldToScreen(an.x, an.y, canvas); if (p) hud.askPlace(p.x, p.y); } }
-    if (plan() && !bot) { const sa = input.screenAim(), w = renderer.screenToWorld(sa.x, sa.y, canvas); if (w) mission.setAim(w.x, w.y); }     // (the reticle follows in the pause too)
+    if (plan() && !bot) { const sa = input.screenAim(), w = renderer.screenToWorld(sa.x, sa.y, canvas); if (w) mission.setAim(w.x, w.y); refreshAim(mission); squadCentres(mission); }     // (the reticle follows in the pause too; 0.47: and shows the weapon picked in it)
     if (!paused && !cinema.on && !(tut && tut.held) && state === 'play') { simulate(dt, now); ambient(mission, dt); if (castRadio && !mission.over) castRadio.tick(mission); }
     else if (tut && tut.held && mission.events.length) { for (const ev of mission.events) onEvent(ev, now); mission.events.length = 0; }   // (an order given with a card up counts)
     // The camera is the player's. It follows the squad only when locked on, and moves to a callout only when the player asks to
@@ -1900,5 +1920,5 @@ window.__game = { hud, audio, music, get tut() { return tut; }, get frames() { r
   makePost: (w, x, y, o) => (mission ? makePost(mission, w, x, y, o) : null), addJammer: (x, y) => (mission ? addJammer(mission, x, y) : null), select: (o) => select(o), get sel() { return sel; }, buildMenu, setTac, get tac() { return tac; },
   radioLog, tickRadio: () => { if (castRadio && mission && !mission.over) castRadio.tick(mission); }, get castRadio() { return castRadio; },
   wirePlan: (x, y, f) => (mission ? wirePlan(mission, x, y, f) : null), placeTurn: (d) => placeTurn(d), placeShapeToggle: () => placeShapeToggle(), get placeFace() { return placeFace; }, get placeShape() { return placeShape; },
-  arm, disarm, get armed() { return armed; }, clickAt, commandAt, get plan() { return planQ.length; }, get ghost() { return ghostAt; }, get placing2() { return placing; }, setPlacing, deselect, setHideUi, get hideUi() { return hideUi; }, get held() { return session && session.held; }, goHome,
+  arm, disarm, get armed() { return armed; }, clickAt, commandAt, get plan() { return planQ.length; }, get planItems() { return planQ; }, runOrder: (k, x, y) => runOrder(k, x, y), planFire: () => planFire(), setForm: (f) => setForm(f), get ghost() { return ghostAt; }, get placing2() { return placing; }, setPlacing, deselect, setHideUi, get hideUi() { return hideUi; }, get held() { return session && session.held; }, goHome,
 };

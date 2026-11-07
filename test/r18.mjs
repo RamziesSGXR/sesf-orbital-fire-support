@@ -84,14 +84,14 @@ check('the version is 0.18.0 or later', /^0\.(1[89]|[2-9]\d)\./.test(C.share.ver
   let far = null;
   for (let d = L.reach + 6; d < L.spot - 2 && !far; d += 6) for (let a = 0; a < 16 && !far; a++) {
     const x = L.x + Math.cos(a / 16 * 6.283) * d, y = L.y + Math.sin(a / 16 * 6.283) * d;
-    if (m.visLevel(x, y) === 0 && m.inZone(x, y) && m.terrain.isLand(x, y)) far = { x, y };
+    if (m.visLevel(x, y) === 0 && (x - L.x) * Math.cos(L.face) + (y - L.y) * Math.sin(L.face) > 0 && m.terrain.isLand(x, y)) far = { x, y };     // (0.47: down its cone)
   }
   if (far) {
     const e = one(m, 'M', far.x, far.y); e.hp = e.maxHp = 1e6; m.enemies.push(e); m.dirtyE = true;
     run(m, 0.3);
-    check('it spots an enemy out of sight inside the strike zone (shown on the map)', e.vis >= 1, `vis ${e.vis}${e.spotted ? ' (spotted)' : ''}`);
+    check('it spots an enemy out of sight down its cone (shown on the map)', e.vis >= 1, `vis ${e.vis}${e.spotted ? ' (spotted)' : ''}`);
     e.dead = true;
-  } else check('it spots an enemy out of sight inside the strike zone', false, 'no spot found to test');
+  } else check('it spots an enemy out of sight down its cone', false, 'no spot found to test');
 }
 
 // ---------------------------------------------------------------- the light bridge

@@ -199,13 +199,13 @@ function troops(m, n, sq = 0, x = m.hx + 10, y = m.hy + 6) {
 
   // (0.18: the bunker is gone; r18 checks the Heavy Turret Nest and the Lookout Tower)
 
-  // the propaganda tower: manned, its ground is in view and allies under it get the UAV's lift
+  // the propaganda tower: (0.47) no vision; allies near it get the UAV's lift, crewed or not, and a crew widens it
   const tw = makePost(m, 'tower', m.hx + 120, m.hy - 90);
   run(m, 0.2);
-  const r0 = (m.relays.find((u2) => u2.tower) || {}).r || 0;
-  check('(0.18) with nobody in it, it already keeps some ground in view', r0 > 0 && r0 < C.uav.r[0], `${r0} m`);
+  const r0 = tw.reach;
+  check('(0.47) it keeps no ground in view (the lookout does that)', r0 > 0 && !m.relays.some((u2) => u2.tower), `${r0} m reach`);
   const t2 = m.addAlly('S', tw.x + 2, tw.y, { role: 'rifle' }); t2.sq = 2; m._refreshAlive(); m.selectSquad(2); m.garrisonGo(tw); run(m, 3, () => { if (!t2.inside) { t2.x = tw.x + 1; t2.y = tw.y; } });
-  check('manned, it keeps the ground round it in view (as far as the UAV reaches)', t2.inside === tw && m.relays.some((u2) => u2.tower && u2.r >= C.uav.r[0]) && m.visLevel(tw.x + 60, tw.y) > 0);
+  check('manned, its reach widens to the UAV scan\'s', t2.inside === tw && tw.reach > r0 && tw.reach >= C.uav.r[0] - 1, `${r0} -> ${tw.reach} m`);
   const t2b = m.addAlly('S', tw.x + 20, tw.y, { role: 'rifle' }); t2b.sq = 3; m._refreshAlive(); run(m, 0.2);
   check('allies under it get the UAV\'s lift', m.t - t2b.uavAt < 0.3);
   check('it is a SEAF drop point', m.beacons.some((b) => b.post === tw));
