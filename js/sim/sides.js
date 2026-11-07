@@ -132,7 +132,9 @@ function finish(m, s, ok) {
   m.radio(COMMS.sideDone(s.kind), 'sidedone', 0);
   m.notice(COMMS.sideDoneNotice(s.kind, R.reward), 'good');
   m.emit('side_done', { kind: s.kind, x: s.x, y: s.y });
-  (m.relays || (m.relays = [])).push({ x: s.x, y: s.y, r: C.relay.r, kind: s.kind });   // the ground round it stays in view
+  // the ground round a powered radio tower stays in view (0.51: only the radio tower: a propaganda tower blown up or SEAF got out
+  // used to leave a bubble of view behind too, which read as a leftover)
+  if (s.kind === 'radio') (m.relays || (m.relays = [])).push({ x: s.x, y: s.y, r: C.relay.r, kind: s.kind });
   // (0.49) the radio tower powered: every enemy base's layout shows (how many spawners, where), like Helldivers 2's radio point
   if (s.kind === 'radio') { const n = revealBases(m); if (n) m.notice(tr('n.basesRevealed', { n }), 'good'); }
 }

@@ -111,6 +111,7 @@ await shot('splash1');
 await tap('#ms-later'); await page.waitForTimeout(300);
 check('LATER puts it away and leaves the debrief', await ev(() => document.getElementById('ms-splash').hidden) && await page.isVisible('#s-debrief'));
 await tap('#btn-continue'); await page.waitForTimeout(700);
+await page.evaluate(() => { for (let k = 0; k < 2; k++) { const c = document.querySelector('#s-next.on .nx-c'); if (c) c.click(); } }); await page.waitForTimeout(250);     // (0.51) MISSION COMPLETE: a commendation, then the next mission
 const arm = await ev(() => { const h = [...document.querySelectorAll('#shop-root .item')].find((x) => /^Pelican Fleet/.test(x.querySelector('.it-name').textContent));     // (0.39: the Hangar is open; its Pelican Fleet is what waits for rank 2)
   return { ms: (document.querySelector('#shop-root .rankbar') || {}).textContent || '', fill: parseFloat((document.querySelector('#shop-root .rb-fill') || { style: {} }).style.width) || 0,
     hangar: h ? { lock: h.classList.contains('ranklock'), btn: h.querySelector('.btn.buy').textContent, dis: h.querySelector('.btn.buy').disabled } : null, fresh: document.querySelectorAll('#shop-root .item.fresh').length,
@@ -131,8 +132,9 @@ check('two missions done: rank 2, with the Pelican Fleet', sp && /RANK 2: Liber-
 check('the level bonus is paid', bal1 - bal0 >= 600, `${bal0} → ${bal1}`);
 await shot('splash2');
 await tap('#ms-show'); await page.waitForTimeout(900);
+await page.evaluate(() => { for (let k = 0; k < 2; k++) { const c = document.querySelector('#s-next.on .nx-c'); if (c) c.click(); } }); await page.waitForTimeout(900);     // (0.51) MISSION COMPLETE's picks first
 const shown = await ev(() => ({ scr: document.getElementById('s-shop').classList.contains('on'), tab: (document.querySelector('.shop-tabs .tab.on') || {}).dataset?.tab, pulse: [...document.querySelectorAll('.tabpane.on .item.fresh.pulse .it-name')].map((n) => n.textContent.slice(0, 20)) }));
-check('SHOW ME opens the armory on the tab with the new things, and they pulse', shown.scr && shown.pulse.length > 0, JSON.stringify(shown));
+check('SHOW ME opens the armory (0.51: after MISSION COMPLETE) on the tab with the new things, and they pulse', shown.scr && shown.pulse.length > 0, JSON.stringify(shown));
 await shot('showme');
 check('no page errors', errs.length === 0, errs.slice(0, 3).join(' | '));
 await browser.close();
