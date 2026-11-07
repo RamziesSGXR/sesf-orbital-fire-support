@@ -2650,3 +2650,18 @@ body.rts.lay-phone.lay-port #hud #topbar .alertc { padding: 0 6px; }
 .it-paid { position: relative; height: 14px; margin-top: 5px; border: 1px solid rgba(255, 176, 32, 0.55); background: rgba(255, 176, 32, 0.06); }
 .it-paid i { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(255, 176, 32, 0.32); }
 .it-paid span { position: relative; display: block; padding: 0 6px; font-size: 9px; line-height: 12px; letter-spacing: 0.08em; color: #ffd27a; }
+
+/* (0.50.1) CHANGE KEYS */
+.keys-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 8px; }
+.keys-note { flex: 1 1 200px; font-size: 11px; color: var(--amber); letter-spacing: 0.06em; text-transform: uppercase; }
+.keys-edit { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px 14px; max-height: 58vh; overflow-y: auto; padding: 2px 2px 8px; }
+.keys-hint { grid-column: 1 / -1; margin: 0; font-size: 11px; color: var(--g-dim); }
+.keys-g { border: 1px solid var(--line); background: var(--panel); padding: 6px 8px 8px; }
+.keys-h { margin: 0 0 6px; font-size: 11px; letter-spacing: 0.14em; color: var(--g-dim); font-weight: normal; }
+.keys-r { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 0; font-size: 12px; }
+.keys-r .keys-a { flex: 1 1 auto; min-width: 0; }
+.keys-r .btn.keys-k { min-width: 84px; min-height: 26px; padding: 2px 8px; }
+.keys-r .btn.keys-k.own { border-color: var(--amber); color: var(--amber); }
+.keys-r.on .btn.keys-k { border-color: var(--yellow); color: var(--yellow); animation: keys-blink 0.9s steps(2) infinite; }
+@keyframes keys-blink { 50% { opacity: 0.45; } }
+body.touch .desk-only { display: none !important; }     /* (0.50.1) desktop-only buttons (CHANGE KEYS) */

@@ -1,5 +1,6 @@
 // Mouse, keyboard and touch input. It never touches the sim directly: it calls the hooks main.js gives it.
 import { CONFIG as C } from './config.js';
+import { actionOf, codesOf } from './keys.js';
 
 export class Input {
   /**
@@ -49,11 +50,11 @@ export class Input {
   update(dt) {
     if (!this.active()) return;
     let dx = 0, dy = 0;
-    const k = this.keys;
-    if (k.has('KeyA') || k.has('ArrowLeft')) dx -= 1;
-    if (k.has('KeyD') || k.has('ArrowRight')) dx += 1;
-    if (k.has('KeyW') || k.has('ArrowUp')) dy -= 1;
-    if (k.has('KeyS') || k.has('ArrowDown')) dy += 1;
+    const k = this.keys, held = (a) => codesOf(a).some((c) => k.has(c));     // (0.50.1) the player's own keys (keys.js)
+    if (held('panLeft')) dx -= 1;
+    if (held('panRight')) dx += 1;
+    if (held('panUp')) dy -= 1;
+    if (held('panDown')) dy += 1;
     if (dx || dy) {
       const sp = this.cam.view * 0.7 * dt, n = Math.hypot(dx, dy);
       this.cam.x += (dx / n) * sp; this.cam.y += (dy / n) * sp; this.cam.follow = false; this._clamp();
@@ -185,43 +186,43 @@ export class Input {
       if (e.repeat) return;
       // Esc steps back one thing at a time (main.js): drawing, a placement, the tactical screen, an armed weapon, then the menu
       if (e.code === 'Escape') { this.h.escape(); return; }
-      if (e.code === 'F2') { e.preventDefault(); if (this.h.hideUi) this.h.hideUi(); return; }     // hide the HUD, and back
-      if (e.code === 'Tab' || ((e.code === 'KeyM' || e.code === 'KeyL') && !e.ctrlKey && !e.metaKey)) { if (this.h.map && this.h.map()) { e.preventDefault(); return; } }     // (0.20) Tab, M or L: the big map, and back (in a mission)
+      // (0.50.1) everything else by what the key does now (keys.js: the player can change them); the Shift / Alt / Ctrl ones are fixed
+      const act = actionOf(e.code), mod = e.ctrlKey || e.metaKey;
+      if (act === 'hideUi') { e.preventDefault(); if (this.h.hideUi) this.h.hideUi(); return; }     // hide the HUD, and back
+      if (act === 'map' && !(mod && e.code !== 'Tab')) { if (this.h.map && this.h.map()) { e.preventDefault(); return; } }     // (0.20) the big map, and back (in a mission)
       // (0.18) Space: the tactical screen (and its pause) on and off; Alt+1..9: the selected troopers join that squad
-      if (e.code === 'Space') { e.preventDefault(); if (this.h.supplyTap && this.h.supplyTap()) return; this.h.soft(); return; }   // (0.18) Space pauses (look around, no orders) and goes on
-      if (e.code === 'Enter' && this.h.deployNow) { this.h.deployNow(); return; }
-      if (e.code === 'KeyA' && (e.ctrlKey || e.metaKey) && this.h.selectAll) { e.preventDefault(); this.keys.delete('KeyA'); this.h.selectAll(); return; }     // (0.31) Ctrl+A: every trooper on the map (A alone still pans)
+      if (act === 'pause') { e.preventDefault(); if (this.h.supplyTap && this.h.supplyTap()) return; this.h.soft(); return; }   // (0.18) Space pauses (look around, no orders) and goes on
+      if (act === 'deploy' && this.h.deployNow) { this.h.deployNow(); return; }
+      if (e.code === 'KeyA' && mod && this.h.selectAll) { e.preventDefault(); this.keys.delete('KeyA'); this.h.selectAll(); return; }     // (0.31) Ctrl+A: every trooper on the map (A alone still pans)
       { const ad = /^Digit([1-9])$/.exec(e.code); if (ad && e.altKey && this.h.toSquad) { e.preventDefault(); this.h.toSquad(Number(ad[1]) - 1); return; } }
-      // (0.36.1) the number keys always pick weapons, whatever tab of the command panel is open (builds are picked with a click)
-      if (e.code === 'KeyP') { this.h.soft(); return; }            // the soft pause: the game stops, the menu stays shut
-      if (e.code === 'Comma' && this.h.speed) { this.h.speed(); return; }   // half speed / normal speed
+      if (act === 'softPause') { this.h.soft(); return; }            // the soft pause: the game stops, the menu stays shut
+      if (act === 'speed' && this.h.speed) { this.h.speed(); return; }   // half speed / normal speed
       if (!this.active()) return;
+      // (0.36.1) the weapon keys always pick weapons, whatever tab of the command panel is open (builds are picked with a click)
       const dig = /^Digit([0-9])$/.exec(e.code);
-      if (dig && e.shiftKey) this.h.squad(Number(dig[1]) >= 1 ? Number(dig[1]) - 1 : -1);   // Shift+1..9 pick a squad, Shift+0 all
-      else if (dig && dig[1] !== '0') this.h.weapon(Number(dig[1]) - 1);
-      else if (e.code === 'Backquote') this.h.squad(-1);
-      else if (e.code === 'KeyR') this.h.squadAct('draw');
-      else if (e.code === 'KeyF') this.h.follow();
-      else if (e.code === 'Delete' || e.code === 'Backspace') this.h.squadAct('disband');
-      else if (e.code === 'KeyQ') this.h.cycle(-1);
-      else if (e.code === 'KeyE') this.h.cycle(1);
-      else if (e.code === 'KeyG') this.h.order(e.shiftKey ? 'pickup' : 'seaf', true);     // (0.39) Shift+G: a pickup point
-      else if (e.code === 'KeyX') this.h.order('auto', true);
-      else if (e.code === 'KeyV') this.h.order('move', true);
-      else if (e.code === 'KeyZ') this.h.order('protect', true);
-      else if (e.code === 'KeyN') this.h.order('attack', true);
-      else if (e.code === 'KeyC') this.h.order('escort', true);
-      else if (e.code === 'KeyB') this.h.ctx('build');
-      else if (e.code === 'KeyY') this.h.ctx('armory');
-      else if (e.code === 'KeyT') this.h.polarity();
-      else if (e.code === 'KeyH') this.h.relief();
-      else if (e.code === 'KeyI') this.h.info();
-      else if (e.code === 'KeyO' && this.h.radio) this.h.radio();     // (0.28) the command radio (tutorial and campaign)
-      else if (e.code === 'KeyU') this.h.supply();
-      else if (e.code === 'KeyK' && this.h.timeYes) this.h.timeYes();
-      else if (e.code === 'KeyJ') this.h.look();
-      else if (e.code === 'Equal' || e.code === 'NumpadAdd') this.zoom(1 / 1.15);
-      else if (e.code === 'Minus' || e.code === 'NumpadSubtract') this.zoom(1.15);
+      if (dig && e.shiftKey) { this.h.squad(Number(dig[1]) >= 1 ? Number(dig[1]) - 1 : -1); return; }   // Shift+1..9 pick a squad, Shift+0 all
+      if (mod) return;
+      const w = act && /^w([1-9])$/.exec(act);
+      if (w) this.h.weapon(Number(w[1]) - 1);
+      else if (act === 'allSquads') this.h.squad(-1);
+      else if (act === 'draw') this.h.squadAct('draw');
+      else if (act === 'follow') this.h.follow();
+      else if (act === 'disband') this.h.squadAct('disband');
+      else if (act === 'cyclePrev') this.h.cycle(-1);
+      else if (act === 'cycleNext') this.h.cycle(1);
+      else if (act === 'seaf') this.h.order(e.shiftKey ? 'pickup' : 'seaf', true);     // (0.39) Shift+G: a pickup point
+      else if (act === 'auto' || act === 'move' || act === 'protect' || act === 'attack' || act === 'escort') this.h.order(act, true);
+      else if (act === 'build') this.h.ctx('build');
+      else if (act === 'armory') this.h.ctx('armory');
+      else if (act === 'thermal') this.h.polarity();
+      else if (act === 'relief') this.h.relief();
+      else if (act === 'info') this.h.info();
+      else if (act === 'radio' && this.h.radio) this.h.radio();     // (0.28) the command radio (tutorial and campaign)
+      else if (act === 'supply') this.h.supply();
+      else if (act === 'timeYes' && this.h.timeYes) this.h.timeYes();
+      else if (act === 'look') this.h.look();
+      else if (act === 'zoomIn') this.zoom(1 / 1.15);
+      else if (act === 'zoomOut') this.zoom(1.15);
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
     window.addEventListener('blur', () => { this.keys.clear(); this.h.fire(false); if (this.stroke !== null) this.h.drawCancel(); this.stroke = null; this.ptrs.clear(); this.pinch = null; this.panning = null; this.lp = null; if (this.box !== null) { this.box = null; this.h.boxEnd(); } });

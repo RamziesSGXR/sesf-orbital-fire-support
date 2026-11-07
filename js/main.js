@@ -8,6 +8,7 @@ import { makeBot, botStep, botShop } from './sim/bot.js';
 import { Renderer } from './render/renderer.js';
 import { buildTerrain } from './render/terrain.js';
 import { Input } from './input.js';
+import { setKey, resetKeys, isDefault, onKeysChange, label as keyLabel, canBind, keyLabel as codeLabel } from './keys.js';
 import { Audio } from './audio.js';
 import { Music } from './music.js';
 import * as S from './session.js';
@@ -504,12 +505,13 @@ function openPanel(id, from, fill) {
   panelFrom[id] = from;
   if (fill) fill();
   if (from === 'pause') UI.overlay('s-pause', false);
+  if (from === 'settings') UI.overlay('s-settings', false);     // (0.50.1) CHANGE KEYS from the settings
   UI.overlay(id, true);
 }
 function closePanel(id) {
   UI.overlay(id, false);
   const f = panelFrom[id]; panelFrom[id] = null;
-  if (f === 'pause') UI.overlay('s-pause', true); else if (f === 'soft') afterPanel();
+  if (f === 'pause') UI.overlay('s-pause', true); else if (f === 'settings') UI.overlay('s-settings', true); else if (f === 'soft') afterPanel();
 }
 // Back from a panel opened while soft-paused: if the menu stopped the game, it plays on.
 function afterPanel() { if (menuSoft) { menuSoft = false; if (soft) softPause(false); } }
@@ -517,7 +519,44 @@ function fillControls(tab) {
   const tch = tab ? tab === 'touch' : input.touch;
   $('controls-desktop').classList.toggle('hidden', tch); $('controls-touch').classList.toggle('hidden', !tch);
   $('ctl-tab-d').classList.toggle('on', !tch); $('ctl-tab-t').classList.toggle('on', tch);
+  $('keys-bar').classList.toggle('hidden', tch);
+  keysEditing(false);
 }
+// (0.50.1) CHANGE KEYS: the list of actions and their keys; pick one, then press its new key (ESC cancels)
+let keysOpen = false, keysWait = null;
+function keysEditing(on, note) {
+  keysOpen = on; keysWait = null;
+  $('keys-edit').classList.toggle('hidden', !on); $('controls-desktop').classList.toggle('hidden', on || input.touch && !$('ctl-tab-d').classList.contains('on'));
+  $('keys-btn').textContent = t(on ? 'keys.done' : 'keys.change');
+  $('keys-reset').classList.toggle('hidden', !on || isDefault());
+  $('keys-note').textContent = note !== undefined ? note : isDefault() ? '' : t('keys.custom');
+  if (on) drawKeys();
+}
+function drawKeys() { UI.renderKeys($('keys-edit'), { listening: keysWait, onPick: (a) => { audio.click(); keysWait = keysWait === a ? null : a; $('keys-note').textContent = keysWait ? t('keys.pressFor', { a: t('keys.a.' + keysWait) }) : ''; drawKeys(); } }); }
+window.addEventListener('keydown', (e) => {
+  if (!keysWait) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  if (e.repeat) return;
+  const a = keysWait;
+  if (e.code === 'Escape') { keysWait = null; $('keys-note').textContent = ''; drawKeys(); return; }
+  if (!canBind(e.code)) { audio.deny(); $('keys-note').textContent = t('keys.cant', { k: codeLabel(e.code) }); return; }
+  const r = setKey(a, e.code);
+  keysWait = null; audio.ready();
+  $('keys-note').textContent = r.swapped ? t('keys.swapped', { a: t('keys.a.' + a), k: keyLabel(a), b: t('keys.a.' + r.swapped), k2: keyLabel(r.swapped) }) : t('keys.set', { a: t('keys.a.' + a), k: keyLabel(a) });
+  $('keys-reset').classList.toggle('hidden', isDefault());
+  drawKeys();
+}, true);
+$('keys-btn').onclick = () => { audio.click(); keysEditing(!keysOpen); };
+$('keys-reset').onclick = () => { audio.click(); resetKeys(); keysEditing(true, t('keys.wasReset')); };
+// the keys shown on the HUD's buttons follow the player's own
+function keyHints() {
+  document.querySelectorAll('[data-k]').forEach((k) => { if (k.tagName === 'INPUT') return; k.textContent = k.dataset.k === 'pickup' ? '⇧' + keyLabel('seaf') : keyLabel(k.dataset.k); });
+  document.querySelectorAll('#tactical .tco[data-o] .k').forEach((k) => { k.textContent = UI.orderKey(k.parentElement.dataset.o); });
+  document.querySelectorAll('#weapons .wbtn .k').forEach((k, i) => { k.textContent = keyLabel('w' + (i + 1)); });
+  const tw = document.querySelector('#tactical .tac-ship'); if (tw) tw._k = null;      // (the panel's weapon row is drawn again with them)
+}
+onKeysChange(keyHints);
+keyHints();
 hud.onSupTap = (i) => { audio.unlock(); supTap(i); };
 hud.onSupLaunch = () => { if (live() && launchSupply(mission)) audio.click(); };
 hud.onHbTap = (i) => { audio.unlock(); hbTap(i); };
@@ -1556,6 +1595,7 @@ $('shop-menu').onclick = () => { audio.unlock(); audio.click(); outMenu(true); }
 $('shop-back').onclick = () => { audio.unlock(); goHome(); };
 $('btn-home-m').onclick = () => goHome();
 $('btn-names-m').onclick = () => openNames('settings');
+$('btn-keys-m').onclick = () => { audio.click(); openPanel('s-controls', 'settings', () => { fillControls('desk'); keysEditing(true); }); };     // (0.50.1)
 $('names-save').onclick = () => closeNames(true);
 $('names-cancel').onclick = () => closeNames(false);
 $('names-clear').onclick = () => UI.clearNames();

@@ -4,6 +4,7 @@ import { FACTIONS, BIOMES } from './data/data.js';
 import { fmtTime, fmtNum, sessionTotals, MAX_NAME, carriesOn, levelReached } from './session.js';
 import { STRATS, CAT_COLOR } from './data/strat.js';
 import { LETTERS, TEAM_COLOR } from './data/names.js';
+import { GROUPS as KEY_GROUPS, label as keyLabelOf, keyOf as keyOfAction, defaultOf as defaultKeyOf } from './keys.js';
 import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, hangarStats, shownAt, TIER_MAX, tierItems, itemTier, FLAT_BUILDS, fleetSize, coinOk, payStep, MIXES, mixOpen, mixNeeds } from './data/kit.js';
 import { stratReady, stratOnline } from './sim/strat.js';
 import { slotStats } from './sim/player.js';
@@ -187,7 +188,7 @@ export class Hud {
     const bar = $('weapons');
     bar.innerHTML = '';
     for (let i = 0; i < 9; i++) {
-      const b = el('button', 'wbtn', `<span class="k">${i + 1}</span><span class="n">--</span><span class="sub">--</span><span class="bar"><i></i></span>`);
+      const b = el('button', 'wbtn', `<span class="k">${esc(keyLabelOf('w' + (i + 1)))}</span><span class="n">--</span><span class="sub">--</span><span class="bar"><i></i></span>`);
       b.addEventListener('pointerdown', (e) => { e.preventDefault(); this.onWeapon && this.onWeapon(i); });
       bar.appendChild(b); this.wb.push({ el: b, n: b.querySelector('.n'), sub: b.querySelector('.sub'), bar: b.querySelector('.bar i'), key: '' });
     }
@@ -286,8 +287,8 @@ export class Hud {
       this.setTcTab(b.dataset.tab === this.tcTab && b.dataset.tab !== 'units' ? 'units' : b.dataset.tab);     // (0.21: pressed again, back to the troops)
     }));
     const ordBox = document.querySelector('#tactical .tac-ord');
-    for (const [o, k] of [['seaf', 'G'], ['pickup', '⇧G'], ['auto', 'X'], ['move', 'V'], ['protect', 'Z'], ['attack', 'N'], ['escort', 'C']]) {     // (0.20: DISBAND is on the squad bar, once; 0.39: PICKUP)
-      const e = el('button', 'tco ' + o, `<span class="k">${k}</span><span class="n"></span><span class="s"></span>`);
+    for (const o of ['seaf', 'pickup', 'auto', 'move', 'protect', 'attack', 'escort']) {     // (0.20: DISBAND is on the squad bar, once; 0.39: PICKUP)
+      const e = el('button', 'tco ' + o, `<span class="k">${esc(orderKey(o))}</span><span class="n"></span><span class="s"></span>`);     // (0.50.1: the player's own keys)
       e.type = 'button'; e.dataset.o = o;
       e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); if (o === 'disband') this.onSquadAct && this.onSquadAct('disband'); else this.onOrder && this.onOrder(o); });
       ordBox.appendChild(e);
@@ -1158,7 +1159,7 @@ export class Hud {
       box._k = key; box.innerHTML = '';
       p.slots.forEach((s, i) => {
         if (s.type === 'empty' || (s.type === 'nuke' && !m.objectives.some((o) => o.type === 'nuke'))) return;
-        const e = el('button', 'tcw', `<span class="k">${i === 9 ? 0 : i + 1}</span><span class="n"></span><span class="s"></span>`);
+        const e = el('button', 'tcw', `<span class="k">${i < 9 ? esc(keyLabelOf('w' + (i + 1))) : 0}</span><span class="n"></span><span class="s"></span>`);
         e.type = 'button'; e.dataset.i = String(i);
         e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onWeapon && this.onWeapon(i); });
         box.appendChild(e);
@@ -1682,6 +1683,26 @@ function upgradeLines(it, kit) {
 
 // Draw the armory into root. opts: { kit, wallet, live, onBuy(id), onEquip(id), onUnequip(slot), note }
 // The armory's tabs, and which sections each holds.
+// (0.50.1) the key an order or a weapon is on now (keys.js), for the buttons that show it
+export const orderKey = (o) => (o === 'pickup' ? '⇧' + keyLabelOf('seaf') : keyLabelOf(o));
+// (0.50.1) CHANGE KEYS: every action, grouped, with its key; opts.listening: the action waiting for a key; opts.onPick(action)
+export function renderKeys(root, opts = {}) {
+  root.innerHTML = '';
+  root.appendChild(el('p', 'keys-hint', esc(t('keys.hint'))));
+  for (const [g, list] of KEY_GROUPS) {
+    const box = el('div', 'keys-g');
+    box.appendChild(el('h4', 'keys-h', esc(t('keys.g.' + g))));
+    for (const [a] of list) {
+      const on = opts.listening === a, k = keyOfAction(a), dflt = k === defaultKeyOf(a);
+      const r = el('div', 'keys-r' + (on ? ' on' : ''));
+      r.appendChild(el('span', 'keys-a', esc(t('keys.a.' + a))));
+      const b = el('button', 'btn small keys-k' + (dflt ? '' : ' own'), on ? esc(t('keys.press')) : `<kbd>${esc(keyLabelOf(a))}</kbd>`);
+      b.type = 'button'; b.dataset.a = a; b.onclick = () => opts.onPick && opts.onPick(a);
+      r.appendChild(b); box.appendChild(r);
+    }
+    root.appendChild(box);
+  }
+}
 export const SHOP_TABS = [{ id: 'orb', secs: ['loadout', 'orbitals', 'utilities', 'defense'] }, { id: 'eagle', secs: ['hangar', 'eagles'] }, { id: 'ship', secs: ['gun', 'uav', 'support'] }, { id: 'seaf', secs: ['seaf', 'specialists'] }, { id: 'build', secs: ['build'] }, { id: 'classified', secs: ['classified'] }];
 // (0.25) The rank bar: your rank and its name, one segment a rank (filled as far as your missions go), and what comes next.
 export function rankBar(tier, done, kills = false) {
