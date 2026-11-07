@@ -49,7 +49,7 @@ check('no slot until the first drop', (await slots()).every((s) => !s));
 await fly();
 let sl = await slots();
 check('the first drop puts it in slot 1, without SAVE GAME', sl[0] && sl[0].op === 'Operation Autosave One' && sl[0].n === 0 && await ev(() => window.__game.session.slot) === 1, JSON.stringify(sl));
-check('the start is posted', /starts \*\*OPERATION AUTOSAVE ONE\*\*/.test((await posts()).join('\n')));
+check('(0.50.1) nothing is posted at the first drop', !(await posts()).some((x) => /AUTOSAVE ONE/.test(x)));
 // (0.48.1) the same operation can never post its start twice (a save loaded again, an autosave, a reload)
 await wait(3200);
 const nS = (await posts()).length;
@@ -57,7 +57,7 @@ await ev(() => { const g = window.__game; g.session.feed = 1; });
 await abort(); await ev(() => window.__game.retryMission()); await wait(150); await ev(() => window.__game.retryMission());
 await page.waitForFunction(() => window.__game.state === 'brief' && !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
 await ev(() => { window.__game.session.feed = 1; }); await click('b-continue'); await wait(800);
-check('(0.48.1) the same operation never posts its start twice', (await posts()).filter((x) => /starts/.test(x)).length === 1, `${(await posts()).length - nS} more posts`);
+check('(0.48.1) a save loaded again, an autosave or a retry posts nothing either', (await posts()).filter((x) => /starts/.test(x)).length === 0, `${(await posts()).length - nS} more posts`);
 
 // ---------------------------------------------------------------- a failed mission ends it: the slot goes; RETRY puts it back
 await wait(3200);      // (the feed's double-post guard)

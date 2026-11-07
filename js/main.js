@@ -8,13 +8,14 @@ import { makeBot, botStep, botShop } from './sim/bot.js';
 import { Renderer } from './render/renderer.js';
 import { buildTerrain } from './render/terrain.js';
 import { Input } from './input.js';
+import { setKey, resetKeys, isDefault, onKeysChange, label as keyLabel, canBind, keyLabel as codeLabel } from './keys.js';
 import { Audio } from './audio.js';
 import { Music } from './music.js';
 import * as S from './session.js';
 import { startTitleBg } from './render/titlebg.js';
 import { STORY, CAST, chapterFor } from './data/story.js';
 import { castLines, CastRadio, RadioLog, aarMission, aarSession, aarStand } from './campaign.js';
-import { feedStart, feedEnd } from './feed.js';
+import { feedEnd, feedOn } from './feed.js';
 import * as UI from './ui.js';
 import { sunAt, todName, todClock } from './render/sky.js';
 import { acceptSupply, declineSupply, fillSupply, launchSupply, supplyFilling } from './sim/supply.js';
@@ -504,12 +505,13 @@ function openPanel(id, from, fill) {
   panelFrom[id] = from;
   if (fill) fill();
   if (from === 'pause') UI.overlay('s-pause', false);
+  if (from === 'settings') UI.overlay('s-settings', false);     // (0.50.1) CHANGE KEYS from the settings
   UI.overlay(id, true);
 }
 function closePanel(id) {
   UI.overlay(id, false);
   const f = panelFrom[id]; panelFrom[id] = null;
-  if (f === 'pause') UI.overlay('s-pause', true); else if (f === 'soft') afterPanel();
+  if (f === 'pause') UI.overlay('s-pause', true); else if (f === 'settings') UI.overlay('s-settings', true); else if (f === 'soft') afterPanel();
 }
 // Back from a panel opened while soft-paused: if the menu stopped the game, it plays on.
 function afterPanel() { if (menuSoft) { menuSoft = false; if (soft) softPause(false); } }
@@ -517,7 +519,44 @@ function fillControls(tab) {
   const tch = tab ? tab === 'touch' : input.touch;
   $('controls-desktop').classList.toggle('hidden', tch); $('controls-touch').classList.toggle('hidden', !tch);
   $('ctl-tab-d').classList.toggle('on', !tch); $('ctl-tab-t').classList.toggle('on', tch);
+  $('keys-bar').classList.toggle('hidden', tch);
+  keysEditing(false);
 }
+// (0.50.1) CHANGE KEYS: the list of actions and their keys; pick one, then press its new key (ESC cancels)
+let keysOpen = false, keysWait = null;
+function keysEditing(on, note) {
+  keysOpen = on; keysWait = null;
+  $('keys-edit').classList.toggle('hidden', !on); $('controls-desktop').classList.toggle('hidden', on || !$('ctl-tab-d').classList.contains('on'));     // (the touch tab shows its own)
+  $('keys-btn').textContent = t(on ? 'keys.done' : 'keys.change');
+  $('keys-reset').classList.toggle('hidden', !on || isDefault());
+  $('keys-note').textContent = note !== undefined ? note : isDefault() ? '' : t('keys.custom');
+  if (on) drawKeys();
+}
+function drawKeys() { UI.renderKeys($('keys-edit'), { listening: keysWait, onPick: (a) => { audio.click(); keysWait = keysWait === a ? null : a; $('keys-note').textContent = keysWait ? t('keys.pressFor', { a: t('keys.a.' + keysWait) }) : ''; drawKeys(); } }); }
+window.addEventListener('keydown', (e) => {
+  if (!keysWait) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  if (e.repeat) return;
+  const a = keysWait;
+  if (e.code === 'Escape') { keysWait = null; $('keys-note').textContent = ''; drawKeys(); return; }
+  if (!canBind(e.code)) { audio.deny(); $('keys-note').textContent = t('keys.cant', { k: codeLabel(e.code) }); return; }
+  const r = setKey(a, e.code);
+  keysWait = null; audio.ready();
+  $('keys-note').textContent = r.swapped ? t('keys.swapped', { a: t('keys.a.' + a), k: keyLabel(a), b: t('keys.a.' + r.swapped), k2: keyLabel(r.swapped) }) : t('keys.set', { a: t('keys.a.' + a), k: keyLabel(a) });
+  $('keys-reset').classList.toggle('hidden', isDefault());
+  drawKeys();
+}, true);
+$('keys-btn').onclick = () => { audio.click(); keysEditing(!keysOpen); };
+$('keys-reset').onclick = () => { audio.click(); resetKeys(); keysEditing(true, t('keys.wasReset')); };
+// the keys shown on the HUD's buttons follow the player's own
+function keyHints() {
+  document.querySelectorAll('[data-k]').forEach((k) => { if (k.tagName === 'INPUT') return; k.textContent = k.dataset.k === 'pickup' ? '⇧' + keyLabel('seaf') : keyLabel(k.dataset.k); });
+  document.querySelectorAll('#tactical .tco[data-o] .k').forEach((k) => { k.textContent = UI.orderKey(k.parentElement.dataset.o); });
+  document.querySelectorAll('#weapons .wbtn .k').forEach((k, i) => { k.textContent = keyLabel('w' + (i + 1)); });
+  const tw = document.querySelector('#tactical .tac-ship'); if (tw) tw._k = null;      // (the panel's weapon row is drawn again with them)
+}
+onKeysChange(keyHints);
+keyHints();
 hud.onSupTap = (i) => { audio.unlock(); supTap(i); };
 hud.onSupLaunch = () => { if (live() && launchSupply(mission)) audio.click(); };
 hud.onHbTap = (i) => { audio.unlock(); hbTap(i); };
@@ -1041,7 +1080,7 @@ function deploy() {
   // (0.48.1) every run has an id the SESF feed posts by, once each for its start and its end (feed.js); an old run without the flag
   // posts nothing more (0.46 gave it a start post, and loading old saves posted again)
   if (!session.opId) session.opId = `${Date.now().toString(36)}${Math.floor(Math.random() * 1e9).toString(36)}`;
-  if (session.feed === 1) { session.feed = 2; if (!BOT) feedStart(session, settings, info.chapter); }     // (0.43) before the snapshot, so a retry never posts it again
+  if (session.feed === 1) session.feed = 2;     // (0.50.1: the start is no longer posted; one post an operation, at its end)
   startSnap = JSON.stringify(session);      // what RETRY MISSION puts back: credits, kit, score and time as they were at the drop
   persist();
   if (terrainKey !== `${info.biome}|${info.seed}`) buildFor(info.biome, info.seed);
@@ -1257,6 +1296,9 @@ function endSession(byChoice = false) {
   if (session.feed !== 3 && !BOT) { session.feed = 3; feedEnd(session, fin, settings); }     // (0.43) the SESF feed: the score, and how far it got
   lastFin = { fin, block };
   UI.fillFinal(session, fin, block, coin);
+  // (0.50.1) said on the final screen: this operation's result went to the SESF Discord (Settings > SESF feed)
+  const shared = !session.tutorial && session.missions.length > 0 && feedOn(settings) && !BOT;
+  $('f-feed').classList.toggle('hidden', !shared); if (shared) $('f-feed').textContent = t('fin.posted');
   S.drop(runKey(session));
   if (session.slot) { S.clearSlot(session.slot); drawLoadBtn(); }     // (0.46) an ended operation leaves its slot empty
   UI.showScreen('s-final');
@@ -1556,6 +1598,7 @@ $('shop-menu').onclick = () => { audio.unlock(); audio.click(); outMenu(true); }
 $('shop-back').onclick = () => { audio.unlock(); goHome(); };
 $('btn-home-m').onclick = () => goHome();
 $('btn-names-m').onclick = () => openNames('settings');
+$('btn-keys-m').onclick = () => { audio.click(); openPanel('s-controls', 'settings', () => { fillControls('desk'); keysEditing(true); }); };     // (0.50.1)
 $('names-save').onclick = () => closeNames(true);
 $('names-cancel').onclick = () => closeNames(false);
 $('names-clear').onclick = () => UI.clearNames();

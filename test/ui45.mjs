@@ -44,12 +44,13 @@ check('the briefing shows it', /TEA & LIBERTY/i.test(await ev(() => document.get
 await click('b-continue'); await wait(900);
 const hudOp = await ev(() => { const e = [...document.querySelectorAll('#hud *')].find((x) => x.children.length === 0 && /Tea & Liberty/i.test(x.textContent)); if (!e) return null; const r = e.getBoundingClientRect(); return { t: e.textContent, over: e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).textOverflow !== 'ellipsis', inView: r.right <= innerWidth + 1 && r.left >= -1 }; });
 check('the HUD shows it', !!hudOp && hudOp.inView, JSON.stringify(hudOp));
-check('the SESF feed names it', /\*\*OPERATION TEA & LIBERTY! X\*\*/.test(await ev(() => window.__posts[0] || '')), await ev(() => window.__posts[0]));
+check('(0.50.1) nothing posted at the first drop', (await ev(() => window.__posts.length)) === 0);
 if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${vp}-hud.png` });
 await click('btn-abort'); await click('btn-abort');
 await page.waitForFunction(() => window.__game.state === 'debrief', null, { timeout: 10000 });
 await click('btn-continue');
 await page.waitForFunction(() => window.__game.state === 'final', null, { timeout: 5000 });
+check('the SESF feed names it, once the operation ends (0.50.1)', /\*\*OPERATION TEA & LIBERTY! X\*\*/.test(await ev(() => window.__posts[0] || '')), await ev(() => window.__posts[0]));
 check('the final screen and the report', /TEA & LIBERTY! X/i.test(await ev(() => document.getElementById('f-eyebrow').textContent)) && /\*\*TEA & LIBERTY! X\*\*/.test(await ev(() => document.getElementById('f-text').value)), await ev(() => document.getElementById('f-eyebrow').textContent));
 
 // ---------------------------------------------------------------- blank: a rolled one; too long: 24

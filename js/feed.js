@@ -65,7 +65,8 @@ function once(s, kind) {
   return true;
 }
 
-// The first drop of a new operation. chapter: the campaign chapter it starts at, if it's the campaign.
+// The first drop of a new operation. chapter: the campaign chapter it starts at, if it's the campaign. (0.50.1: no longer posted:
+// one post an operation, at its end. Kept for tests and in case it comes back.)
 export function feedStart(s, settings, chapter = null) {
   if (!s || s.tutorial || !feedOn(settings) || !once(s, 'start')) return false;
   const camp = s.story && chapter ? ` · campaign chapter ${chapter} of ${chapters()}` : '';
@@ -81,9 +82,15 @@ export function feedEnd(s, fin, settings) {
   const d0 = s.difficulty || 1, top = levelReached(s);
   const ch = s.story ? chapterFor(s, n) : null;
   const how = fell ? `fell on mission ${n} (${tEn('fac.' + last.faction)}, ${tEn('out.' + last.outcome)})` : `came home after mission ${n}`;
+  // (0.50.1) the squad names the player typed in (SQUAD NAMES), if any: ship, and the Helldiver's name
+  const N = s.names || {}, sq = [0, 1, 2, 3].map((i) => {
+    const sh = String((N.ships || [])[i] || '').trim(), hd = String((N.hd || [])[i] || '').trim();
+    return sh || hd ? `${'ABCD'[i]}: ${sh ? esc(sh) : 'random ship'}${hd ? ` (${esc(hd)})` : ''}` : '';
+  }).filter(Boolean);
   return post([
     `${fell ? '💀' : '🎖️'} ${opName(s)} is over · ${who(fin ? fin.callsign : s.callsign)} · final score **${fmtNum(s.score)}**`,
+    sq.length ? `Squad · ${sq.join(' · ')}` : '',
     [`${n} mission${n === 1 ? '' : 's'}, ${wins} won`, top > d0 ? `Difficulty ${d0} → ${top} ${tEn(...levelName(top))}` : diff(d0), fmtTime(s.seconds),
       ch ? `campaign chapter ${ch.n} of ${chapters()}` : s.story ? 'past the end of the campaign' : '', how].filter(Boolean).join(' · '),
-  ].join('\n'));
+  ].filter(Boolean).join('\n'));
 }
