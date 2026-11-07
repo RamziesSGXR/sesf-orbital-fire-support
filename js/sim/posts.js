@@ -39,7 +39,7 @@ export const turns = (what) => what !== 'bridge';
 // bonus. The buildings (INSIDE) take their crew in: troopers sent to man one leave their squad and are hidden inside it (selecting
 // the post shows them); they fight from it, and the post takes the hits. Foxholes and bastions are cover: whoever stands in them
 // is the crew, in plain sight.
-export const INSIDE = new Set(['mg', 'lookout', 'tower', 'arty']);
+export const INSIDE = new Set(['mg', 'lookout', 'tower', 'arty', 'site']);     // (0.52: and the work site: its workers)
 // What a crew adds (0 to 1: none to full; full at cap).
 export const crewFrac = (p) => (p.cap ? Math.min(1, p.crew / p.cap) : 0);
 export const postName = (what) => tr('build.' + what);
@@ -386,7 +386,7 @@ export function updatePosts(m, dt) {
     // a squad sent in through the door: whoever of it has got there goes in, until the post is full
     if (inside) {
       // a building: troopers sent to man it go in as they reach it (leaving their squad), until it is full
-      if (p.garrison < (p.cap || 0)) for (const q of m.seaf.squads) {
+      if (p.garrison < (p.cap || 0) && !p.fallen) for (const q of m.seaf.squads) {     // (0.52: a fallen work site takes nobody in)
         if (!q.n || q.order.kind !== 'post' || q.order.post !== p || q.order.garrison === false) continue;
         for (const a of m.seafAlive) {
           if (p.garrison >= p.cap) break;

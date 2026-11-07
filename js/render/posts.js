@@ -92,8 +92,38 @@ export function lzArt(ctx, x, y, R, now, px, busy = false) {
 // How much bigger than its true size a post is drawn when zoomed out: the same as the troopers (render/units.js), so whoever is
 // in a post's places (sim/posts.js) stays inside it at any zoom.
 const grow = (px) => Math.max(1, px(2));
+// (0.52) A work site: a warehouse and a hangar (dressed for its kind), and forklifts running crates between them while anyone works it
+const SITE_COL = { refinery: ['#6b5a3c', '#e89a3a'], salvage: ['#55595e', '#c7c9c4'], lab: ['#2f4f57', '#3de0d0'] };
+function siteArt(ctx, p, now, px) {
+  const [wall, acc] = SITE_COL[p.siteKind] || SITE_COL.salvage, fall = p.fallen, hit = (p.hurtAt ?? -9) > now - 0.12;
+  ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.face);
+  const h = Math.hypot(p.hg.x - p.wh.x, p.hg.y - p.wh.y) / 2;
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(-h - 6.5, -6.5, 2 * h + 13, 13);
+  ctx.fillStyle = 'rgba(150,140,110,0.35)'; ctx.fillRect(-h, -2, 2 * h, 4);                 // the yard between them
+  // the warehouse (its end) and the hangar
+  ctx.fillStyle = fall ? '#2b2b2b' : hit ? '#ffffff' : wall; ctx.fillRect(-h - 5.5, -5, 9, 10); ctx.fillRect(h - 4, -5.5, 9.5, 11);
+  ctx.strokeStyle = fall ? '#555' : acc; ctx.lineWidth = Math.max(0.3, px(1.2));
+  ctx.strokeRect(-h - 5.5, -5, 9, 10); ctx.strokeRect(h - 4, -5.5, 9.5, 11);
+  // its kind: tanks (refinery), scrap (salvage yard), a dome (lab)
+  ctx.fillStyle = fall ? '#3a3a3a' : acc;
+  if (p.siteKind === 'refinery') { ring(ctx, -h - 1, -2.4, 1.8); ctx.fill(); ring(ctx, -h - 1, 2.4, 1.8); ctx.fill(); }
+  else if (p.siteKind === 'lab') { ring(ctx, h + 0.75, 0, 3.2); ctx.globalAlpha = 0.5; ctx.fill(); ctx.globalAlpha = 1; }
+  else { for (let k = 0; k < 4; k++) ctx.fillRect(-h - 4.5 + k * 1.9, -3.5 + (k % 2) * 4, 1.6, 2.4); }
+  // forklifts: one for every two workers, out and back along the yard
+  if (!fall && p.workers > 0) {
+    const n = Math.ceil(p.workers / 2);
+    for (let k = 0; k < n; k++) {
+      const ph = ((now * 0.12 + k / n) % 1), go = ph < 0.5, u = go ? ph * 2 : 2 - ph * 2, xx = -h + 3.5 + u * (2 * h - 7), yy = (k % 2 ? 1.1 : -1.1);
+      ctx.fillStyle = '#ffd24a'; ctx.fillRect(xx - 0.9, yy - 0.6, 1.8, 1.2);
+      if (go) { ctx.fillStyle = acc; ctx.fillRect(xx + 0.9, yy - 0.5, 0.9, 1); }      // a crate on the forks on the way over
+    }
+  }
+  if (fall) { const k = (now * 3) % 1; ctx.fillStyle = `rgba(255,120,40,${0.5 - 0.4 * k})`; ring(ctx, -h, 0, 2 + 2 * k); ctx.fill(); ring(ctx, h, 0, 1.5 + 2 * k); ctx.fill(); }
+  ctx.restore();
+}
 function art(ctx, p, now, px, t) {
   const x = p.x, y = p.y, hit = t - p.hurtAt < 0.12, f = grow(px);
+  if (p.what === 'site') { siteArt(ctx, p, t, px); return; }
   if (p.what === 'bridge') { bridgeArt(ctx, p, now, px); return; }
   if (p.what === 'wire') { const E = p.ends || wireEnds(x, y, p.face0 ?? p.face ?? 0); wireArt(ctx, E[0], E[1], f, p.wireMax ? Math.max(0, p.wireHp) / p.wireMax : 1, !!p.ghost); return; }
   if (p.what === 'lz') { lzArt(ctx, x, y, p.r || 9, now, px, !!p.pel); return; }
@@ -280,6 +310,13 @@ export function drawPosts(ctx, m, now, px, labels, scale, sel) {
     if (p.dead) continue;
     art(ctx, p, now, px, t);
     if (p.what === 'lz') { labels.push({ x: p.x, y: p.y, dy: -p.r * scale - 8, text: `${tr('build.lz').toUpperCase()} · ${lzStatus(m, p)}`, col: '#8fe0ff', pri: 2 }); continue; }
+    if (p.what === 'site') {     // (0.52) the work site: its name and how it stands, always shown
+      if (p !== sel && !p.fallen) useRing(ctx, p.x, p.y, p.r + px(4), px, now);
+      if (p.hp < p.maxHp) hpBar(ctx, p.x, p.y + p.r + px(5), Math.max(10, px(34)), px(3), p.hp / p.maxHp, p.hp > p.maxHp * 0.35 ? '#7dff9b' : '#ff4a4a');
+      if (p.repairing) { const k = (now * 2) % 1; ctx.strokeStyle = `rgba(125,255,155,${1 - k})`; ctx.lineWidth = px(1.5); ring(ctx, p.x, p.y, p.r + px(4 + 6 * k)); ctx.stroke(); }
+      labels.push({ x: p.x, y: p.y, dy: -p.r * scale - 10, text: `${p.name.toUpperCase()} · ${p.fallen ? tr('lab.siteDown') : p.workers ? tr('lab.siteWork', { n: p.workers, c: p.cap }) : tr('lab.siteIdle')}`, col: p.fallen ? '#ff6a4a' : p.workers ? '#ffd24a' : '#c9d6cf', pri: 2 });
+      continue;
+    }
     const R = p.what === 'bastion' || p.what === 'foxhole' ? p.r : p.what === 'bridge' ? 3 : Math.max(4, px(9));     // (0.28: round the whole trench)
     if (p.cap && p !== sel) useRing(ctx, p.x, p.y, R + px(4), px, now);
     if (p.maxHp > 0 && p.hp < p.maxHp) hpBar(ctx, p.x, p.y + R + px(4), Math.max(8, px(26)), px(3), p.hp / p.maxHp, p.hp > p.maxHp * 0.35 ? '#7dff9b' : '#ff4a4a');

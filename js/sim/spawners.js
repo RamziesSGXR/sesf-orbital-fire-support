@@ -1,5 +1,6 @@
 // (0.49) The base overhaul: a base is a cluster of small spawners inside its circle, not one big structure to grind down.
-//   - Two or three spawners (C.bases.spawners), each with its own health: one precision strike takes one out. The base falls
+//   - Two to four spawners (C.bases.spawners, more the bigger the base), each with its own health, spread so that one precision
+//     strike takes one out and never two. The base falls
 //     when the last one does. A hit is taken by the spawners it reaches (a blast) or the nearest one (a shot).
 //   - The base's place is always known, but its layout (how many spawners, where) stays under smoke until an ally sees it or it is
 //     revealed (a radio relay won, a lookout's view); b.seen.
@@ -19,14 +20,24 @@ function lcg(seed) { let s = (seed >>> 0) || 1; return () => ((s = (s * 1664525 
 export function addSpawners(m, b, seed = 0) {
   if (S().off) return null;     // (a switch for tests and tuning: the old single structure)
   const K = S(), r = lcg((seed * 7919 + b.id * 104729) ^ 0x5eed);
-  const n = K.min + Math.floor(r() * (K.max - K.min + 1)), a0 = r() * Math.PI * 2, L = [];
-  for (let k = 0; k < n; k++) {
-    const a = a0 + (k / n) * Math.PI * 2 + (r() - 0.5) * 0.6, d = K.spread * (0.75 + r() * 0.35);
-    let x = b.x + Math.cos(a) * d, y = b.y + Math.sin(a) * d;
-    if (m.terrain && m.terrain.blocked(x, y)) { x = b.x + Math.cos(a) * d * 0.4; y = b.y + Math.sin(a) * d * 0.4; }
-    L.push({ id: `${b.id}.${k}`, x, y, hp: K.hp, maxHp: K.hp, r: K.r, dead: false, k, base: b });     // (its own ids: m.nextId is left as it was)
+  // (0.52) its size, and so how many: a small base has two, the biggest (a 380 barrage across) four; they stand round a ring wide
+  // enough that each is gap metres or more from the next, so one strike (even a precision strike at its top level) takes one
+  let R = K.size[0] + r() * (K.size[1] - K.size[0]);
+  const f = (R - K.size[0]) / Math.max(1, K.size[1] - K.size[0]), n = Math.max(K.min, Math.min(K.max, K.min + Math.floor(f * (K.max - K.min + 1) * 0.999)));
+  const ring = Math.max(K.gap / (2 * Math.sin(Math.PI / n)), R * 0.62);
+  R = Math.max(R, ring + K.r);
+  let L = null;
+  for (let tries = 0; tries < 8 && !L; tries++) {
+    const a0 = r() * Math.PI * 2, out = [];
+    for (let k = 0; k < n; k++) {
+      const a = a0 + (k / n) * Math.PI * 2 + (r() - 0.5) * 0.3, x = b.x + Math.cos(a) * ring, y = b.y + Math.sin(a) * ring;
+      if (m.terrain && m.terrain.blocked(x, y) && tries < 7) break;
+      out.push({ id: `${b.id}.${k}`, x, y, hp: K.hp, maxHp: K.hp, r: K.r, dead: false, k, base: b });     // (its own ids: m.nextId is left as it was)
+    }
+    if (out.length === n && out.every((p, i) => out.every((q, j) => i === j || Math.hypot(p.x - q.x, p.y - q.y) >= K.gap - 0.01))) L = out;
   }
-  b.spawners = L; b.hp = b.maxHp = K.hp * n; b.seen = false; b.trickle = 0;
+  if (!L) { const a0 = r() * Math.PI * 2; L = Array.from({ length: n }, (_, k) => { const a = a0 + (k / n) * Math.PI * 2; return { id: `${b.id}.${k}`, x: b.x + Math.cos(a) * ring, y: b.y + Math.sin(a) * ring, hp: K.hp, maxHp: K.hp, r: K.r, dead: false, k, base: b }; }); }
+  b.spawners = L; b.hp = b.maxHp = K.hp * n; b.seen = false; b.trickle = 0; b.r = Math.round(R);
   return L;
 }
 export const liveSpawners = (b) => (b.spawners || []).filter((s) => !s.dead);
@@ -36,7 +47,8 @@ export const liveSpawners = (b) => (b.spawners || []).filter((s) => !s.dead);
 export function hitSpawners(m, b, dmg, at) {
   const L = liveSpawners(b);
   if (!L.length) return false;
-  if (dmg >= b.hp) { for (const s of L) killSpawner(m, b, s); return true; }     // (a Hellbomb: the lot)
+  // (0.52: no 'a big enough hit takes the lot' any more: a precision strike was enough for it. A Hellbomb takes every spawner its
+  // blast reaches, as any blast does.)
   let hit = [];
   if (at && at.rad !== undefined) hit = L.filter((s) => Math.hypot(s.x - at.x, s.y - at.y) <= at.rad + s.r);
   if (!hit.length) {

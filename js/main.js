@@ -356,7 +356,7 @@ function pickAt(sx, sy) {
   for (const p of m.posts) {
     if (p.dead) continue;
     const trench = p.what === 'foxhole' && p.cap > 3 && p.slots;     // (0.28) a trench is picked anywhere along it
-    take(p, trench ? Math.min(...p.slots.map((q) => Math.hypot(q.x - w.x, q.y - w.y))) : Math.hypot(p.x - w.x, p.y - w.y), p.what === 'bastion' ? Math.max(r, 5) : r + 2);
+    take(p, trench ? Math.min(...p.slots.map((q) => Math.hypot(q.x - w.x, q.y - w.y))) : Math.hypot(p.x - w.x, p.y - w.y), p.what === 'bastion' ? Math.max(r, 5) : p.what === 'site' ? Math.max(r + 2, p.r) : r + 2);     // (0.52: the work site anywhere on its yard)
   }
   for (const s of m.assets) if (!s.dead && s.kind === 'turret') take(s, Math.hypot(s.x - w.x, s.y - w.y), r);
   for (const s of m.coverSites) if (s.kind !== 'built') take(s, Math.hypot(s.x - w.x, s.y - w.y), Math.max(r, s.R * 0.4));
@@ -443,7 +443,7 @@ function doorPin(post, squad) {
 // The selected post's panel sits just above it on the map (and follows it as the camera moves).
 function placeSel(force = false) {
   if (!sel || !mission) return;
-  const R = sel.kind === 'post' ? (sel.what === 'bastion' ? sel.r + 2 : 5) : sel.pieces ? (sel.R || 8) * 0.7 : 5;
+  const R = sel.kind === 'post' ? (sel.what === 'bastion' ? sel.r + 2 : sel.what === 'site' ? sel.r * 0.6 : 5) : sel.pieces ? (sel.R || 8) * 0.7 : 5;
   const q = renderer.worldToScreen(sel.x, sel.y - R, canvas);
   hud.selPop(mission, sel, q ? { x: q.x, y: q.y - 10 } : null, force);
 }

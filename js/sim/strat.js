@@ -2,6 +2,7 @@
 // they put on the map (strikes, zones, sentries, mines, shields, support weapons, the recon vehicle, the exosuit, a guard dog).
 // A Helldiver only calls the stratagems in its own group, from where it stands. Squad-wide items (the recon vehicle, jump
 // packs, resupply) can be called by whichever Helldiver is alive. The player's orbital strikes reuse strikeAt() below.
+import { siteFalls } from './sites.js';
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { STRATS, dealGroups } from '../data/strat.js';
@@ -438,6 +439,7 @@ function land(m, it) {
 
 export function destroyAsset(m, s, why) {
   if (s.dead) return;
+  if (s.kind === 'post' && s.what === 'site') { siteFalls(m, s); return; }     // (0.52) a work site falls, and can be taken back
   if (s.kind === 'post') { postDown(m, s); m.emit('asset_down', { kind: 'post', sid: s.sid, x: s.x, y: s.y, why }); m.emit('boom', { x: s.x, y: s.y, r: 6, dmg: 0, by: 'enemy' }); return; }
   s.dead = true;
   if (s.kind === 'vehicle') {

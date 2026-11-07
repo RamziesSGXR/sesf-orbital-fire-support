@@ -528,7 +528,7 @@ export function updateEnemies(m, dt) {
         if (d2 < bd) { bd = d2; best = a; }
       }
       for (const s of m.assets) {
-        if (s.dead || s.kind === 'mines') continue;
+        if (s.dead || s.kind === 'mines' || s.fallen) continue;     // (0.52: a fallen work site is left)
         const d2 = (s.x - g.cx) ** 2 + (s.y - g.cy) ** 2;
         if (d2 < bd) { bd = d2; best = s; }
       }

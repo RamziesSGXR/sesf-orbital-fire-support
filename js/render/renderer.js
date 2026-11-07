@@ -1461,6 +1461,7 @@ export class Renderer {
     }
     if (m.extraction.revealed) lab(m.extraction.x, m.extraction.y, tr(m.extraction.state === 'open' ? 'lab.extract' : 'lab.extractCalled'), '#ffe600');
     for (const q of m.sides || []) if (!q.done && !q.failed && !q.hidden) lab(q.x, q.y, q.kind === 'radio' ? OPS.radio : q.kind === 'rescue' ? OPS.rescue : q.kind === 'arty' ? OPS.artySite : q.name, q.kind === 'propaganda' || q.kind === 'jammer' || q.kind === 'spore' ? '#ffb020' : '#7fd8ff');
+    if (m.workSite && !m.workSite.dead) lab(m.workSite.x, m.workSite.y, m.workSite.name.toUpperCase(), m.workSite.fallen ? '#ff6a4a' : '#ffd24a');     // (0.52)
     for (const bc of m.beacons || []) if (bc.relit || t < C.beacons.darkSec) lab(bc.x, bc.y, OPS.beacon, '#6fc0ff', 2.2);
     if (m.supply && m.supply.drop) lab(m.supply.drop.x, m.supply.drop.y, tr('lab.supply'), '#9dffb8');
     if (m.hdAlive.length) lab(m.hx, m.hy, tr('lab.squad'), '#e8f6ff', 2.4);
@@ -1550,6 +1551,8 @@ export class Renderer {
     // Placed assets
     c.fillStyle = ac;
     for (const s of m.assets) if (!s.dead && (s.kind === 'turret' || s.kind === 'vehicle')) c.fillRect(s.x * k - 1.5, s.y * k - 1.5, 3, 3);
+    // (0.52) the work site: a gold square (dim while idle, red when it has fallen)
+    if (m.workSite && !m.workSite.dead) { const w = m.workSite, x = w.x * k, y = w.y * k; c.strokeStyle = w.fallen ? '#ff6a4a' : w.workers ? '#ffd24a' : 'rgba(255,210,74,0.6)'; c.lineWidth = 1.6; c.strokeRect(x - 4, y - 3, 8, 6); if (w.workers && !w.fallen) { c.fillStyle = '#ffd24a'; c.fillRect(x - 2, y - 1, 4, 2); } }
     // Side missions: radio towers (a mast), SEAF under fire (a ring); and the SEAF drop beacons (blue while lit)
     for (const q of m.sides || []) {
       if (q.kind === 'propaganda' || q.failed) continue;

@@ -86,6 +86,15 @@ export const CONFIG = {
   // (0.51) Choosing the next mission: offers to pick from, each a bump of bump[0] to bump[1] levels for that mission only (it pays
   // more, as any higher level does: difficulty.js reward, and payPer a level more on top)
   offers:   { n: 3, bump: [1, 3], payPer: 0.15 },     // (payPer: every credit of a bumped mission x (1 + payPer x bump), on top)
+  // (0.52) Work sites (sim/sites.js): cap workers inside, hp (patched up like any post; worked again at retake of it), r across, the
+  // two buildings span metres apart; placed minFromLz to maxFromLz from the landing zone and clear of bases and objectives. Pays
+  // pay credits a worker every payEvery seconds (at the mission's pay). At a full crew: orbital recharge -buff.orb (refinery),
+  // builds -buff.cost (salvage yard), UAV reach +buff.uav and its recharge as much faster (lab). Probes: every every seconds, a
+  // chance of base + perMin a mission minute + perStar an alert rank (at most max), size[0] growing to size[1] over growMin
+  // minutes, from from[0] to from[1] metres out.
+  sites:    { on: true, cap: 6, hp: 2600, r: 16, span: 20, minFromLz: 110, maxFromLz: 380, minFromBase: 170, minFromObj: 150, retake: 0.5, tellSec: 25,
+              pay: 4, payEvery: 10, buff: { orb: 0.3, cost: 0.35, uav: 0.35 },
+              probe: { every: 40, base: 0.12, perMin: 0.025, perStar: 0.1, max: 0.85, size: [2, 6], growMin: 30, from: [110, 170] } },
   coin:     { base: 300, per: 150, max: 4500, old: 750 },
   // (0.50) Leader Command: SEAF within r of a Squad Leader (the bot Commander's jamR, its mirror) fire faster (rof) and hit more
   // often (acc); each level after the first adds rofUp and accUp.
@@ -325,10 +334,10 @@ export const CONFIG = {
               // 1 + (maxSize - 1) x q bases, and is a lone base anyway with chance single x (1 - q); its bases stand from far down to
               // near metres apart as q rises, never closer than gap.
               cluster: { base: 0, perMin: 240, perLevel: 0.05, maxSize: 4, single: 0.45, far: 140, near: 85, gap: 62 },
-              // (0.49) each base is min..max small spawners (sim/spawners.js), spread metres from its middle, hp each (one precision
-              // strike), r across; its troops come out of them one every trickleSec; a heavy may already be in its garrison when
+              // (0.49) each base is min..max small spawners (sim/spawners.js), hp each (one precision strike), r across; (0.52) the base is
+              // size[0] to size[1] m across its middle (the biggest a 380 barrage), more spawners the bigger, gap apart; troops: every trickleSec; a heavy may already be in its garrison when
               // it is first seen: heavy[0] at level 1 to heavy[1] at level 10, never over heavyMax
-              spawners: { min: 2, max: 3, hp: 500, r: 4, spread: 9, trickleSec: 0.6, heavy: [0.08, 0.45], heavyMax: 0.6 } },
+              spawners: { min: 2, max: 4, hp: 500, r: 4, size: [16, 28], gap: 26, trickleSec: 0.6, heavy: [0.08, 0.45], heavyMax: 0.6 } },
   // The big base for the destroy-the-citadel objective.
   // Objective sites under siege (objectives.js siege): while the squad works an objective the enemy calls backup every `every`
   // seconds, down to `minEvery`, with up to `extra` more groups, over rampSec seconds at the site. A call waits (capWait s) while
@@ -567,6 +576,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.51.0',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.52.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };
