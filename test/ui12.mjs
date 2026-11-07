@@ -71,7 +71,7 @@ if (sq) {
   const sq2 = await ev((i) => { const q = window.__game.mission.seaf.squads[i]; return { x: q.cx, y: q.cy }; }, sq.i);
   check('a double tap on a SEAF squad moves the camera to it', Math.hypot(c4.x - sq2.x, c4.y - sq2.y) < 30, `${Math.hypot(c4.x - sq2.x, c4.y - sq2.y).toFixed(0)} m off`);
   await ev(() => window.__game.order('escort', true));
-  await ev(() => { const m = window.__game.mission; for (let i = 0; i < 30 * 70; i++) { for (const a of m.seafAlive) a.hp = a.maxHp; m.step(1 / 30); } });     // (kept alive: this checks the order's label)
+  await ev(() => { const m = window.__game.mission; for (let i = 0; i < 30 * 70; i++) { for (const a of m.seafAlive) a.hp = a.maxHp = 1e6; m.step(1 / 30); } });     // (kept alive: this checks the order's label; 0.49: a tank shell can't one-shot them either)
   await page.waitForTimeout(400);
   const esc = await ev(() => document.querySelector('#orders .ord[data-o="escort"] .s').textContent);
   check('an escort order shows no timer and is still on after 70 s', /ACTIVE/i.test(esc), esc);
