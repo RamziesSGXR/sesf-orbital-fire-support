@@ -1965,7 +1965,7 @@ export default {
   'title.menu': 'Menú principal',
   'title.campaign': 'CAMPAÑA',
   'title.inDev': 'EN DESARROLLO',
-  'title.campaignSub': 'La Operación Freedom Vista, capítulo a capítulo. Tu progreso se guarda en este navegador',
+  'title.campaignSub': 'La Operación Sweet Liberty, capítulo a capítulo. Tu progreso se guarda en este navegador',
   'title.tutSub': 'Aprende los controles en una breve última defensa',
   'title.namesSub': 'Pon nombre a tus cuatro Helldivers',
   'title.setSub': 'Sonido, diseño, idioma y más',
@@ -2193,7 +2193,7 @@ export default {
   'cp.cast': 'MANDO',
   'cine.brief': 'SESIÓN INFORMATIVA',
   'cine.debrief': 'INFORME',
-  'cine.chapter': 'OPERACIÓN FREEDOM VISTA · CAPÍTULO {n}: {name}',
+  'cine.chapter': 'OPERACIÓN SWEET LIBERTY · CAPÍTULO {n}: {name}',
   'cast.start': [
     'ktl|Líder Phantom al destructor. Los Helldivers están en aproximación final y las SEAF aguantan hasta que aterricen. Mantén limpia la zona de caída.',
     'ktl|Aquí KTL. El General lo quiere rápido y bien hecho. Despeja la zona de aterrizaje, artillero.',

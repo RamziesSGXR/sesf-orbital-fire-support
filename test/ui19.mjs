@@ -176,6 +176,15 @@ check('the waves come faster and stronger, and personnel get out', h2.waves >= 6
 const lv = await ev(() => ({ lv: window.__game.mission.ls.level, diff: document.getElementById('mb-diff').textContent }));
 check('(0.19.5) the difficulty climbs with the waves, a level every 25 s, and the clock box shows it (from 3 since 0.36.1)', lv.lv === 5 && /DIFFICULTY 5/.test(lv.diff), JSON.stringify(lv));
 await shot('hold');
+// (0.53) at 70 off Mars it is MISSION COMPLETE: the game holds and asks: fight on, the campaign, or the main menu
+await ev(() => { const m = window.__game.mission, o = m.objectives[0]; o.saved = Math.max(70, o.saved); for (let i = 0; i < 3; i++) m.step(1 / 30); }); await page.waitForTimeout(900);
+const won = await ev(() => ({ on: !document.getElementById('ask').classList.contains('hidden'), t: document.querySelector('#ask .ask-t').textContent, b: [...document.querySelectorAll('#ask .ask-b .btn')].map((b) => b.textContent) }));
+check('(0.53) at 70 off Mars: MISSION COMPLETE, and it asks: fight on, to the campaign, or the main menu', won.on && /MISSION COMPLETE/.test(won.t) && won.b.length === 3 && /FIGHT ON/.test(won.b[0]), JSON.stringify(won));
+check('(0.53) ...with the game held while it asks', await frozen());
+check('(0.53) ...and the tutorial counts as done', await ev(() => localStorage.getItem('ofs.tutDone') === 'true'));
+await shot('won');
+await ev(() => document.querySelector('#ask .ask-b .btn').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))); await page.waitForTimeout(300);
+check('(0.53) FIGHT ON: the hold goes on', !(await frozen()) && await ev(() => document.getElementById('ask').classList.contains('hidden')));
 // (0.40) at 100 off Mars Tharsis Control stops the game to say it: they will not all get off
 await ev(() => { const m = window.__game.mission, o = m.objectives[0]; o.saved = Math.max(100, o.saved); for (let i = 0; i < 3; i++) m.step(1 / 30); }); await page.waitForTimeout(900);
 c = await card();

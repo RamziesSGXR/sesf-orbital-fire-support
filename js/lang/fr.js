@@ -1965,7 +1965,7 @@ export default {
   'title.menu': 'Menu principal',
   'title.campaign': 'CAMPAGNE',
   'title.inDev': 'EN DÉVELOPPEMENT',
-  'title.campaignSub': 'L’opération Freedom Vista, chapitre par chapitre. Votre progression est gardée dans ce navigateur',
+  'title.campaignSub': 'L’opération Sweet Liberty, chapitre par chapitre. Votre progression est gardée dans ce navigateur',
   'title.tutSub': 'Apprenez les commandes dans un court dernier carré',
   'title.namesSub': 'Nommez vos quatre Helldivers',
   'title.setSub': 'Son, disposition, langue et plus',
@@ -2193,7 +2193,7 @@ export default {
   'cp.cast': 'COMMANDEMENT',
   'cine.brief': 'BRIEFING',
   'cine.debrief': 'DÉBRIEFING',
-  'cine.chapter': 'OPÉRATION FREEDOM VISTA · CHAPITRE {n} : {name}',
+  'cine.chapter': 'OPÉRATION SWEET LIBERTY · CHAPITRE {n} : {name}',
   'cast.start': [
     'ktl|Chef Phantom au destroyer. Les Helldivers sont en approche finale et les SEAF tiennent jusqu’à leur atterrissage. Gardez la zone de largage propre.',
     'ktl|Ici KTL. Le général veut que ce soit rapide et bien fait. Dégagez la zone d’atterrissage, artilleur.',

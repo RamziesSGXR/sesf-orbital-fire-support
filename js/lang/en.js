@@ -1965,7 +1965,7 @@ export default {
   'title.menu': 'Main menu',
   'title.campaign': 'CAMPAIGN',
   'title.inDev': 'IN DEVELOPMENT',
-  'title.campaignSub': 'Operation Freedom Vista, chapter by chapter. Your progress is kept on this browser',
+  'title.campaignSub': 'Operation Sweet Liberty, chapter by chapter. Your progress is kept on this browser',
   'title.tutSub': 'Learn the controls in a short last stand',
   'title.namesSub': 'Name your four Helldivers',
   'title.setSub': 'Sound, layout, language and more',
@@ -2193,7 +2193,7 @@ export default {
   'cp.cast': 'COMMAND',
   'cine.brief': 'BRIEFING',
   'cine.debrief': 'DEBRIEF',
-  'cine.chapter': 'OPERATION FREEDOM VISTA · CHAPTER {n}: {name}',
+  'cine.chapter': 'OPERATION SWEET LIBERTY · CHAPTER {n}: {name}',
   'cast.start': [
     'ktl|Phantom lead to destroyer. Helldivers are on final approach and SEAF holds until they land. Keep the drop zone clean.',
     'ktl|KTL here. The General wants this done fast and done right. Clear the landing zone, gunner.',
