@@ -86,9 +86,10 @@ export function hideOverlays() { for (const o of OVERLAYS) overlay(o, false); }
 // h.arm: the button waiting for a second tap ('save2', 'load1', 'del3'); h.replaces(n): 'camp' | 'quick' when loading slot n would
 // replace a run under way; h.mid: saving during a mission (the run as it was at the drop).
 export function fillSaves(mode, slots, h) {
-  const save = mode === 'save';
-  $('sv-h').textContent = t(save ? 'sv.saveH' : 'sv.loadH');
-  $('sv-intro').textContent = save ? t(h.mid ? 'sv.saveMid' : 'sv.saveNote') : t(slots.some(Boolean) ? 'sv.loadNote' : 'sv.none');
+  const auto = mode === 'auto', save = mode === 'save' || auto;      // (0.46) 'auto': every slot is in use as a new operation drops
+  $('sv-h').textContent = t(auto ? 'sv.autoH' : save ? 'sv.saveH' : 'sv.loadH');
+  $('sv-intro').textContent = auto ? t('sv.autoNote') : save ? t(h.mid ? 'sv.saveMid' : 'sv.saveNote') : t(slots.some(Boolean) ? 'sv.loadNote' : 'sv.none');
+  $('sv-skip').onclick = () => h.onSkip && h.onSkip();
   $('sv-note').textContent = h.note || '';
   const ol = $('sv-list'); ol.innerHTML = '';
   const when = (at) => { try { return new Date(at).toLocaleString(getLang(), { dateStyle: 'medium', timeStyle: 'short' }); } catch { return new Date(at).toLocaleString(); } };

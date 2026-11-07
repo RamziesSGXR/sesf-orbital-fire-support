@@ -1317,7 +1317,7 @@ export default {
   // (0.41) save slots
   'title.load': 'LOAD GAME',
   'title.loadSub': '{n} of {of} save slots in use',
-  'title.loadNone': 'Save an operation from the menu to keep it here',
+  'title.loadNone': 'Your operations save themselves here after every mission',
   'pause.save': 'SAVE GAME',
   'sv.close': 'Close',
   'sv.saveH': 'SAVE GAME',
@@ -1325,7 +1325,7 @@ export default {
   'sv.saveNote': 'Saves your operation as it stands now, between missions. Once it is in a slot, it saves itself there again after every mission.',
   'sv.saveMid': 'Saves your operation as it was at the start of this mission: load it and this mission starts over. Once it is in a slot, it saves itself there again after every mission.',
   'sv.loadNote': 'Pick up an operation where it was saved. It carries on from the armory, before its next mission.',
-  'sv.none': 'No saves yet. SAVE GAME is in the menu during an operation.',
+  'sv.none': 'No saves yet. Every operation saves itself to a free slot after each mission.',
   'sv.slot': 'SLOT {n}',
   'sv.cur': 'THIS OPERATION',
   'sv.empty': 'Empty',
@@ -1345,6 +1345,10 @@ export default {
   'sv.saved': 'Saved to slot {n}.',
   'sv.deleted': 'Slot {n} cleared.',
   'sv.fail': 'Could not save: this browser is not keeping data for the game.',
+  'sv.autoH': 'SAVE SLOTS FULL',
+  'sv.autoNote': 'Every operation saves itself after each mission, and all three slots are in use. Pick one to overwrite, or deploy without saving.',
+  'sv.skip': 'DEPLOY WITHOUT SAVING',
+  'sv.autoSaved': 'Operation saved to slot {n}.',
   'pause.homeConfirm': 'Back to the main menu? This mission will not count: your operation goes back to how it was at the drop, and the same mission waits for you when you resume. Tap again to confirm.',
   // ---------- 0.17.2: tips over the picked button ----------
   'tip.dmg': '{n} DMG',

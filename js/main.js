@@ -832,7 +832,7 @@ function beginSession(resume, key = 'session') {
 }
 
 // The armory: before every mission. Buy and equip orbitals, UAV, SEAF and squad upgrades with the session's credits.
-function goShop(focus = false) {
+function goShop(focus = false, note) {
   if (briefCtl) { briefCtl.cancel(); briefCtl = null; }
   state = 'shop'; mission = null; paused = false; audio.humStop(); hud.reset(); setPlacing(null); setHideUi(false); $('s-pause').classList.remove('out');
   UI.hideOverlays(); UI.showScreen('s-shop');
@@ -841,7 +841,7 @@ function goShop(focus = false) {
   $('shop-go').textContent = t('arm.deploy', { n });
   if (BOT) botShop(session.kit, session.wallet);
   coinMode = false; endLabels();
-  drawShop(undefined, focus);
+  drawShop(note, focus);
 }
 // (0.37) QUICK PLAY's run and the campaign's are kept apart, so starting one never loses the other
 const runKey = (s) => (s && s.story ? 'campRun' : 'session');
@@ -851,6 +851,16 @@ const runKey = (s) => (s && s.story ? 'campRun' : 'session');
 function keptRun() {
   if (state === 'play' && mission && !mission.over && startSnap) return JSON.parse(startSnap);
   return session;
+}
+// (0.46) Every operation saves itself: one with no slot takes the first free one before it drops (persist() then writes it after
+// every mission). false: every slot is in use, so the player is asked (LOAD GAME's list, mode 'auto') which to overwrite, or to
+// deploy without saving (session.noSave, so it isn't asked again).
+function autoSlot() {
+  if (!session || session.tutorial || BOT || session.slot || session.noSave) return true;
+  const free = S.getSlots().findIndex((x) => !x);
+  if (free < 0) return false;
+  session.slot = free + 1;
+  return true;
 }
 function persist() {
   if (!session || session.tutorial) return;
@@ -996,6 +1006,7 @@ const BIOME_OK = (b) => ['ice', 'grass', 'desert', 'jungle', 'moon', 'mars'].inc
 function deploy() {
   audio.unlock();
   holdMission();     // (0.41) the run is kept as it is now, with this mission waiting in it, until the mission is over
+  if (session.feed == null && !session.tutorial) session.feed = 1;     // (0.46) a run from before 0.43 (no flag yet): its next drop posts the start
   if (session.feed === 1) { session.feed = 2; if (!BOT) feedStart(session, settings, info.chapter); }     // (0.43) before the snapshot, so a retry never posts it again
   startSnap = JSON.stringify(session);      // what RETRY MISSION puts back: credits, kit, score and time as they were at the drop
   persist();
@@ -1154,7 +1165,9 @@ function finishMission() {
     ms = { k: t1, of: TIER_MAX, done: doneN(session), bonus, names, next: C.ranks.at[t1] || 0, level: S.levelNow(session) };     // (0.31: and the next mission's level)
   }
   // Extracted, or the primary objective done: the session goes on. A failed mission ends it, unless the player retries it.
-  if (S.carriesOn(res.outcome)) persist(); else S.drop(runKey(session));
+  // (0.46) A failed mission ends the operation: its slot is cleared too, so an ended operation can't be loaded again. RETRY
+  // MISSION saves it back (the run keeps its slot number), so a retried mission is still kept.
+  if (S.carriesOn(res.outcome)) persist(); else { S.drop(runKey(session)); if (session.slot) S.clearSlot(session.slot); }
   // (0.37) a campaign chapter cleared: kept on this browser, with the run as it stands, to carry on from (or replay the next)
   if (session.story && info.chapter && S.carriesOn(res.outcome)) S.chapterCleared(session, info.chapter);
   retryArm = false;
@@ -1211,6 +1224,7 @@ function endSession(byChoice = false) {
   lastFin = { fin, block };
   UI.fillFinal(session, fin, block, coin);
   S.drop(runKey(session));
+  if (session.slot) { S.clearSlot(session.slot); drawLoadBtn(); }     // (0.46) an ended operation leaves its slot empty
   UI.showScreen('s-final');
 }
 
@@ -1383,6 +1397,7 @@ function drawSaves() {
     onSave: (n) => {
       if (slots[n - 1] && svArm !== `save${n}`) { svArm = `save${n}`; svNote = ''; audio.click(); drawSaves(); return; }
       svArm = null;
+      if (svMode === 'auto') { session.slot = n; UI.overlay('s-saves', false); audio.click(); persist(); goBrief(); return; }     // (0.46) on to the drop
       const ok = S.putSlot(n, runKey(session), keptRun());
       if (ok) { session.slot = n; persist(); audio.ready(); svNote = t('sv.saved', { n }); } else { audio.deny(); svNote = t('sv.fail'); }
       drawSaves();
@@ -1396,6 +1411,7 @@ function drawSaves() {
       UI.overlay('s-saves', false);
       beginSession(true, s.key);
     },
+    onSkip: () => { session.noSave = true; UI.overlay('s-saves', false); audio.click(); persist(); goBrief(); },     // (0.46) deploy without saving
     onDelete: (n) => {
       if (svArm !== `del${n}`) { svArm = `del${n}`; svNote = ''; audio.click(); drawSaves(); return; }
       svArm = null; S.clearSlot(n);
@@ -1409,6 +1425,7 @@ function openSaves(mode) {
   svMode = mode; svArm = null; svNote = '';
   if (mode === 'save') UI.overlay('s-pause', false);
   drawSaves();
+  $('sv-skip').classList.toggle('hidden', mode !== 'auto');
   UI.overlay('s-saves', true);
 }
 function closeSaves() {
@@ -1504,6 +1521,7 @@ $('names-clear').onclick = () => UI.clearNames();
 $('shop-go').onclick = () => {
   audio.unlock();
   if (!loadoutIds(session.kit).length) { audio.deny(); drawShop(t('arm.needOrb')); return; }
+  if (!autoSlot()) { audio.click(); openSaves('auto'); return; }      // (0.46) every slot in use: ask which to overwrite
   audio.click(); persist(); goBrief();
 };
 $('btn-resume-m').onclick = () => togglePause(false);
@@ -1529,7 +1547,7 @@ $('btn-abort').onclick = () => {
   mission.retire();
   if (mission.ls) finishLastStand(); else finishMission();
 };
-$('btn-continue').onclick = () => { audio.click(); if (lastRes && S.carriesOn(lastRes.outcome)) goShop(); else endSession(); };
+$('btn-continue').onclick = () => { audio.click(); if (lastRes && S.carriesOn(lastRes.outcome)) goShop(false, session.slot ? t('sv.autoSaved', { n: session.slot }) : undefined); else endSession(); };
 $('btn-retry').onclick = () => retryMission();
 $('btn-end-d').onclick = () => endTap('btn-end-d', () => endSession(true));
 $('shop-end').onclick = () => { audio.unlock(); endTap('shop-end', () => endSession(true)); };     // (0.44)
@@ -1557,6 +1575,14 @@ $('btn-share').onclick = async () => { try { await navigator.share({ text: $('f-
 $('callsign').value = S.load('callsign', '');
 { const old = S.load('session', null); if (old && old.story && !S.load('campRun', null)) { S.save('campRun', old); S.drop('session'); } }     // (0.37: runs from before are kept apart)
 document.addEventListener('visibilitychange', () => { if (document.hidden && live()) togglePause(true); });
+// (0.46) A failed mission ends the operation unless it is retried. If the page is closed or put away on that debrief, before
+// CONTINUE, the SESF feed still hears it ended (fetch keepalive outlives the page).
+function failedOut() {
+  if (state !== 'debrief' || !session || BOT || !lastRes || S.carriesOn(lastRes.outcome) || session.feed === 3) return;
+  session.feed = 3; feedEnd(session, null, settings);
+}
+window.addEventListener('pagehide', failedOut);
+document.addEventListener('visibilitychange', () => { if (document.hidden) failedOut(); });
 if (window.visualViewport) window.visualViewport.addEventListener('resize', () => applyLayout());     // (0.42: the browser's toolbars come and go)
 // (0.42) MAP on a phone: the minimap opens, or folds away again (kept in the settings)
 $('btn-mini').addEventListener('click', (e) => { e.stopPropagation(); audio.click(); settings.miniOpen = !settings.miniOpen; S.save('settings', settings); applyLayout(); if (state === 'play') { hud.layout(true); hud.layout(true); } if (tut) tut.poke(); });

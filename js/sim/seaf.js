@@ -46,7 +46,7 @@ function walk(m, a, tx, ty, speed, dt) {
   tx = w.x; ty = w.y;
   const dx = tx - a.x, dy = ty - a.y, d = Math.hypot(dx, dy);
   if (d < 0.05) return 0;
-  const brace = a.role === 'spec' && m.t < (a.braceUntil || 0) ? C.seaf.braceMul : 1;     // (0.26) a Specialist firing the MG-43 is braced
+  const brace = a.role === 'spec' && !a.forced && m.t < (a.braceUntil || 0) ? C.seaf.braceMul : 1;     // (0.26) a Specialist firing the MG-43 is braced (0.46: not on a forced move)
   const s = Math.min(speed * speedMul(m, a) * brace * dt, d), nx = a.x + (dx / d) * s, ny = a.y + (dy / d) * s;
   if (!canStep(m, a, nx, ny)) return 0;
   a.x = nx; a.y = ny;
@@ -130,16 +130,21 @@ export function mergeSquads(m, list) {
 export const squadCount = (m, i) => { let n = 0; for (const a of m.seafAlive) if (a.sq === i) n++; return n; };
 export function squadMembers(m, i) { return m.seafAlive.filter((a) => a.sq === i); }
 
-// The squad a new drop joins: the selected one, or the smallest when every squad is selected.
-export function dropSquad(m) {
+// The squad a new drop joins. (0.46) Always a squad of its own while there is a free one, whatever squad is selected (it used to
+// join the selected squad and take on its orders, such as escorting the Helldivers, even when it landed across the map). With all
+// of them in use, the squad nearest the drop (x, y), so it doesn't run off across the map to join one.
+export function dropSquad(m, x = null, y = null) {
   const sf = m.seaf;
-  if (sf.sel >= 0) return sf.sel;
-  if (sf.multi && sf.multi.length) return sf.multi.slice().sort((a, b) => squadCount(m, a) + pendingFor(m, a) - squadCount(m, b) - pendingFor(m, b))[0];     // (0.22: the smallest of those picked)
-  // (0.18) a drop comes down as a squad of its own while there is a free one
   const free = sf.squads.find((q) => squadCount(m, q.i) === 0 && pendingFor(m, q.i) === 0);
   if (free) { free.order = newOrder(); free.form = null; return free.i; }
-  let best = 0, bn = Infinity;
-  for (const q of sf.squads) { const n = squadCount(m, q.i) + pendingFor(m, q.i); if (n < bn || (n === bn && q.i < best)) { bn = n; best = q.i; } }
+  let best = 0, bd = Infinity;
+  for (const q of sf.squads) {
+    const list = squadMembers(m, q.i);
+    let d;
+    if (x != null && list.length) { let cx = 0, cy = 0; for (const a of list) { cx += a.x; cy += a.y; } d = Math.hypot(cx / list.length - x, cy / list.length - y); }
+    else d = 1e6 + squadCount(m, q.i) + pendingFor(m, q.i);
+    if (d < bd) { bd = d; best = q.i; }
+  }
   return best;
 }
 function pendingFor(m, i) { let n = 0; for (const p of m.pelicans) if (p.squad === i) n += p.roles.length - p.dropped; return n; }
@@ -339,11 +344,11 @@ export function updatePelicans(m, dt) {
         if (p.cargo.landed && p.hoverT <= 0) { p.state = 'out'; p.outT = 0; }
         continue;
       }
-      if (p.dropped < p.roles.length && p.dropT <= 0) {
+      // (0.46) the whole load gets off at once (it used to be one trooper at a time over the pelican's work time)
+      while (p.dropped < p.roles.length && p.dropT <= 0) {
         const role = p.roles[p.dropped++], ang = m.rng.angle(), d = m.rng.range(4, 12);
         const a = m.addAlly('S', p.x + Math.cos(ang) * d, p.y + Math.sin(ang) * d, { role });
         a.sq = p.squad;
-        p.dropT = p.dropEvery || 0.3;
         m.emit('pelican_drop', { x: a.x, y: a.y, role });
       }
       if (p.dropped >= p.roles.length && p.hoverT <= 0) {
@@ -673,12 +678,13 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
   // Building: everyone goes to the crate (buildSteps, after the squads, does the work).
   if (o.kind === 'build' && o.crate && o.crate.used) { setSquadOrder(m, q, 'protect', o.x, o.y); }
 
-  // A drawn route: an anchor runs the waypoints and the squad follows it, stopping to fight when engaged.
+  // A drawn route: an anchor runs the waypoints and the squad follows it. (0.46) A route is a forced move: the squad fires on the
+  // go and doesn't stop to fight; the anchor only waits for stragglers.
   let anchorWait = false;
   if (o.kind === 'path') {
-    let far = 0, eng = false;
-    for (const a of list) { far = Math.max(far, Math.hypot(a.x - q.ax, a.y - q.ay)); if (eng || eg.nearest(a.x, a.y, C.squad.engageRange)) eng = true; }
-    anchorWait = eng || far > 26;
+    let far = 0;
+    for (const a of list) far = Math.max(far, Math.hypot(a.x - q.ax, a.y - q.ay));
+    anchorWait = far > 26;
     if (!anchorWait) {
       const w = o.path[o.pi];
       if (w) {
@@ -691,13 +697,18 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
   const holdSite = hold ? siteAt(m, o.x, o.y, 4) : null;
   if (o.kind === 'post' || holdSite) list.sort((a, b) => a.id - b.id);     // (everyone keeps the same place)
   for (const a of list) {
-    if (o.kind === 'line' || o.kind === 'ring') continue;   // formations are placed together afterwards
+    if (o.kind === 'line' || o.kind === 'ring') { a.forced = false; continue; }   // formations are placed together afterwards
     // (a squad sent to build only stops for an enemy right on top of it: it shoots from the crate and keeps working)
     const en = eg.nearest(a.x, a.y, (o.kind === 'attack' && !o.held) || o.kind === 'build' ? 14 : C.squad.engageRange);
     a.engaged = !!en;
+    // (0.46) A player's move order (a move, or a drawn route) is a forced move: they keep going and fire on the go (the rifles
+    // fire whether or not they walk, enemies.js updateAllies), and only stop and fight once they are there. So a move order
+    // pulls a squad out of a fight. Auto, attack, protect and the rest still stop to fight what they meet.
+    const fo0 = o.kind === 'move' ? formOff(q, a, list.indexOf(a), list.length) : null;
+    a.forced = o.kind === 'path' || (o.kind === 'move' && Math.hypot(o.x + fo0.x - a.x, o.y + fo0.y - a.y) > 6);
     // stand and fight, unless the order is a post or walls to hold: then they get back to their place and fight from it
     // (nobody leaves cover to chase a target)
-    if (en && o.kind !== 'post' && !holdSite) {
+    if (en && !a.forced && o.kind !== 'post' && !holdSite) {
       // (0.26) Riflemen (and the Squad Leader) in a fight go for cover if there is some close by: a wall, a foxhole, a rock line
       const cv = (a.role === 'rifle' || a.role === 'leader') ? siteAt(m, a.x, a.y, C.seaf.coverSeek) : null;
       if (!cv || !cv.pieces || !cv.pieces.length) continue;
@@ -866,7 +877,7 @@ export function toSquad(m, to) {
 export function disband(m) {
   const sf = m.seaf, list = sf.sel === -1 ? [] : selectedTroops(m);
   if (!list.length) return { ok: false, reason: 'none' };
-  for (const a of list) a.sq = LOOSE;
+  for (const a of list) { a.sq = LOOSE; a.forced = false; }
   sf.sel = -1; sf.pick = null; sf.multi = null;
   recount(m);
   return { ok: true, n: list.length };

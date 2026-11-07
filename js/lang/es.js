@@ -1317,7 +1317,7 @@ export default {
   // (0.41) ranuras de guardado
   'title.load': 'CARGAR PARTIDA',
   'title.loadSub': '{n} de {of} ranuras en uso',
-  'title.loadNone': 'Guarda una operación desde el menú para tenerla aquí',
+  'title.loadNone': 'Tus operaciones se guardan aquí solas después de cada misión',
   'pause.save': 'GUARDAR PARTIDA',
   'sv.close': 'Cerrar',
   'sv.saveH': 'GUARDAR PARTIDA',
@@ -1325,7 +1325,7 @@ export default {
   'sv.saveNote': 'Guarda tu operación tal como está ahora, entre misiones. Una vez en una ranura, se vuelve a guardar en ella después de cada misión.',
   'sv.saveMid': 'Guarda tu operación tal como estaba al empezar esta misión: al cargarla, esta misión empieza de nuevo. Una vez en una ranura, se vuelve a guardar en ella después de cada misión.',
   'sv.loadNote': 'Retoma una operación donde se guardó. Sigue desde el arsenal, antes de su próxima misión.',
-  'sv.none': 'Aún no hay partidas guardadas. GUARDAR PARTIDA está en el menú durante una operación.',
+  'sv.none': 'Aún no hay partidas guardadas. Cada operación se guarda sola en una ranura libre después de cada misión.',
   'sv.slot': 'RANURA {n}',
   'sv.cur': 'ESTA OPERACIÓN',
   'sv.empty': 'Vacía',
@@ -1345,6 +1345,10 @@ export default {
   'sv.saved': 'Guardada en la ranura {n}.',
   'sv.deleted': 'Ranura {n} borrada.',
   'sv.fail': 'No se pudo guardar: este navegador no está guardando datos del juego.',
+  'sv.autoH': 'RANURAS LLENAS',
+  'sv.autoNote': 'Cada operación se guarda sola después de cada misión, y las tres ranuras están ocupadas. Elige una para sobrescribir, o despliega sin guardar.',
+  'sv.skip': 'DESPLEGAR SIN GUARDAR',
+  'sv.autoSaved': 'Operación guardada en la ranura {n}.',
   'pause.homeConfirm': '¿Volver al menú principal? Esta misión no contará: tu operación vuelve a como estaba en el despliegue, y la misma misión te espera cuando continúes. Toca otra vez para confirmar.',
   // ---------- 0.17.2: tips over the picked button ----------
   'tip.dmg': '{n} DAÑO',

@@ -29,10 +29,10 @@ const rows = () => ev(() => [...document.querySelectorAll('#sv-list .sv-slot')].
 const slotBtn = (n, i = 0) => `#sv-list .sv-slot:nth-child(${n}) .sv-acts button:nth-child(${i + 1})`;
 
 // ---------------------------------------------------------------- the title: LOAD GAME, nothing saved yet
-check('the title has LOAD GAME, saying nothing is saved yet', await page.isVisible('#btn-load-t') && /Save an operation from the menu/.test(await ev(() => document.getElementById('tt-load-sub').textContent)));
+check('the title has LOAD GAME, saying nothing is saved yet', await page.isVisible('#btn-load-t') && /save themselves here/.test(await ev(() => document.getElementById('tt-load-sub').textContent)));
 await tap('#btn-load-t'); await page.waitForTimeout(300);
 let r = await rows();
-check('LOAD GAME shows three empty slots and says how to save', await page.isVisible('#s-saves') && r.length === 3 && r.every((x) => x.empty && !x.btns.length) && /No saves yet/.test(await ev(() => document.getElementById('sv-intro').textContent)), JSON.stringify(r.map((x) => x.txt)));
+check('LOAD GAME shows three empty slots and says how saving works', await page.isVisible('#s-saves') && r.length === 3 && r.every((x) => x.empty && !x.btns.length) && /No saves yet/.test(await ev(() => document.getElementById('sv-intro').textContent)), JSON.stringify(r.map((x) => x.txt)));
 await tap('#sv-back'); await page.waitForTimeout(200);
 
 // ---------------------------------------------------------------- a QUICK PLAY operation: save it from the armory's menu
@@ -78,7 +78,7 @@ check('the mission won: the operation saves itself to its slot (slot 1 now), one
 const bal1 = await ev(() => window.__game.session.wallet.bal);
 if (await page.isVisible('#ms-later')) { await tap('#ms-later'); await page.waitForTimeout(300); }     // (the rank splash)
 
-// ---------------------------------------------------------------- a failed mission leaves the slot as it was
+// ---------------------------------------------------------------- (0.46) a failed mission ends the operation and clears its slot; RETRY MISSION brings it back
 await ev(() => document.getElementById('btn-continue').click()); await page.waitForTimeout(500);
 await tap('#shop-go');
 await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
@@ -86,7 +86,10 @@ await tap('#b-continue'); await page.waitForTimeout(1000);
 await ev(() => window.__game.mission.finish('defeat'));
 await page.waitForFunction(() => document.getElementById('s-debrief').classList.contains('on'), null, { timeout: 30000 }); await page.waitForTimeout(500);
 S = await slots();
-check('a failed mission leaves the slot as it was at that mission\'s drop (one mission done), to load and try again', S[0] && S[0].run.missions.length === 1 && S[0].run.held && S[0].run.held.n === 2 && S[0].run.wallet.bal === bal1, S[0] && `${S[0].run.missions.length} done, held ${S[0].run.held && S[0].run.held.n}`);
+check('a failed mission clears its slot (the operation is over unless it is retried)', !S[0] && S[1], JSON.stringify(S.map((x) => x && x.run.missions.length)));
+await ev(() => window.__game.retryMission()); await page.waitForTimeout(150); await ev(() => window.__game.retryMission()); await page.waitForTimeout(600);
+S = await slots();
+check('...RETRY MISSION puts it back as it was at that mission\'s drop (one mission done)', S[0] && S[0].run.missions.length === 1 && S[0].run.held && S[0].run.held.n === 2 && S[0].run.wallet.bal === bal1, S[0] && `${S[0].run.missions.length} done, held ${S[0].run.held && S[0].run.held.n}`);
 
 // ---------------------------------------------------------------- back on the title (a reload): LOAD GAME
 const heldSeed = S[0].run.held.info.seed;
