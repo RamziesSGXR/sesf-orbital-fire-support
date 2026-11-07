@@ -3,7 +3,7 @@
 // and fires on its own, shot after shot, while the enemy comes down on it harder and harder (the siege of a held site, and drops
 // straight at it). Each shot takes a part of the mothership; the last brings it down and the objective is done. The gun is an
 // ally the enemy shoots at (in m.assets): it can be patched up (SEAF at it, nothing shooting, as any post), and if it falls the
-// mission is lost.
+// mission is lost. Until the squad reaches it, it is shut down under its armour: the enemy leaves it alone and nothing hurts it.
 import { CONFIG as C } from '../config.js';
 import { t as tr } from '../i18n.js';
 import { spawnGroup, unseenSpot } from './director.js';
@@ -13,7 +13,7 @@ const squadAt = (m, x, y, r) => m.hdAlive.some((a) => !a.mounted && (a.x - x) **
 
 export function setupGun(m, p) {
   const G = K();
-  const gun = { id: m.nextId++, kind: 'defgun', sid: 'defgun', x: p.x, y: p.y, r: G.r, hp: G.hp, maxHp: G.hp, dead: false, hurtAt: -9, aim: -Math.PI / 2, firedAt: -99, charge: 0 };
+  const gun = { id: m.nextId++, kind: 'defgun', sid: 'defgun', x: p.x, y: p.y, r: G.r, hp: G.hp, maxHp: G.hp, dead: false, hurtAt: -9, aim: -Math.PI / 2, firedAt: -99, charge: 0, dormant: true };     // (shut down until the squad gets there)
   m.assets.push(gun);
   return { type: 'gun', state: 'travel', x: p.x, y: p.y, r: G.zone, gun, shots: 0, need: G.shots, ship: { hp: G.shots, x: p.x + G.shipOff[0], y: p.y + G.shipOff[1] }, dropT: G.dropFirst,
     get text() { return tr('c.obj.gun'); } };
@@ -25,7 +25,7 @@ export function updateGun(m, o, dt, fns) {
     if (!o.lost) { o.lost = true; m.notice(tr('n.gunDown'), 'bad'); m.radio(tr('c.gun.down'), 'gundown', 0); m.emit('gun_down', { x: g.x, y: g.y }); m.finish('defeat'); }
     return;
   }
-  if (o.state === 'travel') { if (squadAt(m, o.x, o.y, o.r)) fns.startSetup(m, o); return; }
+  if (o.state === 'travel') { if (squadAt(m, o.x, o.y, o.r)) { g.dormant = false; fns.startSetup(m, o); } return; }
   if (o.state === 'setup') {
     o.setupT -= dt;
     if (o.setupT <= 0) { o.state = 'fire'; m.radio(tr('c.gun.start'), 'gunstart', 0); m.emit('obj_state', { type: 'gun', state: 'fire' }); }
@@ -67,7 +67,7 @@ export function updateGun(m, o, dt, fns) {
 // a drop straight at the gun: out of sight, near enough to come for it
 function drop(m, o, n) {
   if (m.enemies.length >= C.enemies.hardCap || n <= 0) return;
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 24; i++) {     // (just past what the squad at the gun can see: they come out of the streets)
     const a = m.rrng.next() * Math.PI * 2, d = K().dropDist[0] + m.rrng.next() * (K().dropDist[1] - K().dropDist[0]);
     const x = o.x + Math.cos(a) * d, y = o.y + Math.sin(a) * d;
     if (!m.terrain.isLand(x, y) || m.terrain.blocked(x, y) || !unseenSpot(m, x, y, 3)) continue;

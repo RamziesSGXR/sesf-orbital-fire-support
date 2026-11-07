@@ -1751,6 +1751,8 @@ function ambient(m, dt) {
 // (0.29, 0.30) What the music is playing under: the menus, the briefing (the loading screen), a mission (or its pause), a
 // cinematic, or the end of one (from the moment a mission is won or lost, through its debrief).
 let endMood = 'lose';
+// (0.53) the boss fight: from the moment the squad sets up the defence gun until the mothership comes down, the score is LAST LIGHT
+const gunFight = () => !!mission && mission.objectives.some((o) => o.type === 'gun' && o.state !== 'travel' && !o.doneAt && !o.lost);
 function musicScene() {
   if (cinema.on) return 'cine';
   if (state === 'brief') return 'loading';
@@ -1906,7 +1908,7 @@ function frame(ts) {
   frameAt = ts; frame.n = (frame.n || 0) + 1;
   const now = ts / 1000;
   const dt = Math.min(0.25, Math.max(0, now - lastT)); lastT = now;
-  { const sc = musicScene(); music.update(dt, sc, musicHeat(dt), { run: state === 'play' ? mission : null, crowd: crowdV, mood: state === 'final' || state === 'glass' ? 'lose' : state === 'play' && mission && mission.over ? (mission.outcome === 'victory' || mission.outcome === 'complete' ? 'win' : 'lose') : endMood, faction: mission && mission.faction ? mission.faction.id : null }); }
+  { const sc = musicScene(); music.update(dt, sc, musicHeat(dt), { run: state === 'play' ? mission : null, crowd: crowdV, mood: state === 'final' || state === 'glass' ? 'lose' : state === 'play' && mission && mission.over ? (mission.outcome === 'victory' || mission.outcome === 'complete' ? 'win' : 'lose') : endMood, faction: mission && mission.faction ? (gunFight() ? 'gun' : mission.faction.id) : null }); }
   if (!renderer.W) return;
 
   // Frame-time watchdog for the auto quality setting.

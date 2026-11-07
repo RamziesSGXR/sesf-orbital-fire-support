@@ -515,7 +515,7 @@ export const CONFIG = {
     //   gun), shotPay credits a shot; drops at it every dropEvery seconds (dropFaster less a shot fired, never under dropMin) of
     //   dropSize[0] growing to dropSize[1] troops, dropDist metres out; the mothership drawn shipOff metres from the gun.
     gun:    { hp: 5000, r: 9, zone: 26, shots: 5, chargeSec: 72, slowRate: 0.35, shotPay: 120, dropFirst: 30, dropEvery: 42, dropFaster: 5, dropMin: 20,
-              dropSize: [5, 12], dropDist: [90, 150], repair: 30, shipOff: [0, -260] },
+              dropSize: [5, 12], dropDist: [150, 220], repair: 30, shipOff: [0, -260] },
     // dome (squids): a shield dome (R) over a couple of warp-ship bases (bases, baseR from the middle) and the generator tower at
     //   its middle, with nodes beside the tower (nodeR from it, nodeHp). The dome stops every hit from outside it (strikes, the ship
     //   gun, fire from outside); anyone inside can fight. Knock out every node and the dome falls; then destroy the bases.
