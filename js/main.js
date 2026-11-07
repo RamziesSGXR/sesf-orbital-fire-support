@@ -526,7 +526,7 @@ function fillControls(tab) {
 let keysOpen = false, keysWait = null;
 function keysEditing(on, note) {
   keysOpen = on; keysWait = null;
-  $('keys-edit').classList.toggle('hidden', !on); $('controls-desktop').classList.toggle('hidden', on || input.touch && !$('ctl-tab-d').classList.contains('on'));
+  $('keys-edit').classList.toggle('hidden', !on); $('controls-desktop').classList.toggle('hidden', on || !$('ctl-tab-d').classList.contains('on'));     // (the touch tab shows its own)
   $('keys-btn').textContent = t(on ? 'keys.done' : 'keys.change');
   $('keys-reset').classList.toggle('hidden', !on || isDefault());
   $('keys-note').textContent = note !== undefined ? note : isDefault() ? '' : t('keys.custom');

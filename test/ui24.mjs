@@ -93,7 +93,7 @@ check('(0.27) a chapter ends with its debrief, before the debrief screen', db.on
 await tap('#cine-skip'); await page.waitForFunction(() => document.getElementById('s-debrief').classList.contains('on'), null, { timeout: 8000 });
 await page.waitForTimeout(600);
 const aar = await page.inputValue('#d-text');
-check('(0.27) the debrief screen has the after action report for Discord, the chapter in it', /^\*\*ORBITAL FURY · AFTER ACTION REPORT\*\*/.test(aar) && /chapter 1 of 5/.test(aar) && /> RAMZIES:/.test(aar) && /COPY FOR DISCORD/.test(await page.textContent('#btn-copy-d')), aar.split('\n').slice(0, 3).join(' / '));
+check('(0.27) the debrief screen has the after action report (0.50.1: COPY SCORE), the chapter in it', /^\*\*ORBITAL FURY · AFTER ACTION REPORT\*\*/.test(aar) && /chapter 1 of 5/.test(aar) && /> RAMZIES:/.test(aar) && /COPY SCORE/.test(await page.textContent('#btn-copy-d')), aar.split('\n').slice(0, 3).join(' / '));
 // (0.37) the chapter cleared is kept on this browser, with the run as it stood; the campaign run goes on in its own save
 const prog = await ev(() => ({ c: JSON.parse(localStorage.getItem('ofs.campaign') || 'null'), run: JSON.parse(localStorage.getItem('ofs.campRun') || 'null'), quick: localStorage.getItem('ofs.session') }));
 check('(0.37) clearing chapter 1 saves it: cleared, with the run as it stood, kept apart from QUICK PLAY', prog.c && prog.c.done.join() === '1' && prog.c.ck['1'] && prog.c.ck['1'].missions.length === 1 && prog.run && prog.run.story && !prog.quick, JSON.stringify({ done: prog.c && prog.c.done, run: !!prog.run, quick: !!prog.quick }));
