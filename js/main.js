@@ -839,6 +839,7 @@ function beginSession(resume, key = 'session') {
       session.story = { id: STORY.id, ch: storyPick.n - session.missions.length };     // (its next mission is the chapter picked)
     } else session = S.newSession(cs, chosenDiff(), S.opName($('op-name').value));     // (0.45: the name typed, or a rolled one if blank)
     session.feed = 1;     // (0.43) a new operation: the SESF feed hears of it at its first drop
+    session.opId = `${Date.now().toString(36)}${Math.floor(Math.random() * 1e9).toString(36)}`;     // (0.48.1) posted once per id
   }
   storyPick = null;
   goShop();
@@ -1019,7 +1020,9 @@ const BIOME_OK = (b) => ['ice', 'grass', 'desert', 'jungle', 'moon', 'mars'].inc
 function deploy() {
   audio.unlock();
   holdMission();     // (0.41) the run is kept as it is now, with this mission waiting in it, until the mission is over
-  if (session.feed == null && !session.tutorial) session.feed = 1;     // (0.46) a run from before 0.43 (no flag yet): its next drop posts the start
+  // (0.48.1) every run has an id the SESF feed posts by, once each for its start and its end (feed.js); an old run without the flag
+  // posts nothing more (0.46 gave it a start post, and loading old saves posted again)
+  if (!session.opId) session.opId = `${Date.now().toString(36)}${Math.floor(Math.random() * 1e9).toString(36)}`;
   if (session.feed === 1) { session.feed = 2; if (!BOT) feedStart(session, settings, info.chapter); }     // (0.43) before the snapshot, so a retry never posts it again
   startSnap = JSON.stringify(session);      // what RETRY MISSION puts back: credits, kit, score and time as they were at the drop
   persist();
@@ -1595,14 +1598,14 @@ $('btn-share').onclick = async () => { try { await navigator.share({ text: $('f-
 $('callsign').value = S.load('callsign', '');
 { const old = S.load('session', null); if (old && old.story && !S.load('campRun', null)) { S.save('campRun', old); S.drop('session'); } }     // (0.37: runs from before are kept apart)
 document.addEventListener('visibilitychange', () => { if (document.hidden && live()) togglePause(true); });
-// (0.46) A failed mission ends the operation unless it is retried. If the page is closed or put away on that debrief, before
-// CONTINUE, the SESF feed still hears it ended (fetch keepalive outlives the page).
+// (0.46) A failed mission ends the operation unless it is retried. If the page is closed on that debrief, before CONTINUE, the
+// SESF feed still hears it ended (fetch keepalive outlives the page). (0.48.1: only when the page is closed, not when it is just
+// put away for a moment)
 function failedOut() {
   if (state !== 'debrief' || !session || BOT || !lastRes || S.carriesOn(lastRes.outcome) || session.feed === 3) return;
   session.feed = 3; feedEnd(session, null, settings);
 }
 window.addEventListener('pagehide', failedOut);
-document.addEventListener('visibilitychange', () => { if (document.hidden) failedOut(); });
 if (window.visualViewport) window.visualViewport.addEventListener('resize', () => applyLayout());     // (0.42: the browser's toolbars come and go)
 // (0.42) MAP on a phone: the minimap opens, or folds away again (kept in the settings)
 $('btn-mini').addEventListener('click', (e) => { e.stopPropagation(); audio.click(); settings.miniOpen = !settings.miniOpen; S.save('settings', settings); applyLayout(); if (state === 'play') { hud.layout(true); hud.layout(true); } if (tut) tut.poke(); });

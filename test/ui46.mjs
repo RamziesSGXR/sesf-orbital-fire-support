@@ -50,6 +50,14 @@ await fly();
 let sl = await slots();
 check('the first drop puts it in slot 1, without SAVE GAME', sl[0] && sl[0].op === 'Operation Autosave One' && sl[0].n === 0 && await ev(() => window.__game.session.slot) === 1, JSON.stringify(sl));
 check('the start is posted', /starts \*\*OPERATION AUTOSAVE ONE\*\*/.test((await posts()).join('\n')));
+// (0.48.1) the same operation can never post its start twice (a save loaded again, an autosave, a reload)
+await wait(3200);
+const nS = (await posts()).length;
+await ev(() => { const g = window.__game; g.session.feed = 1; });
+await abort(); await ev(() => window.__game.retryMission()); await wait(150); await ev(() => window.__game.retryMission());
+await page.waitForFunction(() => window.__game.state === 'brief' && !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
+await ev(() => { window.__game.session.feed = 1; }); await click('b-continue'); await wait(800);
+check('(0.48.1) the same operation never posts its start twice', (await posts()).filter((x) => /starts/.test(x)).length === 1, `${(await posts()).length - nS} more posts`);
 
 // ---------------------------------------------------------------- a failed mission ends it: the slot goes; RETRY puts it back
 await wait(3200);      // (the feed's double-post guard)
@@ -60,10 +68,11 @@ check('RETRY MISSION puts it back in its slot', (await slots())[0] && (await slo
 await page.waitForFunction(() => window.__game.state === 'brief' && !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
 await click('b-continue'); await wait(800);
 await abort();
-// the page is put away on the failed debrief, before CONTINUE: the feed still hears it ended (once)
+// the page is closed on the failed debrief, before CONTINUE: the feed still hears it ended (once)
 const n0 = (await posts()).length;
-await ev(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); });
-await ev(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => false }); });
+await ev(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); Object.defineProperty(document, 'hidden', { configurable: true, get: () => false }); });
+check('(0.48.1) putting the page away for a moment posts nothing', (await posts()).length === n0);
+await ev(() => window.dispatchEvent(new Event('pagehide')));     // (0.48.1: only a closing page, not one put away)
 let p = await posts();
 check('closing the page on a failed debrief posts the end', p.length === n0 + 1 && /OPERATION AUTOSAVE ONE\*\* is over/.test(p[p.length - 1]) && /fell on mission 1/.test(p[p.length - 1]), p[p.length - 1]);
 await wait(3200);
@@ -95,7 +104,7 @@ const pOld = (await posts()).length;
 await wait(3200);
 await fly();
 p = await posts();
-check('an old run (no feed flag) posts its start at its next drop', p.length === pOld + 1 && /OLD GUARD/.test(p[p.length - 1]), p[p.length - 1]);
+check('(0.48.1) an old run (no feed flag) posts nothing at its next drop', p.length === pOld, p[p.length - 1]);
 await home();
 
 // ---------------------------------------------------------------- every slot in use: ask before the first drop

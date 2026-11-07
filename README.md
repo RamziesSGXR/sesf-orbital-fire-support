@@ -23,6 +23,8 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**0.48.1.** The SESF Discord feed posts each operation's start once and its end once, whatever happens to its saves. Loading a save, an autosave, a retry or a reload no longer posts again. Switching away from the game no longer posts an end either; only closing the page on a failed mission's debrief does. Runs from before 0.43 no longer post a start when loaded.
+
 **Difficulty (0.48).**
 - **The alert level.** Every mission has an enemy alert, shown as five stars on the resource bar (beside SEAF).
   - Attacking a base makes it jump: the base calls for help. Destroying the base calms that, but every base destroyed, every main objective done, the extraction call and every bit of time bought from the Helldivers leaves it a notch higher for the rest of the mission. Each calm is hotter than the last.
