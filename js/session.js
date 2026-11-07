@@ -5,6 +5,7 @@ import { ADJECTIVES, NOUNS, FACTIONS, BIOMES } from './data/data.js';
 import { tEn } from './i18n.js';
 import { newKit, newWallet, fixKit, refundLives, refundSlots, price } from './data/kit.js';
 import { CONFIG as C } from './config.js';
+import { OP_OF } from './sim/ops.js';
 import { clampLevel, levelAt, levelName, LEVELS } from './difficulty.js';
 
 const K = { settings: 'ofs.settings', session: 'ofs.session', history: 'ofs.history', callsign: 'ofs.callsign', notice: 'ofs.notice', names: 'ofs.names',
@@ -120,6 +121,24 @@ export function rollMission(prev, rng = Math.random, enemy = 'random') {
   return { ...names, faction, biome, seed: Math.floor(rng() * 0xffffffff) >>> 0 };
 }
 
+// (0.51) The next mission's offers: n of them, each its own enemy, ground and objective, and a bump of bump[0] up to bump[1] levels
+// for that mission only (more pay, as any higher level). A campaign's next mission is set by its story: its offers are that
+// mission at each bump (story: true).
+export function rollOffers(s, rng = Math.random, enemy = 'random', story = false) {
+  const prev = s.missions[s.missions.length - 1], O = C.offers, out = [];
+  for (let i = 0; i < O.n; i++) {
+    const bump = Math.min(O.bump[1], O.bump[0] + i);
+    if (story) { out.push({ story: true, bump }); continue; }
+    let m = rollMission(prev, rng, enemy);
+    // (no two on the same ground, and each against a different enemy where the enemy is left random)
+    for (let k = 0; k < 10 && (out.some((o) => o.biome === m.biome) || (k < 6 && out.some((o) => o.faction === m.faction))); k++) m = rollMission(prev, rng, enemy);
+    const pool = [...OBJ_TYPES, OP_OF[m.faction]].filter(Boolean);
+    out.push({ ...m, obj: pool[Math.floor(rng() * pool.length)], bump });
+  }
+  return out;
+}
+const OBJ_TYPES = ['nuke', 'vip', 'fortress', 'evac'];
+
 // ---- session ----
 // difficulty: the level the session started at, 1 to 10 (difficulty.js). Each mission is a little harder: levelNow.
 // (0.37) op: the operation's name. One a session: every mission in it flies under it (QUICK PLAY rolls one; the campaign's is its own).
@@ -169,12 +188,14 @@ export function recordMission(s, info, result) {
   const c = result.credits;
   s.missions.push({
     op: info.op, faction: info.faction, biome: info.biome,
-    outcome: result.outcome, score: result.score, seconds: Math.round(result.t),
+    // (0.51) the score is what the mission earned in credits (pts: its old points, kept for the record); bump: the levels it was
+    // flown above the operation's climb (the offer picked)
+    outcome: result.outcome, score: c.total, pts: result.score, bump: info.bump || 0, seconds: Math.round(result.t),
     bases: result.bases, baseTotal: result.baseTotal, pois: result.pois, kills: result.kills,
     lostH: result.stats.lostH, lostS: result.stats.lostS, earned: c.total, spent: c.spent,
     boss: result.stats.bosses ? { fac: info.faction, name: result.bossName || '', killed: !!result.stats.bossKills } : null,
   });
-  s.score += result.score;
+  s.score += c.total;
   s.seconds += result.t;
   s.next = null;
 }

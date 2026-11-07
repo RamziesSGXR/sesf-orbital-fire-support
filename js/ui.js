@@ -4,6 +4,7 @@ import { FACTIONS, BIOMES } from './data/data.js';
 import { fmtTime, fmtNum, sessionTotals, MAX_NAME, carriesOn, levelReached } from './session.js';
 import { STRATS, CAT_COLOR } from './data/strat.js';
 import { LETTERS, TEAM_COLOR } from './data/names.js';
+import { buildCostMul, PERKS, perkN, perkPct, perksTotal } from './data/perks.js';
 import { GROUPS as KEY_GROUPS, label as keyLabelOf, keyOf as keyOfAction, defaultOf as defaultKeyOf } from './keys.js';
 import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, hangarStats, shownAt, TIER_MAX, tierItems, itemTier, FLAT_BUILDS, fleetSize, coinOk, payStep, MIXES, mixOpen, mixNeeds } from './data/kit.js';
 import { stratReady, stratOnline } from './sim/strat.js';
@@ -23,7 +24,7 @@ import { LEVELS, levelFactors, reward, levelName } from './difficulty.js';
 import { CAST, CAST_ORDER } from './data/story.js';
 
 const $ = (id) => document.getElementById(id);
-const SCREENS = ['s-title', 's-campaign', 's-glass', 's-shop', 's-brief', 's-debrief', 's-final'];
+const SCREENS = ['s-title', 's-campaign', 's-glass', 's-shop', 's-brief', 's-debrief', 's-final', 's-next'];
 const OVERLAYS = ['s-pause', 's-lock', 's-controls', 's-manual', 's-names', 's-settings', 's-notice', 's-info', 's-credits', 's-map', 's-radio'];
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -915,7 +916,7 @@ export class Hud {
     ob.classList.toggle('urgent', urgent);
     if (prog !== null) ob.firstElementChild.style.width = `${Math.max(0, Math.min(1, prog)) * 100}%`;
 
-    const live = m.liveScore();
+    const live = Math.round((m.cr && m.cr.total) || 0);     // (0.51) the score is the credits earned
     this._set('sm', $('sc-mission'), fmtNum(live));
     this._set('ss', $('sc-session'), fmtNum(session.score + live));
     // (0.18) the drop countdown
@@ -1110,7 +1111,8 @@ export class Hud {
     this._tacUnits(m);
     this._tacShip(m);
     for (const [what, b] of Object.entries(this.bld)) {
-      const lvl = buildLevel(m.kit, what), B = buildStats(what, lvl), n = builtCount(m, what);
+      const lvl = buildLevel(m.kit, what), B = { ...buildStats(what, lvl) }, n = builtCount(m, what);
+      B.cost = Math.round(B.cost * buildCostMul(m.kit));     // (0.51: the Engineering Corps commendation)
       const cls = !lvl ? 'off' : m.wallet.bal < B.cost ? 'poor' : 'ready';
       const name = t('build.' + what) + (!FLAT_BUILDS.has(what) && lvl ? ` L${lvl}` : '');
       const sub = !lvl ? t('hud.b.locked') : B.cost ? t('hud.b.costN', { cr: B.cost }) : t('hud.b.freeShort');
@@ -1683,6 +1685,35 @@ function upgradeLines(it, kit) {
 
 // Draw the armory into root. opts: { kit, wallet, live, onBuy(id), onEquip(id), onUnequip(slot), note }
 // The armory's tabs, and which sections each holds.
+// (0.51) MISSION COMPLETE: opts.step 'perk' (pick a commendation from opts.perks) or 'offer' (the next mission from opts.offers).
+// opts.kit (what is already picked), opts.level (the operation's next level), opts.story (a campaign: the mission is set), onPick(i)
+export function renderNext(opts) {
+  const box = $('nx-cards'); box.innerHTML = '';
+  const perk = opts.step === 'perk';
+  $('nx-eyebrow').textContent = t('nx.eyebrow', { n: opts.done });
+  $('nx-title').textContent = t(perk ? 'nx.perkTitle' : 'nx.offerTitle');
+  $('nx-sub').textContent = perk ? t('nx.perkSub', { n: perksTotal(opts.kit), max: C.perks.max }) : t(opts.story ? 'nx.offerSubStory' : 'nx.offerSub');
+  $('nx-foot').textContent = perk ? '' : t('nx.offerFoot');
+  if (perk) {
+    opts.perks.forEach((k, i) => {
+      const sg = k === 'ship' || k === 'seaf' ? '+' : '-';     // (more of it, or less)
+      const n = perkN(opts.kit, k), b = el('button', 'nx-c nx-perk pk-' + k, `<span class="nx-tag">${esc(t('nx.tab.' + k))}</span><b class="nx-n">${esc(t('perk.' + k))}</b>`
+        + `<span class="nx-b">${esc(t('perk.' + k + '.b'))}</span><span class="nx-v">${esc(n ? t('nx.stack', { a: perkPct(k, n), b: perkPct(k, n + 1), n: n + 1, s: sg }) : t('nx.first', { b: perkPct(k, 1), s: sg }))}</span>`);
+      b.type = 'button'; b.dataset.i = String(i); b.onclick = () => opts.onPick(i);
+      box.appendChild(b);
+    });
+  } else {
+    opts.offers.forEach((o, i) => {
+      const lv = opts.level + o.bump, fac = opts.story ? opts.storyFac : o.faction, bio = opts.story ? opts.storyBiome : o.biome;
+      const b = el('button', 'nx-c nx-offer bump-' + o.bump + (fac ? ' fac-' + fac : ''), `<span class="nx-tag">${esc(t('nx.bump', { n: o.bump }))}</span>`
+        + `<b class="nx-n">${esc(fac ? t('fac.' + fac) : '')}${bio ? ` · ${esc(t('biome.' + bio))}` : ''}</b>`
+        + `<span class="nx-b">${esc(o.obj ? t('obj.name.' + o.obj) : opts.storyObj || '')}</span>`
+        + `<span class="nx-v">${esc(t('nx.level', { n: lv, name: t(...levelName(lv)) }))}</span><span class="nx-pay">${esc(t('nx.pay', { x: (reward(lv) * (1 + C.offers.payPer * o.bump)).toFixed(2) }))}</span>`);
+      b.type = 'button'; b.dataset.i = String(i); b.onclick = () => opts.onPick(i);
+      box.appendChild(b);
+    });
+  }
+}
 // (0.50.1) the key an order or a weapon is on now (keys.js), for the buttons that show it
 export const orderKey = (o) => (o === 'pickup' ? '⇧' + keyLabelOf('seaf') : keyLabelOf(o));
 // (0.50.1) CHANGE KEYS: every action, grouped, with its key; opts.listening: the action waiting for a key; opts.onPick(action)
@@ -1981,8 +2012,10 @@ export function fillDebrief(info, res, session, block = '', startCr = null) {
   $('d-extra').innerHTML = `${esc(t(res.objDone ? (res.extracted ? 'deb.x.extracted' : 'deb.x.noExtract') : 'deb.x.noObj'))}<br>`
     + esc(t('deb.x.share', { a: pct(res.share.player), b: pct(res.share.squad), c: pct(res.share.strat) }))
     + (s.stratCalls ? `<br>${esc(t('deb.x.calls', { n: s.stratCalls, top: top ? ` (${top})` : '', u: s.uavs, o: s.orbCalls }))}` : '');
-  $('d-mscore').textContent = fmtNum(res.score);
+  // (0.51) the score is the credits earned: the mission's, and the operation's so far
+  $('d-mscore').textContent = fmtNum(c.total);
   $('d-sscore').textContent = fmtNum(session.score);
+  $('d-diff').textContent = t('deb.diffPay', { n: res.difficulty || LEVELS, name: t(...levelName(res.difficulty || LEVELS)), x: ((res.reward || 1) * (res.bumpPay || 1)).toFixed(2) });
   const win = carriesOn(res.outcome);
   $('btn-continue').textContent = t(win ? 'deb.next' : 'deb.report');
   $('btn-end-d').classList.toggle('hidden', !win);

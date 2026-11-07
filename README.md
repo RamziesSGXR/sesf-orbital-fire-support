@@ -23,6 +23,17 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Choosing missions (0.51).**
+- **MISSION COMPLETE.** After a mission that counts, you pick a **commendation** from three cards. It lasts the rest of the operation, and picking the same one again stacks it. There's one kind per armory tab, and you can hold at most 10 per operation:
+  - Orbital Efficiency: orbitals, utilities and minefields recharge 6% faster
+  - Hangar Crews: Eagles rearm and pelicans turn round 8% faster
+  - Gun Overcharge: the ship gun deals 8% more damage and regenerates ammo 8% faster
+  - Veteran Troops: SEAF get 6% more health and damage
+  - Engineering Corps: builds cost 8% less
+- **Then pick the next mission** from three offers. Each shows its enemy, ground, objective, level and pay. Each offer adds +1, +2 or +3 levels on top of the operation's climb, for that mission only. A bigger bump pays more: every credit is worth the higher level's rate plus 15% for each bump level. In the campaign, the mission is set by the story, so you only pick the bump.
+- **Your score is the credits you earn** over the whole operation, including rank bonuses. The debrief shows the mission's credits as its score and states the difficulty's pay rate.
+- A reload in the middle of these picks shows the same choices again.
+
 **Armory & SEAF (0.50).**
 - **All five orbital slots are open from the start.** Slots are no longer bought. A save that had bought the 4th or 5th slot gets those credits back.
 - **Pay toward anything.** An item you can't afford yet has **PAY IN**: each press puts a quarter of its price (or what you have) on it. What's paid stays on the item, shown as a bar, and its price drops to what's left. It can't be taken back out.

@@ -328,15 +328,27 @@
     </div>
   </section>
 
+  <!-- (0.51) after a mission that counts: MISSION COMPLETE, pick a commendation, then the next mission -->
+  <section id="s-next" class="screen">
+    <div class="card wide nx-card">
+      <div class="eyebrow" id="nx-eyebrow"></div>
+      <h2 id="nx-title"></h2>
+      <p id="nx-sub" class="fine"></p>
+      <div id="nx-cards" class="nx-cards"></div>
+      <p id="nx-foot" class="fine nx-foot"></p>
+    </div>
+  </section>
+
   <section id="s-debrief" class="screen">
     <div class="card wide">
       <div class="d-main">
         <div class="eyebrow" id="d-op"></div>
         <h2 id="d-outcome"></h2>
         <div id="d-why" class="fine"></div>
-        <table id="d-table"></table>
+        <table id="d-table" class="hidden"></table>
         <h3 data-t="hud.credits">CREDITS</h3>
         <table id="d-credits"></table>
+        <p id="d-diff" class="fine d-diff"></p>
         <h3 data-t="deb.deaths">DEATH REPORT</h3>
         <div id="d-deaths" class="deaths"></div>
         <div id="d-extra" class="fine"></div>
