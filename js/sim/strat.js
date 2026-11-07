@@ -111,8 +111,19 @@ function clusters(m, ctx) {
   return (ctx.cl = out);
 }
 
-// Stratagems never hurt the squad, but a bomb dropped right on top of them looks wrong, so keep a little space.
-const clearance = () => 9;
+// Stratagems never hurt the squad, but a bomb dropped right on top of them looks wrong, so keep space. (0.46) It was 9 m for
+// everything, so a 380 barrage could land almost on the thrower. An attack stratagem now keeps its whole footprint clear: its
+// spread plus half a shell's splash (or its own `safe`, if bigger), 9 to 45 m. Placed things (turrets, mines, shields, supply)
+// still go close.
+const clearance = (d) => Math.max(9, Math.min(45, Math.max(d.safe || 0, blastOf(d) + (d.splash || 0) * 0.5)));
+// (0.46) Another attack stratagem already on its way to (or burning on) this ground: a second one there is a waste, so the
+// Helldivers spread their calls out. Defensive things don't count.
+function crowded(m, x, y, r) {
+  for (const k of m.markers) if (k.type === 'strat' && !k.smoke && m.t < k.end && (k.x - x) ** 2 + (k.y - y) ** 2 < r * r) return true;
+  for (const z of m.zones) if (z.kind !== 'smoke' && (z.x - x) ** 2 + (z.y - y) ** 2 < r * r) return true;
+  return false;
+}
+const spreadR = (d) => Math.max(14, Math.min(40, blastOf(d)));
 
 // Where something moving at (vx, vy) will be after `lead` seconds: the call itself takes C.strat.callSec, then the stratagem's own
 // delay. Capped, so a strike is never thrown at a guess far from anything.
@@ -140,7 +151,7 @@ function pickCluster(m, d, ctx) {
     if (c.n < need) continue;
     // aim where the pack will be when the strike lands
     const p = ahead(c.x, c.y, c.vx, c.vy, lead);
-    if (safeSpot(m, p.x, p.y, clearance(d)) && inOwn(ctx, p.x, p.y) && m.terrain.isLand(p.x, p.y) && !wakesBase(m, p.x, p.y, blastOf(d))) return p;
+    if (safeSpot(m, p.x, p.y, clearance(d)) && inOwn(ctx, p.x, p.y) && m.terrain.isLand(p.x, p.y) && !wakesBase(m, p.x, p.y, blastOf(d)) && !crowded(m, p.x, p.y, spreadR(d))) return p;
   }
   return null;
 }
@@ -150,7 +161,7 @@ function pickHeavy(m, d, ctx) {
   for (const e of ctx.heavies) {
     // Aim where it will be when the strike lands.
     const p = ahead(e.x, e.y, e.vx, e.vy, lead);
-    if (safeSpot(m, p.x, p.y, clearance(d)) && inOwn(ctx, p.x, p.y) && !wakesBase(m, p.x, p.y, blastOf(d))) return { x: p.x, y: p.y, e };
+    if (safeSpot(m, p.x, p.y, clearance(d)) && inOwn(ctx, p.x, p.y) && !wakesBase(m, p.x, p.y, blastOf(d)) && !crowded(m, p.x, p.y, 10)) return { x: p.x, y: p.y, e };
   }
   return null;
 }
@@ -270,7 +281,7 @@ function execute(m, g, tgt, ctx) {
 
 export function queueZone(m, z, x, y, at, delay, d, by = 'strat', team = -1) {
   m.queue.push({ at, type: 'zone', kind: z.kind, x, y, r: z.r, sec: z.sec, dps: z.dps || 0, sid: d.name, by });
-  if (delay > 0) m.markers.push({ type: 'strat', x, y, r: z.r, start: m.t, end: at, impact: at, id: d.name, cat: d.cat, by, team });
+  if (delay > 0) m.markers.push({ type: 'strat', x, y, r: z.r, start: m.t, end: at, impact: at, id: d.name, cat: d.cat, by, team, smoke: z.kind === 'smoke' });
 }
 
 // A strike on a point. d is the stratagem entry (already scaled for the player when the player fires it).

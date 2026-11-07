@@ -1317,7 +1317,7 @@ export default {
   // (0.41) emplacements de sauvegarde
   'title.load': 'CHARGER',
   'title.loadSub': 'Emplacements utilisés : {n} sur {of}',
-  'title.loadNone': 'Sauvegardez une opération depuis le menu pour la garder ici',
+  'title.loadNone': 'Vos opérations se sauvegardent ici après chaque mission',
   'pause.save': 'SAUVEGARDER',
   'sv.close': 'Fermer',
   'sv.saveH': 'SAUVEGARDER',
@@ -1325,7 +1325,7 @@ export default {
   'sv.saveNote': 'Sauvegarde votre opération telle qu’elle est maintenant, entre deux missions. Une fois dans un emplacement, elle s’y sauvegarde de nouveau après chaque mission.',
   'sv.saveMid': 'Sauvegarde votre opération telle qu’elle était au début de cette mission : en la chargeant, cette mission reprend du début. Une fois dans un emplacement, elle s’y sauvegarde de nouveau après chaque mission.',
   'sv.loadNote': 'Reprenez une opération là où elle a été sauvegardée. Elle repart de l’armurerie, avant sa prochaine mission.',
-  'sv.none': 'Aucune sauvegarde pour l’instant. SAUVEGARDER se trouve dans le menu pendant une opération.',
+  'sv.none': 'Aucune sauvegarde pour l’instant. Chaque opération se sauvegarde dans un emplacement libre après chaque mission.',
   'sv.slot': 'EMPLACEMENT {n}',
   'sv.cur': 'CETTE OPÉRATION',
   'sv.empty': 'Vide',
@@ -1345,6 +1345,10 @@ export default {
   'sv.saved': 'Sauvegardé dans l’emplacement {n}.',
   'sv.deleted': 'Emplacement {n} effacé.',
   'sv.fail': 'Sauvegarde impossible : ce navigateur ne garde pas les données du jeu.',
+  'sv.autoH': 'EMPLACEMENTS PLEINS',
+  'sv.autoNote': 'Chaque opération se sauvegarde après chaque mission, et les trois emplacements sont occupés. Choisissez-en un à remplacer, ou déployez sans sauvegarder.',
+  'sv.skip': 'DÉPLOYER SANS SAUVEGARDER',
+  'sv.autoSaved': 'Opération sauvegardée dans l’emplacement {n}.',
   'pause.homeConfirm': 'Revenir au menu principal ? Cette mission ne comptera pas : votre opération revient à son état au largage, et la même mission vous attend quand vous reprenez. Touchez encore pour confirmer.',
   // ---------- 0.17.2: tips over the picked button ----------
   'tip.dmg': '{n} DÉG',

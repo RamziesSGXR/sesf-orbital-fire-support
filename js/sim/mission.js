@@ -320,7 +320,7 @@ export class Mission {
     // (0.39: one of the hangar's pelicans, shared with pickups; 0.40: troopers coming back down make its turnaround shorter, and
     // those it cannot carry stay aboard for the next one)
     if (takePelican(this, backCut(this, back)) < 0) return this._deny('cooldown');
-    const squad = dropSquad(this);
+    const squad = dropSquad(this, x, y);
     const fresh = !this.seafAlive.some((a) => a.sq === squad) && !this.pelicans.some((p) => p.squad === squad);
     callPelican(this, x, y, n, squad, fresh && opts.hold !== false);
     this.stats.seafCalls++;
