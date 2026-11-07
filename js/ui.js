@@ -5,6 +5,7 @@ import { fmtTime, fmtNum, sessionTotals, MAX_NAME, carriesOn, levelReached } fro
 import { STRATS, CAT_COLOR } from './data/strat.js';
 import { LETTERS, TEAM_COLOR } from './data/names.js';
 import { buildCostMul, PERKS, perkN, perkPct, perksTotal } from './data/perks.js';
+import { costSiteMul } from './sim/sites.js';
 import { GROUPS as KEY_GROUPS, label as keyLabelOf, keyOf as keyOfAction, defaultOf as defaultKeyOf } from './keys.js';
 import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, hangarStats, shownAt, TIER_MAX, tierItems, itemTier, FLAT_BUILDS, fleetSize, coinOk, payStep, MIXES, mixOpen, mixNeeds } from './data/kit.js';
 import { stratReady, stratOnline } from './sim/strat.js';
@@ -1112,7 +1113,7 @@ export class Hud {
     this._tacShip(m);
     for (const [what, b] of Object.entries(this.bld)) {
       const lvl = buildLevel(m.kit, what), B = { ...buildStats(what, lvl) }, n = builtCount(m, what);
-      B.cost = Math.round(B.cost * buildCostMul(m.kit));     // (0.51: the Engineering Corps commendation)
+      B.cost = Math.round(B.cost * buildCostMul(m.kit) * costSiteMul(m));     // (0.51: the Engineering Corps commendation; 0.52: a worked salvage yard)
       const cls = !lvl ? 'off' : m.wallet.bal < B.cost ? 'poor' : 'ready';
       const name = t('build.' + what) + (!FLAT_BUILDS.has(what) && lvl ? ` L${lvl}` : '');
       const sub = !lvl ? t('hud.b.locked') : B.cost ? t('hud.b.costN', { cr: B.cost }) : t('hud.b.freeShort');
@@ -2004,7 +2005,7 @@ export function fillDebrief(info, res, session, block = '', startCr = null) {
   const c = res.credits;
   $('d-credits').innerHTML = tbl([
     [t('deb.c.kills'), c.kills], [t('deb.c.bases'), c.bases], [t('deb.c.pois'), c.pois], [t('deb.c.sides'), c.sides || 0], [t('deb.r.clear'), c.clear || 0], [t('deb.c.breaches'), c.breaches],
-    [t('deb.c.drops'), c.drops || 0], [t('deb.c.civ'), c.civ || 0], [t('deb.c.boss'), c.boss || 0], [t('deb.c.objective'), c.objective], [t('deb.c.extraction'), c.extraction],
+    [t('deb.c.drops'), c.drops || 0], [t('deb.c.civ'), c.civ || 0], [t('deb.c.boss'), c.boss || 0], [t('deb.c.site'), c.site || 0], [t('deb.c.objective'), c.objective], [t('deb.c.extraction'), c.extraction],
     [res.opBonus > 1 ? t('deb.c.earnedB', { x: res.opBonus.toFixed(1) }) : t('deb.c.earned'), c.total, 'sum'], [t('deb.c.spent'), -c.spent], [t(res.leftS ? 'deb.c.seafLivesLeft' : 'deb.c.seafLives', { n: c.seafLost || 0, k: res.leftS || 0 }), -(c.seafLives || 0)], [t('deb.c.balance'), c.balance, 'sum', true],
   ].filter(([, v, , keep]) => v !== 0 || keep));
   $('d-deaths').innerHTML = deathList(res);

@@ -86,6 +86,15 @@ export const CONFIG = {
   // (0.51) Choosing the next mission: offers to pick from, each a bump of bump[0] to bump[1] levels for that mission only (it pays
   // more, as any higher level does: difficulty.js reward, and payPer a level more on top)
   offers:   { n: 3, bump: [1, 3], payPer: 0.15 },     // (payPer: every credit of a bumped mission x (1 + payPer x bump), on top)
+  // (0.52) Work sites (sim/sites.js): cap workers inside, hp (patched up like any post; worked again at retake of it), r across, the
+  // two buildings span metres apart; placed minFromLz to maxFromLz from the landing zone and clear of bases and objectives. Pays
+  // pay credits a worker every payEvery seconds (at the mission's pay). At a full crew: orbital recharge -buff.orb (refinery),
+  // builds -buff.cost (salvage yard), UAV reach +buff.uav and its recharge as much faster (lab). Probes: every every seconds, a
+  // chance of base + perMin a mission minute + perStar an alert rank (at most max), size[0] growing to size[1] over growMin
+  // minutes, from from[0] to from[1] metres out.
+  sites:    { on: true, cap: 6, hp: 2600, r: 16, span: 20, minFromLz: 110, maxFromLz: 380, minFromBase: 170, minFromObj: 150, retake: 0.5, tellSec: 25,
+              pay: 4, payEvery: 10, buff: { orb: 0.3, cost: 0.35, uav: 0.35 },
+              probe: { every: 40, base: 0.12, perMin: 0.025, perStar: 0.1, max: 0.85, size: [2, 6], growMin: 30, from: [110, 170] } },
   coin:     { base: 300, per: 150, max: 4500, old: 750 },
   // (0.50) Leader Command: SEAF within r of a Squad Leader (the bot Commander's jamR, its mirror) fire faster (rof) and hit more
   // often (acc); each level after the first adds rofUp and accUp.

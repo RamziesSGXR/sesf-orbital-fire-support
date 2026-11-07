@@ -2,6 +2,7 @@
 // The player runs the destroyer: a UAV scan, orbital stratagems from the armory, and SEAF pods and orders.
 // The four Helldivers (one per stratagem group) fight on their own and are reinforced automatically from a pool of lives.
 import { buildCostMul } from '../data/perks.js';
+import { setupSite, updateSite, costSiteMul } from './sites.js';
 import { addSpawners, hitSpawners, liveSpawners } from './spawners.js';
 import { initAlert, updateAlert, alertRaise, alertClear } from './alert.js';
 import { t as tr } from '../i18n.js';
@@ -278,6 +279,7 @@ export class Mission {
 
     // Side missions and SEAF drop beacons.
     setupSides(this);
+    setupSite(this);     // (0.52) the work site
 
     // Every base's patrols are already out on their routes.
     initPatrols(this);
@@ -392,7 +394,7 @@ export class Mission {
     if (!B || !POSTS.includes(what)) return { ok: false, reason: 'kind' };
     const lvl = buildLevel(this.kit, what);
     if (!lvl) return this._deny('locked');                       // (the SAM site and the cannon have to be unlocked in the armory first)
-    const st = { ...buildStats(what, lvl) }; st.cost = Math.round(st.cost * buildCostMul(this.kit));     // (0.51: the Engineering Corps commendation)
+    const st = { ...buildStats(what, lvl) }; st.cost = Math.round(st.cost * buildCostMul(this.kit) * costSiteMul(this));     // (0.51: the Engineering Corps commendation; 0.52: a worked salvage yard)
     const sq = targetSquads(this).filter((q) => q.n > 0);
     if (!sq.length) return this._deny('noseaf');
     if (what === 'bridge') return this.bridgeDrop(x, y);     // (0.22) a light bridge comes down from the ship: nobody builds it
@@ -464,7 +466,7 @@ export class Mission {
     if (this.over) return { ok: false, reason: 'over' };
     const lvl = buildLevel(this.kit, 'bridge');
     if (!lvl) return this._deny('locked');
-    const st = { ...buildStats('bridge', lvl) }; st.cost = Math.round(st.cost * buildCostMul(this.kit));
+    const st = { ...buildStats('bridge', lvl) }; st.cost = Math.round(st.cost * buildCostMul(this.kit) * costSiteMul(this));
     if (!this.inSight(x, y)) return this._deny('nosight');
     let ref = null, rd = Infinity;
     for (const a of this.alive) { const d = Math.hypot(a.x - x, a.y - y); if (d < rd) { rd = d; ref = a; } }
@@ -1155,7 +1157,7 @@ export class Mission {
       objectives: this.objectives.map((o) => ({ type: o.type, done: o.done })), objDone: this.objDone, extracted: this.extracted,
       share: { player: d.player / tot, squad: d.squad / tot, strat: d.strat / tot },
       loadout: this.loadout.slice(), orbitals: loadoutIds(this.kit),
-      credits: { kills: cr.kills, bases: cr.bases, pois: cr.pois, breaches: cr.breaches, objective: cr.objective, extraction: cr.extraction, drops: cr.drops, civ: cr.civ, boss: cr.boss, sides: cr.sides,
+      credits: { kills: cr.kills, bases: cr.bases, pois: cr.pois, breaches: cr.breaches, objective: cr.objective, extraction: cr.extraction, drops: cr.drops, civ: cr.civ, boss: cr.boss, sides: cr.sides, site: cr.site || 0,
         total: cr.total, spent: this.wallet.spent - cr.spent0, start: cr.start, balance: this.wallet.bal, seafLives: cr.seafLives || 0, seafLost: this.stats.lostS || 0 },
       deaths: this.deaths.map((x) => ({ ...x })),
       teams: this.teams.map((tm) => ({ letter: tm.letter, ship: tm.ship, deaths: tm.deaths, ids: tm.ids.slice() })),
@@ -1251,6 +1253,7 @@ export class Mission {
 
     buildDanger(this);
     updatePosts(this, dt);
+    updateSite(this, dt);     // (0.52)
     updateSam(this);
     updatePlayer(this, dt);
     if (this.bridgeQ.length) this._bridges();
