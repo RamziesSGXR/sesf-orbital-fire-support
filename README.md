@@ -23,14 +23,20 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Base overhaul (0.49).**
+- **Bases are clusters.** Each base is two or three small spawners inside its circle, each with its own health. One precision strike takes one out, and the base falls with its last spawner. A citadel's outer bases are clusters too; its keep still needs a Hellbomb.
+- **Scouting.** A base's place is always on the map, but its layout (how many spawners, and where) stays under smoke, marked UNSCOUTED, until an ally sees it. Powering a **radio tower** side objective reveals every base's layout.
+- **One at a time.** A base's garrison and the groups it sends come out of its spawners one trooper at a time, not in a chunk.
+- **Heavies come by call-in.** Bases no longer send heavies; they arrive with reinforcements. A base can already have one heavy in its garrison when it's first found, more likely the higher the difficulty.
+- The Helldivers aim their strikes at a base's nearest spawner, and rifle fire hits the spawner nearest the shooter.
 **0.48.1.** The SESF Discord feed posts each operation's start once and its end once, whatever happens to its saves. Loading a save, an autosave, a retry or a reload no longer posts again. Switching away from the game no longer posts an end either; only closing the page on a failed mission's debrief does. Runs from before 0.43 no longer post a start when loaded.
 
 **Difficulty (0.48).**
-- **The alert level.** Every mission has an enemy alert, shown as five stars on the resource bar (beside SEAF).
+- **The alert level.** Every mission has an enemy threat rank, shown on the resource bar (beside SEAF) as up to five rank chevrons and a name: CALM, STIRRING, HUNTING, MOBILIZED, ALL-OUT, EXTERMINATION (0.49; it was stars at first).
   - Attacking a base makes it jump: the base calls for help. Destroying the base calms that, but every base destroyed, every main objective done, the extraction call and every bit of time bought from the Helldivers leaves it a notch higher for the rest of the mission. Each calm is hotter than the last.
   - A base fight's part fades once the squad has been out of contact for a while. Nothing the gunner does raises or lowers it, and side objectives don't touch it.
-  - Every star brings the off-map patrols sooner and more flares through. At ★2 those patrols come hunting the squad, at ★3 the enemy drops troops on the squad every so often, at ★4 each patrol brings a heavy, and at ★5 the super heavy comes (once).
-  - The music follows it: each star brings in more of the score, and a star going up is audible.
+  - Every rank brings the off-map patrols sooner and more flares through. At HUNTING (2) those patrols come hunting the squad, at MOBILIZED (3) the enemy drops troops on the squad every so often, at ALL-OUT (4) each patrol brings a heavy, and at EXTERMINATION (5) the super heavy comes (once).
+  - The music follows it: each rank brings in more of the score, and a rank going up is audible.
 - **The operation curve steepens.** Up to mission 10 the climb is as before. After that each mission adds a little more than the last, so a strong player's operation ends: from level 3, missions 10 to 16 run 10 10 11 13 14 16 17.
 - **No cliff past level 10.** War minutes now grow 1.5 a level past 10 (it was 10, a jump from 42 to 52).
 - **Time from the Helldivers.** They ask for 2 minutes at a time (it was up to 10), at most twice a mission, at 60 CR a minute (rising the longer the mission runs). Each yes raises the alert a notch.

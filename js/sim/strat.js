@@ -176,9 +176,11 @@ function pickBase(m, d, ctx) {
   const sq = m.squad, b = sq.base;
   if (!b || b.destroyed || sq.state !== 'hold' || !(b.alert || sq.assault)) return null;   // (not a base still being staged on)
   // (0.47) a base too far for a throw is hit at its near side: the throw's length toward its middle, if that is still on the base
+  // (0.49) a cluster: its nearest spawner still standing
   let x = b.x, y = b.y;
-  const dd = Math.hypot(b.x - ctx.cx, b.y - ctx.cy), T = C.sight.throw - 1;
-  if (dd > T) { if (dd - T > (b.r || 14)) return null; x = ctx.cx + (b.x - ctx.cx) * (T / dd); y = ctx.cy + (b.y - ctx.cy) * (T / dd); }
+  if (b.spawners) { const L = b.spawners.filter((q) => !q.dead); if (L.length) { const q = L.reduce((p, z) => (Math.hypot(z.x - ctx.cx, z.y - ctx.cy) < Math.hypot(p.x - ctx.cx, p.y - ctx.cy) ? z : p)); x = q.x; y = q.y; } }
+  const dd = Math.hypot(x - ctx.cx, y - ctx.cy), T = C.sight.throw - 1;
+  if (dd > T) { if (dd - T > (b.spawners ? 4 : b.r || 14)) return null; x = ctx.cx + (x - ctx.cx) * (T / dd); y = ctx.cy + (y - ctx.cy) * (T / dd); }
   if (!inThrow(ctx, x, y) || !safeSpot(m, x, y, clearance(d))) return null;
   return { x, y, base: b };
 }
@@ -266,7 +268,7 @@ function execute(m, g, tgt, ctx) {
   m.radio(COMMS.stratCall(d.name), 'strat', 1.2);
   bark(m, caller, 'strat', d.name, true);
   const cs = C.strat.callSec;      // the beacon is thrown, then the ship lines up: the ground is marked for this long first
-  m.emit('strat_call', { id: g.id, x: tgt.x, y: tgt.y, delay: (d.delay || 4) + cs, team: team.i, cx: caller ? caller.x : ctx.cx, cy: caller ? caller.y : ctx.cy });
+  m.emit('strat_call', { id: g.id, x: tgt.x, y: tgt.y, delay: (d.delay || 4) + cs, team: team.i, cx: caller ? caller.x : ctx.cx, cy: caller ? caller.y : ctx.cy, base: tgt.base ? tgt.base.id : undefined });
   switch (d.k) {
     case 'strike': strikeAt(m, { ...d, id: g.id, delay: d.delay + cs }, tgt, { ox: ctx.cx, oy: ctx.cy, by: 'strat', friendly: false, dmgMul: mul(), team: team.i }); break;
     case 'zone': queueZone(m, d.zone, tgt.x, tgt.y, t + d.delay + cs, d.delay + cs, d, 'strat', team.i); break;

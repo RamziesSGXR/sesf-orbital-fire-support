@@ -1,5 +1,6 @@
 // The director: continuous enemy spawning just outside the squad's sight, despawning, bases, support calls,
 // pods, last stand and extraction.
+import { stepSpawners, checkSeen } from './spawners.js';
 import { alertSpike } from './alert.js';
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
@@ -180,6 +181,7 @@ export function updateDirector(m, dt) {
       b.near = false;
       if (b.destroyed) continue;
       for (const a of m.hdAlive) if ((a.x - b.x) ** 2 + (a.y - b.y) ** 2 <= R2) { b.near = true; break; }
+      checkSeen(m, b);     // (0.49) its layout shows once anyone sees it
       if (!b.alert) {
         const rg = ringOf(m, b), D2 = rg.R * rg.R;
         for (const a of m.alive) if (!a.dead && (a.x - rg.x) ** 2 + (a.y - rg.y) ** 2 <= D2) { alertBase(m, b, a.type === 'S' ? 'seaf' : 'squad'); break; }
@@ -199,6 +201,7 @@ export function updateDirector(m, dt) {
       }
       // groups owed to the base come out of sight and walk in (one a tick at most; a spot that is in view waits). An awake base's
       // groups come out hunting.
+      if (stepSpawners(m, b, dt)) continue;     // (0.49) a cluster lets them out of its spawners one at a time
       if (b.owed > 0 && m.enemies.length < C.enemies.hardCap) {
         const g = spawnNear(m, b.x, b.y, 0, 14, 'patrol', { base: b });
         if (g) { b.owed--; if (b.alert) alertGroup(m, g); }

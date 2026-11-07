@@ -122,7 +122,7 @@ function roamLaunch(m) {
   for (let k = 0; k < n; k++) {
     const px = sp.x - (dx / d) * k * 14 + nx * rng.range(-8, 8), py = sp.y - (dy / d) * k * 14 + ny * rng.range(-8, 8);     // (one behind the other)
     // (0.48) at heavy stars each group brings a heavy; at hunt stars they come straight for the squad
-    const st = alertStars(m), kinds = st >= C.alert.heavy ? [...Array(Math.max(1, m.groupSize - 1))].map(() => m.drawToken()).concat('H') : undefined;
+    const st = alertStars(m), kinds = st >= C.alert.heavy && m.heavyRoom() ? [...Array(Math.max(1, m.groupSize - 1))].map(() => m.drawToken()).concat('H') : undefined;
     const g = spawnGroup(m, aoX(m, px, 10), aoY(m, py, 10), 'patrol', kinds ? { kinds } : {});
     g.route = route; g.ri = 1; g.rdir = 1; g.patrol = true; g.roam = true; g.farT = 0;
     if (st >= C.alert.hunt && m.phase !== 'extract') { g.hunter = true; alertGroup(m, g); }

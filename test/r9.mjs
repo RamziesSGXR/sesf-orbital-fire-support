@@ -21,7 +21,7 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
   for (const e of m.enemies) e.dead = true;
   m.enemies = []; m.groups = [];
   m.support.spawnT = 1e9; m.support.scanT = 1e9; m.strat.callAt = 1e9; m.reinf.readyAt = 1e9;
-  for (const b of m.bases) b.garrisoned = true;
+  for (const b of m.bases) { b.garrisoned = true; b.owed = 0; }     // (0.49: a garrison still coming out of its spawners stays in)
   for (const p of m.pois) p.woke = true;
   return m;
 }
@@ -40,8 +40,8 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
     check(`${f} see farther than any of their weapons reach`, FACTIONS[f].sight > reach, `sight ${FACTIONS[f].sight} m, longest reach ${reach} m`);
   }
   // in practice: a squad shooting at a far pack lands fewer hits than at a near one
-  const shots = (dist) => {
-    const m = quiet('bots', 952);      // (0.18: one map for both, so only the distance differs)
+  const shots = (dist, seed) => {
+    const m = quiet('bots', seed);      // (0.18: one map for both, so only the distance differs)
     const a = m.hdAlive[0];
     const sx = a.x < m.ao.cx ? 1 : -1;      // (0.18: toward the middle of the round map)
     const g = spawnGroup(m, a.x + dist * sx, a.y, 'patrol'); g.hold = 1e9;
@@ -52,8 +52,10 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
     run(m, 12); dmg = m.stats.dmg.squad - orig;
     return dmg;
   };
-  const near = shots(18), far = shots(52);
-  check('the squad does clearly less damage to a far pack than a near one', far < near * 0.85, `${Math.round(near)} near, ${Math.round(far)} far`);
+  // (0.49: summed over four maps: one map alone swings either way with how the fight happens to go)
+  let near = 0, far = 0;
+  for (const seed of [952, 953, 954, 955]) { near += shots(18, seed); far += shots(52, seed); }
+  check('the squad does clearly less damage to a far pack than a near one', far < near * 0.85, `${Math.round(near)} near, ${Math.round(far)} far, over four maps`);
 }
 
 // ---------------------------------------------------------------- troops under their ship can't be hurt until it pulls away

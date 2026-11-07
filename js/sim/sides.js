@@ -12,6 +12,7 @@
 //                      the gunner for a Hellbomb (ops.js); the enemy broadcast tower takes one too.
 // Drop beacons: places the player can send a SEAF drop to without a strike zone. SEAF build them (seaf.js); a radio tower powered
 // up keeps the ground round it in view for the rest of the mission (a relay, mission.js visLevel).
+import { revealBases } from './spawners.js';
 import { CONFIG as C } from '../config.js';
 import { makePost } from './posts.js';
 import { buildLevel } from '../data/kit.js';
@@ -132,6 +133,8 @@ function finish(m, s, ok) {
   m.notice(COMMS.sideDoneNotice(s.kind, R.reward), 'good');
   m.emit('side_done', { kind: s.kind, x: s.x, y: s.y });
   (m.relays || (m.relays = [])).push({ x: s.x, y: s.y, r: C.relay.r, kind: s.kind });   // the ground round it stays in view
+  // (0.49) the radio tower powered: every enemy base's layout shows (how many spawners, where), like Helldivers 2's radio point
+  if (s.kind === 'radio') { const n = revealBases(m); if (n) m.notice(tr('n.basesRevealed', { n }), 'good'); }
 }
 
 // A propaganda tower has been destroyed (pois.js damagePoi).

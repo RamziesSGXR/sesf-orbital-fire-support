@@ -136,7 +136,7 @@ export function damageArea(m, x, y, rad, dmg, mult, by = 'player', friendly = tr
   const sm = by === 'strat' || by === 'squad' ? C.structure.stratMul : 1;   // anything the squad calls hits structures harder
   for (const b of m.bases) {
     if (b.destroyed) continue;
-    if (Math.hypot(b.x - x, b.y - y) <= rad + b.r) m.damageBase(b, dmg * mult.B * sm, by, ABOVE ? undefined : fx, ABOVE ? undefined : fy);
+    if (Math.hypot(b.x - x, b.y - y) <= rad + b.r) m.damageBase(b, dmg * mult.B * sm, by, ABOVE ? undefined : fx, ABOVE ? undefined : fy, { x, y, rad });     // (0.49: where it hit, for a cluster's spawners)
   }
   // Points of interest and breaches are soft: any real explosion hurts them.
   const pm = Math.max(mult.B, 0.25);
