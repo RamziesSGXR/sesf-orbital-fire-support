@@ -23,6 +23,8 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**0.47.1.** Helldivers' 20–40 m throw is measured from the Helldiver who throws. Every other ally only needs the strike's own safety gap (at least 9 m, as before). The 20 m minimum from every ally had left almost nowhere to strike near a crowded site, and evacuations were losing most of their civilians.
+
 **Fixes 2 (0.47).**
 - **The vision ladder.** An ally sees farthest, shoots less far than he sees, and throws a stratagem beacon less far than he shoots. Your strike zone never reaches past what you can see (it used to reach about 40 m past it), and a strike range upgrade widens your view with it.
 - **Helldivers throw 20–40 m.** Strikes, barrages and zones land 20–40 m from the Helldiver who calls them, and at least 20 m from every ally. Support weapons (recoilless, autocannon, flamethrower, railgun, MG-43, Spear, EAT) aren't thrown: their pod lands beside him and each fires at its own range.

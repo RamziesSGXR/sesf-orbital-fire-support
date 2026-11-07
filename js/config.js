@@ -150,7 +150,8 @@ export const CONFIG = {
   // keeps the ground around it in view for the rest of the mission, and strikes can be called there: r metres round it.
   relay:    { r: 200 },
   // (0.47) The vision ladder: an ally sees farthest (more from a rise), shoots less far than he sees, and throws a stratagem's beacon
-  // less far than he shoots: 20-40 m (`throwMin`..`throw`, never closer than throwMin to any ally; support weapons are not thrown). The strike zone sits inside the player's view: it
+  // less far than he shoots: 20-40 m from him (`throwMin`..`throw`; 0.47.1: the 20 m is from the thrower, other allies keep the
+  // stratagem's own clearance, 9 m at least; support weapons are not thrown). The strike zone sits inside the player's view: it
   // is capped at each ally's vision, and the strike range upgrades (kit.zonePer) widen the view with it.
   sight:    { helldiver: 125, seaf: 90, zoneBase: { helldiver: 92, seaf: 60 }, playerBonus: 26, strikeBonus: 76, despawnMargin: 35, spawnMin: 6, spawnMax: 34, throw: 40, throwMin: 20 },
 
@@ -534,6 +535,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.47.0',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.47.1',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };
