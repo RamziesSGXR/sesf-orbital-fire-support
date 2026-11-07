@@ -100,7 +100,7 @@ const centre = (L) => ({ x: L.reduce((s, a) => s + a.x, 0) / L.length, y: L.redu
       total++;
       // the throw itself: how far from the caller
       const r = Math.hypot(ev.x - ev.cx, ev.y - ev.cy);
-      const need = Math.max(9, Math.min(45, Math.max(d.safe || 0, ((d.zone ? d.zone.r : d.splash || 8) + (d.len || 0) / 2) + (d.splash || 0) * 0.5)));
+      const need = Math.max(C.sight.throwMin, Math.min(C.sight.throw - 4, Math.max(d.safe || 0, ((d.zone ? d.zone.r : d.splash || 8) + (d.len || 0) / 2) + (d.splash || 0) * 0.5)));
       if (r < need - 0.5) close++;
       calls.push({ id: ev.id, r: Math.round(r), need: Math.round(need), t: m.t });
     }

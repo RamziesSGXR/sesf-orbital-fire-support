@@ -22,9 +22,9 @@ const land = (m, x, y) => { if (m.terrain.blocked(x, y) || !m.terrain.isLand(x, 
 // the shapes
 const spread = (pts) => { let d = 0; for (const a of pts) for (const b of pts) d = Math.max(d, Math.hypot(a.x - b.x, a.y - b.y)); return d; };
 const p3 = foxholeSlots(0, 0, 0, 3), p6 = foxholeSlots(0, 0, 0, 6), p12 = foxholeSlots(0, 0, 0, 12);
-check('three or fewer: the pit (three places)', p3.length === 3 && spread(p3) < 3, `${p3.length} places, ${spread(p3).toFixed(1)} m`);
+check('(0.47) three or fewer: a short line across the front (three places)', p3.length === 3 && spread(p3) > 4 && spread(p3) < 6 && p3.every((q) => Math.abs(q.x) < 0.5), `${p3.length} places, ${spread(p3).toFixed(1)} m`);
 check('six: a straight trench across the front, six places', p6.length === 6 && spread(p6) > 8 && p6.every((q) => Math.abs(q.x) < 0.5), `${spread(p6).toFixed(1)} m`);
-check('twelve: a crescent, its ends curled back', p12.length === 12 && spread(p12) > 18 && p12[0].x < -3 && p12[11].x < -3 && Math.abs(p12[5].x) < 1, `ends ${p12[0].x.toFixed(1)}, ${p12[11].x.toFixed(1)}`);
+check('(0.47) twelve: a long straight line (no crescent)', p12.length === 12 && spread(p12) > 18 && p12.every((q) => Math.abs(q.x) < 0.5), `ends ${p12[0].x.toFixed(1)}, ${p12[11].x.toFixed(1)}`);
 check('never more than twelve places, never fewer than three', foxSize(30) === 12 && foxSize(1) === 3);
 check('a longer trench takes longer to dig', crateSec({ kit: {} }, { what: 'foxhole', dig: true, size: 12 }) > crateSec({ kit: {} }, { what: 'foxhole', dig: true, size: 3 }));
 

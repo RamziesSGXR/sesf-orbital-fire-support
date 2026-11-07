@@ -412,7 +412,7 @@ export const CONFIG = {
   // (it falls for beaconSec); then the pelican takes callSec to arrive, waits boardSec on the pad, and the enemy comes in waves.
   // (0.39) orbitSec: once the Helldivers are aboard and away, the destroyer leaves orbit this many seconds later; SEAF still on the
   // ground then are left behind (lost, and paid for like any lost trooper)
-  extract:  { minFromLz: 600, minFromBase: 150, radius: 25, callSec: 120, beaconSec: 2.2, landSec: 5, boardSec: 20, boardR: 6, orbitSec: 10, warnSec: 60 },
+  extract:  { minFromLz: 600, minFromBase: 150, minFromObj: 60, radius: 25, callSec: 120, beaconSec: 2.2, landSec: 5, boardSec: 20, boardR: 6, orbitSec: 10, warnSec: 60 },
   // At the start of a mission the ship gun is ready and selected; the UAV and every orbital start part-way through a cooldown.
   weapons:  { swapSec: 0.3, warmupSec: 8, startCdFrac: 0.5, startCdMin: 12 },
   // The destroyer's free-fire Ship Gun (its one gatling). It fires wherever the player can see, so it is not tied to the strike zone, and it is the
@@ -534,6 +534,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.46.0',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.47.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

@@ -75,6 +75,29 @@ for (let k = 0; k < 3; k++) {
 }
 check('the bastions switch ring, line, corner, ring', /^line:.*LINE$/.test(shapes[0]) && /^corner:.*CORNER$/.test(shapes[1]) && /^ring:.*RING$/.test(shapes[2]), shapes.join(' | '));
 await ev(() => window.__game.setPlacing(null));
+
+// ---------------------------------------------------------------- the pause: formations, the reticle, the weapon in hand
+await ev(() => window.__game.softPause(true)); await page.waitForTimeout(150);
+const form = await ev(() => { const g = window.__game, m = g.mission, q = m.seaf.squads.find((x) => x.n); m.selectSquad(q.i); const was = q.form; g.setForm(was === 'line' ? 'wedge' : 'line'); return { was, got: q.form }; });
+check('a formation can be picked in the pause', !!form.got && form.got !== form.was, JSON.stringify(form));
+const rings = await ev(async () => {
+  const g = window.__game, m = g.mission, p = m.player;
+  const orb = p.slots.findIndex((s, i) => i > 0 && s.type === 'orb');
+  m.selectWeapon(0); await new Promise((r) => setTimeout(r, 120)); const gun = p.aim.splash;
+  m.selectWeapon(orb); await new Promise((r) => setTimeout(r, 120));
+  return { orb, gun, now: p.aim.splash + p.aim.spread, name: p.aim.name, slot: p.slots[orb].id };
+});
+check('a stratagem picked in the pause shows its own rings at once', rings.orb > 0 && rings.now > 0 && Math.abs(rings.now - rings.gun) > 0.5, JSON.stringify(rings));
+const held = await ev(async () => {
+  const g = window.__game, m = g.mission, p = m.player;
+  const orb = p.slots.findIndex((s, i) => i > 0 && s.type === 'orb');
+  m.selectWeapon(orb); p.swapUntil = m.t; g.planFire();
+  const gi = p.slots.findIndex((s) => s.type === 'gun');
+  m.selectWeapon(gi);                       // the ship gun in hand when the game runs again
+  g.softPause(false); await new Promise((r) => setTimeout(r, 400));
+  return { gi, w: p.weapon, type: p.slots[p.weapon].type };
+});
+check('the ship gun stays in hand after the plan calls a stratagem', held.w === held.gi && held.type === 'gun', JSON.stringify(held));
 check('no page errors', errs.length === 0, errs.join(' | '));
 await browser.close();
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');

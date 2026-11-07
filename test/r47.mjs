@@ -12,7 +12,7 @@ import { CONFIG as C } from '../js/config.js';
 import { spawnGroup } from '../js/sim/director.js';
 import { STRATS } from '../js/data/strat.js';
 import { makePost, chainPlan, foxLen, bastionWalls } from '../js/sim/posts.js';
-import { zoneExtra } from '../js/data/kit.js';
+import { zoneExtra, seafStats } from '../js/data/kit.js';
 
 let fails = 0;
 const check = (name, ok, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  (' + detail + ')' : ''}`); if (!ok) fails++; };
@@ -135,6 +135,43 @@ const mk = (seed, fac = 'bots', o = {}) => { const m = new Mission({ seed, facti
   const walls = bastionWalls(x, y, 0, 8, 'corner');
   const front = walls.filter((q) => q.ang === 0), side = walls.filter((q) => q.ang !== 0);
   check('...one arm across the front, one running back from the angle', front.every((q) => Math.abs(q.x - x) < 0.01 && q.y > y) && side.every((q) => Math.abs(q.y - y) < 0.01 && q.x < x));
+}
+
+// ---------------------------------------------------------------- bug reports
+// several pickup pelicans come at once for a crowd bigger than one load
+{
+  const m = new Mission({ seed: 4802, faction: 'bots', biome: 'grass', events: true, sessionMinutes: 0, missionN: 2, difficulty: 1, boss: false, countdown: 0 });
+  m.kit.pel = 4; m.deployNow(); run(m, 14); calm(m);
+  const x = m.squad.ax + 30, y = m.squad.ay;
+  for (let k = 0; k < 3; k++) { m.seaf.fleet.fill(0); m.callSeaf(x + k * 3, y); }
+  run(m, 12); m.seaf.fleet.fill(0);
+  const r = m.callPickup(x, y);
+  for (const q of m.seaf.squads) if (q.n) { m.selectSquad(q.i); m.seafOrder('move', x, y); }
+  run(m, 25, (mm) => mm.pelicans.some((p) => p.pick));
+  const n = m.pelicans.filter((p) => p.pick).length, load = seafStats(m.kit).drop;
+  check('a crowd at a pickup point gets a pelican per load, all at once', r.ok && n >= 2 && n === Math.ceil(r.lz.waiting / load), `${r.lz.waiting} waiting, load ${load}, ${n} pelicans`);
+  run(m, 20);
+  check('...and they take them all up', m.seafAlive.length <= 1, `${m.seafAlive.length} left`);
+}
+// the extraction pad is never put on an objective (an evacuation bunker had one on top of it)
+{
+  let worst = Infinity;
+  for (let s = 1; s <= 40; s++) {
+    const m = new Mission({ seed: 4900 + s, faction: ['bugs', 'bots', 'squids'][s % 3], biome: 'grass', sessionMinutes: 0, missionN: 2, difficulty: 3, boss: false, countdown: 0, objectives: ['evac'] });
+    for (const o of m.objectives) worst = Math.min(worst, Math.hypot(o.x - m.extraction.x, o.y - m.extraction.y));
+  }
+  check('extraction is kept off the evacuation bunkers', worst >= C.extract.minFromObj, `closest ${Math.round(worst)} m`);
+}
+// the tutorial: a stratagem a new one took the slot of can be put back
+{
+  const m = new Mission({ seed: 4950, faction: 'squids', biome: 'grass', events: true, sessionMinutes: 0, missionN: 1, difficulty: 1, boss: false, countdown: 0, lastStand: true });
+  const K = m.kit; K.slots = 5; m.wallet.bal = 1e6;
+  const ids = Object.keys(STRATS).filter((id) => !STRATS[id].secret && STRATS[id].k !== 'weapon' && STRATS[id].cat !== 'SUPPORT' && !K.owned[id]);
+  let swapped = null;
+  for (const id of ids) { const r = m.spend('own:' + id); if (r.swapped) { swapped = r.swapped; break; } }
+  const out = swapped && !K.loadout.slice(0, K.slots).includes(swapped);
+  const r = swapped ? m.equipLive(swapped) : { ok: false };
+  check('the tutorial puts a swapped-out stratagem back in the bar', out && r.ok && K.loadout.slice(0, K.slots).includes(swapped) && m.player.slots.some((s) => s.id === swapped), `${swapped} back in slot ${r.slot}`);
 }
 
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');

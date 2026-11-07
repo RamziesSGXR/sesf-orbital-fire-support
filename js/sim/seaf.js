@@ -98,6 +98,14 @@ function recount(m) {
   for (const q of m.seaf.squads) q.n = 0;
   for (const a of m.seafAlive) { if (a.sq === GARRISON || a.sq === LOOSE) continue; if (!(a.sq >= 0 && a.sq < m.seaf.squads.length)) a.sq = 0; m.seaf.squads[a.sq].n++; }
 }
+// (0.47) Each squad's size and middle, now. The step does this as it runs; in the soft pause troopers can change squads (picked into
+// one, merged, Alt+number) with no step to follow, so the planned orders' lines and the ghosts went from where the squads were
+// before. main.js calls this every frame of the pause.
+export function squadCentres(m) {
+  const sf = m.seaf, sx = sf.squads.map(() => 0), sy = sf.squads.map(() => 0), n = sf.squads.map(() => 0);
+  for (const a of m.seafAlive) { if (a.down || !(a.sq >= 0 && a.sq < n.length)) continue; n[a.sq]++; sx[a.sq] += a.x; sy[a.sq] += a.y; }
+  sf.squads.forEach((q, i) => { q.n = n[i]; if (n[i]) { q.cx = sx[i] / n[i]; q.cy = sy[i] / n[i]; } });
+}
 export function targetSquads(m) {
   const sf = m.seaf;
   recount(m);
@@ -438,13 +446,23 @@ export function updatePickups(m) {
     if (!lz.waiting) lz.firstIn = null;
     if (lz.pel || !lz.waiting || m.over) continue;
     if (lz.owed > 0 && t - lz.firstIn < LZ_WAIT) continue;      // (the rest are on their way)
-    if (takePelican(m) < 0) { lz.noPel = true; continue; }
+    // (0.47) As many pelicans as the crowd needs come at once, a load each (Pelican Bay), while the fleet has them; the last one
+    // sent takes whoever is left (so with one pelican it is as before: it takes everyone).
+    const load = Math.max(1, seafStats(m.kit).drop), need = Math.max(1, Math.ceil(lz.waiting / load));
+    lz.pels = [];
+    for (let k = 0; k < need; k++) {
+      if (takePelican(m) < 0) break;
+      const ang = (k / need) * Math.PI * 2, off = k ? 9 : 0;
+      const p = newPelican(m, lz.x + Math.cos(ang) * off, lz.y + Math.sin(ang) * off, { pick: lz, aboard: 0, left: lz.waiting, cap: load });
+      m.pelicans.push(p); lz.pels.push(p);
+    }
+    if (!lz.pels.length) { lz.noPel = true; continue; }
     lz.noPel = false;
-    const p = newPelican(m, lz.x, lz.y, { pick: lz, aboard: 0, left: lz.waiting });
-    m.pelicans.push(p); lz.pel = p;
-    m.stats.pickups = (m.stats.pickups || 0) + 1;
+    lz.pels[lz.pels.length - 1].cap = Infinity;
+    lz.pel = lz.pels[0];
+    m.stats.pickups = (m.stats.pickups || 0) + lz.pels.length;
     m.radio(COMMS.pickupIn, 'pickupin', 0);
-    m.emit('pickup_call', { x: lz.x, y: lz.y, n: lz.waiting });
+    m.emit('pickup_call', { x: lz.x, y: lz.y, n: lz.waiting, pels: lz.pels.length });
   }
 }
 // what a pickup point is doing, in a few words (its label on the map and its panel)
@@ -464,7 +482,8 @@ function pickStep(m, p) {
   let best = null, bd = R2, left = 0;
   for (const a of m.seafAlive) { if (!canBoard(a)) continue; const d = (a.x - p.tx) ** 2 + (a.y - p.ty) ** 2; if (d < R2) left++; if (d < bd) { bd = d; best = a; } }
   p.left = left;
-  if (!p.paced) { p.paced = true; p.dropEvery = (P.workSec * 0.8) / Math.max(1, left); }
+  if (!p.paced) { p.paced = true; p.dropEvery = (P.workSec * 0.8) / Math.max(1, Math.min(left, p.cap ?? Infinity)); }
+  if (p.aboard >= (p.cap ?? Infinity)) return true;          // (0.47) a full load: another pelican takes the rest
   if (p.dropT > 0 || !best) return false;
   best.dead = true; best.boarded = true; best.picked = true; m.dirtyA = true;
   m.seaf.reserve.push({ role: best.role || 'rifle' });
@@ -477,7 +496,7 @@ function pickStep(m, p) {
 // it climbs away: the point goes once nobody is left in it or on the way to it
 function pickDone(m, p) {
   const lz = p.pick;
-  if (lz) lz.pel = null;
+  if (lz) { lz.pels = (lz.pels || []).filter((q) => q !== p); lz.pel = lz.pels[0] || null; }     // (0.47: one of several)
   m._refreshAlive();
   if (p.aboard) { m.notice(tr('n.seafUp', { n: p.aboard }), 'good'); m.radio(COMMS.pickupUp(p.aboard), 'pickupup', 0); }
   if (lz && !lz.dead && !lzCount(m, lz) && !lzOwed(m, lz)) removePost(m, lz);

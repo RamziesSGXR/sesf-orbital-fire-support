@@ -35,11 +35,9 @@ const land = (m, x, y) => (m.terrain.isLand(x, y) && !m.terrain.blocked(x, y) ? 
   const a = makePost(m, 'foxhole', p0.x, p0.y + 40, { size: 4, face: 0 });
   const b = makePost(m, 'foxhole', p0.x, p0.y + 55, { size: 4, face: 0 });
   const c = makePost(m, 'foxhole', p0.x + 60, p0.y + 40, { size: 4, face: 0 });
-  const link = m.trenches.find((k) => (k.a === b && k.b === a) || (k.a === a && k.b === b));
-  check('foxholes close together are joined by a trench', !!link && link.pts.length >= 3, `${m.trenches.length} trenches`);
-  check('a foxhole far off is not', !m.trenches.some((k) => k.a === c || k.b === c));
-  const lp = m.cover.filter((q) => q.link);
-  check('the trench is cover, all along it', lp.length >= 1 && lp.every((q) => q.hole && q.mul === C.build.foxhole.mul));
+  // (0.47) no trench is dug between them by itself any more: foxholes are lines that snap end to end (r47)
+  check('(0.47) foxholes are not joined by trenches by themselves', !(m.trenches || []).length, `${(m.trenches || []).length} trenches`);
+  check('...a foxhole\'s own places are cover', [a, b, c].every((p) => m.cover.filter((q) => q.post === p && q.hole).length === p.cap));
   removePost(m, b);
   check('take a foxhole away and its trench goes with it', !m.trenches.length && !m.cover.some((q) => q.link));
   // bastions in a line
@@ -208,7 +206,7 @@ const land = (m, x, y) => (m.terrain.isLand(x, y) && !m.terrain.blocked(x, y) ? 
     m2.seaf.readyAt = 0;
     const r5 = m2.callPickup(zp.x, zp.y), p0 = m2.stats.pickups || 0;
     run(m2, 20, () => (m2.stats.seafPicked || 0) >= S.length);
-    check('(0.40) a pickup takes everyone standing in the zone (not only those sent to it), more than a drop\'s load, in one pelican', r5.ok && S.length > st2.drop && (m2.stats.seafPicked || 0) === S.length && (m2.stats.pickups || 0) - p0 === 1, `${m2.stats.seafPicked || 0} of ${S.length} (out to ${far.toFixed(0)} m), load ${st2.drop}, ${(m2.stats.pickups || 0) - p0} pelican`);
+    check('(0.40) a pickup takes everyone standing in the zone (not only those sent to it); (0.47) more than a load gets a pelican per load', r5.ok && S.length > st2.drop && (m2.stats.seafPicked || 0) === S.length && (m2.stats.pickups || 0) - p0 === Math.ceil(S.length / st2.drop), `${m2.stats.seafPicked || 0} of ${S.length} (out to ${far.toFixed(0)} m), load ${st2.drop}, ${(m2.stats.pickups || 0) - p0} pelican`);
   }
   // (0.40) troopers a pickup took up come back down on a shorter turnaround, and what one drop cannot carry cuts the next one too
   {

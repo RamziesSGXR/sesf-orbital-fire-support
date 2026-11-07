@@ -231,7 +231,10 @@ export class Mission {
     for (const b of this.bases) b.nb = this.bases.filter((q) => q !== b && Math.hypot(q.x - b.x, q.y - b.y) <= C.bases.clusterR);
 
     // Hidden extraction point.
-    const exAvoid = [{ x: this.lz.x, y: this.lz.y, r: aoScale(this, C.extract.minFromLz) }, ...this.bases.map((b) => ({ x: b.x, y: b.y, r: C.extract.minFromBase }))];
+    // (0.47) and clear of every objective's site (an evacuation bunker had its extraction pad put on top of it)
+    const objAt = (o) => (o.type === 'vip' ? [{ x: o.x, y: o.y }, { x: o.dx, y: o.dy }] : [{ x: o.x, y: o.y }]);
+    const exAvoid = [{ x: this.lz.x, y: this.lz.y, r: aoScale(this, C.extract.minFromLz) }, ...this.bases.map((b) => ({ x: b.x, y: b.y, r: C.extract.minFromBase })),
+      ...this.objectives.flatMap(objAt).filter((p) => Number.isFinite(p.x)).map((p) => ({ x: p.x, y: p.y, r: C.extract.minFromObj }))];
     // Early on it is not far from where the objective ends, so the first missions stay short.
     const lastO = this.objectives[this.objectives.length - 1], end = lastO ? (lastO.type === 'vip' ? { x: lastO.dx, y: lastO.dy } : lastO) : null;
     const exReach = C.objective.reach.start + C.objective.reach.perMin * this.S;
@@ -636,14 +639,7 @@ export class Mission {
     if (!r.ok) { this.emit('deny', { reason: r.reason }); return r; }
     // (and a new stratagem goes straight into a slot: a free one; with none free, the bar grows a slot, up to five; with five
     // full, it takes the last one)
-    if (this.ls && (id.startsWith('own:') || r.gift)) {
-      const sid = r.gift || id.slice(4), K = this.kit;
-      if (!equip(K, sid)) {
-        if (K.slots < 5) { K.slots++; equip(K, sid); r.grew = true; }
-        else { r.swapped = K.loadout[K.slots - 1]; K.loadout[K.slots - 1] = sid; }
-      }
-      r.slot = K.loadout.indexOf(sid);
-    }
+    if (this.ls && (id.startsWith('own:') || r.gift)) Object.assign(r, this.slotIn(r.gift || id.slice(4)));
     syncSlots(this);
     if (this.player) this.player.slots.forEach((s, i) => {
       const was = before[i], now = s.readyAt !== undefined ? slotStats(this, i)?.cd || 0 : 0;
@@ -658,6 +654,26 @@ export class Mission {
     this.notice(tr('n.bought', { name: r.item.name.toUpperCase() }), 'good');
     if (r.gift) this.notice(tr('n.gift', { name: String(r.giftName).toUpperCase() }), 'good');     // (0.31: the Hangar's free Eagle)
     return r;
+  }
+
+  // (0.47) The tutorial puts a stratagem in a slot: a free one; with none free, the bar grows a slot, up to five; with five full, it
+  // takes the last one. A stratagem it took a slot from can be put back (the tutorial's armory lists it to EQUIP), the same way.
+  slotIn(sid) {
+    const K = this.kit, r = {};
+    if (!K.owned[sid]) return { ok: false };
+    if (!equip(K, sid)) {
+      if (K.slots < 5) { K.slots++; equip(K, sid); r.grew = true; }
+      else { r.swapped = K.loadout[K.slots - 1]; K.loadout[K.slots - 1] = sid; }
+    }
+    r.slot = K.loadout.indexOf(sid);
+    return r;
+  }
+  equipLive(sid) {
+    if (!this.ls) return { ok: false, reason: 'between' };
+    const r = this.slotIn(sid);
+    if (r.ok === false) return r;
+    syncSlots(this);
+    return { ok: true, ...r };
   }
 
   // Names typed in the menus: a blank ship keeps the random one, a blank Helldiver name goes back to the code (B4).
@@ -835,7 +851,9 @@ export class Mission {
       G.near(a.x, a.y, a.vision, (e, d2) => { if (d2 <= s2) e.vis = 2; else if (e.vis < 1) e.vis = 1; });
     }
     // a lookout spots for the fire support: anything in its long ring and inside the strike zone shows on the map
-    for (const u of this.spotters) G.near(u.x, u.y, u.r, (e) => { if (e.vis < 1 && inCone(u, e.x, e.y) && this.inZone(e.x, e.y)) { e.vis = 1; e.spotted = true; } });     // (0.47: down the lookout's cone)
+    // (0.47) down the lookout's cone, past what anyone sees: the strike zone no longer reaches past sight (the vision ladder), so
+    // the spotting is no longer held to it; what it shows there is seen, not yet in reach
+    for (const u of this.spotters) G.near(u.x, u.y, u.r, (e) => { if (e.vis < 1 && inCone(u, e.x, e.y)) { e.vis = 1; e.spotted = true; } });
   }
   // What the squad can see (2), what only the player can see just beyond that (1), or nothing (0). A UAV circle counts as seen by all.
   visLevel(x, y) {
