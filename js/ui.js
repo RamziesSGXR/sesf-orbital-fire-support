@@ -4,7 +4,7 @@ import { FACTIONS, BIOMES } from './data/data.js';
 import { fmtTime, fmtNum, sessionTotals, MAX_NAME, carriesOn, levelReached } from './session.js';
 import { STRATS, CAT_COLOR } from './data/strat.js';
 import { LETTERS, TEAM_COLOR } from './data/names.js';
-import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, hangarStats, shownAt, TIER_MAX, tierItems, itemTier, FLAT_BUILDS, fleetSize, coinOk } from './data/kit.js';
+import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, hangarStats, shownAt, TIER_MAX, tierItems, itemTier, FLAT_BUILDS, fleetSize, coinOk, payStep, MIXES, mixOpen, mixNeeds } from './data/kit.js';
 import { stratReady, stratOnline } from './sim/strat.js';
 import { slotStats } from './sim/player.js';
 import { compass } from './sim/enemies.js';
@@ -1581,9 +1581,10 @@ function statLine(it, kit) {
   if (id === 'seaf.hp') return t('st.seafHp', { a: s.hpMul.toFixed(2), b: s.dmgMul.toFixed(2) });
   if (id === 'seaf.build') return t('st.seafBuild', { x: s.buildSpeed.toFixed(2) });
   if (id === 'seaf.gren') return t('st.seafGren', { n: s.grenades });
-  if (id === 'seaf.rocket') return t('st.seafRocket', { p: Math.round(s.specChance * 100), x: s.eatMul.toFixed(2) });
-  if (id === 'seaf.medic') return t('st.seafMedic', { p: Math.round(s.medicChance * 100), x: s.medicRate.toFixed(2) });
-  if (id === 'seaf.spot') return s.radio ? t('st.seafSpot', { s: Math.round(s.spotCool), n: s.spotN }) : t('st.seafSpot0');
+  // (0.50) Specialists and Field Medics open a troop mix: what that mix brings (a second one's chance), and the EAT / healing
+  if (id === 'seaf.rocket') return kit.seaf.rocket > 0 ? t('st.seafRocket', { p: Math.round(seafStats({ ...kit, mix: 'armor' }).spec2 * 100), x: s.eatMul.toFixed(2) }) : t('st.seafRocket0');
+  if (id === 'seaf.medic') return kit.seaf.medic > 0 ? t('st.seafMedic', { p: Math.round(seafStats({ ...kit, mix: 'medical' }).medic2 * 100), x: s.medicRate.toFixed(2) }) : t('st.seafMedic0');
+  if (id === 'seaf.spot') return s.aura ? t('st.seafSpot', { r: s.auraR, f: Math.round((s.auraRof - 1) * 100), a: Math.round((s.auraAcc - 1) * 100) }) : t('st.seafSpot0');
   if (id.startsWith('gun.')) {
     const g = gunStats(kit);
     if (id === 'gun.dmg') return t('st.gunDmg', { d: f1(g.dmg), r: C.gun.rps });
@@ -1639,9 +1640,9 @@ function keyAt(it, kit, L) {
   if (id === 'seaf.hp') return `x${s.hpMul.toFixed(2)}`;
   if (id === 'seaf.build') return `x${s.buildSpeed.toFixed(2)}`;
   if (id === 'seaf.gren') return String(s.grenades);
-  if (id === 'seaf.rocket') return pc(s.specChance);
-  if (id === 'seaf.medic') return pc(s.medicChance);
-  if (id === 'seaf.spot') return s.radio ? t('st.k.s', { n: Math.round(s.spotCool) }) : '—';
+  if (id === 'seaf.rocket') return L > 0 ? pc(seafStats({ ...k, mix: 'armor' }).spec2) : '—';
+  if (id === 'seaf.medic') return L > 0 ? pc(seafStats({ ...k, mix: 'medical' }).medic2) : '—';
+  if (id === 'seaf.spot') return s.aura ? `+${pc(s.auraRof - 1)}` : '—';
   if (id === 'gun.dmg') return g.dmg.toFixed(1);
   if (id === 'gun.ammo') return String(Math.round(g.ammo));
   if (id === 'gun.regen') return t('st.k.ps', { n: g.regen.toFixed(1) });
@@ -1707,7 +1708,8 @@ export function renderShop(root, opts) {
   // (0.44) SESF coins: SPEND A COIN, then pick anything open but the Classified ones, free
   const coinMode = !live && opts.coinMode && opts.coins > 0;
   if (!live && opts.coins > 0) {
-    const cb = el('div', 'coinbar' + (coinMode ? ' on' : ''), `<i class="coin" aria-hidden="true"></i><span>${esc(t(coinMode ? 'arm.coinPick' : 'arm.coinHave', { n: opts.coins }))}</span>`);
+    const cv = opts.coinVal || 0;      // (0.50) a coin is credits paid toward an item: the next one spent is worth this
+    const cb = el('div', 'coinbar' + (coinMode ? ' on' : ''), `<i class="coin" aria-hidden="true"></i><span>${esc(t(coinMode ? 'arm.coinPick' : 'arm.coinHave', { n: opts.coins, v: fmtNum(cv) }))}</span>`);
     const b = el('button', 'btn small' + (coinMode ? '' : ' primary'), esc(t(coinMode ? 'arm.coinCancel' : 'arm.coinUse')));
     b.type = 'button'; b.id = 'coin-use'; b.onclick = () => opts.onCoin && opts.onCoin();
     cb.appendChild(b); root.appendChild(cb);
@@ -1726,6 +1728,20 @@ export function renderShop(root, opts) {
     lo.appendChild(s);
   }
   root.appendChild(lo);
+  // (0.50) the troop mix: who comes down with each SEAF drop, picked between missions like the orbitals (it heads the SEAF tab)
+  let mixRow = null;
+  if (!live && opts.onMix) {
+    const mx = mixRow = el('div', 'shop-mix');
+    mx.appendChild(el('span', 'mx-l', esc(t('arm.mix'))));
+    for (const k of MIXES) {
+      const ok = mixOpen(kit, k), on = (kit.mix || 'standard') === k;
+      const b = el('button', 'btn small mix' + (on ? ' on' : '') + (ok ? '' : ' shut'), `${esc(t('mix.' + k))}${ok ? '' : `<small>${esc(t('mix.needs.' + mixNeeds(k)))}</small>`}`);
+      b.type = 'button'; b.dataset.mix = k; b.title = t('mix.' + k + '.b'); b.setAttribute('aria-pressed', String(on));
+      if (ok && !on) b.onclick = () => opts.onMix(k); else if (!ok) b.disabled = true;
+      mx.appendChild(b);
+    }
+    mx.appendChild(el('div', 'mx-b', esc(t('mix.' + (kit.mix || 'standard') + '.b'))));
+  }
   // (0.25) your rank, and a bar to the next one: one segment a rank, the classified ones (6 to 9) in red
   if (!live && opts.done !== undefined) root.appendChild(rankBar(tier, opts.done));
 
@@ -1737,7 +1753,7 @@ export function renderShop(root, opts) {
   const shownTabs = SHOP_TABS.filter((tb) => items.some((it) => tb.secs.includes(it.section)));      // (0.24: the Hangar's comes with its milestone)
   if (!shownTabs.some((tb) => tb.id === shopTab)) shopTab = (shownTabs[0] || SHOP_TABS[0]).id;
   for (const tb of shownTabs) {
-    const can = items.some((it) => tb.secs.includes(it.section) && it.cost !== null && !it.locked && open(it) && (coinMode ? coinOk(it) : wallet.bal >= it.cost) && !(live && !it.live));
+    const can = items.some((it) => tb.secs.includes(it.section) && it.cost !== null && !it.locked && open(it) && (coinMode ? coinOk(it) : wallet.bal >= it.due) && !(live && !it.live));
     const b = el('button', 'btn tab' + (shopTab === tb.id ? ' on' : '') + (can ? ' can' : ''), esc(t('arm.tab.' + tb.id)));
     b.type = 'button'; b.dataset.tab = tb.id; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(shopTab === tb.id));
     b.onclick = () => { shopTab = tb.id; root.querySelectorAll('.shop-tabs .tab').forEach((x) => { x.classList.toggle('on', x.dataset.tab === shopTab); x.setAttribute('aria-selected', String(x.dataset.tab === shopTab)); }); root.querySelectorAll('.tabpane').forEach((x) => x.classList.toggle('on', x.dataset.tab === shopTab)); const sc = root.querySelector('.shop-scroll'); if (sc) sc.scrollTop = 0; };
@@ -1747,6 +1763,7 @@ export function renderShop(root, opts) {
   const body = el('div', 'shop-scroll');
   const panes = {};
   for (const tb of SHOP_TABS) { const p = el('div', 'tabpane' + (shopTab === tb.id ? ' on' : '')); p.dataset.tab = tb.id; panes[tb.id] = p; body.appendChild(p); }
+  if (mixRow) (panes.seaf || panes[SHOP_TABS[0].id]).appendChild(mixRow);
   const sections = [];
   for (const it of items) { let s = sections.find((x) => x.name === it.section); if (!s) sections.push(s = { name: it.section, list: [] }); s.list.push(it); }
   for (const sec of sections) {
@@ -1775,16 +1792,27 @@ export function renderShop(root, opts) {
       else if (live && !it.live) { b.textContent = t('arm.between'); b.disabled = true; b.classList.add('small'); }
       else if (coinMode && !coinOk(it)) { b.innerHTML = `${t('arm.coinNo')}<small></small>`; b.disabled = true; b.classList.add('small'); }      // (0.44) no coin for the Classified ones
       else if (coinMode) {
-        b.innerHTML = `${t(it.orb || it.build ? (it.owned ? 'arm.upgrade' : 'arm.unlock') : it.id.startsWith('slot') ? 'arm.buy' : 'arm.upgrade')}<small>${t('arm.coinFree')}</small>`;
+        const cv = opts.coinVal || 0, all = cv >= it.due;      // (0.50) the coin's credits: the whole of what is left, or toward it
+        b.innerHTML = `${t(all ? (it.orb || it.build ? (it.owned ? 'arm.upgrade' : 'arm.unlock') : 'arm.upgrade') : 'arm.payIn')}<small>${t(all ? 'arm.coinFree' : 'arm.coinPart', { n: fmtNum(Math.min(cv, it.due)) })}</small>`;
         b.classList.add('coinb'); b.onclick = () => opts.onBuy(it.id);
       }
       else {
-        const verb = t(it.orb || it.build ? (it.owned ? 'arm.upgrade' : 'arm.unlock') : it.id.startsWith('slot') ? 'arm.buy' : 'arm.upgrade');
-        b.innerHTML = `${verb}<small>${t('arm.cr', { n: fmtNum(it.cost) })}</small>`;
-        if (wallet.bal < it.cost) { b.disabled = true; b.classList.add('poor'); }
+        const verb = t(it.orb || it.build ? (it.owned ? 'arm.upgrade' : 'arm.unlock') : 'arm.upgrade');
+        b.innerHTML = `${verb}<small>${t('arm.cr', { n: fmtNum(it.due) })}</small>`;
+        if (wallet.bal < it.due) { b.disabled = true; b.classList.add('poor'); }
         else b.onclick = () => opts.onBuy(it.id);
       }
       btns.appendChild(b);
+      // (0.50) PAY IN: put credits toward it now (a quarter of its price a press); what is paid stays on it
+      if (!shut && it.cost !== null && !it.locked && !coinMode && !(live && !it.live) && opts.onPay && wallet.bal > 0 && wallet.bal < it.due) {
+        const p = el('button', 'btn small pay', `${t('arm.payIn')}<small>${t('arm.cr', { n: fmtNum(payStep(it, wallet.bal)) })}</small>`);
+        p.type = 'button'; p.onclick = () => opts.onPay(it.id);
+        btns.appendChild(p);
+      }
+      if (it.paid > 0 && it.cost !== null && !black) {
+        const bar = el('div', 'it-paid', `<i style="width:${Math.round((it.paid / it.cost) * 100)}%"></i><span>${esc(t('arm.paid', { n: fmtNum(it.paid), c: fmtNum(it.cost) }))}</span>`);
+        main.appendChild(bar);
+      }
       if (it.owned && it.orb && !live) {          // (orbitals and utilities go in a loadout slot; buildables do not)
         const q = el('button', 'btn small', t(inLoad ? 'arm.unequip' : 'arm.equip'));
         q.onclick = () => (inLoad ? opts.onUnequip(kit.loadout.indexOf(it.orb)) : opts.onEquip(it.orb));
@@ -1968,7 +1996,7 @@ export function fillFinal(session, fin, block, coin = null) {
   $('f-local').textContent = fin.isBest ? t('fin.best') : fin.bestBefore ? t('fin.bestWas', { n: fmtNum(Math.max(fin.bestBefore, session.score)) }) : '';
   // (0.44) the SESF coin this ending paid (or why it paid none)
   $('f-coin').classList.toggle('hidden', !coin);
-  if (coin) $('f-coin').innerHTML = `<i class="coin" aria-hidden="true"></i><span>${esc(coin.got ? t('fin.coin', { n: coin.n }) : t('fin.coin.' + coin.why, { n: coin.n }))}</span>`;
+  if (coin) $('f-coin').innerHTML = `<i class="coin" aria-hidden="true"></i><span>${esc(coin.got ? t('fin.coin', { n: coin.n, v: fmtNum(coin.v || 0) }) : t('fin.coin.' + coin.why, { n: coin.n }))}</span>`;
   const dl = session.difficulty || LEVELS, top = levelReached(session);
   $('f-diff').textContent = t('fin.diff', { n: dl, name: t(...levelName(dl)).toUpperCase() }) + (top > dl ? ' · ' + t('fin.reached', { n: top, name: t(...levelName(top)).toUpperCase() }) : '');
   $('f-totals').textContent = t('fin.totals', { e: fmtNum(tt.earned), s: fmtNum(tt.spent), k: fmtNum(tt.kills), h: tt.lostH, f: tt.lostS });

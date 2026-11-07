@@ -30,7 +30,8 @@ export function newKit() {
   const loadout = Array(C.kit.slotsMax).fill('');
   C.kit.startLoadout.forEach((id, i) => { loadout[i] = id; });
   return { slots: C.kit.slotsStart, loadout, owned, hangar: 1, pel: 1, uav: 1, uavb: { speed: 0, dodge: 0 }, seaf: { cap: 0, drop: 0, hp: 0, gren: 0, rocket: 0, medic: 0, spot: 0, build: 0 }, sup: { lives: 0, zone: 0 }, gun: { dmg: 0, ammo: 0, regen: 0, spread: 0 },
-    build: { bastion: 1, mg: 1, lookout: 1, bridge: 1, tower: 1, sam: 0, arty: 0 } };
+    build: { bastion: 1, mg: 1, lookout: 1, bridge: 1, tower: 1, sam: 0, arty: 0 },
+    paid: {}, mix: 'standard', slotRef: 1 };     // (0.50) credits paid toward items, by armory id; the SEAF troop mix
 }
 // Old or partial saves are filled in rather than thrown away.
 export function fixKit(k) {
@@ -44,7 +45,9 @@ export function fixKit(k) {
   if (kb.bunker !== undefined && kb.lookout === undefined) kb.lookout = Math.max(1, kb.bunker);
   delete kb.wall; delete kb.beacon; delete kb.bunker;
   const out = { ...base, ...k, uavb: { ...base.uavb, ...(k.uavb || {}) }, seaf: { ...base.seaf, ...(k.seaf || {}) }, sup: { ...base.sup, ...(k.sup || {}) }, gun: { ...base.gun, ...(k.gun || {}) }, owned: { ...base.owned, ...(k.owned || {}) },
-    build: { ...base.build, ...kb } };
+    build: { ...base.build, ...kb }, paid: { ...((k.paid && typeof k.paid === 'object') ? k.paid : {}) } };
+  for (const [id, v] of Object.entries(out.paid)) if (!(v > 0)) delete out.paid[id]; else out.paid[id] = Math.round(v);
+  if (!MIXES.includes(out.mix) || !mixOpen(out, out.mix)) out.mix = 'standard';
   // Anything the catalog no longer has (the old Orbital Gatling Barrage) is dropped from a save rather than carried around.
   for (const id of Object.keys(out.owned)) if (!STRATS[id]) delete out.owned[id];
   out.loadout = Array.from({ length: C.kit.slotsMax }, (_, i) => (k.loadout && out.owned[k.loadout[i]] ? k.loadout[i] : ''));
@@ -66,6 +69,15 @@ export function refundLives(kit, wallet) {
   for (let i = 1; i <= L; i++) cr += price(LIVES_PRICE * i);
   kit.sup.lives = 0;
   if (wallet) { wallet.bal += cr; wallet.spent = Math.max(0, wallet.spent - cr); }
+  return cr;
+}
+
+// (0.50) Every orbital slot is open from the start: a save that bought the 4th or 5th slot gets those credits back. kit.slots is
+// what was bought (3 to 5) until the refund, then always slotsMax.
+export function refundSlots(kit, wallet, bought = 3) {
+  let cr = 0;
+  for (let n = Math.max(3, bought | 0); n > 3; n--) cr += slotCost(n);
+  if (wallet && cr) { wallet.bal += cr; wallet.spent = Math.max(0, wallet.spent - cr); }
   return cr;
 }
 
@@ -113,13 +125,28 @@ export function seafStats(kit) {
     hpMul: 1 + K.seafHp * s.hp, dmgMul: 1 + K.seafDmg * s.hp,
     // (0.26) G-12 Grenades: every trooper carries more; Specialists and Field Medics: more drops bring one; Leader Radios: the
     // Squad Leader calls Eagle fire missions (none without it)
-    grenades: C.seaf.grenades + K.seafGren * (s.gren || 0),
-    specChance: Math.min(1, C.seaf.specChance + K.seafRocket * s.rocket), eatMul: 1 + 0.08 * (s.rocket || 0),
-    medicChance: Math.min(1, C.seaf.medicChance + K.seafMedic * s.medic), medicRate: 1 + K.medicRate * s.medic,
-    radio: (s.spot || 0) > 0, spotCool: C.spotter.coolSec * (1 - K.spotCool * Math.max(0, s.spot - 1)),
-    spotN: C.spotter.n + Math.floor(s.spot / 2), spotDmg: 1 + K.spotDmg * Math.max(0, s.spot - 1),
+    grenades: C.seaf.grenades + K.seafGren * (s.gren || 0) + (kit.mix === 'assault' ? C.seaf.mix.assaultGren : 0),
+    // (0.50) the troop mix: who comes down with each drop (rollRoles). Specialists and Field Medics no longer make them more common
+    // in every drop: their first level opens a mix (ANTI-ARMOUR, MEDICAL), and each level adds to that mix
+    mix: kit.mix || 'standard', ...mixChances(kit), eatMul: 1 + 0.08 * (s.rocket || 0), medicRate: 1 + K.medicRate * s.medic,
+    // (0.50) Leader Command (was Leader Radios): troopers near a Squad Leader fire faster and straighter (no more fire missions)
+    aura: (s.spot || 0) > 0, auraR: C.leader.r, auraRof: 1 + C.leader.rof + C.leader.rofUp * Math.max(0, (s.spot || 0) - 1),
+    auraAcc: 1 + C.leader.acc + C.leader.accUp * Math.max(0, (s.spot || 0) - 1),
     buildSpeed: 1 + K.seafBuild * (s.build || 0),       // Combat Engineers: how much faster SEAF put up what they build
   };
+}
+// (0.50) The troop mixes: STANDARD (what drops have always been), ASSAULT (riflemen with extra grenades), ANTI-ARMOUR (opened by
+// Specialists: one in every drop and a chance of a second) and MEDICAL (opened by Field Medics: likewise for Medics). The count
+// of troopers in a drop is the same in every mix.
+export const MIXES = ['standard', 'assault', 'armor', 'medical'];
+export const mixNeeds = (mix) => (mix === 'armor' ? 'rocket' : mix === 'medical' ? 'medic' : null);
+export const mixOpen = (kit, mix) => { const n = mixNeeds(mix); return !n || (((kit && kit.seaf) || {})[n] || 0) > 0; };
+function mixChances(kit) {
+  const s = kit.seaf, K = C.kit, X = C.seaf.mix, mix = mixOpen(kit, kit.mix) ? kit.mix || 'standard' : 'standard';
+  if (mix === 'assault') return { specChance: 0, medicChance: 0, spec2: 0, medic2: 0, grenMix: X.assaultGren };
+  if (mix === 'armor') return { specChance: 1, spec2: Math.min(X.secondMax, K.seafRocket * 2 * s.rocket), medicChance: C.seaf.medicChance * X.other, medic2: 0, grenMix: 0 };
+  if (mix === 'medical') return { medicChance: 1, medic2: Math.min(X.secondMax, K.seafMedic * 2 * s.medic), specChance: C.seaf.specChance * X.other, spec2: 0, grenMix: 0 };
+  return { specChance: C.seaf.specChance, medicChance: C.seaf.medicChance, spec2: 0, medic2: 0, grenMix: 0 };
 }
 // The Ship Gun (the one gatling the destroyer has): damage, magazine, ammo regeneration and how tight the rounds group.
 export function gunStats(kit) {
@@ -150,7 +177,7 @@ export const FLAT_BUILDS = new Set(['foxhole', 'wire']);     // (0.39) no levels
 export const buildLevel = (kit, what) => (FLAT_BUILDS.has(what) ? 1 : ((kit && kit.build) || {})[what] || 0);
 export const BUILDS = ['bastion', 'mg', 'lookout', 'bridge', 'tower', 'sam', 'arty'];       // in the armory (the foxhole is free and has no levels)
 // The SEAF Barracks has no top level: each level adds troops and costs a little more than the last.
-export const barracksCost = (lvl) => price(300 * (lvl + 1) ** 1.4);
+export const barracksCost = (lvl) => price(C.kit.barracks.base * (lvl + 1) ** C.kit.barracks.pow);     // (0.50: a little dearer, 300 x n^1.4 before)
 export const zoneExtra = (kit) => C.kit.zonePer * kit.sup.zone;
 
 // ---------- the shop ----------
@@ -162,7 +189,7 @@ const GUN_UP = { dmg: { max: 5, price: 300 }, ammo: { max: 5, price: 250 }, rege
 const SUP_UP = { zone: { max: 4, price: 450 } };
 const LIVES_PRICE = 300;      // the old Reinforcement Budget (extra Helldiver lives), kept only to refund old saves
 // the number a blurb quotes, if it has one
-const BLURB_N = { 'seaf.cap': () => C.kit.seafCap, 'gun.ammo': () => C.gun.upAmmo, 'sup.zone': () => C.kit.zonePer };
+const BLURB_N = { 'seaf.cap': () => C.kit.seafCap, 'seaf.spot': () => C.leader.r, 'gun.ammo': () => C.gun.upAmmo, 'sup.zone': () => C.kit.zonePer };
 const named = (key) => ({ get name() { return t(`kit.${key}`); }, get blurb() { return t(`kit.${key}.b`, { n: BLURB_N[key] ? BLURB_N[key]() : '' }); } });
 const ORB_UP_BASE = 400;       // upgrade price scale: level L to L+1 costs this (or the unlock price) x 0.5 x L
 
@@ -194,11 +221,7 @@ export function tierItems(kit, tier) { return shopItems(kit).filter((it) => item
 
 export function shopItems(kit) {
   const items = [];
-  // Slots
-  for (const n of [4, 5]) {
-    if (kit.slots >= n) continue;
-    items.push({ id: `slot:${n}`, section: 'loadout', name: t('kit.slot', { n }), blurb: t('kit.slot.b'), level: 0, max: 1, cost: kit.slots === n - 1 ? slotCost(n) : null, locked: kit.slots !== n - 1, live: false });
-  }
+  // (0.50) no slots to buy: all five are open from the start
   // (0.39) The Hangar is open from the start: what is bought there is more pelicans (the Pelican Fleet) and bigger loads (seaf.drop,
   // below, listed in the Hangar)
   { const F = C.hangar.fleet, n = fleetSize(kit), lvl = n - F.start, mx = F.max - F.start;
@@ -238,6 +261,9 @@ export function shopItems(kit) {
     const lvl = kit.sup[k];
     items.push({ id: `sup.${k}`, section: 'support', ...named(`sup.${k}`), level: lvl, max: u.max, cost: lvl >= u.max ? null : price(u.price * (lvl + 1)), live: true });
   }
+  // (0.50) what has been paid toward each, and what is left to pay
+  const P = kit.paid || {};
+  for (const it of items) { it.paid = it.cost === null ? 0 : Math.min(it.cost, P[it.id] || 0); it.due = it.cost === null ? null : it.cost - it.paid; }
   return items;
 }
 
@@ -253,8 +279,9 @@ export function buy(kit, wallet, id, inMission = false, tier = TIER_MAX, free = 
   if (it.cost === null || it.locked) return { ok: false, reason: it.locked ? 'locked' : 'maxed' };
   if (inMission && !it.live) return { ok: false, reason: 'between' };
   if (free && !coinOk(it)) return { ok: false, reason: 'coin' };
-  if (!free && wallet.bal < it.cost) return { ok: false, reason: 'funds' };
-  if (!free) { wallet.bal -= it.cost; wallet.spent += it.cost; }
+  if (!free && wallet.bal < it.due) return { ok: false, reason: 'funds' };
+  if (!free) { wallet.bal -= it.due; wallet.spent += it.due; }
+  if (kit.paid) delete kit.paid[id];
   const [kind, arg] = id.split(/[:.]/);
   if (kind === 'slot') kit.slots = Number(arg);
   else if (kind === 'own') { kit.owned[arg] = 1; equip(kit, arg); }
@@ -268,6 +295,38 @@ export function buy(kit, wallet, id, inMission = false, tier = TIER_MAX, free = 
   else if (kind === 'bld') { kit.build = kit.build || {}; kit.build[arg] = (kit.build[arg] || 0) + 1; }
   return { ok: true, item: it };
 }
+
+// (0.50) Pay toward an item without buying it: the credits stay on it (they can't be taken back) and it is bought once the rest is
+// paid. amount: what to put in (never more than is left to pay; a payment that covers the rest buys it). coin: (0.50) an SESF
+// coin's credits, paid in with no credits from the wallet; what is over the price carries on to the item's next level, if it has one.
+export function payToward(kit, wallet, id, amount, inMission = false, tier = TIER_MAX, coin = false) {
+  const it = shopItems(kit).find((x) => x.id === id);
+  if (!it) return { ok: false, reason: 'unknown' };
+  if (!shownAt(it, tier)) return { ok: false, reason: 'locked' };
+  if (it.cost === null || it.locked) return { ok: false, reason: it.locked ? 'locked' : 'maxed' };
+  if (inMission && !it.live) return { ok: false, reason: 'between' };
+  if (coin && !coinOk(it)) return { ok: false, reason: 'coin' };
+  amount = Math.max(0, Math.round(amount));
+  if (!coin) amount = Math.min(amount, wallet.bal, it.due);
+  if (amount <= 0) return { ok: false, reason: 'funds' };
+  kit.paid = kit.paid || {};
+  if (amount < it.due) {
+    if (!coin) { wallet.bal -= amount; wallet.spent += amount; }
+    kit.paid[id] = it.paid + amount;
+    return { ok: true, item: it, paid: amount, bought: false, left: it.due - amount };
+  }
+  const over = amount - it.due;
+  if (!coin) { wallet.bal -= it.due; wallet.spent += it.due; }
+  const r = buy(kit, wallet, id, inMission, tier, true);
+  if (!r.ok) return r;
+  if (coin && over > 0) {      // the rest of a coin goes on toward the next level, if there is one
+    const nx = shopItems(kit).find((x) => x.id === id || (it.orb && x.id === 'up:' + it.orb));
+    if (nx && nx.cost !== null && coinOk(nx)) kit.paid[nx.id] = Math.min(nx.cost - 1, (kit.paid[nx.id] || 0) + over);
+  }
+  return { ok: true, item: it, paid: Math.min(amount, it.due), bought: true, over, gift: r.gift, giftName: r.giftName, equipped: r.equipped };
+}
+// What one press of PAY IN puts toward an item: a quarter of its price, or what is left, or what you have.
+export const payStep = (it, bal) => Math.max(0, Math.min(bal, it.due, Math.max(25, price(it.cost / 4 / C.econ.priceMul))));
 
 // Put an owned orbital into the first empty unlocked slot. Returns false if the slots are full.
 export function equip(kit, id) {

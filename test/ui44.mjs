@@ -48,7 +48,7 @@ await newOp('coin_one');
 check('the armory: no END OPERATION before a mission counts', (await st()) === 'shop' && !(await shown('shop-end')));
 await won(); await wait(200);
 check('after one: END OPERATION in the armory', await shown('shop-end'));
-check('it says what it pays', /^END OPERATION\s*\+1 SESF COIN$/.test(await txt('shop-end')), await txt('shop-end'));
+check('it says what it pays (0.50: and what the coin is worth)', /^END OPERATION\s*\+1 SESF COIN \([\d,]+ CR\)$/.test(await txt('shop-end')), await txt('shop-end'));
 await click('shop-end'); await wait(100);
 check('the first tap asks again', (await st()) === 'shop' && /^TAP AGAIN TO END/.test(await txt('shop-end')), await txt('shop-end'));
 await wait(5300);
@@ -58,7 +58,7 @@ await page.waitForFunction(() => window.__game.state === 'final', null, { timeou
 check('two taps end it', (await st()) === 'final');
 check('the final screen: +1 SESF COIN', (await shown('f-coin')) && /\+1 SESF COIN.*You hold 1/.test(await txt('f-coin')), await txt('f-coin'));
 const c1 = await coins();
-check('one coin kept on this browser', c1 && c1.n === 1 && c1.paid.length === 1, JSON.stringify(c1));
+check('one coin kept on this browser, with its worth (0.50)', c1 && c1.n === 1 && c1.paid.length === 1 && c1.vals && c1.vals[0] > 0, JSON.stringify(c1));
 const runA = c1.paid[0];
 
 // ---------------------------------------------------------------- the next operation: spend it
@@ -77,12 +77,13 @@ const pick = await ev(() => {
   return { n: all.length, bal };
 });
 check('everything else open is free in pick mode', pick.n > 5, pick.n);
-const before = await ev(() => ({ bal: window.__game.session.wallet.bal, slots: window.__game.session.kit.slots }));
+// (0.50) a coin is credits: one whose worth covers an item buys it outright (the slots are no longer for sale)
+const before = await ev(() => ({ bal: window.__game.session.wallet.bal, kit: JSON.stringify(window.__game.session.kit.owned) }));
 await ev(() => document.querySelector('.shop-tabs .tab[data-tab="orb"]').click());
-const slotBtn = await ev(() => { const it = [...document.querySelectorAll('.tabpane[data-tab="orb"] .item')].find((c) => /SLOT 4|Slot 4|4/.test(c.querySelector('.it-name').textContent) && c.querySelector('.btn.buy.coinb')); if (!it) return null; it.querySelector('.btn.buy').click(); return it.querySelector('.it-name').textContent; });
+const whole = await ev(() => { const it = [...document.querySelectorAll('.tabpane[data-tab="orb"] .item')].find((c) => { const b = c.querySelector('.btn.buy.coinb'); return b && /1 SESF COIN/.test(b.textContent); }); if (!it) return null; it.querySelector('.btn.buy').click(); return it.querySelector('.it-name').textContent; });
 await wait(150);
-const after = await ev(() => ({ bal: window.__game.session.wallet.bal, slots: window.__game.session.kit.slots, note: document.querySelector('#shop-root .shop-cr .note') && document.querySelector('#shop-root .shop-cr .note').textContent }));
-check('the 4th loadout slot, bought with the coin', slotBtn && after.slots === before.slots + 1, `${slotBtn} ${before.slots}→${after.slots}`);
+const after = await ev(() => ({ bal: window.__game.session.wallet.bal, kit: JSON.stringify(window.__game.session.kit.owned), note: document.querySelector('#shop-root .shop-cr .note') && document.querySelector('#shop-root .shop-cr .note').textContent }));
+check('an item the coin covers, bought with it', whole && after.kit !== before.kit, `${whole}`);
 check('credits untouched', after.bal === before.bal, `${before.bal} → ${after.bal}`);
 check('the armory says how it was paid', /PAID WITH AN SESF COIN/.test(after.note || ''), after.note);
 check('the coin is spent', (await coins()).n === 0 && !(await ev(() => !!document.querySelector('#shop-root .coinbar'))));

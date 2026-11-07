@@ -2636,3 +2636,17 @@ body.rts.lay-phone.lay-port #hud #topbar .alertc:not(.lit) b i.st:first-child { 
 body.rts.lay-phone.lay-port #hud #topbar .alertc b em.al-n { display: inline; color: #ffd08a; font-size: 18px; }
 body.rts.lay-phone.lay-port #hud #topbar .alertc b em.al-n.hot { color: #ff5a3c; }
 body.rts.lay-phone.lay-port #hud #topbar .alertc { padding: 0 6px; }
+
+/* (0.50) the troop mix row, PAY IN and what has been paid toward an item */
+.shop-mix { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 8px; padding: 6px 8px; border: 1px solid var(--line); background: var(--panel); }
+.shop-mix .mx-l { font-size: 11px; letter-spacing: 0.12em; color: var(--g-dim); margin-right: 4px; }
+.shop-mix .btn.mix { min-height: 30px; }
+.shop-mix .btn.mix.on { border-color: var(--g); background: rgba(157, 255, 184, 0.16); color: var(--g); }
+.shop-mix .btn.mix.shut { opacity: 0.45; }
+.shop-mix .btn.mix small { display: block; font-size: 9px; color: var(--g-dim); }
+.shop-mix .mx-b { flex: 1 1 100%; font-size: 11px; color: var(--g-dim); }
+.btn.small.pay { border-color: var(--amber); color: var(--amber); }
+.btn.small.pay small { color: var(--amber); }
+.it-paid { position: relative; height: 14px; margin-top: 5px; border: 1px solid rgba(255, 176, 32, 0.55); background: rgba(255, 176, 32, 0.06); }
+.it-paid i { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(255, 176, 32, 0.32); }
+.it-paid span { position: relative; display: block; padding: 0 6px; font-size: 9px; line-height: 12px; letter-spacing: 0.08em; color: #ffd27a; }
