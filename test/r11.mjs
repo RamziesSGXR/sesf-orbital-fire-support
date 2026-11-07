@@ -54,8 +54,8 @@ const TUNED = snap();
 
 // ---------------------------------------------------------------- fewer enemies on the field
 {
-  const field = (d, fac) => {
-    const m = new Mission({ seed: 31 + fac.length, faction: fac, biome: 'grass', events: false, missionN: 1, difficulty: d, objectives: ['vip'] });   // (0.18: the same objective at both levels, as before the round maps)
+  const field = (d, fac, k = 0) => {
+    const m = new Mission({ seed: 31 + fac.length + 100 * k, faction: fac, biome: 'grass', events: false, missionN: 1, difficulty: d, objectives: ['vip'] });   // (0.18: the same objective at both levels, as before the round maps)
     let peak = 0, heavy = 0, med = 0;
     run(m, 300, (mm) => {
       let n = 0, h = 0, md = 0;
@@ -65,7 +65,10 @@ const TUNED = snap();
     return { peak, heavy, med };
   };
   for (const fac of ['bugs', 'bots', 'squids']) {
-    const lo = field(1, fac), hi = field(10, fac);
+    // (0.49) the peaks of two maps added up: one map alone swings with how its fight happens to go (a base the squad can't finish
+    // keeps calling)
+    const sum = (d) => { const r = [field(d, fac, 0), field(d, fac, 1)]; return { peak: r[0].peak + r[1].peak, heavy: Math.max(r[0].heavy, r[1].heavy), med: r[0].med + r[1].med }; };
+    const lo = sum(1), hi = sum(10);
     check(`${fac}: level 1 puts far fewer enemies on the field than level 10`, lo.peak < hi.peak * 0.75, `peak ${lo.peak} vs ${hi.peak}`);
     check(`${fac}: and fewer mediums and heavies`, lo.heavy <= hi.heavy && lo.med < hi.med, `heavies ${lo.heavy} vs ${hi.heavy}, mediums ${lo.med} vs ${hi.med}`);
   }
