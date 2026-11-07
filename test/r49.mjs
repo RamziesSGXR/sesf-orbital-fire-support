@@ -2,6 +2,8 @@
 //   node test/r49.mjs
 import { Mission } from '../js/sim/mission.js';
 import { CONFIG as C } from '../js/config.js';
+import { orbStats } from '../js/data/kit.js';
+import { strikeAt } from '../js/sim/strat.js';
 import { damageArea } from '../js/sim/combat.js';
 import { STRATS } from '../js/data/strat.js';
 import { alertBase } from '../js/sim/director.js';
@@ -16,7 +18,9 @@ const mk = (seed, fac = 'bots', o = {}) => { const m = new Mission({ seed, facti
 {
   const m = mk(4901);
   const plain = m.bases.filter((b) => !b.fortress && !b.op && !b.node && !b.cannon);
-  check('every ordinary base is two or three spawners', plain.length > 0 && plain.every((b) => b.spawners && b.spawners.length >= 2 && b.spawners.length <= 3), plain.map((b) => b.spawners && b.spawners.length).join(' '));
+  check('every ordinary base is two to four spawners (0.52: more the bigger it is)', plain.length > 0 && plain.every((b) => b.spawners && b.spawners.length >= 2 && b.spawners.length <= 4), plain.map((b) => b.spawners && b.spawners.length).join(' '));
+  check('(0.52) its spawners stand far enough apart that one blast reaches only one', plain.every((b) => b.spawners.every((p, i) => b.spawners.every((q, j) => i === j || Math.hypot(p.x - q.x, p.y - q.y) >= C.bases.spawners.gap - 0.01))));
+  check('(0.52) bases come in sizes, the biggest about a 380 barrage across', plain.every((b) => b.r >= C.bases.spawners.size[0] && b.r <= C.bases.spawners.size[1] + 3) && new Set(plain.map((b) => b.r)).size > 1, plain.map((b) => b.r).join(' '));
   check('...inside its circle', plain.every((b) => b.spawners.every((s) => Math.hypot(s.x - b.x, s.y - b.y) <= b.r)));
   check('its layout starts hidden (the place is known)', plain.every((b) => !b.seen));
   // one precision strike on one spawner takes it out, and no more
@@ -26,6 +30,20 @@ const mk = (seed, fac = 'bots', o = {}) => { const m = new Mission({ seed, facti
   check('one precision strike takes out one spawner', s.dead && liveSpawners(b).length === n0 - 1 && !b.destroyed, `${liveSpawners(b).length} left of ${n0}`);
   for (const q of liveSpawners(b)) damageArea(m, q.x, q.y, P.splash, P.dmg, P.mult, 'player');
   check('the base falls with its last spawner', b.destroyed);
+  // (0.52) a real precision strike, from the ship at its top level, with the structure multiplier: on a spawner it takes that one;
+  // between two it takes at most one (it used to wipe the base: a hit bigger than the base's health took the lot)
+  {
+    const b2 = plain.find((q) => q !== b && liveSpawners(q).length >= 2);
+    if (b2) {
+      const P5 = orbStats('orb_precision', 5), [p, q] = liveSpawners(b2), k0 = liveSpawners(b2).length;
+      strikeAt(m, P5, { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 }, { ox: m.hx, oy: m.hy, by: 'player', friendly: true, dmgMul: 1 });
+      for (let i = 0; i < 30 * (P5.delay + 1); i++) m.step(1 / 30);
+      const k1 = liveSpawners(b2).length;
+      strikeAt(m, P5, { x: q.x, y: q.y }, { ox: m.hx, oy: m.hy, by: 'player', friendly: true, dmgMul: 1 });
+      for (let i = 0; i < 30 * (P5.delay + 1); i++) m.step(1 / 30);
+      check('(0.52) a top-level precision strike between two spawners takes at most one; on one, it takes it', k0 - k1 <= 1 && q.dead, `${k0} → ${k1} → ${liveSpawners(b2).length}`);
+    }
+  }
 }
 {
   // an awake base lets its troops out one at a time, and never a heavy

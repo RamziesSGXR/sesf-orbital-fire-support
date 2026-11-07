@@ -334,10 +334,10 @@ export const CONFIG = {
               // 1 + (maxSize - 1) x q bases, and is a lone base anyway with chance single x (1 - q); its bases stand from far down to
               // near metres apart as q rises, never closer than gap.
               cluster: { base: 0, perMin: 240, perLevel: 0.05, maxSize: 4, single: 0.45, far: 140, near: 85, gap: 62 },
-              // (0.49) each base is min..max small spawners (sim/spawners.js), spread metres from its middle, hp each (one precision
-              // strike), r across; its troops come out of them one every trickleSec; a heavy may already be in its garrison when
+              // (0.49) each base is min..max small spawners (sim/spawners.js), hp each (one precision strike), r across; (0.52) the base is
+              // size[0] to size[1] m across its middle (the biggest a 380 barrage), more spawners the bigger, gap apart; troops: every trickleSec; a heavy may already be in its garrison when
               // it is first seen: heavy[0] at level 1 to heavy[1] at level 10, never over heavyMax
-              spawners: { min: 2, max: 3, hp: 500, r: 4, spread: 9, trickleSec: 0.6, heavy: [0.08, 0.45], heavyMax: 0.6 } },
+              spawners: { min: 2, max: 4, hp: 500, r: 4, size: [16, 28], gap: 26, trickleSec: 0.6, heavy: [0.08, 0.45], heavyMax: 0.6 } },
   // The big base for the destroy-the-citadel objective.
   // Objective sites under siege (objectives.js siege): while the squad works an objective the enemy calls backup every `every`
   // seconds, down to `minEvery`, with up to `extra` more groups, over rampSec seconds at the site. A call waits (capWait s) while
@@ -583,6 +583,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.51.0',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.52.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

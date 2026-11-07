@@ -241,6 +241,8 @@ function stage(fac, seed) {
   m.hdAlive.forEach((x, i) => { x.hp = x.maxHp = 1e9; x.atk = 1e9; x.gren = 0; x.ultAt = 1e9; x.dodgeAt = 1e9; if (x !== a) { x.x = 100 + 40 * i; x.y = 1450; x.ox = 0; x.oy = 0; } });
   const P = m.terrain.nearestLand(m.ao.cx, m.ao.cy); HX = P.x; HY = P.y;   // stand on dry ground, not in a river (0.18: in the middle of the round map)
   a.x = HX; a.y = HY; a.ox = 0; a.oy = 0; m.squad.ax = HX; m.squad.ay = HY;
+  // (0.52) no work site: a hunt goes for the nearest of anyone and anything, and this one is about the Helldiver
+  if (m.workSite) { m.posts = m.posts.filter((p) => p !== m.workSite); m.assets = m.assets.filter((s) => s !== m.workSite); m.workSite = null; }
   m._refreshAlive();
   return { m, a };
 }
