@@ -30,7 +30,7 @@ for (let round = 0; round < 40; round++) {
   }
 }
 check('every armory purchase, at every level, changes the kit', dead.length === 0, dead.slice(0, 8).join(', ') || `${bought} purchases`);
-check('the check reached every kind of item', ['slot', 'own', 'up', 'uav', 'uavb.speed', 'uavb.dodge', 'gun.ammo', 'seaf.cap', 'bld'].every((k) => [...seen].some((s) => s.startsWith(k))), [...seen].join(' '));
+check('the check reached every kind of item (0.50: no slots for sale)', ['own', 'up', 'uav', 'uavb.speed', 'uavb.dodge', 'gun.ammo', 'seaf.cap', 'bld'].every((k) => [...seen].some((s) => s.startsWith(k))), [...seen].join(' '));
 check('the UAV recharges faster at every level', C.uav.cd.every((v, i) => i === 0 || v < C.uav.cd[i - 1]), C.uav.cd.join(' '));
 
 // ---------------------------------------------------------------- mid-mission: the running recharge is shortened too
