@@ -79,6 +79,13 @@ export const CONFIG = {
   medic:    { range: 20, heal: 24, every: 1.3, hp: 90, close: 4, closeMul: 2, reviveR: 20, downSec: 14, reviveSec: 2.5, reviveHp: 0.4, downSight: 0.25 },
   // (0.50) An SESF coin: credits paid toward an armory item, base + per mission that counted in the operation it came from, at
   // most max; one earned before 0.50 is worth old.
+  // (0.51) Commendations (data/perks.js): at most max an operation, offer to pick from after each mission; per stack: orbital
+  // recharge -cd (never under min of it), Eagle rearm and pelican turnaround -rearm, ship gun damage and regeneration +dmg, SEAF
+  // health and damage +hp, build costs -cost (never under min of the price)
+  perks:    { max: 10, offer: 3, orb: { cd: 0.06, min: 0.5 }, eagle: { rearm: 0.08, min: 0.5 }, ship: { dmg: 0.08 }, seaf: { hp: 0.06 }, build: { cost: 0.08, min: 0.4 } },
+  // (0.51) Choosing the next mission: offers to pick from, each a bump of bump[0] to bump[1] levels for that mission only (it pays
+  // more, as any higher level does: difficulty.js reward, and payPer a level more on top)
+  offers:   { n: 3, bump: [1, 3], payPer: 0.15 },     // (payPer: every credit of a bumped mission x (1 + payPer x bump), on top)
   coin:     { base: 300, per: 150, max: 4500, old: 750 },
   // (0.50) Leader Command: SEAF within r of a Squad Leader (the bot Commander's jamR, its mirror) fire faster (rof) and hit more
   // often (acc); each level after the first adds rofUp and accUp.
@@ -560,6 +567,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.50.1',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.51.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

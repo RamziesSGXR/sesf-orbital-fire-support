@@ -3,6 +3,7 @@
 // The player never steers the Helldivers. Friendly fire from the player's own strikes is real.
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
+import { orbCdMul } from '../data/perks.js';
 import { COMMS } from '../data/data.js';
 import { orbStats, uavStats, gunStats, buildStats, buildLevel, hangarStats } from '../data/kit.js';
 import { noise, alertGroup } from './enemies.js';
@@ -159,7 +160,7 @@ function fireOrbital(m, idx) {
   if (st.k === 'util') return callUtil(m, s, st);
   if (st.k === 'mines') return callMines(m, s, st);
   // into a free-fire zone the Helldivers asked for: the destroyer recharges faster, so the gunner can saturate it
-  s.readyAt = t + st.cd;
+  s.readyAt = t + st.cd * orbCdMul(m.kit);     // (0.51: the Orbital Efficiency commendation)
   if (st.cat === 'EAGLE') eagleUse(m, s);
   if (s.uses !== Infinity) s.uses--;
   let tgt = { x: p.aimX, y: p.aimY };
@@ -201,7 +202,7 @@ function eagleTick(m) {
 function callMines(m, s, st) {
   const p = m.player, t = m.t, x = p.aimX, y = p.aimY;
   if (!m.terrain.isLand(x, y)) return deny(m, 'water', COMMS.noWater);
-  s.readyAt = t + st.cd;
+  s.readyAt = t + st.cd * orbCdMul(m.kit);     // (0.51: the Orbital Efficiency commendation)
   m.utilQ.push({ at: t + st.delay, st, x, y, id: s.id, mines: true });
   m.markers.push({ type: 'pod', x, y, r: st.r, start: t, end: t + st.delay, id: s.id, util: 'mines' });
   m.stats.shots++; m.stats.stratBy[s.id] = (m.stats.stratBy[s.id] || 0) + 1;
@@ -223,7 +224,7 @@ function landMines(m, u) {
 function callUtil(m, s, st) {
   const p = m.player, t = m.t, x = p.aimX, y = p.aimY;
   if ((st.util === 'sentry' || st.util === 'shield') && !m.terrain.isLand(x, y)) return deny(m, 'water', COMMS.noWater);
-  s.readyAt = t + st.cd;
+  s.readyAt = t + st.cd * orbCdMul(m.kit);     // (0.51: the Orbital Efficiency commendation)
   m.utilQ.push({ at: t + st.delay, st, x, y, id: s.id });
   m.markers.push({ type: 'pod', x, y, r: st.r || (st.zone ? st.zone.r : 6), start: t, end: t + st.delay, id: s.id, util: st.util });
   m.stats.utils = (m.stats.utils || 0) + 1; m.stats.shots++;

@@ -3,6 +3,7 @@
 import { CONFIG as C } from '../config.js';
 import { STRATS, PLAYER_IDS } from './strat.js';
 import { t } from '../i18n.js';
+import { eagleMul, gunMul, seafMul, PERKS } from './perks.js';
 
 const MAXL = C.orbital.maxLevel;
 
@@ -31,7 +32,7 @@ export function newKit() {
   C.kit.startLoadout.forEach((id, i) => { loadout[i] = id; });
   return { slots: C.kit.slotsStart, loadout, owned, hangar: 1, pel: 1, uav: 1, uavb: { speed: 0, dodge: 0 }, seaf: { cap: 0, drop: 0, hp: 0, gren: 0, rocket: 0, medic: 0, spot: 0, build: 0 }, sup: { lives: 0, zone: 0 }, gun: { dmg: 0, ammo: 0, regen: 0, spread: 0 },
     build: { bastion: 1, mg: 1, lookout: 1, bridge: 1, tower: 1, sam: 0, arty: 0 },
-    paid: {}, mix: 'standard', slotRef: 1 };     // (0.50) credits paid toward items, by armory id; the SEAF troop mix
+    paid: {}, mix: 'standard', slotRef: 1, perks: {} };     // (0.51) perks: the operation's commendations (data/perks.js)     // (0.50) credits paid toward items, by armory id; the SEAF troop mix
 }
 // Old or partial saves are filled in rather than thrown away.
 export function fixKit(k) {
@@ -48,6 +49,7 @@ export function fixKit(k) {
     build: { ...base.build, ...kb }, paid: { ...((k.paid && typeof k.paid === 'object') ? k.paid : {}) } };
   for (const [id, v] of Object.entries(out.paid)) if (!(v > 0)) delete out.paid[id]; else out.paid[id] = Math.round(v);
   if (!MIXES.includes(out.mix) || !mixOpen(out, out.mix)) out.mix = 'standard';
+  out.perks = Object.fromEntries(PERKS.map((q) => [q, Math.max(0, ((k.perks || {})[q]) | 0)]).filter(([, n]) => n > 0));     // (0.51)
   // Anything the catalog no longer has (the old Orbital Gatling Barrage) is dropped from a save rather than carried around.
   for (const id of Object.keys(out.owned)) if (!STRATS[id]) delete out.owned[id];
   out.loadout = Array.from({ length: C.kit.slotsMax }, (_, i) => (k.loadout && out.owned[k.loadout[i]] ? k.loadout[i] : ''));
@@ -104,7 +106,8 @@ export function orbStats(id, level = 1) {
 // (0.39) The Hangar is always open (level 1 at least: it is no longer bought); fleet is how many pelicans are in it.
 export function hangarStats(kit) {
   const H = C.hangar, l = Math.max(1, Math.min(H.levels, (kit && kit.hangar) | 0));
-  return { level: l, uses: H.usesBase + Math.floor(l / 2), rearm: H.rearm[l], callCd: H.callCd, seafCool: H.seafCool[l], fleet: fleetSize(kit) };
+  const pm = eagleMul(kit);     // (0.51) the Hangar Crews commendation
+  return { level: l, uses: H.usesBase + Math.floor(l / 2), rearm: H.rearm[l] * pm, callCd: H.callCd, seafCool: H.seafCool[l] * pm, fleet: fleetSize(kit) };
 }
 export const fleetSize = (kit) => Math.max(1, Math.min(C.hangar.fleet.max, (kit && kit.pel) || C.hangar.fleet.start));
 export const uavStats = (lvl = 1) => {
@@ -122,7 +125,7 @@ export function seafStats(kit) {
     max: C.seaf.max + K.seafCap * s.cap,
     drop: C.seaf.dropSize + Math.ceil(s.drop / K.seafDropEvery),
     cool: (C.seaf.dropCooldownSec - 3 * s.drop) * hangarStats(kit).seafCool,     // (0.23: the Hangar turns pelicans round faster)
-    hpMul: 1 + K.seafHp * s.hp, dmgMul: 1 + K.seafDmg * s.hp,
+    hpMul: (1 + K.seafHp * s.hp) * seafMul(kit), dmgMul: (1 + K.seafDmg * s.hp) * seafMul(kit),     // (0.51: and the Veterans commendation)
     // (0.26) G-12 Grenades: every trooper carries more; Specialists and Field Medics: more drops bring one; Leader Radios: the
     // Squad Leader calls Eagle fire missions (none without it)
     grenades: C.seaf.grenades + K.seafGren * (s.gren || 0) + (kit.mix === 'assault' ? C.seaf.mix.assaultGren : 0),
@@ -152,7 +155,7 @@ function mixChances(kit) {
 export function gunStats(kit) {
   const g = kit.gun || {}, G = C.gun;
   return {
-    ammo: G.ammo + G.upAmmo * (g.ammo || 0), dmg: G.dmg * (1 + G.upDmg * (g.dmg || 0)), regen: G.regen * (1 + G.upRegen * (g.regen || 0)),
+    ammo: G.ammo + G.upAmmo * (g.ammo || 0), dmg: G.dmg * (1 + G.upDmg * (g.dmg || 0)) * gunMul(kit), regen: G.regen * (1 + G.upRegen * (g.regen || 0)) * gunMul(kit),     // (0.51: Gun Overcharge)
     spread: G.spread * (1 - G.upSpread * (g.spread || 0)), bloom: G.bloom * (1 - G.upSpread * (g.spread || 0)),
   };
 }

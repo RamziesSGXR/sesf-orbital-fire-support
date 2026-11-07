@@ -77,6 +77,7 @@ check('and keeps it through the debrief', c.cue === 'win', `${await ev(() => win
 // the next one on Ambient: straight into BATTLE, no DROP; then a loss
 await ev(() => { window.__game.setSetting('musicStyle', 'ambient'); });
 await ev(() => window.__game.goShop()); await page.waitForTimeout(500);
+await page.evaluate(() => { for (let k = 0; k < 2; k++) { const c = document.querySelector('#s-next.on .nx-c'); if (c) c.click(); } }); await page.waitForTimeout(250);     // (0.51) MISSION COMPLETE's picks
 c = await cue();
 check('back in the armory, ORBIT again', c.cue === 'menu', JSON.stringify(c));
 if (await page.isVisible('#ms-later')) { await tap('#ms-later'); await page.waitForTimeout(400); }     // (a new rank's splash)

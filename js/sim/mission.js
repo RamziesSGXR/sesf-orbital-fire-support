@@ -1,6 +1,7 @@
 // One mission = one game loop on one map. DOM-free and deterministic for a given seed.
 // The player runs the destroyer: a UAV scan, orbital stratagems from the armory, and SEAF pods and orders.
 // The four Helldivers (one per stratagem group) fight on their own and are reinforced automatically from a pool of lives.
+import { buildCostMul } from '../data/perks.js';
 import { addSpawners, hitSpawners, liveSpawners } from './spawners.js';
 import { initAlert, updateAlert, alertRaise, alertClear } from './alert.js';
 import { t as tr } from '../i18n.js';
@@ -86,6 +87,7 @@ export class Mission {
     this.reward = reward(this.difficulty);     // credits and score multiplier
     this.opDone = Math.max(0, opts.opDone || 0);                                // (0.40) missions already done in this operation
     this.opBonus = 1 + C.difficulty.opBonus * this.opDone;                       // ...and what that adds to every credit
+    this.bump = Math.max(0, opts.bump | 0); this.bumpPay = 1 + C.offers.payPer * this.bump;     // (0.51) the offer's bump: harder, and paid for it
     this._crc = 0;                             // the fraction of a credit carried over between payouts
     this.seed = opts.seed >>> 0;
     this.rng = new RNG(this.seed);
@@ -390,7 +392,7 @@ export class Mission {
     if (!B || !POSTS.includes(what)) return { ok: false, reason: 'kind' };
     const lvl = buildLevel(this.kit, what);
     if (!lvl) return this._deny('locked');                       // (the SAM site and the cannon have to be unlocked in the armory first)
-    const st = buildStats(what, lvl);
+    const st = { ...buildStats(what, lvl) }; st.cost = Math.round(st.cost * buildCostMul(this.kit));     // (0.51: the Engineering Corps commendation)
     const sq = targetSquads(this).filter((q) => q.n > 0);
     if (!sq.length) return this._deny('noseaf');
     if (what === 'bridge') return this.bridgeDrop(x, y);     // (0.22) a light bridge comes down from the ship: nobody builds it
@@ -462,7 +464,7 @@ export class Mission {
     if (this.over) return { ok: false, reason: 'over' };
     const lvl = buildLevel(this.kit, 'bridge');
     if (!lvl) return this._deny('locked');
-    const st = buildStats('bridge', lvl);
+    const st = { ...buildStats('bridge', lvl) }; st.cost = Math.round(st.cost * buildCostMul(this.kit));
     if (!this.inSight(x, y)) return this._deny('nosight');
     let ref = null, rd = Infinity;
     for (const a of this.alive) { const d = Math.hypot(a.x - x, a.y - y); if (d < rd) { rd = d; ref = a; } }
@@ -737,7 +739,7 @@ export class Mission {
 
   earn(kind, amt, x, y) {
     if (!(amt > 0)) return;
-    const mul = this.reward * this.opBonus;     // the difficulty's pay, and (0.40) the operation's bonus
+    const mul = this.reward * this.opBonus * this.bumpPay;     // the difficulty's pay, (0.40) the operation's bonus and (0.51) the bump's
     if (mul !== 1) { const v = amt * mul + this._crc; amt = Math.floor(v); this._crc = v - amt; if (amt <= 0) return; }
     const cr = this.cr, w = this.wallet;
     cr[kind] = (cr[kind] || 0) + amt; cr.total += amt;
@@ -1144,7 +1146,7 @@ export class Mission {
     const cr = this.cr;
     return {
       outcome: this.outcome, t: this.t, minutes: this.t / 60,
-      score: Math.max(0, Math.round(raw)), raw: Math.round(raw), breakdown: { ...sc }, base: Math.round(this._baseScore()), difficulty: this.difficulty, reward: this.reward, opBonus: this.opBonus,
+      score: Math.max(0, Math.round(raw)), raw: Math.round(raw), breakdown: { ...sc }, base: Math.round(this._baseScore()), difficulty: this.difficulty, reward: this.reward, opBonus: this.opBonus, bump: this.bump, bumpPay: this.bumpPay,
       kills: this.stats.killsPlayer + this.stats.killsAlly, stats: { ...this.stats }, bossName: this.boss ? this.boss.name : null,
       bases: this.stats.bases, baseTotal: this.baseTotal, pois: this.stats.pois, poiTotal: this.pois.length, breaches: this.stats.breaches, sides: (this.sides || []).filter((q) => q.done).length, sideTotal: (this.sides || []).length, fullClear: !!(this.plan && this.plan.full),
       livesLeft: this.hd.lives, livesMax: this.hd.max, survivorsH: this.countAlly('H') + (this.extraction.boardedH || 0), survivorsS: (this.stats.leftS !== undefined || ((this.outcome === 'victory' || this.outcome === 'timeout') && !this.ls) ? 0 : this.countAlly('S')) + this.seaf.reserve.length + (this.extraction.boardedS || 0), leftS: this.stats.leftS || 0,

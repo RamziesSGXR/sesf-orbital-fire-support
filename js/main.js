@@ -16,13 +16,14 @@ import { startTitleBg } from './render/titlebg.js';
 import { STORY, CAST, chapterFor } from './data/story.js';
 import { castLines, CastRadio, RadioLog, aarMission, aarSession, aarStand } from './campaign.js';
 import { feedEnd, feedOn } from './feed.js';
+import { rollPerks, addPerk, perkRoom } from './data/perks.js';
 import * as UI from './ui.js';
 import { sunAt, todName, todClock } from './render/sky.js';
 import { acceptSupply, declineSupply, fillSupply, launchSupply, supplyFilling } from './sim/supply.js';
 import { hbFilling, tapHellbomb } from './sim/ops.js';
 const handsBusy = (m) => !!m && (supplyFilling(m) || hbFilling(m));     // the supply loader or the Hellbomb is open
 import { t, tEn, setLang, getLang, applyDom, startLang } from './i18n.js';
-import { clampLevel, LEVELS, levelName } from './difficulty.js';
+import { clampLevel, LEVELS, levelName, TOP } from './difficulty.js';
 import { answerTime } from './sim/planner.js';
 import { POSTS, makePost, foxholeSlots, turns, wirePlan, chains, chainPlan, planChain } from './sim/posts.js';
 import { addJammer } from './sim/sides.js';
@@ -150,6 +151,7 @@ function relang() {
   if (state === 'title') toTitle();
   else if (state === 'campaign') drawCampaign();
   if (UI.isOn('s-lock')) fillLockNow();
+  else if (state === 'next') goNext();     // (0.51)
   else if (state === 'shop') { const n = session.missions.length + 1; $('shop-eyebrow').textContent = n === 1 ? t('arm.eyebrow1') : t('arm.eyebrowN', { n }); $('shop-go').textContent = t('arm.deploy', { n }); drawShop(); }
   else if (state === 'debrief' && lastRes) UI.fillDebrief(info, lastRes, session, aarMission(session, info, lastRes), startCredits());
   if (session && (state === 'shop' || state === 'brief' || state === 'debrief')) endLabels();     // (0.44)
@@ -884,9 +886,31 @@ function beginSession(resume, key = 'session') {
   goShop();
 }
 
+// (0.51) MISSION COMPLETE: a commendation (if there is room for one), then the next mission. Then the armory.
+let nextAfter = null;
+function goNext() {
+  const p = session.pend;
+  if (!p) { const a = nextAfter || {}; nextAfter = null; goShop(a.focus, a.note); return; }
+  if (briefCtl) { briefCtl.cancel(); briefCtl = null; }
+  state = 'next'; mission = null; paused = false; audio.humStop(); hud.reset(); setPlacing(null); setHideUi(false);
+  UI.hideOverlays(); UI.showScreen('s-next');
+  const done = session.missions.length, step = p.perks && p.perks.length ? 'perk' : 'offer';
+  const ch = p.story ? chapterFor(session, done + 1) : null;
+  UI.renderNext({
+    step, done, kit: session.kit, perks: p.perks || [], offers: p.offers || [], level: S.levelNow(session), story: !!ch,
+    storyFac: ch ? ch.play.faction : null, storyBiome: ch ? ch.play.biome : null, storyObj: ch ? tEn(`cp.ember.c${ch.n}`) : '',
+    onPick: (i) => {
+      audio.ready();
+      if (step === 'perk') { addPerk(session.kit, p.perks[i]); p.perks = []; }
+      else { session.next = { ...p.offers[i] }; session.pend = null; session.held = null; }
+      persist(); goNext();
+    },
+  });
+}
 // The armory: before every mission. Buy and equip orbitals, UAV, SEAF and squad upgrades with the session's credits.
 function goShop(focus = false, note) {
   if (briefCtl) { briefCtl.cancel(); briefCtl = null; }
+  if (session && session.pend && !session.tutorial) { nextAfter = { focus, note }; goNext(); return; }     // (0.51) the choices come first
   state = 'shop'; mission = null; paused = false; audio.humStop(); hud.reset(); setPlacing(null); setHideUi(false); $('s-pause').classList.remove('out');
   UI.hideOverlays(); UI.showScreen('s-shop');
   const n = session.missions.length + 1;
@@ -1003,7 +1027,9 @@ function goBrief(again = false) {
   const held = session.held;
   const back = !keep && held && held.n === session.missions.length + 1 ? held.info : null;     // CANCEL (or MAIN MENU) left this one waiting
   session.held = null;
-  info = keep ? { op: keep.op, faction: keep.faction, biome: keep.biome, seed: keep.seed, tod: keep.tod, chapter: keep.chapter } : back ? { ...back } : S.rollMission(prev, Math.random, settings.enemy);   // (the enemy picked on the title screen or in Settings)
+  const nx = !keep && !back && session.next ? session.next : null;     // (0.51) the offer picked after the last mission
+  info = keep ? { op: keep.op, faction: keep.faction, biome: keep.biome, seed: keep.seed, tod: keep.tod, chapter: keep.chapter, bump: keep.bump } : back ? { ...back } : nx && !nx.story ? { op: nx.op, faction: nx.faction, biome: nx.biome, seed: nx.seed, obj: nx.obj, bump: nx.bump } : S.rollMission(prev, Math.random, settings.enemy);   // (the enemy picked on the title screen or in Settings)
+  if (nx && nx.story) info.bump = nx.bump;
   // (0.27) a story session: its missions are the chapters, in order, from the one picked
   const ch = chapterFor(session, session.missions.length + 1);
   if (!keep && !back && !ch) info.op = S.opOf(session);     // (0.37) one operation a session: every mission flies under its name
@@ -1018,8 +1044,9 @@ function goBrief(again = false) {
   // ?loadout=id,id,... and ?objective=nuke|vip|fortress force a loadout or objective for testing.
   const ovLoad = (qs.get('loadout') || '').split(',').filter((id) => STRAT_IDS.includes(id)), ovObj = (qs.get('objective') || '').split(',').filter(Boolean);
   if (!ovObj.length && ch && ch.play && ch.play.objective) ovObj.push(ch.play.objective);
+  if (!ovObj.length && info.obj) ovObj.push(info.obj);     // (0.51) the offer's objective
   info.ovObj = ovObj;
-  const pre = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: false, missionN: n, opDone: n - 1, difficulty: S.levelNow(session),
+  const pre = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: false, missionN: n, opDone: n - 1, difficulty: levelFor(info), bump: (info && info.bump) | 0,
     loadout: ovLoad.length ? ovLoad : undefined, objectives: ovObj, kit: session.kit, wallet: session.wallet, names: session.names, defenders: !qs.has('skipstart') });
   info.loadout = pre.loadout.slice();
   if (keep) { info.ovObj = keep.ovObj || []; info.loadout = keep.loadout.slice(); }
@@ -1050,7 +1077,7 @@ function outMenu(on) {
 // The mission rolled for this briefing waits on the session: CANCEL, the main menu or a reload bring the same one back.
 function holdMission() {
   if (!info || !session) return;
-  session.held = { n: session.missions.length + 1, info: { op: info.op, faction: info.faction, biome: info.biome, seed: info.seed, tod: info.tod } };
+  session.held = { n: session.missions.length + 1, info: { op: info.op, faction: info.faction, biome: info.biome, seed: info.seed, tod: info.tod, obj: info.obj, bump: info.bump } };     // (0.51: and the offer's objective and bump)
 }
 // MAIN MENU (the pause menu, from anywhere). Out of a mission it just goes; the session is kept to resume (a new one that has not
 // flown or rolled anything is simply dropped). In a mission it asks twice: the mission is not counted, the session goes back to how
@@ -1084,7 +1111,7 @@ function deploy() {
   startSnap = JSON.stringify(session);      // what RETRY MISSION puts back: credits, kit, score and time as they were at the drop
   persist();
   if (terrainKey !== `${info.biome}|${info.seed}`) buildFor(info.biome, info.seed);
-  mission = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: true, missionN: session.missions.length + 1, opDone: session.missions.length, difficulty: S.levelNow(session),
+  mission = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: true, missionN: session.missions.length + 1, opDone: session.missions.length, difficulty: levelFor(info), bump: (info && info.bump) | 0,
     loadout: info.loadout, keepOrder: true, objectives: info.ovObj, kit: session.kit, wallet: session.wallet, names: session.names, tod: info.tod,
     countdown: qs.has('skipstart') || BOT ? 0 : C.helldivers.countdown, defenders: !qs.has('skipstart'), ...chapterOpts() });
   bot = BOT ? makeBot() : null;
@@ -1233,13 +1260,20 @@ function finishMission() {
   if (t1 > t0 && S.carriesOn(res.outcome)) {
     let bonus = 0; const fresh = [];
     for (let k = t0 + 1; k <= t1; k++) { bonus += C.ranks.bonus[k - 1] || 0; fresh.push(...tierItems(session.kit, k)); }
-    session.wallet.bal += bonus; session.fresh = fresh;
+    session.wallet.bal += bonus; session.score += bonus; session.fresh = fresh;     // (0.51: credits earned, so score)
     const names = fresh.map((id) => shopItems(session.kit).find((it) => it.id === id)).filter(Boolean).map((it) => ({ n: it.orb ? UI.shortName(it.orb) : it.name, k: t('kit.tag.' + it.section) }));
     ms = { k: t1, of: TIER_MAX, done: doneN(session), bonus, names, next: C.ranks.at[t1] || 0, level: S.levelNow(session) };     // (0.31: and the next mission's level)
   }
   // Extracted, or the primary objective done: the session goes on. A failed mission ends it, unless the player retries it.
   // (0.46) A failed mission ends the operation: its slot is cleared too, so an ended operation can't be loaded again. RETRY
   // MISSION saves it back (the run keeps its slot number), so a retried mission is still kept.
+  // (0.51) what comes next: a commendation to pick (while there is room for one) and the next mission's offers, kept with the run
+  // so a reload asks the same; the bot takes the first of each
+  if (S.carriesOn(res.outcome) && !session.tutorial) {
+    const st = !!(session.story && chapterFor(session, session.missions.length + 1));
+    session.pend = { perks: perkRoom(session.kit) ? rollPerks() : [], offers: S.rollOffers(session, Math.random, settings.enemy, st), story: st };
+    if (BOT) { if (session.pend.perks.length) addPerk(session.kit, session.pend.perks[0]); session.next = session.pend.offers[0]; session.pend = null; }
+  }
   if (S.carriesOn(res.outcome)) persist(); else { S.drop(runKey(session)); if (session.slot) S.clearSlot(session.slot); }
   // (0.37) a campaign chapter cleared: kept on this browser, with the run as it stands, to carry on from (or replay the next)
   if (session.story && info.chapter && S.carriesOn(res.outcome)) S.chapterCleared(session, info.chapter);
@@ -1258,6 +1292,8 @@ function finishMission() {
   else show();
   UI.radioBtn('btn-radio-d', !!ch && radioLog.items.length > 0);
 }
+// (0.51) the level a mission flies at: the operation's climb, and the offer's bump on top for that mission only
+function levelFor(i) { return Math.min(TOP, S.levelNow(session) + ((i && i.bump) | 0)); }
 function startCredits() { try { return JSON.parse(startSnap).wallet.bal; } catch { return null; } }
 // RETRY MISSION: the session goes back to how it was at the drop (credits, kit, score, time) and the same mission loads again.
 // The result just flown is dropped.
@@ -1313,7 +1349,7 @@ function togglePause(force) {
   if (UI.isOn('s-credits')) { closeCredits(); return; }
   if (UI.isOn('s-radio')) { closeRadioLog(); return; }
   if (UI.isOn('s-names')) { closeNames(false); return; }
-  if (state === 'brief' || state === 'shop') { if (!UI.isOn('s-settings')) outMenu(force !== undefined ? force : !UI.isOn('s-pause')); return; }
+  if (state === 'brief' || state === 'shop' || state === 'next') { if (!UI.isOn('s-settings')) outMenu(force !== undefined ? force : !UI.isOn('s-pause')); return; }
   if (state !== 'play' || !mission || mission.over) return;
   if (UI.isOn('s-settings')) return;
   if (soft) { soft = false; hud.setSoft(false); paused = false; force = true; }   // a soft pause opens into the full menu
@@ -1700,7 +1736,7 @@ function musicScene() {
   if (cinema.on) return 'cine';
   if (state === 'brief') return 'loading';
   if (state === 'play') return mission && mission.over ? 'end' : paused ? 'pause' : 'play';
-  return state === 'debrief' || state === 'final' || state === 'glass' ? 'end' : 'menu';
+  return state === 'debrief' || state === 'next' || state === 'final' || state === 'glass' ? 'end' : 'menu';     // (0.51: MISSION COMPLETE keeps the debrief's music)
 }
 // How hot the fight is, 0..1, for the music: the enemy close to the squad (a heavy counts for more), a super heavy on the field,
 // and a kick from things going wrong (a Helldiver down, an alarm) that fades over a few seconds. Counted every 0.3 s.
