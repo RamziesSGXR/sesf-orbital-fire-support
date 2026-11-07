@@ -23,6 +23,16 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Difficulty (0.48).**
+- **The alert level.** Every mission has an enemy alert, shown as five stars on the resource bar (beside SEAF).
+  - Attacking a base makes it jump: the base calls for help. Destroying the base calms that, but every base destroyed, every main objective done, the extraction call and every bit of time bought from the Helldivers leaves it a notch higher for the rest of the mission. Each calm is hotter than the last.
+  - A base fight's part fades once the squad has been out of contact for a while. Nothing the gunner does raises or lowers it, and side objectives don't touch it.
+  - Every star brings the off-map patrols sooner and more flares through. At ★2 those patrols come hunting the squad, at ★3 the enemy drops troops on the squad every so often, at ★4 each patrol brings a heavy, and at ★5 the super heavy comes (once).
+  - The music follows it: each star brings in more of the score, and a star going up is audible.
+- **The operation curve steepens.** Up to mission 10 the climb is as before. After that each mission adds a little more than the last, so a strong player's operation ends: from level 3, missions 10 to 16 run 10 10 11 13 14 16 17.
+- **No cliff past level 10.** War minutes now grow 1.5 a level past 10 (it was 10, a jump from 42 to 52).
+- **Time from the Helldivers.** They ask for 2 minutes at a time (it was up to 10), at most twice a mission, at 60 CR a minute (rising the longer the mission runs). Each yes raises the alert a notch.
+
 **0.47.1.** Helldivers' 20–40 m throw is measured from the Helldiver who throws. Every other ally only needs the strike's own safety gap (at least 9 m, as before). The 20 m minimum from every ally had left almost nowhere to strike near a crowded site, and evacuations were losing most of their civilians.
 
 **Fixes 2 (0.47).**

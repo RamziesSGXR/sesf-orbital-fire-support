@@ -2,6 +2,7 @@
 // or an enemy base), then the main objective. Once it is done they go for a full clear (every base and side mission left) only
 // with more than clearLives lives in hand and the time to do it all and still extract; otherwise they head for extraction. The
 // choice is made again after every task, so a squad that has been bled on the way pulls out instead.
+import { alertRaise } from './alert.js';
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
 import { activeObjective, objectiveGoal, startExtract } from './objectives.js';
@@ -99,7 +100,7 @@ function choose(m) {
     if (lives && !go && !pl.denied) {
       const A = P.ask, min = Math.max(1, Math.ceil((need + P.reserve - left) / 60));
       if (pl.ask) go = true;
-      else if ((pl.asks || 0) < A.asks && min <= A.maxMin * 3) { askTime(m, Math.min(A.maxMin, min)); go = true; }
+      else if ((pl.asks || 0) < A.asks && min <= (A.upTo ?? A.maxMin * 3)) { askTime(m, Math.min(A.maxMin, min)); go = true; }     // (0.48: they ask for 2 minutes even when short by more, up to upTo)
     }
     m.plan.full = go;
     if (!go) return null;
@@ -246,6 +247,7 @@ export function answerTime(m, yes) {
   m.radio(COMMS.timeYes(q.min), 'timeyes', 0);
   m.notice(tr('n.timeYes', { n: q.min, cr: q.cost }), 'good');
   m.emit('time_yes', { min: q.min });
+  alertRaise(m, 1, 'time');     // (0.48) staying longer: the enemy knows it
   return { ok: true };
 }
 function updateAsk(m) {

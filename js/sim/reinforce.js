@@ -9,6 +9,7 @@
 //          can be shot down too, and everyone aboard goes with it.
 // (0.31) A call can come in at several places at once, from different sides (more often later in a mission, and at extraction).
 // Every number is in CONFIG.reinf.
+import { alertMul } from './alert.js';
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { aoX, aoY } from './ao.js';
@@ -130,7 +131,7 @@ export function updateReinf(m, dt) {
       if (g.called || g.reinf) continue;
       if (g.state !== 'hunt' && !(g.hitAt > t - 0.5)) continue;
       g.called = true;
-      if (t < st.readyAt || st.active >= R.maxActive || m.rng.next() >= R.callChance * Math.min(1.6, m.pressure)) continue;
+      if (t < st.readyAt || st.active >= R.maxActive || m.rng.next() >= R.callChance * Math.min(1.6, m.pressure) * alertMul(m)) continue;     // (0.48: alert)
       const live = g.members.filter((e) => !e.dead);
       if (live.length < 2) continue;
       const caller = live.find((e) => e.kind === 'M') || live[m.rng.int(live.length)];

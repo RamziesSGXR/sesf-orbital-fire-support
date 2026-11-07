@@ -1,5 +1,6 @@
 // Mission objectives. The Helldivers do these first: launch the nuke, rescue the VIP, or take down the citadel.
 // Everything else on the map (the ordinary bases) is bonus points once the objective is done.
+import { alertRaise } from './alert.js';
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { OP_OF, OP_TYPES, setupOil, setupCannon, setupDome, setupKeep, updateOil, updateCannon, updateDome, updateKeep, hellbombGoal, keepStatus } from './ops.js';
@@ -302,6 +303,7 @@ export function completeObjective(m, o) {
   m.earn('objective', C.credits.objective, o.x, o.y);
   m.notice(tr('n.objDone', { cr: C.credits.objective }), 'good');
   m.emit('objective_done', { type: o.type, x: o.x, y: o.y });
+  alertRaise(m, 1, 'objective');     // (0.48) the enemy knows what was done
   if (o.type === 'nuke') m.radio(COMMS.nukeDone, 'nukedone', 0);
   if (o.type === 'fortress') m.radio(COMMS.fortressDone, 'fortressdone', 0);
   if (OP_TYPES.includes(o.type)) m.radio(tr('c.done.' + o.type), 'opdone', 0);

@@ -9,6 +9,7 @@
 //   away      the pelican climbs out; (0.39) the destroyer leaves orbit CONFIG.extract.orbitSec later and the mission ends. SEAF
 //             go home only by a pickup (seaf.js): anyone still on the ground then is left behind. The extraction pelican's belly
 //             autocannon fires on the way down and while it waits.
+import { alertRaise } from './alert.js';
 import { t as tr } from '../i18n.js';
 import { bossAlive } from './boss.js';
 import { CONFIG as C } from '../config.js';
@@ -70,6 +71,7 @@ export function updateExtract(m, dt) {
     m.notice(tr('n.exCalled', { n: wait }), 'warn');
     if (m.seafAlive.length && !m.ls) { m.notice(tr('n.exSeaf'), 'warn'); m.radio(COMMS.exSeaf, 'exseaf', 0); }     // (0.39) get the SEAF picked up
     m.emit('extract_call', { x: ex.x, y: ex.y });
+    alertRaise(m, 1, 'extract');     // (0.48)
     ex.calledAt = t;
     callReinforcements(m, ex.x, ex.y, 'extract', { dist: [55, 105], extra: 1, count: reinfCount(m, 'extract', { first: true }) });      // the enemy always comes for an extraction (0.31: from more than one side)
     return;

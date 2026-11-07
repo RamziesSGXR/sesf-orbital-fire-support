@@ -5,11 +5,12 @@
 // on the way the squad is heading (an intercept), and the enemy calls in reinforcements by flare, at mission sites and at extraction
 // (reinforce.js), which no amount of clearing stops. (0.31) And patrols keep walking in from beyond the edge of the map for the whole
 // mission (roamers), more often as it goes on, so a cleared map never goes quiet.
+import { alertStars, alertMul } from './alert.js';
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { spawnGroup, hiddenSpot, liveCap, unseenSpot } from './director.js';
 import { aoX, aoY, aoScale, aoClamp } from './ao.js';
-import { compass } from './enemies.js';
+import { compass, alertGroup } from './enemies.js';
 
 const P = () => C.patrols;
 
@@ -80,9 +81,9 @@ export function roamEvery(m) {
   if (m.phase === 'extract') s *= Q.extract;
   const nb = m.bases.filter((b) => !b.node && !b.part).length;
   if (nb) s *= 1 + Q.bases * (m.bases.filter((b) => !b.node && !b.part && !b.destroyed).length / nb);     // (bases still standing send their own)
-  return s;
+  return Math.max(Q.min * 0.6, s / alertMul(m));     // (0.48) more often with every alert star
 }
-export const roamGroups = (m) => Math.min(C.roam.maxGroups, 1 + Math.floor(m.t / 60 / C.roam.groupsEvery));
+export const roamGroups = (m) => Math.min(C.roam.maxGroups + (alertStars(m) >= C.alert.hunt ? 1 : 0), 1 + Math.floor(m.t / 60 / C.roam.groupsEvery) + Math.floor(alertStars(m) / 2));     // (0.48: and more of them with the alert)
 // Where they are headed: the extraction once it is open, otherwise where the squad (or, without Helldivers, any ally) is.
 function roamGoal(m) {
   const ex = m.extraction;
@@ -120,8 +121,11 @@ function roamLaunch(m) {
   let made = 0;
   for (let k = 0; k < n; k++) {
     const px = sp.x - (dx / d) * k * 14 + nx * rng.range(-8, 8), py = sp.y - (dy / d) * k * 14 + ny * rng.range(-8, 8);     // (one behind the other)
-    const g = spawnGroup(m, aoX(m, px, 10), aoY(m, py, 10), 'patrol');
+    // (0.48) at heavy stars each group brings a heavy; at hunt stars they come straight for the squad
+    const st = alertStars(m), kinds = st >= C.alert.heavy ? [...Array(Math.max(1, m.groupSize - 1))].map(() => m.drawToken()).concat('H') : undefined;
+    const g = spawnGroup(m, aoX(m, px, 10), aoY(m, py, 10), 'patrol', kinds ? { kinds } : {});
     g.route = route; g.ri = 1; g.rdir = 1; g.patrol = true; g.roam = true; g.farT = 0;
+    if (st >= C.alert.hunt && m.phase !== 'extract') { g.hunter = true; alertGroup(m, g); }
     made++;
   }
   m.roam.n++; m.stats.roams = (m.stats.roams || 0) + made;

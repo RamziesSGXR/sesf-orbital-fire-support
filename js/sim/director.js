@@ -1,5 +1,6 @@
 // The director: continuous enemy spawning just outside the squad's sight, despawning, bases, support calls,
 // pods, last stand and extraction.
+import { alertSpike } from './alert.js';
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { SUBTYPES, COMMS, attackProfile } from '../data/data.js';
@@ -126,6 +127,7 @@ export const baseAwake = (m, b) => (b.fortress || b.part ? m.bases.some((q) => (
 export function alertBase(m, b, why = 'squad') {
   if (b.alert || b.destroyed) return;
   b.alert = true; b.alertWhy = why; b.alertT = m.t;
+  if (why !== 'cluster' && !m.ls) alertSpike(m, 1, 'base');     // (0.48) a base under attack calls for help
   for (const g of m.groups) if (g.base === b && g.state !== 'hunt') alertGroup(m, g);
   const now = b.fortress || b.part;
   for (const q of m.bases) {

@@ -47,8 +47,10 @@ export const rankAt = (done) => C.ranks.at.filter((a) => done >= a).length;
 // The level of mission n (1 = the first) of a session that started at `start`: ramp a level for every mission before it, and
 // (0.31) rankStep more for every rank those missions earned (each one opens more of the armory, so the enemy steps up too).
 export function levelAt(start, n) {
-  const done = Math.max(0, (Number(n) || 1) - 1);
-  return clampAny(clampLevel(start) + D().ramp * done + (D().rankStep || 0) * rankAt(done));
+  const done = Math.max(0, (Number(n) || 1) - 1), k = Math.max(0, done - (D().lateFrom ?? 1e9) + 1);
+  // (0.48) the operation curve steepens once the armory is open: lateAccel more a mission, compounding, past lateFrom
+  const late = (D().lateAccel || 0) * (k * (k + 1)) / 2;
+  return clampAny(clampLevel(start) + D().ramp * done + (D().rankStep || 0) * rankAt(done) + late);
 }
 
 // A factor for level d: `lo` at level 1 rising to 1 at level 10 (the steps shrink toward the top when CONFIG.difficulty.curve > 1),
