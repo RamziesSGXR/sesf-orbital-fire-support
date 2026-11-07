@@ -6,6 +6,8 @@ import { CONFIG as C } from '../config.js';
 import { getTerrain, MUD, SOFT } from '../sim/terrain.js';
 
 const SHADERS = {
+  // (0.53) the capital's outskirts: worn concrete in large slabs
+  city(n, x, y) { return 0.46 + 0.12 * n.fbm(x / 300, y / 300, 3) + 0.05 * (n.fbm(x / 9, y / 9, 2) - 0.5) + (((Math.floor(x / 12) + Math.floor(y / 12)) & 1) ? 0.015 : 0); },
   ice(n, x, y) {
     return 0.60 + 0.28 * n.fbm(x / 320, y / 320, 4) + 0.06 * (n.fbm(x / 14, y / 14, 2) - 0.5);
   },
@@ -50,6 +52,7 @@ const RAMPS = {
   jungle: { ramp: [[2, 10, 6], [18, 64, 36], [84, 150, 86]],       light: [140, 210, 150], dark: [2, 8, 4] },
   moon:   { ramp: [[10, 10, 14], [96, 98, 106], [200, 202, 212]],  light: [226, 226, 236], dark: [6, 6, 10] },
   mars:   { ramp: [[30, 10, 6], [142, 62, 34], [222, 148, 104]],   light: [246, 190, 150], dark: [22, 6, 2] },
+  city:   { ramp: [[16, 18, 22], [92, 96, 102], [188, 190, 194]],  light: [232, 232, 236], dark: [8, 8, 12] },     // (0.53)
 };
 function lut(ramp) {
   const out = new Uint8ClampedArray(256 * 3);
@@ -227,6 +230,7 @@ export function buildTerrain(biomeId, seed, { polarity = 'white', quality = 1, r
   ctx.drawImage(tmp, 0, 0, G, G, 0, 0, W, W);
 
   drawBridges(ctx, T, W / SIZE, black);
+  drawBuildings(ctx, T, W / SIZE, black);     // (0.53) the city's blocks
   // Props: cosmetic only. None in the water, and none in the relief view, where they would be noise.
   if (relief) return cv;
   const rng = new RNG(seed ^ 0x9e3779b9), k = W / SIZE;
@@ -259,6 +263,22 @@ export function buildTerrain(biomeId, seed, { polarity = 'white', quality = 1, r
     for (let i = 0; i < 600; i++) { const x = rng.range(0, SIZE), y = rng.range(0, SIZE), r = rng.range(0.8, 2.4); if (dry(x, y)) { dot(x + 1, y + 1, r, dark(0.4)); dot(x, y, r, light(0.4)); } }
   }
   return cv;
+}
+
+// (0.53) The city's buildings, from above: a shadow to the south-east, the roof (lighter the taller), a parapet line and a few
+// rooftop units. They are solid ground nobody walks on (sim/terrain.js _city).
+function drawBuildings(ctx, T, k, black) {
+  if (!T.buildings || !T.buildings.length) return;
+  const rgb = (v) => { const g = black ? 255 - v : v; return `rgb(${g},${g},${Math.min(255, g + 6)})`; };
+  for (const b of T.buildings) {
+    const x = b.x0 * k, y = b.y0 * k, w = (b.x1 - b.x0) * k, h = (b.y1 - b.y0) * k, off = (3 + 6 * b.h) * k;
+    ctx.fillStyle = black ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.45)'; ctx.fillRect(x + off, y + off, w, h);
+    ctx.fillStyle = rgb(Math.round(70 + 70 * b.h)); ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = rgb(Math.round(150 + 60 * b.h)); ctx.lineWidth = Math.max(1, 1.2 * k); ctx.strokeRect(x + 1.5 * k, y + 1.5 * k, w - 3 * k, h - 3 * k);
+    const units = Math.floor((b.x1 - b.x0) * (b.y1 - b.y0) / 500);
+    ctx.fillStyle = rgb(Math.round(40 + 50 * b.h));
+    for (let u = 0; u < Math.min(6, units); u++) { const ux = x + w * (0.2 + 0.6 * ((u * 0.618) % 1)), uy = y + h * (0.2 + 0.6 * ((u * 0.382 + 0.3) % 1)); ctx.fillRect(ux, uy, 3.5 * k, 2.5 * k); }
+  }
 }
 
 // The bridges over the rivers (sim/terrain.js): an old war-torn span (concrete deck, railings, shell holes and a patched gap),

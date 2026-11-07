@@ -207,7 +207,7 @@ export function aarMission(s, info, res) {
   const L = [
     HEAD,
     `**${opShort(info.op)}** · Mission ${n} · ${lvl(levelAt(s.difficulty ?? LEVELS, n))}`,
-    ch ? `Campaign: ${tEn(`cp.${STORY.id}.t`)}, chapter ${ch.n} of ${STORY.chapters.length} · Fronteria, Umlaut Sector` : '',
+    ch ? `Campaign: ${tEn(`cp.${STORY.id}.t`)}, chapter ${ch.n} of ${STORY.chapters.length} · ${tEn(`cp.${STORY.id}.arc.${ch.arc || ch.play.biome}`)}` : '',
     `${gunner(s.callsign)} · ${tEn('fac.' + info.faction)} · ${tEn('biome.' + info.biome)} · ${fmtTime(res.t)} on the ground`,
     `**Result:** ${out}`,
     `**Objective:** ${objs || '-'}` + (res.sideTotal ? ` · Side ${res.sides}/${res.sideTotal}` : '') + (res.baseTotal ? ` · Bases ${res.bases}/${res.baseTotal}` : ''),
@@ -233,7 +233,7 @@ export function aarSession(s, fin) {
     n ? '**Missions**' : '',
     ...ms.map((m, i) => `${i + 1}. ${m.op && m.op !== s.op && /:/.test(m.op) ? opShort(m.op.split(':').pop().trim()) : 'Mission ' + (i + 1)} · ${tEn('fac.' + m.faction)} · ${tEn('out.' + m.outcome)} · ${fmtNum(m.score)} · ${fmtNum(m.kills)} kills` + (m.boss ? ` · ${m.boss.name || tEn('boss.' + m.boss.fac)} ${m.boss.killed ? 'KILLED' : 'ESCAPED'}` : '')),
     `**Totals:** ${fmtNum(sum('kills'))} kills · ${fmtNum(sum('lostH'))} Helldivers lost · ${fmtNum(sum('lostS'))} SEAF lost` + (bosses ? ` · ${bosses} super heav${bosses === 1 ? 'y' : 'ies'} killed` : ''),
-    s.story ? `Campaign: ${tEn(`cp.${STORY.id}.t`)} · Fronteria, Umlaut Sector` : '',
+    s.story ? `Campaign: ${tEn(`cp.${STORY.id}.t`)}` : '',
     foot(),
   ];
   return L.filter(Boolean).join('\n');

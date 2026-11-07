@@ -22,7 +22,7 @@ const ALL = { L: 1, M: 1, H: 1, B: 1 };
 
 // Which operation of its own each faction has.
 export const OP_OF = { bugs: 'oil', bots: 'cannon', squids: 'dome' };
-export const OP_TYPES = ['oil', 'cannon', 'dome'];
+export const OP_TYPES = ['oil', 'cannon', 'dome', 'gun'];     // (0.53: the defence gun is only ever asked for: the campaign, or an offer)
 const squadAt = (m, x, y, r) => m.hdAlive.some((a) => !a.mounted && (a.x - x) ** 2 + (a.y - y) ** 2 <= r * r);
 const land = (m, x, y) => m.terrain.isLand(x, y) && !m.terrain.blocked(x, y);
 

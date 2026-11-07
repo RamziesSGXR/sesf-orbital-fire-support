@@ -4,6 +4,7 @@ import { FACTIONS, BIOMES } from './data/data.js';
 import { fmtTime, fmtNum, sessionTotals, MAX_NAME, carriesOn, levelReached } from './session.js';
 import { STRATS, CAT_COLOR } from './data/strat.js';
 import { LETTERS, TEAM_COLOR } from './data/names.js';
+import { STORY } from './data/story.js';
 import { buildCostMul, PERKS, perkN, perkPct, perksTotal } from './data/perks.js';
 import { costSiteMul } from './sim/sites.js';
 import { GROUPS as KEY_GROUPS, label as keyLabelOf, keyOf as keyOfAction, defaultOf as defaultKeyOf } from './keys.js';
@@ -132,7 +133,10 @@ export function fillCampaign(story, onPlay, st = {}) {
   const runCh = run ? story.chapters.find((c) => c.n === run.story.ch + (run.missions ? run.missions.length : 0)) : null;
   $('cp-prog').textContent = t(prog.done.length >= N ? 'cp.progAll' : 'cp.prog', { n: prog.done.length, of: N });
   const ol = $('cp-chs'); ol.innerHTML = '';
+  let arc = null;
   for (const c of story.chapters) {
+    // (0.53) the arcs: a heading each time the world changes
+    if (c.arc && c.arc !== arc) { arc = c.arc; ol.appendChild(el('li', 'cp-arc', esc(t(`cp.${story.id}.arc.${arc}`)))); }
     const done = prog.done.includes(c.n), open = done || c === next || (c.n > 1 && prog.done.includes(c.n - 1)) || c.n === 1;
     const li = el('li', 'cp-ch' + (done ? ' done' : '') + (open ? '' : ' locked') + (c === runCh ? ' run' : ''));
     li.appendChild(el('h3', '', `${esc(t(`cp.${story.id}.c${c.n}`))}${done ? ` <i class="cp-ok">${esc(t('cp.cleared'))}</i>` : ''}`));
@@ -2219,7 +2223,7 @@ export function fillLock(mode, o = {}) {
   $('lock-h').textContent = t(tut ? 'title.tutName' : 'lock.title');
   let sub = '';
   if (tut) sub = t('lock.subTut');
-  else if (camp && o.chapter) sub = t('lock.subCamp', { n: o.chapter.n, name: t(`cp.ember.c${o.chapter.n}`) }) + (o.from ? ' ' + t('lock.subFrom', { n: o.from }) : '');
+  else if (camp && o.chapter) sub = t('lock.subCamp', { n: o.chapter.n, name: t(`cp.${STORY.id}.c${o.chapter.n}`) }) + (o.from ? ' ' + t('lock.subFrom', { n: o.from }) : '');
   else sub = t('lock.subQuick');
   if (o.replaces) sub += ' ' + t(camp ? 'lock.replacesCamp' : 'lock.replaces');
   $('lock-sub').textContent = sub;
@@ -2385,9 +2389,9 @@ export function squadShort(m, i) {
 
 // The steps of each objective, in order; the text comes from info.<type>.<step>.
 const STEPS = { nuke: ['travel', 'hold', 'armed'], vip: ['travel', 'pick', 'carry', 'deliver'], fortress: ['travel', 'bomb'], evac: ['travel', 'run', 'done'],
-  oil: ['travel', 'pump', 'load'], cannon: ['travel', 'attack'], dome: ['travel', 'nodes', 'bases'] };
+  oil: ['travel', 'pump', 'load'], cannon: ['travel', 'attack'], dome: ['travel', 'nodes', 'bases'], gun: ['travel', 'fire'] };
 const ORDER = { nuke: ['travel', 'hold', 'armed', 'inbound', 'done'], vip: ['travel', 'pick', 'carry', 'deliver', 'done'], fortress: ['travel', 'bomb', 'done'], evac: ['travel', 'run', 'done'],
-  oil: ['travel', 'setup', 'pump', 'load', 'done'], cannon: ['travel', 'attack', 'done'], dome: ['travel', 'nodes', 'bases', 'done'] };
+  oil: ['travel', 'setup', 'pump', 'load', 'done'], cannon: ['travel', 'attack', 'done'], dome: ['travel', 'nodes', 'bases', 'done'], gun: ['travel', 'setup', 'fire', 'done'] };
 // The step an objective is on, for the list (a few are worked out rather than stored).
 const stepOf = (m, o) => (o.type === 'dome' && o.state !== 'travel' ? (o.dome.up ? 'nodes' : 'bases') : o.type === 'fortress' && m.hellbomb && m.hellbomb.o === o ? 'bomb' : o.state);
 export function fillMissionInfo(m, info) {
@@ -2400,7 +2404,7 @@ export function fillMissionInfo(m, info) {
     const order = ORDER[o.type], cur = o.done ? order.length : Math.max(0, order.indexOf(stepOf(m, o)));
     const steps = STEPS[o.type].map((st) => {
       const k = order.indexOf(st), cls = o.done || k < cur ? 'done' : k === cur || (k > cur && k === cur + 1 && st === 'done') ? 'now' : '';
-      const v = o.type === 'evac' && st === 'run' ? { r: E.hdR } : o.type === 'oil' ? { n: C.objective.oil.trips } : o.type === 'fortress' ? { n: C.objective.hellbomb.fuseSec, r: C.objective.hellbomb.blastR } : vals;
+      const v = o.type === 'evac' && st === 'run' ? { r: E.hdR } : o.type === 'oil' ? { n: C.objective.oil.trips } : o.type === 'gun' ? { n: C.objective.gun.shots } : o.type === 'fortress' ? { n: C.objective.hellbomb.fuseSec, r: C.objective.hellbomb.blastR } : vals;
       return `<li class="${cls}">${esc(t(`info.${o.type}.${st}`, v))}</li>`;
     }).join('');
     parts.push(`<h3>${m.objectives.length > 1 ? `${n + 1}. ` : ''}${OBJ_NAME[o.type]}${o.done ? ` <span class="ok">${t('info.done')}</span>` : ''}</h3><ol class="steps">${steps}</ol>`);

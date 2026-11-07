@@ -11,7 +11,8 @@ import { clampLevel, levelAt, levelName, LEVELS } from './difficulty.js';
 const K = { settings: 'ofs.settings', session: 'ofs.session', history: 'ofs.history', callsign: 'ofs.callsign', notice: 'ofs.notice', names: 'ofs.names',
   campaign: 'ofs.campaign', campRun: 'ofs.campRun',     // (0.37) the campaign's progress on this browser, and its run under way
   slots: 'ofs.slots',      // (0.41) the three save slots
-  coins: 'ofs.coins' };    // (0.44) SESF coins
+  coins: 'ofs.coins',     // (0.44) SESF coins
+  tutSeen: 'ofs.tutSeen', tutDone: 'ofs.tutDone', saveVer: 'ofs.saveVer' };     // (0.53: these two were saved under no name of their own)
 
 export function load(key, fallback) {
   try { const v = localStorage.getItem(K[key]); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
@@ -20,6 +21,19 @@ export function save(key, val) {
   try { localStorage.setItem(K[key], JSON.stringify(val)); return true; } catch { return false; /* storage blocked (or full): the game still works */ }
 }
 export function drop(key) { try { localStorage.removeItem(K[key]); } catch { /* ignore */ } }
+
+// (0.53) A one-time reset with the new campaign: operations saved before it (the run under way, the save slots, the campaign's
+// progress and runs, and the score list, whose scores were points, not credits) are cleared. Settings, squad names, the callsign,
+// SESF coins and keys stay. Returns true when there was something to clear (the title says so, once).
+export const SAVE_VER = 2;
+export function resetOldSaves() {
+  if (load('saveVer', 1) >= SAVE_VER) return false;
+  let had = false;
+  for (const k of ['session', 'campRun', 'slots', 'campaign', 'history']) { try { if (localStorage.getItem(K[k]) !== null) had = true; } catch { /* ignore */ } drop(k); }
+  try { if (localStorage.getItem('undefined') === 'true') { save('tutSeen', true); save('tutDone', true); localStorage.removeItem('undefined'); } } catch { /* ignore */ }
+  save('saveVer', SAVE_VER);
+  return had;
+}
 
 // (0.44) SESF coins, kept on this browser: one for every operation ended by choice (END OPERATION after a mission that carried
 // on), at most COIN_MAX held. Each is one free unlock or upgrade in a later operation's armory (anything open at your rank but the
@@ -132,8 +146,10 @@ export function rollOffers(s, rng = Math.random, enemy = 'random', story = false
     let m = rollMission(prev, rng, enemy);
     // (no two on the same ground, and each against a different enemy where the enemy is left random)
     for (let k = 0; k < 10 && (out.some((o) => o.biome === m.biome) || (k < 6 && out.some((o) => o.faction === m.faction))); k++) m = rollMission(prev, rng, enemy);
-    const pool = [...OBJ_TYPES, OP_OF[m.faction]].filter(Boolean);
-    out.push({ ...m, obj: pool[Math.floor(rng() * pool.length)], bump });
+    // (0.53) against squids, the defence gun can be offered too: half the time in the capital's outskirts
+    const pool = [...OBJ_TYPES, OP_OF[m.faction], ...(m.faction === 'squids' ? ['gun'] : [])].filter(Boolean);
+    const obj = pool[Math.floor(rng() * pool.length)];
+    out.push({ ...m, obj, bump, ...(obj === 'gun' && rng() < 0.5 ? { biome: 'city' } : {}) });
   }
   return out;
 }

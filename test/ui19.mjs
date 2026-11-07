@@ -36,7 +36,7 @@ const beside = (sel) => ev((q) => {
 const frozen = async () => { const t0 = await ev(() => window.__game.mission.t); await page.waitForTimeout(500); return (await ev(() => window.__game.mission.t)) === t0; };
 const waitStep = async (h, ms = 8000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if ((await card()).h === h) return true; await page.waitForTimeout(150); } return false; };
 const saved = { startedAt: Date.now(), callsign: 'KEEP', difficulty: 5, missions: [{ op: 'Operation Keep', faction: 'bots', biome: 'grass', outcome: 'victory', score: 333, seconds: 200 }, { op: 'Operation Keep', faction: 'bots', biome: 'grass', outcome: 'victory', score: 333, seconds: 200 }, { op: 'Operation Keep', faction: 'bots', biome: 'grass', outcome: 'victory', score: 333, seconds: 200 }], score: 999, seconds: 600 };   // (0.19.2: three flown, the climb being two fifths of a level)
-await page.addInitScript((s) => { try { if (!sessionStorage.getItem('ui19')) { localStorage.clear(); localStorage.setItem('ofs.session', JSON.stringify(s)); sessionStorage.setItem('ui19', '1'); } } catch (e) { /* */ } }, saved);
+await page.addInitScript((s) => { try { if (!sessionStorage.getItem('ui19')) { localStorage.clear(); localStorage.setItem('ofs.saveVer', '2'); localStorage.setItem('ofs.session', JSON.stringify(s)); sessionStorage.setItem('ui19', '1'); } } catch (e) { /* */ } }, saved);
 await page.goto(`file://${ROOT}/dist/orbital-fury.html`); await page.waitForTimeout(700);
 
 // ---------------------------------------------------------------- the title

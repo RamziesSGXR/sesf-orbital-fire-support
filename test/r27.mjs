@@ -20,16 +20,18 @@ const run = (m, s, each) => { for (let i = 0, n = Math.round(s / dt); i < n && !
 {
   const s = newSession('KESTREL', 3);
   s.story = { id: STORY.id, ch: 1 };
-  const seq = [1, 2, 3, 4, 5, 6].map((n) => (chapterFor(s, n) || {}).n || 0);
-  check('(0.38) a story session flies the five chapters in order, then goes on as usual', seq.join() === '1,2,3,4,5,0', seq.join());
+  const seq = Array.from({ length: 11 }, (_, i) => (chapterFor(s, i + 1) || {}).n || 0);
+  check('(0.53) a story session flies the ten chapters in order, then goes on as usual', seq.join() === '1,2,3,4,5,6,7,8,9,10,0', seq.join());
   s.story.ch = 4;
-  check('started at chapter 4: its missions are chapters 4 and 5', [1, 2, 3].map((n) => (chapterFor(s, n) || {}).n || 0).join() === '4,5,0');
+  s.story.ch = 9;
+  check('(0.53) started at chapter 9: its missions are chapters 9 and 10, then the story runs out', [1, 2, 3].map((n) => (chapterFor(s, n) || {}).n || 0).join() === '9,10,0');
   const kinds = STORY.chapters.map((c) => c.play.objective);
-  check('(0.38) each chapter is a kind of mission not flown before: evac, oil, VIP, citadel, nuke', kinds.join() === 'evac,oil,vip,fortress,nuke' && new Set(kinds).size === 5, kinds.join());
-  check('(0.38) each chapter teaches something, and every lesson has its line and its tip in every language',
-    STORY.chapters.every((c) => c.teach && c.teach.length) && ['en', 'fr', 'es'].every((l) => { setLang(l); const ok = STORY.chapters.every((c) => c.teach.every((k) => /^\w+\|.{20,}/.test(t('teach.' + k)) && t('teach.' + k + '.tip').length > 20)); setLang('en'); return ok; }));
+  check('(0.53) ten chapters: three against each enemy, each arc on one ground, then the defence gun in the capital', STORY.chapters.length === 10
+    && ['bugs', 'bots', 'squids'].every((f, k) => STORY.chapters.slice(k * 3, k * 3 + 3).every((c) => c.play.faction === f && c.play.biome === STORY.chapters[k * 3].play.biome))
+    && STORY.chapters[9].play.objective === 'gun' && STORY.chapters[9].play.biome === 'city', kinds.join());
+  check('(0.38) every lesson a chapter teaches has its line and its tip in every language',
+    ['en', 'fr', 'es'].every((l) => { setLang(l); const ok = STORY.chapters.every((c) => (c.teach || []).every((k) => /^\w+\|.{20,}/.test(t('teach.' + k)) && t('teach.' + k + '.tip').length > 20)); setLang('en'); return ok; }));
   check('every chapter can be played, each its own mission', STORY.chapters.every((c) => c.play && c.play.faction && c.play.objective && c.play.seed));
-  check('(0.27.1) on Fronteria: Terminids on the desert, every chapter', STORY.planet === 'fronteria' && STORY.chapters.every((c) => c.play.faction === 'bugs' && c.play.biome === 'desert'));
   check('a session that is not a story has no chapters', chapterFor(newSession('X', 3), 1) === null);
 }
 
@@ -48,8 +50,8 @@ const run = (m, s, each) => { for (let i = 0, n = Math.round(s / dt); i < n && !
   }
   setLang('en');
   check('every chapter has a briefing and a debrief (won or lost), in English, Spanish and French, with who says each line', !bad.length, bad.slice(0, 4).join(' / '));
-  const w = castLines(STORY.chapters[0], 'win', { civSaved: 120 });
-  check('the debrief counts the colonists saved', w.some((l) => /120/.test(l.text)));
+  const w = castLines(STORY.chapters[4], 'win', { civSaved: 120 });
+  check('(0.53) a debrief\'s lines are whole: nothing left in braces', w.length === 3 && w.every((l) => l.text.length > 10 && !/[{}]/.test(l.text)));
   check('the General opens every briefing and has the last word', STORY.chapters.every((c) => c.brief[0] === 'ramzies' && c.win[c.win.length - 1] === 'ramzies' && c.lose[c.lose.length - 1] === 'ramzies'));
   const who = new Set(STORY.chapters.flatMap((c) => [...c.brief, ...c.win, ...c.lose]));
   check('the whole cast speaks: Ramzies, KTL, Rudolph the Red, Neonboot and Mota', ['ramzies', 'ktl', 'rudolph', 'neonboot', 'mota'].every((k) => who.has(k)), [...who].join());
@@ -75,18 +77,18 @@ const run = (m, s, each) => { for (let i = 0, n = Math.round(s / dt); i < n && !
   const m = new Mission({ seed: 7042, faction: 'bugs', biome: 'desert', sessionMinutes: 20, objectives: ['evac'] });
   run(m, 20);
   for (const o of m.objectives) o.done = true; m.objDone = true; m.finish('victory');
-  const res = m.result(), info = { op: "Operation Freedom Vista: VACATION'S OVER", faction: 'bugs', biome: 'desert', chapter: 1 };
+  const res = m.result(), info = { op: 'Operation Sweet Liberty: THE FUEL LINE', faction: 'bugs', biome: 'desert', chapter: 1 };
   recordMission(s, info, res);
   const r = aarMission(s, info, res), L = r.split('\n');
-  check('after a mission: an after action report with a bold title', L[0] === '**ORBITAL FURY · AFTER ACTION REPORT**' && /^\*\*FREEDOM VISTA: VACATION'S OVER\*\* · Mission 1 · DIFFICULTY 3 MEDIUM$/.test(L[1]), L.slice(0, 2).join(' / '));
+  check('after a mission: an after action report with a bold title', L[0] === '**ORBITAL FURY · AFTER ACTION REPORT**' && /^\*\*SWEET LIBERTY: THE FUEL LINE\*\* · Mission 1 · DIFFICULTY 3 MEDIUM$/.test(L[1]), L.slice(0, 2).join(' / '));
   check('...with the result, objective, kills, losses and score, a line each (and the damage split once there is any)', ['**Result:**', '**Objective:**', '**Kills:**', '**Helldivers:**', '**SEAF:**', '**Score:**'].every((k) => L.some((x) => x.startsWith(k))) && /EVACUATE CIVILIANS ✅/.test(r), r.replace(/\n/g, ' / ').slice(0, 300));
-  check('a campaign chapter: named, and the General\'s last word as a quote', /Campaign: Operation Freedom Vista, chapter 1 of 5 · Fronteria, Umlaut Sector/.test(r) && /^> RAMZIES: ".+"$/m.test(r));
+  check('a campaign chapter: named, and the General\'s last word as a quote', /Campaign: Operation Sweet Liberty, chapter 1 of 10 · ARC 1 · THE DUNES/.test(r) && /^> RAMZIES: ".+"$/m.test(r));
   check('short enough for one Discord message, no web address, the version at the foot', r.length < 2000 && !/https?:|\.com/i.test(r) && L[L.length - 1] === `Orbital Fury v${C.share.version}`, `${r.length} chars`);
   setLang('fr');
   check('in English whatever the language played in', aarMission(s, info, res) === r);
   setLang('en');
   const fin = finalise(s), b = aarSession(s, fin), B = b.split('\n');
-  check('at the end of a session: the totals and every mission on a numbered line', B[0] === '**ORBITAL FURY · OPERATION AFTER ACTION REPORT**' && /FINAL SCORE/.test(B[1]) && /1 mission, 1 won/.test(B[2]) && /DIFFICULTY 3 MEDIUM/.test(B[2]) && B.some((x) => /^1\. VACATION'S OVER · BUGS · /.test(x)) && B.some((x) => x.startsWith('**Totals:**')), b.replace(/\n/g, ' / ').slice(0, 300));
+  check('at the end of a session: the totals and every mission on a numbered line', B[0] === '**ORBITAL FURY · OPERATION AFTER ACTION REPORT**' && /FINAL SCORE/.test(B[1]) && /1 mission, 1 won/.test(B[2]) && /DIFFICULTY 3 MEDIUM/.test(B[2]) && B.some((x) => /^1\. THE FUEL LINE · BUGS · /.test(x)) && B.some((x) => x.startsWith('**Totals:**')), b.replace(/\n/g, ' / ').slice(0, 300));
   const t = aarStand({ outcome: 'glassed', kills: 260, civSaved: 134, lastStand: { held: 552, lifted: 9, pop: 200 } }, 'KESTREL'), T = t.split('\n');
   check('the tutorial\'s last stand has its own report: personnel off Mars, the hold, the rank', /LAST STAND AT THARSIS/.test(t) && /\*\*Personnel off Mars:\*\* 134 of 200 · 9 pelicans away · held 09:12/.test(t) && /Rank \d+, /.test(t) && /Gunner KESTREL/.test(t), T.slice(2, 5).join(' / '));
 }

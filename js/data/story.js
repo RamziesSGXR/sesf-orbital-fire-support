@@ -1,6 +1,5 @@
-// (0.24) The campaign. (0.27) Operation Freedom Vista, told by Super Earth Special Forces command, on Fronteria (Umlaut Sector,
-// planet 270 of the Helldivers 2 galaxy: a desert-oasis world, a nuclear test range in the First Galactic War, Class A resorts
-// going up when the Predator Strain hit in May 2186). Every chapter is a set mission
+// (0.24) The campaign, told by Super Earth Special Forces command (0.53: Operation Sweet Liberty; it was Operation Freedom Vista
+// on Fronteria, five chapters). Every chapter is a set mission
 // (the enemy, the ground, the map, the hour and the objective) with a briefing before it and a debrief after it, played like the
 // tutorial's cinematics, and the cast on the radio during it. A chapter starts a session; the chapters after it are that session's
 // next missions, in order; after the last one the session goes on as usual. (0.37) Progress is kept on the browser (session.js).
@@ -20,40 +19,26 @@ export const CAST = {
 export const CAST_ORDER = ['ramzies', 'ktl', 'rudolph', 'neonboot', 'mota'];
 
 // Each chapter: play (the mission), brief / win / lose (who says each line of the cinematic, in order; the text is
-// cp.ember.c<n>.<part><k> in the language files), and night for a scene on the planet's dark side.
+// cp.<id>.c<n>.<part><k> in the language files), and night for a scene on the planet's dark side.
+// (0.53) Operation Sweet Liberty: the Illuminate close in on Super Earth, and the one answer is a planetary defence gun on the
+// outskirts of the capital. Ten chapters in three arcs and a finale, each arc on one world (named by its ground, not by name):
+// E-710 fuel from the bugs on the dunes, scrap parts from the bots on the glaciers, and the squids' vanguard broken in the jungle
+// on the road to the capital; then the gun is held in the capital while it brings down the mothership. The tutorial teaches the
+// basics, so the chapters teach only what is new in them (teach).
+const B5 = ['ramzies', 'ktl', 'neonboot', 'mota', 'ramzies'], W3 = ['rudolph', 'neonboot', 'ramzies'], L2 = ['rudolph', 'ramzies'];
 export const STORY = {
-  id: 'ember',      // (the id from 0.24: the language keys are cp.ember.*)
-  planet: 'fronteria',
-  // (0.38) Five chapters, each a kind of mission the player has not flown yet, and each teaching a few things through the cast on
-  // the radio, at the moment they matter (teach: the topics, campaign.js CastRadio; their lines are teach.<topic> and
-  // teach.<topic>.tip). play.boss: false keeps a super heavy out; play.jammer: true puts a jammer site on the map; play.hb: false
-  // keeps the Hellbomb's side jobs off the map until the chapter that teaches it (no jammer, and broadcast towers fall to guns).
+  id: 'liberty',
   chapters: [
-    { n: 1, play: { faction: 'bugs', biome: 'desert', seed: 7042, objective: 'evac', tod: 9, hb: false },
-      teach: ['gun', 'seaf', 'orbital', 'orders', 'lives', 'extract'],
-      brief: ['ramzies', 'ktl', 'neonboot', 'mota', 'rudolph', 'ramzies'],
-      win: ['rudolph', 'neonboot', 'mota', 'ramzies'],
-      lose: ['rudolph', 'ktl', 'ramzies'] },
-    { n: 2, play: { faction: 'bugs', biome: 'desert', seed: 7077, objective: 'oil', tod: 14, boss: false, hb: false },
-      teach: ['build', 'garrison', 'cover', 'supply', 'demolish'],
-      brief: ['ramzies', 'ktl', 'neonboot', 'mota', 'rudolph', 'ramzies'],
-      win: ['rudolph', 'neonboot', 'mota', 'ramzies'],
-      lose: ['rudolph', 'ktl', 'ramzies'] },
-    { n: 3, play: { faction: 'bugs', biome: 'desert', seed: 7113, objective: 'vip', tod: 23, hb: false }, night: true,
-      teach: ['night', 'uav', 'escort', 'flare'],
-      brief: ['ramzies', 'ktl', 'neonboot', 'mota', 'rudolph', 'ramzies'],
-      win: ['rudolph', 'neonboot', 'mota', 'ramzies'],
-      lose: ['rudolph', 'ktl', 'ramzies'] },
-    { n: 4, play: { faction: 'bugs', biome: 'desert', seed: 7151, objective: 'fortress', tod: 7, boss: false, jammer: true },
-      teach: ['bases', 'sides', 'jammer', 'hellbomb'],
-      brief: ['ramzies', 'ktl', 'neonboot', 'mota', 'rudolph', 'ramzies'],
-      win: ['rudolph', 'neonboot', 'mota', 'ramzies'],
-      lose: ['rudolph', 'ktl', 'ramzies'] },
-    { n: 5, play: { faction: 'bugs', biome: 'desert', seed: 7187, objective: 'nuke', tod: 18 },
-      teach: ['hold', 'time'],
-      brief: ['ramzies', 'ktl', 'neonboot', 'mota', 'rudolph', 'ramzies'],
-      win: ['rudolph', 'neonboot', 'mota', 'ktl', 'ramzies'],
-      lose: ['rudolph', 'mota', 'ramzies'] },
+    { n: 1, arc: 'desert', play: { faction: 'bugs', biome: 'desert', seed: 7301, objective: 'oil', tod: 9, boss: false }, teach: ['build', 'supply'], brief: B5, win: W3, lose: L2 },
+    { n: 2, arc: 'desert', play: { faction: 'bugs', biome: 'desert', seed: 7333, objective: 'vip', tod: 17 }, teach: ['uav', 'escort'], brief: B5, win: W3, lose: L2 },
+    { n: 3, arc: 'desert', play: { faction: 'bugs', biome: 'desert', seed: 7367, objective: 'fortress', tod: 12, jammer: true }, teach: ['bases', 'sides', 'jammer', 'hellbomb'], brief: B5, win: W3, lose: L2 },
+    { n: 4, arc: 'ice', play: { faction: 'bots', biome: 'ice', seed: 7401, objective: 'cannon', tod: 10 }, teach: ['cover', 'garrison'], brief: B5, win: W3, lose: L2 },
+    { n: 5, arc: 'ice', play: { faction: 'bots', biome: 'ice', seed: 7433, objective: 'evac', tod: 15 }, teach: ['demolish'], brief: B5, win: W3, lose: L2 },
+    { n: 6, arc: 'ice', play: { faction: 'bots', biome: 'ice', seed: 7469, objective: 'nuke', tod: 19 }, teach: ['hold', 'time'], brief: B5, win: W3, lose: L2 },
+    { n: 7, arc: 'jungle', play: { faction: 'squids', biome: 'jungle', seed: 7503, objective: 'dome', tod: 8 }, teach: [], brief: B5, win: W3, lose: L2 },
+    { n: 8, arc: 'jungle', play: { faction: 'squids', biome: 'jungle', seed: 7537, objective: 'vip', tod: 22 }, night: true, teach: ['night', 'flare'], brief: B5, win: W3, lose: L2 },
+    { n: 9, arc: 'jungle', play: { faction: 'squids', biome: 'jungle', seed: 7571, objective: 'fortress', tod: 13 }, teach: [], brief: B5, win: W3, lose: L2 },
+    { n: 10, arc: 'city', play: { faction: 'squids', biome: 'city', seed: 7601, objective: 'gun', tod: 18, boss: false }, teach: [], brief: B5, win: W3, lose: L2, finale: true },
   ],
 };
 

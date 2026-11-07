@@ -22,7 +22,7 @@ fs.mkdirSync(path.join(ROOT, 'test', 'shots'), { recursive: true });
 const shot = (tag) => page.screenshot({ path: path.join(ROOT, 'test', 'shots', `ui41_${mode}_${tag}.png`) });
 // (storage is cleared once, here; the reloads below keep it)
 await page.goto(`file://${ROOT}/dist/orbital-fury.html?skipstart`); await page.waitForTimeout(500);
-await page.evaluate(() => { localStorage.clear(); localStorage.setItem('ofs.notice', 'true'); });
+await page.evaluate(() => { localStorage.clear(); localStorage.setItem('ofs.notice', 'true'); localStorage.setItem('ofs.saveVer', '2'); });
 await page.goto(`file://${ROOT}/dist/orbital-fury.html?skipstart&seed=4141&faction=bots&biome=grass&tod=12`); await page.waitForTimeout(1500);
 const slots = () => ev(() => JSON.parse(localStorage.getItem('ofs.slots') || '[]'));
 const rows = () => ev(() => [...document.querySelectorAll('#sv-list .sv-slot')].map((li) => ({ txt: li.textContent, empty: li.classList.contains('empty'), cur: li.classList.contains('cur'), btns: [...li.querySelectorAll('button')].map((b) => b.textContent) })));

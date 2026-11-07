@@ -16,7 +16,21 @@ const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 // (so it has no seam); and where it burns first when the Great Host fires on it.
 const TW = 512, TH = 256;
 let MARS = null;
-const texture = (kind) => (kind === 'fronteria' ? fronteriaTexture() : marsTexture());
+const texture = (kind) => (kind === 'fronteria' || kind === 'desert' ? fronteriaTexture() : TINTS[kind] ? tintedTexture(kind) : marsTexture());
+// (0.53) The campaign's other worlds, from the dune world's picture recoloured by brightness (dark, mid, bright): the glacier
+// world, the jungle world, and Super Earth (seas, green land and grey cities).
+const TINTS = { ice: [[40, 70, 110], [150, 185, 215], [240, 248, 255]], jungle: [[10, 50, 40], [40, 120, 60], [150, 200, 110]], city: [[20, 60, 130], [80, 130, 80], [180, 180, 175]] };
+const TINTED = {};
+function tintedTexture(kind) {
+  if (TINTED[kind]) return TINTED[kind];
+  const F = fronteriaTexture(), P = TINTS[kind], col = new Float32Array(F.col.length);
+  for (let k = 0; k < col.length; k += 3) {
+    const l = Math.max(0, Math.min(1, (0.3 * F.col[k] + 0.59 * F.col[k + 1] + 0.11 * F.col[k + 2] - 50) / 190));
+    const [a, b] = l < 0.5 ? [P[0], P[1]] : [P[1], P[2]], u = l < 0.5 ? l * 2 : l * 2 - 1;
+    for (let c = 0; c < 3; c++) col[k + c] = a[c] + (b[c] - a[c]) * u;
+  }
+  return (TINTED[kind] = { col, fire: F.fire });
+}
 // (0.27.1) Fronteria, the campaign's world (Umlaut Sector): dunes and pale salt flats, dark mesas, a scatter of blue-green oases with
 // green round them, and the old craters of the nuclear test range; fires (the hive's, the colony's) burn on the land.
 let FRONTERIA = null;
@@ -416,7 +430,7 @@ export class Cinema {
     const o = this.opts || {}, mood = o.mood || 'brief', night = !!o.night, short = H / this.dpr < 520, dt = 1 / 60;
     const R = M * (short ? 0.3 : 0.34), cx = W * 0.56, cy = H * (short ? 0.58 : 0.6), spin = t * 0.04 + 0.8;
     const burn = mood === 'lose' ? 0.3 + 0.5 * sstep(0, this.dur * 0.85, t) : mood === 'win' ? 0.16 : night ? 0.1 : 0.04;
-    this._planet(ctx, cx, cy, R, now, spin, burn, 'fronteria', night);
+    this._planet(ctx, cx, cy, R, now, spin, burn, o.planet || 'fronteria', night);     // (0.53: the chapter's world)
     // the destroyer: in from the left on a briefing, holding high on a win, pulling away on a loss
     const k = clamp01(t / this.dur), sc = M * (short ? 0.17 : 0.2);
     let dx, dy, ds = sc, da = -0.08;

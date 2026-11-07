@@ -50,8 +50,8 @@ await tap('#btn-campaign'); await page.waitForTimeout(500);
 check('CAMPAIGN opens the test story', await page.isVisible('#s-campaign'));
 const cp = await ev(() => ({ t: document.getElementById('cp-title').textContent, dev: document.querySelector('.cp-dev').textContent, ch: document.querySelectorAll('.cp-ch').length, play: document.querySelectorAll('.cp-ch .btn').length, p: document.querySelectorAll('#cp-story p').length }));
 check('it has a title, a story, and a notice that it is in development (and that progress is kept)', cp.t.length > 3 && cp.p === 3 && /in development/i.test(cp.dev) && /kept on this browser/i.test(cp.dev), JSON.stringify(cp).slice(0, 160));
-check('(0.38) five chapters; only the first is open on a fresh browser', cp.ch === 5 && cp.play === 1 && (await ev(() => document.querySelectorAll('.cp-ch.locked').length)) === 4, JSON.stringify(cp).slice(0, 160));
-check('(0.38) each says what it teaches', (await ev(() => document.querySelectorAll('.cp-ch .cp-teach').length)) === 5);
+check('(0.53) ten chapters; only the first is open on a fresh browser', cp.ch === 10 && cp.play === 1 && (await ev(() => document.querySelectorAll('.cp-ch.locked').length)) === 9, JSON.stringify(cp).slice(0, 160));
+check('(0.53) each says where it is and what it is, under its arc', (await ev(() => document.querySelectorAll('.cp-ch .cp-teach').length)) === 10 && (await ev(() => document.querySelectorAll('#cp-chs .cp-arc').length)) === 4);
 const roster = await ev(() => [...document.querySelectorAll('.cp-cast li')].map((li) => li.textContent));
 check('(0.27) the command roster: General Ramzies, KTL, Rudolph the Red, Neonboot and Mota, with their units', roster.length === 5 && /GENERAL RAMZIES/.test(roster[0]) && /P\.H\.A\.N\.T\.O\.M\./.test(roster[1]) && /Tibit Tigers/.test(roster[2]) && /F\.E\.A\.R\..*Science/.test(roster[3]) && /Knight of Midnight.*Defense/.test(roster[4]), roster.join(' | ').slice(0, 200));
 const bg2 = await ev(() => getComputedStyle(document.getElementById('title-bg')).display);
@@ -60,7 +60,7 @@ await shot('campaign');
 await tap('#cp-back'); await page.waitForTimeout(400);
 check('BACK goes to the title', await page.isVisible('#s-title') && !(await page.isVisible('#s-campaign')));
 await tap('#btn-campaign'); await page.waitForTimeout(400);
-await tap('.cp-ch:first-child .btn'); await page.waitForTimeout(400);
+await tap('#cp-chs .cp-ch .btn'); await page.waitForTimeout(400);     // (0.53: the first chapter, under its arc's heading)
 if (await page.isVisible('#btn-notice')) { await tap('#btn-notice'); await page.waitForTimeout(250); }
 check('(0.37) PLAY CHAPTER 1 asks NEW OPERATION: callsign, names and the level, no enemy (the story sets it)', await page.isVisible('#btn-lock') && await page.isVisible('#diff-row') && !(await page.isVisible('#enemy-row')) && /Chapter 1/.test(await page.textContent('#lock-sub')));
 await tap('#btn-lock'); await page.waitForTimeout(500);
@@ -69,13 +69,13 @@ check('the session is the story\'s', /"ch":1/.test(st), st);
 await tap('#shop-go'); await page.waitForTimeout(600);
 await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
 const inf = await ev(() => { const i = window.__game.info; return { f: i.faction, b: i.biome, s: i.seed, o: (i.ovObj || []).join() }; });
-check('chapter 1 is its own mission: Terminids on Fronteria\'s desert, the evacuation', inf.f === 'bugs' && inf.b === 'desert' && inf.s === 7042 && inf.o === 'evac', JSON.stringify(inf));
+check('(0.53) chapter 1 is its own mission: Terminids on the dunes, the E-710 pumps', inf.f === 'bugs' && inf.b === 'desert' && inf.s === 7301 && inf.o === 'oil', JSON.stringify(inf));
 await tap('#b-continue'); await page.waitForTimeout(1500);
 const obj = await ev(() => window.__game.mission.objectives.map((o) => o.type).join());
-check('and it is flown', /evac/.test(obj), obj);
+check('and it is flown', /oil/.test(obj), obj);
 // (0.27) the chapter's briefing: a cinematic over the planet, the cast a line at a time, the game waiting under it
 const br = await ev(() => ({ on: !document.getElementById('cine').classList.contains('hidden'), head: document.querySelector('#cine .cine-head').textContent, t: window.__game.mission.t, op: window.__game.info.op }));
-check('(0.27) the chapter opens with its briefing, and the game waits under it', br.on && /BRIEFING/.test(br.head) && /OPERATION FREEDOM VISTA · CHAPTER 1: VACATION'S OVER/.test(br.head) && br.t === 0 && /Freedom Vista: VACATION'S OVER/.test(br.op), JSON.stringify(br));
+check('(0.27) the chapter opens with its briefing, and the game waits under it', br.on && /BRIEFING/.test(br.head) && /OPERATION SWEET LIBERTY · CHAPTER 1: THE FUEL LINE/.test(br.head) && br.t === 0 && /Sweet Liberty: THE FUEL LINE/.test(br.op), JSON.stringify(br));
 await page.waitForTimeout(2500);
 const say = await ev(() => ({ who: (document.querySelector('#cine-text .who') || {}).textContent, line: (document.querySelector('#cine-text .line') || {}).textContent }));
 check('(0.27) the General speaks first, his name over his line', say.who === 'GENERAL RAMZIES' && /General Ramzies/.test(say.line || ''), JSON.stringify(say));
@@ -93,7 +93,7 @@ check('(0.27) a chapter ends with its debrief, before the debrief screen', db.on
 await tap('#cine-skip'); await page.waitForFunction(() => document.getElementById('s-debrief').classList.contains('on'), null, { timeout: 8000 });
 await page.waitForTimeout(600);
 const aar = await page.inputValue('#d-text');
-check('(0.27) the debrief screen has the after action report (0.50.1: COPY SCORE), the chapter in it', /^\*\*ORBITAL FURY · AFTER ACTION REPORT\*\*/.test(aar) && /chapter 1 of 5/.test(aar) && /> RAMZIES:/.test(aar) && /COPY SCORE/.test(await page.textContent('#btn-copy-d')), aar.split('\n').slice(0, 3).join(' / '));
+check('(0.27) the debrief screen has the after action report (0.50.1: COPY SCORE), the chapter in it', /^\*\*ORBITAL FURY · AFTER ACTION REPORT\*\*/.test(aar) && /chapter 1 of 10/.test(aar) && /> RAMZIES:/.test(aar) && /COPY SCORE/.test(await page.textContent('#btn-copy-d')), aar.split('\n').slice(0, 3).join(' / '));
 // (0.37) the chapter cleared is kept on this browser, with the run as it stood; the campaign run goes on in its own save
 const prog = await ev(() => ({ c: JSON.parse(localStorage.getItem('ofs.campaign') || 'null'), run: JSON.parse(localStorage.getItem('ofs.campRun') || 'null'), quick: localStorage.getItem('ofs.session') }));
 check('(0.37) clearing chapter 1 saves it: cleared, with the run as it stood, kept apart from QUICK PLAY', prog.c && prog.c.done.join() === '1' && prog.c.ck['1'] && prog.c.ck['1'].missions.length === 1 && prog.run && prog.run.story && !prog.quick, JSON.stringify({ done: prog.c && prog.c.done, run: !!prog.run, quick: !!prog.quick }));

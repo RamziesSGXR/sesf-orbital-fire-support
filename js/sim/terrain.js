@@ -28,6 +28,8 @@ const RECIPE = {
   desert: { gain: 2.3, hill: 330, terrace: true, rivers: [], lakes: { s: 120, thr: 0.75, hmax: 0.3 }, bank: 1, soft: { s: 70, thr: 0.53, dune: true } },
   moon:   { gain: 2.0, hill: 260, rivers: [], lakes: null, bank: 0, craters: 26, soft: { s: 55, thr: 0.56, ax: 1, ay: 1, low: 0.5 } },
   mars:   { gain: 2.1, hill: 320, terrace: true, rivers: [], lakes: null, bank: 0, craters: 9, soft: { s: 80, thr: 0.58, dune: true } },
+  // (0.53) the capital's outskirts: flat, with city blocks (pitch metres apart, streets street wide), a building on fill of them
+  city:   { gain: 0.7, hill: 420, rivers: [], lakes: null, bank: 0, soft: null, city: { pitch: 96, street: 32, fill: 0.55, min: 24 } },
 };
 
 const terrainCache = new Map();
@@ -54,12 +56,36 @@ export class Terrain {
     this.comp = new Int32Array(N * N);      // connected region of walkable ground; 1 is the biggest
     this.br = new Uint8Array(N * N);        // 1 on a bridge deck: walkable at full pace over the water under it
     this.bridges = [];                      // { x1, y1, x2, y2, w, style } for the picture
+    this.bld = new Uint8Array(N * N);       // (0.53) 1 under a building (city): nobody walks there
+    this.buildings = [];                    // (0.53) { x0, y0, x1, y1, h } for the picture
     if (K.on) { this._build(RECIPE[biomeId] || RECIPE.grass); this._finish(); }
     else { this.h.fill(0.5); this.spd.fill(1); this.comp.fill(1); }     // terrain switched off: flat, firm ground everywhere
     this._navBuild();
   }
 
   // ------------------------------------------------------------------ generation
+  // (0.53) City blocks: a grid of blocks pitch metres apart with streets between them; on fill of them a building (a rectangle
+  // inside the block, at least min metres a side). The middle of the map is kept as open ground (a square of plazas) for whatever
+  // the mission puts there.
+  _city(Q, rng) {
+    const mid = SIZE / 2;
+    for (let y0 = 0; y0 < SIZE; y0 += Q.pitch) for (let x0 = 0; x0 < SIZE; x0 += Q.pitch) {
+      if (rng.next() > Q.fill) continue;
+      const cx = x0 + Q.pitch / 2, cy = y0 + Q.pitch / 2;
+      if (Math.abs(cx - mid) < Q.pitch * 1.6 && Math.abs(cy - mid) < Q.pitch * 1.6) continue;     // (the plazas in the middle)
+      const room = Q.pitch - Q.street, w = Q.min + rng.next() * (room - Q.min), h = Q.min + rng.next() * (room - Q.min);
+      const bx = x0 + Q.street / 2 + rng.next() * (room - w), by = y0 + Q.street / 2 + rng.next() * (room - h);
+      const b = { x0: bx, y0: by, x1: bx + w, y1: by + h, h: 0.4 + rng.next() * 0.6 };
+      let n = 0;
+      for (let j = Math.floor(by / CELL); j <= Math.floor((by + h) / CELL); j++) for (let i = Math.floor(bx / CELL); i <= Math.floor((bx + w) / CELL); i++) {
+        if (i < 0 || j < 0 || i >= N || j >= N) continue;
+        const px = (i + 0.5) * CELL, py = (j + 0.5) * CELL;
+        if (px < bx || px > bx + w || py < by || py > by + h || this.d[j * N + i] > K.wet) continue;
+        this.bld[j * N + i] = 1; n++;
+      }
+      if (n) this.buildings.push(b);
+    }
+  }
   _build(R) {
     const n = this.n, h = this.h, d = this.d, kind = this.kind;
     const rng = new RNG((this.seed ^ 0x2f6e2b1d) >>> 0);
@@ -150,6 +176,7 @@ export class Terrain {
         }
       }
     }
+    if (R.city) this._city(R.city, rng);     // (0.53) the city's buildings
   }
 
   // Bridges over the rivers: every bridgeSpacing metres or so along the deep channels, a deck straight across (along the slope of
@@ -196,7 +223,7 @@ export class Terrain {
   _speeds() {
     const sp = this.spd, d = this.d, kind = this.kind, S = K.speed;
     for (let k = 0; k < N * N; k++) {
-      sp[k] = this.br[k] ? 1 : d[k] >= K.deep ? 0 : d[k] > K.wet ? S.shallow : kind[k] === MUD ? S.mud : kind[k] === SOFT ? S.soft : 1;
+      sp[k] = this.bld[k] ? 0 : this.br[k] ? 1 : d[k] >= K.deep ? 0 : d[k] > K.wet ? S.shallow : kind[k] === MUD ? S.mud : kind[k] === SOFT ? S.soft : 1;
     }
   }
 

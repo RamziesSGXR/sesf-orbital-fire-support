@@ -875,8 +875,8 @@ function beginSession(resume, key = 'session') {
       // (0.37) a campaign chapter: from the start, or from where the chapter before it was cleared (the run as it was then: the
       // kit, credits and ranks), at the level picked now
       const ck = storyPick.n > 1 ? S.getCampaign().ck[storyPick.n - 1] : null;
-      session = ck ? S.fixSession(JSON.parse(JSON.stringify(ck))) : S.newSession(cs, chosenDiff(), tEn('cp.ember.t'));
-      session.callsign = cs; session.difficulty = chosenDiff(); session.held = null; session.op = tEn('cp.ember.t'); delete session.slot;     // (0.41: a new run, in no slot until saved to one)
+      session = ck ? S.fixSession(JSON.parse(JSON.stringify(ck))) : S.newSession(cs, chosenDiff(), tEn(`cp.${STORY.id}.t`));
+      session.callsign = cs; session.difficulty = chosenDiff(); session.held = null; session.op = tEn(`cp.${STORY.id}.t`); delete session.slot;     // (0.41: a new run, in no slot until saved to one)
       session.story = { id: STORY.id, ch: storyPick.n - session.missions.length };     // (its next mission is the chapter picked)
     } else session = S.newSession(cs, chosenDiff(), S.opName($('op-name').value));     // (0.45: the name typed, or a rolled one if blank)
     session.feed = 1;     // (0.43) a new operation: the SESF feed hears of it at its first drop
@@ -898,7 +898,7 @@ function goNext() {
   const ch = p.story ? chapterFor(session, done + 1) : null;
   UI.renderNext({
     step, done, kit: session.kit, perks: p.perks || [], offers: p.offers || [], level: S.levelNow(session), story: !!ch,
-    storyFac: ch ? ch.play.faction : null, storyBiome: ch ? ch.play.biome : null, storyObj: ch ? tEn(`cp.ember.c${ch.n}`) : '',
+    storyFac: ch ? ch.play.faction : null, storyBiome: ch ? ch.play.biome : null, storyObj: ch ? tEn(`cp.${STORY.id}.c${ch.n}`) : '',
     onPick: (i) => {
       audio.ready();
       if (step === 'perk') { addPerk(session.kit, p.perks[i]); p.perks = []; }
@@ -950,7 +950,7 @@ function persist() {
 const doneN = (s) => (s && s.missions ? s.missions.filter((r) => S.carriesOn(r.outcome)).length : 0);
 // (0.26) the tutorial is one mission: its ranks come with kills
 const killsN = () => (mission && mission.stats ? mission.stats.kills.L + mission.stats.kills.M + mission.stats.kills.H : 0);
-function tierNow() { if (!session) return TIER_MAX; return session.tutorial ? tierFor(killsN(), true) : tierFor(doneN(session)); }
+function tierNow() { if (!session) return TIER_MAX; return session.tutorial ? 0 : tierFor(doneN(session)); }     // (0.53: the tutorial's armory is the standard one, at the first rank)
 let lsTier = 0;
 // (0.26) In the tutorial a rank comes in the middle of the fight: the level bonus is paid at once, and a prompt (it does not stop
 // the game) says what is new, with SHOW ME to open the armory on it.
@@ -1033,7 +1033,7 @@ function goBrief(again = false) {
   // (0.27) a story session: its missions are the chapters, in order, from the one picked
   const ch = chapterFor(session, session.missions.length + 1);
   if (!keep && !back && !ch) info.op = S.opOf(session);     // (0.37) one operation a session: every mission flies under its name
-  if (!keep && !back && ch) { info.faction = ch.play.faction; info.biome = ch.play.biome; info.seed = ch.play.seed; info.chapter = ch.n; info.op = tEn('cp.ember.op', { name: tEn(`cp.ember.c${ch.n}`) }); }
+  if (!keep && !back && ch) { info.faction = ch.play.faction; info.biome = ch.play.biome; info.seed = ch.play.seed; info.chapter = ch.n; info.op = tEn(`cp.${STORY.id}.op`, { name: tEn(`cp.${STORY.id}.c${ch.n}`) }); }
   if (!keep && !back && session.missions.length === 0) { // URL overrides for testing: ?seed= ?faction= ?biome= (first mission only)
     if (qs.get('seed')) info.seed = Number(qs.get('seed')) >>> 0;
     if (FACTION_OK(qs.get('faction'))) info.faction = qs.get('faction');
@@ -1099,7 +1099,7 @@ function goHome() {
   toTitle();
 }
 const FACTION_OK = (f) => ['bugs', 'bots', 'squids'].includes(f);
-const BIOME_OK = (b) => ['ice', 'grass', 'desert', 'jungle', 'moon', 'mars'].includes(b);
+const BIOME_OK = (b) => ['ice', 'grass', 'desert', 'jungle', 'moon', 'mars', 'city'].includes(b);
 
 function deploy() {
   audio.unlock();
@@ -1174,7 +1174,7 @@ function chapterOpts() { const ch = storyChapter(), p = ch && ch.play; return p 
 // (0.27) the chapter this mission is, in a story session (null otherwise), and the cinematic's options for it
 let castRadio = null;
 function storyChapter() { return session && session.story && info && info.chapter ? STORY.chapters.find((c) => c.n === info.chapter) || null : null; }
-function campOpts(ch, mood) { return { mood, night: !!ch.night, head: t('cine.chapter', { n: ch.n, name: t(`cp.ember.c${ch.n}`) }), tag: t(mood === 'brief' ? 'cine.brief' : 'cine.debrief') }; }
+function campOpts(ch, mood) { return { mood, night: !!ch.night, planet: ch.arc || 'fronteria', head: t('cine.chapter', { n: ch.n, name: t(`cp.${STORY.id}.c${ch.n}`) }), tag: t(mood === 'brief' ? 'cine.brief' : 'cine.debrief') }; }
 
 // ---------------- (0.19) the tutorial: the last stand on Mars ----------------
 // A mission of its own, outside any session: a throwaway session holds its kit and credits (never saved), and a saved session is
@@ -1187,6 +1187,25 @@ const lsLines = (kind, res) => (kind === 'intro' ? [1, 2, 3, 4, 5].map((k) => t(
 function lsReset() {
   glassCam = null; lsEnding = false; cinema.stop(); lsTier = 0; armFocus = false;
   document.body.classList.remove('ls-warn', 'ls-glass'); $('glassfx').classList.remove('on', 'white', 'soft');
+}
+// (0.53) The tutorial is MISSION COMPLETE: the game stops and the player picks: fight on to the end (the stand goes on until the
+// last Helldiver falls), or move on (straight into the campaign's first mission, or to the main menu). There is no extraction.
+function lsComplete(saved) {
+  S.save('tutDone', true);
+  if (!soft) softPause(true);
+  hud.ask(t('tut.done', { saved }), [
+    { label: t('tut.fightOn'), primary: true, fn: () => { audio.click(); if (soft) softPause(false); } },
+    { label: t('tut.toCampaign'), fn: () => leaveTutorial(true) },
+    { label: t('tut.toMenu'), fn: () => leaveTutorial(false) },
+  ], 1e9);
+}
+function leaveTutorial(campaign) {
+  audio.click(); endHandled = true;
+  setPlacing(null); setDrawing(false); setTac(false); disarm(); setHideUi(false); deselect();
+  if (tut) { tut.close(); tut = null; }
+  lsReset(); session = null; info = null;
+  toTitle();
+  if (campaign) { openCampaign(); playChapter(STORY.chapters[0]); }
 }
 function startLastStand() {
   lsReset();
@@ -1419,7 +1438,7 @@ function closeNames(saveIt) {
 function drawArmory(note) {
   armNote = note; armBal = mission ? mission.wallet.bal : 0;
   UI.renderLiveArmory($('tc-arm'), {
-    kit: session.kit, wallet: mission ? mission.wallet : session.wallet, note, tier: tierNow(), any: !!session.tutorial, fresh: session.fresh, focus: armFocus,
+    kit: session.kit, wallet: mission ? mission.wallet : session.wallet, note, tier: tierNow(), any: false, fresh: session.fresh, focus: armFocus,
     rank: rankLine(),
     onBuy: (id) => {
       armFocus = false;
@@ -1775,6 +1794,7 @@ function onEvent(ev, now) {
   if (castRadio) castRadio.onEvent(ev, mission);
   if (ev.type === 'ls_stage' && ev.stage === 'breaking') { document.body.classList.add('ls-warn'); audio.siren(); }
   if (ev.type === 'ls_stage' && ev.stage === 'glass') { lsGlass(now); audio.nukeBlast(); }
+  if (ev.type === 'ls_stage' && ev.stage === 'complete' && !BOT) lsComplete(ev.saved);     // (0.53) the tutorial won
   if (ev.type === 'ls_stage' && ev.stage === 'truth') { const c = CAST.tharsis; radioLog.add('mission', { tag: c.tag, col: c.col, unit: t(c.unit), text: t('tut.truth.b', { saved: ev.saved }) }); audio.cineSwell(6); }     // (0.40)
   const L = ev.x !== undefined ? loudness(ev.x, ev.y) : 1, P = ev.x !== undefined ? pan(ev.x) : 0;
   if (ev.type === 'glassbeam') audio.glassBeam(Math.max(0.35, L), P);
@@ -1901,7 +1921,7 @@ function frame(ts) {
     input.update(dt);
     // (the story first: the game waits under the cinematic, and under a tutorial card until GOT IT)
     if (planQ.length && live()) runPlan();     // (0.22) the plan made in the pause goes out as the game runs again
-    if (session && session.tutorial && live()) tutRank();     // (0.26) the tutorial's ranks come with kills
+    // (0.53: the tutorial's ranks no longer come with kills: its armory is the standard one)
     hud.doorsPlace((p) => { const R = p.what === 'bastion' ? p.r + 2 : 5; return renderer.worldToScreen(p.x, p.y - R, canvas); });
     if (hud.askAnchor) { const an = hud.askAnchor; if (an.dead) hud.askEnd(); else { const p = renderer.worldToScreen(an.x, an.y, canvas); if (p) hud.askPlace(p.x, p.y); } }
     if (plan() && !bot) { const sa = input.screenAim(), w = renderer.screenToWorld(sa.x, sa.y, canvas); if (w) mission.setAim(w.x, w.y); refreshAim(mission); squadCentres(mission); }     // (the reticle follows in the pause too; 0.47: and shows the weapon picked in it)
@@ -2012,7 +2032,10 @@ function simulate(dt, now) {
 UI.fillVersion();
 applySettings();
 renderer.resize();
+// (0.53) operations saved before the new campaign are cleared, once; the title says so
+const wipedOld = S.resetOldSaves();
 toTitle();
+if (wipedOld) { $('tt-wiped').textContent = t('title.wiped'); $('tt-wiped').classList.remove('hidden'); }
 requestAnimationFrame((t) => { lastT = t / 1000; frame(t); });
 
 // Test hooks (used by the Playwright checks; harmless in production).
