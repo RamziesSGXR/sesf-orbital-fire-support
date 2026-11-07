@@ -3,7 +3,7 @@ import { CONFIG as C } from './config.js';
 import { COMMS } from './data/data.js';
 import { Mission } from './sim/mission.js';
 import { STRAT_IDS } from './data/strat.js';
-import { buy, equip, unequip, loadoutIds, tierFor, tierItems, TIER_MAX, shopItems } from './data/kit.js';
+import { buy, equip, unequip, loadoutIds, tierFor, tierItems, TIER_MAX, shopItems, payToward, payStep, mixOpen } from './data/kit.js';
 import { makeBot, botStep, botShop } from './sim/bot.js';
 import { Renderer } from './render/renderer.js';
 import { buildTerrain } from './render/terrain.js';
@@ -923,15 +923,33 @@ function rankLine() {
 function drawShop(note, focus = false) {
   UI.renderShop($('shop-root'), {
     kit: session.kit, wallet: session.wallet, live: false, note, tier: tierNow(), done: doneN(session), fresh: session.fresh, focus,
-    coins: session.tutorial ? 0 : S.getCoins(), coinMode,
-    onCoin: () => { coinMode = !coinMode; audio.click(); drawShop(coinMode ? t('arm.coinPickNote') : undefined); },     // (0.44) SPEND A COIN / CANCEL
+    coins: session.tutorial ? 0 : S.getCoins(), coinVal: session.tutorial ? 0 : S.coinVals()[0] || 0, coinMode,
+    onCoin: () => { coinMode = !coinMode; audio.click(); drawShop(coinMode ? t('arm.coinPickNote', { v: S.fmtNum(S.coinVals()[0] || 0) }) : undefined); },     // (0.44) SPEND A COIN / CANCEL
     onBuy: (id) => {
-      const free = coinMode && !session.tutorial && S.getCoins() > 0;      // (0.44) paid with an SESF coin
-      const r = buy(session.kit, session.wallet, id, false, tierNow(), free);
-      if (r.ok && free) { S.spendCoin(); coinMode = false; }
+      const nm = (r) => String(r.item.name).toUpperCase();
+      if (coinMode && !session.tutorial && S.getCoins() > 0) {      // (0.50) an SESF coin: its credits paid toward the item
+        const r = payToward(session.kit, session.wallet, id, S.coinVals()[0], false, tierNow(), true);
+        if (!r.ok) { audio.deny(); drawShop(deny(r.reason)); return; }
+        S.spendCoin(); coinMode = false;
+        if (r.bought && session.fresh) session.fresh = session.fresh.filter((f) => f !== id);
+        audio.ready(); persist(); drawShop(t(r.bought ? 'arm.coinBought' : 'arm.coinPaid', { name: nm(r), n: S.fmtNum(r.paid) }));
+        return;
+      }
+      const r = buy(session.kit, session.wallet, id, false, tierNow());
       if (r.ok && session.fresh) session.fresh = session.fresh.filter((f) => f !== id);      // (bought: no longer new)
-      if (r.ok) { audio.ready(); persist(); drawShop(t(free ? 'arm.coinBought' : 'arm.bought', { name: r.item.name.toUpperCase() }) + (r.gift ? ' · ' + t(r.equipped ? 'arm.gift' : 'arm.giftOwned', { name: String(r.giftName).toUpperCase() }) : '')); } else { audio.deny(); drawShop(deny(r.reason)); }
+      if (r.ok) { audio.ready(); persist(); drawShop(t('arm.bought', { name: r.item.name.toUpperCase() }) + (r.gift ? ' · ' + t(r.equipped ? 'arm.gift' : 'arm.giftOwned', { name: String(r.giftName).toUpperCase() }) : '')); } else { audio.deny(); drawShop(deny(r.reason)); }
     },
+    // (0.50) PAY IN: a quarter of the price (or what you have) put toward it, kept on it
+    onPay: (id) => {
+      const it = shopItems(session.kit).find((x) => x.id === id);
+      const r = it ? payToward(session.kit, session.wallet, id, payStep(it, session.wallet.bal), false, tierNow()) : { ok: false, reason: 'unknown' };
+      if (!r.ok) { audio.deny(); drawShop(deny(r.reason)); return; }
+      if (r.bought && session.fresh) session.fresh = session.fresh.filter((f) => f !== id);
+      audio.click(); persist();
+      drawShop(r.bought ? t('arm.bought', { name: r.item.name.toUpperCase() }) : t('arm.paidIn', { n: S.fmtNum(r.paid), name: String(r.item.name).toUpperCase(), left: S.fmtNum(r.left) }));
+    },
+    // (0.50) the troop mix for the next drop
+    onMix: (k) => { if (!mixOpen(session.kit, k)) { audio.deny(); return; } session.kit.mix = k; audio.click(); persist(); drawShop(t('arm.mixSet', { name: t('mix.' + k) })); },
     onEquip: (id) => { if (equip(session.kit, id)) { audio.click(); persist(); drawShop(); } else { audio.deny(); drawShop(t('arm.noSlot')); } },
     onUnequip: (slot) => { unequip(session.kit, slot); audio.click(); persist(); drawShop(); },
   });
@@ -1219,7 +1237,7 @@ function retryMission() {
 function coinNow() { const last = session && session.missions[session.missions.length - 1]; return !session || session.tutorial || !last || !S.carriesOn(last.outcome) ? null : S.coinPreview(session); }
 function endLabels() {
   if (!session) return;
-  const cn = coinNow(), sub = cn ? t('end.' + cn, { n: S.COIN_MAX }) : '';
+  const cn = coinNow(), sub = cn ? t('end.' + cn, { n: S.COIN_MAX, v: S.fmtNum(S.coinWorth(session)) }) : '';
   for (const id of ['shop-end', 'btn-end', 'btn-end-d']) UI.endBtn($(id), endArmed === id, sub);
   $('shop-end').classList.toggle('hidden', !session.missions.length || !!session.tutorial);
 }

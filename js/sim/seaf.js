@@ -6,9 +6,8 @@ import { CONFIG as C } from '../config.js';
 import { aoX, aoY } from './ao.js';
 import { COMMS } from '../data/data.js';
 import { seafStats, buildStats, buildLevel, hangarStats } from '../data/kit.js';
-import { fireShot, jammedAt } from './combat.js';
+import { fireShot } from './combat.js';
 import { nearestObjective } from './pois.js';
-import { strikeAt } from './strat.js';
 import { bark } from './chatter.js';
 import { canStep } from './safety.js';
 import { runClear } from './ops.js';
@@ -272,6 +271,9 @@ export function rollRoles(m, n, st) {
   const put = (role) => { const ix = free(); if (ix.length) roles[ix[rng.int(ix.length)]] = role; };
   if (n > 1 && rng.next() < st.specChance) put('spec');
   if (n > 2 && rng.next() < st.medicChance) put('medic');
+  // (0.50) the ANTI-ARMOUR and MEDICAL mixes: a chance of a second one
+  if (n > 3 && st.spec2 && rng.next() < st.spec2) put('spec');
+  if (n > 3 && st.medic2 && rng.next() < st.medic2) put('medic');
   return roles;
 }
 // (0.26) One Squad Leader per squad: if a squad has lost its leader (or a merge left it with two), a Rifleman takes the lead.
@@ -502,11 +504,7 @@ function pickDone(m, p) {
   if (lz && !lz.dead && !lzCount(m, lz) && !lzOwed(m, lz)) removePost(m, lz);
 }
 
-// ---------------------------------------------------------------- medics, and the Squad Leader's radio
-const SPOT = () => {
-  const K = C.spotter;
-  return { name: tr('strat.fireMission'), cat: 'EAGLE', pat: 'scatter', n: K.n, len: K.len, span: K.span, delay: K.delay, dmg: K.dmg, splash: K.splash, mult: M4(1, 1, 0.6, 0.3), fly: true };
-};
+// ---------------------------------------------------------------- medics, and the Squad Leader's command (0.50)
 
 // (0.26) A trooper who falls with a Medic in reach goes down instead of dying (combat.js asks this): he lies where he fell, out of
 // the fight, until a Medic gets him up or the time runs out.
@@ -573,32 +571,12 @@ function updateSpecialists(m, dt) {
         m.emit('heal', { x: a.x, y: a.y, tx: best.x, ty: best.y, id: best.id });
         if (m.crng.next() < 0.12) bark(m, a, 'medic', '');
       } else a.spT = 0.6;
-    } else if (a.role === 'leader' && st.radio && a.sq >= 0) {
-      // (Leader Radios) the Squad Leader calls Eagle fire missions on big groups
-      a.spT -= dt;
-      if (a.spT > 0) continue;
-      a.spT = 1.6;
-      if (t < sf.spotAt) continue;
-      const P = C.spotter;
-      let best = null, bs = 0, tries = 0;
-      m.eGrid.near(a.x, a.y, P.range, (e) => {
-        if (e.vis < 1 || ++tries > 60) return;
-        let n = e.kind === 'H' ? 8 : 0;
-        m.eGrid.near(e.x, e.y, 11, () => { n++; });
-        if (n < P.minGroup || n <= bs) return;
-        for (const o of m.alive) if ((o.x - e.x) ** 2 + (o.y - e.y) ** 2 < P.minDist * P.minDist) return;
-        best = e; bs = n;
-      });
-      if (best && !jammedAt(m, best.x, best.y, 4, true)) {
-        sf.spotAt = t + st.spotCool;
-        const d = SPOT();
-        d.n = st.spotN; d.dmg = P.dmg * st.spotDmg;
-        strikeAt(m, d, { x: best.x, y: best.y }, { ox: a.x, oy: a.y, by: 'squad', friendly: false, dmgMul: 1 });
-        m.stats.spotCalls = (m.stats.spotCalls || 0) + 1;
-        m.emit('strat_call', { id: 'spot', x: best.x, y: best.y, delay: P.delay, team: -1 });
-        m.notice(tr('n.spotter'), 'info');
-        bark(m, a, 'spot', '', true);
-      }
+    } else if (a.role === 'leader' && st.aura) {
+      // (0.50) Leader Command (it was Leader Radios' Eagle fire missions): the troopers round him fire faster and straighter
+      // (enemies.js updateAllies reads a.cmdUntil), inside the ring a bot Commander has
+      const R2 = st.auraR * st.auraR;
+      for (const o of m.seafAlive) if (!o.dead && !o.down && (o.x - a.x) ** 2 + (o.y - a.y) ** 2 <= R2) o.cmdUntil = t + 0.25;
+      a.cmdLead = t + 0.25;
     }
   }
 }
@@ -606,7 +584,7 @@ function updateSpecialists(m, dt) {
 // ---------------------------------------------------------------- squads on the move
 export function updateSeaf(m, dt, speed, bm) {
   const sf = m.seaf;
-  { const st = seafStats(m.kit); m.kitDmg = st.dmgMul; m.kitEat = st.eatMul; }
+  { const st = seafStats(m.kit); m.kitDmg = st.dmgMul; m.kitEat = st.eatMul; m.kitCmd = st.aura ? { rof: st.auraRof, acc: st.auraAcc, r: st.auraR } : null; }
   updatePelicans(m, dt);
   updatePickups(m);
   const by = sf.squads.map(() => []), held = [];

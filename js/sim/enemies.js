@@ -75,12 +75,13 @@ export function updateAllies(m, dt) {
         const pick = pickClear(m, a, range, null);
         const e = pick && pick.e;
         if (e && (!H || sq.free || e.g.state === 'hunt')) {
-          const pf = G, slow = a.sw ? 1.8 : 1;
+          const pf = G, slow = a.sw ? 1.8 : 1, cmd = !H && m.kitCmd && a.cmdUntil > m.t ? m.kitCmd : null;     // (0.50) near a Squad Leader
           if (pick.block && m.rng.next() >= C.hd.fire.collateral) {
             a.atk += 0.3;                           // a friendly is in the way: hold, look again in a moment
           } else {
-            a.atk += pf.burst * slow / (a.inPost && a.inPost.what === 'foxhole' ? C.build.foxhole.rof : 1);   // shooting from a foxhole: faster
-            const prof = a.dmgMul && a.dmgMul !== 1 ? { ...pf, dmg: pf.dmg * a.dmgMul } : pf;
+            a.atk += pf.burst * slow / (a.inPost && a.inPost.what === 'foxhole' ? C.build.foxhole.rof : 1) / (cmd ? cmd.rof : 1);   // shooting from a foxhole: faster
+            let prof = a.dmgMul && a.dmgMul !== 1 ? { ...pf, dmg: pf.dmg * a.dmgMul } : pf;
+            if (cmd) prof = { ...prof, acc: Math.min(0.97, prof.acc * cmd.acc) };
             fireShot(m, a, e, prof, 'squad', 'a', H ? 'rifle' : a.role === 'spec' ? 'mg' : 'smg');
             if (a.role === 'spec') a.braceUntil = m.t + 1;     // (0.26) braced behind the MG-43: he barely moves while it fires
             if (m.t >= (a.noiseAt || 0)) { a.noiseAt = m.t + C.noise.rifleEvery; noise(m, a.x, a.y, C.noise.rifle); }

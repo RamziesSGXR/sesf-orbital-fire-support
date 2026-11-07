@@ -3,7 +3,7 @@
 // so what you buy and earn carries from mission to mission.
 import { ADJECTIVES, NOUNS, FACTIONS, BIOMES } from './data/data.js';
 import { tEn } from './i18n.js';
-import { newKit, newWallet, fixKit, refundLives } from './data/kit.js';
+import { newKit, newWallet, fixKit, refundLives, refundSlots, price } from './data/kit.js';
 import { CONFIG as C } from './config.js';
 import { clampLevel, levelAt, levelName, LEVELS } from './difficulty.js';
 
@@ -24,9 +24,22 @@ export function drop(key) { try { localStorage.removeItem(K[key]); } catch { /* 
 // on), at most COIN_MAX held. Each is one free unlock or upgrade in a later operation's armory (anything open at your rank but the
 // Classified ones: kit.js coinOk). An operation pays once: the runs that paid are remembered by when they started, so ending the
 // same run again (from a save slot or a campaign checkpoint) pays nothing.
+// (0.50) A coin is no longer one free item: it is credits paid toward anything open but Classified (kit.js payToward), worth more
+// the further the operation it came from got (coinWorth). Coins earned before 0.50 are worth C.coin.old each.
 export const COIN_MAX = 3;
-function coinBox() { const c = load('coins', null) || {}; return { n: Math.max(0, Math.min(COIN_MAX, Number(c.n) | 0)), paid: Array.isArray(c.paid) ? c.paid.slice(-50) : [] }; }
+function coinBox() {
+  const c = load('coins', null) || {}, n = Math.max(0, Math.min(COIN_MAX, Number(c.n) | 0));
+  const vals = (Array.isArray(c.vals) ? c.vals : []).map((v) => Math.max(0, Number(v) | 0)).slice(0, n);
+  while (vals.length < n) vals.push(price(C.coin.old));
+  return { n, paid: Array.isArray(c.paid) ? c.paid.slice(-50) : [], vals };
+}
 export const getCoins = () => coinBox().n;
+export const coinVals = () => coinBox().vals;
+// what a coin for ending this run would be worth: more for every mission that counted
+export function coinWorth(run) {
+  const done = run && Array.isArray(run.missions) ? run.missions.filter((q) => carriesOn(q.outcome)).length : 0;
+  return price(Math.min(C.coin.max, C.coin.base + C.coin.per * done));
+}
 // What ending this run would pay, without paying it: 'coin', 'paid' or 'full'.
 export function coinPreview(run) { const c = coinBox(), id = run && run.startedAt; return id && c.paid.includes(id) ? 'paid' : c.n >= COIN_MAX ? 'full' : 'coin'; }
 // The coin for ending this run: { got: true, n } (n: now held), or { got: false, why: 'paid' | 'full', n }.
@@ -34,11 +47,13 @@ export function earnCoin(run) {
   const c = coinBox(), id = run && run.startedAt;
   if (id && c.paid.includes(id)) return { got: false, why: 'paid', n: c.n };
   if (c.n >= COIN_MAX) return { got: false, why: 'full', n: c.n };
-  c.n++; if (id) c.paid.push(id);
+  const v = coinWorth(run);
+  c.n++; c.vals.push(v); if (id) c.paid.push(id);
   save('coins', c);
-  return { got: true, n: c.n };
+  return { got: true, n: c.n, v };
 }
-export function spendCoin() { const c = coinBox(); if (c.n <= 0) return false; c.n--; save('coins', c); return true; }
+// spends the first coin held; returns what it was worth (0: none held)
+export function spendCoin() { const c = coinBox(); if (c.n <= 0) return 0; c.n--; const v = c.vals.shift() || price(C.coin.old); save('coins', c); return v; }
 
 // (0.41) Three save slots on this browser, each a run (QUICK PLAY's or the campaign's) as it stood between missions: { at (when
 // saved), key ('session' | 'campRun'), run }. A run saved to a slot remembers it (run.slot, 1-3) and saves itself there again
@@ -131,9 +146,11 @@ export function chapterCleared(s, n) {
 // Old saves are repaired rather than thrown away.
 export function fixSession(s) {
   if (!s || typeof s !== 'object') return null;
+  const bought = s.kit && typeof s.kit === 'object' && !s.kit.slotRef ? s.kit.slots | 0 : 0;     // (0.50) slots bought before they were all open
   s.kit = fixKit(s.kit);
   s.wallet = { ...newWallet(), ...(s.wallet || {}) };
   refundLives(s.kit, s.wallet);
+  if (bought) refundSlots(s.kit, s.wallet, bought);
   s.names = getNames();
   s.missions = Array.isArray(s.missions) ? s.missions : [];
   s.difficulty = clampLevel(s.difficulty ?? LEVELS);      // sessions saved before there were levels were played at the top one

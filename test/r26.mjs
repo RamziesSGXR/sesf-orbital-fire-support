@@ -28,7 +28,9 @@ const quiet = (faction = 'bots', seed = 61) => { const m = new Mission({ seed, f
   check('every drop is led by a Squad Leader, and only the four roles come down', drops.every((r) => r[0] === 'leader' && r.filter((x) => x === 'leader').length === 1) && [...all].every((r) => ROLES.includes(r)), [...all].join(' '));
   const spec = drops.filter((r) => r.includes('spec')).length / drops.length, med = drops.filter((r) => r.includes('medic')).length / drops.length;
   check('Specialists and Medics come with some drops, as often as the armory says', Math.abs(spec - st.specChance) < 0.12 && Math.abs(med - st.medicChance) < 0.12, `spec ${(spec * 100).toFixed(0)}%, medic ${(med * 100).toFixed(0)}%`);
-  check('the armory\'s Specialists and Field Medics make them more common', seafStats({ ...newKit(), seaf: { ...newKit().seaf, rocket: 3, medic: 3 } }).specChance > st.specChance && seafStats({ ...newKit(), seaf: { ...newKit().seaf, medic: 3 } }).medicChance > st.medicChance);
+  // (0.50) Specialists and Field Medics open a troop mix rather than boosting every drop
+  const ar = seafStats({ ...newKit(), mix: 'armor', seaf: { ...newKit().seaf, rocket: 3 } }), md = seafStats({ ...newKit(), mix: 'medical', seaf: { ...newKit().seaf, medic: 3 } });
+  check('(0.50) the armory\'s Specialists and Field Medics open the ANTI-ARMOUR and MEDICAL mixes, where they come every drop', ar.specChance === 1 && ar.spec2 > 0 && md.medicChance === 1 && md.medic2 > 0 && seafStats({ ...newKit(), seaf: { ...newKit().seaf, rocket: 3, medic: 3 } }).specChance === st.specChance);
   const g0 = st.grenades, g3 = seafStats({ ...newKit(), seaf: { ...newKit().seaf, gren: 3 } }).grenades;
   check('everyone carries G-12 grenades, more with the upgrade', g0 >= 2 && g3 === g0 + 3, `${g0} → ${g3}`);
 }

@@ -52,7 +52,10 @@ export const CONFIG = {
               followSpread: 28, protectR: 36, protectLeash: 80, clearR: 55, clearMaxSec: 70,
               // (0.26) four roles: a Squad Leader in every drop, Riflemen, Specialists (MG-43 and EAT-17) and Medics. Everyone carries
               // G-12 grenades (grenades each, plus the armory's G-12 upgrade).
-              specChance: 0.6, squads: 9, medicChance: 0.45, grenades: 2, braceMul: 0.3, coverSeek: 12,
+              specChance: 0.6, squads: 9, medicChance: 0.45,
+              // (0.50) the troop mixes (kit.js MIXES): ASSAULT's extra grenades each; the chance of a second Specialist / Medic in
+              // ANTI-ARMOUR / MEDICAL is at most secondMax; the other role comes this much as often as in STANDARD
+              mix: { assaultGren: 2, secondMax: 0.9, other: 0.5 }, grenades: 2, braceMul: 0.3, coverSeek: 12,
               // (0.27.3) a new squad holds where it lands (and fights what comes), or takes cover within dropCover m of the drop
               dropCover: 26,
               formationSpacing: 5, pathReach: 9,
@@ -74,6 +77,12 @@ export const CONFIG = {
   // who falls with a Medic in reach goes down instead, for downSec, and is back up reviveSec after the Medic gets to work.
   // downSight (0.31): a downed trooper sees only this share of his sight (and none of the player's view past it), and adds no strike zone.
   medic:    { range: 20, heal: 24, every: 1.3, hp: 90, close: 4, closeMul: 2, reviveR: 20, downSec: 14, reviveSec: 2.5, reviveHp: 0.4, downSight: 0.25 },
+  // (0.50) An SESF coin: credits paid toward an armory item, base + per mission that counted in the operation it came from, at
+  // most max; one earned before 0.50 is worth old.
+  coin:     { base: 300, per: 150, max: 4500, old: 750 },
+  // (0.50) Leader Command: SEAF within r of a Squad Leader (the bot Commander's jamR, its mirror) fire faster (rof) and hit more
+  // often (acc); each level after the first adds rofUp and accUp.
+  leader:   { r: 22, rof: 0.12, rofUp: 0.06, acc: 0.08, accUp: 0.04 },
   spotter:  { coolSec: 70, minGroup: 6, minDist: 26, n: 7, len: 24, dmg: 240, splash: 8.5, delay: 5, span: 1.2, range: 150 },
   // (0.40) a squad wiped out drops again together, wipeD metres from where it fell (on the quietest side, never near the map's edge)
   wipe:     { d: [110, 170], quietR: 80, edge: 70, spread: 8 },
@@ -444,7 +453,8 @@ export const CONFIG = {
   // a target relay that speeds allies up (speed, by level 0-3) and threat warnings that help them dodge (dodge, added chance).
   uav:      { r: [95, 120, 145, 175, 205], sec: [24, 28, 32, 36, 40], cd: [42, 38, 34, 30, 26],
               speed: [0.05, 0.1, 0.15, 0.2], dodge: [0.05, 0.1, 0.15, 0.2], buffMax: 3, buffPrice: 300, liftCalm: 3 },
-  kit:      { slotsStart: 3, slotsMax: 5, seafCap: 3, seafDropEvery: 2, seafHp: 0.18, seafDmg: 0.12, seafGren: 1, seafRocket: 0.07, seafMedic: 0.14, medicRate: 0.25, spotCool: 0.12, spotDmg: 0.18, seafBuild: 0.25,
+  // (0.50) every orbital slot open from the start; the Barracks a little dearer (barracks: base x (level + 1)^pow)
+  kit:      { slotsStart: 5, slotsMax: 5, barracks: { base: 320, pow: 1.45 }, seafCap: 3, seafDropEvery: 2, seafHp: 0.18, seafDmg: 0.12, seafGren: 1, seafRocket: 0.07, seafMedic: 0.14, medicRate: 0.25, spotCool: 0.12, spotDmg: 0.18, seafBuild: 0.25,
               zonePer: 18, startLoadout: ['orb_airburst', 'orb_120', 'orb_precision'] },
   // Credits: earned from kills, bases, POIs, breaches and the objective, with a bonus at extraction. Spent in the armory.
   // One multiplier on every armory price. Bot sessions earn about 520 credits a minute, so three hours earns roughly what the whole

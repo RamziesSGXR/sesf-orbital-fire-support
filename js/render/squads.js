@@ -45,6 +45,11 @@ export function drawSeafMark(ctx, m, a, r, px, multi, on) {
     ctx.strokeStyle = '#ff5a52'; ctx.lineWidth = px(2.2); ctx.globalAlpha = on ? 1 : 0.85;
     ctx.beginPath(); ctx.moveTo(a.x - s, a.y); ctx.lineTo(a.x + s, a.y); ctx.moveTo(a.x, a.y - s); ctx.lineTo(a.x, a.y + s); ctx.stroke(); ctx.globalAlpha = 1;
   } else if (a.role === 'leader') {
+    // (0.50) Leader Command: a faint gold ring, the reach of his command (the troopers inside fire faster and straighter)
+    if (m.kitCmd && a.cmdLead > m.t) {
+      ctx.strokeStyle = '#ffd24a'; ctx.lineWidth = px(1); ctx.globalAlpha = 0.28; ctx.setLineDash([px(3), px(4)]);
+      ring(ctx, a.x, a.y, m.kitCmd.r); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+    }
     ctx.strokeStyle = '#ffd24a'; ctx.lineWidth = px(2); ctx.globalAlpha = on ? 1 : 0.9;
     const s = r * 1.1, y = a.y - r * 1.9;
     ctx.beginPath(); ctx.moveTo(a.x - s, y + s * 0.2); ctx.lineTo(a.x, y - s * 0.55); ctx.lineTo(a.x + s, y + s * 0.2); ctx.stroke(); ctx.globalAlpha = 1;
