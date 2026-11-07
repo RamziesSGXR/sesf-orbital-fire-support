@@ -23,6 +23,14 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Armory & SEAF (0.50).**
+- **All five orbital slots are open from the start.** Slots are no longer bought. A save that had bought the 4th or 5th slot gets those credits back.
+- **Pay toward anything.** An item you can't afford yet has **PAY IN**: each press puts a quarter of its price (or what you have) on it. What's paid stays on the item, shown as a bar, and its price drops to what's left. It can't be taken back out.
+- **The SESF coin is now credits.** Ending an operation yourself pays a coin worth 300 CR plus 150 CR for every mission that counted (at most 4,500, before the armory's price scaling). In a later armory, SPEND A COIN pays that much toward any item but Classified; whatever is over the price goes toward its next level. Coins from before 0.50 are worth 750 CR.
+- **The SEAF Barracks costs a little more** (about 8% more at first, 18% by level 6).
+- **Troop mixes.** The SEAF tab starts with the TROOP MIX, picked between missions: STANDARD (as before), ASSAULT (riflemen only, 2 more grenades each), ANTI-ARMOUR (a Specialist in every drop and a chance of a second) and MEDICAL (the same for Medics). The number of troopers doesn't change. **Specialists** and **Field Medics** now open ANTI-ARMOUR and MEDICAL, and each level raises the chance of the second one; they no longer make every drop more likely to bring one.
+- **Leader Command** replaces Leader Radios: no more Eagle fire missions. SEAF within 22 m of their Squad Leader (the bot Commander's ring) fire 12% faster and 8% more accurately, plus 6% and 4% for each level after the first. The ring shows faintly round the leader.
+
 **Base overhaul (0.49).**
 - **Bases are clusters.** Each base is two or three small spawners inside its circle, each with its own health. One precision strike takes one out, and the base falls with its last spawner. A citadel's outer bases are clusters too; its keep still needs a Hellbomb.
 - **Scouting.** A base's place is always on the map, but its layout (how many spawners, and where) stays under smoke, marked UNSCOUTED, until an ally sees it. Powering a **radio tower** side objective reveals every base's layout.

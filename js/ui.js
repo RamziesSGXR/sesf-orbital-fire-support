@@ -1728,9 +1728,10 @@ export function renderShop(root, opts) {
     lo.appendChild(s);
   }
   root.appendChild(lo);
-  // (0.50) the troop mix: who comes down with each SEAF drop, picked between missions like the orbitals
+  // (0.50) the troop mix: who comes down with each SEAF drop, picked between missions like the orbitals (it heads the SEAF tab)
+  let mixRow = null;
   if (!live && opts.onMix) {
-    const mx = el('div', 'shop-mix');
+    const mx = mixRow = el('div', 'shop-mix');
     mx.appendChild(el('span', 'mx-l', esc(t('arm.mix'))));
     for (const k of MIXES) {
       const ok = mixOpen(kit, k), on = (kit.mix || 'standard') === k;
@@ -1740,7 +1741,6 @@ export function renderShop(root, opts) {
       mx.appendChild(b);
     }
     mx.appendChild(el('div', 'mx-b', esc(t('mix.' + (kit.mix || 'standard') + '.b'))));
-    root.appendChild(mx);
   }
   // (0.25) your rank, and a bar to the next one: one segment a rank, the classified ones (6 to 9) in red
   if (!live && opts.done !== undefined) root.appendChild(rankBar(tier, opts.done));
@@ -1763,6 +1763,7 @@ export function renderShop(root, opts) {
   const body = el('div', 'shop-scroll');
   const panes = {};
   for (const tb of SHOP_TABS) { const p = el('div', 'tabpane' + (shopTab === tb.id ? ' on' : '')); p.dataset.tab = tb.id; panes[tb.id] = p; body.appendChild(p); }
+  if (mixRow) (panes.seaf || panes[SHOP_TABS[0].id]).appendChild(mixRow);
   const sections = [];
   for (const it of items) { let s = sections.find((x) => x.name === it.section); if (!s) sections.push(s = { name: it.section, list: [] }); s.list.push(it); }
   for (const sec of sections) {
