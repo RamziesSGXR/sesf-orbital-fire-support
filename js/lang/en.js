@@ -411,7 +411,7 @@ export default {
   // ---------- final ----------
   'fin.eyebrow': 'Operation complete',
   'fin.score': 'FINAL SCORE',
-  'fin.copy': 'COPY FOR DISCORD',
+  'fin.copy': 'COPY SCORE',
   'fin.share': 'SHARE',
   'fin.again': 'PLAY AGAIN',
   'fin.post': 'COPY AND OPEN CHANNEL',
@@ -425,7 +425,8 @@ export default {
   'fin.killed': 'killed',
   'fin.escaped': 'escaped',
   'fin.none': 'No missions flown',
-  'fin.copied': 'Copied. Paste it into the community channel.',
+  'fin.copied': 'Copied. Paste it anywhere you like.',
+  'fin.posted': 'Your operation\'s result was posted to the SESF Discord. (Settings > SESF feed turns this off.)',
   'fin.copyHand': 'Select the text above and copy it by hand.',
 
   // ---------- pause, settings, info, map, about, flashing ----------
@@ -451,7 +452,7 @@ export default {
   'set.sfx': 'Effects volume', 'set.sfxHint': 'Weapons, explosions, alarms and the ship',
   'set.bubbles': 'Speech bubbles', 'set.bubblesHint': 'What Helldivers and SEAF say before they act',
   'set.light': 'Lighting', 'set.lightHint': 'Night on the ground, flashlights and lamps, muzzle flashes, the light of the hour',     // (0.38)
-  'set.feed': 'SESF feed', 'set.feedHint': 'Posts to the SESF Discord when your operation starts and ends: your callsign, the difficulty, how far you got and the score',     // (0.43)
+  'set.feed': 'SESF feed', 'set.feedHint': 'Posts to the SESF Discord once, when your operation ends: your callsign, the operation, your squad names, how far you got and the score',     // (0.43)
   'lock.opName': 'OPERATION', 'lock.opRoll': 'ROLL', 'lock.opPh': 'Name it, or leave it blank',     // (0.45) the operation's name
   'end.confirm': 'TAP AGAIN TO END',     // (0.44) END OPERATION and the SESF coin
   'end.coin': '+1 SESF COIN ({v} CR)',
@@ -1099,7 +1100,7 @@ export default {
   'deb.retryNoteFail': 'RETRY MISSION flies this one again on the same map, with your credits back at {n}. If you don\'t, the operation ends here.',
   'deb.copyTitle': 'AFTER ACTION REPORT',
   'deb.copyNote': 'Ready to paste into Discord. You\'ll get the whole operation\'s report at the end, and copying this doesn\'t end anything.',
-  'deb.copy': 'COPY FOR DISCORD',
+  'deb.copy': 'COPY SCORE',
   'lock.eyebrow': 'New operation',
   'lock.title': 'NEW OPERATION',
   'lock.pay': 'CREDITS AND SCORE ×{x}',

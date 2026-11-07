@@ -411,7 +411,7 @@ export default {
   // ---------- fin de session ----------
   'fin.eyebrow': 'Opération terminée',
   'fin.score': 'SCORE FINAL',
-  'fin.copy': 'COPIER POUR DISCORD',
+  'fin.copy': 'COPIER LE SCORE',
   'fin.share': 'PARTAGER',
   'fin.again': 'REJOUER',
   'fin.post': 'COPIER ET OUVRIR LE SALON',
@@ -425,7 +425,8 @@ export default {
   'fin.killed': 'abattu',
   'fin.escaped': 'en fuite',
   'fin.none': 'Aucune mission',
-  'fin.copied': 'Copié. Collez-le dans le salon de la communauté.',
+  'fin.copied': 'Copié. Collez-le où vous voulez.',
+  'fin.posted': 'Le résultat de votre opération a été publié sur le Discord SESF. (Paramètres > Fil SESF le désactive.)',
   'fin.copyHand': 'Sélectionnez le texte ci-dessus et copiez-le à la main.',
 
   // ---------- pause, réglages, infos, carte, à propos, flashs ----------
@@ -451,7 +452,7 @@ export default {
   'set.sfx': 'Volume des effets', 'set.sfxHint': 'Armes, explosions, alarmes et le vaisseau',
   'set.bubbles': 'Bulles de dialogue', 'set.bubblesHint': 'Ce que disent Helldivers et SEAF avant d’agir',
   'set.light': 'Éclairage', 'set.lightHint': 'La nuit au sol, lampes torches et projecteurs, éclairs des tirs, la lumière de l’heure',     // (0.38)
-  'set.feed': 'Fil SESF', 'set.feedHint': 'Publie sur le Discord SESF quand votre opération commence et se termine : votre indicatif, la difficulté, jusqu’où vous êtes allé et le score',     // (0.43)
+  'set.feed': 'Fil SESF', 'set.feedHint': 'Publie une fois sur le Discord SESF, à la fin de votre opération : votre indicatif, l’opération, les noms de votre escouade, jusqu’où vous êtes allé et le score',     // (0.43)
   'lock.opName': 'OPÉRATION', 'lock.opRoll': 'TIRER', 'lock.opPh': 'Nommez-la, ou laissez vide',     // (0.45) the operation's name
   'end.confirm': 'TOUCHEZ ENCORE POUR FINIR',     // (0.44) END OPERATION and the SESF coin
   'end.coin': '+1 PIÈCE SESF ({v} CR)',
@@ -1099,7 +1100,7 @@ export default {
   'deb.retryNoteFail': 'REJOUER LA MISSION rejoue cette mission sur la même carte, avec vos crédits revenus à {n}. Sinon, l’opération s’arrête ici.',
   'deb.copyTitle': 'RAPPORT APRÈS ACTION',
   'deb.copyNote': 'Prêt à coller dans Discord. Vous aurez le rapport de toute l’opération à la fin, et copier celui-ci n’arrête rien.',
-  'deb.copy': 'COPIER POUR DISCORD',
+  'deb.copy': 'COPIER LE SCORE',
   'lock.eyebrow': 'Nouvelle opération',
   'lock.title': 'NOUVELLE OPÉRATION',
   'lock.pay': 'CRÉDITS ET SCORE ×{x}',

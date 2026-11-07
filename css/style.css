@@ -2665,3 +2665,7 @@ body.rts.lay-phone.lay-port #hud #topbar .alertc { padding: 0 6px; }
 .keys-r.on .btn.keys-k { border-color: var(--yellow); color: var(--yellow); animation: keys-blink 0.9s steps(2) infinite; }
 @keyframes keys-blink { 50% { opacity: 0.45; } }
 body.touch .desk-only { display: none !important; }     /* (0.50.1) desktop-only buttons (CHANGE KEYS) */
+
+/* (0.50.1) the report text is copied, not shown: COPY SCORE takes it (kept in the page, out of sight, for the copy fallback) */
+.rep-text { position: absolute !important; left: -9999px !important; top: 0; width: 1px !important; height: 1px !important; min-height: 0 !important; opacity: 0; pointer-events: none; }
+.f-feed { margin: 6px 0 10px; padding: 7px 10px; border: 1px solid rgba(88, 101, 242, 0.6); background: rgba(88, 101, 242, 0.1); color: #c9cdff; font-size: 12px; }

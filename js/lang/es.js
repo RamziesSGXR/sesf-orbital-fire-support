@@ -411,7 +411,7 @@ export default {
   // ---------- fin de sesión ----------
   'fin.eyebrow': 'Operación terminada',
   'fin.score': 'PUNTUACIÓN FINAL',
-  'fin.copy': 'COPIAR PARA DISCORD',
+  'fin.copy': 'COPIAR PUNTUACIÓN',
   'fin.share': 'COMPARTIR',
   'fin.again': 'JUGAR DE NUEVO',
   'fin.post': 'COPIAR Y ABRIR EL CANAL',
@@ -425,7 +425,8 @@ export default {
   'fin.killed': 'abatido',
   'fin.escaped': 'huido',
   'fin.none': 'Ninguna misión',
-  'fin.copied': 'Copiado. Pégalo en el canal de la comunidad.',
+  'fin.copied': 'Copiado. Pégalo donde quieras.',
+  'fin.posted': 'El resultado de tu operación se publicó en el Discord de SESF. (Ajustes > Canal SESF lo desactiva.)',
   'fin.copyHand': 'Selecciona el texto de arriba y cópialo a mano.',
 
   // ---------- pausa, ajustes, info, mapa, acerca de, destellos ----------
@@ -451,7 +452,7 @@ export default {
   'set.sfx': 'Volumen de efectos', 'set.sfxHint': 'Armas, explosiones, alarmas y la nave',
   'set.bubbles': 'Bocadillos de diálogo', 'set.bubblesHint': 'Lo que dicen Helldivers y SEAF antes de actuar',
   'set.light': 'Iluminación', 'set.lightHint': 'La noche en el suelo, linternas y focos, fogonazos de los disparos, la luz de la hora',     // (0.38)
-  'set.feed': 'Canal SESF', 'set.feedHint': 'Publica en el Discord de SESF cuando tu operación empieza y termina: tu indicativo, la dificultad, hasta dónde llegaste y la puntuación',     // (0.43)
+  'set.feed': 'Canal SESF', 'set.feedHint': 'Publica una vez en el Discord de SESF, al terminar tu operación: tu indicativo, la operación, los nombres de tu escuadra, hasta dónde llegaste y la puntuación',     // (0.43)
   'lock.opName': 'OPERACIÓN', 'lock.opRoll': 'SORTEAR', 'lock.opPh': 'Ponle nombre o déjalo vacío',     // (0.45) the operation's name
   'end.confirm': 'TOCA OTRA VEZ PARA TERMINAR',     // (0.44) END OPERATION and the SESF coin
   'end.coin': '+1 MONEDA SESF ({v} CR)',
@@ -1099,7 +1100,7 @@ export default {
   'deb.retryNoteFail': 'REINTENTAR MISIÓN vuelve a jugar esta misión en el mismo mapa, con tus créditos de vuelta en {n}. Si no, la operación termina aquí.',
   'deb.copyTitle': 'INFORME TRAS LA ACCIÓN',
   'deb.copyNote': 'Listo para pegar en Discord. Al final tendrás el informe de toda la operación, y copiar este no termina nada.',
-  'deb.copy': 'COPIAR PARA DISCORD',
+  'deb.copy': 'COPIAR PUNTUACIÓN',
   'lock.eyebrow': 'Nueva operación',
   'lock.title': 'NUEVA OPERACIÓN',
   'lock.pay': 'CRÉDITOS Y PUNTUACIÓN ×{x}',

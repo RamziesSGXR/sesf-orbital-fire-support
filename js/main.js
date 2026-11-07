@@ -15,7 +15,7 @@ import * as S from './session.js';
 import { startTitleBg } from './render/titlebg.js';
 import { STORY, CAST, chapterFor } from './data/story.js';
 import { castLines, CastRadio, RadioLog, aarMission, aarSession, aarStand } from './campaign.js';
-import { feedStart, feedEnd } from './feed.js';
+import { feedEnd, feedOn } from './feed.js';
 import * as UI from './ui.js';
 import { sunAt, todName, todClock } from './render/sky.js';
 import { acceptSupply, declineSupply, fillSupply, launchSupply, supplyFilling } from './sim/supply.js';
@@ -1080,7 +1080,7 @@ function deploy() {
   // (0.48.1) every run has an id the SESF feed posts by, once each for its start and its end (feed.js); an old run without the flag
   // posts nothing more (0.46 gave it a start post, and loading old saves posted again)
   if (!session.opId) session.opId = `${Date.now().toString(36)}${Math.floor(Math.random() * 1e9).toString(36)}`;
-  if (session.feed === 1) { session.feed = 2; if (!BOT) feedStart(session, settings, info.chapter); }     // (0.43) before the snapshot, so a retry never posts it again
+  if (session.feed === 1) session.feed = 2;     // (0.50.1: the start is no longer posted; one post an operation, at its end)
   startSnap = JSON.stringify(session);      // what RETRY MISSION puts back: credits, kit, score and time as they were at the drop
   persist();
   if (terrainKey !== `${info.biome}|${info.seed}`) buildFor(info.biome, info.seed);
@@ -1296,6 +1296,9 @@ function endSession(byChoice = false) {
   if (session.feed !== 3 && !BOT) { session.feed = 3; feedEnd(session, fin, settings); }     // (0.43) the SESF feed: the score, and how far it got
   lastFin = { fin, block };
   UI.fillFinal(session, fin, block, coin);
+  // (0.50.1) said on the final screen: this operation's result went to the SESF Discord (Settings > SESF feed)
+  const shared = !session.tutorial && session.missions.length > 0 && feedOn(settings) && !BOT;
+  $('f-feed').classList.toggle('hidden', !shared); if (shared) $('f-feed').textContent = t('fin.posted');
   S.drop(runKey(session));
   if (session.slot) { S.clearSlot(session.slot); drawLoadBtn(); }     // (0.46) an ended operation leaves its slot empty
   UI.showScreen('s-final');

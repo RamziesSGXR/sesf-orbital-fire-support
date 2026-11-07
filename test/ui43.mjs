@@ -50,27 +50,31 @@ const posts = (p) => p.ev(() => window.__posts.map((x) => x.content));
   await p.close();
 }
 
-// ---------------------------------------------------------------- start, a retry, the end
+// ---------------------------------------------------------------- (0.50.1) one post an operation, at its end
 {
   const p = await fresh(true);
+  await p.ev(() => localStorage.setItem('ofs.names', JSON.stringify({ ships: ['Lucky Star', '', '', ''], hd: ['Rook', '', 'Mags', ''] })));
   await newOp(p, 'test_one');
   let a = await posts(p);
-  check('one post at the first drop', a.length === 1, a.length);
-  check('the start post: in orbit, the callsign, the operation, the difficulty', /^🛰️ Super Destroyer in orbit · Gunner \*\*TEST\\_ONE\*\* starts \*\*OPERATION [A-Z ]+\*\* · Difficulty \d+ \w/.test(a[0] || ''), a[0]);
-  check('mentions can never ping anyone', await p.ev(() => window.__posts[0] && window.__posts[0].allowed_mentions && window.__posts[0].allowed_mentions.parse.length === 0));
+  check('(0.50.1) nothing is posted at the first drop', a.length === 0, a.length);
   await retire(p);
   await p.ev(() => window.__game.retryMission()); await p.ev(() => window.__game.retryMission());
   await drop(p);
   a = await posts(p);
-  check('a retry of the first mission does not post again', a.length === 1, a.length);
+  check('nor on a retry', a.length === 0, a.length);
   await p.page.waitForTimeout(3100);     // (the feed never posts twice inside 3 s)
   await retire(p);
   await click(p, 'btn-continue');
   await p.page.waitForFunction(() => window.__game.state === 'final', null, { timeout: 10000 });
   a = await posts(p);
-  check('one more post when the operation ends', a.length === 2, a.length);
-  check('the end post: the operation, the callsign and the final score', /^💀 \*\*OPERATION [A-Z ]+\*\* is over · Gunner \*\*TEST\\_ONE\*\* · final score \*\*[\d,]+\*\*\n/.test(a[1] || ''), a[1]);
-  check('and how far it got', /1 mission, 0 won · Difficulty \d+ \w+ · \d\d:\d\d · fell on mission 1 \(BOTS, RETIRED\)$/.test(a[1] || ''), (a[1] || '').split('\n')[1]);
+  check('one post when the operation ends', a.length === 1, a.length);
+  check('mentions can never ping anyone', await p.ev(() => window.__posts[0] && window.__posts[0].allowed_mentions && window.__posts[0].allowed_mentions.parse.length === 0));
+  check('the end post: the operation, the callsign and the final score', /^💀 \*\*OPERATION [A-Z ]+\*\* is over · Gunner \*\*TEST\\_ONE\*\* · final score \*\*[\d,]+\*\*\n/.test(a[0] || ''), a[0]);
+  check('(0.50.1) the squad names typed in', /\nSquad · A: Lucky Star \(Rook\) · C: random ship \(Mags\)\n/.test(a[0] || ''), (a[0] || '').split('\n')[1]);
+  check('and how far it got', /1 mission, 0 won · Difficulty \d+ \w+ · \d\d:\d\d · fell on mission 1 \(BOTS, RETIRED\)$/.test(a[0] || ''), (a[0] || '').split('\n')[2]);
+  check('(0.50.1) the final screen says it went to the SESF Discord', await p.ev(() => { const e = document.getElementById('f-feed'); return !e.classList.contains('hidden') && /SESF Discord/.test(e.textContent); }));
+  { const rb = await p.ev(() => { const r = document.getElementById('f-text').getBoundingClientRect(); return { w: r.width, x: r.left, copy: document.getElementById('btn-copy').textContent }; });
+    check('(0.50.1) the report is copied, not shown in a box', (rb.w <= 2 || rb.x < -1000) && /COPY SCORE/.test(rb.copy), JSON.stringify(rb)); }
   check('no request to Discord from a test', p.hits.length === 0, p.hits.length);
   check('no page errors', p.errs.length === 0, p.errs[0]);
   await p.close();
@@ -83,6 +87,7 @@ const posts = (p) => p.ev(() => window.__posts.map((x) => x.content));
   await retire(p); await click(p, 'btn-continue');
   await p.page.waitForFunction(() => window.__game.state === 'final', null, { timeout: 10000 });
   check('SESF feed off: nothing posted', (await posts(p)).length === 0);
+  check('...and the final screen says nothing about Discord', await p.ev(() => document.getElementById('f-feed').classList.contains('hidden')));
   await p.close();
 }
 

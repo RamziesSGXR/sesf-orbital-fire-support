@@ -316,8 +316,7 @@
       <table id="g-table"></table>
       <p class="fine g-lore" data-t="glass.lore"></p>
       <div class="d-copy">
-        <h3 data-t="deb.copyTitle">AFTER ACTION REPORT</h3>
-        <textarea id="g-text" readonly rows="7" spellcheck="false" data-ta="deb.copyTitle"></textarea>
+        <textarea id="g-text" class="rep-text" aria-hidden="true" tabindex="-1" readonly rows="7" spellcheck="false" data-ta="deb.copyTitle"></textarea>
         <div class="btns"><button id="btn-copy-g" class="btn" type="button" data-t="deb.copy">COPY FOR DISCORD</button><button id="btn-radio-g" class="btn hidden" type="button" data-t="radio.log">RADIO LOG</button></div>
         <p id="g-msg" class="fine"></p>
       </div>
@@ -349,9 +348,8 @@
         <div class="btns"><button id="btn-continue" class="btn primary big"></button><button id="btn-retry" class="btn retry" type="button"></button><button id="btn-end-d" class="btn endop" type="button">END OPERATION</button></div>
         <p id="d-retry-note" class="fine retry-note"></p>
         <div class="d-copy">
-          <h3 data-t="deb.copyTitle">MISSION REPORT</h3>
-          <p class="fine" data-t="deb.copyNote"></p>
-          <textarea id="d-text" readonly rows="8" spellcheck="false" data-ta="deb.copyTitle"></textarea>
+
+          <textarea id="d-text" class="rep-text" aria-hidden="true" tabindex="-1" readonly rows="8" spellcheck="false" data-ta="deb.copyTitle"></textarea>
           <div class="btns"><button id="btn-copy-d" class="btn" type="button" data-t="deb.copy">COPY REPORT</button><button id="btn-radio-d" class="btn hidden" type="button" data-t="radio.log">RADIO LOG</button></div>
           <p id="d-msg" class="fine"></p>
         </div>
@@ -369,8 +367,8 @@
       <div id="f-diff" class="f-diff"></div>
       <div id="f-totals" class="fine"></div>
       <table id="f-table"></table>
-      <h3 data-t="deb.copyTitle">AFTER ACTION REPORT</h3>
-      <textarea id="f-text" readonly rows="8" spellcheck="false" data-ta="deb.copyTitle"></textarea>
+      <p id="f-feed" class="f-feed hidden" role="status"></p>
+      <textarea id="f-text" class="rep-text" aria-hidden="true" tabindex="-1" readonly rows="8" spellcheck="false" data-ta="deb.copyTitle"></textarea>
       <div class="btns">
         <button id="btn-copy" class="btn primary" data-t="fin.copy">COPY</button>
         <button id="btn-post" class="btn hidden">POST</button>
