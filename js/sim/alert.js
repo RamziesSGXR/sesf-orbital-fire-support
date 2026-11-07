@@ -1,4 +1,5 @@
-// (0.48) The mission's alert level: a wanted system, shown as stars (0 to 5). It has two parts.
+// (0.48) The mission's alert level: a wanted system, shown as a threat rank (0 to 5 chevrons, named: CALM to EXTERMINATION; 0.49,
+// it was stars). It has two parts.
 //   spike     a fight at a base: attacking one makes it jump (the base calls for help); destroying the base clears it, and so
 //             does the fight dying down (it fades once the squad has been out of contact for a while). It never goes past
 //             spikeMax.
@@ -33,8 +34,8 @@ function recompute(m, why) {
   const up = s > al.stars;
   al.stars = s; al.peak = Math.max(al.peak, s);
   m.emit('alert', { stars: s, up, why });
-  if (up) m.notice(tr('n.alertUp', { n: s }), s >= 3 ? 'bad' : 'info');
-  else m.notice(tr('n.alertDown', { n: s }), 'dim');
+  if (up) m.notice(tr('n.alertUp', { n: s, name: tr('alert.r' + s) }), s >= 3 ? 'bad' : 'info');
+  else m.notice(tr('n.alertDown', { n: s, name: tr('alert.r' + s) }), 'dim');
 }
 // the baseline: n notches (a citadel piece is half of one)
 export function alertRaise(m, n = 1, why = '') {

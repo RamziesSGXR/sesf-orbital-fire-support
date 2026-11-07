@@ -99,6 +99,8 @@ const land = (m, x, y) => (m.terrain.isLand(x, y) && !m.terrain.blocked(x, y) ? 
   const w3 = makePost(m2, 'wire', h2.x, h2.y + 40, { face: Math.PI / 2 });
   for (const a of m2.allies) { a.x = w3.x + (a.id % 5) - 2; a.y = w3.y - 18; a.hp = a.maxHp = 1e6; }
   const gg = spawnGroup(m2, w3.x, w3.y + 22, 'hunt', { kinds: ['H'] }), hv = gg.members[0];
+  for (const g of Object.values(m2.strat.groups)) g.readyAt = 1e9;     // (0.49: the Helldivers hold their stratagems and their
+  for (const a of m2.allies) a.ult = 0;                               // last-ditch blasts: this is about the wire, not about killing the heavy first)
   let inMax = 0, outMax = 0, wasIn = false;
   for (let i = 0; i < 30 * 30; i++) {
     const x0 = hv.x, y0 = hv.y; m2.step(dt); if (hv.dead) break;

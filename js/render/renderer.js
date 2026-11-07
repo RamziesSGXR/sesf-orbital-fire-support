@@ -347,6 +347,29 @@ export class Renderer {
       const r = Math.max(b.r || C.bases.radius, px(9));
       if (b.destroyed) { drawBaseRuin(ctx, b, now, px); continue; }
       const inZ = m.inZone(b.x, b.y, 0);
+      // (0.49) a cluster: under smoke until it is seen (its place is known, not its layout), then each spawner on its own
+      if (b.spawners) {
+        if (!b.seen) {
+          for (let k = 0; k < 5; k++) {
+            const a = b.id * 1.7 + k * 1.26 + now * 0.08, rr = r * (0.45 + 0.12 * k), sx = b.x + Math.cos(a) * r * 0.45, sy = b.y + Math.sin(a * 1.3) * r * 0.4;
+            ctx.fillStyle = `rgba(120,124,118,${0.16 + 0.04 * Math.sin(now * 0.7 + k)})`; ctx.beginPath(); ctx.arc(sx, sy, rr, 0, TAU); ctx.fill();
+          }
+          ctx.strokeStyle = 'rgba(255,90,70,0.35)'; ctx.lineWidth = px(1.2); ctx.setLineDash([px(4), px(5)]); ctx.beginPath(); ctx.arc(b.x, b.y, r * 1.15, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+          labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 4, text: tr('lab.hidden'), col: 'rgba(255,150,130,0.75)' });
+        } else {
+          ctx.strokeStyle = 'rgba(255,90,70,0.28)'; ctx.lineWidth = px(1); ctx.setLineDash([px(3), px(5)]); ctx.beginPath(); ctx.arc(b.x, b.y, r * 1.15, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+          for (const sp of b.spawners) {
+            const sb = { ...b, x: sp.x, y: sp.y, r: Math.max(sp.r * 1.5, px(6)), hp: sp.hp, maxHp: sp.maxHp, spawners: undefined };
+            if (sp.dead) { drawBaseRuin(ctx, sb, now, px); continue; }
+            drawBaseArt(ctx, sb, m.faction.id, pal.enemy, inZ, now, px);
+            if (sp.hp < sp.maxHp) { const bw = sb.r * 2.2; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25, bw, px(3)); ctx.fillStyle = pal.enemy; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25, bw * Math.max(0, sp.hp / sp.maxHp), px(3)); }
+            if (t - (sp.hurtAt ?? -99) < 0.12) { ctx.strokeStyle = '#fff'; ctx.lineWidth = px(2); ctx.beginPath(); ctx.arc(sp.x, sp.y, sb.r * 1.1, 0, TAU); ctx.stroke(); }
+          }
+        }
+        if (tgBs.has(b)) this._bracket(ctx, b.x, b.y, r * 1.5, px(1.8), pal.ally);
+        if (b === sqBase && !b.fortress) labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 16, text: tr('lab.base'), col: 'rgba(215,230,220,0.9)' });
+        continue;
+      }
       if (b.cannon) drawCannonArt(ctx, b, pal.enemy, now, px, t);
       else if (b.node) drawNodeArt(ctx, b, pal.enemy, now, px);
       else drawBaseArt(ctx, b, m.faction.id, pal.enemy, inZ, now, px);

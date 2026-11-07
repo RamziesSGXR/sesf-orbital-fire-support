@@ -1008,14 +1008,16 @@ export class Hud {
     if (this._hdOpen >= 0) this._hdT = setTimeout(() => this.hdOpen(this._hdOpen), 5000);
   }
 
-  // (0.48) the alert level, as five stars (lit: the stars; the spike's part pulses)
+  // (0.48) the alert level as a threat rank (0.49: chevrons and a named rank, like a DEFCON board, not stars): five chevrons, lit
+  // solid for the baseline and pulsing for a base fight's spike, and the rank's name
   _alert(m) {
-    const al = m.alert, s = al ? al.stars : 0, base = al ? Math.min(s, Math.floor(al.base + 1e-6)) : 0, key = `${s}|${base}`;
+    const al = m.alert, s = al ? al.stars : 0, base = al ? Math.min(s, Math.floor(al.base + 1e-6)) : 0, key = `${s}|${base}|${getLang()}`;
     if (this.last.alert === key) return;
     this.last.alert = key;
     let h = '';
     for (let i = 0; i < 5; i++) h += `<span class="st${i < base ? ' on' : i < s ? ' on hot' : ''}"></span>`;
     $('alertc-v').innerHTML = h + `<em class="al-n${s > base ? ' hot' : ''}">${s}</em>`;     // (the count: a phone held upright shows only that)
+    $('alertc-n').textContent = t('alert.r' + s);
     $('alertc').classList.toggle('lit', s > 0); $('alertc').classList.toggle('hi', s >= 3);
   }
   _supply(m) {

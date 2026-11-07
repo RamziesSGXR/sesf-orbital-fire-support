@@ -1,6 +1,7 @@
 // One mission = one game loop on one map. DOM-free and deterministic for a given seed.
 // The player runs the destroyer: a UAV scan, orbital stratagems from the armory, and SEAF pods and orders.
 // The four Helldivers (one per stratagem group) fight on their own and are reinforced automatically from a pool of lives.
+import { addSpawners, hitSpawners, liveSpawners } from './spawners.js';
 import { initAlert, updateAlert, alertRaise, alertClear } from './alert.js';
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
@@ -223,6 +224,7 @@ export class Mission {
       id: this.nextId++, x: p.x, y: p.y, hp: B.hp, maxHp: B.hp, destroyed: false, r: B.radius,
       garrisoned: false, nextSpawn: 0, lastHit: -99,
     }));
+    for (const b of this.bases) addSpawners(this, b, opts.seed || 0);     // (0.49) each a cluster of small spawners
     this.baseTotal = nBases;
     this.limitSec = C.world.missionSec + C.world.extraSecPerBase * (nBases - C.bases.min);
 
@@ -815,6 +817,12 @@ export class Mission {
     else for (const e of this.enemies) if (!e.dead && !e.boss && (e.kind === 'H' || e.sub)) n++;
     return n >= max ? 'L' : k;
   }
+  // (0.49) is there room under the heavy cap for one more heavy (drawToken's rule), for heavies placed outside the bag
+  heavyRoom() {
+    const cap = C.enemies.kindCap, max = Math.min(cap.maxH, cap.H + cap.perMinH * this.W + cap.perMissionMinH * (this.t / 60));
+    let n = 0; for (const e of this.enemies) if (!e.dead && !e.boss && (e.kind === 'H' || e.sub)) n++;
+    return n < max;
+  }
   _refreshAlive() {
     this.alive.length = 0; this.hdAlive.length = 0; this.seafAlive.length = 0;
     let sx = 0, sy = 0, hx = 0, hy = 0;
@@ -988,11 +996,20 @@ export class Mission {
   destroyAsset(s, why) { destroyAsset(this, s, why); }
   mechDown(a) { mechDown(this, a); }
   // (fx, fy): where the hit came from, when it came along the ground (a shot); none for a blast from above.
-  damageBase(b, dmg, by = 'player', fx, fy) {
+  damageBase(b, dmg, by = 'player', fx, fy, at) {
     if (b.destroyed || dmg <= 0) return;
     if (b.dome && domeBlocks(this, b, fx, fy)) return;          // a shield dome stops anything from outside it (ops.js)
     if (!b.alert) alertBase(this, b, 'hit');      // a hit on the structure wakes the base
     if (b.bombOnly) { b.lastHit = this.t; return; }             // the citadel's keep: only a Hellbomb brings it down
+    // (0.49) a cluster: the spawners the blast reaches, or the one nearest the shot, take it
+    if (b.spawners) {
+      const hp0 = b.hp;
+      hitSpawners(this, b, dmg, at || (fx !== undefined ? { x: fx, y: fy } : null));
+      b.lastHit = this.t;
+      if (by in this.stats.dmg) this.stats.dmg[by] += Math.max(0, hp0 - b.hp);
+      if (!liveSpawners(b).length) this.destroyBase(b);
+      return;
+    }
     const dealt = Math.min(dmg, b.hp);
     b.hp -= dmg; b.lastHit = this.t;
     if (by in this.stats.dmg) this.stats.dmg[by] += dealt;
@@ -1000,6 +1017,7 @@ export class Mission {
   }
   destroyBase(b) {
     b.destroyed = true; b.hp = 0;
+    if (b.spawners) for (const s of b.spawners) { s.dead = true; s.hp = 0; }
     if (!b.fortress && !b.part && !b.op) this.stats.bases++;     // (the citadel and its bases, and an operation's structures, are the objective)
     // The citadel pays out as the objective; ordinary bases are score and credits. Once the objective is done they are bonus.
     if (!b.fortress) { this.sc.bases += C.score.base; this.earn('bases', C.credits.base, b.x, b.y); }

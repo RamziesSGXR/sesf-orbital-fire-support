@@ -2614,11 +2614,14 @@ body.rts.lay-tab #hud .la-tab { padding: 0 8px; }
 .f-coin { display: flex; align-items: center; gap: 10px; margin: 6px 0 10px; padding: 8px 10px; border: 1px solid rgba(255, 210, 58, 0.45); background: rgba(255, 210, 58, 0.06); color: #ffe27a; font-size: 13px; }
 .f-coin.hidden { display: none; }
 
-/* (0.48) the alert level's stars on the resource bar: solid for the baseline, pulsing for a base fight's spike */
+/* (0.48) the alert level on the resource bar (0.49: rank chevrons and the rank's name): solid for the baseline, pulsing for a base fight's spike */
 #hud .bigcr.alertc { border-color: rgba(255, 120, 60, 0.3); align-items: center; }
 #hud .bigcr.alertc b { display: inline-flex; gap: 2px; align-items: center; }
-#hud .bigcr.alertc b span.st { display: inline-block; width: 13px; height: 13px; background: rgba(255, 200, 160, 0.22);
-  clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+#hud .bigcr.alertc b { gap: 1px !important; }
+#hud .bigcr.alertc b span.st { display: inline-block; width: 9px; height: 14px; background: rgba(255, 200, 160, 0.2);
+  clip-path: polygon(0 0, 55% 0, 100% 50%, 55% 100%, 0 100%, 45% 50%); }     /* (0.49) a rank chevron, pointing on */
+#hud .bigcr.alertc span#alertc-n { font-weight: 700; letter-spacing: 0.08em; }
+#hud .bigcr.alertc.hi span#alertc-n { color: #ff6a4a; }
 #hud .bigcr.alertc b span.st.on { background: #ffb020; }
 #hud .bigcr.alertc b span.st.hot { background: #ff5a3c; animation: alertPulse 0.9s ease-in-out infinite; }
 #hud .bigcr.alertc b em.al-n { display: none; font-style: normal; }

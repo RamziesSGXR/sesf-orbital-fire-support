@@ -1,5 +1,6 @@
 // Mission objectives. The Helldivers do these first: launch the nuke, rescue the VIP, or take down the citadel.
 // Everything else on the map (the ordinary bases) is bonus points once the objective is done.
+import { addSpawners } from './spawners.js';
 import { alertRaise } from './alert.js';
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
@@ -98,6 +99,7 @@ export function setupObjectives(m, forced) {
           const ang = a0 + (k / F.parts) * Math.PI * 2, x = b.x + Math.cos(ang) * F.partR * f, y = b.y + Math.sin(ang) * F.partR * f;
           if (!m.terrain.isLand(x, y) || m.terrain.blocked(x, y)) continue;
           const q = { id: m.nextId++, x, y, hp: F.partHp, maxHp: F.partHp, destroyed: false, r: C.bases.radius, part: b.id, garrisoned: false, nextSpawn: 0, lastHit: -99 };
+          addSpawners(m, q, m.seed || 0);     // (0.49) a citadel's outer bases are clusters too
           m.bases.push(q); parts.push(q);
           break;
         }
