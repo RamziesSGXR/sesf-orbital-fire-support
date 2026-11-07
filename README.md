@@ -33,6 +33,10 @@ Recent changes, by version. The guide sections after this cover everything in fu
 - **Then pick the next mission** from three offers. Each shows its enemy, ground, objective, level and pay. Each offer adds +1, +2 or +3 levels on top of the operation's climb, for that mission only. A bigger bump pays more: every credit is worth the higher level's rate plus 15% for each bump level. In the campaign, the mission is set by the story, so you only pick the bump.
 - **Your score is the credits you earn** over the whole operation, including rank bonuses. The debrief shows the mission's credits as its score and states the difficulty's pay rate.
 - A reload in the middle of these picks shows the same choices again.
+**0.50.1.**
+- **Change your keys.** Settings → CHANGE KEYS, or HELP → CHANGE KEYS on the COMPUTER tab, lists every desktop action with its key: camera, weapons 1–9, SEAF orders, panels and callouts, and time. Pick one and press its new key. If another action had that key, the two swap, so no key ever does two things. RESET TO DEFAULTS puts them all back. The buttons in a mission show your keys. ESC and the Shift, Alt and Ctrl combinations stay fixed: Shift+1–9 picks squads, Alt+1–9 joins them, and Ctrl+A selects all.
+- **The SESF feed posts once per operation, when it ends**, not at the first drop. The post lists the squad names you typed in (SQUAD NAMES). The final screen says the result went to the SESF Discord when that setting is on.
+- **COPY SCORE** replaces the report text box on the debrief, tutorial and final screens. Paste it anywhere.
 
 **Armory & SEAF (0.50).**
 - **All five orbital slots are open from the start.** Slots are no longer bought. A save that had bought the 4th or 5th slot gets those credits back.
