@@ -545,7 +545,8 @@ export class Mission {
     const sq = targetSquads(this).filter((q) => q.n > 0);
     if (!sq.length) return this._deny('noseaf');
     const q = sq.slice().sort((a, b) => Math.hypot(a.cx - p.x, a.cy - p.y) - Math.hypot(b.cx - p.x, b.cy - p.y))[0];
-    setSquadOrder(this, q, 'post', p.site.x, p.site.y, { post: p, site: p.site, garrison: true });
+    const at = p.site || p;     // (0.52: the work site has no cover of its own)
+    setSquadOrder(this, q, 'post', at.x, at.y, { post: p, site: p.site, garrison: true });
     const now = garrisonPost(this, p, q.i);
     this.radio(COMMS.seafMan, 'seafman', 1);
     this.emit('seaf_order', { kind: 'post', x: p.x, y: p.y, sq: q.i });
@@ -754,6 +755,7 @@ export class Mission {
   // (0.36) blow up one of your own buildings (again before it blows: the charges come off)
   demolishPost(p) {
     if (this.over) return { ok: false, reason: 'over' };
+    if (p && p.what === 'site') return { ok: false, reason: 'nodemo' };     // (0.52) the work site is not ours to blow up
     if (p && p.what === 'lz') {     // (0.39) a pickup point is called off, not blown up (a pelican on its way still comes)
       if (p.dead) return { ok: false, reason: 'nodemo' };
       removePost(this, p); this.notice(tr('n.lzOff'), 'info'); this.emit('lz_off', { x: p.x, y: p.y }); return { ok: true, cancelled: true };

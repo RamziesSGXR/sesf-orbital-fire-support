@@ -23,6 +23,15 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Work sites (0.52).**
+- **Every mission has a work site**, dressed for the enemy: an **E-710 Refinery** (bugs), a **Salvage Yard** (bots) or a **Dark-Fluid Lab** (squids). It's away from the landing zone, the bases and the objectives, and marked on the map and minimap.
+- **Send SEAF in to work it.** Click it, then use its door (SEND IN) like any building. Up to 6 troopers work inside; the rest of the squad guards it outside. You can see the work: forklifts run crates across the yard.
+- **While anyone works it:**
+  - it pays credits as it goes (4 CR per worker every 10 s, at the mission's pay rate)
+  - it lifts your tools, more the fuller it is. At a full crew, the refinery's fuel recharges orbitals 30% faster, the yard's scrap makes builds and bridges 35% cheaper, and the lab widens the UAV's scan by 35% and recharges it that much faster.
+- **The enemy probes it.** Small groups come rarely at first, then more often and bigger as the mission runs and the alert climbs. Shot down, the site **falls** and the workers come out. SEAF at it patch it up, and at half health it can be worked again. Credits it already paid stay paid.
+- The debrief lists what the work site earned.
+
 **Choosing missions (0.51).**
 - **MISSION COMPLETE.** After a mission that counts, you pick a **commendation** from three cards. It lasts the rest of the operation, and picking the same one again stacks it. There's one kind per armory tab, and you can hold at most 10 per operation:
   - Orbital Efficiency: orbitals, utilities and minefields recharge 6% faster

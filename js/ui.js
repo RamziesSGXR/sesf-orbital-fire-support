@@ -12,7 +12,7 @@ import { stratReady, stratOnline } from './sim/strat.js';
 import { slotStats } from './sim/player.js';
 import { compass } from './sim/enemies.js';
 import { builtCount, FORMS, fleet, seafHeld, lzStatus } from './sim/seaf.js';
-const noLvl = (what) => FLAT_BUILDS.has(what) || what === 'lz';      // (0.39) no levels: wire, foxholes, pickup points
+const noLvl = (what) => FLAT_BUILDS.has(what) || what === 'lz' || what === 'site';     // (0.52: nor the work site)      // (0.39) no levels: wire, foxholes, pickup points
 import { POSTS, INSIDE, crateSec } from './sim/posts.js';
 import { objectiveStatus, OBJ_NAME } from './sim/objectives.js';
 import { SQUAD_COLOR } from './sim/seaf.js';
@@ -1252,7 +1252,7 @@ export class Hud {
         + `<div class="ts-b">${esc(t('sel.lz'))}</div>`;
     } else if (sel && !sel.dead) {
       const post = sel.kind === 'post' ? sel : null, hp = sel.maxHp ? Math.round((100 * sel.hp) / sel.maxHp) : sel.wireMax ? Math.round((100 * Math.max(0, sel.wireHp)) / sel.wireMax) : null;
-      const name = post ? t('build.' + post.what) : sel.kind === 'turret' ? sel.name || t('lab.sentry') : t('sel.site');
+      const name = post ? (post.what === 'site' ? post.name : t('build.' + post.what)) : sel.kind === 'turret' ? sel.name || t('lab.sentry') : t('sel.site');
       const crew = post ? m.seafAlive.filter((a) => a.post === post) : [];
       const who = sf.sel >= 0 ? `S${sf.sel + 1}` : sf.sel === -2 ? t('tac.picked') : t('hud.all');
       h = `<div class="ts-h">${esc(name.toUpperCase())}${post && !noLvl(post.what) ? ` <i>${esc(t('card.level', { n: post.lvl }))}</i>` : ''}</div>`
@@ -1261,7 +1261,7 @@ export class Hud {
         + (crew.length ? tiles(crew) : '')
         + (post ? `<div class="ts-doors">${post.cap && post.garrison < post.cap ? `<button type="button" class="btn tsd" data-sa="in">${esc(t('sel.inBtn', { who }))}</button>` : ''}${post.garrison ? `<button type="button" class="btn tsd" data-sa="out">${esc(t('sel.outBtn'))}</button>` : ''}`
           // (0.36) blow it up: one press sets the charges (a short fuse), a press again before it blows takes them off
-          + (!post.captured ? `<button type="button" class="btn tsd demo${post.demo ? ' on' : ''}" data-sa="demo" title="${esc(t('sel.demoT'))}">${esc(post.demo ? t('sel.demoOff', { n: Math.max(1, Math.ceil(post.demo.at - m.t)) }) : t('sel.demo'))}</button>` : '') + `</div>` : '')
+          + (!post.captured && post.what !== 'site' ? `<button type="button" class="btn tsd demo${post.demo ? ' on' : ''}" data-sa="demo" title="${esc(t('sel.demoT'))}">${esc(post.demo ? t('sel.demoOff', { n: Math.max(1, Math.ceil(post.demo.at - m.t)) }) : t('sel.demo'))}</button>` : '') + `</div>` : '')
         + `<div class="ts-b">${esc(post ? t('sel.' + post.what) : sel.kind === 'turret' ? t('sel.sentry') : t('sel.siteB'))}</div>`;
     } else if (sf.sel === -2 && sf.pick) {
       const list = m.seafAlive.filter((a) => sf.pick.includes(a.id));
@@ -1295,9 +1295,9 @@ export class Hud {
       const who = m.seaf.sel >= 0 ? `S${m.seaf.sel + 1}` : t('hud.all');
       let name, sub = '', btns = '';
       if (post) {
-        name = `${esc(t('build.' + post.what).toUpperCase())}${!noLvl(post.what) ? ` <i>${esc(t('card.lvShort', { n: post.lvl }))}</i>` : ''}`;
+        name = `${esc((post.what === 'site' ? post.name : t('build.' + post.what)).toUpperCase())}${!noLvl(post.what) ? ` <i>${esc(t('card.lvShort', { n: post.lvl }))}</i>` : ''}`;
         if (post.cap) sub = `${esc(t('sel.crew'))} ${post.crew}/${post.cap}${post.garrison ? ` · ${esc(t('sel.garrison'))} ${post.garrison}` : ''}`;
-        if (post.cap && post.garrison < post.cap && INSIDE.has(post.what)) btns += `<button class="dr in" type="button" data-sa="in" title="${esc(t('sel.inT', { who }))}" aria-label="${esc(t('sel.inT', { who }))}">${DOOR_IN}</button>`;
+        if (post.cap && post.garrison < post.cap && INSIDE.has(post.what) && !post.fallen) btns += `<button class="dr in" type="button" data-sa="in" title="${esc(t('sel.inT', { who }))}" aria-label="${esc(t('sel.inT', { who }))}">${DOOR_IN}</button>`;
         if (post.garrison) btns += `<button class="dr out" type="button" data-sa="out" title="${esc(t('sel.outT'))}" aria-label="${esc(t('sel.outT'))}">${DOOR_OUT}</button>`;
         if (lzs) { sub = esc(lzs); btns += `<button class="dr in" type="button" data-sa="man" title="${esc(t('sel.lzSend', { who }))}" aria-label="${esc(t('sel.lzSend', { who }))}">${DOOR_IN}</button>`; }
       } else if (sentry) {
