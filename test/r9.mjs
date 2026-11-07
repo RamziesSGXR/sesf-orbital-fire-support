@@ -44,12 +44,15 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
     const m = quiet('bots', seed);      // (0.18: one map for both, so only the distance differs)
     const a = m.hdAlive[0];
     const sx = a.x < m.ao.cx ? 1 : -1;      // (0.18: toward the middle of the round map)
-    const g = spawnGroup(m, a.x + dist * sx, a.y, 'patrol'); g.hold = 1e9;
+    const g = spawnGroup(m, a.x + dist * sx, a.y, 'patrol', { kinds: Array(8).fill('L') }); g.hold = 1e9;     // (0.52: always lights: a heavy's armour, drawn or not, swamped what range does)
     for (const e of g.members) { e.hp = e.maxHp = 1e9; e.speed = 0; }
     for (const h of m.alive) { h.hp = h.maxHp = 1e9; h.ult = 0; h.gren = 0; }     // rifles only: grenades and the Ultimatum aside
     m.uavs.push({ x: a.x + dist * sx, y: a.y, r: 120, until: 1e9, t0: m.t });
     let dmg = 0; const orig = m.stats.dmg.squad;
-    run(m, 12); dmg = m.stats.dmg.squad - orig;
+    // (0.52) the squad held where it stands: walking up to the pack (as it may) made the two distances the same
+    const at = m.hdAlive.map((h) => [h, h.x, h.y]);
+    for (let i = 0, n = Math.round(12 / dt); i < n && !m.over; i++) { m.step(dt); for (const [h, x, y] of at) { h.x = x; h.y = y; } }
+    dmg = m.stats.dmg.squad - orig;
     return dmg;
   };
   // (0.49: summed over four maps: one map alone swings either way with how the fight happens to go)

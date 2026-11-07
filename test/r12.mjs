@@ -91,7 +91,7 @@ const seafReady = (m, n = 5) => { m.seaf.readyAt = 0; m.callSeaf(m.hx + 10, m.hy
   check('the citadel is a keep with bases round it', o.parts.length >= 3 && o.parts.filter((b) => b.part).length >= 2 && o.base.maxHp < 14000,
     `${o.parts.length} parts, keep ${o.base.maxHp} hp`);
   check('its bases are not side tasks (they are the objective)', !openTasks(m).some((k) => k.ref.part));
-  for (const b of o.parts.slice(1)) m.damageBase(b, 1e9);
+  for (const b of o.parts.slice(1)) m.destroyBase(b);     // (0.52: a hit, however big, takes the spawners it reaches; these go down whole)
   m.step(dt);
   check('it is not done until the keep is down too', !o.done);
   m.damageBase(o.base, 1e9); m.step(dt);

@@ -30,6 +30,7 @@ Recent changes, by version. The guide sections after this cover everything in fu
   - it pays credits as it goes (4 CR per worker every 10 s, at the mission's pay rate)
   - it lifts your tools, more the fuller it is. At a full crew, the refinery's fuel recharges orbitals 30% faster, the yard's scrap makes builds and bridges 35% cheaper, and the lab widens the UAV's scan by 35% and recharges it that much faster.
 - **The enemy probes it.** Small groups come rarely at first, then more often and bigger as the mission runs and the alert climbs. Shot down, the site **falls** and the workers come out. SEAF at it patch it up, and at half health it can be worked again. Credits it already paid stay paid.
+- **Bases are harder to wipe in one shot.** A precision strike now kills one spawner, never the whole base. A base's spawners stand at least 26 m apart, and bases vary in size (16–28 m across the middle); the biggest is about the footprint of a 380 mm barrage. A bigger base has more spawners (2 to 4).
 - The debrief lists what the work site earned.
 
 **Choosing missions (0.51).**
