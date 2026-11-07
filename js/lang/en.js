@@ -1639,6 +1639,11 @@ export default {
   // ---------- 0.20 ----------
   'arm.noneLive': 'Nothing here can be upgraded mid-mission.',
   'hud.seafTitle': 'SEAF troopers on the ground, out of the most you can have',
+  'hud.alert': 'ALERT',
+  'hud.alertTitle': 'The enemy\'s alert. Attacking a base makes it jump; destroying the base calms it, but every base down, objective done, extraction called or minute bought leaves it a notch higher. More stars: more patrols, hunters, heavies, drops on the squad, and at five the super heavy.',
+  'n.alertUp': 'ENEMY ALERT ★{n}',
+  'n.alertDown': 'Enemy alert easing: ★{n}',
+  'n.alertDrop': 'The enemy drops troops on the squad',
   // ---------- 0.21: three layouts ----------
   'set.layout': 'Interface layout',
   'set.layoutHint': 'Lay out the in-mission controls for a phone, a tablet or a desktop. Auto picks based on your screen.',

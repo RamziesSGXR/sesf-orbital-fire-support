@@ -1639,6 +1639,11 @@ export default {
   // ---------- 0.20 ----------
   'arm.noneLive': 'Rien ici ne peut s’améliorer en pleine mission.',
   'hud.seafTitle': 'Soldats SEAF au sol, sur le maximum possible',
+  'hud.alert': 'ALERTE',
+  'hud.alertTitle': 'L’alerte ennemie. Attaquer une base la fait bondir ; détruire la base la calme, mais chaque base tombée, objectif rempli, extraction appelée ou minute achetée la laisse d’un cran plus haut. Plus d’étoiles : plus de patrouilles, de chasseurs, de lourds, de largages sur l’escouade, et à cinq le super-lourd.',
+  'n.alertUp': 'ALERTE ENNEMIE ★{n}',
+  'n.alertDown': 'L’alerte ennemie retombe : ★{n}',
+  'n.alertDrop': 'L’ennemi largue des troupes sur l’escouade',
   // ---------- 0.21: three layouts ----------
   'set.layout': 'Disposition de l’interface',
   'set.layoutHint': 'Dispose les commandes de mission pour un téléphone, une tablette ou un ordinateur. Auto choisit selon votre écran.',

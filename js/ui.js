@@ -1008,7 +1008,18 @@ export class Hud {
     if (this._hdOpen >= 0) this._hdT = setTimeout(() => this.hdOpen(this._hdOpen), 5000);
   }
 
+  // (0.48) the alert level, as five stars (lit: the stars; the spike's part pulses)
+  _alert(m) {
+    const al = m.alert, s = al ? al.stars : 0, base = al ? Math.min(s, Math.floor(al.base + 1e-6)) : 0, key = `${s}|${base}`;
+    if (this.last.alert === key) return;
+    this.last.alert = key;
+    let h = '';
+    for (let i = 0; i < 5; i++) h += `<span class="st${i < base ? ' on' : i < s ? ' on hot' : ''}"></span>`;
+    $('alertc-v').innerHTML = h + `<em class="al-n${s > base ? ' hot' : ''}">${s}</em>`;     // (the count: a phone held upright shows only that)
+    $('alertc').classList.toggle('lit', s > 0); $('alertc').classList.toggle('hi', s >= 3);
+  }
   _supply(m) {
+    this._alert(m);
     const sf = m.countAlly('S'), pods = m.pendingPods('S'), st = seafStats(m.kit), lives = m.hd.lives, up = m.seaf.reserve.length;
     const key = `${lives}|${m.hd.max}|${sf}|${pods}|${st.max}|${up}|${getLang()}`;
     if (this.last.supply === key) return;

@@ -2613,3 +2613,23 @@ body.rts.lay-tab #hud .la-tab { padding: 0 8px; }
 .btn.buy.coinb small { color: #ffd23a; }
 .f-coin { display: flex; align-items: center; gap: 10px; margin: 6px 0 10px; padding: 8px 10px; border: 1px solid rgba(255, 210, 58, 0.45); background: rgba(255, 210, 58, 0.06); color: #ffe27a; font-size: 13px; }
 .f-coin.hidden { display: none; }
+
+/* (0.48) the alert level's stars on the resource bar: solid for the baseline, pulsing for a base fight's spike */
+#hud .bigcr.alertc { border-color: rgba(255, 120, 60, 0.3); align-items: center; }
+#hud .bigcr.alertc b { display: inline-flex; gap: 2px; align-items: center; }
+#hud .bigcr.alertc b span.st { display: inline-block; width: 13px; height: 13px; background: rgba(255, 200, 160, 0.22);
+  clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+#hud .bigcr.alertc b span.st.on { background: #ffb020; }
+#hud .bigcr.alertc b span.st.hot { background: #ff5a3c; animation: alertPulse 0.9s ease-in-out infinite; }
+#hud .bigcr.alertc b em.al-n { display: none; font-style: normal; }
+#hud .bigcr.alertc.hi { border-color: rgba(255, 80, 50, 0.7); }
+#hud .bigcr.alertc span { color: #ffb38a; }
+@keyframes alertPulse { 50% { opacity: 0.45; } }
+/* a phone held upright: just a star and the count */
+body.rts.lay-phone.lay-port #hud #topbar .alertc span { display: none; }
+body.rts.lay-phone.lay-port #hud #topbar .alertc b span.st { display: none; }
+body.rts.lay-phone.lay-port #hud #topbar .alertc b span.st:first-child { display: inline-block; background: #ffb020; }
+body.rts.lay-phone.lay-port #hud #topbar .alertc:not(.lit) b i.st:first-child { background: rgba(255, 200, 160, 0.3); }
+body.rts.lay-phone.lay-port #hud #topbar .alertc b em.al-n { display: inline; color: #ffd08a; font-size: 18px; }
+body.rts.lay-phone.lay-port #hud #topbar .alertc b em.al-n.hot { color: #ff5a3c; }
+body.rts.lay-phone.lay-port #hud #topbar .alertc { padding: 0 6px; }

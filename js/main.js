@@ -1663,7 +1663,10 @@ function musicHeat(dt) {
     if (boss) heatV = Math.max(heatV, 0.7);
     crowdV = c / Math.max(1, vw / 400);     // (zoomed out past the usual view, the count is scaled back; a tall phone screen counts as it is)
   }
-  return Math.min(1, heatV + heatKick);
+  // (0.48) the alert level sets a floor under the score: each star brings more of it in (battle level 1 at one star, 2 at three,
+  // 3 at five), and a star going up kicks it (onEvent 'alert'), landing on the bar like any level change
+  const st = mission.alert ? mission.alert.stars : 0, floor = [0, 0.12, 0.2, 0.36, 0.48, 0.62][Math.min(5, st)];
+  return Math.min(1, Math.max(heatV, floor) + heatKick);
 }
 
 function onEvent(ev, now) {
@@ -1675,6 +1678,7 @@ function onEvent(ev, now) {
   if (ev.type === 'ls_stage' && ev.stage === 'truth') { const c = CAST.tharsis; radioLog.add('mission', { tag: c.tag, col: c.col, unit: t(c.unit), text: t('tut.truth.b', { saved: ev.saved }) }); audio.cineSwell(6); }     // (0.40)
   const L = ev.x !== undefined ? loudness(ev.x, ev.y) : 1, P = ev.x !== undefined ? pan(ev.x) : 0;
   if (ev.type === 'glassbeam') audio.glassBeam(Math.max(0.35, L), P);
+  if (ev.type === 'alert' && ev.up) heatKick = Math.min(0.35, heatKick + 0.15);     // (0.48) the spike is audible
   if (ev.type === 'ls_level') { hud.toast(t('ls.levelUp', { n: ev.level, name: t(...levelName(ev.level)).toUpperCase() }), 1800); audio.chirp(); }
   switch (ev.type) {
     case 'boom':

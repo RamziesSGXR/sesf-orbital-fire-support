@@ -1639,6 +1639,11 @@ export default {
   // ---------- 0.20 ----------
   'arm.noneLive': 'Aquí no se puede mejorar nada a mitad de misión.',
   'hud.seafTitle': 'Soldados SEAF en tierra, sobre el máximo posible',
+  'hud.alert': 'ALERTA',
+  'hud.alertTitle': 'La alerta enemiga. Atacar una base la dispara; destruir la base la calma, pero cada base caída, objetivo cumplido, extracción pedida o minuto comprado la deja un punto más alta. Más estrellas: más patrullas, cazadores, pesados, desembarcos sobre la escuadra y, a cinco, el superpesado.',
+  'n.alertUp': 'ALERTA ENEMIGA ★{n}',
+  'n.alertDown': 'La alerta enemiga baja: ★{n}',
+  'n.alertDrop': 'El enemigo desembarca tropas sobre la escuadra',
   // ---------- 0.21: three layouts ----------
   'set.layout': 'Disposición de la interfaz',
   'set.layoutHint': 'Organiza los controles de misión para teléfono, tableta o escritorio. Auto elige según tu pantalla.',

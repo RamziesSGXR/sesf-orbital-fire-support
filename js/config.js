@@ -279,7 +279,7 @@ export const CONFIG = {
   // (0.39) Holding orbit over the zone burns the destroyer's fuel: each minute costs perMinIn more of perMin for every minute the
   // mission has run so far.
   plan:     { detour: 320, reserve: 150, clearLives: 3, every: 6, keepR: 70, pace: 0.5, extractPad: 30,
-              ask: { maxMin: 10, perMin: 40, perMinIn: 0.1, askSec: 30, asks: 2 },
+              ask: { maxMin: 2, upTo: 30, perMin: 60, perMinIn: 0.1, askSec: 30, asks: 2 },     // (0.48: 2 minutes at a time, at most twice, dearer; each raises the alert)
               // (0.40) breaking off a losing fight: `deaths` Helldivers down within deathR of the squad inside deathSec, or a wave of
               // hunting enemies within waveR weighing more than `wave` (w per kind; less with fewer Helldivers up), and the squad
               // pulls out of the task: to a side objective at least sideR from the trouble if one is open (kept for forceSec), or
@@ -360,11 +360,22 @@ export const CONFIG = {
   // third x1.4 and so on), on top of the level's pay; score is not.
   difficulty: { start: 3, spawn: 0.55, medium: 0.6, heavy: 0.4, boss: 0.3, curve: 1, reward: [0.75, 1.2], opBonus: 0.2, ramp: 0.6, beyond: 1,     // (0.31: ramp 0.39 -> 0.6, a level nearly every mission)
                 // war minutes at each level (1 to 10), war minutes a level past 10, and the share of each real session minute that counts
-                war: [0, 15, 37, 38, 39, 40, 40.5, 41, 41.5, 42], warBeyond: 10, sessionRamp: 0.075,     // (0.19.2: ramp and sessionRamp halved; 0.40: the top flattened, so a session started at 10 can win its first mission)
+                war: [0, 15, 37, 38, 39, 40, 40.5, 41, 41.5, 42], warBeyond: 1.5, sessionRamp: 0.075,     // (0.48: warBeyond 10 -> 1.5, so 10 to 11 is a step, not a cliff from 42 to 52)     // (0.19.2: ramp and sessionRamp halved; 0.40: the top flattened, so a session started at 10 can win its first mission)
                 // (0.31) rankStep: a rank reached (ranks.at, missions done) makes every mission after it this much of a level harder too,
                 // so the more of the armory is open, the harder it gets. (0.40.1: halved, with a rank every mission, so the climb stays
                 // where it was.) From level 3: missions 1-14 at 3 4 4 5 6 7 7 8 9 10 10 11 11 12.
-                rankStep: 0.125 },
+                rankStep: 0.125,
+                // (0.48) the operation curve steepens once the armory is all open: past mission lateFrom, each mission adds lateAccel
+                // more than the one before (on top of ramp), so a strong player's operation ends. From level 3, missions 10-16:
+                // 10 10 11 13 14 16 17, and mission 20 at 27 (it was 10 10 11 11 12 12 13, and 15).
+                lateFrom: 10, lateAccel: 0.2 },
+  // (0.48) The mission's alert level (sim/alert.js): stars 0..max, a spike (a base fighting back, up to spikeMax; it fades a star
+  // every fadeSec once the squad has been out of contact quietSec) on top of a baseline that only goes up (a base destroyed: 1, a
+  // citadel piece: part; a main objective done, the extraction called, time bought: 1 each). pressure: each star divides the
+  // off-map patrols' gap and multiplies flare calls by 1 + pressure x stars. hunt / heavy / drop / boss: the stars those responses
+  // start at (drops every dropEvery / (1 + stars past drop) seconds, dropDist metres from the squad; the super heavy once, by
+  // bossChance).
+  alert: { max: 5, spikeMax: 2, quietSec: 20, fadeSec: 30, part: 0.5, pressure: 0.2, hunt: 2, heavy: 4, drop: 3, dropEvery: 90, dropDist: [70, 120], boss: 5, bossChance: 0.6 },
   // Pressure drives how fast the field fills: it climbs through the session and, faster, through each mission.
   pressure: { start: 1, perSessionMin: 0.035, perMissionMin: 0.12, onBaseKill: 0.6, floor: 0.5 },
   // The war escalates with every minute of the session, so the run only ends in failure: tougher, harder-hitting enemies and more heavies.
@@ -535,6 +546,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.47.1',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.48.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

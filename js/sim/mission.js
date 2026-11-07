@@ -1,6 +1,7 @@
 // One mission = one game loop on one map. DOM-free and deterministic for a given seed.
 // The player runs the destroyer: a UAV scan, orbital stratagems from the armory, and SEAF pods and orders.
 // The four Helldivers (one per stratagem group) fight on their own and are reinforced automatically from a pool of lives.
+import { initAlert, updateAlert, alertRaise, alertClear } from './alert.js';
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { RNG } from '../util/rng.js';
@@ -139,6 +140,7 @@ export class Mission {
     initReinf(this);
     initSupply(this);
     initBoss(this, opts);
+    initAlert(this, opts);
     this.eGrid = new Grid(SIZE, 40); this.aGrid = new Grid(SIZE, 40); this.tGrid = new Grid(SIZE, 40);
     this.cx = 0; this.cy = 0; // centroid of the Helldivers (or of everyone if none are alive)
     this.hx = 0; this.hy = 0;
@@ -1002,6 +1004,8 @@ export class Mission {
     // The citadel pays out as the objective; ordinary bases are score and credits. Once the objective is done they are bonus.
     if (!b.fortress) { this.sc.bases += C.score.base; this.earn('bases', C.credits.base, b.x, b.y); }
     this.pressure = Math.max(C.pressure.floor, this.pressure * C.pressure.onBaseKill);
+    // (0.48) the felt win: the base's call for help ends (the spike clears), but the enemy's alert ratchets up a notch
+    alertClear(this, 'base'); alertRaise(this, b.part ? C.alert.part : 1, 'base');
     for (const e of this.enemies) if (e.g.base === b) e.g.garrison = false; // survivors stop being garrison
     this.emit('base_down', { x: b.x, y: b.y, fortress: !!b.fortress });
     if (b.part) {
@@ -1245,6 +1249,7 @@ export class Mission {
     updateSides(this, dt);
     updateObjectives(this, dt);
     updateDirector(this, dt);
+    updateAlert(this, dt);
     updatePatrols(this, dt);
     updateReinf(this, dt);
     updateCivs(this, dt);
