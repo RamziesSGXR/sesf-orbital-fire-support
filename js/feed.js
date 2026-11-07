@@ -49,9 +49,25 @@ const opName = (s) => `**${esc(String(opOf(s)).toUpperCase())}**`;
 const diff = (d) => `Difficulty ${d} ${tEn(...levelName(d))}`;
 const chapters = () => STORY.chapters.filter((c) => c.play).length;
 
+// (0.48.1) Each operation posts its start once and its end once, whatever happens to its saves: a ledger in this browser, by the
+// operation's id (s.opId), so loading a save, an autosave, a retry or a reload never posts again.
+const LEDGER = 'ofs.feedSent';
+function once(s, kind) {
+  const id = s && s.opId;
+  if (!id) return true;
+  let L = {};
+  try { L = JSON.parse(localStorage.getItem(LEDGER) || '{}') || {}; } catch { L = {}; }
+  const k = `${id}:${kind}`;
+  if (L[k]) return false;
+  L[k] = Date.now();
+  const keys = Object.keys(L); if (keys.length > 300) for (const q of keys.sort((a, b) => L[a] - L[b]).slice(0, keys.length - 300)) delete L[q];
+  try { localStorage.setItem(LEDGER, JSON.stringify(L)); } catch { /* storage full: post anyway */ }
+  return true;
+}
+
 // The first drop of a new operation. chapter: the campaign chapter it starts at, if it's the campaign.
 export function feedStart(s, settings, chapter = null) {
-  if (!s || s.tutorial || !feedOn(settings)) return false;
+  if (!s || s.tutorial || !feedOn(settings) || !once(s, 'start')) return false;
   const camp = s.story && chapter ? ` · campaign chapter ${chapter} of ${chapters()}` : '';
   return post(`🛰️ Super Destroyer in orbit · ${who(s.callsign)} starts ${opName(s)}${camp} · ${diff(s.difficulty || 1)}`);
 }
@@ -59,7 +75,7 @@ export function feedStart(s, settings, chapter = null) {
 // The operation is over. fin: session.js finalise().
 export function feedEnd(s, fin, settings) {
   const ms = (s && s.missions) || [];
-  if (!s || s.tutorial || !ms.length || !feedOn(settings)) return false;
+  if (!s || s.tutorial || !ms.length || !feedOn(settings) || !once(s, 'end')) return false;
   const n = ms.length, wins = fin ? fin.wins : ms.filter((m) => carriesOn(m.outcome)).length;
   const last = ms[n - 1], fell = !carriesOn(last.outcome);
   const d0 = s.difficulty || 1, top = levelReached(s);
