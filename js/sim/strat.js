@@ -73,7 +73,8 @@ function safeSpot(m, x, y, r) {
 const inOwn = (ctx, x, y) => (x - ctx.cx) ** 2 + (y - ctx.cy) ** 2 <= ctx.zone * ctx.zone;
 // (0.47) An attack stratagem's beacon is thrown: it lands no farther than C.sight.throw from the Helldiver (less than his rifle
 // reaches, the vision ladder), and inside his own strike zone. Support weapons are not thrown (their pod lands by him).
-const inThrow = (ctx, x, y) => inOwn(ctx, x, y) && (x - ctx.cx) ** 2 + (y - ctx.cy) ** 2 <= C.sight.throw * C.sight.throw;
+// (0.47.1) the throw is 20-40 m from the Helldiver who throws it (throwMin..throw); the space kept from everyone else is clearance's
+const inThrow = (ctx, x, y) => { const d2 = (x - ctx.cx) ** 2 + (y - ctx.cy) ** 2; return inOwn(ctx, x, y) && d2 <= C.sight.throw * C.sight.throw && d2 >= C.sight.throwMin * C.sight.throwMin; };
 
 // What one caller can see and needs. owner is a Helldiver; null means the whole squad (for squad-wide items).
 function buildCtx(m, owner) {
@@ -121,7 +122,7 @@ function clusters(m, ctx) {
 // still go close.
 // (0.47) a throw is 20-40 m: never under C.sight.throwMin, and capped 4 m short of the throw so every attack stratagem has somewhere
 // to land (the walking barrage was 45 m).
-const clearance = (d) => Math.max(C.sight.throwMin, Math.min(C.sight.throw - 4, Math.max(d.safe || 0, blastOf(d) + (d.splash || 0) * 0.5)));
+const clearance = (d) => Math.max(9, Math.min(C.sight.throw - 4, Math.max(d.safe || 0, blastOf(d) + (d.splash || 0) * 0.5)));     // (0.47.1: 9 m at least from any ally, as in 0.46; the 20 m is the thrower's)
 // (0.46) Another attack stratagem already on its way to (or burning on) this ground: a second one there is a waste, so the
 // Helldivers spread their calls out. Defensive things don't count.
 function crowded(m, x, y, r) {
