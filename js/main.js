@@ -1736,7 +1736,7 @@ function musicScene() {
   if (cinema.on) return 'cine';
   if (state === 'brief') return 'loading';
   if (state === 'play') return mission && mission.over ? 'end' : paused ? 'pause' : 'play';
-  return state === 'debrief' || state === 'final' || state === 'glass' ? 'end' : 'menu';
+  return state === 'debrief' || state === 'next' || state === 'final' || state === 'glass' ? 'end' : 'menu';     // (0.51: MISSION COMPLETE keeps the debrief's music)
 }
 // How hot the fight is, 0..1, for the music: the enemy close to the squad (a heavy counts for more), a super heavy on the field,
 // and a kick from things going wrong (a Helldiver down, an alarm) that fades over a few seconds. Counted every 0.3 s.

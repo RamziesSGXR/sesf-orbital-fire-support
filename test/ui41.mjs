@@ -80,6 +80,7 @@ if (await page.isVisible('#ms-later')) { await tap('#ms-later'); await page.wait
 
 // ---------------------------------------------------------------- (0.46) a failed mission ends the operation and clears its slot; RETRY MISSION brings it back
 await ev(() => document.getElementById('btn-continue').click()); await page.waitForTimeout(500);
+await page.evaluate(() => { for (let k = 0; k < 2; k++) { const c = document.querySelector('#s-next.on .nx-c'); if (c) c.click(); } }); await page.waitForTimeout(250);     // (0.51) MISSION COMPLETE: a commendation, then the next mission
 await tap('#shop-go');
 await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
 await tap('#b-continue'); await page.waitForTimeout(1000);

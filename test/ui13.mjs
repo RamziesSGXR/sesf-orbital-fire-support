@@ -176,7 +176,8 @@ await debrief(); await page.waitForTimeout(300);
 check('time up after the objective: OBJECTIVE COMPLETE', (await ev(() => document.getElementById('d-outcome').textContent)) === 'OBJECTIVE COMPLETE');
 if (await page.isVisible('#ms-splash')) { await tap('#ms-later'); await page.waitForTimeout(300); }
 await tap('#btn-continue'); await page.waitForTimeout(500);
-check('NEXT MISSION goes to the armory for mission 2', (await ev(() => window.__game.state)) === 'shop' && /2/.test(await ev(() => document.getElementById('shop-go').textContent)));
+await page.evaluate(() => { for (let k = 0; k < 2; k++) { const c = document.querySelector('#s-next.on .nx-c'); if (c) c.click(); } }); await page.waitForTimeout(250);     // (0.51) MISSION COMPLETE: a commendation, then the next mission
+check('NEXT MISSION goes to the armory for mission 2 (0.51: through MISSION COMPLETE)', (await ev(() => window.__game.state)) === 'shop' && /2/.test(await ev(() => document.getElementById('shop-go').textContent)));
 // lives are full again next mission
 await tap('#shop-go'); await page.waitForTimeout(500); await toPlay();
 check('mission 2 starts with a full set of lives', (await ev(() => window.__game.mission.hd.lives)) === 20);
