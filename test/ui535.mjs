@@ -1,0 +1,55 @@
+// 0.53.5 in the browser, players' reports: a heavy's health bars sit right under its name (they slipped behind it when zoomed out)
+// and follow Settings > UI size; the jellyfish mothership over the defence gun draws; the title's development note shows.
+//   node test/ui535.mjs
+import { createRequire } from 'node:module';
+import path from 'node:path';
+const require = createRequire(import.meta.url);
+const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+let fails = 0;
+const check = (name, ok, info) => { if (!ok) fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${info !== undefined ? `  (${info})` : ''}`); };
+const { chromium } = require('playwright');
+const b = await chromium.launch(); const page = await b.newPage({ viewport: { width: 1280, height: 800 } });
+const errs = []; page.on('pageerror', (e) => errs.push(String(e)));
+const BASE = `file://${ROOT}/dist/orbital-fury.html?skipstart&seed=4242&faction=squids&biome=grass&tod=12`;
+await page.goto(BASE); await page.evaluate(() => { localStorage.clear(); localStorage.setItem('ofs.notice', 'true'); localStorage.setItem('ofs.saveVer', '2'); });
+await page.goto(BASE); await page.waitForTimeout(900);
+const ev = (f, a) => page.evaluate(f, a);
+// (0.53.5) the title's development note: saves may reset, and they live in this browser only
+const dn = await ev(() => { const e = document.querySelector('#s-title .dev-note'); const r = e.getBoundingClientRect(); return { vis: r.width > 0 && r.height > 0 && getComputedStyle(e).display !== 'none', t: e.textContent }; });
+check('the title says the game is in development, that updates may reset saves, and that saves stay in this browser', dn.vis && /DEVELOPMENT/.test(dn.t) && /reset/.test(dn.t) && /browser/.test(dn.t) && /cache/.test(dn.t), dn.t.slice(0, 60));
+await ev(() => document.getElementById('btn-play').click()); await page.waitForTimeout(300);
+await ev(() => { document.getElementById('callsign').value = 'hp'; document.getElementById('btn-lock').click(); }); await page.waitForTimeout(300);
+await ev(() => document.getElementById('shop-go').click());
+await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
+await ev(() => document.getElementById('b-continue').click()); await page.waitForTimeout(1200);
+await ev(() => { const g = window.__game, m = g.mission; m.deployNow(); for (let i = 0; i < 30 * 30; i++) m.step(1 / 30);
+  g.setSetting('uiScale', 1.3);
+  const a = m.hdAlive[0]; const H = m.enemies.filter((e) => e.kind === 'H');
+  const pick = H.length ? H : m.enemies.slice(0, 2);
+  pick.slice(0, 2).forEach((e, i) => { e.kind = 'H'; e.x = a.x + 60 + i * 40; e.y = a.y - 30; e.hp = e.maxHp * 0.55; e.vis = 2; if (!e.maxShield) { e.maxShield = 200; } e.shield = e.maxShield * 0.4; e.frozen = true; });
+  window.__hv = pick.slice(0, 2).map((e) => e.id);
+  g.softPause(true); g.cam.follow = false; g.cam.x = a.x + 70; g.cam.y = a.y - 20; g.cam.view = 900; });
+await page.waitForTimeout(800);
+const L = await ev(() => window.__game.renderer.labels.filter((l) => l.bars && window.__game.mission.enemies.some((e) => window.__hv.includes(e.id) && e.x === l.x)).map((l) => ({ t: l.text, n: l.bars.length })));
+check('zoomed out, each heavy\'s name carries its bars (health and shield), drawn under it in screen space', L.length === 2 && L.every((l) => l.n === 2), JSON.stringify(L));
+check('the map labels follow UI size 130%', await ev(() => window.__game.renderer._ui()) === 1.3);
+await page.screenshot({ path: path.join(ROOT, 'test', 'shots', 'ui535_bars_far.png'), clip: { x: 340, y: 200, width: 600, height: 380 } });
+await ev(() => { window.__game.cam.view = 380; }); await page.waitForTimeout(600);
+await page.screenshot({ path: path.join(ROOT, 'test', 'shots', 'ui535_bars_near.png'), clip: { x: 340, y: 200, width: 600, height: 380 } });
+// ---------------------------------------------------------------- the mothership
+const GUN = `file://${ROOT}/dist/orbital-fury.html?skipstart&seed=7611&faction=squids&biome=city&objective=gun&tod=15`;
+await page.goto(GUN); await page.waitForTimeout(900);
+await ev(() => document.getElementById('btn-play').click()); await page.waitForTimeout(300);
+await ev(() => { document.getElementById('callsign').value = 'jelly'; document.getElementById('btn-lock').click(); }); await page.waitForTimeout(300);
+await ev(() => document.getElementById('shop-go').click());
+await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
+await ev(() => document.getElementById('b-continue').click()); await page.waitForTimeout(1200);
+await ev(() => { const g = window.__game, m = g.mission, o = m.objectives.find((q) => q.type === 'gun'); g.cam.follow = false; g.cam.x = o.x; g.cam.y = o.y - 230; g.cam.view = 900; });
+await page.waitForTimeout(800);
+const ship = await ev(() => { const o = window.__game.mission.objectives.find((q) => q.type === 'gun'); return { fade: o.ship._fade, at: o.ship._fadeAt }; });
+check('the jellyfish mothership is drawn over the defence gun', ship.fade > 0.8 && ship.at > 0, JSON.stringify(ship));
+await page.screenshot({ path: path.join(ROOT, 'test', 'shots', 'ui535_mothership.png') });
+check('no page errors', !errs.length, errs.join(' | '));
+await b.close();
+console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
+process.exit(fails ? 1 : 0);

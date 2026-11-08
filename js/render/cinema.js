@@ -1,6 +1,7 @@
 // (0.19) The tutorial's two cinematics, drawn in code like everything else: Mars from space before the last stand, with the story
 // told a line at a time while the Great Host's lights close in; and after it, Mars burning while the Great Host's ships pass and
 // fire down on it. Full screen, over the game; any key, a click or a tap (or SKIP) ends one early.
+import { drawJellySide } from './jelly.js';
 import { Noise } from '../util/noise.js';
 import { RNG } from '../util/rng.js';
 import { TEAM_COLOR } from '../data/names.js';
@@ -173,33 +174,14 @@ function drawPlanet(cv, D, spin, burn, now, kind = 'mars', night = false) {
   ctx.putImageData(img, 0, 0);
 }
 
-// ---------------------------------------------------------------- the Great Host's ships (an original design: a curved blade
-// of a hull with swept fins, lights along its spine and a glow at the stern)
+// ---------------------------------------------------------------- the Great Host's ships: (0.53.5) the Illuminate's jellyfish,
+// side-on as in the project lead's sketch (render/jelly.js). s: the old ships' scale (they were 2.4 s long): the cap is 1.6 s across.
 function drawShip(ctx, x, y, s, ang, glow, now, dark = false) {
-  ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(s, s);
-  const pulse = 0.65 + 0.35 * Math.sin(now * 4 + x * 0.01);
-  // engine glow
-  const g = ctx.createRadialGradient(-1.05, 0, 0, -1.05, 0, 0.7);
-  g.addColorStop(0, `rgba(205,160,255,${0.85 * glow * pulse})`); g.addColorStop(1, 'rgba(120,60,255,0)');
-  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(-1.05, 0, 0.7, 0, TAU); ctx.fill();
-  // fins and hull
-  ctx.fillStyle = dark ? '#07060b' : '#1a1628';
-  ctx.beginPath();
-  ctx.moveTo(1.2, 0);
-  ctx.quadraticCurveTo(0.2, -0.16, -0.55, -0.62); ctx.lineTo(-0.95, -0.7); ctx.quadraticCurveTo(-0.55, -0.22, -0.9, -0.1);
-  ctx.lineTo(-1.0, 0); ctx.lineTo(-0.9, 0.1);
-  ctx.quadraticCurveTo(-0.55, 0.22, -0.95, 0.7); ctx.lineTo(-0.55, 0.62); ctx.quadraticCurveTo(0.2, 0.16, 1.2, 0);
-  ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = dark ? 'rgba(150,110,220,0.35)' : 'rgba(170,150,230,0.55)'; ctx.lineWidth = 0.025; ctx.stroke();
-  // the spine's lights
-  const n = s > 120 ? 14 : 6, lr = Math.min(0.045, 5 / s);      // (a great ship: more lights, each one small)
-  for (let k = 0; k < n; k++) {
-    const t = k / (n - 1), lx = 0.9 - t * 1.7, a = (0.5 + 0.5 * Math.sin(now * 6 - k * 0.9)) * glow;
-    ctx.fillStyle = `rgba(${k % 2 ? '150,230,255' : '210,160,255'},${0.35 + 0.65 * a})`;
-    ctx.beginPath(); ctx.arc(lx, 0, lr, 0, TAU); ctx.fill();
-  }
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang * 0.5);
+  drawJellySide(ctx, 0, -s * 0.5, s * 1.6, now + x * 0.003, glow, dark);
   ctx.restore();
 }
+const shipTipY = (y, s) => y - s * 0.5 + s * 1.6 * 0.98;      // where its tendrils end (its beams come from there)
 
 // ---------------------------------------------------------------- (0.27.1) the squad's destroyer, drawn from the project lead's
 // side-view sketch: a black armoured drive block with two inset panels and a bright blue light line down its face, twin blue
@@ -498,7 +480,7 @@ export class Cinema {
       if (s.fireT <= 0 && x > 0 && x < W) {
         s.fireT = 1.5 + Math.random() * 3;
         const a = Math.random() * TAU, rr = Math.sqrt(Math.random()) * R * 0.9;
-        this.beams.push({ x1: x, y1: y, x2: cx + Math.cos(a) * rr, y2: cy + Math.sin(a) * rr, t0: now });
+        this.beams.push({ x1: x, y1: shipTipY(y, s.s * M), x2: cx + Math.cos(a) * rr, y2: cy + Math.sin(a) * rr, t0: now });
       }
     }
     this.beams = this.beams.filter((b) => now - b.t0 < 0.9);

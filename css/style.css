@@ -2201,6 +2201,9 @@ body:has(#s-title.on) #title-bg, body:has(#s-campaign.on) #title-bg { display: b
 .tt-foot { grid-area: foot; max-width: 760px; }
 .tt-foot .fine, .tt-foot .ver { text-align: left; margin-left: 0; }
 .tt-foot .fb-note { max-width: none; }
+/* (0.53.5) the development note: saves can reset, and they live in this browser only */
+.tt-foot .dev-note { max-width: none; padding: 4px 0 4px 9px; border-left: 2px solid rgba(255, 176, 32, 0.8); color: #e8c27a; }
+.tt-foot .dev-note b { color: #ffb020; letter-spacing: 0.06em; }
 /* the wordmark comes in once: the stencil resolves, then the fire control comes up */
 @media (prefers-reduced-motion: no-preference) {
   #s-title.on .tt-mark span { animation: tt-stamp 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both; }

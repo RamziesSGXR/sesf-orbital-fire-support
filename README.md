@@ -23,6 +23,14 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**The jellyfish mothership, and players' reports (0.53.5).**
+- **A new mothership.** The Illuminate mothership over the defence gun is now a jellyfish, from the project lead's sketch: a broad ribbed cap with a pale blue rim, a collar with a row of lights, and a bundle of long tendrils. In the mission it's a 3D model tipped 45° toward the camera, turning slowly, with its shadow across the city. It fades back while anyone is under it, so the fight there shows. The gun's shots hit the ends of its tendrils, every hit cracks the cap, and it burns and falls when the last shot lands. The Mars outro's fleet is drawn the same ship side-on.
+- **Asking for more time.** After the objective the squad clears the map task by task while the next one still fits. Only near the end (the last 5 minutes), and only once a mission, do they ask for up to 2 more minutes to finish the next one. Say no and they head for extraction. Before, they asked straight away, even with 20 minutes left, and a no sent them home with the map half done.
+- **Health bars under names.** A heavy's (and a special's) health and shield bars are drawn right under its name, so they no longer slip behind it when zoomed out. The map's labels, bars and name tags now follow Settings > UI size.
+- **The pelican.** Its left engine and left tail no longer show holes, and the extraction pelican is drawn over the barricades round the pad.
+- **Credits:** Zovc is listed as "Blitz Diver · GhostDivers".
+- **A note on the title screen.** Under the menu, in all three languages and on phones too: the game is in active development and an update may reset saves, and saves are kept in this browser only, so a different browser, a private window, or clearing browser data or cache starts a fresh save.
+
 **Players' reports (0.53.4).**
 - **Work sites say what they give.** The label over the refinery, yard or lab, its panels and its notices now spell out the lift and how big it is with the crew inside: orbitals up to 30% faster (refinery), builds up to 35% cheaper (yard), a UAV up to 35% wider and faster (lab). Each worker also pays 4 CR every 10 s. The tactical panel no longer calls the site a "defence position".
 - **The citadel.** Nobody shoots the keep while it only falls to a Hellbomb, and the Helldivers shoot the base they came for before whatever is nearest. In a stalemate at a base that keeps feeding troops in, a Helldiver with no enemy right on him shoots the structure. The squad alone now takes every outer base down (before, it could stand by the keep for good with one base left).

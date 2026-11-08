@@ -100,7 +100,21 @@ if (sq) {
 }
 
 // the time request
-await ev(() => { const m = window.__game.mission; for (const o of m.objectives) { o.done = true; o.state = 'done'; } m.objDone = true; m.phase = 'clear'; m.hd.lives = 10; m.limitSec = m.t + 90; m.plan.t = 0; m.plan.task = null; m.step(1 / 30); });
+// (0.53.5) they ask only near the end, for at most 2 minutes, so the squad is put by an open task and the clock is
+// walked down from 5 minutes until the next task just stops fitting
+await ev(() => {
+  const m = window.__game.mission; for (const o of m.objectives) { o.done = true; o.state = 'done'; } m.objDone = true; m.phase = 'clear'; m.hd.lives = 10;
+  const ks = [...m.bases.filter((b) => !b.destroyed && !b.fortress && !b.part && !b.op), ...(m.sides || []).filter((s) => !s.done && !s.failed && !s.hidden)];
+  // try each open task in turn (the quick ones fit within the 2 minutes they may ask for)
+  for (const k of ks) {
+    const p = m.terrain.nearestLand(k.x - 60, k.y);
+    for (let L = 300; L >= 20 && !m.plan.ask; L -= 5) {
+      m.phase = 'clear'; m.squad.ax = p.x; m.squad.ay = p.y; for (const h of m.hdAlive) { h.x = p.x; h.y = p.y; }
+      m.limitSec = m.t + L; m.plan.task = null; m.plan.t = 0; m.step(1 / 30);
+    }
+    if (m.plan.ask) break;
+  }
+});
 await page.waitForTimeout(600);
 const ask = await ev(() => !!window.__game.mission.plan.ask);
 const shown = await page.isVisible('#co-time');

@@ -1,6 +1,7 @@
 // World-space drawing: stratagem markers, zones, placed assets, objectives, heavy-enemy telegraphs, points of interest,
 // enemy breaches, UAV circles and Helldiver pings. (SEAF squads and the pelican are in squads.js.)
 // Every function draws in world space (meters). px(n) converts screen pixels to meters at the current zoom.
+import { jellyModel, drawJelly, drawJellyShadow, jellyFoot } from './jelly.js';
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { STRATS } from '../data/strat.js';
@@ -26,31 +27,50 @@ function rgba(hex, a) {
 
 // ---------- zones: fire, gas, EMS, smoke ----------
 // (0.53) The planetary defence gun: a round armoured base, a turret ring and a long barrel aimed up at the sky; while it charges,
-// coils glow along the barrel; a shot is a column of light. The mothership hangs overhead as a vast dark shape whose cracks spread
-// with every shot, and it falls burning when the last one lands.
-function drawGun(ctx, m, o, now, px) {
-  const g = o.gun, t = m.t, since = t - g.firedAt;
-  // the mothership: an enormous shadow over the plaza, with its lights; every shot cracks it
-  const sh = o.ship, done = o.done, fall = done ? Math.min(1, (t - (o.doneAt ?? t)) / 6) : 0;
-  ctx.save();
-  ctx.translate(sh.x, sh.y + fall * 120); ctx.rotate(0.12 + fall * 0.5);
-  ctx.globalAlpha = 0.55 * (1 - fall * 0.8);
-  ctx.fillStyle = '#05040a';
-  ctx.beginPath(); ctx.ellipse(0, 0, 230, 80, 0, 0, TAU); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(-260, 0); ctx.lineTo(-120, -40); ctx.lineTo(120, -40); ctx.lineTo(260, 0); ctx.lineTo(120, 40); ctx.lineTo(-120, 40); ctx.closePath(); ctx.fill();
-  ctx.globalAlpha = 0.9 * (1 - fall);
-  for (let k = 0; k < 14; k++) { const a = (k / 14) * TAU; ctx.fillStyle = `rgba(190,130,255,${0.5 + 0.4 * Math.sin(now * 2 + k)})`; ctx.beginPath(); ctx.arc(Math.cos(a) * 190, Math.sin(a) * 60, 3, 0, TAU); ctx.fill(); }
-  ctx.strokeStyle = 'rgba(255,140,60,0.85)'; ctx.lineWidth = 3;
-  for (let k = 0; k < o.shots; k++) { const a = k * 2.1 + 0.4; ctx.beginPath(); ctx.moveTo(Math.cos(a) * 30, Math.sin(a) * 12); ctx.lineTo(Math.cos(a) * 150, Math.sin(a) * 55 + 10 * Math.sin(k)); ctx.stroke(); }
-  if (fall > 0) { ctx.globalAlpha = 1 - fall; ctx.fillStyle = 'rgba(255,160,60,0.6)'; for (let k = 0; k < 8; k++) { ctx.beginPath(); ctx.arc(Math.sin(k * 7) * 180, Math.cos(k * 5) * 50, 20 + 30 * fall, 0, TAU); ctx.fill(); } }
-  ctx.restore();
-  // the shot: a column of light from the barrel to the ship, fading
-  if (since < 1.2) {
-    const a = 1 - since / 1.2;
-    ctx.strokeStyle = `rgba(160,230,255,${a})`; ctx.lineWidth = px(10) * a + 2; ctx.beginPath(); ctx.moveTo(g.x, g.y); ctx.lineTo(sh.x, sh.y); ctx.stroke();
-    ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = px(3) * a + 1; ctx.stroke();
-    ctx.fillStyle = `rgba(200,240,255,${0.5 * a})`; ctx.beginPath(); ctx.arc(g.x, g.y, g.r + 10 * (1 - a), 0, TAU); ctx.fill();
+// coils glow along the barrel; a shot is a column of light. (0.53.5) The mothership over it is the Illuminate's jellyfish
+// (render/jelly.js), tipped toward the camera, its shadow across the city; it is drawn over everything else (drawGunSky), its
+// shadow here on the ground. Every shot cracks it; it burns and falls when the last one lands.
+let jellyAt = -1, jellyM = null;
+function shipView(m, o, now) {
+  const sh = o.ship;
+  if (!sh) return null;
+  const fall = o.done ? Math.min(1, (m.t - (o.doneAt ?? m.t)) / 6) : 0;
+  if (fall >= 1) return null;
+  if (jellyAt !== now) { jellyAt = now; jellyM = jellyModel(now); }
+  const s = 0.75, x = sh.x, y = sh.y - 60 + fall * 160;
+  return { M: jellyM, fall, o: { x, y, s, th: 0.78 + fall * 0.45, yaw: now * 0.08 + fall * 2, t: now, cracks: o.shots, burn: o.done ? 0.4 + fall * 0.6 : 0 },
+    shadow: { s, yaw: now * 0.08 + fall * 2, gx: x, gy: y + 150, A: 420 - fall * 300, lx: 0.45, lz: 0.25, alpha: 0.38 * (1 - fall) } };
+}
+// The mothership and the gun's shots at it: over every unit (it fades back while anyone is under it, so the fight there shows).
+export function drawGunSky(ctx, m, now, px) {
+  for (const o of m.objectives) {
+    if (o.type !== 'gun') continue;
+    const v = shipView(m, o, now);
+    if (!v) continue;
+    const sh = o.ship, f = jellyFoot(v.o);
+    const under = (a) => { const dx = (a.x - f.x) / f.rx, dy = (a.y - f.y) / f.ry; return dx * dx + dy * dy < 1 || (Math.abs(a.x - f.tip[0]) < 50 && a.y > f.y && a.y < f.tip[1]); };
+    const busy = m.alive.some((a) => !a.dead && under(a)) || m.enemies.some((e) => !e.dead && under(e));
+    const dt = Math.min(0.1, Math.max(0, now - (sh._fadeAt ?? now))); sh._fadeAt = now;
+    sh._fade = (sh._fade ?? 1) + ((busy ? 0.42 : 0.94) - (sh._fade ?? 1)) * Math.min(1, dt * 4);
+    drawJelly(ctx, v.M, { ...v.o, alpha: sh._fade * (1 - v.fall * 0.85) });
+    const g = o.gun, since = m.t - g.firedAt;
+    if (since < 1.2) {
+      const a = 1 - since / 1.2, tip = f.tip;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = `rgba(160,230,255,${a})`; ctx.lineWidth = px(10) * a + 2; ctx.beginPath(); ctx.moveTo(g.x, g.y); ctx.lineTo(tip[0], tip[1]); ctx.stroke();
+      ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = px(3) * a + 1; ctx.stroke();
+      const fr = 14 + 40 * a, gr = ctx.createRadialGradient(tip[0], tip[1], 0, tip[0], tip[1], fr);
+      gr.addColorStop(0, `rgba(255,240,255,${a})`); gr.addColorStop(1, 'rgba(200,150,255,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(tip[0], tip[1], fr, 0, TAU); ctx.fill();
+      ctx.fillStyle = `rgba(200,240,255,${0.5 * a})`; ctx.beginPath(); ctx.arc(g.x, g.y, g.r + 10 * (1 - a), 0, TAU); ctx.fill();
+      ctx.lineCap = 'butt';
+    }
   }
+}
+function drawGun(ctx, m, o, now, px) {
+  const g = o.gun;
+  const v = shipView(m, o, now);
+  if (v) drawJellyShadow(ctx, v.M, v.shadow);     // (the shadow on the ground, under everything)
   // the gun
   ctx.save(); ctx.translate(g.x, g.y);
   ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.arc(1.2, 1.2, g.r + 1.5, 0, TAU); ctx.fill();
@@ -498,10 +518,11 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal) {
       ctx.fillStyle = `rgba(150,200,255,${(hit ? 0.16 : 0.05) + 0.05 * f})`; ring(ctx, e.x, e.y, R); ctx.fill();
       ctx.strokeStyle = `rgba(190,225,255,${hit ? 0.95 : 0.3 + 0.4 * f})`; ctx.lineWidth = px(hit ? 2 : 1.2); ring(ctx, e.x, e.y, R); ctx.stroke();
     }
-    if (e.vis >= 2) {
-      if (e.maxShield) hpBar(ctx, e.x, e.y - r * 1.9 - px(4), r * 2.6, px(2), e.shield / e.maxShield, '#8fd0ff');
-      if (e.hp < e.maxHp || e.maxShield) hpBar(ctx, e.x, e.y - r * 1.9, r * 2.6, px(3), e.hp / e.maxHp, col);
-      labels.push({ x: e.x, y: e.y, dy: -r * scale * 1.5 - 8, text: fac.heavy, col , pri: 0 });
+    if (e.vis >= 2) {      // (0.53.5: its bars under its name, in screen space: the renderer's labels)
+      const bars = [];
+      if (e.maxShield) bars.push({ f: e.shield / e.maxShield, col: '#8fd0ff', h: 2 });
+      if (e.hp < e.maxHp || e.maxShield) bars.push({ f: e.hp / e.maxHp, col, h: 3 });
+      labels.push({ x: e.x, y: e.y, dy: -r * scale * 1.5 - 8, text: fac.heavy, col, pri: 0, bars: bars.length ? bars : null });
     }
   }
 }
@@ -522,8 +543,7 @@ function drawSpecialExtras(ctx, m, e, now, px, labels, scale, col) {
   }
   ctx.strokeStyle = rgba(col, 0.8); ctx.lineWidth = px(1); ring(ctx, e.x, e.y, r * 1.3); ctx.stroke();
   if (e.vis >= 2) {
-    if (e.hp < e.maxHp) hpBar(ctx, e.x, e.y - r * 1.8, r * 2.4, px(2.6), e.hp / e.maxHp, col);
-    labels.push({ x: e.x, y: e.y, dy: -r * scale * 1.4 - 8, text: tr(`kind.${m.faction.id}.${e.sub}`) + (e.jamR ? ' · ' + (e.jamming || e.jamLeft === undefined ? tr('lab.jammer') : tr('lab.jamIn', { n: Math.ceil(e.jamLeft) })) : ''), col, pri: 1 });
+    labels.push({ bars: e.hp < e.maxHp ? [{ f: e.hp / e.maxHp, col, h: 3 }] : null, x: e.x, y: e.y, dy: -r * scale * 1.4 - 8, text: tr(`kind.${m.faction.id}.${e.sub}`) + (e.jamR ? ' · ' + (e.jamming || e.jamLeft === undefined ? tr('lab.jammer') : tr('lab.jamIn', { n: Math.ceil(e.jamLeft) })) : ''), col, pri: 1 });
   }
 }
 

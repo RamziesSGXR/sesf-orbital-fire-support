@@ -67,7 +67,7 @@ const mk = (seed, fac = 'bots', o = {}) => { const m = new Mission({ seed, facti
 // time extensions: 2 minutes, at most twice, each raises it
 {
   const m = mk(4804);
-  check('time from the Helldivers: 2 minutes at a time, at most twice', C.plan.ask.maxMin === 2 && C.plan.ask.asks === 2);
+  check('time from the Helldivers: 2 minutes at most, (0.53.5) once a mission, in its last 5 minutes', C.plan.ask.maxMin === 2 && C.plan.ask.asks === 1 && C.plan.ask.nearEnd === 300);
   m.plan.ask = { min: 2, cost: 10, until: m.t + 30, tag: '' }; m.wallet.bal = 1000;
   const s0 = alertStars(m), L0 = m.limitSec;
   const r = answerTime(m, true);
