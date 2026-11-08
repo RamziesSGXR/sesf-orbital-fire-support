@@ -525,12 +525,13 @@ export class Mission {
     if (target.what === 'lz') return this.seafToLz(target);     // (0.39) a pickup point: everyone picked goes
     const sq = targetSquads(this).filter((q) => q.n > 0);
     if (!sq.length) return this._deny('noseaf');
-    const post = target.kind === 'post' ? target : null, site = post ? post.site : target;
+    // (0.53.1) where they go: a post's defence site, or the post itself when it has none (the work site: right-clicking it threw)
+    const post = target.kind === 'post' ? target : null, site = post ? post.site || post : target;
     const q = sq.slice().sort((a, b) => Math.hypot(a.cx - site.x, a.cy - site.y) - Math.hypot(b.cx - site.x, b.cy - site.y))[0];
     // (0.22) a building (turret nest, lookout, tower, cannon): they hold beside it and crew it from there. Going inside takes them out
     // of their squad, so that only happens through its door (the game offers it: see main.js commandAt).
     const room = !!(post && INSIDE.has(post.what) && post.cap);
-    setSquadOrder(this, q, 'post', site.x, site.y, { post, site, garrison: room ? false : undefined });
+    setSquadOrder(this, q, 'post', site.x, site.y, { post, site: post ? post.site : site, garrison: room ? false : undefined });
     this.radio(COMMS.seafMan, 'seafman', 1);
     this.emit('seaf_order', { kind: 'post', x: site.x, y: site.y, sq: q.i });
     return { ok: true, squad: q.i, canGarrison: room && post.garrison < post.cap };

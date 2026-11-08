@@ -2332,7 +2332,7 @@ export default {
   'tut.run.b': 'En dehors de ce tutoriel, la partie rapide et la campagne sont des opérations : mission après mission. Vos crédits, votre rang et tout ce que vous achetez et équipez à l’armurerie se conservent d’une mission à l’autre : c’est à l’armurerie, entre les missions, que vous devenez plus fort. Seule une mission ratée met fin à l’opération, et la campagne garde chaque chapitre terminé.',
   'title.tutH': 'TUTORIEL',
   'title.tutName': 'DERNIER CARRÉ SUR MARS',
-  'title.tutP': 'Base Tharsis, Mars, le jour où la Grande Ost est arrivée. Évacuez 70 personnes de Mars pour gagner, puis tenez jusqu’au bout ou passez à la campagne. Il vous apprend tout au fil de l’action : le canon du vaisseau et les orbitales, les troupes SEAF, la construction et les abris, le ravitaillement et la Hellbomb. Toujours en difficulté 3.',
+  'title.tutP': 'Mars tombe et la Grande Ost est aux portes. Faites pleuvoir le feu depuis l’orbite, tenez la base Tharsis et évacuez 70 personnes de la planète.',
   'title.tutPlay': 'JOUER LE TUTORIEL',
   'title.quick': 'PARTIE RAPIDE',
   'title.quickSub': 'Une opération, mission après mission, contre l’ennemi de votre choix',

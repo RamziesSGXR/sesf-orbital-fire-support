@@ -654,7 +654,7 @@ hud.onSquadAdd = (i) => {
   if (!act()) return;
   const sf = mission.seaf, cur = sf.sel >= 0 ? [sf.sel] : sf.multi ? sf.multi.slice() : [];
   const L = cur.includes(i) ? cur.filter((k) => k !== i) : [...cur, i];
-  mission.selectSquads(L); audio.click();
+  deselect(); mission.selectSquads(L); audio.click();
   if (tac) hud.fillTactical(mission, sel);
 };
 hud.onMerge = (L) => {
@@ -687,7 +687,7 @@ function setDrawing(on) {
 }
 function selectSquad(i) {
   if (!act()) return;
-  audio.click(); mission.selectSquad(i);
+  audio.click(); deselect(); mission.selectSquad(i);     // (0.53.1) a squad picked: the panel shows it, not the post selected before
   if (drawing) hud.setDrawing(true, i >= 0 ? t('hud.p.forSquad', { n: i + 1 }) : t('hud.p.forAll'));
 }
 function cycleSquad(d) {
@@ -1924,7 +1924,7 @@ function frame(ts) {
     // (the story first: the game waits under the cinematic, and under a tutorial card until GOT IT)
     if (planQ.length && live()) runPlan();     // (0.22) the plan made in the pause goes out as the game runs again
     // (0.53: the tutorial's ranks no longer come with kills: its armory is the standard one)
-    hud.doorsPlace((p) => { const R = p.what === 'bastion' ? p.r + 2 : 5; return renderer.worldToScreen(p.x, p.y - R, canvas); });
+    hud.doorsPlace((p) => { const R = p.what === 'bastion' ? p.r + 2 : p.what === 'site' ? p.r * 0.6 : 5; return renderer.worldToScreen(p.x, p.y - R, canvas); });
     if (hud.askAnchor) { const an = hud.askAnchor; if (an.dead) hud.askEnd(); else { const p = renderer.worldToScreen(an.x, an.y, canvas); if (p) hud.askPlace(p.x, p.y); } }
     if (plan() && !bot) { const sa = input.screenAim(), w = renderer.screenToWorld(sa.x, sa.y, canvas); if (w) mission.setAim(w.x, w.y); refreshAim(mission); squadCentres(mission); }     // (the reticle follows in the pause too; 0.47: and shows the weapon picked in it)
     if (!paused && !cinema.on && !(tut && tut.held) && state === 'play') { simulate(dt, now); ambient(mission, dt); if (castRadio && !mission.over) castRadio.tick(mission); }
