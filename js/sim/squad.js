@@ -260,6 +260,9 @@ export function updateSquad(m, dt) {
           tx = b.x + Math.cos(ang) * d; ty = b.y + Math.sin(ang) * d;
         }
       }
+      // (0.53.2) a slot over the water (beside a light bridge, off a bank) is pulled in toward the anchor until it is on ground the
+      // anchor can walk to straight: a Helldiver whose place lay off the side of a deck stood at its edge for good
+      if (!job && !site && m.terrain && !m.terrain.lineClear(sq.ax, sq.ay, tx, ty, 2)) { const p = pullIn(m.terrain, sq.ax, sq.ay, tx, ty); tx = p.x; ty = p.y; }
       const sw = steer(m.terrain, a, a.x, a.y, tx, ty, t);
       const dx = sw.x - a.x, dy = sw.y - a.y, d = Math.hypot(dx, dy);
       const keepUp = (sq.fightOn || sq.fallback) && d > 4;      // fighting forward (or pulling back): keep with the anchor, shooting on the move
@@ -272,4 +275,14 @@ export function updateSquad(m, dt) {
 
   // ---------------- SEAF ----------------
   updateSeaf(m, dt, speed, bm);
+}
+
+// (0.53.2) The point on the way from the anchor (ax, ay) out to a slot (tx, ty) farthest out that the anchor reaches in a straight
+// line over walkable ground; the anchor itself if none.
+function pullIn(T, ax, ay, tx, ty) {
+  for (let f = 0.9; f > 0.05; f -= 0.15) {
+    const x = ax + (tx - ax) * f, y = ay + (ty - ay) * f;
+    if (T.lineClear(ax, ay, x, y, 2)) return { x, y };
+  }
+  return { x: ax, y: ay };
 }

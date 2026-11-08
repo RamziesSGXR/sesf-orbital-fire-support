@@ -51,11 +51,11 @@ check('every squad\'s sixteen hold at least two orbitals', draws.every((n) => n 
   const H = hangarStats(k); let n = 0; const booms = [];
   const emit0 = m.emit.bind(m); m.emit = (type, ev) => { if (type === 'boom') booms.push(ev); return emit0(type, ev); };
   for (let i = 0; i < H.uses + 1; i++) { p.slots[ie].readyAt = 0; aim(); if (fireSlot(m, ie)) n++; }
-  check('the Eagle has its calls, then flies back to rearm', n === H.uses && p.eagle.uses === 0 && Math.abs(p.eagle.rearmAt - m.t - H.rearm) < 0.1, `${n} calls, rearm ${Math.round(p.eagle.rearmAt - m.t)}s`);
+  check('the Eagle has its calls, then flies back to rearm (0.53.2: its own; the only Eagle out, so the Eagle goes back)', n === H.uses && p.slots[ie].eu === 0 && Math.abs(p.eagle.rearmAt - m.t - H.rearm) < 0.1, `${n} calls, rearm ${Math.round(p.eagle.rearmAt - m.t)}s`);
   run(m, 6);
   check('a 500 kg bomb\'s explosion says what it was', booms.some((b) => b.sid === 'eagle_500'), [...new Set(booms.map((b) => b.sid))].join(' '));
   run(m, H.rearm + 1);
-  check('rearmed, the Eagle is back with all its calls', p.eagle.uses === H.uses && p.eagle.rearmAt === 0);
+  check('rearmed, the Eagle is back with all its calls', p.slots[ie].eu === H.uses && p.eagle.rearmAt === 0);
   // minefields
   const im = p.slots.findIndex((s) => s.id === 'mine_ap'), it2 = p.slots.findIndex((s) => s.id === 'mine_at');
   const a = m.hdAlive[0], spot = { x: a.x + 60, y: a.y + 30 };

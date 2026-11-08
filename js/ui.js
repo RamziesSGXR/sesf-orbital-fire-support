@@ -1401,11 +1401,13 @@ export class Hud {
         } else if (s.type === 'orb') {
           const st = orbStats(s.id, s.level);
           name = touch ? shortName(s.id) : t('hud.w.lvl', { name: shortName(s.id), n: s.level });   // phones: no room for the level
-          const eg = st.cat === 'EAGLE' ? p.eagle : null, H = eg ? hangarStats(m.kit) : null;     // (0.23) an Eagle: its calls left, or rearming
+          // (0.23) an Eagle: its runs left, or rearming. (0.53.2) Each Eagle its own runs (s.eu); one out of them says how to rearm early.
+          const eg = st.cat === 'EAGLE' ? p.eagle : null, H = eg ? hangarStats(m.kit) : null;
           if (s.uses <= 0) { sub = t('hud.w.spent'); frac = 0; cls = 'cd'; }
-          else if (eg && eg.uses <= 0) { sub = t('hud.w.rearm', { n: Math.max(0, Math.ceil(eg.rearmAt - tt)) }); frac = eg.rearmAt ? Math.max(0, 1 - (eg.rearmAt - tt) / H.rearm) : 0; cls = 'cd'; }
+          else if (eg && tt < eg.rearmAt) { sub = t('hud.w.rearm', { n: Math.max(0, Math.ceil(eg.rearmAt - tt)) }); frac = Math.max(0, 1 - (eg.rearmAt - tt) / H.rearm); cls = 'cd'; }
+          else if (eg && !(s.eu > 0)) { sub = touch ? t('hud.w.emptyTap') : t('hud.w.empty', { k: keyLabelOf('eagleRearm') }); frac = 0; cls = 'cd'; }
           else if (tt < s.readyAt) { sub = t('hud.o.sec', { n: Math.ceil(s.readyAt - tt) }); frac = Math.max(0, 1 - (s.readyAt - tt) / (eg ? H.callCd : st.cd)); cls = 'cd'; }
-          else if (eg && !(sel && !p.aim.inZone)) { sub = t('hud.w.eagle', { n: eg.uses, of: eg.max }); cls = 'ready'; }
+          else if (eg && !(sel && !p.aim.inZone)) { sub = t('hud.w.eagle', { n: s.eu, of: eg.max }); cls = 'ready'; }
           else if (sel && !p.aim.inZone) { sub = t('hud.w.noCover'); cls = 'nomark'; }
           else { sub = s.uses !== Infinity ? t('hud.w.readyX', { n: s.uses }) : t('hud.w.ready'); cls = 'ready'; }
         } else if (s.type === 'gun') {

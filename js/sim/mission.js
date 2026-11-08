@@ -24,7 +24,7 @@ import { setupSides, updateSides, beaconAt, sporeMul } from './sides.js';
 import { noise } from './enemies.js';
 import { locked } from './combat.js';
 import { initPlan, updatePlan, noteWipe } from './planner.js';
-import { initPlayer, updatePlayer, syncSlots, slotStats } from './player.js';
+import { initPlayer, updatePlayer, syncSlots, slotStats, eagleRearm } from './player.js';
 import { initStrat, updateStrat, destroyAsset, mechDown } from './strat.js';
 import { setupObjectives, updateObjectives, completeObjective, startSetup } from './objectives.js';
 import { placeBase, setupLastStand, updateLastStand, lsBegin, lsSpawn, lsJammer, lsSupply } from './laststand.js';
@@ -295,6 +295,13 @@ export class Mission {
   setAim(x, y) { this.player.aimX = aoX(this, x); this.player.aimY = aoY(this, y); }
   setFiring(b) { this.player.firing = !!b; }
   fire() { this.player.firePress = true; }   // one press, even if the button is released again before the next tick
+  // (0.53.2) EAGLE REARM: the Eagle flies back to rearm now, every Eagle stratagem coming back full ({ ok } or { ok: false, reason })
+  eagleRearm() {
+    if (this.over) return { ok: false, reason: 'over' };
+    const r = eagleRearm(this);
+    if (!r.ok) this.emit('deny', { reason: r.reason });
+    return r;
+  }
   selectWeapon(i) {
     const p = this.player;
     if (i < 0 || i >= p.slots.length || i === p.weapon) return;

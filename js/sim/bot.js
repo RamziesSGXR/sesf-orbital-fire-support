@@ -2,7 +2,7 @@
 // the nuke, and shopping between missions. Used by the headless balance test and the ?bot=1 demo.
 import { CONFIG as C } from '../config.js';
 import { buy, shopItems, seafStats } from '../data/kit.js';
-import { slotStats, aimGeom, UAV_REACH, ORB_SLOTS } from './player.js';
+import { slotStats, aimGeom, UAV_REACH, ORB_SLOTS, eagleReady } from './player.js';
 import { pickNukeTarget } from './objectives.js';
 import { acceptSupply, fillSupply } from './supply.js';
 import { tapHellbomb } from './ops.js';
@@ -306,7 +306,7 @@ export function botStep(m, bot) {
     bot.rot = (bot.rot + 1) % ORB_SLOTS;
     for (let k = 0; k < ORB_SLOTS; k++) {
       const idx = 1 + ((bot.rot + k) % ORB_SLOTS), s = p.slots[idx];
-      if (s.type !== 'orb' || t < s.readyAt || s.uses <= 0) continue;
+      if (s.type !== 'orb' || t < s.readyAt || s.uses <= 0 || (s.eu !== undefined && !eagleReady(m, s))) continue;     // (0.53.2: an Eagle out of runs, or the Eagle away)
       const st = slotStats(m, idx);
       const tgt = targetFor(m, st, bot);
       if (!tgt) continue;

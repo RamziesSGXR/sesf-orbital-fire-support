@@ -47,8 +47,8 @@ check('ranks 6 to 9 each declassify one stratagem', [6, 7, 8, 9].every((r, i) =>
 
   const sh0 = m.shells.length;
   check('Orbital Liberty Storm: a sixteen-second rain of heavy shells over a huge area', fire('orb_storm', 60, 0) && m.shells.length - sh0 >= 36, `${m.shells.length - sh0} shells`);
-  const e0 = p.eagle.uses, sh1 = m.shells.length;
-  check('Eagle Squadron: one long run, for one of the Eagle\'s runs', fire('eagle_squad', -60, 0) && p.eagle.uses === e0 - 1 && m.shells.length - sh1 >= 22, `${m.shells.length - sh1} bombs, runs ${e0} → ${p.eagle.uses}`);
+  const e0 = p.slots[slot('eagle_squad')].eu, sh1 = m.shells.length;
+  check('Eagle Squadron: one long run, for one of the Eagle\'s runs', fire('eagle_squad', -60, 0) && p.slots[slot('eagle_squad')].eu === e0 - 1 && m.shells.length - sh1 >= 22, `${m.shells.length - sh1} bombs, runs ${e0} → ${p.eagle.uses}`);
   const b0 = m.beams.length;
   check('Democracy Lance: a beam far bigger than the laser', fire('orb_lance', 0, 70) && m.beams.length === b0 + 1 && m.beams[m.beams.length - 1].dps > STRATS.orb_laser.beam.dps * 3 && m.beams[m.beams.length - 1].width > STRATS.orb_laser.beam.width * 1.8);
   // the Final Word: fired, then a pack of enemies, an ally inside the blast and one well outside it, round where it lands
