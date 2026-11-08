@@ -2332,7 +2332,7 @@ export default {
   'tut.run.b': 'Outside this tutorial, Quick Play and the campaign are operations: mission after mission. Your credits, your rank and everything you buy and equip in the armory carry over from one mission to the next, so the armory between missions is where you get stronger. Only a failed mission ends the operation, and the campaign keeps every chapter you clear.',
   'title.tutH': 'TUTORIAL',
   'title.tutName': 'LAST STAND ON MARS',
-  'title.tutP': 'Base Tharsis, Mars, the day the Great Host came. Get 70 people off Mars to win, then fight on or head into the campaign. It teaches you everything as it goes: the ship gun and orbitals, SEAF troops, building and cover, resupply and the Hellbomb. Always difficulty 3.',
+  'title.tutP': 'Mars is falling and the Great Host is at the gates. Rain fire from orbit, hold Base Tharsis, and get 70 people off the planet alive.',
   'title.tutPlay': 'PLAY TUTORIAL',
   'title.quick': 'QUICK PLAY',
   'title.quickSub': 'One operation, mission after mission, against the enemy you pick',

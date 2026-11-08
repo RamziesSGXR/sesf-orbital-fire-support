@@ -2332,7 +2332,7 @@ export default {
   'tut.run.b': 'Fuera de este tutorial, la partida rápida y la campaña son operaciones: misión tras misión. Tus créditos, tu rango y todo lo que compras y equipas en el arsenal se conservan de una misión a la siguiente, así que el arsenal entre misiones es donde te haces más fuerte. Solo una misión fallida termina la operación, y la campaña guarda cada capítulo que completes.',
   'title.tutH': 'TUTORIAL',
   'title.tutName': 'ÚLTIMA DEFENSA EN MARTE',
-  'title.tutP': 'Base Tharsis, Marte, el día que llegó la Gran Hueste. Saca a 70 personas de Marte para ganar y luego sigue luchando o pasa a la campaña. Te lo enseña todo sobre la marcha: el cañón de la nave y las orbitales, las tropas SEAF, construir y cubrirse, el reabastecimiento y la Hellbomb. Siempre en dificultad 3.',
+  'title.tutP': 'Marte cae y la Gran Hueste está a las puertas. Haz llover fuego desde la órbita, defiende la base Tharsis y saca con vida a 70 personas del planeta.',
   'title.tutPlay': 'JUGAR EL TUTORIAL',
   'title.quick': 'PARTIDA RÁPIDA',
   'title.quickSub': 'Una operación, misión tras misión, contra el enemigo que elijas',

@@ -23,6 +23,11 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Fixes from the players (0.53.1).**
+- **Right-click the work site to send a squad.** With a squad selected, a right-click on the refinery, yard or lab sends them to it, and **GO INSIDE** comes up over it. Before, the right-click did nothing (an error).
+- **Picking a squad lets go of the building.** With a post or the work site selected, picking a squad (its button, its key, or Shift+click) now shows that squad in the panel. To send a squad in through a building's door, pick the squad first, then the building.
+- **A shorter tutorial blurb** on the title screen.
+
 **Operation Sweet Liberty (0.53).**
 - **A new campaign, ten chapters.** The Illuminate are closing in on Super Earth, and the one answer is a planetary defence gun on the outskirts of the capital. Three arcs of three missions, each on one world, then the finale:
   - **The dunes (bugs):** take the E-710 fuel the gun needs (oil, a VIP, a hive citadel).

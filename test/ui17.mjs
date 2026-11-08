@@ -182,6 +182,8 @@ check('it says what it is and its level', /TURRET NEST/.test(ptxt) && /1/.test(p
 check('with a door in, and no door out yet', (await page.isVisible('#tc-sel [data-sa="in"]')) && !(await page.isVisible('#tc-sel [data-sa="out"]')));
 await shot('selpop');
 await ev(() => window.__game.selectSquad(0)); await page.waitForTimeout(200);
+check('(0.53.1) picking a squad lets the post go: the panel shows the squad', !(await ev(() => window.__game.sel)));
+await at(ps.x, ps.y); await page.waitForTimeout(300);     // the squad first, then the post: its door sends that squad
 await tap('#tc-sel [data-sa="in"]'); await page.waitForTimeout(200);
 check('the door sends the selected squad in', await ev(() => { const q = window.__game.mission.seaf.squads[0]; return q.order.kind === 'post' && q.order.garrison; }));
 await step(25); await page.waitForTimeout(300);

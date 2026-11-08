@@ -95,5 +95,17 @@ function worked(f, n = 6) {
   check('probes come rarely early on, more as the mission runs and as the alert climbs', early < late && early < hot, `early ${early}, late ${late}, alert 4: ${hot} (of 60 rolls)`);
 }
 
+// (0.53.1) players' report: a right-click on the work site (seafMan) threw, as it has no defence site of its own
+{
+  const m = new Mission({ seed: 5301, faction: 'squids', biome: 'grass', difficulty: 3, events: true, kit: newKit(), wallet: newWallet(5000) });
+  const w = m.workSite;
+  for (let k = 0; k < 4; k++) { const a = m.addAlly('S', w.x + 30 + k * 1.5, w.y + 26, { role: 'rifle' }); a.sq = 0; }
+  m._refreshAlive(); m.selectSquad(0);
+  let r = null, err = null; try { r = m.seafMan(w); } catch (e) { err = String(e); }
+  const q = m.seaf.squads[0];
+  check('(0.53.1) a squad sent to the work site (a right-click) goes to it, and may go inside', !err && r && r.ok && r.canGarrison && q.order.kind === 'post' && q.order.post === w, err || JSON.stringify(r));
+  for (let i = 0; i < 30 * 20; i++) m.step(1 / 30);
+  check('(0.53.1) ...and holds by it without going in until told', !m.seafAlive.some((a) => a.inside) && m.seafAlive.filter((a) => a.sq === 0).every((a) => Math.hypot(a.x - w.x, a.y - w.y) < w.r + 14), m.seafAlive.map((a) => Math.round(Math.hypot(a.x - w.x, a.y - w.y))).join(','));
+}
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
 process.exit(fails ? 1 : 0);
