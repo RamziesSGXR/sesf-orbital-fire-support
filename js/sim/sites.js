@@ -60,6 +60,13 @@ export function siteShare(m, kind) {
 export const orbSiteMul = (m) => 1 - K().buff.orb * siteShare(m, 'refinery');      // orbital recharge
 export const costSiteMul = (m) => 1 - K().buff.cost * siteShare(m, 'salvage');     // builds and bridges
 export const uavSiteMul = (m) => 1 + K().buff.uav * siteShare(m, 'lab');           // UAV reach (and recharge, divided)
+// (0.53.4) What the site gives the gunner, to say it on the map, its panel and the notices: the string for its kind and the per cent
+// now (its crew) and with a full crew; the credits it pays now every payEvery seconds.
+const BUFF_OF = { refinery: 'orb', salvage: 'cost', lab: 'uav' };
+export function siteGain(m, p = m.workSite) {
+  const S = K(), b = S.buff[BUFF_OF[p.siteKind]] || 0, share = p.fallen ? 0 : Math.min(1, (p.workers || 0) / Math.max(1, p.cap));
+  return { key: 'site.g.' + p.siteKind, now: Math.round(b * share * 100), full: Math.round(b * 100), pay: S.pay * (p.workers || 0), per: S.pay, every: S.payEvery };
+}
 
 // Shot down: the workers spill out, and it stops until it is patched back up to half its health.
 export function siteFalls(m, p) {
@@ -80,10 +87,10 @@ export function updateSite(m, dt) {
     m.notice(tr('n.siteBack', { what: p.name.toUpperCase() }), 'good');
     m.emit('site_up', { x: p.x, y: p.y, id: p.id });
   }
-  if (!p.told && m.t > S.tellSec) { p.told = true; m.notice(tr('n.siteHere', { what: p.name.toUpperCase() }), 'info'); }
+  if (!p.told && m.t > S.tellSec) { p.told = true; const g = siteGain(m, p); m.notice(tr('n.siteHere', { what: p.name.toUpperCase(), gain: tr(g.key, { p: g.full }) }), 'info'); }
   const was = p.workers;
   p.workers = p.fallen ? 0 : m.seafAlive.filter((a) => a.post === p && !a.down).length;
-  if (p.workers && !was) m.notice(tr('n.siteWork', { what: p.name.toUpperCase() }), 'good');
+  if (p.workers && !was) { const g = siteGain(m, p); m.notice(tr('n.siteWork', { what: p.name.toUpperCase(), gain: tr(g.key, { p: g.now }), max: g.full, c: p.cap }), 'good'); }
   // pay as it goes
   p.payT -= dt;
   if (p.payT <= 0) {

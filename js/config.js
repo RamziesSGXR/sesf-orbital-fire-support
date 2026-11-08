@@ -106,7 +106,7 @@ export const CONFIG = {
               clusterRadius: 15, setupSec: 5, setupCooldownSec: 15, carrySlow: 0.85, fightOnSec: 12, fightOnSpeed: 0.5, spotRange: 95 },
   // Bases and the citadel. The Helldivers destroy them with rifles, support weapons and stratagems, exactly as the destroyer
   // can: rifle fire counts for a fraction of its normal damage, and anything the squad calls hits structures harder (stratMul).
-  structure: { range: 48, standOff: 26, push: 14, rifleH: 0.8, rifleS: 0.3, stratMul: 2.6, weaponTry: 0.4 },
+  structure: { range: 48, standOff: 26, push: 14, rifleH: 0.8, rifleS: 0.3, stratMul: 2.6, weaponTry: 0.4, breakR: 12 },     // (0.53.4: breakR, a stalemate's)
 
   // Terrain: a height map, a water depth map and a surface map on an 8 m grid, different for every mission. Deep water cannot be
   // crossed on foot; shallows, mud and soft ground (snow, sand, dust) slow everyone. A rise gives whoever stands on it more sight and
@@ -583,6 +583,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.53.3',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.53.4',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

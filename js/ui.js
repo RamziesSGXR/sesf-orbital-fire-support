@@ -6,7 +6,7 @@ import { STRATS, CAT_COLOR } from './data/strat.js';
 import { LETTERS, TEAM_COLOR } from './data/names.js';
 import { STORY } from './data/story.js';
 import { buildCostMul, PERKS, perkN, perkPct, perksTotal } from './data/perks.js';
-import { costSiteMul } from './sim/sites.js';
+import { costSiteMul, siteGain } from './sim/sites.js';
 import { GROUPS as KEY_GROUPS, label as keyLabelOf, keyOf as keyOfAction, defaultOf as defaultKeyOf } from './keys.js';
 import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, hangarStats, shownAt, TIER_MAX, tierItems, itemTier, FLAT_BUILDS, fleetSize, coinOk, payStep, MIXES, mixOpen, mixNeeds } from './data/kit.js';
 import { stratReady, stratOnline } from './sim/strat.js';
@@ -1001,7 +1001,9 @@ export class Hud {
       if (hc) { const k = `${Math.round(f * 30)}|${cls}`; if (hc.key !== k) { hc.key = k; hc.u.style.width = `${Math.max(0, Math.min(1, f)) * 100}%`; hc.el.className = 'hc ' + cls; } }
       const key = `${name}|${st}|${Math.round(f * 24)}|${cls}|${ship}`;
       if (r.key === key) return;
-      r.key = key; r.t.textContent = name; r.st.textContent = st; r.sts.textContent = sts; r.hp.style.width = `${Math.max(0, Math.min(1, f)) * 100}%`; r.ship.textContent = ship;
+      r.key = key; r.t.textContent = name; r.st.textContent = st; r.sts.textContent = sts;
+      // (0.53.4) what the line means, on hover (players asked what S, G, U and GUN were)
+      r.st.title = a ? (a.sw ? t('hud.r.gunTip', { w: (STRATS[a.sw.id] && STRATS[a.sw.id].name) || '', s: a.stims, g: a.gren, u: a.ult ?? 0 }) : t('hud.r.tip', { h: Math.max(1, Math.round(f * 100)), s: a.stims, g: a.gren, u: a.ult ?? 0 })) : ''; r.hp.style.width = `${Math.max(0, Math.min(1, f)) * 100}%`; r.ship.textContent = ship;
       r.el.className = 'hr' + (cls ? ' ' + cls : '') + (this._hdOpen === i ? ' open' : '');
     });
   }
@@ -1261,12 +1263,13 @@ export class Hud {
       const who = sf.sel >= 0 ? `S${sf.sel + 1}` : sf.sel === -2 ? t('tac.picked') : t('hud.all');
       h = `<div class="ts-h">${esc(name.toUpperCase())}${post && !noLvl(post.what) ? ` <i>${esc(t('card.level', { n: post.lvl }))}</i>` : ''}</div>`
         + (hp !== null ? `<i class="ts-hp"><u style="width:${hp}%"></u></i>` : '')
-        + (post && post.cap ? `<div class="ts-r">${esc(t('sel.crew'))} <b>${post.crew}/${post.cap}</b>${post.crew ? '' : ` · <em class="ts-solo">${esc(t('sel.solo'))}</em>`}</div>` : '')
+        + (post && post.cap ? `<div class="ts-r">${esc(t('sel.crew'))} <b>${post.crew}/${post.cap}</b>${post.what === 'site' ? (post.workers && !post.fallen ? ` · <b>${esc(t(siteGain(m, post).key, { p: siteGain(m, post).now }))}</b>` : '') : post.crew ? '' : ` · <em class="ts-solo">${esc(t('sel.solo'))}</em>`}</div>` : '')
         + (crew.length ? tiles(crew) : '')
         + (post ? `<div class="ts-doors">${post.cap && post.garrison < post.cap ? `<button type="button" class="btn tsd" data-sa="in">${esc(t('sel.inBtn', { who }))}</button>` : ''}${post.garrison ? `<button type="button" class="btn tsd" data-sa="out">${esc(t('sel.outBtn'))}</button>` : ''}`
           // (0.36) blow it up: one press sets the charges (a short fuse), a press again before it blows takes them off
           + (!post.captured && post.what !== 'site' ? `<button type="button" class="btn tsd demo${post.demo ? ' on' : ''}" data-sa="demo" title="${esc(t('sel.demoT'))}">${esc(post.demo ? t('sel.demoOff', { n: Math.max(1, Math.ceil(post.demo.at - m.t)) }) : t('sel.demo'))}</button>` : '') + `</div>` : '')
-        + `<div class="ts-b">${esc(post ? t('sel.' + post.what) : sel.kind === 'turret' ? t('sel.sentry') : t('sel.siteB'))}</div>`;
+        // (0.53.4) the work site: what it gives and pays (it was described as a defence position: the same key)
+        + `<div class="ts-b">${esc(post && post.what === 'site' ? workB(m, post) : post ? t('sel.' + post.what) : sel.kind === 'turret' ? t('sel.sentry') : t('sel.siteB'))}</div>`;
     } else if (sf.sel === -2 && sf.pick) {
       const list = m.seafAlive.filter((a) => sf.pick.includes(a.id));
       h = `<div class="ts-h">${esc(t('tac.picked'))} <i>${esc(t('tac.troopers', { n: list.length }))}</i></div>${tiles(list)}<div class="ts-b">${esc(t('tac.pickHint'))}</div>`;
@@ -1293,7 +1296,7 @@ export class Hud {
     const post = s.kind === 'post' ? s : null, sentry = s.kind === 'turret' ? s : null, site = !post && !sentry ? s : null;
     const hp = s.maxHp ? Math.round((100 * s.hp) / s.maxHp) : s.wireMax ? Math.round((100 * Math.max(0, s.wireHp)) / s.wireMax) : null;
     const lzs = post && post.what === 'lz' ? lzStatus(m, post) : '';
-    const key = [s.id || s.kind, post && post.crew, post && post.garrison, hp, post && post.repairing, sentry && Math.round(sentry.ammo), m.seaf.sel, getLang(), lzs].join('|');
+    const key = [s.id || s.kind, post && post.crew, post && post.garrison, post && post.workers, post && post.fallen, hp, post && post.repairing, sentry && Math.round(sentry.ammo), m.seaf.sel, getLang(), lzs].join('|');
     if (force || key !== this.selKey) {
       this.selKey = key;
       const who = m.seaf.sel >= 0 ? `S${m.seaf.sel + 1}` : t('hud.all');
@@ -1301,6 +1304,11 @@ export class Hud {
       if (post) {
         name = `${esc((post.what === 'site' ? post.name : t('build.' + post.what)).toUpperCase())}${!noLvl(post.what) ? ` <i>${esc(t('card.lvShort', { n: post.lvl }))}</i>` : ''}`;
         if (post.cap) sub = `${esc(t('sel.crew'))} ${post.crew}/${post.cap}${post.garrison ? ` · ${esc(t('sel.garrison'))} ${post.garrison}` : ''}`;
+        if (post.what === 'site' && !post.fallen) {     // (0.53.4) what it gives: now (and a full crew's), and what it pays
+          const g = siteGain(m, post);
+          sub = post.workers ? esc(`${t('lab.siteWork', { n: post.workers, c: post.cap, gain: t(g.key, { p: g.now }) })}${post.workers < post.cap ? ` (${t('site.full', { p: g.full, c: post.cap })})` : ''} · ${t('site.pay', { n: g.pay, s: g.every })}`)
+            : esc(t('lab.siteIdle', { gain: t(g.key, { p: g.full }) }));
+        }
         if (post.cap && post.garrison < post.cap && INSIDE.has(post.what) && !post.fallen) btns += `<button class="dr in" type="button" data-sa="in" title="${esc(t('sel.inT', { who }))}" aria-label="${esc(t('sel.inT', { who }))}">${DOOR_IN}</button>`;
         if (post.garrison) btns += `<button class="dr out" type="button" data-sa="out" title="${esc(t('sel.outT'))}" aria-label="${esc(t('sel.outT'))}">${DOOR_OUT}</button>`;
         if (lzs) { sub = esc(lzs); btns += `<button class="dr in" type="button" data-sa="man" title="${esc(t('sel.lzSend', { who }))}" aria-label="${esc(t('sel.lzSend', { who }))}">${DOOR_IN}</button>`; }
@@ -2433,4 +2441,10 @@ export function fillMissionInfo(m, info) {
   parts.push(`<h3>${t('info.supply')}</h3><p>${esc(t('info.supplyV', { f: C.supply.fastSec, b: C.supply.boostSec }))}</p>`);
   parts.push(`<h3>${t('info.fail')}</h3><p>${esc(t('info.failV', { n: Math.round(m.limitSec / 60) }))}</p>`);
   $('info-body').innerHTML = parts.map((x) => `<section class="ib-sec">${x}</section>`).join('');      // (0.27.1: a section each, for the desktop grid)
+}
+
+// (0.53.4) What the work site is for, in its tactical panel.
+function workB(m, p) {
+  const g = siteGain(m, p);
+  return t('sel.workB', { gain: t(g.key, { p: g.full }), c: p.cap, n: g.per, s: g.every });
 }

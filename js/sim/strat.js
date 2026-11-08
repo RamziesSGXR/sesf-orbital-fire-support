@@ -653,7 +653,7 @@ function updateWeapons(m, dt) {
         } else {
           w.lockE = null; w.lockT = 0;
           // No enemy to shoot: a weapon that can crack structures works on a base or the citadel in range.
-          let bs = w.only || w.mult.B < C.structure.weaponTry ? null : baseNear(m, a.x, a.y, w.range * 0.9);
+          let bs = w.only || w.mult.B < C.structure.weaponTry ? null : baseNear(m, a.x, a.y, w.range * 0.9, m.squad && m.squad.base);     // (0.53.4: the squad's base first; never the keep)
           if (bs && !bs.alert && !(sq.assault && sq.base === bs)) bs = null;     // not a base the squad has not gone in on yet
           if (bs) {
             w.t = w.every;
