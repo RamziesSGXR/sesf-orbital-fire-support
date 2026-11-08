@@ -2,6 +2,7 @@
 // a crew and has none), its health when hurt, a wrench while it is being patched up, and, when selected, its reach and brackets.
 // Turrets the Helldivers called (sentries) show their reach only when selected too.
 import { t as tr } from '../i18n.js';
+import { siteGain } from '../sim/sites.js';
 import { postReach, foxholeSlots, demoRadius, wireEnds } from '../sim/posts.js';
 import { lzStatus } from '../sim/seaf.js';
 
@@ -314,7 +315,7 @@ export function drawPosts(ctx, m, now, px, labels, scale, sel) {
       if (p !== sel && !p.fallen) useRing(ctx, p.x, p.y, p.r + px(4), px, now);
       if (p.hp < p.maxHp) hpBar(ctx, p.x, p.y + p.r + px(5), Math.max(10, px(34)), px(3), p.hp / p.maxHp, p.hp > p.maxHp * 0.35 ? '#7dff9b' : '#ff4a4a');
       if (p.repairing) { const k = (now * 2) % 1; ctx.strokeStyle = `rgba(125,255,155,${1 - k})`; ctx.lineWidth = px(1.5); ring(ctx, p.x, p.y, p.r + px(4 + 6 * k)); ctx.stroke(); }
-      labels.push({ x: p.x, y: p.y, dy: -p.r * scale - 10, text: `${p.name.toUpperCase()} · ${p.fallen ? tr('lab.siteDown') : p.workers ? tr('lab.siteWork', { n: p.workers, c: p.cap }) : tr('lab.siteIdle')}`, col: p.fallen ? '#ff6a4a' : p.workers ? '#ffd24a' : '#c9d6cf', pri: 2 });
+      labels.push({ x: p.x, y: p.y, dy: -p.r * scale - 10, text: `${p.name.toUpperCase()} · ${p.fallen ? tr('lab.siteDown') : siteLine(p)}`, col: p.fallen ? '#ff6a4a' : p.workers ? '#ffd24a' : '#c9d6cf', pri: 2 });
       continue;
     }
     const R = p.what === 'bastion' || p.what === 'foxhole' ? p.r : p.what === 'bridge' ? 3 : Math.max(4, px(9));     // (0.28: round the whole trench)
@@ -346,4 +347,10 @@ export function drawPosts(ctx, m, now, px, labels, scale, sel) {
     ctx.fillStyle = 'rgba(255,230,0,0.05)'; shape(); ctx.fill();
     labels.push({ x: sel.x, y: sel.y - reach, dy: -6, text: tr('lab.reach', { n: Math.round(reach) }), col: '#ffe600', pri: 2 });
   }
+}
+
+// (0.53.4) The site's line on the map: idle, what a full crew gives; worked, the crew and what it gives now.
+function siteLine(p) {
+  const g = siteGain(null, p);
+  return p.workers ? tr('lab.siteWork', { n: p.workers, c: p.cap, gain: tr(g.key, { p: g.now }) }) : tr('lab.siteIdle', { gain: tr(g.key, { p: g.full }) });
 }

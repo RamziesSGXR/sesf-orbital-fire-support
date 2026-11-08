@@ -39,6 +39,7 @@ const yard = await ev(() => { const g = window.__game, w = g.mission.workSite; r
 await page.mouse.click(yard.x, yard.y); await wait(300);
 const pop = await ev(() => { const c = document.getElementById('selpop'); return c && !c.classList.contains('hidden') ? c.textContent : null; });
 check('a click on the lab picks it', pop && /LAB/i.test(pop), pop);
+check('(0.53.4) its panel says what it gives: a wider, faster UAV with a full crew', /SEND SEAF IN: UAV 35% WIDER AND FASTER WITH A FULL CREW/.test(pop || ''), pop);
 const sqBtn = await page.$('#squads .sqb[data-sq="1"]');
 await ev(() => document.querySelector('#squads .sqb[data-sq="1"]').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerType: 'mouse' }))); await wait(400);
 const after = await ev(() => { const c = document.getElementById('selpop'); return { pop: c && !c.classList.contains('hidden') ? c.textContent : null, sel: window.__game.mission.seaf.sel }; });
@@ -59,6 +60,15 @@ await ev(() => { const m = window.__game.mission; for (let i = 0; i < 30 * 40; i
 await wait(300);
 const w = await ev(() => window.__game.mission.workSite.workers);
 check('GO INSIDE: the squad goes in and works the lab', w === 4, w);
+await page.mouse.click(yard.x, yard.y); await wait(400);
+const pop2 = await ev(() => { const c = document.getElementById('selpop'); return c && !c.classList.contains('hidden') ? c.textContent : ''; });
+check('(0.53.4) worked, its panel says what it gives now, with a full crew, and what it pays', /4\/6 WORKING · UAV 23% WIDER AND FASTER \(35% WITH 6\) · 16 CR EVERY 10S/.test(pop2), pop2);
+await page.keyboard.press('Space'); await wait(500);
+const tp = await ev(() => (document.getElementById('selpanel') || {}).textContent || '');
+check('(0.53.4) the tactical panel says what the lab is for (not "defence position") and what it gives now', /4\/6 · UAV 23% WIDER AND FASTER/.test(tp) && /SEAF inside work it/.test(tp) && !/Defence position/.test(tp), tp.slice(0, 260));
+await page.screenshot({ path: '/tmp/ui531-tac.png' });
+await page.keyboard.press('Space'); await wait(300);
+await page.screenshot({ path: '/tmp/ui531-worked.png' });
 check('no page errors', !errs.length, errs.join(' | '));
 await browser.close();
 console.log(fails ? `\n${fails} FAILED` : '\nall passed');

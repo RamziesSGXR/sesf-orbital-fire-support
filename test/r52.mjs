@@ -107,5 +107,17 @@ function worked(f, n = 6) {
   for (let i = 0; i < 30 * 20; i++) m.step(1 / 30);
   check('(0.53.1) ...and holds by it without going in until told', !m.seafAlive.some((a) => a.inside) && m.seafAlive.filter((a) => a.sq === 0).every((a) => Math.hypot(a.x - w.x, a.y - w.y) < w.r + 14), m.seafAlive.map((a) => Math.round(Math.hypot(a.x - w.x, a.y - w.y))).join(','));
 }
+// (0.53.4) players: the sites' lift was not clear. The notices now say what each gives
+{
+  const m = new Mission({ seed: 5302, faction: 'bugs', biome: 'grass', difficulty: 3, events: true, kit: newKit(), wallet: newWallet(5000) });
+  const w = m.workSite;
+  for (let i = 0; i < 30 * (C.sites.tellSec + 1); i++) m.step(1 / 30);
+  const here = m.events.filter((e) => e.type === 'notice').map((e) => e.text).find((x) => /REFINERY ON THE MAP/.test(x)) || '';
+  check('(0.53.4) the refinery\'s notice says what a full crew gives', /ORBITALS 30% FASTER WITH A FULL CREW/.test(here), here);
+  for (let k = 0; k < 3; k++) { const a = m.addAlly('S', w.x + 2, w.y + 2, { role: 'rifle' }); a.post = w; a.inside = w; }
+  m._refreshAlive(); m.step(1 / 30);
+  const work = m.events.filter((e) => e.type === 'notice').map((e) => e.text).find((x) => /SEAF AT WORK/.test(x)) || '';
+  check('(0.53.4) and once worked, what it gives now', /ORBITALS 15% FASTER \(UP TO 30% WITH 6\)/.test(work), work);
+}
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
 process.exit(fails ? 1 : 0);
