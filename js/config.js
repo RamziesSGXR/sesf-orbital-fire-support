@@ -382,7 +382,8 @@ export const CONFIG = {
     { saved: 120, sec: 330, every: 3,  n: 20, mid: 0.5,  heavy: 2, heavyEvery: 0, grow: 2, hpPerMin: 1.2, dmgPerMin: 1.6 },
   ],
   // (0.40) truthAt: at this many off Mars Tharsis Control stops the game to say it plainly: not everyone is getting off
-  lastStand: { personnel: 160, truthAt: 100, squad: 6, lzOff: 46, lives: 10, breakAt: 3, waveFirst: 5, waveEvery: [12, 3.5], rampSec: 150, waveSize: [9, 9], waveGrow: 8,
+  // (0.53) winAt: this many off Mars and the tutorial is complete (MISSION COMPLETE: fight on, or move on)
+  lastStand: { personnel: 160, truthAt: 100, winAt: 70, squad: 6, lzOff: 46, lives: 10, breakAt: 3, waveFirst: 5, waveEvery: [12, 3.5], rampSec: 150, waveSize: [9, 9], waveGrow: 8,
                heavyEvery: 3, hpGrow: 0.6, dmgGrow: 0.9, levelEvery: 25, maxHold: 480, glassSec: 10, beamEvery: 0.09, beamR: 13, waveR: 230, lessonR: 160, countdown: 900,
                jamOff: 115, jamR: 55 },     // (0.37) the Hellbomb lesson's disruptor: how far from the base, and the ground it jams
   // (0.40) opBonus: credits are worth 0.2 more for every mission already done in the operation (the second mission x1.2, the
@@ -509,6 +510,12 @@ export const CONFIG = {
     // cannon (bots): an orbital defence cannon firing at the destroyer every `every` seconds. While it stands the ship keeps
     //   dodging: the player's strikes land up to scatter metres off, the ship gun spreads gunMul times as wide. Destroy it (hp).
     cannon: { hp: 6500, r: 14, every: 6, scatter: 16, gunMul: 1.8 },
+    // (0.53) gun (squids, and the campaign's finale): the planetary defence gun, an ally the enemy comes for. hp, r across, zone
+    //   (the squad there starts it), shots to bring the mothership down, chargeSec a shot (slowRate of it with the enemy on the
+    //   gun), shotPay credits a shot; drops at it every dropEvery seconds (dropFaster less a shot fired, never under dropMin) of
+    //   dropSize[0] growing to dropSize[1] troops, dropDist metres out; the mothership drawn shipOff metres from the gun.
+    gun:    { hp: 5000, r: 9, zone: 26, shots: 5, chargeSec: 72, slowRate: 0.35, shotPay: 120, dropFirst: 30, dropEvery: 42, dropFaster: 5, dropMin: 20,
+              dropSize: [5, 12], dropDist: [150, 220], repair: 30, shipOff: [0, -260] },
     // dome (squids): a shield dome (R) over a couple of warp-ship bases (bases, baseR from the middle) and the generator tower at
     //   its middle, with nodes beside the tower (nodeR from it, nodeHp). The dome stops every hit from outside it (strikes, the ship
     //   gun, fire from outside); anyone inside can fight. Knock out every node and the dome falls; then destroy the bases.
@@ -576,6 +583,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.52.0',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.53.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

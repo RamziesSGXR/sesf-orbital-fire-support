@@ -41,6 +41,8 @@ export const BIOMES = {
   moon:   { id: 'moon',   speed: 1.15, ping: 1.0, splash: 1.2 },
   // (0.19) Mars: rust, dust and old craters. Only the last stand (sim/laststand.js) is fought there: not in the session's pool.
   mars:   { id: 'mars',   speed: 1.0,  ping: 1.1, splash: 1.1, pool: false },
+  // (0.53) the capital's outskirts: city blocks. The defence gun's ground (the campaign's finale, and some offers against squids)
+  city:   { id: 'city',   speed: 1.0,  ping: 0.9, splash: 1.0, pool: false },
 };
 for (const b of Object.values(BIOMES)) Object.defineProperty(b, 'name', { get: () => t(`biome.${b.id}`), enumerable: true });
 

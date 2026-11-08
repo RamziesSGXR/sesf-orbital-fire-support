@@ -1218,7 +1218,7 @@ export class Renderer {
     if (task && task.kind !== 'main') items.push({ x: task.x, y: task.y, col: task.kind === 'base' ? '#c8d2cc' : '#7fd8ff', label: tr(TASK_LABEL[task.kind] || 'lab.base') });
     if (m.phase === 'objective' && ao) {
       const g = ao.type === 'vip' ? (ao.state === 'carry' || ao.state === 'deliver' ? { x: ao.dx, y: ao.dy } : { x: ao.vip.x, y: ao.vip.y }) : { x: ao.x, y: ao.y };
-      items.push({ x: g.x, y: g.y, col: '#ffe600', obj: true, label: tr(ao.type === 'nuke' ? 'lab.launch' : ao.type === 'vip' ? (ao.state === 'carry' || ao.state === 'deliver' ? 'lab.pickup' : 'lab.vip') : ao.type === 'evac' ? 'lab.evac' : ao.type === 'oil' ? 'lab.oil' : ao.type === 'cannon' ? 'lab.cannon' : ao.type === 'dome' ? 'lab.dome' : 'lab.citadel') });
+      items.push({ x: g.x, y: g.y, col: '#ffe600', obj: true, label: tr(ao.type === 'nuke' ? 'lab.launch' : ao.type === 'vip' ? (ao.state === 'carry' || ao.state === 'deliver' ? 'lab.pickup' : 'lab.vip') : ao.type === 'evac' ? 'lab.evac' : ao.type === 'oil' ? 'lab.oil' : ao.type === 'cannon' ? 'lab.cannon' : ao.type === 'dome' ? 'lab.dome' : ao.type === 'gun' ? 'lab.gun' : 'lab.citadel') });
     }
     if (m.extraction.revealed && m.phase === 'extract') items.push({ x: m.extraction.x, y: m.extraction.y, col: '#ffe600', obj: true, label: tr('lab.extract') });   // (an arrow only once it is live)
     for (const p of m.pods) if (p.type === 'H' && !p.start) items.push({ x: p.x, y: p.y, col: '#ffe600', label: tr('lab.drop') });
@@ -1456,7 +1456,7 @@ export class Renderer {
       if (o.type === 'vip') { lab(o.vip.x, o.vip.y, tr('lab.vip'), '#ffe600'); lab(o.dx, o.dy, tr('lab.pickup'), '#ffe600'); }
       else if (o.type === 'evac') lab(o.x, o.y, tr('lab.evac'), '#ffe600');
       else if (o.type === 'nuke') lab(o.x, o.y, tr('lab.launchSite'), '#ffe600');
-      else if (o.type === 'oil' || o.type === 'cannon' || o.type === 'dome') lab(o.x, o.y, tr('lab.' + o.type), '#ffe600');
+      else if (o.type === 'oil' || o.type === 'cannon' || o.type === 'dome' || o.type === 'gun') lab(o.x, o.y, tr('lab.' + o.type), '#ffe600');
       else lab(o.x, o.y, tr('lab.citadel'), '#ffe600');
     }
     if (m.extraction.revealed) lab(m.extraction.x, m.extraction.y, tr(m.extraction.state === 'open' ? 'lab.extract' : 'lab.extractCalled'), '#ffe600');
@@ -1535,6 +1535,7 @@ export class Renderer {
         c.fillStyle = '#ffffff'; c.beginPath(); c.arc((sh.sx + (sh.x - sh.sx) * g) * k, (sh.sy + (sh.y - sh.sy) * g) * k, 2.5, 0, TAU); c.fill(); c.fillStyle = '#ffe600';
       }
       else if (o.type === 'oil') { c.beginPath(); c.arc(o.x * k, o.y * k, 5, 0, TAU); c.stroke(); c.fillRect(o.x * k - 1, o.y * k - 5, 2, 5); }
+      else if (o.type === 'gun') { c.fillStyle = '#ffe600'; c.beginPath(); c.moveTo(o.x * k, o.y * k - 6); c.lineTo(o.x * k + 4, o.y * k + 4); c.lineTo(o.x * k - 4, o.y * k + 4); c.closePath(); c.fill(); }     // (0.53) the defence gun
       else if (o.type === 'dome') { if (o.dome.up) { c.strokeStyle = 'rgba(170,225,255,0.9)'; c.beginPath(); c.arc(o.x * k, o.y * k, Math.max(6, o.dome.r * k), 0, TAU); c.stroke(); } }
       else if (o.type === 'cannon') { c.beginPath(); c.arc(o.x * k, o.y * k, 7, 0, TAU); c.stroke(); }
       else if (o.type === 'evac') {

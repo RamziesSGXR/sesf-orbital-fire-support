@@ -50,7 +50,7 @@ function mainBusy(m) {
   const o = activeObjective(m);
   if (!o) return false;
   // a VIP once picked up stays the job until delivered, even when dropped: nobody wanders off to a base and leaves them lying there
-  return (o.type === 'nuke' && o.state !== 'travel') || (o.type === 'vip' && (o.state !== 'travel' || o.picked)) || (o.type === 'evac' && o.state !== 'travel') || (o.type === 'oil' && o.state !== 'travel') || (o.type === 'fortress' && !!m.hellbomb && m.hellbomb.o === o);
+  return (o.type === 'nuke' && o.state !== 'travel') || (o.type === 'vip' && (o.state !== 'travel' || o.picked)) || (o.type === 'evac' && o.state !== 'travel') || (o.type === 'oil' && o.state !== 'travel') || (o.type === 'gun' && o.state !== 'travel') || (o.type === 'fortress' && !!m.hellbomb && m.hellbomb.o === o);
 }
 
 // A rough tour of the open tasks from p, nearest first: total seconds and where it ends.

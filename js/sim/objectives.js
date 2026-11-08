@@ -4,6 +4,7 @@ import { addSpawners } from './spawners.js';
 import { alertRaise } from './alert.js';
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
+import { setupGun, updateGun, gunStatus } from './gun.js';
 import { OP_OF, OP_TYPES, setupOil, setupCannon, setupDome, setupKeep, updateOil, updateCannon, updateDome, updateKeep, hellbombGoal, keepStatus } from './ops.js';
 import { openTasks } from './planner.js';
 import { COMMS } from '../data/data.js';
@@ -21,7 +22,7 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
 // The name of each objective type, in the current language (obj.name.<type>).
 export const OBJ_NAME = {};
-for (const k of ['nuke', 'vip', 'fortress', 'evac', 'oil', 'cannon', 'dome']) Object.defineProperty(OBJ_NAME, k, { get: () => tr('obj.name.' + k), enumerable: true });
+for (const k of ['nuke', 'vip', 'fortress', 'evac', 'oil', 'cannon', 'dome', 'gun']) Object.defineProperty(OBJ_NAME, k, { get: () => tr('obj.name.' + k), enumerable: true });
 
 // A random point that keeps its distance from everything in avoids ({x, y, r}). Relaxes if the map is crowded.
 // near ({x, y, r}), when given, keeps the point within reach of the landing zone (early missions keep their objectives close).
@@ -41,6 +42,16 @@ export function findSpot(m, avoids, margin = 130, near = null) {
   return { x: aoX(m, l.x, 20), y: aoY(m, l.y, 20) };
 }
 
+// (0.53) a spot with open ground all round it (no building or deep water within 22 m), for the defence gun
+function openSpot(m, av, near) {
+  for (let i = 0; i < 30; i++) {
+    const p = findSpot(m, av, 140, near), T = m.terrain;
+    let ok = true;
+    for (let k = 0; k < 12 && ok; k++) { const a = (k / 12) * Math.PI * 2; for (const r of [10, 22]) if (T.blocked(p.x + Math.cos(a) * r, p.y + Math.sin(a) * r)) ok = false; }
+    if (ok) return p;
+  }
+  return findSpot(m, av, 140, near);
+}
 export function setupObjectives(m, forced) {
   const rng = m.rng, lz = { x: m.lz.x, y: m.lz.y, r: aoScale(m, O.minFromLz) };
   const pool = [...TYPES, OP_OF[m.faction.id]].filter(Boolean);       // (0.18: each faction has an operation of its own too)
@@ -78,6 +89,8 @@ export function setupObjectives(m, forced) {
       }
       o = { type, state: 'travel', x: site.p.x, y: site.p.y, r: E.r, sx: site.s.x, sy: site.s.y, hx: site.h.x, hy: site.h.y,
             released: 0, saved: 0, lost: 0, load: 0, shuttles: 0, batchT: 0, open: false, get text() { return COMMS.objEvac; } };
+    } else if (type === 'gun') {
+      o = setupGun(m, openSpot(m, av, near));     // (0.53) the defence gun, in the open
     } else if (type === 'oil') {
       o = setupOil(m, findSpot(m, av, 150, near));
     } else if (type === 'cannon') {
@@ -141,6 +154,7 @@ export function objectiveGoal(m) {
   if (!o) return null;
   if (o.type === 'fortress') { const hg = hellbombGoal(m, o); return hg ? { o, ...hg } : { o, base: nextPart(m, o) }; }
   if (o.type === 'oil') return { o, x: o.x, y: o.y, stop: 12 };
+  if (o.type === 'gun') return { o, x: o.x, y: o.y, stop: 14 };
   if (o.type === 'cannon') return { o, base: o.base };
   if (o.type === 'dome') return { o, base: nextDomePart(m, o) };
   if (o.type === 'nuke') return { o, x: o.x, y: o.y, stop: 14 };
@@ -160,7 +174,7 @@ const waveSize = (m) => (m.pressure >= 1.7 ? 1 : 0);
 // The enemy closes in on an objective while it is being worked: its backup calls come faster and bigger the longer the squad
 // stays at it (CONFIG.siege). Four Helldivers alone are ground down by it; fire support from the gunner is what holds a site.
 // (0.40) A site the squad holds (DEFEND) is what the enemy wants them off most: it comes harder there (CONFIG.siege.defend).
-const DEFEND = new Set(['nuke', 'evac', 'oil']);
+const DEFEND = new Set(['nuke', 'evac', 'oil', 'gun']);
 export const defended = (o) => DEFEND.has(o.type) || (o.type === 'vip' && o.state === 'deliver');
 export function siege(m, o, x, y, dt, mul = 1) {
   const G = C.siege, D = defended(o) ? G.defend : null, every = D ? D.every : G.every, minEvery = D ? D.minEvery : G.minEvery;
@@ -338,6 +352,7 @@ export function updateObjectives(m, dt) {
     else if (o.type === 'vip') updateVip(m, o, dt);
     else if (o.type === 'evac') updateEvac(m, o, dt);
     else if (o.type === 'oil') updateOil(m, o, dt, FNS);
+    else if (o.type === 'gun') updateGun(m, o, dt, FNS);
     else if (o.type === 'cannon') updateCannon(m, o, dt, FNS);
     else if (o.type === 'dome') updateDome(m, o, dt, FNS);
     else if (o.type === 'fortress') {
@@ -389,6 +404,7 @@ export function objectiveStatus(m) {
     if (o.state === 'load') return { text: tr('obj.oil.load', { n: o.trips + 1, of: K.trips }), p: (o.trips + 1) / K.trips, urgent: true };
     return { text: tr(o.onPump ? 'obj.oil.onPump' : 'obj.oil.pump', { p: Math.round(o.fill * 100), n: o.trips + 1, of: K.trips }), p: (o.trips + o.fill) / K.trips, urgent: !!o.onPump };
   }
+  if (o.type === 'gun') return gunStatus(m, o, of);
   if (o.type === 'cannon') return { text: tr('obj.cannon', { n: Math.max(0, Math.ceil((o.base.hp / o.base.maxHp) * 100)), of }), p: 1 - o.base.hp / o.base.maxHp };
   if (o.type === 'dome') {
     if (o.dome.up) { const n = o.nodes.filter((b) => !b.destroyed).length; return { text: tr('obj.dome.nodes', { n, of }), p: 1 - n / o.nodes.length }; }

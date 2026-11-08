@@ -15,17 +15,17 @@ const errs = []; page.on('pageerror', (e) => errs.push(String(e)));
 const ev = (f, a) => page.evaluate(f, a);
 const tap = (q) => (touch ? page.tap(q) : page.click(q));
 // a campaign run that cleared chapters 1 and 2 (the checkpoint after each), and a run under way at chapter 3
-const run = (n) => ({ startedAt: Date.now(), callsign: 'VISTA', difficulty: 4, op: 'Operation Freedom Vista', story: { id: 'ember', ch: 1 }, missions: Array.from({ length: n }, (_, i) => ({ op: 'Operation Freedom Vista: X', faction: 'bugs', biome: 'desert', outcome: 'victory', score: 500, seconds: 300, kills: 50 })), score: 500 * n, seconds: 300 * n });
-await page.addInitScript(([c1, c2]) => { try { if (sessionStorage.getItem('ui37')) return; sessionStorage.setItem('ui37', '1'); localStorage.clear(); localStorage.setItem('ofs.notice', 'true');
+const run = (n) => ({ startedAt: Date.now(), callsign: 'VISTA', difficulty: 4, op: 'Operation Sweet Liberty', story: { id: 'liberty', ch: 1 }, missions: Array.from({ length: n }, (_, i) => ({ op: 'Operation Sweet Liberty: X', faction: 'bugs', biome: 'desert', outcome: 'victory', score: 500, seconds: 300, kills: 50 })), score: 500 * n, seconds: 300 * n });
+await page.addInitScript(([c1, c2]) => { try { if (sessionStorage.getItem('ui37')) return; sessionStorage.setItem('ui37', '1'); localStorage.clear(); localStorage.setItem('ofs.notice', 'true'); localStorage.setItem('ofs.saveVer', '2');
   localStorage.setItem('ofs.campaign', JSON.stringify({ done: [1, 2], ck: { 1: c1, 2: c2 } })); localStorage.setItem('ofs.campRun', JSON.stringify(c2)); } catch (e) { /* */ } }, [run(1), run(2)]);
 await page.goto(`file://${ROOT}/dist/orbital-fury.html`); await page.waitForTimeout(1000);
 
-check('the campaign\'s line on the title says where it stands', /chapter 3 of 5/.test(await page.textContent('#tt-cp-sub')), await page.textContent('#tt-cp-sub'));
+check('the campaign\'s line on the title says where it stands', /chapter 3 of 10/.test(await page.textContent('#tt-cp-sub')), await page.textContent('#tt-cp-sub'));
 await tap('#btn-campaign'); await page.waitForTimeout(500);
 const cp = await ev(() => [...document.querySelectorAll('.cp-ch')].map((li) => ({ done: li.classList.contains('done'), locked: li.classList.contains('locked'), run: li.classList.contains('run'), btns: [...li.querySelectorAll('.btn')].map((b) => b.textContent) })));
-check('chapters 1 and 2 cleared (REPLAY), chapter 3 open with CONTINUE for the run under way, 4 and 5 locked',
-  cp[0].done && cp[1].done && /REPLAY/.test(cp[0].btns.join()) && cp[2].run && cp[2].btns.some((b) => /CONTINUE/.test(b)) && cp[3].locked && cp[4].locked, JSON.stringify(cp.map((c) => [c.done, c.locked, c.run, c.btns.join('/')])));
-check('the progress line counts them', /2 of 5/.test(await page.textContent('#cp-prog')));
+check('chapters 1 and 2 cleared (REPLAY), chapter 3 open with CONTINUE for the run under way, 4 to 10 locked',
+  cp[0].done && cp[1].done && /REPLAY/.test(cp[0].btns.join()) && cp[2].run && cp[2].btns.some((b) => /CONTINUE/.test(b)) && cp.slice(3).every((c) => c.locked) && cp.length === 10, JSON.stringify(cp.map((c) => [c.done, c.locked, c.run, c.btns.join('/')])));
+check('the progress line counts them', /2 of 10/.test(await page.textContent('#cp-prog')));
 // PLAY CHAPTER 3: a new run from where chapter 2 was cleared
 await ev(() => [...document.querySelectorAll('.cp-ch')][2].querySelectorAll('.btn')[1].click()); await page.waitForTimeout(400);
 const lk = await ev(() => ({ on: document.getElementById('s-lock').classList.contains('on'), sub: document.getElementById('lock-sub').textContent, enemy: !!document.getElementById('enemy-row').offsetParent }));
@@ -38,10 +38,10 @@ check('...and CANCEL comes back to it', await ev(() => document.getElementById('
 await page.fill('#callsign', 'kestrel');
 await tap('#btn-lock'); await page.waitForTimeout(600);
 const s3 = await ev(() => { const s = window.__game.session; return { st: window.__game.state, n: s.missions.length, ch: s.story && s.story.ch, cs: s.callsign, op: s.op }; });
-check('START: the run carries on from chapter 2 (its two missions), its next mission chapter 3, under the operation\'s name', s3.st === 'shop' && s3.n === 2 && s3.ch === 1 && s3.cs === 'KESTREL' && s3.op === 'Operation Freedom Vista', JSON.stringify(s3));
+check('START: the run carries on from chapter 2 (its two missions), its next mission chapter 3, under the operation\'s name', s3.st === 'shop' && s3.n === 2 && s3.ch === 1 && s3.cs === 'KESTREL' && s3.op === 'Operation Sweet Liberty', JSON.stringify(s3));
 await tap('#shop-go'); await page.waitForTimeout(500);
 await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
-check('the briefing is chapter 3: the night, the VIP', await ev(() => window.__game.info.chapter === 3 && (window.__game.info.ovObj || []).join() === 'vip'));
+check('(0.53) the briefing is chapter 3: the hive citadel', await ev(() => window.__game.info.chapter === 3 && (window.__game.info.ovObj || []).join() === 'fortress'));
 // back to the title: the campaign run is kept, QUICK PLAY's slot untouched
 await ev(() => window.__game.goHome()); await page.waitForTimeout(500);
 check('MAIN MENU keeps the campaign run in its own save; QUICK PLAY has none', await ev(() => !!localStorage.getItem('ofs.campRun') && !localStorage.getItem('ofs.session') && document.getElementById('btn-resume').classList.contains('hidden')));

@@ -25,6 +25,43 @@ function rgba(hex, a) {
 }
 
 // ---------- zones: fire, gas, EMS, smoke ----------
+// (0.53) The planetary defence gun: a round armoured base, a turret ring and a long barrel aimed up at the sky; while it charges,
+// coils glow along the barrel; a shot is a column of light. The mothership hangs overhead as a vast dark shape whose cracks spread
+// with every shot, and it falls burning when the last one lands.
+function drawGun(ctx, m, o, now, px) {
+  const g = o.gun, t = m.t, since = t - g.firedAt;
+  // the mothership: an enormous shadow over the plaza, with its lights; every shot cracks it
+  const sh = o.ship, done = o.done, fall = done ? Math.min(1, (t - (o.doneAt ?? t)) / 6) : 0;
+  ctx.save();
+  ctx.translate(sh.x, sh.y + fall * 120); ctx.rotate(0.12 + fall * 0.5);
+  ctx.globalAlpha = 0.55 * (1 - fall * 0.8);
+  ctx.fillStyle = '#05040a';
+  ctx.beginPath(); ctx.ellipse(0, 0, 230, 80, 0, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-260, 0); ctx.lineTo(-120, -40); ctx.lineTo(120, -40); ctx.lineTo(260, 0); ctx.lineTo(120, 40); ctx.lineTo(-120, 40); ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 0.9 * (1 - fall);
+  for (let k = 0; k < 14; k++) { const a = (k / 14) * TAU; ctx.fillStyle = `rgba(190,130,255,${0.5 + 0.4 * Math.sin(now * 2 + k)})`; ctx.beginPath(); ctx.arc(Math.cos(a) * 190, Math.sin(a) * 60, 3, 0, TAU); ctx.fill(); }
+  ctx.strokeStyle = 'rgba(255,140,60,0.85)'; ctx.lineWidth = 3;
+  for (let k = 0; k < o.shots; k++) { const a = k * 2.1 + 0.4; ctx.beginPath(); ctx.moveTo(Math.cos(a) * 30, Math.sin(a) * 12); ctx.lineTo(Math.cos(a) * 150, Math.sin(a) * 55 + 10 * Math.sin(k)); ctx.stroke(); }
+  if (fall > 0) { ctx.globalAlpha = 1 - fall; ctx.fillStyle = 'rgba(255,160,60,0.6)'; for (let k = 0; k < 8; k++) { ctx.beginPath(); ctx.arc(Math.sin(k * 7) * 180, Math.cos(k * 5) * 50, 20 + 30 * fall, 0, TAU); ctx.fill(); } }
+  ctx.restore();
+  // the shot: a column of light from the barrel to the ship, fading
+  if (since < 1.2) {
+    const a = 1 - since / 1.2;
+    ctx.strokeStyle = `rgba(160,230,255,${a})`; ctx.lineWidth = px(10) * a + 2; ctx.beginPath(); ctx.moveTo(g.x, g.y); ctx.lineTo(sh.x, sh.y); ctx.stroke();
+    ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = px(3) * a + 1; ctx.stroke();
+    ctx.fillStyle = `rgba(200,240,255,${0.5 * a})`; ctx.beginPath(); ctx.arc(g.x, g.y, g.r + 10 * (1 - a), 0, TAU); ctx.fill();
+  }
+  // the gun
+  ctx.save(); ctx.translate(g.x, g.y);
+  ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.arc(1.2, 1.2, g.r + 1.5, 0, TAU); ctx.fill();
+  ctx.fillStyle = g.dead ? '#2a2a2a' : '#5b616a'; ctx.beginPath(); ctx.arc(0, 0, g.r, 0, TAU); ctx.fill();
+  ctx.strokeStyle = '#ffe600'; ctx.lineWidth = Math.max(0.3, px(1.6)); ctx.beginPath(); ctx.arc(0, 0, g.r - 1, 0, TAU); ctx.stroke();
+  ctx.fillStyle = '#3a3f46'; ctx.beginPath(); ctx.arc(0, 0, g.r * 0.6, 0, TAU); ctx.fill();
+  ctx.rotate(g.aim);
+  ctx.fillStyle = '#2b2f35'; ctx.fillRect(0, -1.6, g.r * 2.2, 3.2);
+  if (!g.dead && o.state === 'fire') for (let k = 0; k < 5; k++) { const on = g.charge * 5 > k; ctx.fillStyle = on ? `rgba(120,220,255,${0.6 + 0.4 * Math.sin(now * 8 + k)})` : 'rgba(60,80,90,0.8)'; ctx.fillRect(g.r * 0.4 + k * g.r * 0.34, -2.2, g.r * 0.2, 4.4); }
+  ctx.restore();
+}
 export function drawZones(ctx, m, now, px) {
   const t = m.t;
   for (const z of m.zones) {
@@ -273,6 +310,15 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
         if (hb.state === 'landed') labels.push({ x: hb.x, y: hb.y, dy: -14, text: tr('lab.hbArm'), col: '#7dff9b', pri: 3 });
         if (hb.state === 'armed') labels.push({ x: hb.x, y: hb.y, dy: -14, text: tr('lab.hbRun', { n: Math.max(0, Math.ceil(hb.fuseAt - m.t)) }), col: '#ff6a4a', pri: 3 });
       }
+    } else if (o.type === 'gun') {
+      drawGun(ctx, m, o, now, px);
+      ctx.strokeStyle = col; ctx.lineWidth = px(active ? 2.2 : 1.4);
+      ctx.setLineDash([px(8), px(6)]); ctx.lineDashOffset = -now * px(8); ring(ctx, o.x, o.y, o.r); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      const g = o.gun;
+      if (!o.done && o.state === 'fire') { ctx.strokeStyle = '#7de0ff'; ctx.lineWidth = px(4); ctx.beginPath(); ctx.arc(o.x, o.y, o.r + px(6), -Math.PI / 2, -Math.PI / 2 + TAU * g.charge); ctx.stroke(); }
+      if (g.hp < g.maxHp && !g.dead) { const w = Math.max(14, px(40)), f = Math.max(0, g.hp / g.maxHp); ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(o.x - w / 2, o.y + o.r + px(10), w, px(4)); ctx.fillStyle = f > 0.4 ? '#7dff9b' : '#ff4a4a'; ctx.fillRect(o.x - w / 2, o.y + o.r + px(10), w * f, px(4)); }
+      const txt = o.done ? tr('lab.gunDone') : o.state === 'fire' ? tr('lab.gunFire', { n: o.shots + 1, of: o.need, p: Math.round(g.charge * 100) }) : tr('lab.gun');
+      labels.push({ x: o.x, y: o.y, dy: -Math.max(o.r * scale, 12) - 6, text: txt, col: o.done ? '#7dff9b' : g.hp < g.maxHp * 0.4 ? '#ff6a4a' : '#ffe600', pri: 2 });
     } else if (o.type === 'oil') {
       drawOilSite(ctx, o, now, px);
       ctx.strokeStyle = col; ctx.lineWidth = px(active ? 2.2 : 1.4);

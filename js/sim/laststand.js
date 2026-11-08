@@ -3,7 +3,8 @@
 // personnel run from the shelter to the hangar (the evacuation objective, civilians.js) and every Pelican that lifts takes a load
 // of them up to the fleet. The lessons (tutorial.js) come first, against small scripted groups; then the shelter opens and the
 // Great Host comes in waves that never stop, faster, bigger and stronger each time, until the last Helldiver falls. Then the fleet
-// glasses the plain (a rain of beams across the map) and the mission ends 'glassed'.
+// glasses the plain (a rain of beams across the map) and the mission ends 'glassed'. (0.53) It can be won: at winAt off Mars it is
+// MISSION COMPLETE, and the player fights on to the end or moves on (into the campaign, or to the main menu).
 import { CONFIG as C } from '../config.js';
 import { makePost } from './posts.js';
 import { rollRoles, setSquadOrder, pendingTroops } from './seaf.js';
@@ -164,6 +165,9 @@ export function updateLastStand(m, dt) {
     // (0.40) at 100 off Mars (or once it turns overwhelming, if that comes first) Tharsis Control says it: they will not all get
     // off. The tutorial's card holds the game for it (tutorial.js), and it goes on the radio log (main.js).
     if (!ls.truth && (saved >= K.truthAt || ls.st === S.length - 1)) { ls.truth = true; m.emit('ls_stage', { stage: 'truth', saved }); }
+    // (0.53) the tutorial can be won: enough off Mars and it is MISSION COMPLETE (no extraction: the Helldivers stay). The player
+    // picks: fight on to the end, or move on (main.js)
+    if (!ls.complete && saved >= K.winAt) { ls.complete = true; ls.completeT = m.t; m.objDone = true; m.emit('ls_stage', { stage: 'complete', saved }); }
     const Q = S[ls.st || 0], over = ls.overAt !== undefined ? (ls.holdT - ls.overAt) / 60 : 0;
     // tougher and harder-hitting a little every minute, and fast once it is overwhelming (director.js multiplies by ls.dmg)
     ls.dmg = 1 + K.dmgGrow * 0.35 * min + (Q.dmgPerMin || 0) * over;

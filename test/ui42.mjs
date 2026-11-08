@@ -94,7 +94,7 @@ check('the tutorial\'s card keeps off the minimap\'s column (MAP, the camera and
 await ev(() => { const o = document.getElementById('tut-ok'); if (o) o.click(); }); await page.waitForTimeout(400);
 await ev(() => { const m = window.__game.mission; m.stats.kills.L += 12; }); await page.waitForTimeout(800);
 const ask = await ev(() => { const a = document.getElementById('ask'), tt = document.getElementById('toast'); return { ask: !a.classList.contains('hidden'), toast: tt.classList.contains('show'), txt: tt.textContent, paid: window.__game.mission.wallet.bal }; });
-check('the tutorial\'s rank on a phone: one short line low on the screen for a moment, nothing to answer (the bonus paid)', !ask.ask && ask.toast && /^RANK \d · \+[\d,]+ CR/.test(ask.txt) && ask.txt.length < 50, JSON.stringify(ask));
+check('(0.53) the tutorial is on the standard armory: kills bring no rank card or toast, nothing to answer', !ask.ask && !/RANK/.test(ask.txt), JSON.stringify(ask));
 await shot('rank');
 check('no page errors', errs.length === 0, errs.slice(0, 3).join(' | '));
 await browser.close();

@@ -112,7 +112,7 @@ const mk = (seed, fac = 'bots', n = 2) => new Mission({ seed, faction: fac, biom
   // the cast teaches on the radio: chapter 1's lessons come up as the mission goes, each once, each with its tip
   const ch = STORY.chapters[0], p = ch.play, said = [], tips = [];
   const m = new Mission({ seed: p.seed, faction: p.faction, biome: p.biome, events: true, sessionMinutes: 0, missionN: 1, difficulty: 3, countdown: 0, objectives: [p.objective], tod: p.tod });
-  const radio = new CastRadio((c, text, line) => { if (!line.flavor) said.push(text); }, { teach: ch.teach, tip: (x) => tips.push(x) });
+  const radio = new CastRadio((c, text, line) => { if (!line.flavor) said.push(text); }, { teach: [...ch.teach, 'gun', 'seaf', 'orders'], tip: (x) => tips.push(x) });     // (0.53: chapter 1 teaches building and resupply; the basics are the tutorial's, but the radio can still teach them)
   m.deployNow();
   for (let i = 0; i < 30 * 150 && !m.over; i++) {
     m.step(dt);
@@ -121,7 +121,7 @@ const mk = (seed, fac = 'bots', n = 2) => new Mission({ seed, faction: fac, biom
     radio.tick(m);
     if (i === 30 * 20) { m.seaf.readyAt = 0; m.callSeaf(m.hx + 10, m.hy + 10); }
   }
-  check('(0.38) chapter 1 teaches the ship gun, SEAF drops and orders on the radio, with a tip for each', ['gun', 'seaf', 'orders'].every((k) => radio.taught.has(k)) && tips.length >= 3 && tips.some((x) => /SHIP GUN/.test(x)), `${[...radio.taught]} · ${tips.length} tips`);
+  check('(0.38) the cast teaches on the radio as it comes up (chapter 1: building; and the ship gun, SEAF drops and orders), with a tip for each', ['build', 'gun', 'seaf', 'orders'].every((k) => radio.taught.has(k)) && tips.length >= 4 && tips.some((x) => /SHIP GUN/.test(x)), `${[...radio.taught]} · ${tips.length} tips`);
   check('(0.38) a lesson is said once', said.filter((x) => /destroyer\'s gun is yours/.test(x)).length === 1);
 }
 

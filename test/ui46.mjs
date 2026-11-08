@@ -33,7 +33,7 @@ const newOp = async (name) => { await click('btn-play'); await wait(250); await 
 const home = async () => { await ev(() => window.__game.goHome()); await wait(200); await ev(() => window.__game.goHome()); await wait(300); };
 
 await page.goto(PAGE); await wait(300);
-await ev(() => { localStorage.clear(); localStorage.setItem('ofs.notice', 'true'); });
+await ev(() => { localStorage.clear(); localStorage.setItem('ofs.notice', 'true'); localStorage.setItem('ofs.saveVer', '2'); });
 await page.goto(PAGE); await wait(900);
 
 // ---------------------------------------------------------------- the title

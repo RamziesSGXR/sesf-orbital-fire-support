@@ -37,6 +37,10 @@ const WIN_MEL = [[0, 76, 4], [4, 81, 4], [8, 85, 8], [16, 83, 8], [24, 81, 8], [
   [72, 81, 8], [80, 85, 12], [92, 83, 4], [96, 81, 8], [104, 78, 8], [112, 76, 16]];
 const LOSE_MEL = [[0, 69, 16], [16, 65, 8], [24, 64, 8], [32, 67, 16], [48, 70, 8], [56, 69, 8], [64, 65, 16], [80, 62, 8], [88, 65, 8],
   [96, 64, 12], [108, 61, 4], [112, 57, 16]];
+// (0.53) LAST LIGHT, the defence gun's theme: a horn call over the gun's charge (one phrase per 64 steps, the answer an octave up)
+const GUN_MEL = [[0, 62, 6], [6, 65, 2], [8, 69, 8], [16, 70, 6], [22, 69, 2], [24, 67, 8], [32, 69, 12], [44, 65, 4], [48, 64, 16]];
+const GUN_ANS = [[0, 74, 6], [6, 72, 2], [8, 70, 8], [16, 69, 6], [22, 67, 2], [24, 65, 8], [32, 64, 8], [40, 61, 8], [48, 62, 16]];
+const GUN_BASS = [1, 1, 1, 2, 1, 1, 1.5, 2];                                    // the gun's 8th-note bass, over the root
 const PULSE = [2, 2, 4, 2, 2, 3, 2, 4];                                          // a pulse's notes, as multiples of the root, one per 8th
 const SWARM_OST = [1, 1, 2, 1, 1, 1, 1.5, 1, 1, 1, 2, 1, 1.0595, 1, 1.5, 2];   // the swarm's 16th-note ostinato over the root (x2)
 const IRON_BASS = [1, 1, 2, 1, 1.5, 1, 2, 1.5];                                 // Iron Front's square bass, one per 8th
@@ -106,6 +110,32 @@ const THEMES = {
       if (lv >= 3 && (bar === 4 || bar === 12)) D.snare(t, 0.6);
       if (g.hats > 0) D.hat(t, bar % 4 === 0 ? 0.8 : 0.35);
       if (lv >= 2 && bar === 14 && (i >> 4) % 2 === 1) D.bell(t, ch.pad[2] * 4 * 1.122, 0.03);      // a glint, a whole tone up
+      fillUp(D, i, t);
+    },
+  },
+  gun: {      // (0.53) LAST LIGHT: the defence gun firing on the mothership (the boss fight)
+    bpm: 132, sections: [sec(32, [CH(38, [57, 62, 65]), CH(34, [58, 62, 65]), CH(31, [55, 58, 62]), CH(33, [57, 61, 64])]),     // Dm Bb Gm A
+      sec(32, [CH(34, [58, 62, 65]), CH(36, [55, 60, 64]), CH(29, [57, 60, 65]), CH(33, [57, 61, 64])])],                         // Bb C F A
+    mix: (D) => {
+      const lv = D.level;
+      if (D.M.style === 'ambient') return { drone: 0.85, pad: 0.9, bell: 0.4, lead: 0.5 };
+      return { drone: [0.7, 0.8, 0.9, 1][lv], pad: [0.6, 0.5, 0.4, 0.35][lv], lead: [0.55, 0.7, 0.85, 1][lv], pulse: 1, drums: lv >= 1 ? (lv >= 2 ? 1 : 0.7) : 0.4,
+        hats: lv >= 2 ? 1 : 0, color: lv >= 1 ? 0.8 : 0.4, bell: 0.4 };
+    },
+    play(D, i, t, ch) {
+      const bar = i % 16, lv = D.level, g = D.gains, half = (i >> 6) % 2;
+      if (i % 64 === 0) { D.braam(t, ch.root, 3, lv >= 2 ? 0.8 : 0.55); if (i === 0) D.crash(t, 0.8); }
+      if (i % 64 === 32 && lv >= 2) D.braam(t, ch.root, 2.2, 0.5);
+      melody(D, half ? GUN_ANS : GUN_MEL, i % 64, t, 'horn', 0.075);
+      if (g.pulse > 0 && i % 2 === 0) D.pluck(t, ch.root * GUN_BASS[(i / 2) % 8], bar === 0 ? 1 : 0.7, 0.14, 'square');
+      if (g.drums > 0) {
+        if (bar % 4 === 0) D.taiko(t, bar === 0 ? 1.1 : 0.8);
+        else if (lv >= 2 && (bar === 7 || bar === 15)) D.taiko(t, 0.5);
+        if (bar === 4 || bar === 12) D.snare(t, lv >= 2 ? 0.9 : 0.6);
+      }
+      if (g.color > 0) D.shimmer(t, ch.pad[[0, 1, 2, 1][i % 4]] * 4, bar % 4 === 0 ? 0.028 : 0.016);     // the squids' glitter, over it all
+      if (g.hats > 0 && bar % 2 === 1) D.hat(t, bar % 4 === 3 ? 0.85 : 0.55);
+      if (bar === 0 && i % 32 === 16) D.bell(t, ch.pad[2] * 2, 0.05);     // the gun's charge chime
       fillUp(D, i, t);
     },
   },
@@ -474,7 +504,7 @@ export class Music {
     else if (scene === 'play' && o.run && o.run !== this.run) { this.run = o.run; want = dyn ? 'start' : 'battle'; if (cur === want) want = '+' + want; }
     else if (scene === 'play' || scene === 'pause') {
       if (cur === 'start' && dyn) want = 'start';     // DROP plays out, then hands over itself
-      else want = dyn && this.swarm ? 'horde' : 'battle';
+      else want = dyn && this.swarm && this.theme !== 'gun' ? 'horde' : 'battle';     // (0.53) the boss theme holds through a swarm
     }
     if (want[0] === '+') this.switchTo(want.slice(1));     // the same cue again, from the top (a new mission)
     else if (want !== cur || (want === 'battle' && this.deck && this.deck.def !== this.def('battle'))) this.switchTo(want);

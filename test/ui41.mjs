@@ -22,7 +22,7 @@ fs.mkdirSync(path.join(ROOT, 'test', 'shots'), { recursive: true });
 const shot = (tag) => page.screenshot({ path: path.join(ROOT, 'test', 'shots', `ui41_${mode}_${tag}.png`) });
 // (storage is cleared once, here; the reloads below keep it)
 await page.goto(`file://${ROOT}/dist/orbital-fury.html?skipstart`); await page.waitForTimeout(500);
-await page.evaluate(() => { localStorage.clear(); localStorage.setItem('ofs.notice', 'true'); });
+await page.evaluate(() => { localStorage.clear(); localStorage.setItem('ofs.notice', 'true'); localStorage.setItem('ofs.saveVer', '2'); });
 await page.goto(`file://${ROOT}/dist/orbital-fury.html?skipstart&seed=4141&faction=bots&biome=grass&tod=12`); await page.waitForTimeout(1500);
 const slots = () => ev(() => JSON.parse(localStorage.getItem('ofs.slots') || '[]'));
 const rows = () => ev(() => [...document.querySelectorAll('#sv-list .sv-slot')].map((li) => ({ txt: li.textContent, empty: li.classList.contains('empty'), cur: li.classList.contains('cur'), btns: [...li.querySelectorAll('button')].map((b) => b.textContent) })));
@@ -124,7 +124,7 @@ S = await slots(); r = await rows();
 check('...and then clears the slot', !S[1] && r[1].empty && /Slot 2 cleared/.test(await ev(() => document.getElementById('sv-note').textContent)));
 
 // ---------------------------------------------------------------- a campaign run in a slot
-const camp = await ev(() => { const a = JSON.parse(localStorage.getItem('ofs.slots')); const run = JSON.parse(JSON.stringify(a[0].run)); run.story = { id: 'ember', ch: 2 }; run.missions = [{ ...run.missions[0], chapter: 1 }]; run.held = null; run.slot = 3; run.callsign = 'CAMPER';
+const camp = await ev(() => { const a = JSON.parse(localStorage.getItem('ofs.slots')); const run = JSON.parse(JSON.stringify(a[0].run)); run.story = { id: 'liberty', ch: 2 }; run.missions = [{ ...run.missions[0], chapter: 1 }]; run.held = null; run.slot = 3; run.callsign = 'CAMPER';
   a[2] = { at: Date.now(), key: 'campRun', run }; localStorage.setItem('ofs.slots', JSON.stringify(a)); return true; });
 await tap('#sv-back'); await page.waitForTimeout(200); await tap('#btn-load-t'); await page.waitForTimeout(300);
 r = await rows();
@@ -135,18 +135,18 @@ check('LOAD carries the campaign run on (as the campaign\'s run; QUICK PLAY\'s i
 
 // ---------------------------------------------------------------- every chapter flown: the run goes on, endless, its armory and all
 const kit0 = await ev(() => { const a = JSON.parse(localStorage.getItem('ofs.slots')); const run = JSON.parse(JSON.stringify(a[0].run));
-  run.story = { id: 'ember', ch: 1 }; run.missions = [1, 2, 3, 4, 5].map((n) => ({ ...run.missions[0], chapter: n, outcome: 'victory' })); run.held = null; delete run.slot; run.wallet.bal = 7777; run.callsign = 'ENDLESS';
+  run.story = { id: 'liberty', ch: 1 }; run.missions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => ({ ...run.missions[0], chapter: n, outcome: 'victory' })); run.held = null; delete run.slot; run.wallet.bal = 7777; run.callsign = 'ENDLESS';
   localStorage.setItem('ofs.campRun', JSON.stringify(run)); return JSON.stringify(run.kit); });
 await page.goto(`file://${ROOT}/dist/orbital-fury.html?skipstart`); await page.waitForTimeout(1500);
 const sub = await ev(() => document.getElementById('tt-cp-sub').textContent);
-check('every chapter flown: the title says the war goes on, at mission 6', /Every chapter flown: the war goes on, mission 6/.test(sub), sub);
+check('every chapter flown: the title says the war goes on, at mission 11 (0.53: ten chapters)', /Every chapter flown: the war goes on, mission 11/.test(sub), sub);
 await tap('#btn-campaign'); await page.waitForTimeout(500);
 const endCard = await ev(() => { const li = document.querySelector('#cp-chs .cp-end'); return li ? { txt: li.textContent, btn: (li.querySelector('button') || {}).textContent } : null; });
-check('the campaign screen carries it on: THE WAR GOES ON, with its armory, and CONTINUE', endCard && /THE WAR GOES ON/.test(endCard.txt) && /mission 6/.test(endCard.txt) && /7,777 CR/.test(endCard.txt) && /CONTINUE · MISSION 6/.test(endCard.btn), endCard && endCard.txt);
+check('the campaign screen carries it on: THE WAR GOES ON, with its armory, and CONTINUE', endCard && /THE WAR GOES ON/.test(endCard.txt) && /mission 11/.test(endCard.txt) && /7,777 CR/.test(endCard.txt) && /CONTINUE · MISSION 11/.test(endCard.btn), endCard && endCard.txt);
 await shot('endless');
 await tap('#cp-chs .cp-end button'); await page.waitForTimeout(800);
 const en = await ev(() => { const g = window.__game; return { shop: document.getElementById('s-shop').classList.contains('on'), eyebrow: document.getElementById('shop-eyebrow').textContent, bal: g.session.wallet.bal, kit: JSON.stringify(g.session.kit), n: g.session.missions.length + 1, story: !!g.session.story }; });
-check('CONTINUE opens the armory with everything the campaign earned: credits, kit and rank', en.shop && en.bal === 7777 && en.kit === kit0 && en.n === 6 && /The campaign is flown and the war goes on/.test(en.eyebrow), `${en.eyebrow} · ${en.bal} CR`);
+check('CONTINUE opens the armory with everything the campaign earned: credits, kit and rank', en.shop && en.bal === 7777 && en.kit === kit0 && en.n === 11 && /The campaign is flown and the war goes on/.test(en.eyebrow), `${en.eyebrow} · ${en.bal} CR`);
 await tap('#shop-go');
 await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
 const info6 = await ev(() => ({ chapter: window.__game.info.chapter, op: window.__game.info.op }));
