@@ -165,6 +165,8 @@ export const COMMS = {
   get rescueSiege() { return t('c.rescueSiege'); },
   rescueDone: (n, sq) => t('c.rescueDone', { n, sq }),
   get fullClear() { return t('c.fullClear'); },
+  get fullClearLate() { return t('c.fullClearLate'); },     // (0.53.7)
+  get timeNoClear() { return t('c.timeNoClear'); },
   fullClearNotice: (cr) => t('n.fullClear', { cr }),
   get noClear() { return t('c.noClear'); },
   get clearOff() { return t('c.clearOff'); },

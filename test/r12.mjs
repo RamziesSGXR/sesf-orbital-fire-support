@@ -9,7 +9,7 @@ import { inAO } from '../js/sim/ao.js';
 import { spawnGroup } from '../js/sim/director.js';
 import { hurtAlly } from '../js/sim/combat.js';
 import { speedMul } from '../js/sim/helldiver.js';
-import { answerTime, openTasks } from '../js/sim/planner.js';
+import { answerTime, openTasks, clearRoll } from '../js/sim/planner.js';
 import { completeObjective } from '../js/sim/objectives.js';
 import { beaconAt } from '../js/sim/sides.js';
 import { siteAt, inCover } from '../js/sim/cover.js';
@@ -132,6 +132,7 @@ const seafReady = (m, n = 5) => { m.seaf.readyAt = 0; m.callSeaf(m.hx + 10, m.hy
   // (0.53.5) players: the squad asked for more time with 20 minutes left, and on a no went straight for extraction. Now they go on
   // task by task while the next one fits, and ask only near the end, once, for the minutes the next task needs.
   const m = quiet('bots', 1207, { missionN: 3 });
+  m.plan.commit = false;     // (0.53.7: a squad playing it safe, as one mission in five)
   for (const o of m.objectives) completeObjective(m, o);
   m.hd.lives = 10; m.limitSec = m.t + 20 * 60;
   m.plan.t = 0; run(m, 1);
@@ -156,11 +157,36 @@ const seafReady = (m, n = 5) => { m.seaf.readyAt = 0; m.callSeaf(m.hx + 10, m.hy
   const again = near(m);
   check('they ask once a mission', !again.q && (m.plan.asks || 0) === 1);
   const n = quiet('bots', 1207, { missionN: 3 });
+  n.plan.commit = false;
   for (const o of n.objectives) completeObjective(n, o);
   n.hd.lives = 10; n.limitSec = n.t + 20 * 60; n.plan.t = 0; run(n, 1);
   const ok = !!near(n).q;
   run(n, C.plan.ask.askSec + 8);
   check('no answer is a no: the squad heads for extraction', ok && n.phase === 'extract' && n.plan.denied, `${n.phase} asked ${ok} denied ${n.plan.denied}`);
+
+  // (0.53.7) the user: the squad should go for an all clear most of the time (80%), even if the mission times out after the objective
+  const rolls = []; for (let sd = 1; sd <= 400; sd++) rolls.push(clearRoll({ seed: sd }));
+  const share = rolls.filter(Boolean).length / rolls.length;
+  check('(0.53.7) four missions in five, the squad is set on a full clear (the mission\'s own roll, from its seed)', C.plan.clearChance === 0.8 && share > 0.74 && share < 0.86 && clearRoll({ seed: 1207 }) === clearRoll({ seed: 1207 }), `${Math.round(share * 100)}% of 400 seeds`);
+  const c = quiet('bots', 1207, { missionN: 3 });
+  c.plan.commit = true;
+  for (const o of c.objectives) completeObjective(c, o);
+  c.hd.lives = 10; c.limitSec = c.t + 45; c.plan.t = 0;
+  const radio = []; const on = c.emit.bind(c); c.emit = (t, d) => { if (t === 'radio') radio.push(d.text); return on(t, d); };
+  run(c, 1);
+  check('(0.53.7) set on the clear with 45 seconds left (nothing fits): they go for it anyway, and say so', c.phase === 'clear' && c.plan.full && !!c.plan.task && radio.some((x) => /clock or no clock/.test(x)), `${c.phase} full ${c.plan.full} ${radio.join(' | ')}`);
+  const cq = near(c).q;
+  check('(0.53.7) ...near the end they still ask for the minutes to get out too', !!cq, cq ? `${cq.min} min` : 'no ask');
+  if (cq) answerTime(c, false);
+  run(c, 2);
+  check('(0.53.7) ...and a no: they finish the clear on the clock they have, not off to extraction', c.phase === 'clear' && c.plan.denied && c.plan.full && !!c.plan.task && radio.some((x) => /Finishing the clear/.test(x)), `${c.phase} ${radio.slice(-1)}`);
+  c.limitSec = c.t + 2; run(c, 4);
+  check('(0.53.7) the clock runs out with the objective done: the mission is complete (not failed)', c.over && c.outcome === 'complete', `${c.outcome}`);
+  const lo = quiet('bots', 1207, { missionN: 3 });
+  lo.plan.commit = true;
+  for (const o of lo.objectives) completeObjective(lo, o);
+  lo.hd.lives = C.plan.clearLives; lo.plan.t = 0; run(lo, 1);
+  check('(0.53.7) set on the clear but down to clearLives lives: they head home', lo.phase === 'extract', lo.phase);
 }
 
 // ---------------------------------------------------------------- SEAF build

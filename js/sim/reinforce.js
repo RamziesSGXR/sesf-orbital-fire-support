@@ -9,7 +9,7 @@
 //          can be shot down too, and everyone aboard goes with it.
 // (0.31) A call can come in at several places at once, from different sides (more often later in a mission, and at extraction).
 // Every number is in CONFIG.reinf.
-import { alertMul } from './alert.js';
+import { alertMul, alertStars, callPressure } from './alert.js';
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { aoX, aoY } from './ao.js';
@@ -32,8 +32,29 @@ function groupsFor(m, extra = 0, count = 1, pMin = 0, maxN = 0) {
   const M = R.multi, more = (count - 1) * M.perExtra;
   const n = Math.min(maxN || R.maxGroups + (count - 1) * M.perCap, R.groups + Math.floor((Math.max(m.pressure, pMin) - 1) * R.perPressure + extra + more));
   const per = m.faction.id === 'bugs' ? R.bugs.pack * R.bugs.packs : 1;     // (a bug hole spills more than a group's worth for each)
-  const room = Math.floor((C.enemies.hardCap - m.enemies.length) / Math.max(1, m.groupSize * per));
+  const size = Math.max(1, m.groupSize * per);
+  let room = Math.floor((C.enemies.hardCap - m.enemies.length) / size);
+  // (0.53.7) an answer to the squad (pMin: the extraction's waves, the drops on the squad) may take the room that patrols wandering
+  // far off are holding: the farthest of them, out of everyone's sight, are taken off the map to make it
+  if (pMin > 0 && room < n) { const freed = makeRoom(m, (n - room) * size); room = Math.floor((C.enemies.hardCap - m.enemies.length + freed) / size); }
   return Math.max(0, Math.min(n, room));
+}
+function makeRoom(m, need) {
+  const far = [];
+  for (const g of m.groups) {
+    if (g.state === 'hunt' || g.garrison || g.reinf) continue;
+    let ok = true, d = Infinity;
+    for (const e of g.members) { if (e.dead) continue; if (!m.beyondRange(e.x, e.y, 150)) { ok = false; break; } d = Math.min(d, Math.hypot(e.x - m.hx, e.y - m.hy)); }
+    if (ok && d < Infinity) far.push({ g, d });
+  }
+  far.sort((a, b) => b.d - a.d);
+  let freed = 0;
+  for (const { g } of far) {
+    if (freed >= need) break;
+    for (const e of g.members) if (!e.dead) { e.dead = true; freed++; m.stats.despawned = (m.stats.despawned || 0) + 1; }
+  }
+  if (freed) m.dirtyE = true;     // (gone from the lists at the end of the tick)
+  return freed;
 }
 // (0.31) From how many places at once: why is the reason for the call; now: mission seconds.
 export function reinfCount(m, why, opts = {}) {
@@ -44,9 +65,10 @@ export function reinfCount(m, why, opts = {}) {
   }
   if (why === 'site') return min >= M.siteMin && m.rrng.next() < M.siteChance ? 2 : 1;
   if (why === 'extract') {
-    const late = min >= M.extractLate ? 1 : 0;
-    if (opts.first) return Math.min(M.extractMax, M.extractCall + late);
-    return Math.min(M.extractMax, 1 + Math.floor(Math.max(0, opts.since || 0) / M.extractStep) + late);
+    // (0.53.7) and from one more side from MOBILIZED (3 stars) up
+    const late = min >= M.extractLate ? 1 : 0, hot = Math.floor(alertStars(m) / M.extractHot), max = M.extractMax + hot;
+    if (opts.first) return Math.min(max, M.extractCall + late + hot);
+    return Math.min(max, 1 + Math.floor(Math.max(0, opts.since || 0) / M.extractStep) + late + hot);
   }
   return 1;
 }

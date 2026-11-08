@@ -101,7 +101,8 @@ export const CONFIG = {
   leader:   { r: 22, rof: 0.12, rofUp: 0.06, acc: 0.08, accUp: 0.04 },
   spotter:  { coolSec: 70, minGroup: 6, minDist: 26, n: 7, len: 24, dmg: 240, splash: 8.5, delay: 5, span: 1.2, range: 150 },
   // (0.40) a squad wiped out drops again together, wipeD metres from where it fell (on the quietest side, never near the map's edge)
-  wipe:     { d: [110, 170], quietR: 80, edge: 70, spread: 8 },
+  // (0.53.7) padD: once the pelican is called, a wiped squad comes down this far from the pad instead
+  wipe:     { d: [110, 170], padD: [18, 34], quietR: 80, edge: 70, spread: 8 },
   squad:    { speed: 6, chaseSpeed: 8.5, engageRange: 38, pushAfterSec: 45,
               clusterRadius: 15, setupSec: 5, setupCooldownSec: 15, carrySlow: 0.85, fightOnSec: 12, fightOnSpeed: 0.5, spotRange: 95 },
   // Bases and the citadel. The Helldivers destroy them with rifles, support weapons and stratagems, exactly as the destroyer
@@ -303,7 +304,9 @@ export const CONFIG = {
   // (minutes rounded up, at most maxMin, costing perMin credits a minute; the player has askSec to answer; asks per mission).
   // (0.39) Holding orbit over the zone burns the destroyer's fuel: each minute costs perMinIn more of perMin for every minute the
   // mission has run so far.
-  plan:     { detour: 320, reserve: 150, clearLives: 3, every: 6, keepR: 70, pace: 0.5, extractPad: 30,
+  // (0.53.7) clearChance: how many missions out of a hundred the squad is set on a full clear once the objective is done (whether
+  // the clock covers it or not; with more than clearLives lives)
+  plan:     { detour: 320, reserve: 150, clearLives: 3, clearChance: 0.8, every: 6, keepR: 70, pace: 0.5, extractPad: 30,
               ask: { maxMin: 2, nearEnd: 300, perMin: 60, perMinIn: 0.1, askSec: 30, asks: 1 },     // (0.48: 2 minutes at a time, dearer, raising the alert; 0.53.5: once a mission, only in its last 5 minutes)
               // (0.40) breaking off a losing fight: `deaths` Helldivers down within deathR of the squad inside deathSec, or a wave of
               // hunting enemies within waveR weighing more than `wave` (w per kind; less with fewer Helldivers up), and the squad
@@ -405,7 +408,9 @@ export const CONFIG = {
   // off-map patrols' gap and multiplies flare calls by 1 + pressure x stars. hunt / heavy / drop / boss: the stars those responses
   // start at (drops every dropEvery / (1 + stars past drop) seconds, dropDist metres from the squad; the super heavy once, by
   // bossChance).
-  alert: { max: 5, spikeMax: 2, quietSec: 20, fadeSec: 30, part: 0.5, pressure: 0.2, hunt: 2, heavy: 4, drop: 3, dropEvery: 90, dropDist: [70, 120], boss: 5, bossChance: 0.6 },
+  // (0.53.7) callPerStar: each star adds this much to the pressure the enemy's own answers are sized for (alert.js callPressure)
+  alert: { max: 5, spikeMax: 2, quietSec: 20, fadeSec: 30, part: 0.5, pressure: 0.2, hunt: 2, heavy: 4, drop: 3, dropEvery: 90, dropDist: [70, 120], boss: 5, bossChance: 0.6,
+           callPerStar: 0.3 },
   // Pressure drives how fast the field fills: it climbs through the session and, faster, through each mission.
   pressure: { start: 1, perSessionMin: 0.035, perMissionMin: 0.12, onBaseKill: 0.6, floor: 0.5 },
   // The war escalates with every minute of the session, so the run only ends in failure: tougher, harder-hitting enemies and more heavies.
@@ -428,9 +433,9 @@ export const CONFIG = {
   // bots: a dropship shot down still lets `survive` of the groups aboard out of the wreck (rounded up), hurt (survHp of their health).
   // squids: a warp ship has a shield like a harvester's: it soaks hits first and comes back regen a second after regenDelay quiet.
   reinf:    { callChance: 0.55, cooldownSec: 20, flareSec: 4, maxActive: 5, groups: 3, perPressure: 0.5, maxGroups: 4,
-              dist: [28, 60], minAlly: 26, siteEvery: 30, extractEvery: 24, siteDist: [70, 120],
+              dist: [28, 60], minAlly: 26, siteEvery: 30, extractEvery: 24, extractPMax: 1.6, siteDist: [70, 120],
               multi: { perExtra: 1, perCap: 2, flareMin: 6, flareChance: 0.2, flarePerMin: 0.025, flareMax: 0.55, siteMin: 10, siteChance: 0.4,
-                       extractCall: 2, extractLate: 15, extractStep: 40, extractMax: 3 },
+                       extractCall: 2, extractLate: 15, extractStep: 40, extractMax: 3, extractHot: 3 },
               bugs:   { warnSec: 2.5, every: 2.2, pack: 0.5, packs: 3, hp: 2400, minOpen: 10, floor: 0.25, r: 8, lingerSec: 6, reward: 90, rifle: 0.35 },
               bots:   { speed: 75, approach: 460, hover: 1.2, every: 0.9, hp: 1100, r: 9, lowR: 110, reward: 160, crash: 380, survive: 0.5, survHp: 0.7 },
               squids: { speed: 55, approach: 420, hover: 1.6, every: 1.1, hp: 1700, r: 12, lowR: 90, reward: 260, crash: 420, shield: 1400, regen: 70, regenDelay: 5 } },
@@ -454,7 +459,8 @@ export const CONFIG = {
   // (it falls for beaconSec); then the pelican takes callSec to arrive, waits boardSec on the pad, and the enemy comes in waves.
   // (0.39) orbitSec: once the Helldivers are aboard and away, the destroyer leaves orbit this many seconds later; SEAF still on the
   // ground then are left behind (lost, and paid for like any lost trooper)
-  extract:  { minFromLz: 600, minFromBase: 150, minFromObj: 60, radius: 25, callSec: 120, beaconSec: 2.2, landSec: 5, boardSec: 20, boardR: 6, orbitSec: 10, warnSec: 60 },
+  // (0.53.7) gatherSec: that long before the pelican comes down, every Helldiver closes on the pad (squad.js)
+  extract:  { minFromLz: 600, minFromBase: 150, minFromObj: 60, radius: 25, callSec: 120, beaconSec: 2.2, landSec: 5, boardSec: 20, boardR: 6, orbitSec: 10, warnSec: 60, gatherSec: 15, holdMore: 25 },
   // At the start of a mission the ship gun is ready and selected; the UAV and every orbital start part-way through a cooldown.
   weapons:  { swapSec: 0.3, warmupSec: 8, startCdFrac: 0.5, startCdMin: 12 },
   // The destroyer's free-fire Ship Gun (its one gatling). It fires wherever the player can see, so it is not tied to the strike zone, and it is the

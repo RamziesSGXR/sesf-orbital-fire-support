@@ -1,7 +1,11 @@
 // What the Helldivers do next. They take the nearest side task that lies roughly on their way to the main objective (a side mission
-// or an enemy base), then the main objective. Once it is done they go for a full clear (every base and side mission left) only
-// with more than clearLives lives in hand and the time to do it all and still extract; otherwise they head for extraction. The
-// choice is made again after every task, so a squad that has been bled on the way pulls out instead.
+// or an enemy base), then the main objective. Once it is done, with more than clearLives lives in hand:
+//   (0.53.7) most missions (clearChance, the mission's own roll) they are set on a full clear: every base and side mission left,
+//            nearest first, and they go on with it when the clock will not cover it. A mission that times out once its objective
+//            is done is still complete; only the extraction's pay is lost. Near the end they still ask the gunner, once, for the
+//            minutes that would let them finish and get out; a no and they finish the clear on the clock they have.
+//   the rest play it safe: a task at a time while the next one and the way out after it still fit, then extraction.
+// The choice is made again after every task, so a squad bled down to clearLives lives pulls out instead.
 import { alertRaise } from './alert.js';
 import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
@@ -9,6 +13,7 @@ import { activeObjective, objectiveGoal, startExtract } from './objectives.js';
 import { hellbombGoal } from './ops.js';
 import { aoScale, inAO } from './ao.js';
 import { t as tr } from '../i18n.js';
+import { RNG } from '../util/rng.js';
 
 const PL = () => C.plan;
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -96,10 +101,14 @@ function choose(m) {
     const oneMore = nearest && left - (travel(m, nd) + work(m, nearest) + extractTime(m, nearest)) >= P.reserve;
     // (0.53.5) they go on task by task while the next one (and the way out after it) still fits: players saw a squad ask for time
     // with 20 minutes left, and on a no head straight for extraction, the map half done
-    let go = lives && (left - need >= P.reserve || oneMore);
+    const fits = left - need >= P.reserve || oneMore;
+    // (0.53.7) a squad set on a full clear goes on whether it fits or not
+    let go = lives && (fits || !!pl.commit);
+    pl.late = lives && !fits;
     // Lives to spare, near the end, and the next task no longer fits: once a mission, ask the gunner for the minutes it needs (it
-    // costs credits; at most maxMin). While the question is open they make a start. A no (or no answer): they get out.
-    if (lives && !go && !pl.denied && nearest) {
+    // costs credits; at most maxMin). While the question is open they make a start. A no (or no answer): they get out, or (set on
+    // the clear) they finish it on the clock they have.
+    if (lives && !fits && !pl.denied && nearest) {
       const A = P.ask, needOne = travel(m, nd) + work(m, nearest) + extractTime(m, nearest), min = Math.max(1, Math.ceil((needOne + P.reserve - left) / 60));
       if (pl.ask) go = true;
       else if ((pl.asks || 0) < A.asks && left <= A.nearEnd && min <= A.maxMin) { askTime(m, min); go = true; }
@@ -113,7 +122,12 @@ function choose(m) {
   return null;
 }
 
-export function initPlan(m) { m.plan = { task: null, at: -99, full: false, decided: false, ask: null, asks: 0, denied: false, bought: 0, avoid: new Map(), breakAt: -1e9, fallback: null, forced: null, breakT: 0 }; }
+export function initPlan(m) {
+  m.plan = { task: null, at: -99, full: false, decided: false, ask: null, asks: 0, denied: false, bought: 0, avoid: new Map(), breakAt: -1e9, fallback: null, forced: null, breakT: 0,
+    commit: clearRoll(m), late: false };
+}
+// (0.53.7) set on a full clear this mission? Its own random numbers (from the seed), so the rest of the mission is as it was
+export const clearRoll = (m) => new RNG(((m.seed || 1) ^ 0x5c1ea4) >>> 0).next() < PL().clearChance;
 
 // ---- (0.40) breaking off a losing fight ----
 // The weight of the enemy hunting the squad close by (lights 1, mediums 3, heavies 8, a super heavy 25) and where it is.
@@ -242,6 +256,7 @@ export function answerTime(m, yes) {
   if (!q) return { ok: false, reason: 'none' };
   if (yes && m.wallet.bal < q.cost) { m.emit('deny', { reason: 'funds' }); return { ok: false, reason: 'funds' }; }
   pl.ask = null;
+  if (!yes && pl.commit) { pl.denied = true; m.radio(COMMS.timeNoClear, 'timeno', 0); m.emit('time_no', { clear: true }); return { ok: true }; }     // (0.53.7) set on the clear: they finish it on the clock they have
   if (!yes) { pl.denied = true; pl.task = null; m.radio(COMMS.timeNo, 'timeno', 0); m.emit('time_no', {}); pl.t = 0; return { ok: true }; }     // (0.53.5: the task they made a start on is dropped too)
   m.wallet.bal -= q.cost; m.wallet.spent += q.cost;
   m.limitSec += q.min * 60; pl.bought += q.min;
@@ -313,7 +328,7 @@ export function updatePlan(m, dt) {
     pl.task = null;
     return;
   }
-  if (m.phase === 'clear' && !pl.decided) { pl.decided = true; m.radio(COMMS.fullClear, 'plan', 0); m.emit('full_clear', {}); }
+  if (m.phase === 'clear' && !pl.decided) { pl.decided = true; m.radio(pl.late ? COMMS.fullClearLate : COMMS.fullClear, 'plan', 0); m.emit('full_clear', { late: !!pl.late }); }     // (0.53.7: or clock or no clock)
   if (!cur || next.ref !== cur.ref) {
     pl.task = next;
     if (next.kind !== 'main') { m.radio(COMMS.sideNext(next.kind), 'sidenext', 8); m.emit('task', { kind: next.kind, x: next.x, y: next.y }); }

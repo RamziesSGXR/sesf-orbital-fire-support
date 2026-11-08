@@ -150,6 +150,7 @@ export class Mission {
     this.hx = 0; this.hy = 0;
     this.dirtyE = false; this.dirtyA = false;
     this.pressure = Math.max(C.pressure.floor, C.pressure.start + C.pressure.perSessionMin * this.W);
+    this.p0 = this.pressure;     // (0.53.7) where it started: a base falling eases it, but never below this
     this.hpMul = Math.min(C.ramp.hpCap, 1 + C.ramp.hp * this.W); // enemy toughness and damage grow with the war
     const dBase = C.ramp.base * (C.ramp.fac[opts.faction] || 1);
     this.dmgMul = Math.min(C.ramp.dmgCap * dBase, dBase * (1 + C.ramp.dmg * this.W));
@@ -1039,7 +1040,7 @@ export class Mission {
     if (!b.fortress && !b.part && !b.op) this.stats.bases++;     // (the citadel and its bases, and an operation's structures, are the objective)
     // The citadel pays out as the objective; ordinary bases are score and credits. Once the objective is done they are bonus.
     if (!b.fortress) { this.sc.bases += C.score.base; this.earn('bases', C.credits.base, b.x, b.y); }
-    this.pressure = Math.max(C.pressure.floor, this.pressure * C.pressure.onBaseKill);
+    this.pressure = Math.max(C.pressure.floor, this.p0 || 0, this.pressure * C.pressure.onBaseKill);     // (0.53.7: never easier than the mission started)
     // (0.48) the felt win: the base's call for help ends (the spike clears), but the enemy's alert ratchets up a notch
     alertClear(this, 'base'); alertRaise(this, b.part ? C.alert.part : 1, 'base');
     for (const e of this.enemies) if (e.g.base === b) e.g.garrison = false; // survivors stop being garrison
@@ -1066,15 +1067,17 @@ export class Mission {
     // (0.40) the whole squad is down: they come in together, a good way off from where they fell (C.wipe.d), on the quietest side
     // (fewest enemies round the spot, farthest from those round where they fell), well inside the map, so the fresh Helldivers
     // are not dropped straight back into what killed them. The spot is picked once for the whole squad; the pods land round it.
-    const W = C.wipe, t = this.t;
+    // (0.53.7) Once the pelican has been called, they come down by the pad instead (padD out, on its quietest side): a squad wiped
+    // there used to land 110-170 m off and die walking back through the waves, the pelican gone without them.
+    const W = C.wipe, t = this.t, pad = this.extraction, atPad = this.phase === 'extract' && ['called', 'landing', 'boarding'].includes(pad.state), E = atPad ? 20 : W.edge;
     if (!this._wipeAt || this._wipeAt.t !== t) {
-      const L = this.teams.map((q) => q.lastDeath).filter(Boolean), s = L.length ? { x: L.reduce((a, q) => a + q.x, 0) / L.length, y: L.reduce((a, q) => a + q.y, 0) / L.length } : this.lz;
+      const L = this.teams.map((q) => q.lastDeath).filter(Boolean), s = atPad ? { x: pad.x, y: pad.y } : L.length ? { x: L.reduce((a, q) => a + q.x, 0) / L.length, y: L.reduce((a, q) => a + q.y, 0) / L.length } : this.lz;
       let ex = 0, ey = 0, en = 0; this.eGrid.near(s.x, s.y, 120, (e) => { ex += e.x; ey += e.y; en++; });
       const foe = en ? { x: ex / en, y: ey / en } : s, AR = this.ao.R || this.ao.size / 2;
       let best = null, bs = -Infinity;
       for (let k = 0; k < 16; k++) {
-        const a = (k / 16) * Math.PI * 2 + rng.range(-0.15, 0.15), d = rng.range(W.d[0], W.d[1]);
-        const c = aoClamp(this.ao, s.x + Math.cos(a) * d, s.y + Math.sin(a) * d, W.edge), x = c.x, y = c.y;
+        const a = (k / 16) * Math.PI * 2 + rng.range(-0.15, 0.15), d = atPad ? rng.range(W.padD[0], W.padD[1]) : rng.range(W.d[0], W.d[1]);
+        const c = aoClamp(this.ao, s.x + Math.cos(a) * d, s.y + Math.sin(a) * d, E), x = c.x, y = c.y;
         if (!this.terrain.isLand(x, y) || this.terrain.blocked(x, y)) continue;
         let n = 0; this.eGrid.near(x, y, W.quietR, (e) => { n += e.kind === 'H' ? 4 : e.kind === 'M' ? 2 : 1; });
         for (const b of this.bases) if (!b.destroyed && Math.hypot(b.x - x, b.y - y) < detectR(b)) n += 6;     // (not inside a base's detection ring)
@@ -1082,11 +1085,11 @@ export class Mission {
         const sc = -n * 12 + Math.hypot(x - foe.x, y - foe.y) * 0.25 + Math.min(Math.hypot(x - s.x, y - s.y), W.d[1]) * 0.1 - Math.max(0, 110 - gap) * 1.2;
         if (sc > bs) { bs = sc; best = { x, y }; }
       }
-      this._wipeAt = { t, ...(best || aoClamp(this.ao, s.x, s.y, W.edge)), k: 0 };
+      this._wipeAt = { t, ...(best || aoClamp(this.ao, s.x, s.y, E)), k: 0 };
       this.stats.wipeDrops = (this.stats.wipeDrops || 0) + 1;
     }
     const w = this._wipeAt, a = (w.k++ / 4) * Math.PI * 2 + 0.4;
-    const c = aoClamp(this.ao, w.x + Math.cos(a) * W.spread, w.y + Math.sin(a) * W.spread, W.edge);
+    const c = aoClamp(this.ao, w.x + Math.cos(a) * W.spread, w.y + Math.sin(a) * W.spread, E);
     return this.terrain.isLand(c.x, c.y) ? c : { x: w.x, y: w.y };
   }
   _reinforce() {
