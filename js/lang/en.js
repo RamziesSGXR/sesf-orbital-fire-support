@@ -1258,7 +1258,7 @@ export default {
   'man.l.you': [
     'UAV scan (1): drop it near your allies to see a wide area for a while. Allies under it dodge more, and move faster when they\'re not in a fight.',
     'Stratagems (2-6) are coloured by kind, like the Helldivers\' own. Orbital strikes (orange) land inside the strike zone round your allies or in a UAV circle. They hurt friendlies, so mind the squad.',
-    'Eagle strikes (yellow) fly from the Hangar, which is open from the start. They come in fast, and each Eagle stratagem has runs of its own. Once every Eagle is out, the Eagle flies back to rearm and they all come back full; you can call it back early with EAGLE REARM (L, or the button of an empty Eagle). The weapon bar shows each one\'s runs and the rearm.',
+    'Eagle strikes (yellow) fly from the Hangar, which is open from the start. They come in fast, and each Eagle stratagem has runs of its own. Once every Eagle is out, the Eagle flies back to rearm and they all come back full; you can call it back early with EAGLE REARM (0, or the button of an empty Eagle). The weapon bar shows each one\'s runs and the rearm.',
     'Minefields (green) seed the ground where you call them. Only the enemy sets a mine off, but the blast hurts anyone near it. Incendiary mines leave fire; anti-tank mines ignore the small ones and wait for something heavy.',
     'Ship gun (8): hold to fire at anything you can see. It never hurts allies and refills by itself. Its rounds are heavy-penetrating: a long burst brings down heavies, even a Harvester.',
     'The nuke (7): once the launch site is armed, fire it anywhere. Give your allies time to clear the blast.',

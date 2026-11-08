@@ -75,13 +75,13 @@ if (s500 >= 0) {
   await page.waitForTimeout(500);
   wb = await bar();
   const eagles = wb.filter((s) => s.startsWith('cat-eagle'));
-  check('(0.53.2) the 500 kg out of runs says so and how to rearm; the napalm still has all its own', eagles.some((s) => (touch ? /kgREARM$/ : /OUT · L REARM/).test(s)) && eagles.some((s) => /EAGLE (\d)\/\1/.test(s)) && !eagles.some((s) => /REARM \d+S/.test(s)), eagles.join(' / '));
+  check('(0.53.2) the 500 kg out of runs says so and how to rearm; the napalm still has all its own', eagles.some((s) => (touch ? /kgREARM$/ : /OUT · 0 REARM/).test(s)) && eagles.some((s) => /EAGLE (\d)\/\1/.test(s)) && !eagles.some((s) => /REARM \d+S/.test(s)), eagles.join(' / '));
   await shot('empty');
   if (touch) await ev((i) => document.querySelectorAll('#weapons .wbtn')[i].dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerType: 'touch' })), s500);
-  else await page.keyboard.press('KeyL');
+  else await page.keyboard.press('Digit0');
   await page.waitForTimeout(500);
   wb = await bar();
-  check(touch ? '(0.53.2) a tap on the empty Eagle: the Eagle goes back to rearm early, and every Eagle shows the rearm' : '(0.53.2) L: the Eagle goes back to rearm early, and every Eagle shows the rearm', wb.filter((s) => s.startsWith('cat-eagle')).every((s) => /REARM \d+S/.test(s)), wb.filter((s) => s.startsWith('cat-eagle')).join(' / '));
+  check(touch ? '(0.53.2) a tap on the empty Eagle: the Eagle goes back to rearm early, and every Eagle shows the rearm' : '(0.53.2) 0: the Eagle goes back to rearm early, and every Eagle shows the rearm', wb.filter((s) => s.startsWith('cat-eagle')).every((s) => /REARM \d+S/.test(s)), wb.filter((s) => s.startsWith('cat-eagle')).join(' / '));
   await shot('rearm');
   await ev(() => { const m = window.__game.mission; m.player.eagle.rearmAt = m.t; for (let k = 0; k < 3; k++) m.step(1 / 30); });
   check('(0.53.2) back from the rearm: every Eagle full', await ev(() => { const m = window.__game.mission; return m.player.slots.filter((s) => s.eu !== undefined).every((s) => s.eu === m.player.eagle.max) && m.player.eagle.rearmAt === 0; }));

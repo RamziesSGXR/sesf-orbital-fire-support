@@ -25,7 +25,7 @@ Recent changes, by version. The guide sections after this cover everything in fu
 
 **Eagles and bridges (0.53.2).**
 - **Each Eagle has its own runs.** Every Eagle stratagem in the loadout has the Hangar's runs of its own (2 to start, more with Hangar levels), so a 500 kg called twice no longer grounds the rocket pods. The Eagle flies back to rearm only once every Eagle is out of runs.
-- **Early rearm.** Press **L** (rebindable in CHANGE KEYS), or tap the button of an empty Eagle, to call the Eagle back to rearm now. It takes the usual rearm time, no Eagle can be called while it is away, and every Eagle comes back full.
+- **Early rearm.** Press **0** (after the weapon keys 1–9; rebindable in CHANGE KEYS), or tap the button of an empty Eagle, to call the Eagle back to rearm now. It takes the usual rearm time, no Eagle can be called while it is away, and every Eagle comes back full.
 - **Helldivers cross light bridges.** A Helldiver whose place in the squad lay off the side of a deck no longer stands at its edge for good: his place is pulled in onto the deck, and a mover who can't walk round a corner of the route plans again cell by cell.
 
 **Fixes from the players (0.53.1).**
