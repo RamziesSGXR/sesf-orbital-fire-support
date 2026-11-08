@@ -28,6 +28,8 @@ Recent changes, by version. The guide sections after this cover everything in fu
 - **Asking for more time.** After the objective the squad clears the map task by task while the next one still fits. Only near the end (the last 5 minutes), and only once a mission, do they ask for up to 2 more minutes to finish the next one. Say no and they head for extraction. Before, they asked straight away, even with 20 minutes left, and a no sent them home with the map half done.
 - **Health bars under names.** A heavy's (and a special's) health and shield bars are drawn right under its name, so they no longer slip behind it when zoomed out. The map's labels, bars and name tags now follow Settings > UI size.
 - **The pelican.** Its left engine and left tail no longer show holes, and the extraction pelican is drawn over the barricades round the pad.
+- **Credits:** Zovc is listed as "Blitz Diver · GhostDivers".
+- **A note on the title screen.** Under the menu, in all three languages and on phones too: the game is in active development and an update may reset saves, and saves are kept in this browser only, so a different browser, a private window, or clearing browser data or cache starts a fresh save.
 
 **Players' reports (0.53.4).**
 - **Work sites say what they give.** The label over the refinery, yard or lab, its panels and its notices now spell out the lift and how big it is with the crew inside: orbitals up to 30% faster (refinery), builds up to 35% cheaper (yard), a UAV up to 35% wider and faster (lab). Each worker also pays 4 CR every 10 s. The tactical panel no longer calls the site a "defence position".

@@ -27,7 +27,7 @@ await page.evaluate(() => { localStorage.clear(); localStorage.setItem('ofs.noti
 await page.goto(`file://${ROOT}/dist/orbital-fury.html?skipstart&seed=4242&faction=bots&biome=grass&tod=12`); await page.waitForTimeout(1200);
 await ev(() => document.getElementById('btn-credits-t').click()); await page.waitForTimeout(300);
 check('Muffin is in the credits, an SESF tester', await ev(() => [...document.querySelectorAll('#s-credits dd')].some((d) => /Muffin/.test(d.textContent) && /Super Earth Special Forces/.test(d.textContent))));
-check('(0.53.3) and Zovc, a Blitz Diver and GhostDivers moderator', await ev(() => [...document.querySelectorAll('#s-credits dd')].some((d) => /Zovc/.test(d.textContent) && /GhostDivers/.test(d.textContent))));
+check('(0.53.3) and Zovc, Blitz Diver, GhostDivers', await ev(() => [...document.querySelectorAll('#s-credits dd')].some((d) => /Zovc/.test(d.textContent) && /GhostDivers/.test(d.textContent))));
 await ev(() => document.querySelector('#s-credits [data-close], #cr-close, #s-credits .x-close') && document.querySelector('#s-credits [data-close], #cr-close, #s-credits .x-close').click()); await page.waitForTimeout(200);
 await page.goto(`file://${ROOT}/dist/orbital-fury.html?skipstart&seed=4242&faction=bots&biome=grass&tod=12`); await page.waitForTimeout(1200);
 

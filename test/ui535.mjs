@@ -1,5 +1,5 @@
 // 0.53.5 in the browser, players' reports: a heavy's health bars sit right under its name (they slipped behind it when zoomed out)
-// and follow Settings > UI size; the jellyfish mothership over the defence gun draws.
+// and follow Settings > UI size; the jellyfish mothership over the defence gun draws; the title's development note shows.
 //   node test/ui535.mjs
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -14,6 +14,9 @@ const BASE = `file://${ROOT}/dist/orbital-fury.html?skipstart&seed=4242&faction=
 await page.goto(BASE); await page.evaluate(() => { localStorage.clear(); localStorage.setItem('ofs.notice', 'true'); localStorage.setItem('ofs.saveVer', '2'); });
 await page.goto(BASE); await page.waitForTimeout(900);
 const ev = (f, a) => page.evaluate(f, a);
+// (0.53.5) the title's development note: saves may reset, and they live in this browser only
+const dn = await ev(() => { const e = document.querySelector('#s-title .dev-note'); const r = e.getBoundingClientRect(); return { vis: r.width > 0 && r.height > 0 && getComputedStyle(e).display !== 'none', t: e.textContent }; });
+check('the title says the game is in development, that updates may reset saves, and that saves stay in this browser', dn.vis && /DEVELOPMENT/.test(dn.t) && /reset/.test(dn.t) && /browser/.test(dn.t) && /cache/.test(dn.t), dn.t.slice(0, 60));
 await ev(() => document.getElementById('btn-play').click()); await page.waitForTimeout(300);
 await ev(() => { document.getElementById('callsign').value = 'hp'; document.getElementById('btn-lock').click(); }); await page.waitForTimeout(300);
 await ev(() => document.getElementById('shop-go').click());
