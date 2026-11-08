@@ -2,7 +2,7 @@
 import { CONFIG as C } from '../config.js';
 import { SUBTYPES } from '../data/data.js';
 import { scorch, makeDecals, mark } from './terrain.js';
-import { drawZones, drawMarkers, drawObjectives, drawAssets, drawEnemyExtras, drawPois, drawUavs, drawPings } from './world.js';
+import { drawZones, drawMarkers, drawObjectives, drawAssets, drawEnemyExtras, drawPois, drawUavs, drawPings, drawGunSky } from './world.js';
 import { drawSquadOrders, drawSeafMark, drawStroke, drawPelicans, drawMiniSeaf, seafTargets, squadsInUse, squadColor } from './squads.js';
 
 import { slotStats } from '../sim/player.js';
@@ -476,6 +476,7 @@ export class Renderer {
     this._icbm(ctx, m, now, px);
     this._incoming(ctx, m, now, px);
     this._effects(ctx, now, px);
+    drawGunSky(ctx, m, now, px);     // (0.53.5) the mothership over the defence gun, over everything on the ground
     // (0.38) the lights' colour over everything, then the hour's wash
     if (amb) this.light.glow(ctx, amb, lowFx);
 
