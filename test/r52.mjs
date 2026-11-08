@@ -1,11 +1,11 @@
 // 0.52 Work sites: one a mission, dressed for the enemy, placed clear of the landing zone, bases and objectives; SEAF sent in
 // work it (its door, like any building's); it pays as it goes and lifts the gunner's tools (refinery: orbital recharge; salvage
 // yard: builds; lab: the UAV); the enemy probes it more as the mission runs and the alert climbs; shot down it falls (workers
-// out), and patched back up it can be worked again. Run: node test/r52.mjs
+// out), and patched back up it can be worked again. (0.53.6) Left alone until first worked, and once fallen. Run: node test/r52.mjs
 import { Mission } from '../js/sim/mission.js';
 import { CONFIG as C } from '../js/config.js';
 import { newKit, newWallet } from '../js/data/kit.js';
-import { hurtAsset } from '../js/sim/combat.js';
+import { hurtAsset, nearestTarget } from '../js/sim/combat.js';
 import { setSquadOrder } from '../js/sim/seaf.js';
 import { siteShare, SITE_KIND } from '../js/sim/sites.js';
 import { fireSlot } from '../js/sim/player.js';
@@ -86,6 +86,7 @@ function worked(f, n = 6) {
     let n = 0;
     for (let k = 0; k < 6; k++) {
       const m = mk('bugs', 5300 + k), p = m.workSite;
+      p.asleep = false;     // (0.53.6: probes come only once it has been worked)
       m.t = min * 60; m.alert.base = stars; m.alert.stars = stars;
       for (let i = 0; i < 10; i++) { p.probeT = 0; const before = p.probes; m.step(dt); n += p.probes - before; for (const e of m.enemies) e.dead = true; m.enemies = []; m.groups = []; }
     }
@@ -118,6 +119,48 @@ function worked(f, n = 6) {
   m._refreshAlive(); m.step(1 / 30);
   const work = m.events.filter((e) => e.type === 'notice').map((e) => e.text).find((x) => /SEAF AT WORK/.test(x)) || '';
   check('(0.53.4) and once worked, what it gives now', /ORBITALS 15% FASTER \(UP TO 30% WITH 6\)/.test(work), work);
+}
+// (0.53.6) players: the tutorial's lab was shot at before anyone had worked it, and the enemy kept on at it once it had fallen.
+// Now nobody comes for it (no probes, no fire) until SEAF first work it, and the radio says so then, and when a probe is on its
+// way; a fallen site is left alone.
+{
+  const m = mk('squids', 5303), p = m.workSite, notes = () => m.events.filter((e) => e.type === 'notice').map((e) => e.text);
+  m.deployNow(); run(m, 8);
+  check('(0.53.6) a work site starts out of the enemy\'s mind', p.asleep === true);
+  let probes = 0;
+  m.t = 25 * 60; m.alert.base = 4; m.alert.stars = 4;
+  for (let i = 0; i < 40; i++) { p.probeT = 0; const b = p.probes; m.step(dt); probes += p.probes - b; for (const e of m.enemies) e.dead = true; m.enemies = []; m.groups = []; }
+  const hp0 = p.hp; hurtAsset(m, p, 500); m.step(dt);
+  const near = nearestTarget(m, p.x + 3, p.y + 3, 30);
+  check('(0.53.6) ...no probes (late, with the alert high), no damage, and nothing aims at it', probes === 0 && p.hp === hp0 && near !== p, `${probes} probes, hp ${hp0} → ${p.hp}, target ${near && near.what}`);
+  for (let k = 0; k < 3; k++) { const a = m.addAlly('S', p.x + 2, p.y + 2, { role: 'rifle' }); a.post = p; a.inside = p; a.hp = a.maxHp = 1e6; }
+  m._refreshAlive(); m.step(dt);
+  const wake = notes().find((x) => /THE ENEMY WILL COME FOR IT/.test(x)) || '';
+  check('(0.53.6) worked for the first time, it wakes the enemy, and the radio says to defend it', !p.asleep && /DARK-FLUID LAB IS BEING WORKED: THE ENEMY WILL COME FOR IT NOW. LEAVE TROOPERS OUTSIDE TO DEFEND IT/.test(wake), wake);
+  m.step(dt);
+  check('(0.53.6) ...and from then on it is fair game: it can be hurt and aimed at', (hurtAsset(m, p, 100), p.hp < hp0) && (m.step(dt), nearestTarget(m, p.x + 3, p.y + 3, 30) === p));
+  let n = 0;
+  for (let i = 0; i < 40 && !n; i++) { p.probeT = 0; const b = p.probes; m.step(dt); n += p.probes - b; }
+  const pr = notes().find((x) => /HEADING FOR THE DARK-FLUID LAB/.test(x)) || '';
+  check('(0.53.6) a probe on its way is on the radio', n > 0 && /ENEMIES ARE HEADING FOR THE DARK-FLUID LAB: DEFEND IT/.test(pr), pr);
+  for (const e of m.enemies) e.dead = true; m.enemies = []; m.groups = [];
+  hurtAsset(m, p, 1e7); m.step(dt);
+  let after = 0;
+  for (let i = 0; i < 40; i++) { p.probeT = 0; const b = p.probes; m.step(dt); after += p.probes - b; for (const e of m.enemies) e.dead = true; m.enemies = []; m.groups = []; }
+  check('(0.53.6) fallen, it is left alone: nothing aims at the ruin, and no probes come for it', p.fallen && after === 0 && nearestTarget(m, p.x + 3, p.y + 3, 30) !== p, `${after} probes`);
+  // a probe that was on its way when it fell: its fighters near the ruin do not shoot it
+  p.fallen = false; p.hp = p.maxHp; m.step(dt);
+  for (let i = 0; i < 40 && !m.groups.length; i++) { p.probeT = 0; m.step(dt); }
+  const g = m.groups[m.groups.length - 1];
+  for (const e of g.members) { e.x = p.x + 6; e.y = p.y + 6; } g.cx = p.x + 6; g.cy = p.y + 6;
+  hurtAsset(m, p, 1e7); m.step(dt);
+  for (const a of [...m.seafAlive, ...m.hdAlive]) { a.x = p.x + 400; a.y = p.y; }
+  m._refreshAlive();
+  const hpF = p.hp; let shots = 0; const before = m.events.length;
+  run(m, 10, () => { for (const a of [...m.seafAlive, ...m.hdAlive]) { a.x = p.x + 400; a.y = p.y; } });
+  for (const e of g.members) if (e.tgt === p) shots++;
+  check('(0.53.6) ...and the probe that was coming for it stops shooting once it has fallen', p.fallen && shots === 0 && p.hp === hpF, `${shots} aiming at it, hp ${hpF} → ${p.hp}`);
+  void before;
 }
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
 process.exit(fails ? 1 : 0);

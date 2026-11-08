@@ -326,8 +326,8 @@ export class Mission {
     const t = this.t, sf = this.seaf, st = seafStats(this.kit);
     if (this.over) return { ok: false, reason: 'over' };
     // (0.18) before the Helldivers are down (the start, on the tactical screen) the landing zone takes a drop
-    const atLz = t < (this.dropAt || 0) + C.seaf.startSec && Math.hypot(x - this.lz.x, y - this.lz.y) <= C.seaf.startR;
-    if (!this.alive.length && !atLz) return this._deny('noallies');
+    const atLz = this.earlyLz(x, y);
+    if (!this.alive.length && !atLz) return this._deny(this.earlyDrop() ? 'nearlz' : 'noallies');     // (0.53.6: early, say where)
     const bc = beaconAt(this, x, y);
     if (bc) { x = bc.x; y = bc.y; }      // a drop beacon takes it anywhere on the map (while it is lit)
     else if (!atLz && !this.inZone(x, y, -5)) return this._deny('nocoverage', COMMS.noCoverage);
@@ -893,6 +893,10 @@ export class Mission {
   }
   // The strike zone: where the player can call strikes and drops, and where the squad can call its own. It is
   // wider than what anyone can see. UAV circles count as well. extra shrinks (negative) or grows the zone.
+  // (0.18; 0.53.6 one place for it, the drop ghost and the button use it too) until startSec after the Helldivers' drop, a SEAF
+  // drop can go anywhere within startR of the landing zone, with nobody on the ground yet
+  earlyDrop() { return this.t < (this.dropAt || 0) + C.seaf.startSec; }
+  earlyLz(x, y) { return this.earlyDrop() && Math.hypot(x - this.lz.x, y - this.lz.y) <= C.seaf.startR; }
   inZone(x, y, extra = 0) {
     for (const a of this.alive) {
       const r = a.zone + extra, dx = a.x - x, dy = a.y - y;
@@ -1259,7 +1263,7 @@ export class Mission {
     for (const e of this.enemies) if (!e.dead) { this.eGrid.insert(e); e.vis = 0; e.spotted = false; }
     this._visAll();
     for (const a of this.alive) if (!a.mounted && !a.inside && !a.down) this.aGrid.insert(a);     // (0.26: nor the downed, lying low)     // (the crew inside a building are out of reach: posts.js)
-    for (const s of this.assets) if (!s.dead && s.kind !== 'mines') this.tGrid.insert(s);
+    for (const s of this.assets) if (!s.dead && s.kind !== 'mines' && !s.fallen && !s.asleep) this.tGrid.insert(s);     // (0.53.6: not a fallen work site, or one not yet worked: nobody shoots at those)
 
     buildDanger(this);
     updatePosts(this, dt);

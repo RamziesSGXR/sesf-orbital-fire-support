@@ -5,9 +5,11 @@
 //   - it gives the gunner's tools a lift, more the fuller it is (none of it is something SEAF can build): the refinery's fuel
 //     recharges the orbitals faster, the yard's scrap makes what is ordered from the ship cheaper (builds and bridges), the lab's
 //     samples widen the UAV's scan and recharge it faster (so it finds more of what is hidden).
-// The enemy does not care much about it at first. Now and then a small probe comes for it, more often and bigger as the mission
-// runs and as the alert climbs. Shot down, it falls: the workers spill out and it stops. SEAF at it patch it up (as any post);
-// back at half its health, it can be worked again.
+// The enemy does not care much about it at first. (0.53.6) It leaves it alone altogether (no probes, no fire) until SEAF first
+// work it: then the radio says to defend it. From then on a small probe comes for it now and then, more often and bigger as the
+// mission runs and as the alert climbs, and the radio says when one is on its way. Shot down, it falls: the workers spill out and
+// it stops, and the enemy leaves the ruin be (no fire, no probes). SEAF at it patch it up (as any post); back at half its health,
+// it can be worked again.
 import { CONFIG as C } from '../config.js';
 import { t as tr } from '../i18n.js';
 import { spawnGroup, unseenSpot } from './director.js';
@@ -21,7 +23,7 @@ function lcg(seed) { let s = (seed >>> 0) || 1; return () => ((s = (s * 1664525 
 // numbers, so the rest of the map is as it was.
 export function setupSite(m) {
   const S = K(), kind = SITE_KIND[m.faction && m.faction.id];
-  if (!S || !S.on || !kind || m.ls) return null;
+  if (!S || !S.on || !kind || m.ls || m.lsAxis) return null;     // (0.53.6: m.lsAxis, the tutorial's base, is there by now; m.ls is not yet)
   const r = lcg((m.seed ^ 0x51e5) + 7), A = m.ao, T = m.terrain;
   const away = [{ x: m.lz.x, y: m.lz.y, r: S.minFromLz }, ...m.bases.map((b) => ({ x: b.x, y: b.y, r: S.minFromBase })), ...(m.objectives || []).map((o) => ({ x: o.x, y: o.y, r: S.minFromObj }))];
   let at = null;
@@ -41,7 +43,7 @@ export function setupSite(m) {
   const p = {
     id: m.nextId++, kind: 'post', what: 'site', sid: 'post_site', siteKind: kind, x: at.x, y: at.y, lvl: 1, born: m.t, dead: false, hurtAt: -9,
     face: at.face, face0: at.face, cap: S.cap, hp: S.hp, maxHp: S.hp, r: S.r, crew: 0, crewH: 0, crewS: 0, garrison: 0, captured: false, built: true,
-    repairing: false, fallen: false, workers: 0, paid: 0, payT: S.payEvery, probeT: S.probe.every, probes: 0,
+    repairing: false, fallen: false, asleep: true, workers: 0, paid: 0, payT: S.payEvery, probeT: S.probe.every, probes: 0,
     wh: { x: at.x - c * h, y: at.y - s * h }, hg: { x: at.x + c * h, y: at.y + s * h },     // the warehouse and the hangar (forklifts run between)
     get name() { return tr('site.' + this.siteKind); },
   };
@@ -91,6 +93,12 @@ export function updateSite(m, dt) {
   const was = p.workers;
   p.workers = p.fallen ? 0 : m.seafAlive.filter((a) => a.post === p && !a.down).length;
   if (p.workers && !was) { const g = siteGain(m, p); m.notice(tr('n.siteWork', { what: p.name.toUpperCase(), gain: tr(g.key, { p: g.now }), max: g.full, c: p.cap }), 'good'); }
+  // (0.53.6) worked for the first time: the enemy knows of it now, and comes for it from here on
+  if (p.workers && p.asleep) {
+    p.asleep = false; p.probeT = S.probe.every;
+    m.notice(tr('n.siteWake', { what: p.name.toUpperCase() }), 'warn');
+    m.emit('site_wake', { x: p.x, y: p.y, id: p.id });
+  }
   // pay as it goes
   p.payT -= dt;
   if (p.payT <= 0) {
@@ -98,7 +106,7 @@ export function updateSite(m, dt) {
     if (p.workers) { const before = m.cr.site || 0; m.earn('site', S.pay * p.workers, p.x, p.y); p.paid += (m.cr.site || 0) - before; }
   }
   // the enemy's probes: rarely at first, more often (and bigger) with time and the alert
-  if (m.phase === 'extract' || m.over) return;
+  if (m.phase === 'extract' || m.over || p.asleep || p.fallen) return;     // (0.53.6: not before it is worked, and not at a ruin)
   p.probeT -= dt;
   if (p.probeT > 0) return;
   p.probeT = S.probe.every;
@@ -118,4 +126,5 @@ export function updateSite(m, dt) {
   g.state = 'hunt'; g.target = p; g.inv = { x: p.x, y: p.y }; g.invUntil = m.t + 90; g.siteProbe = true;     // (it comes for the site)
   p.probes++;
   m.emit('site_probe', { x: spot.x, y: spot.y, n: kinds.length });
+  m.notice(tr('n.siteProbe', { what: p.name.toUpperCase() }), 'bad');     // (0.53.6) the radio says one is on its way
 }

@@ -1078,7 +1078,7 @@ export class Hud {
     const F = fleet(m), rdy = F.filter((v) => v <= tt).length, next = Math.min(...F), pels = F.length > 1 ? ` · ${t('hud.o.pels', { a: rdy, b: F.length })}` : '';
 
     const dropTo = sf.sel >= 0 ? `S${sf.sel + 1}` : '';
-    if (!m.alive.length) act('seaf', t('hud.o.noAllies'), 'off');
+    if (!m.alive.length && !m.earlyDrop()) act('seaf', t('hud.o.noAllies'), 'off');     // (0.53.6: early, the landing zone takes one)
     else if (room <= 0) act('seaf', t('hud.o.full'), 'off');
     else if (!rdy) act('seaf', t('hud.o.sec', { n: Math.ceil(next - tt) }), 'cd');
     else act('seaf', `+${Math.min(st.drop, room)}${dropTo ? ' ' + dropTo : ''}${pels}`, 'ready');

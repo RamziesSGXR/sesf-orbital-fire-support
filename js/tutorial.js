@@ -5,6 +5,7 @@
 // tut.<step>.b for both.
 import { t } from './i18n.js';
 import { CAST } from './data/story.js';
+import { seafStats } from './data/kit.js';
 
 const $ = (id) => document.getElementById(id);
 const gone = (g) => !g || g.members.every((e) => e.dead);
@@ -20,10 +21,15 @@ export const STEPS = [
   { id: 'intro', next: true },
   { id: 'look', done: (g, s) => Math.hypot(g.cam.x - s.cx, g.cam.y - s.cy) > 20 || Math.abs(g.cam.view - s.view) > 25 },
   { id: 'radio', hl: '#btn-radio', next: true },     // (0.42.1) the news goes in the radio log (on a phone, all of it): where it is
+  // (0.53.6) nobody holds the base at the start: the first drop, S1 by the shelter. Done once they are down (the strike zone is
+  // round people on the ground: with nobody there, the gun lesson next could not fire)
+  { id: 'troops', hl: '#tactical .tco.seaf', tab: 'units', start: (g) => g.lookBase && g.lookBase(), done: (g) => g.mission.stats.seafCalls >= 1 && g.mission.seafAlive.length > 0 },
   { id: 'gun', hl: '#weapons .gun-w', start: (g, s) => { s.g = g.mission.lsSpawn('light', -Math.PI / 2); g.look(s.g); },
     done: (g, s) => gone(s.g) || g.mission.stats.killsPlayer >= 4 },
   { id: 'orbital', hl: '#weapons .orb-w', start: (g, s) => { s.g = g.mission.lsSpawn('medium', 0); g.look(s.g); }, done: (g) => g.mission.stats.orbCalls >= 1 },
-  { id: 'seaf', hl: '#tactical .tco.seaf', tab: 'units', done: (g) => g.mission.stats.seafCalls >= 1 },
+  // (0.53.6) the second drop, S2 by the hangar, and what limits a drop (the numbers are the player's own, from the armory)
+  { id: 'seaf', hl: '#tactical .tco.seaf', tab: 'units', start: (g) => g.lookBase && g.lookBase(), done: (g) => g.mission.stats.seafCalls >= 2,
+    vars: (g) => { const st = seafStats(g.mission.kit); return { drop: st.drop, max: st.max, cool: Math.round(st.cool) }; } },
   { id: 'select', hl: '#tactical #squads', tab: 'units', done: (g) => g.mission.seaf.sel !== -1 },
   { id: 'order', hl: '#tactical .tac-ord', tab: 'units', done: (g, s) => s.ev.some((e) => e.type === 'seaf_order' && e.kind !== 'build') },
   // (0.37) a foxhole: free, and the squad digs it where it is put
@@ -87,8 +93,8 @@ export class Tutorial {
   }
   fold(on) { this.el.classList.toggle('fold', !!on); this.place(); }
   show() {
-    const st = this.step, touch = this.g.touch, k = (x) => `tut.${st.id}.${x}`;
-    const body = t(k(touch ? 't' : 'd')) !== k(touch ? 't' : 'd') ? t(k(touch ? 't' : 'd')) : t(k('b'));
+    const st = this.step, touch = this.g.touch, k = (x) => `tut.${st.id}.${x}`, v = st.vars ? st.vars(this.g) : undefined;
+    const body = t(k(touch ? 't' : 'd')) !== k(touch ? 't' : 'd') ? t(k(touch ? 't' : 'd'), v) : t(k('b'), v);
     this.card(t(k('h')), body, { next: !!st.next, ok: !st.next, go: true, n: this.i + 1 });
     this.point(this.target());
   }
