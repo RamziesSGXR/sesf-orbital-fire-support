@@ -1817,7 +1817,7 @@ export default {
   'hud.dropShort': 'DROP IN',
   'hud.deployShort': 'DEPLOY',
   'hud.form': 'FORM',
-  'tac.selHintTouch': 'Tap a trooper to pick him (twice: his squad; hold a finger on others to add them). Then tap the map to give an order.',
+  'tac.selHintTouch': 'Tap a trooper to pick him (twice: his squad; hold a finger on others to add them), or hold a finger on open ground and drag a box round them. Then tap the map to give an order.',
   // ---------- 0.22: plan in the pause, ghosts, squads, bridges, garrisons ----------
   'plan.count': '{n} PLANNED',
   'plan.undo': 'UNDO',

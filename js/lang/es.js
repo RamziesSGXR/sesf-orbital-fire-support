@@ -1817,7 +1817,7 @@ export default {
   'hud.dropShort': 'CAÍDA EN',
   'hud.deployShort': 'DESPLEGAR',
   'hud.form': 'FORM.',
-  'tac.selHintTouch': 'Toca un soldado para elegirlo (dos veces: su escuadra; mantén el dedo sobre otros para añadirlos). Luego toca el mapa para dar una orden.',
+  'tac.selHintTouch': 'Toca un soldado para elegirlo (dos veces: su escuadra; mantén el dedo sobre otros para añadirlos), o mantén el dedo en terreno despejado y arrastra un recuadro a su alrededor. Luego toca el mapa para dar una orden.',
   // ---------- 0.22: plan in the pause, ghosts, squads, bridges, garrisons ----------
   'plan.count': '{n} PLANEADAS',
   'plan.undo': 'DESHACER',

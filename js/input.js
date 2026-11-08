@@ -83,6 +83,17 @@ export class Input {
           if (this.h.hold(ht)) { q.held = true; if (this.lp && this.lp.id === id) this.lp = null; }
         }, 450);
       }
+      // (0.53.4) a phone: a finger held still on open ground for a moment, then dragged, draws a box round troopers (live or paused;
+      // a phone had no way to box troopers at all). A drag straight away still pans; a hold on a trooper is the add-or-drop above.
+      else if (e.pointerType !== 'mouse' && this.ptrs.size === 1 && !draw && this.h.tac() && !this.h.placing() && !this.h.armed() && !(this.h.boxing && this.h.boxing())) {
+        const id = e.pointerId, x = e.clientX, y = e.clientY;
+        this.holdT = setTimeout(() => {
+          const q = this.ptrs.get(id);
+          if (!q || this.ptrs.size !== 1 || Math.hypot(q.x - x, q.y - y) > 10 || this.box !== null || this.stroke !== null) return;
+          this.box = id; this.h.boxBegin(x, y); q.boxHold = true;
+          try { if (navigator.vibrate) navigator.vibrate(12); } catch { /* no vibration */ }
+        }, 420);
+      }
       if (e.pointerType === 'mouse') {
         this.mx = e.clientX; this.my = e.clientY;
         if (draw && e.button === 0) { this.stroke = e.pointerId; this.h.drawBegin(e.clientX, e.clientY); return; }

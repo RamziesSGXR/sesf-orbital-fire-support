@@ -1817,7 +1817,7 @@ export default {
   'hud.dropShort': 'LARGAGE',
   'hud.deployShort': 'LARGUER',
   'hud.form': 'FORM.',
-  'tac.selHintTouch': 'Touchez un soldat pour le choisir (deux fois : son escouade ; gardez le doigt sur d’autres pour les ajouter). Puis touchez la carte pour donner un ordre.',
+  'tac.selHintTouch': 'Touchez un soldat pour le choisir (deux fois : son escouade ; gardez le doigt sur d’autres pour les ajouter), ou gardez le doigt sur un terrain dégagé puis tracez un cadre autour d’eux. Puis touchez la carte pour donner un ordre.',
   // ---------- 0.22: plan in the pause, ghosts, squads, bridges, garrisons ----------
   'plan.count': '{n} PRÉVUS',
   'plan.undo': 'ANNULER',

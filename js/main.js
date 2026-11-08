@@ -217,7 +217,7 @@ const input = new Input(canvas, $('minimap'), cam, {
   tac: () => act(),                                    // (0.20: the command panel is always up; a left drag boxes troopers; 0.22: paused too)
   ctx: (c) => { if (!act()) return; audio.unlock(); hud.setTcTab(hud.tcTab === c ? 'units' : c); setTac(true); },
   tacForm: (i) => setForm(FORMS[i]),
-  boxing: () => boxArm && live(),
+  boxing: () => boxArm && act(),     // (0.53.4: in the pause too)
   boxBegin: (x, y) => { if (act()) box = { x0: x, y0: y, x1: x, y1: y }; },
   boxMove: (x, y) => { if (box) { box.x1 = x; box.y1 = y; } },
   boxEnd: () => boxEnd(),
@@ -471,7 +471,7 @@ hud.onSelAct = (k) => {
 };
 function boxEnd() {
   const b = box; box = null; boxArm = false; hud.setBoxArm(false);
-  if (!b || !live()) return;
+  if (!b || !act()) return;     // (0.53.4: a box picks troopers in the pause too, as a click does)
   if (Math.abs(b.x1 - b.x0) < 8 && Math.abs(b.y1 - b.y0) < 8) return;
   const p = renderer.screenToWorld(b.x0, b.y0, canvas), q = renderer.screenToWorld(b.x1, b.y1, canvas);
   if (!p || !q) return;
@@ -710,10 +710,12 @@ function cycleSquad(d) {
   selectSquad(next);
 }
 function squadAct(kind, viaKey) {
-  if (!live()) return;
+  // (0.39) placing a build: R is the bastions' ring, line or corner. (0.53.4) In the pause too, and SELECT (a box round troopers),
+  // which only picks: both were shut out of the pause with everything else here.
+  if (kind === 'draw' && viaKey && placing && placing.startsWith('build:')) { if (act()) placeShapeToggle(); return; }
+  if (kind === 'box' ? !act() : !live()) return;
   audio.unlock();
   if (kind === 'draw') {
-    if (viaKey && placing && placing.startsWith('build:')) { placeShapeToggle(); return; }     // (0.39) placing a build: R is the bastions' ring or line
     if (!drawing && !mission.seafAlive.length) { audio.deny(); hud.toast(deny('noseaf')); return; }
     setDrawing(!drawing);
   } else if (kind === 'disband' && viaKey && sel && sel.kind === 'post' && !sel.dead) { const r = mission.demolishPost(sel); if (r && r.ok) audio.chirp(); else { audio.deny(); hud.toast(deny(r && r.reason), 1400); } if (tac) hud.fillTactical(mission, sel); }     // (0.36) Delete with a building selected: blow it up
@@ -1402,7 +1404,9 @@ function softPause(force) {
   if (on === soft) return;
   if (!on) menuSoft = false;
   soft = on; paused = on;
-  firePending = false; setPlacing(null); setDrawing(false); mission.setFiring(false); camPan = null;   // (0.22: in the pause, orders, builds and calls are planned: they go out on RESUME)
+  // (0.22: in the pause, orders, builds and calls are planned: they go out on RESUME) (0.53.4: a build picked stays picked across
+  // the pause and RESUME, so it can be put down either way)
+  firePending = false; if (!(placing && placing.startsWith('build:'))) setPlacing(null); setDrawing(false); mission.setFiring(false); camPan = null;
   hud.setSoft(on);
   if (on) { audio.humStop(); audio.click(); } else { audio.unlock(); audio.humStart(); audio.click(); }
 }
