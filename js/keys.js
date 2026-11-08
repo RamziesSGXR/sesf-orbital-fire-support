@@ -9,7 +9,7 @@ export const GROUPS = [
   ['cam', [['panUp', 'KeyW', ['ArrowUp']], ['panLeft', 'KeyA', ['ArrowLeft']], ['panDown', 'KeyS', ['ArrowDown']], ['panRight', 'KeyD', ['ArrowRight']],
     ['zoomIn', 'Equal', ['NumpadAdd']], ['zoomOut', 'Minus', ['NumpadSubtract']], ['follow', 'KeyF', []], ['map', 'Tab', ['KeyM', 'KeyL']]]],
   ['weap', [['w1', 'Digit1', []], ['w2', 'Digit2', []], ['w3', 'Digit3', []], ['w4', 'Digit4', []], ['w5', 'Digit5', []], ['w6', 'Digit6', []],
-    ['w7', 'Digit7', []], ['w8', 'Digit8', []], ['w9', 'Digit9', []], ['cyclePrev', 'KeyQ', []], ['cycleNext', 'KeyE', []]]],
+    ['w7', 'Digit7', []], ['w8', 'Digit8', []], ['w9', 'Digit9', []], ['cyclePrev', 'KeyQ', []], ['cycleNext', 'KeyE', []], ['eagleRearm', 'KeyL', []]]],
   ['seaf', [['seaf', 'KeyG', []], ['auto', 'KeyX', []], ['move', 'KeyV', []], ['protect', 'KeyZ', []], ['attack', 'KeyN', []], ['escort', 'KeyC', []],
     ['allSquads', 'Backquote', []], ['draw', 'KeyR', []], ['disband', 'Delete', ['Backspace']]]],
   ['panel', [['build', 'KeyB', []], ['armory', 'KeyY', []], ['supply', 'KeyU', []], ['look', 'KeyJ', []], ['timeYes', 'KeyK', []], ['info', 'KeyI', []],

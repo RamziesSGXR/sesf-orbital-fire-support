@@ -62,7 +62,7 @@ const waitFx = async (re, sec) => { for (let k = 0; k < sec * 10; k++) { const f
 const s500 = await slotOf('eagle_500');
 check('the Eagle 500 kg is in the bar', s500 >= 0, s500);
 if (s500 >= 0) {
-  const e0 = await ev(() => { const e = window.__game.mission.player.eagle; return e ? `${e.uses}/${e.max}` : 'none'; });
+  const e0 = await ev((i) => { const m = window.__game.mission, e = m.player.eagle; return e ? `${m.player.slots[i].eu}/${e.max}` : 'none'; }, s500);
   await fireAt(s500, 0, -45);
   const f = await waitFx(/fireball/, 8);
   await page.waitForTimeout(150); await shot('eagle500');
@@ -70,13 +70,21 @@ if (s500 >= 0) {
   await ev(() => { for (const sl of window.__game.mission.player.slots) if (sl.type === 'orb' && /^eagle_/.test(sl.id)) sl.readyAt = 0; }); await page.waitForTimeout(400);
   wb = await bar();
   check('the Eagle button counts its runs', wb.some((s) => /EAGLE \d\/\d/.test(s)), wb.filter((s) => s.startsWith('cat-eagle')).join(' / '));
-  // use the rest of the runs: the bar shows the rearm
-  for (let k = 0; k < 4; k++) { await ev((i) => { const m = window.__game.mission; if (m.player.eagle.uses > 0) { m.player.slots[i].readyAt = 0; m.selectWeapon(i); m.fire(); } }, s500); await page.waitForTimeout(300); }
+  // use the rest of its runs: (0.53.2) it is empty, the napalm still has its own, and the Eagle stays
+  for (let k = 0; k < 4; k++) { await ev((i) => { const m = window.__game.mission; if (m.player.slots[i].eu > 0) { m.player.slots[i].readyAt = 0; m.selectWeapon(i); m.fire(); } }, s500); await page.waitForTimeout(300); }
   await page.waitForTimeout(500);
   wb = await bar();
-  check('with no runs left it shows the rearm', wb.some((s) => /REARM \d+S/.test(s)), wb.filter((s) => s.startsWith('cat-eagle')).join(' / '));
+  const eagles = wb.filter((s) => s.startsWith('cat-eagle'));
+  check('(0.53.2) the 500 kg out of runs says so and how to rearm; the napalm still has all its own', eagles.some((s) => (touch ? /kgREARM$/ : /OUT · L REARM/).test(s)) && eagles.some((s) => /EAGLE (\d)\/\1/.test(s)) && !eagles.some((s) => /REARM \d+S/.test(s)), eagles.join(' / '));
+  await shot('empty');
+  if (touch) await ev((i) => document.querySelectorAll('#weapons .wbtn')[i].dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerType: 'touch' })), s500);
+  else await page.keyboard.press('KeyL');
+  await page.waitForTimeout(500);
+  wb = await bar();
+  check(touch ? '(0.53.2) a tap on the empty Eagle: the Eagle goes back to rearm early, and every Eagle shows the rearm' : '(0.53.2) L: the Eagle goes back to rearm early, and every Eagle shows the rearm', wb.filter((s) => s.startsWith('cat-eagle')).every((s) => /REARM \d+S/.test(s)), wb.filter((s) => s.startsWith('cat-eagle')).join(' / '));
   await shot('rearm');
-  await ev(() => { window.__game.mission.player.eagle.uses = window.__game.mission.player.eagle.max; window.__game.mission.player.eagle.rearmAt = 0; });
+  await ev(() => { const m = window.__game.mission; m.player.eagle.rearmAt = m.t; for (let k = 0; k < 3; k++) m.step(1 / 30); });
+  check('(0.53.2) back from the rearm: every Eagle full', await ev(() => { const m = window.__game.mission; return m.player.slots.filter((s) => s.eu !== undefined).every((s) => s.eu === m.player.eagle.max) && m.player.eagle.rearmAt === 0; }));
 }
 const sNap = await slotOf('eagle_napalm');
 if (sNap >= 0) {

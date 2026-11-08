@@ -24,9 +24,10 @@ export function initPlayer(m) {
     gun: { ammo: gunStats(m.kit).ammo, max: gunStats(m.kit).ammo, bloom: 0, idle: 9, acc: 0, dry: false, firing: false },
     aim: { ok: true, inZone: true, danger: false, dangerR: 0, ready: false, splash: 0, spread: 0, delay: 0, name: '' },
   };
-  // (0.23) the Eagle (the Hangar): every Eagle in the loadout calls on it; its calls run out and it flies back to rearm
+  // (0.23) the Eagle (the Hangar): every Eagle in the loadout calls on it, and it flies back to rearm. (0.53.2) Each Eagle stratagem
+  // has its own runs (its slot's eu, max each); the Eagle rearms once every one is out, or when the gunner calls it back early.
   const H = hangarStats(m.kit);
-  p.eagle = { uses: H.uses, max: H.uses, rearmAt: 0 };
+  p.eagle = { max: H.uses, rearmAt: 0 };
   m.player = p;
   m.utilQ = [];
   syncSlots(m, true);
@@ -46,6 +47,7 @@ export function syncSlots(m, start = false) {
     const level = kit.owned[id] || 1;
     if (cur.type === 'orb' && cur.id === id) { cur.level = level; continue; }
     p.slots[i] = { type: 'orb', id, level, readyAt: m.t + (start ? startCd(orbStats(id, level).cd) : C.weapons.warmupSec), uses: id === 'orb_laser' ? C.orbital.laserUses : Infinity };
+    if (orbStats(id, level).cat === 'EAGLE') p.slots[i].eu = hangarStats(kit).uses;     // (0.53.2) its own runs, full
   }
   // gun upgrades bought mid-mission: a bigger magazine arrives full of the extra rounds
   const gs = gunStats(kit);
@@ -157,7 +159,7 @@ function fireOrbital(m, idx) {
   const p = m.player, s = p.slots[idx], t = m.t;
   const st = orbStats(s.id, s.level);
   if (t < s.readyAt || s.uses <= 0) return deny(m, 'cooldown');
-  if (st.cat === 'EAGLE' && !eagleReady(m)) return deny(m, 'rearm');
+  if (st.cat === 'EAGLE' && !eagleReady(m, s)) return deny(m, m.t < m.player.eagle.rearmAt ? 'rearm' : 'eagleempty');
   if (!m.inZone(p.aimX, p.aimY) && !(st.k !== 'util' && m.nearLock(p.aimX, p.aimY))) return deny(m, 'nocoverage', COMMS.noCoverage);   // a locked enemy can be hit anywhere
   if (st.k === 'util') return callUtil(m, s, st);
   if (st.k === 'mines') return callMines(m, s, st);
@@ -187,18 +189,40 @@ function fireOrbital(m, idx) {
 }
 
 // ---------------------------------------------------------------- (0.23) the Eagle and the minefields
-// The Eagle: ready while it has calls left and is not away rearming. Each call takes one; the last sends it back to rearm.
-export function eagleReady(m) { const e = m.player.eagle; return e.max > 0 && e.uses > 0 && m.t >= e.rearmAt; }
-function eagleUse(m, s) {
+// The Eagle: an Eagle stratagem is ready while it has runs left (0.53.2: its own, s.eu) and the Eagle is not away rearming. Each call
+// takes one of its runs; once every Eagle in the loadout is out, the Eagle flies back to rearm. The gunner can call it back to rearm
+// early (eagleRearm) once any run is spent. While it is away no Eagle can be called; it comes back with every one full.
+export const eagleSlots = (m) => m.player.slots.filter((s) => s.type === 'orb' && s.eu !== undefined);
+export const eagleAway = (m) => m.t < m.player.eagle.rearmAt;
+export function eagleReady(m, s) {
+  if (eagleAway(m)) return false;
+  return s ? s.eu > 0 : eagleSlots(m).some((q) => q.eu > 0);
+}
+function eagleBack(m, early) {
   const e = m.player.eagle, H = hangarStats(m.kit);
+  e.rearmAt = m.t + H.rearm; e.early = !!early;
+  m.emit('eagle_rearm', { sec: H.rearm, early: !!early });
+  m.radio(COMMS.eagleRearm, 'eaglerearm', 4);
+}
+function eagleUse(m, s) {
+  const H = hangarStats(m.kit);
   s.readyAt = m.t + H.callCd;
-  e.uses--;
-  if (e.uses <= 0) { e.rearmAt = m.t + H.rearm; m.emit('eagle_rearm', { sec: H.rearm }); m.radio(COMMS.eagleRearm, 'eaglerearm', 4); }
+  s.eu = Math.max(0, s.eu - 1);
+  if (eagleSlots(m).every((q) => q.eu <= 0)) eagleBack(m, false);
+}
+// (0.53.2) EAGLE REARM: the Eagle flies back now, with runs still on it. Refused while it is away, or when no run has been spent.
+export function eagleRearm(m) {
+  const e = m.player.eagle, list = eagleSlots(m);
+  if (!list.length) return { ok: false, reason: 'noeagle' };
+  if (eagleAway(m)) return { ok: false, reason: 'rearm' };
+  if (list.every((q) => q.eu >= e.max)) return { ok: false, reason: 'eaglefull' };
+  eagleBack(m, true);
+  return { ok: true, sec: hangarStats(m.kit).rearm };
 }
 function eagleTick(m) {
   const e = m.player.eagle, H = hangarStats(m.kit);
-  if (e.max !== H.uses) { e.uses = Math.max(0, e.uses + (H.uses - e.max)); e.max = H.uses; }     // (a Hangar level bought mid-mission)
-  if (e.uses <= 0 && e.rearmAt && m.t >= e.rearmAt) { e.uses = e.max; e.rearmAt = 0; m.emit('eagle_ready', {}); }
+  if (e.max !== H.uses) { for (const q of eagleSlots(m)) q.eu = Math.max(0, q.eu + (H.uses - e.max)); e.max = H.uses; }     // (a Hangar level bought mid-mission)
+  if (e.rearmAt && m.t >= e.rearmAt) { for (const q of eagleSlots(m)) q.eu = e.max; e.rearmAt = 0; e.early = false; m.emit('eagle_ready', {}); }
 }
 // A minefield from the ship: it comes down at the aim point after st.delay and lies there until it is spent or st.life is up.
 function callMines(m, s, st) {
@@ -297,7 +321,7 @@ export function refreshAim(m) {
     info.lock = st.k !== 'util' && !m.inZone(p.aimX, p.aimY) ? !!m.nearLock(p.aimX, p.aimY) : false;
     info.inZone = m.inZone(p.aimX, p.aimY) || info.lock;
     info.splash = g.splash; info.spread = g.spread + (m.evading && st.k !== 'util' ? C.objective.cannon.scatter : 0);     // (the ship dodging a cannon: wider)
-    info.ready = info.inZone && t >= s.readyAt && s.uses > 0 && (st.cat !== 'EAGLE' || eagleReady(m));
+    info.ready = info.inZone && t >= s.readyAt && s.uses > 0 && (st.cat !== 'EAGLE' || eagleReady(m, s));
   } else if (s.type === 'uav') {
     info.inZone = m.inAllyZone(p.aimX, p.aimY, UAV_REACH);
     info.splash = st.r; info.ready = info.inZone && t >= s.readyAt;

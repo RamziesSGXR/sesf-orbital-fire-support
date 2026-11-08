@@ -178,6 +178,7 @@ function pickEnemy(e) { audio.unlock(); audio.click(); settings.enemy = e; S.sav
 document.body.classList.add('rts');     // (0.20: the HUD as an RTS, css)
 const input = new Input(canvas, $('minimap'), cam, {
   weapon: (i) => { if (!act()) return; if (live() && hbFilling(mission)) { hbTap(i); return; } if (live() && supplyFilling(mission)) { supTap(i); return; } setDrawing(false); arm(i); },
+  eagleRearm: () => eagleRearmNow(),
   cycle: (d) => {
     if (placeTurn(d * Math.PI / 12)) return;      // (0.39) placing a build: Q / E turn it
     if (!live() || handsBusy(mission)) return;
@@ -253,7 +254,19 @@ const input = new Input(canvas, $('minimap'), cam, {
 }, () => state === 'play' && (!paused || soft) && !UI.anyOverlay());
 input.setTouch(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
 applyLayout();
-hud.onWeapon = (i) => { audio.unlock(); if (act()) arm(i); };     // (0.25.1: in the pause too, so a weapon call can be planned from the bar)
+hud.onWeapon = (i) => {     // (0.25.1: in the pause too, so a weapon call can be planned from the bar)
+  audio.unlock(); if (!act()) return;
+  // (0.53.2) an Eagle with no runs left: its button calls the Eagle back to rearm (the others come back full with it)
+  const s = mission.player.slots[i];
+  if (s && s.eu !== undefined && s.eu <= 0 && mission.t >= mission.player.eagle.rearmAt) { eagleRearmNow(); return; }
+  arm(i);
+};
+// (0.53.2) EAGLE REARM (L, or the button of an Eagle out of runs): the Eagle flies back now and every Eagle comes back full
+function eagleRearmNow() {
+  if (!act() || !mission) return;
+  const r = mission.eagleRearm();
+  if (r.ok) { audio.chirp(); hud.toast(t('hud.eagleBack', { s: Math.round(r.sec) }), 1800); }
+}
 hud.onTac = (on, tab) => { audio.unlock(); if (tab) hud.setTcTab(tab); setTac(on === undefined ? !tac : on); };
 hud.onArmoryTab = () => { if (tac && mission) drawArmory(); };
 hud.onTabChange = () => { if (tut) tut.poke(); };
@@ -667,7 +680,7 @@ hud.onMerge = (L) => {
 // ---------------- orders: SEAF drop and SEAF orders ----------------
 // Why a call or a purchase was refused: deny.<reason> in the language tables.
 const DENY_KEYS = new Set(['onbase', 'artyrange', 'nocoverage', 'cooldown', 'full', 'noseaf', 'nohd', 'noallies', 'nomark', 'funds', 'between', 'maxed', 'locked', 'novisual', 'gundry',
-  'short', 'water', 'jammed', 'nocrew', 'nogarrison', 'boxnone', 'boxnosquad', 'noweapon', 'picksquad', 'postfull', 'nosight', 'nospan', 'merge', 'planfull', 'shielded', 'rearm', 'nodemo', 'jamsite', 'coin']);
+  'short', 'water', 'jammed', 'nocrew', 'nogarrison', 'eaglefull', 'eagleempty', 'noeagle', 'boxnone', 'boxnosquad', 'noweapon', 'picksquad', 'postfull', 'nosight', 'nospan', 'merge', 'planfull', 'shielded', 'rearm', 'nodemo', 'jamsite', 'coin']);
 const deny = (r) => (DENY_KEYS.has(r) ? t('deny.' + r) : '');
 function setPlacing(kind) {
   if (kind) { setDrawing(false); disarm(); }

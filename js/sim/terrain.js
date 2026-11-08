@@ -558,11 +558,12 @@ export class Terrain {
   // Waypoints from near (x1, y1) to (x2, y2) that keep clear of deep water, or null if there is no way at all. Searches are cached
   // by start and goal cell (the ground never changes), and only a few new searches run per tick: past that budget this returns
   // undefined and the caller keeps its old route (or walks straight) until the next tick.
-  path(x1, y1, x2, y2) {
+  // (0.53.2) fine: the 8 m grid only (a mover the coarse route left standing at a corner it cannot walk round, by a light bridge)
+  path(x1, y1, x2, y2, fine = false) {
     const ci = (v, cs, W) => { const c = (v / cs) | 0; return c < 0 ? 0 : c >= W ? W - 1 : c; };
     if (!this._pcC) { this._pcC = new Map(); this._pcF = new Map(); }
     const kc = (ci(y1, NAVC, NV) * NV + ci(x1, NAVC, NV)) * NV * NV + ci(y2, NAVC, NV) * NV + ci(x2, NAVC, NV);
-    let c = this._pcC.get(kc), G = this._coarse, cells;
+    let c = fine ? 0 : this._pcC.get(kc), G = this._coarse, cells;
     if (c === undefined) {
       if (this.budget !== undefined && this.budget <= 0) return undefined;
       if (this.budget !== undefined) this.budget--;
@@ -634,8 +635,9 @@ export function steer(tr, o, x, y, gx, gy, t) {
   }
   if (!nv.pts || !nv.pts.length) { OUT.x = gx; OUT.y = gy; return OUT; }
   const pts = nv.pts;
-  // on to the next corner once this one is reached, or once the next one can be seen straight from here
-  while (nv.i < pts.length - 1 && (Math.hypot(pts[nv.i].x - x, pts[nv.i].y - y) < 5 || tr.lineClear(x, y, pts[nv.i + 1].x, pts[nv.i + 1].y, 4))) nv.i++;
+  // on to the next corner once this one is reached, or once the next one can be seen straight from here (0.53.2: near a corner
+  // but not on it, the next leg from where the mover stands may clip the water the route was laid round: then it goes on to it)
+  while (nv.i < pts.length - 1 && (Math.hypot(pts[nv.i].x - x, pts[nv.i].y - y) < 1.5 || tr.lineClear(x, y, pts[nv.i + 1].x, pts[nv.i + 1].y, 4))) nv.i++;
   // a corner the mover is close to but cannot get any closer to (it lies past the edge of the map, or on a shore it is held off)
   // counts as reached after a moment, so nobody stands next to it for ever
   const dc = Math.hypot(pts[nv.i].x - x, pts[nv.i].y - y);
@@ -643,9 +645,9 @@ export function steer(tr, o, x, y, gx, gy, t) {
   else if (dc < 14 && t - nv.bt > 1.5 && nv.i < pts.length - 1) { nv.i++; nv.bi = nv.i; nv.best = Math.hypot(pts[nv.i].x - x, pts[nv.i].y - y); nv.bt = t; }
   // the corner cannot be reached from here after all (the route was planned on a coarser grid): plan again from where we stand
   if (!tr.lineClear(x, y, pts[nv.i].x, pts[nv.i].y, 4) && t - nv.at > 0.4) {
-    const p2 = tr.path(x, y, gx, gy);
+    const p2 = tr.path(x, y, gx, gy, !!nv.fine || nv.stuck > 1);      // (0.53.2: again and again: on the 8 m grid, cell by cell)
     if (p2 !== undefined) {
-      nv = o.nv = { gx, gy, at: t, pts: p2, i: 0 };
+      nv = o.nv = { gx, gy, at: t, pts: p2, i: 0, stuck: (nv.stuck || 0) + 1, fine: !!nv.fine || nv.stuck > 1 };
       if (!nv.pts || !nv.pts.length) { OUT.x = gx; OUT.y = gy; return OUT; }
     }
   }
