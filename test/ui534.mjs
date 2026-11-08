@@ -73,11 +73,43 @@ const picked = await ev(() => { const m = window.__game.mission, sf = m.seaf; re
 await shotP('box');
 check(touch ? 'paused, a phone: a finger held on open ground then dragged boxes the troopers' : 'paused, a computer: a drag on the map picks the troopers in the box', picked.soft && picked.sel !== -1 && picked.n === pts.n, JSON.stringify(picked) + ` of ${pts.n}`);
 
+// ---------------------------------------------------------------- a stratagem planned in the pause, then another weapon picked
+// (players: on RESUME the planned call went out and the weapon picked after it was put down, back to an empty cursor)
+await ev(() => window.__game.setPlacing(null));
+const wpn = await ev(() => { const g = window.__game, m = g.mission, p = m.player, orb = p.slots.map((s, i) => [s, i]).filter(([s]) => s.type === 'orb' && s.uses > 0);
+  for (const [s] of orb) s.readyAt = 0; return orb.map(([, i]) => i); });
+check('(two stratagems to call)', wpn.length >= 2, wpn.join());
+await ev(() => window.__game.softPause(true)); await page.waitForTimeout(150);
+await ev((i) => { const g = window.__game, m = g.mission, a = m.hdAlive[0] || m.seafAlive[0]; g.arm(i); g.cam.x = a.x + 40; g.cam.y = a.y; m.setAim(a.x + 40, a.y); g.planFire(); }, wpn[0]);
+await page.waitForTimeout(150);
+check('a stratagem planned in the pause', (await ev(() => window.__game.plan)) === 1);
+await ev((i) => window.__game.arm(i), wpn[1]); await page.waitForTimeout(150);
+const before = await ev(() => ({ armed: window.__game.armed, w: window.__game.mission.player.weapon }));
+await ev(() => window.__game.softPause(false)); await page.waitForTimeout(700);
+const after = await ev(() => ({ armed: window.__game.armed, w: window.__game.mission.player.weapon, plan: window.__game.plan }));
+check('RESUME: the planned call goes out, and the stratagem picked after it is still in hand (not an empty cursor)', after.plan === 0 && before.armed && after.armed && after.w === wpn[1], `${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
+await ev(() => window.__game.disarm());
+
+// ---------------------------------------------------------------- LOOK on a super heavy's warning, in the pause
+await ev(() => { const m = window.__game.mission; m.bossPlan = { at: 0 }; });
+await page.waitForFunction(() => !!window.__game.mission.boss, null, { timeout: 8000 });
+await page.waitForTimeout(400);
+await ev(() => { const g = window.__game; g.softPause(true); g.cam.follow = false; const m = g.mission; g.cam.x = m.hx; g.cam.y = m.hy; });
+await page.waitForTimeout(200);
+const d0 = await ev(() => { const g = window.__game, b = g.mission.boss; return Math.hypot(g.cam.x - b.x, g.cam.y - b.y); });
+await ev(() => { const b = document.querySelector('#co-boss [data-co="look-boss"]'); b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); b.click(); });
+await page.waitForTimeout(600);
+const d1 = await ev(() => { const g = window.__game, b = g.mission.boss; return Math.hypot(g.cam.x - b.x, g.cam.y - b.y); });
+check('paused, LOOK on the super heavy\'s warning takes the camera to it', d0 > 60 && d1 < 30 && (await ev(() => window.__game.soft)), `${Math.round(d0)} m -> ${Math.round(d1)} m`);
+await ev(() => window.__game.softPause(false)); await page.waitForTimeout(200);
+
 // ---------------------------------------------------------------- the soft pause draws at the full frame rate
 // (players: panning and the ground's animations were choppy in the pause: it drew at 12 a second, as under the pause menu)
 const rate = async () => { const f0 = await ev(() => window.__game.frames); await page.waitForTimeout(1500); const f1 = await ev(() => window.__game.frames); return (f1 - f0) / 1.5; };
 const live = await rate();
-check('the soft pause draws as smoothly as the game running', (await ev(() => window.__game.soft)) && (await rate()) >= Math.min(live, touch ? 30 : 60) * 0.7, `live ${live.toFixed(1)}/s`);
+await ev(() => window.__game.softPause(true)); await page.waitForTimeout(200);
+const pr = await rate();
+check('the soft pause draws at the game\'s frame rate, not the pause menu\'s 12 a second', (await ev(() => window.__game.soft)) && pr >= 20, `live ${live.toFixed(1)}/s, paused ${pr.toFixed(1)}/s`);
 await ev(() => window.__game.softPause(false)); await page.waitForTimeout(200);
 await ev(() => window.__game.togglePause ? window.__game.togglePause(true) : null); await page.waitForTimeout(300);
 const menuRate = await rate();

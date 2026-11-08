@@ -330,7 +330,7 @@ function disarm() {
 }
 const shiftHeld = () => input.keys.has('ShiftLeft') || input.keys.has('ShiftRight');
 let keepArmed = false;
-function afterCall() { if (armed && !keepArmed && !shiftHeld() && mission.player.slots[mission.player.weapon].type !== 'gun') disarm(); keepArmed = false; }
+function afterCall(ev) { if (ev && ev.planned) return; if (armed && !keepArmed && !shiftHeld() && mission.player.slots[mission.player.weapon].type !== 'gun') disarm(); keepArmed = false; }
 // Esc steps back one thing at a time: a play being drawn, a placement, the tactical screen, an armed weapon, then the menu.
 function escapeKey() {
   if (UI.anyOverlay() || state !== 'play') { togglePause(); return; }
@@ -583,10 +583,17 @@ let camPan = null;     // { x, y, w (how much of the way from the squad), untilT
 // then goes back where it was
 let nukeCue = null;
 const CUE = { lead: 1.3, hold: 1.6, back: 1.0 };
-function lookAt(x, y, sec = 3.5, w = 1, track = null) { if (mission) camPan = { x, y, w, untilT: mission.t + sec, track }; }
+function lookAt(x, y, sec = 3.5, w = 1, track = null) {
+  if (!mission) return;
+  // (0.53.4) in the soft pause the clock stands, so the camera goes straight there (as a double tap on a team does there): LOOK
+  // on a warning did nothing in the pause
+  if (soft) { cam.follow = false; cam.x = x; cam.y = y; camPan = null; return; }
+  camPan = { x, y, w, untilT: mission.t + sec, track };
+}
 function supTap(i) { if (live() && fillSupply(mission, i)) { /* sounds come with the event */ } }
 function supplyCall(k) {
-  if (!mission || state !== 'play' || paused) return;
+  if (!mission || state !== 'play') return;
+  if (paused && !(soft && k.startsWith('look'))) return;     // (0.53.4: LOOK works in the soft pause; the rest waits for RESUME)
   const S = mission.supply;
   if (k === 'accept') { if (acceptSupply(mission)) { hud.wake(); setPlacing(null); setDrawing(false); mission.setFiring(false); } else lookLatest(); }
   else if (k === 'decline') declineSupply(mission);
@@ -614,7 +621,7 @@ function focusTeam(kind, i) {
 }
 // J: look at whatever was called most recently (a falling or fresh supply pod, else whoever asked for one).
 function lookLatest() {
-  if (!mission || !live()) return;
+  if (!mission || !act()) return;     // (0.53.4: J in the soft pause too)
   const S = mission.supply, d = S && (S.drop || (S.last && mission.t - S.last.at < 10 ? S.last : null));
   if (d) { lookAt(d.x, d.y, 3.5); return; }
   if (S && S.state === 'ask') { const a = mission.allies.find((x) => x.id === S.ask.by && !x.dead); if (a) lookAt(a.x, a.y, 3); }
@@ -637,13 +644,16 @@ function queuePlan(kind, x, y, run, o = null) {
 function runPlan() {
   if (!planQ.length || !live()) return;
   const q = planQ; planQ = []; hud.setPlanCount(0);
-  const sf = mission.seaf, keep = { sel: sf.sel, pick: sf.pick, multi: sf.multi }, w0 = mission.player.weapon;
+  const sf = mission.seaf, keep = { sel: sf.sel, pick: sf.pick, multi: sf.multi }, w0 = mission.player.weapon, e0 = mission.events.length;
   let bad = 0;
   for (const it of q) {
     sf.sel = it.sel.sel; sf.pick = null; sf.multi = it.sel.multi;
     let r = null; try { r = it.run(); } catch (e) { console.error(e); }
     if (!r || r.ok === false) bad++;
   }
+  // (0.53.4) the calls the plan made are marked: they do not put down the weapon the player has in hand (a planned stratagem going
+  // out on RESUME emptied the cursor of the one picked after it; only the ship gun was spared)
+  for (let k = e0; k < mission.events.length; k++) mission.events[k].planned = true;
   sf.sel = keep.sel; sf.pick = keep.pick; sf.multi = keep.multi;
   // (0.47) the weapons the plan called were picked to call them: the one in hand when the game ran again (the ship gun, say) is
   // put back, so it is not dropped for the last stratagem called
@@ -1828,7 +1838,7 @@ function onEvent(ev, now) {
     case 'beam': audio.beam(); break;
     case 'gun': audio.snd('shipgat', L, P); break;
     case 'heal': audio.snd('heal', L, P); break;
-    case 'util_call': audio.stratCall(); afterCall(); break;
+    case 'util_call': audio.stratCall(); afterCall(ev); break;
     case 'util_land': if (ev.util === 'med') audio.supFull(2); else audio.podLand(); break;
     case 'stim': audio.snd('stim', L, P); break;
     case 'dodge': audio.snd('dodge', L, P); break;
@@ -1877,9 +1887,9 @@ function onEvent(ev, now) {
     case 'full_clear': audio.objective(); hud.message(t('msg.fullClear'), 2600); break;
     case 'area_clear': audio.win(); hud.message(t('msg.areaClear'), 2600); break;
     case 'strat_call': audio.stratCall(); break;
-    case 'strike_call': audio.strikeCall(ev.id); afterCall(); break;
-    case 'uav': audio.uav(); afterCall(); break;
-    case 'nuke_call': audio.siren(); audio.nukeLaunch(); hud.message(t('msg.nukeCall'), 2400); afterCall(); if (!BOT) nukeCue = { x: ev.x, y: ev.y, r: ev.r || 230, at: mission.t + ev.delay, on: false }; break;     // (0.40)
+    case 'strike_call': audio.strikeCall(ev.id); afterCall(ev); break;
+    case 'uav': audio.uav(); afterCall(ev); break;
+    case 'nuke_call': audio.siren(); audio.nukeLaunch(); hud.message(t('msg.nukeCall'), 2400); afterCall(ev); if (!BOT) nukeCue = { x: ev.x, y: ev.y, r: ev.r || 230, at: mission.t + ev.delay, on: false }; break;     // (0.40)
     case 'obj_state':
       if (ev.type === 'nuke' && ev.state === 'armed') {
         audio.siren(); hud.message(t('msg.nukeArmed'), 3200);
@@ -1904,7 +1914,7 @@ function onEvent(ev, now) {
       audio.baseDown();
       if (ev.fortress) hud.message(t('msg.citadel'), 2400); else hud.notice(t('msg.baseDown'), 'good');
       break;
-    case 'arty_fire': afterCall(); break;
+    case 'arty_fire': afterCall(ev); break;
     case 'end':
       if (ev.outcome === 'victory' || ev.outcome === 'complete') { audio.win(); endMood = 'win'; } else { audio.lose(); endMood = 'lose'; }
       hud.message(t(ev.outcome === 'victory' ? (mission.extracted ? 'msg.end.extracted' : 'msg.end.victory') : 'msg.end.' + ev.outcome), 4000);
