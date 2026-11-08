@@ -44,7 +44,7 @@ const centre = (L) => ({ x: L.reduce((s, a) => s + a.x, 0) / L.length, y: L.redu
   run(m, C.pelican.workSec + 1);
   const q2 = m.seaf.squads[r2.squad];
   check('...and it holds where it landed (not off escorting)', q2.order.kind !== 'escort' && Math.hypot(q2.order.x - far.x, q2.order.y - far.y) < 30, `${q2.order.kind} at ${Math.round(q2.order.x)},${Math.round(q2.order.y)}`);
-  run(m, 6);
+  run(m, 14);     // (0.53.6: troopers joining the squad from elsewhere walk in to it first; the work site no longer draws probes before it is worked, so the random draws differ)
   const c2 = centre(members(m, r2.squad));
   check('...still close to where it landed after a while', Math.hypot(c2.x - far.x, c2.y - far.y) < 30, `${Math.round(Math.hypot(c2.x - far.x, c2.y - far.y))} m off`);
 }

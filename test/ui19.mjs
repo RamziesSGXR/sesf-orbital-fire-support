@@ -63,7 +63,7 @@ check('the drop countdown reads in minutes', /^\d+:\d\d$/.test(s0.cd), s0.cd);
 const s1 = await ev(() => ({ d: window.__game.mission.difficulty, diff: document.getElementById('mb-diff').textContent, lives: document.getElementById('lives-v').textContent, liveVis: !!document.getElementById('lives').getBoundingClientRect().width }));
 check('(0.36.1) the tutorial starts at difficulty 3, and the Helldivers\' lives show beside the credits', s1.d === 3 && /DIFFICULTY 3/.test(s1.diff) && s1.lives === '10' && s1.liveVis, JSON.stringify(s1));
 let c = await card();
-check('the card: step 1, the base, the Great Host', !c.hidden && /STEP 1 OF 15/.test(c.k) && /THARSIS/.test(c.h) && /Great Host/.test(c.b), c.h);
+check('the card: step 1, the base, the Great Host', !c.hidden && /STEP 1 OF 16/.test(c.k) && /THARSIS/.test(c.h) && /Great Host/.test(c.b), c.h);
 check('a card holds the game until it is read (nothing to point at: no spotlight)', c.held && !c.spot && await frozen());
 check('...and sits under the top corners, clear of the middle of the screen', await ev(() => { const a = document.getElementById('tut').getBoundingClientRect(); return a.bottom < innerHeight * 0.5 && a.top > 0; }));
 await shot('intro');
@@ -84,7 +84,22 @@ else { await page.mouse.move(W / 2, H / 3); await page.mouse.down({ button: 'rig
 check('moving the map does it: (0.42.1) the command radio is next', await waitStep('THE COMMAND RADIO'));
 check('(0.42.1) its button is lit, and the card says the news is kept in its log', await ev(() => document.getElementById('btn-radio').classList.contains('tut-hl')) && /radio log/.test((await card()).b) && (!touch || /On a phone/.test((await card()).b)), (await card()).b);
 await tap('#tut-next');
-check('NEXT: the ship gun', await waitStep('THE SHIP GUN'));
+// (0.53.6) nobody holds the base at the start: the player drops the first squad, by the shelter
+check('(0.53.6) NEXT: drop your troops', await waitStep('DROP YOUR TROOPS'));
+{ const st = await ev(() => { const m = window.__game.mission, b = document.querySelector('#tactical .tco.seaf'); return { n: m.seafAlive.length, hl: b.classList.contains('tut-hl'), txt: b.textContent, site: !!m.workSite }; });
+  check('(0.53.6) nobody is on the ground, and SEAF DROP is lit and ready (not NO ALLIES)', st.n === 0 && st.hl && !/NO ALLIES/.test(st.txt), JSON.stringify(st));
+  check('(0.53.6) ...and there is no work site in the tutorial', !st.site);
+  check('(0.53.6) the card says they come by Pelican, only where they are sent, and to drop them by the shelter', /Pelican/.test((await card()).b) && /only where you send them/.test((await card()).b) && /shelter/.test((await card()).b) && /strike zone/.test((await card()).b), (await card()).b); }
+await shot('troops');
+{ const sh = await ev(() => { const o = window.__game.mission.objectives[0]; return [o.sx, o.sy]; });
+  await tap('#tut-ok'); await page.waitForTimeout(200);     // (the game runs: on a phone, tapping SEAF DROP lets the card go too)
+  if (touch) await ev(([x, y]) => window.__game.mission.callSeaf(x + 6, y + 6), sh);
+  else {
+    const [sx, sy] = await ev(([x, y]) => { const r = window.__game.renderer.worldToScreen(x + 6, y + 6, document.getElementById('view')); return [r.x, r.y]; }, sh);
+    await page.mouse.move(sx, sy); await page.keyboard.press('KeyG'); await page.waitForTimeout(300); await page.mouse.click(sx, sy); await page.waitForTimeout(300);
+  }
+}
+check('(0.53.6) a drop by the shelter does it once S1 is down (the strike zone is round them): the ship gun is next', await waitStep('THE SHIP GUN', 20000) && await ev(() => window.__game.mission.stats.seafCalls === 1 && window.__game.mission.seaf.squads[0].n > 0), (await card()).h);
 const g1 = await ev(() => window.__game.mission.enemies.filter((e) => !e.dead).length);
 check('the gun lesson sends drones at the base, and the camera looks at them', g1 === 10, String(g1));
 check('the ship gun on the weapon bar is lit, the card beside it', await ev(() => document.querySelector('#weapons .gun-w').classList.contains('tut-hl')) && await beside('#weapons .gun-w'));
@@ -102,11 +117,15 @@ const callAt = async (key, slot, wx, wy) => {
 };
 const grp = await ev(() => { const g = window.__game.mission.groups[window.__game.mission.groups.length - 1]; return g ? [g.cx, g.cy] : null; });
 if (grp) await callAt('Digit2', 1, grp[0], grp[1]);
-check('calling an orbital on the warriors does it', await waitStep('MORE TROOPS', 9000), String(await ev(() => window.__game.mission.stats.orbCalls)));
-if ((await card()).h === 'ORBITAL STRIKE') { await ev(() => { window.__game.mission.stats.orbCalls++; }); await waitStep('MORE TROOPS'); }
+const MT = 'MORE TROOPS, AND THE LIMITS';
+check('calling an orbital on the warriors does it', await waitStep(MT, 9000), String(await ev(() => window.__game.mission.stats.orbCalls)));
+if ((await card()).h === 'ORBITAL STRIKE') { await ev(() => { window.__game.mission.stats.orbCalls++; }); await waitStep(MT); }
 check('SEAF DROP in the command panel is lit', await ev(() => document.querySelector('#tactical .tco.seaf').classList.contains('tut-hl')));
-await ev(() => { const m = window.__game.mission, o = m.objectives[0]; m.callSeaf(o.x + 10, o.y + 10); });
-if ((await card()).h === 'MORE TROOPS') await ev(() => { window.__game.mission.stats.seafCalls++; });
+check('(0.53.6) the second drop\'s card says the limits, with the numbers: troopers a Pelican brings, the most on the ground, its turnaround, where a drop lands, the cost of losses',
+  /up to 5 troopers/.test((await card()).b) && /12 on the ground/.test((await card()).b) && /about \d+ seconds/.test((await card()).b) && /strike zone/.test((await card()).b) && /replaced from your credits/.test((await card()).b), (await card()).b);
+await shot('limits');
+await ev(() => { const m = window.__game.mission, o = m.objectives[0]; m.seaf.fleet = m.seaf.fleet.map(() => m.t); m.callSeaf(o.hx + 8, o.hy + 8); });
+if ((await card()).h === MT) await ev(() => { window.__game.mission.stats.seafCalls++; });
 check('a SEAF drop does it: picking troops is next', await waitStep('PICK YOUR TROOPS', 9000));
 { const hl = await ev(() => [...document.querySelectorAll('.tut-hl')].map((e) => e.id || e.className).join(',')), bs = await beside('#squads');
   check('the squad bar (in the sheet\'s TROOPS tab) is pointed out, the card beside it', /^squads$|,squads|squads,/.test(hl) && bs === true, hl + ' ' + bs); }
@@ -157,7 +176,7 @@ check('(0.37) ...it says what carries over from mission to mission', /carry over
 await tap('#tut-next');
 check('NEXT: the last card', await waitStep('OPEN THE SHELTER', 9000));
 c = await card();
-check('the last step: HOLD THE LINE', /HOLD THE LINE/.test(await page.textContent('#tut-next')) && /STEP 15 OF 15/.test(c.k));
+check('the last step: HOLD THE LINE', /HOLD THE LINE/.test(await page.textContent('#tut-next')) && /STEP 16 OF 16/.test(c.k));
 await shot('begin');
 await tap('#tut-next'); await page.waitForTimeout(1500);
 const h1 = await ev(() => ({ stage: window.__game.mission.ls.stage, timer: document.getElementById('timer').textContent, obj: document.getElementById('obj-main').textContent }));

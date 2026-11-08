@@ -689,7 +689,7 @@ hud.onMerge = (L) => {
 
 // ---------------- orders: SEAF drop and SEAF orders ----------------
 // Why a call or a purchase was refused: deny.<reason> in the language tables.
-const DENY_KEYS = new Set(['onbase', 'artyrange', 'nocoverage', 'cooldown', 'full', 'noseaf', 'nohd', 'noallies', 'nomark', 'funds', 'between', 'maxed', 'locked', 'novisual', 'gundry',
+const DENY_KEYS = new Set(['onbase', 'artyrange', 'nocoverage', 'nearlz', 'cooldown', 'full', 'noseaf', 'nohd', 'noallies', 'nomark', 'funds', 'between', 'maxed', 'locked', 'novisual', 'gundry',
   'short', 'water', 'jammed', 'nocrew', 'nogarrison', 'eaglefull', 'eagleempty', 'noeagle', 'boxnone', 'boxnosquad', 'noweapon', 'picksquad', 'postfull', 'nosight', 'nospan', 'merge', 'planfull', 'shielded', 'rearm', 'nodemo', 'jamsite', 'coin']);
 const deny = (r) => (DENY_KEYS.has(r) ? t('deny.' + r) : '');
 function setPlacing(kind) {

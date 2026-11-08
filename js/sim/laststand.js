@@ -50,8 +50,8 @@ export function placeBase(m) {
   m.lsAxis = { px, py };
 }
 
-// At the end of the setup: nothing else on the map (no bases, patrols, side missions, finds), the base's own defences and two
-// squads of SEAF, and the clock.
+// At the end of the setup: nothing else on the map (no bases, patrols, side missions, finds), the base's own defences, and the
+// clock. (0.53.6) No SEAF on the ground: the lessons have the player drop them, two Pelicans, and say what limits a drop.
 export function setupLastStand(m) {
   const o = m.objectives.find((q) => q.lastStand);
   if (!o) return;
@@ -72,9 +72,8 @@ export function setupLastStand(m) {
     put('lookout', o.hx + ax * 22, o.hy + ay * 22, Math.atan2(ay, ax)),
     put('foxhole', o.sx - ax * 16 + px * 10, o.sy - ay * 16 + py * 10, Math.atan2(-ay, -ax)),
   ].filter(Boolean);
-  // (0.36.1) one squad already at its post: S1 holds the shelter. The SEAF lesson drops the second (there is room for it under
-  // the cap); if the lessons are skipped, that squad is at the hangar when the shelter opens (lsBegin)
-  posted(m, 0, o.sx, o.sy);
+  // (0.53.6) nobody at the base yet: the lessons drop S1 by the shelter and S2 by the hangar; if they are skipped, those squads
+  // are at their posts when the shelter opens (lsBegin)
   // the lessons ask for the UAV and an orbital: they are ready from the start
   for (const sl of m.player.slots) if (sl.readyAt !== undefined) sl.readyAt = 0;
   m.hd.lives = m.hd.max = K.lives;
@@ -131,8 +130,13 @@ export function lsBegin(m) {
   if (!ls || !o || ls.stage !== 'lessons') return false;
   ls.stage = 'hold'; ls.holdT = 0;
   o.wait = false; o.state = 'run'; o.batchT = 1; o.open = false;
-  // (0.36.1) nobody dropped in the SEAF lesson (it was skipped): the hangar's squad is at its post now
-  if (!m.seafAlive.some((a) => a.sq === 1) && !m.pelicans.some((p) => p.squad === 1) && m.seafAlive.length + pendingTroops(m) <= L().squad) posted(m, 1, o.hx, o.hy);
+  // (0.36.1; 0.53.6 both squads) the SEAF lessons were skipped: the shelter's and the hangar's squads are at their posts now, as
+  // far as there is room under the cap
+  const st = seafStats(m.kit);
+  for (const [i, x, y] of [[0, o.sx, o.sy], [1, o.hx, o.hy]]) {
+    if (m.seafAlive.some((a) => a.sq === i) || m.pelicans.some((p) => p.squad === i)) continue;
+    if (m.seafAlive.length + pendingTroops(m) + L().squad <= st.max) posted(m, i, x, y);
+  }
   m.radio(COMMS.lsBegin, 'lsbegin', 0);
   m.emit('ls_stage', { stage: 'hold' });
   return true;

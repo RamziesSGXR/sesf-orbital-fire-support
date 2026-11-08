@@ -204,7 +204,7 @@ export function hurtAlly(m, a, rawDmg, by, raw = false, src = null, fx, fy) {
 }
 
 export function hurtAsset(m, s, dmg) {
-  if (s.dead || s.dormant || !(dmg > 0)) return;     // (0.53: the defence gun is shut down, armoured, until its crew is there)
+  if (s.dead || s.dormant || s.asleep || !(dmg > 0)) return;     // (0.53: the defence gun is shut down, armoured, until its crew is there; 0.53.6: a work site nobody has worked yet is left alone)
   dmg = absorb(m, s.x, s.y, dmg);
   if (dmg <= 0) return;
   s.hp -= dmg; s.hurtAt = m.t;

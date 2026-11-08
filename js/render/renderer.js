@@ -574,9 +574,15 @@ export class Renderer {
       text = !ok ? (why || tr('ret.noCover')) : tr(n ? 'lab.ghost.lzIn' : 'lab.ghost.lz', { n });
     } else if (k === 'seaf') {
       // a SEAF drop: where the pelican puts them down, how many, and the squad they join
-      ok = !!bc || m.inZone(ax, ay, -5);
+      ok = !!bc || m.inZone(ax, ay, -5) || m.earlyLz(ax, ay);
       const st = seafStats(m.kit), room = Math.max(0, st.max - m.countAlly('S') - m.pendingPods('S')), n = Math.min(st.drop, room);
       if (ok && !n) { ok = false; why = tr('deny.full'); }
+      // (0.53.6) before the Helldivers are down: the ring round the landing zone a drop can go in (nobody on the ground yet)
+      if (m.earlyDrop()) {
+        if (!ok && !m.alive.length) why = tr('deny.nearlz');
+        ctx.save(); ctx.strokeStyle = 'rgba(95,168,255,0.5)'; ctx.lineWidth = px(1.5); ctx.setLineDash([px(8), px(7)]);
+        ctx.beginPath(); ctx.arc(m.lz.x, m.lz.y, C.seaf.startR, 0, TAU); ctx.stroke(); ctx.restore();
+      }
       const col = ok ? '95,168,255' : '255,74,74';
       ctx.strokeStyle = `rgba(${col},${0.6 + 0.35 * pulse})`; ctx.fillStyle = `rgba(${col},0.10)`; ctx.lineWidth = px(2); ctx.setLineDash([px(6), px(5)]); ctx.lineDashOffset = -now * px(10);
       ctx.beginPath(); ctx.arc(ax, ay, 14, 0, TAU); ctx.fill(); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
