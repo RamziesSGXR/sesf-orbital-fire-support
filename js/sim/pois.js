@@ -181,10 +181,13 @@ export function softNear(m, x, y, r) {
 }
 
 // A base or the citadel whose edge is within r of a point. Allies shoot these when nothing else needs shooting.
-export function baseNear(m, x, y, r) {
+// (0.53.4) Not the citadel's keep while it only falls to a Hellbomb: shot at for nothing, it held the squad standing by it, firing,
+// while the base it had come for stood a little further off. prefer: the base the squad is after, when it is in reach.
+export function baseNear(m, x, y, r, prefer = null) {
+  if (prefer && !prefer.destroyed && !prefer.bombOnly && Math.hypot(prefer.x - x, prefer.y - y) - prefer.r <= r) return prefer;
   let best = null, bd = Infinity;
   for (const b of m.bases) {
-    if (b.destroyed) continue;
+    if (b.destroyed || b.bombOnly) continue;
     const d = Math.hypot(b.x - x, b.y - y) - b.r;
     if (d <= r && d < bd) { bd = d; best = b; }
   }

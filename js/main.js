@@ -1920,7 +1920,7 @@ let frameAt = 0;
 function fpsCap() { const f = settings.fps; return f === 'max' ? 0 : f === '30' ? 30 : f === '60' ? 60 : applyLayout.last === 'phone' ? 30 : 60; }
 function frame(ts) {
   requestAnimationFrame(frame);
-  const cap = paused && state === 'play' ? 12 : fpsCap();     // (the pause menu over a still game: no need to redraw it often)
+  const cap = paused && !soft && state === 'play' ? 12 : fpsCap();     // (the pause menu over a still game: no need to redraw it often; 0.53.4: not the soft pause, where the map is panned and planned on)
   if (cap && ts - frameAt < 1000 / cap - 4) return;
   frameAt = ts; frame.n = (frame.n || 0) + 1;
   const now = ts / 1000;
@@ -2060,7 +2060,7 @@ requestAnimationFrame((t) => { lastT = t / 1000; frame(t); });
 // Test hooks (used by the Playwright checks; harmless in production).
 window.__game = { hud, audio, music, get tut() { return tut; }, get frames() { return frame.n || 0; },
   get state() { return state; }, get mission() { return mission; }, get session() { return session; }, get info() { return info; },
-  get paused() { return paused; }, get soft() { return soft; }, get speed() { return speed; }, softPause, retryMission, toggleSpeed,
+  get paused() { return paused; }, get soft() { return soft; }, get speed() { return speed; }, softPause, togglePause, retryMission, toggleSpeed,
   cam, input, renderer, settings, order, get placing() { return placing; }, get drawing() { return drawing; }, squadAct, selectSquad, focusTeam, strokeBegin, strokeMove, strokeEnd, goShop, openArmory, closeArmory,
   setSetting: (k, v) => { settings[k] = v; onSettingChange(k); },
   makePost: (w, x, y, o) => (mission ? makePost(mission, w, x, y, o) : null), addJammer: (x, y) => (mission ? addJammer(mission, x, y) : null), select: (o) => select(o), get sel() { return sel; }, buildMenu, setTac, get tac() { return tac; },

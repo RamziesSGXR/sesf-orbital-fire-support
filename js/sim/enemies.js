@@ -74,7 +74,11 @@ export function updateAllies(m, dt) {
         const G = gunOf(a), range = G.range;       // the rifle's reach (by role for SEAF); long shots are weaker (see fireShot)
         const pick = pickClear(m, a, range, null);
         const e = pick && pick.e;
-        if (e && (!H || sq.free || e.g.state === 'hunt')) {
+        // (0.53.4) a stalemate at the base the squad came for (it has pushed in): a Helldiver with nothing right on him shoots the
+        // structure, so a base feeding troops in is not fought for ever (a citadel's last outer base held a squad for good)
+        const tb = H && sq.pushed && sq.stage === 'go' && sq.base && !sq.base.destroyed && !sq.base.bombOnly ? sq.base : null;
+        const breakIt = !!tb && Math.hypot(tb.x - a.x, tb.y - a.y) - tb.r <= C.structure.range && (!e || Math.hypot(e.x - a.x, e.y - a.y) > C.structure.breakR);
+        if (e && !breakIt && (!H || sq.free || e.g.state === 'hunt')) {
           const pf = G, slow = a.sw ? 1.8 : 1, cmd = !H && m.kitCmd && a.cmdUntil > m.t ? m.kitCmd : null;     // (0.50) near a Squad Leader
           if (pick.block && m.rng.next() >= C.hd.fire.collateral) {
             a.atk += 0.3;                           // a friendly is in the way: hold, look again in a moment
@@ -93,8 +97,8 @@ export function updateAllies(m, dt) {
           }
         } else {
           // No enemy: shoot a point of interest or a breach that is close.
-          const soft = !e && softNear(m, a.x, a.y, 30);
-          const bs = !e && !soft ? baseNear(m, a.x, a.y, C.structure.range) : null;
+          const soft = !e && !breakIt && softNear(m, a.x, a.y, 30);
+          const bs = breakIt ? tb : !e && !soft ? baseNear(m, a.x, a.y, C.structure.range, H ? m.squad && m.squad.base : null) : null;     // (0.53.4: the base the squad is after first)
           if (soft) {
             a.atk += G.burst;
             const dmg = G.dmg * (a.dmgMul || 1) * (soft.kind === 'hole' ? C.reinf.bugs.rifle : P.rifleMul) * (m.rng.next() < G.acc ? 1 : 0);   // a bug hole wants explosives

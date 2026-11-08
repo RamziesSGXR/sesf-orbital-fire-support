@@ -1001,7 +1001,9 @@ export class Hud {
       if (hc) { const k = `${Math.round(f * 30)}|${cls}`; if (hc.key !== k) { hc.key = k; hc.u.style.width = `${Math.max(0, Math.min(1, f)) * 100}%`; hc.el.className = 'hc ' + cls; } }
       const key = `${name}|${st}|${Math.round(f * 24)}|${cls}|${ship}`;
       if (r.key === key) return;
-      r.key = key; r.t.textContent = name; r.st.textContent = st; r.sts.textContent = sts; r.hp.style.width = `${Math.max(0, Math.min(1, f)) * 100}%`; r.ship.textContent = ship;
+      r.key = key; r.t.textContent = name; r.st.textContent = st; r.sts.textContent = sts;
+      // (0.53.4) what the line means, on hover (players asked what S, G, U and GUN were)
+      r.st.title = a ? (a.sw ? t('hud.r.gunTip', { w: (STRATS[a.sw.id] && STRATS[a.sw.id].name) || '', s: a.stims, g: a.gren, u: a.ult ?? 0 }) : t('hud.r.tip', { h: Math.max(1, Math.round(f * 100)), s: a.stims, g: a.gren, u: a.ult ?? 0 })) : ''; r.hp.style.width = `${Math.max(0, Math.min(1, f)) * 100}%`; r.ship.textContent = ship;
       r.el.className = 'hr' + (cls ? ' ' + cls : '') + (this._hdOpen === i ? ' open' : '');
     });
   }

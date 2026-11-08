@@ -73,6 +73,15 @@ const picked = await ev(() => { const m = window.__game.mission, sf = m.seaf; re
 await shotP('box');
 check(touch ? 'paused, a phone: a finger held on open ground then dragged boxes the troopers' : 'paused, a computer: a drag on the map picks the troopers in the box', picked.soft && picked.sel !== -1 && picked.n === pts.n, JSON.stringify(picked) + ` of ${pts.n}`);
 
+// ---------------------------------------------------------------- the soft pause draws at the full frame rate
+// (players: panning and the ground's animations were choppy in the pause: it drew at 12 a second, as under the pause menu)
+const rate = async () => { const f0 = await ev(() => window.__game.frames); await page.waitForTimeout(1500); const f1 = await ev(() => window.__game.frames); return (f1 - f0) / 1.5; };
+const live = await rate();
+check('the soft pause draws as smoothly as the game running', (await ev(() => window.__game.soft)) && (await rate()) >= Math.min(live, touch ? 30 : 60) * 0.7, `live ${live.toFixed(1)}/s`);
+await ev(() => window.__game.softPause(false)); await page.waitForTimeout(200);
+await ev(() => window.__game.togglePause ? window.__game.togglePause(true) : null); await page.waitForTimeout(300);
+const menuRate = await rate();
+check('(the pause menu over a still game still draws slowly)', menuRate <= 15, `${menuRate.toFixed(1)}/s`);
 check('no page errors', !errs.length, errs.join(' | '));
 await browser.close();
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');

@@ -23,6 +23,12 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Players' reports (0.53.4).**
+- **Work sites say what they give.** The label over the refinery, yard or lab, its panels and its notices now spell out the lift and how big it is with the crew inside: orbitals up to 30% faster (refinery), builds up to 35% cheaper (yard), a UAV up to 35% wider and faster (lab). Each worker also pays 4 CR every 10 s. The tactical panel no longer calls the site a "defence position".
+- **The citadel.** Nobody shoots the keep while it only falls to a Hellbomb, and the Helldivers shoot the base they came for before whatever is nearest. In a stalemate at a base that keeps feeding troops in, a Helldiver with no enemy right on him shoots the structure. The squad alone now takes every outer base down (before, it could stand by the keep for good with one base left).
+- **The pause.** R turns the Defilade Bastion's layout in the pause too. A build picked in the pause stays picked on RESUME (and the other way round). A box dragged round SEAF picks them in the pause. On a phone, a finger held still on open ground and then dragged draws that box (phones had no box at all). The soft pause draws at the full frame rate, so panning and the animations on the ground are smooth; only the pause menu still draws slowly.
+- **The Helldiver rows.** Hover the line for what it says: health (or GUN while one carries a support weapon), stims, grenades and Ultimatum rounds left. The field manual explains it too.
+
 **Eagles and bridges (0.53.2).**
 - **Each Eagle has its own runs.** Every Eagle stratagem in the loadout has the Hangar's runs of its own (2 to start, more with Hangar levels), so a 500 kg called twice no longer grounds the rocket pods. The Eagle flies back to rearm only once every Eagle is out of runs.
 - **Early rearm.** Press **0** (after the weapon keys 1–9; rebindable in CHANGE KEYS), or tap the button of an empty Eagle, to call the Eagle back to rearm now. It takes the usual rearm time, no Eagle can be called while it is away, and every Eagle comes back full.
