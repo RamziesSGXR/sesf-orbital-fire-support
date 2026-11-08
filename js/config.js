@@ -304,7 +304,7 @@ export const CONFIG = {
   // (0.39) Holding orbit over the zone burns the destroyer's fuel: each minute costs perMinIn more of perMin for every minute the
   // mission has run so far.
   plan:     { detour: 320, reserve: 150, clearLives: 3, every: 6, keepR: 70, pace: 0.5, extractPad: 30,
-              ask: { maxMin: 2, upTo: 30, perMin: 60, perMinIn: 0.1, askSec: 30, asks: 2 },     // (0.48: 2 minutes at a time, at most twice, dearer; each raises the alert)
+              ask: { maxMin: 2, nearEnd: 300, perMin: 60, perMinIn: 0.1, askSec: 30, asks: 1 },     // (0.48: 2 minutes at a time, dearer, raising the alert; 0.53.5: once a mission, only in its last 5 minutes)
               // (0.40) breaking off a losing fight: `deaths` Helldivers down within deathR of the squad inside deathSec, or a wave of
               // hunting enemies within waveR weighing more than `wave` (w per kind; less with fewer Helldivers up), and the squad
               // pulls out of the task: to a side objective at least sideR from the trouble if one is open (kept for forceSec), or

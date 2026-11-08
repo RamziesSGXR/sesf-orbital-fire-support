@@ -1310,7 +1310,7 @@ export default {
     'Quand ils ont besoin de ravitaillement, appuyez sur CHARGER (U) et remplissez vite les compartiments pour un bonus.',
     'Leurs lignes à gauche : la santé (GUN à la place quand il porte une arme de soutien ; la barre montre toujours sa santé), puis S, G et U, les stimulants, grenades et munitions Ultimatum qu’il lui reste. Les étiquettes au bout sont ses stratagèmes.',
     'Pour une défense (le site de lancement, l’évacuation), ils ont 25 secondes pour prendre les murets face à la menace avant l’arrivée de l’ennemi. Préparez-vous avec eux.',
-    'Objectif accompli et vies en réserve, ils peuvent nettoyer la carte, et vous demander plus de temps (APPROUVER ou K). Rester en orbite brûle du carburant : plus la mission dure, plus chaque minute coûte cher.',
+    'Objectif accompli et vies en réserve, ils peuvent nettoyer la carte, tâche après tâche tant que la suivante tient dans le temps. Vers la fin (les 5 dernières minutes), une fois par mission, ils peuvent vous demander jusqu’à 2 minutes de plus pour finir la suivante (APPROUVER ou K) ; refusez et ils partent vers l’extraction. Rester en orbite brûle du carburant : plus la mission dure, plus chaque minute coûte cher.',
   ],
   'man.l.enemy': [
     'Les bases ont une garnison et envoient des patrouilles. Une base se réveille quand quelqu’un entre dans son rayon de détection ou que sa structure est touchée, et ses voisines suivent.',

@@ -1310,7 +1310,7 @@ export default {
     'Cuando piden suministros, pulsa CARGAR CÁPSULA (U) y llena los compartimentos rápido para un extra.',
     'Sus filas a la izquierda: la salud (GUN en su lugar cuando lleva un arma de apoyo; la barra sigue mostrando su salud), luego S, G y U, los estimulantes, granadas y disparos de Ultimatum que le quedan. Las etiquetas del final son sus estratagemas.',
     'En una defensa (el sitio de lanzamiento, la evacuación) tienen 25 segundos para ocupar los muros frente a la amenaza antes de que llegue el enemigo. Prepárate con ellos.',
-    'Con el objetivo cumplido y vidas de sobra pueden limpiar el mapa, y pedirte más tiempo (APROBAR o K). Mantener la órbita gasta combustible: cuanto más dura la misión, más cuesta cada minuto.',
+    'Con el objetivo cumplido y vidas de sobra pueden limpiar el mapa, tarea a tarea mientras la siguiente aún quepa. Cerca del final (los últimos 5 minutos), una vez por misión, pueden pedirte hasta 2 minutos más para terminar la siguiente (APROBAR o K); di que no y se van a la extracción. Mantener la órbita gasta combustible: cuanto más dura la misión, más cuesta cada minuto.',
   ],
   'man.l.enemy': [
     'Las bases tienen guarnición y envían patrullas. Una base se despierta cuando alguien entra en su radio de detección o su estructura recibe un golpe, y sus vecinas la siguen.',

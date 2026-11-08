@@ -1310,7 +1310,7 @@ export default {
     'When they need supplies, press LOAD POD (U) and fill the compartments fast for a boost.',
     'Their rows on the left: health (GUN instead while one carries a support weapon; the bar still shows his health), then S, G and U, the stims, grenades and Ultimatum rounds he has left. The tags at the end are his stratagems.',
     'At a defence (the launch site, the evacuation) they get 25 seconds to take the walls facing the threat before the enemy comes. Set up with them.',
-    'With the objective done and lives to spare they may clear the map, and can ask you for more time (APPROVE or K). Holding orbit burns fuel: the longer the mission has run, the more each minute costs.',
+    'With the objective done and lives to spare they may clear the map, going task by task while the next one still fits. Near the end (the last 5 minutes), once a mission, they may ask you for up to 2 more minutes to finish the next one (APPROVE or K); say no and they head for extraction. Holding orbit burns fuel: the longer the mission has run, the more each minute costs.',
   ],
   'man.l.enemy': [
     'Bases have a garrison and send out patrols. A base wakes when anyone walks into its detection range or its structure is hit, and its neighbours follow.',

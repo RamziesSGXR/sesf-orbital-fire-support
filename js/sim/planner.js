@@ -94,13 +94,15 @@ function choose(m) {
     for (const k of tasks) { const d = dist(here, k); if (d < nd) { nd = d; nearest = k; } }
     // the next task alone, and still out in time
     const oneMore = nearest && left - (travel(m, nd) + work(m, nearest) + extractTime(m, nearest)) >= P.reserve;
-    let go = lives && (left - need >= P.reserve || (pl.bought > 0 && oneMore));
-    // Lives to spare but not the time: ask the gunner for more (it costs credits; at most maxMin at a time, and they then clear what
-    // they can in it). While the question is open they make a start.
-    if (lives && !go && !pl.denied) {
-      const A = P.ask, min = Math.max(1, Math.ceil((need + P.reserve - left) / 60));
+    // (0.53.5) they go on task by task while the next one (and the way out after it) still fits: players saw a squad ask for time
+    // with 20 minutes left, and on a no head straight for extraction, the map half done
+    let go = lives && (left - need >= P.reserve || oneMore);
+    // Lives to spare, near the end, and the next task no longer fits: once a mission, ask the gunner for the minutes it needs (it
+    // costs credits; at most maxMin). While the question is open they make a start. A no (or no answer): they get out.
+    if (lives && !go && !pl.denied && nearest) {
+      const A = P.ask, needOne = travel(m, nd) + work(m, nearest) + extractTime(m, nearest), min = Math.max(1, Math.ceil((needOne + P.reserve - left) / 60));
       if (pl.ask) go = true;
-      else if ((pl.asks || 0) < A.asks && min <= (A.upTo ?? A.maxMin * 3)) { askTime(m, Math.min(A.maxMin, min)); go = true; }     // (0.48: they ask for 2 minutes even when short by more, up to upTo)
+      else if ((pl.asks || 0) < A.asks && left <= A.nearEnd && min <= A.maxMin) { askTime(m, min); go = true; }
     }
     m.plan.full = go;
     if (!go) return null;
@@ -240,7 +242,7 @@ export function answerTime(m, yes) {
   if (!q) return { ok: false, reason: 'none' };
   if (yes && m.wallet.bal < q.cost) { m.emit('deny', { reason: 'funds' }); return { ok: false, reason: 'funds' }; }
   pl.ask = null;
-  if (!yes) { pl.denied = true; m.radio(COMMS.timeNo, 'timeno', 0); m.emit('time_no', {}); pl.t = 0; return { ok: true }; }
+  if (!yes) { pl.denied = true; pl.task = null; m.radio(COMMS.timeNo, 'timeno', 0); m.emit('time_no', {}); pl.t = 0; return { ok: true }; }     // (0.53.5: the task they made a start on is dropped too)
   m.wallet.bal -= q.cost; m.wallet.spent += q.cost;
   m.limitSec += q.min * 60; pl.bought += q.min;
   m.stats.timeBought = (m.stats.timeBought || 0) + q.min;

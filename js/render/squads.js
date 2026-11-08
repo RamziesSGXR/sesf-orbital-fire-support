@@ -185,10 +185,17 @@ export function pelicanBody(ctx, x, y, ang, s) {
   // the troop bay
   ctx.moveTo(s, -s * 0.1); ctx.lineTo(s, s * 0.1); ctx.lineTo(s * 0.78, s * 0.26); ctx.lineTo(-s * 0.8, s * 0.24); ctx.lineTo(-s, s * 0.12);
   ctx.lineTo(-s, -s * 0.12); ctx.lineTo(-s * 0.8, -s * 0.24); ctx.lineTo(s * 0.78, -s * 0.26); ctx.closePath();
+  // (0.53.5) every piece wound the same way round: mirrored for the left side, the wing, tail and pod wound against the bay, and
+  // where they overlapped the fill cancelled out (holes in the left engine and the left tail)
+  const poly = (pts) => {
+    let A = 0; for (let i = 0; i < pts.length; i++) { const [x1, y1] = pts[i], [x2, y2] = pts[(i + 1) % pts.length]; A += x1 * y2 - x2 * y1; }
+    if (A < 0) pts.reverse();
+    ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.closePath();
+  };
   for (const g of [-1, 1]) {
     // a broad wing, a tail stabiliser, the jet pod under the wing
-    ctx.moveTo(s * 0.2, g * s * 0.24); ctx.lineTo(s * 0.02, g * s * 0.95); ctx.lineTo(-s * 0.3, g * s * 0.95); ctx.lineTo(-s * 0.36, g * s * 0.24); ctx.closePath();
-    ctx.moveTo(-s * 0.78, g * s * 0.16); ctx.lineTo(-s * 0.92, g * s * 0.44); ctx.lineTo(-s * 1.02, g * s * 0.44); ctx.lineTo(-s * 0.98, g * s * 0.12); ctx.closePath();
+    poly([[s * 0.2, g * s * 0.24], [s * 0.02, g * s * 0.95], [-s * 0.3, g * s * 0.95], [-s * 0.36, g * s * 0.24]]);
+    poly([[-s * 0.78, g * s * 0.16], [-s * 0.92, g * s * 0.44], [-s * 1.02, g * s * 0.44], [-s * 0.98, g * s * 0.12]]);
     ctx.moveTo((POD.x + POD.hl) * s, g * POD.y * s); ctx.ellipse(POD.x * s, g * POD.y * s, POD.hl * s, POD.hw * s, 0, 0, Math.PI * 2);
   }
   ctx.restore();

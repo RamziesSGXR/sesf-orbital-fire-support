@@ -287,33 +287,38 @@ export function drawExtraction(ctx, m, now, px, labels, scale) {
     ctx.strokeStyle = '#7dff9b'; ctx.lineWidth = px(4); ctx.beginPath(); ctx.arc(ex.x, ex.y, R + px(6), -Math.PI / 2, -Math.PI / 2 + TAU * f); ctx.stroke();
     text = tr('lab.pelicanIn', { n: Math.ceil(left) });
   }
-  // the pelican: coming down, waiting on the pad with its ramp open, then climbing away
-  if (ex.state === 'landing' || ex.state === 'boarding' || ex.state === 'away') {
-    let alt = 0, x = ex.x, y = ex.y;
-    const ang = -Math.PI / 2;
-    if (ex.state === 'landing') alt = Math.max(0, (ex.touchAt - t) / C.extract.landSec);
-    if (ex.state === 'away') { const k = t - ex.awayAt; alt = Math.min(1.4, k * 0.5); y -= k * k * 6; }
-    const s = 18 * (1 + 0.3 * alt), off = alt * 26;
-    ctx.fillStyle = 'rgba(0,0,0,0.18)'; pelicanBody(ctx, x + off * 0.6, y + off, ang, s * 1.08); ctx.fill();
-    ctx.fillStyle = 'rgba(0,0,0,0.42)'; pelicanBody(ctx, x + off * 0.6, y + off, ang, s * 0.92); ctx.fill();
-    if (ex.state === 'boarding') {   // the ramp at the back
-      ctx.fillStyle = 'rgba(220,235,245,0.6)'; ctx.fillRect(x - 2.5, y + s * 0.95, 5, 6);
-    }
-    // (0.39) the rockets: hard down coming in to land and climbing out, idling on the pad
-    const thrust = ex.state === 'boarding' ? 0.3 : 1, down = ex.state === 'away' ? Math.max(0, 1 - (t - ex.awayAt) / 1.5) : 1;
-    pelicanDetail(ctx, x, y, ang, s, now, thrust, down, null);
-    pelicanBody(ctx, x, y, ang, s);
-    ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = px(4); ctx.stroke();
-    ctx.fillStyle = 'rgba(215,236,255,0.95)'; ctx.fill();
-    ctx.strokeStyle = '#ffe600'; ctx.lineWidth = px(1.8); ctx.stroke();
-    pelicanDetail(ctx, x, y, ang, s, now, 0, down, '#ffe600');
-    if (ex.state === 'boarding') {
-      const hds = m.hdAlive.length;
-      text = tr(hds ? 'lab.boardingLeft' : 'lab.boarding', { on: ex.boardedH || 0, left: hds, n: Math.max(0, Math.ceil(ex.leaveBy - t)) });
-    } else if (ex.state === 'landing') text = tr('lab.pelicanLanding');
-    else text = tr(m.seafAlive.length ? 'lab.orbitLeaveN' : 'lab.pelicanAway', { n: ex.boardedH || 0, s: Math.max(0, Math.ceil((ex.leaveAt || t) - t)), k: m.seafAlive.length });
-  }
+  // the pelican's line (the pelican itself is drawn later, over the pad's walls: drawExtractionPelican)
+  if (ex.state === 'boarding') {
+    const hds = m.hdAlive.length;
+    text = tr(hds ? 'lab.boardingLeft' : 'lab.boarding', { on: ex.boardedH || 0, left: hds, n: Math.max(0, Math.ceil(ex.leaveBy - t)) });
+  } else if (ex.state === 'landing') text = tr('lab.pelicanLanding');
+  else if (ex.state === 'away') text = tr(m.seafAlive.length ? 'lab.orbitLeaveN' : 'lab.pelicanAway', { n: ex.boardedH || 0, s: Math.max(0, Math.ceil((ex.leaveAt || t) - t)), k: m.seafAlive.length });
   labels.push({ x: ex.x, y: ex.y, dy: -R * scale - 10, text, col: '#ffe600', pri: 3 });
+}
+
+// (0.53.5) The extraction pelican: coming down, waiting on the pad with its ramp open, then climbing away. Drawn after the walls round
+// the pad and every unit (it was drawn under the pad's barricades).
+export function drawExtractionPelican(ctx, m, now, px) {
+  const ex = m.extraction, t = m.t;
+  if (!ex || !(ex.state === 'landing' || ex.state === 'boarding' || ex.state === 'away')) return;
+  let alt = 0, x = ex.x, y = ex.y;
+  const ang = -Math.PI / 2;
+  if (ex.state === 'landing') alt = Math.max(0, (ex.touchAt - t) / C.extract.landSec);
+  if (ex.state === 'away') { const k = t - ex.awayAt; alt = Math.min(1.4, k * 0.5); y -= k * k * 6; }
+  const s = 18 * (1 + 0.3 * alt), off = alt * 26;
+  ctx.fillStyle = 'rgba(0,0,0,0.18)'; pelicanBody(ctx, x + off * 0.6, y + off, ang, s * 1.08); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.42)'; pelicanBody(ctx, x + off * 0.6, y + off, ang, s * 0.92); ctx.fill();
+  if (ex.state === 'boarding') {   // the ramp at the back
+    ctx.fillStyle = 'rgba(220,235,245,0.6)'; ctx.fillRect(x - 2.5, y + s * 0.95, 5, 6);
+  }
+  // (0.39) the rockets: hard down coming in to land and climbing out, idling on the pad
+  const thrust = ex.state === 'boarding' ? 0.3 : 1, down = ex.state === 'away' ? Math.max(0, 1 - (t - ex.awayAt) / 1.5) : 1;
+  pelicanDetail(ctx, x, y, ang, s, now, thrust, down, null);
+  pelicanBody(ctx, x, y, ang, s);
+  ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = px(4); ctx.stroke();
+  ctx.fillStyle = 'rgba(215,236,255,0.95)'; ctx.fill();
+  ctx.strokeStyle = '#ffe600'; ctx.lineWidth = px(1.8); ctx.stroke();
+  pelicanDetail(ctx, x, y, ang, s, now, 0, down, '#ffe600');
 }
 
 // Pings of hits that matter: critical hits from the destroyer and hits on a heavy's back.

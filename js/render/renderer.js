@@ -12,7 +12,7 @@ import { drawAoEdge, drawSides, drawBeacons, drawRevealed, drawRadar, drawArty, 
 import { OPS } from '../data/data.js';
 import { t as tr } from '../i18n.js';
 import { beaconAt } from '../sim/sides.js';
-import { drawFlares, drawHoles, drawDrops, drawEvac, drawExtraction, critText, drawSupply } from './reinf.js';
+import { drawFlares, drawHoles, drawDrops, drawEvac, drawExtraction, drawExtractionPelican, critText, drawSupply } from './reinf.js';
 import { drawBaseArt, drawBaseRuin, drawCover, drawCitadelWalls, drawCannonArt, drawNodeArt } from './sites.js';
 import { drawPosts, postArt, lzArt, cone } from './posts.js';
 const lzArtGhost = (ctx, x, y, R, now, px, ok) => lzArt(ctx, x, y, R, now, px, ok);
@@ -460,6 +460,7 @@ export class Renderer {
     }
 
     drawPelicans(ctx, m, now, px, labels, scale, pal);
+    drawExtractionPelican(ctx, m, now, px);     // (0.53.5: over the pad's walls)
     drawDrops(ctx, m, now, px, labels, scale, pal);
     drawSupply(ctx, m, now, px, labels, scale, (team) => (m.teams[team] ? m.teams[team].color : '#9dffb8'));
     if (ui.draw) drawStroke(ctx, m, now, px, labels, scale, ui.draw);
@@ -672,12 +673,17 @@ export class Renderer {
     ctx.stroke();
   }
 
+  // (0.53.5) the map's labels, health bars and name tags follow Settings > UI size too
+  _ui() { return Math.max(0.8, Math.min(1.3, Number(this.settings && this.settings.uiScale) || 1)); }
   _drawLabels(ctx, w2sx, w2sy) {
-    const d = this.dpr;
+    const d = this.dpr * this._ui();
     ctx.font = `${Math.round(10 * d)}px ui-monospace, Menlo, Consolas, monospace`;
     ctx.textAlign = 'center';
     const small = document.body.classList.contains('touch');
     let list = this.labels.map((l) => ({ l, x: w2sx(l.x), y: w2sy(l.y) + l.dy * d }));
+    // (0.53.5) health bars that go with a label (a heavy's, a special's): drawn in screen space, right under its name, at the
+    // labels' size, so they never slip behind the name when zoomed out (they used to be drawn on the map, under the label's box)
+    const barsH = (l) => (l.bars ? l.bars.length * 5 * d + 2 * d : 0), withBars = list.filter((o) => o.l.bars);
     if (small) {
       // Phones: strategic labels first, then whatever is nearest the middle of the screen. Local detail (turret and heavy names,
       // ally intents) only close to the middle, never two labels on top of each other, and no more than six in all.
@@ -687,7 +693,7 @@ export class Renderer {
         .sort((a, b) => (b.l.pri ?? 1) - (a.l.pri ?? 1) || a.k - b.k);
       const placed = []; let n = 0; const out = [];
       for (const o of list) {
-        const w = ctx.measureText(o.l.text).width + 8 * d, r = { l: o.x - w / 2, r: o.x + w / 2, t: o.y - 10 * d, b: o.y + 4 * d };
+        const w = ctx.measureText(o.l.text).width + 8 * d, r = { l: o.x - w / 2, r: o.x + w / 2, t: o.y - 10 * d, b: o.y + 4 * d + barsH(o.l) };
         if ((o.l.pri ?? 1) < 3 && (n >= 6 || placed.some((q) => r.l < q.r && r.r > q.l && r.t < q.b && r.b > q.t))) continue;
         placed.push(r); n++; out.push(o);
       }
@@ -702,7 +708,7 @@ export class Renderer {
         const w = ctx.measureText(o.l.text).width + 8 * d;
         let ok = false;
         for (const dy of [0, -lh, lh, -2 * lh, 2 * lh, -3 * lh]) {
-          const r = { l: o.x - w / 2, r: o.x + w / 2, t: o.y + dy - 10 * d, b: o.y + dy + 4 * d };
+          const r = { l: o.x - w / 2, r: o.x + w / 2, t: o.y + dy - 10 * d, b: o.y + dy + 4 * d + barsH(o.l) };
           if (placed.some((q) => r.l < q.r && r.r > q.l && r.t < q.b && r.b > q.t)) continue;
           o.y += dy; placed.push(r); ok = true; break;
         }
@@ -719,14 +725,27 @@ export class Renderer {
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(x - w / 2, y - 10 * d, w, 14 * d);
       ctx.fillStyle = l.col; ctx.fillText(l.text, x, y);
-      this._lblR.push({ l: x - w / 2, r: x + w / 2, t: y - 10 * d, b: y + 4 * d });
+      if (l.bars) { this._bars(ctx, l.bars, x, y + 5 * d, d); o.drawn = true; }
+      this._lblR.push({ l: x - w / 2, r: x + w / 2, t: y - 10 * d, b: y + 4 * d + barsH(l) });
     }
+    // a name left out (crowded, or a phone keeping its labels few): its bars still show, where the name would be
+    for (const o of withBars) if (!o.drawn && o.x > -60 && o.y > -20 && o.x < this.W + 60 && o.y < this.H + 20) this._bars(ctx, o.l.bars, o.x, o.y, d);
     ctx.textAlign = 'left';
+  }
+  // Health bars under a label: { f (0 to 1), col, h (pixels, before the device ratio) }, stacked, 40 px wide.
+  _bars(ctx, bars, x, y, d) {
+    const w = 40 * d;
+    for (const b of bars) {
+      const h = (b.h || 3) * d;
+      ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(x - w / 2 - d, y - d, w + 2 * d, h + 2 * d);
+      ctx.fillStyle = b.col; ctx.fillRect(x - w / 2, y, w * Math.max(0, Math.min(1, b.f)), h);
+      y += h + 2 * d;
+    }
   }
 
   // Name tags under every ally and speech bubbles over them. Helldivers first, so SEAF tags are the ones skipped when crowded.
   _tags(ctx, m, w2sx, w2sy, scale, now) {
-    const d = this.dpr, W = this.W, H = this.H, t = m.t, placed = (this._lblR || []).slice();     // (name tags keep off the map labels)
+    const d = this.dpr * this._ui(), W = this.W, H = this.H, t = m.t, placed = (this._lblR || []).slice();     // (name tags keep off the map labels)
     const hit = (r) => { for (const q of placed) if (r.l < q.r && r.r > q.l && r.t < q.b && r.b > q.t) return true; return false; };
     const mono = (px) => `${Math.round(px * d)}px ui-monospace, Menlo, Consolas, monospace`;
     ctx.textAlign = 'center';

@@ -129,21 +129,38 @@ const seafReady = (m, n = 5) => { m.seaf.readyAt = 0; m.callSeaf(m.hx + 10, m.hy
 
 // ---------------------------------------------------------------- more time for a full clear
 {
+  // (0.53.5) players: the squad asked for more time with 20 minutes left, and on a no went straight for extraction. Now they go on
+  // task by task while the next one fits, and ask only near the end, once, for the minutes the next task needs.
   const m = quiet('bots', 1207, { missionN: 3 });
   for (const o of m.objectives) completeObjective(m, o);
-  m.hd.lives = 10; m.limitSec = m.t + 90;              // lives to spare, no time
+  m.hd.lives = 10; m.limitSec = m.t + 20 * 60;
   m.plan.t = 0; run(m, 1);
-  const q = m.plan.ask;
-  check('with lives but no time left for a full clear, the squad asks for more', !!q && q.min >= 1 && q.cost > 0, q ? `${q.min} min for ${q.cost} cr` : 'no ask');
+  check('20 minutes left after the objective: no ask, and the squad goes on clearing the map', !m.plan.ask && m.phase === 'clear' && m.plan.full, `${m.phase} ask ${!!m.plan.ask}`);
+  // (the squad a little way short of the nearest task left, the time running down from 5 minutes: the first moment that task no
+  // longer fits, they ask)
+  const near = (mm) => {
+    const k = openTasks(mm).sort((a, b) => Math.hypot(a.x - mm.squad.ax, a.y - mm.squad.ay) - Math.hypot(b.x - mm.squad.ax, b.y - mm.squad.ay))[0];
+    const p = mm.terrain.nearestLand(k.x - 60, k.y);
+    let q = null, L = C.plan.ask.nearEnd;
+    for (; L >= 20 && !q && mm.phase === 'clear'; L -= 5) {
+      mm.squad.ax = p.x; mm.squad.ay = p.y; for (const h of mm.hdAlive) { h.x = p.x; h.y = p.y; }
+      mm.limitSec = mm.t + L; mm.plan.task = null; mm.plan.t = 0; mm.step(dt); q = mm.plan.ask;
+    }
+    return { q, left: L + 5 };
+  };
+  const { q, left } = near(m);
+  check('near the end, with the next task just out of reach, they ask (at most 2 minutes)', !!q && q.min >= 1 && q.min <= C.plan.ask.maxMin && q.cost > 0 && left <= C.plan.ask.nearEnd, q ? `${q.min} min for ${q.cost} cr, ${left}s left` : 'no ask');
   const sp = m.wallet.spent, lim = m.limitSec;
   const r = q ? answerTime(m, true) : { ok: false };
-  check('approving it buys the minutes with credits', r.ok && m.wallet.spent === sp + q.cost && m.limitSec === lim + q.min * 60 && m.plan.full);
-  const n = quiet('bots', 1208, { missionN: 3 });
+  check('approving it buys the minutes with credits', r.ok && m.wallet.spent === sp + q.cost && m.limitSec === lim + q.min * 60);
+  const again = near(m);
+  check('they ask once a mission', !again.q && (m.plan.asks || 0) === 1);
+  const n = quiet('bots', 1207, { missionN: 3 });
   for (const o of n.objectives) completeObjective(n, o);
-  n.hd.lives = 10; n.limitSec = n.t + 90; n.plan.t = 0; run(n, 1);
-  const ok = !!n.plan.ask;
+  n.hd.lives = 10; n.limitSec = n.t + 20 * 60; n.plan.t = 0; run(n, 1);
+  const ok = !!near(n).q;
   run(n, C.plan.ask.askSec + 8);
-  check('no answer is a no: the squad heads for extraction', ok && n.phase === 'extract' && n.plan.denied, n.phase);
+  check('no answer is a no: the squad heads for extraction', ok && n.phase === 'extract' && n.plan.denied, `${n.phase} asked ${ok} denied ${n.plan.denied}`);
 }
 
 // ---------------------------------------------------------------- SEAF build
