@@ -95,7 +95,7 @@ check('version 0.52.0', C.share.version === '0.52.0' && JSON.parse(fs.readFileSy
   check('the radio says when the line is breaking', broke);
   check('it ends when the last Helldiver falls, not on a clock', glassed === 'fallen' && r.lastStand.fallen && r.lastStand.held < C.lastStand.maxHold, `${glassed}, held ${r.lastStand.held} s`);
   check('then beams rain across the map and nobody is left standing', beams > 50 && !m.hdAlive.length && m.hd.lives === 0, `${beams} beams`);
-  check('it ends glassed: it cannot be won, and it says how it went', m.over && r.outcome === 'glassed' && r.lastStand && r.lastStand.lifted >= lifted && !r.objDone, `${r.outcome}, ${r.civSaved} saved, ${maxEnemies} enemies at most`);
+  check('(0.53) fought to the end it still ends glassed, says how it went, and counts as won once winAt are off Mars', m.over && r.outcome === 'glassed' && r.lastStand && r.lastStand.lifted >= lifted && !!r.objDone === (r.civSaved >= C.lastStand.winAt), `${r.outcome}, ${r.civSaved} saved, ${maxEnemies} enemies at most`);
   check('not everyone gets out', r.civSaved < C.lastStand.personnel, `${r.civSaved}/${C.lastStand.personnel}`);
   // whatever happens, the fleet does not wait for ever
   const f = mk();

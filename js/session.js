@@ -146,10 +146,14 @@ export function rollOffers(s, rng = Math.random, enemy = 'random', story = false
     let m = rollMission(prev, rng, enemy);
     // (no two on the same ground, and each against a different enemy where the enemy is left random)
     for (let k = 0; k < 10 && (out.some((o) => o.biome === m.biome) || (k < 6 && out.some((o) => o.faction === m.faction))); k++) m = rollMission(prev, rng, enemy);
+    // (0.53) and if the rolls still landed on a ground or an enemy already offered, it is picked from those left
+    const left = (ids, key) => ids.filter((x) => !out.some((o) => o[key] === x));
+    if (out.some((o) => o.biome === m.biome)) { const b = left(Object.keys(BIOMES).filter((q) => BIOMES[q].pool !== false && (!prev || q !== prev.biome)), 'biome'); if (b.length) m.biome = b[Math.floor(rng() * b.length)]; }
+    if (!Object.keys(FACTIONS).includes(enemy) && out.some((o) => o.faction === m.faction)) { const f = left(Object.keys(FACTIONS), 'faction'); if (f.length) m.faction = f[Math.floor(rng() * f.length)]; }
     // (0.53) against squids, the defence gun can be offered too: half the time in the capital's outskirts
     const pool = [...OBJ_TYPES, OP_OF[m.faction], ...(m.faction === 'squids' ? ['gun'] : [])].filter(Boolean);
     const obj = pool[Math.floor(rng() * pool.length)];
-    out.push({ ...m, obj, bump, ...(obj === 'gun' && rng() < 0.5 ? { biome: 'city' } : {}) });
+    out.push({ ...m, obj, bump, ...(obj === 'gun' && rng() < 0.5 && !out.some((o) => o.biome === 'city') ? { biome: 'city' } : {}) });
   }
   return out;
 }
