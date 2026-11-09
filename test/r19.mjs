@@ -19,7 +19,7 @@ const dt = 1 / 30;
 const run = (m, sec, each) => { for (let i = 0, n = Math.round(sec / dt); i < n && !m.over; i++) { m.step(dt); if (each && each(m) === true) break; } };
 
 // ---------------------------------------------------------------- the version
-check('version 0.53.6', C.share.version === '0.53.6' && JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url))).version === '0.53.6', C.share.version);
+check('version 0.53.7', C.share.version === '0.53.7' && JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url))).version === '0.53.7', C.share.version);
 
 // ---------------------------------------------------------------- the climb
 {
@@ -56,22 +56,22 @@ check('version 0.53.6', C.share.version === '0.53.6' && JSON.parse(fs.readFileSy
     m.objectives.length === 1 && o.type === 'evac' && o.lastStand && Math.hypot(o.x - m.ao.cx, o.y - m.ao.cy) < 260 && Math.hypot(m.lz.x - o.x, m.lz.y - o.y) < 80,
     `${Math.round(Math.hypot(o.x - m.ao.cx, o.y - m.ao.cy))} m from the middle`);
   check('nothing else on the map: no bases, patrols, side missions, finds or enemies yet', !m.bases.length && !m.sides.length && !m.pois.length && !m.loot.length && !m.enemies.length);
-  check('(0.36.1; 0.53.6) the base has its defences (two turret nests, a lookout, a foxhole), and nobody holds it yet: the lessons have the player drop the SEAF',
+  check('(0.36.1; 0.53.7) the base has its defences (two turret nests, a lookout, a foxhole), and nobody holds it yet: the lessons have the player drop the SEAF',
     m.posts.filter((p) => p.what === 'mg').length === 2 && m.posts.some((p) => p.what === 'lookout') && m.seafAlive.length === 0 && m.pelicans.length === 0, `${m.seafAlive.length} SEAF`);
-  check('(0.53.6) and no work site in the tutorial (the lab was there by mistake: it was placed before the tutorial was set up)', !m.workSite && !m.posts.some((p) => p.what === 'site'));
+  check('(0.53.7) and no work site in the tutorial (the lab was there by mistake: it was placed before the tutorial was set up)', !m.workSite && !m.posts.some((p) => p.what === 'site'));
   check('(0.36.1) the tutorial starts at difficulty 3', L.level === 3 && m.difficulty === 3, `${m.difficulty}`);
   { const m2 = mk(), o2 = m2.objectives[0]; run(m2, 1);
     const far = m2.callSeaf(m2.lz.x + C.seaf.startR + 40, m2.lz.y);
     const r = m2.callSeaf(o2.sx + 8, o2.sy + 8);
-    check('(0.53.6) with nobody down, the first drop goes by the landing zone (by the shelter), and one farther out is refused saying so', far && !far.ok && far.reason === 'nearlz' && r && r.ok && r.squad === 0 && r.n === 5, JSON.stringify([far, r]));
+    check('(0.53.7) with nobody down, the first drop goes by the landing zone (by the shelter), and one farther out is refused saying so', far && !far.ok && far.reason === 'nearlz' && r && r.ok && r.squad === 0 && r.n === 5, JSON.stringify([far, r]));
     run(m2, 2); const r2 = m2.callSeaf(o2.hx + 8, o2.hy + 8);
-    check('(0.53.6) the second waits for the Pelican to come round', r2 && !r2.ok && r2.reason === 'cooldown', JSON.stringify(r2));
+    check('(0.53.7) the second waits for the Pelican to come round', r2 && !r2.ok && r2.reason === 'cooldown', JSON.stringify(r2));
     run(m2, 45); const r3 = m2.callSeaf(o2.hx + 8, o2.hy + 8);
-    check('(0.53.6) ...then it is a squad of its own by the hangar', r3 && r3.ok && r3.squad === 1 && r3.n === 5, JSON.stringify(r3));
+    check('(0.53.7) ...then it is a squad of its own by the hangar', r3 && r3.ok && r3.squad === 1 && r3.n === 5, JSON.stringify(r3));
     run(m2, 20);
-    check('(0.53.6) both land', m2.seaf.squads[0].n === 5 && m2.seaf.squads[1].n === 5, `${m2.seaf.squads[0].n} ${m2.seaf.squads[1].n}`); }
+    check('(0.53.7) both land', m2.seaf.squads[0].n === 5 && m2.seaf.squads[1].n === 5, `${m2.seaf.squads[0].n} ${m2.seaf.squads[1].n}`); }
   { const m3 = mk(), o3 = m3.objectives[0]; run(m3, 1); m3.deployNow(); run(m3, 2); m3.lsBegin(); run(m3, 1);
-    check('(0.53.6) lessons skipped: the shelter\'s and the hangar\'s squads are at their posts when it opens', m3.seaf.squads[0].n === C.lastStand.squad && m3.seaf.squads[1].n === C.lastStand.squad
+    check('(0.53.7) lessons skipped: the shelter\'s and the hangar\'s squads are at their posts when it opens', m3.seaf.squads[0].n === C.lastStand.squad && m3.seaf.squads[1].n === C.lastStand.squad
       && m3.seafAlive.filter((a) => a.sq === 0).every((a) => Math.hypot(a.x - o3.sx, a.y - o3.sy) < 20) && m3.seafAlive.filter((a) => a.sq === 1).every((a) => Math.hypot(a.x - o3.hx, a.y - o3.hy) < 20), `${m3.seaf.squads[0].n} ${m3.seaf.squads[1].n}`); }
   check('the Helldivers wait in their pods until DEPLOY NOW', m.dropAt > 600 && m.pods.length === 4);
   check('the HUD says to get ready; the shelter stays shut through the lessons', /READY/.test(JSON.stringify(objectiveStatus(m))) && o.wait && o.state === 'travel', JSON.stringify(objectiveStatus(m)));
