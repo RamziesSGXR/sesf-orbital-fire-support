@@ -1,6 +1,5 @@
-// 0.53.7: players stood at an ALL-OUT extraction with hardly an enemy in sight. The enemy's answers to the squad (the waves at
-// extraction, the drops on the squad) are now sized with the alert and never below where the mission started, and they make
-// room on a full map by taking far-off wandering patrols away. The Helldivers close on the pad before the pelican comes down,
+// 0.53.7: players stood at an ALL-OUT extraction with hardly an enemy in sight. The waves at extraction are now sized with the
+// alert and never below where the mission started, and they make room on a full map by taking far-off wandering patrols away. The Helldivers close on the pad before the pelican comes down,
 // a squad wiped once it has been called comes back down by the pad, and the pelican holds a little longer for Helldivers still
 // on their way. Run: node test/r537.mjs
 import { Mission } from '../js/sim/mission.js';
@@ -26,13 +25,13 @@ const groupsAt = (m, s) => {
   return n;
 };
 
-// ---------------------------------------------------------------- pressure never ends easier than it started
+// ---------------------------------------------------------------- the extraction's waves: never below the start, up with the alert
 {
   const m = mk(5371), p0 = m.p0;
   for (const b of m.bases.filter((x) => !x.fortress && !x.part && !x.op).slice(0, 3)) m.destroyBase(b);
-  check('knocking bases out eases the field\'s pressure, but never below where the mission started', p0 > 0 && m.pressure >= p0 - 1e-9, `start ${p0.toFixed(2)}, now ${m.pressure.toFixed(2)}`);
   stars(m, 0); const c0 = callPressure(m); stars(m, 4); const c4 = callPressure(m);
-  check('the enemy\'s answers are sized up with every alert star', c4 > c0 * 1.5 && Math.abs(c4 - Math.max(m.pressure, p0) * (1 + 4 * C.alert.callPerStar)) < 1e-9, `${c0.toFixed(2)} at CALM, ${c4.toFixed(2)} at ALL-OUT`);
+  check('knocking bases out eases the field, but the extraction\'s waves are never sized below where the mission started', m.pressure < p0 && c0 >= p0 - 1e-9, `start ${p0.toFixed(2)}, field ${m.pressure.toFixed(2)}, waves sized at ${c0.toFixed(2)}`);
+  check('...and they are sized up with every alert star', c4 > c0 * 1.5 && Math.abs(c4 - Math.max(m.pressure, p0) * (1 + 4 * C.alert.callPerStar)) < 1e-9, `${c0.toFixed(2)} at CALM, ${c4.toFixed(2)} at ALL-OUT`);
 }
 
 // ---------------------------------------------------------------- the waves at extraction grow with the alert

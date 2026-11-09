@@ -408,7 +408,7 @@ export const CONFIG = {
   // off-map patrols' gap and multiplies flare calls by 1 + pressure x stars. hunt / heavy / drop / boss: the stars those responses
   // start at (drops every dropEvery / (1 + stars past drop) seconds, dropDist metres from the squad; the super heavy once, by
   // bossChance).
-  // (0.53.7) callPerStar: each star adds this much to the pressure the enemy's own answers are sized for (alert.js callPressure)
+  // (0.53.7) callPerStar: each star adds this much to the pressure the extraction's waves are sized for (alert.js callPressure)
   alert: { max: 5, spikeMax: 2, quietSec: 20, fadeSec: 30, part: 0.5, pressure: 0.2, hunt: 2, heavy: 4, drop: 3, dropEvery: 90, dropDist: [70, 120], boss: 5, bossChance: 0.6,
            callPerStar: 0.3 },
   // Pressure drives how fast the field fills: it climbs through the session and, faster, through each mission.

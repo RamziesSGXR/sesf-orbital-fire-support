@@ -26,10 +26,11 @@ export function initAlert(m, opts = {}) {
 export const alertStars = (m) => (m.alert ? m.alert.stars : 0);
 // how much harder each star makes the background pressure: patrol gaps divide by it, reinforcement chances multiply by it
 export const alertMul = (m) => 1 + A().pressure * alertStars(m);
-// (0.53.7) the pressure the enemy's own answers are sized for (the waves at extraction, the drops on the squad): never below where
-// the mission started (knocking bases out quiets the field, not the enemy's answer to the squad), and up with every star. Players
-// stood at an ALL-OUT extraction with hardly an enemy in sight: these calls were sized on the field's pressure alone, which every
-// base destroyed had cut.
+// (0.53.7) the pressure the waves at extraction are sized for: never below where the mission started (knocking bases out quiets
+// the field, not the enemy's answer to an extraction), and up with every star. Players stood at an ALL-OUT extraction with hardly
+// an enemy in sight: those waves were sized on the field's pressure alone, which every base destroyed had cut. (Sizing the alert's
+// drops on the squad the same way, and flooring the field's own pressure, were tried: bug missions at level 3 went from 3 lost
+// in 8 to 5, before the objective.)
 export const callPressure = (m) => Math.max(m.pressure, m.p0 || 1) * (1 + A().callPerStar * alertStars(m));
 
 function recompute(m, why) {
@@ -77,7 +78,7 @@ export function updateAlert(m, dt) {
     if (al.dropAt === Infinity) al.dropAt = m.t + every;
     else if (m.t >= al.dropAt) {
       al.dropAt = m.t + every;
-      if (callReinforcements(m, m.hx, m.hy, 'site', { dist: K.dropDist, pMin: callPressure(m) })) { m.notice(tr('n.alertDrop'), 'bad'); m.emit('alert_drop', { stars: s }); }
+      if (callReinforcements(m, m.hx, m.hy, 'site', { dist: K.dropDist })) { m.notice(tr('n.alertDrop'), 'bad'); m.emit('alert_drop', { stars: s }); }
     }
   } else al.dropAt = Infinity;
   // the super heavy

@@ -150,7 +150,7 @@ export class Mission {
     this.hx = 0; this.hy = 0;
     this.dirtyE = false; this.dirtyA = false;
     this.pressure = Math.max(C.pressure.floor, C.pressure.start + C.pressure.perSessionMin * this.W);
-    this.p0 = this.pressure;     // (0.53.7) where it started: a base falling eases it, but never below this
+    this.p0 = this.pressure;     // (0.53.7) where it started: the extraction's waves are never sized below this
     this.hpMul = Math.min(C.ramp.hpCap, 1 + C.ramp.hp * this.W); // enemy toughness and damage grow with the war
     const dBase = C.ramp.base * (C.ramp.fac[opts.faction] || 1);
     this.dmgMul = Math.min(C.ramp.dmgCap * dBase, dBase * (1 + C.ramp.dmg * this.W));
@@ -1040,7 +1040,7 @@ export class Mission {
     if (!b.fortress && !b.part && !b.op) this.stats.bases++;     // (the citadel and its bases, and an operation's structures, are the objective)
     // The citadel pays out as the objective; ordinary bases are score and credits. Once the objective is done they are bonus.
     if (!b.fortress) { this.sc.bases += C.score.base; this.earn('bases', C.credits.base, b.x, b.y); }
-    this.pressure = Math.max(C.pressure.floor, this.p0 || 0, this.pressure * C.pressure.onBaseKill);     // (0.53.7: never easier than the mission started)
+    this.pressure = Math.max(C.pressure.floor, this.pressure * C.pressure.onBaseKill);     // (0.53.7: never easier than the mission started)
     // (0.48) the felt win: the base's call for help ends (the spike clears), but the enemy's alert ratchets up a notch
     alertClear(this, 'base'); alertRaise(this, b.part ? C.alert.part : 1, 'base');
     for (const e of this.enemies) if (e.g.base === b) e.g.garrison = false; // survivors stop being garrison
