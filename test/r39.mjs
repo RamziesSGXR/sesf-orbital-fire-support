@@ -261,9 +261,10 @@ function toExtract(seed) {
   run(m, C.extract.landSec + 2);
   check('the extraction pelican lands and its autocannon is live', ex.state === 'boarding' || ex.state === 'away', ex.state);
   run(m, C.extract.boardSec + 2, () => ex.state === 'away');
-  const away = m.t, lostS0 = m.stats.lostS || 0, ground = m.seafAlive.length;
+  // (0.53.7: the squad is round the pad when it lands, so they can be aboard and away within the landing run itself)
+  const away = ex.awayAt ?? m.t, lostS0 = m.stats.lostS || 0, ground = m.seafAlive.length;
   check('the Helldivers are away and no SEAF pelicans came by themselves', ex.state === 'away' && !m.pelicans.some((p) => p.evac));
-  run(m, C.extract.orbitSec - 1);
+  run(m, Math.max(0, away + C.extract.orbitSec - 1 - m.t));
   check('the mission does not end at once: the destroyer stays ten seconds', !m.over);
   run(m, 2);
   check('then it leaves orbit and the mission ends', m.over && m.outcome === 'victory' && Math.abs(m.t - away - C.extract.orbitSec) < 1.2, `${(m.t - away).toFixed(1)} s`);

@@ -9,7 +9,7 @@
 //   away      the pelican climbs out; (0.39) the destroyer leaves orbit CONFIG.extract.orbitSec later and the mission ends. SEAF
 //             go home only by a pickup (seaf.js): anyone still on the ground then is left behind. The extraction pelican's belly
 //             autocannon fires on the way down and while it waits.
-import { alertRaise } from './alert.js';
+import { alertRaise, callPressure } from './alert.js';
 import { t as tr } from '../i18n.js';
 import { bossAlive } from './boss.js';
 import { CONFIG as C } from '../config.js';
@@ -66,20 +66,20 @@ export function updateExtract(m, dt) {
     if (t < ex.beaconDown) return;
     const wait = X.callSec;
     ex.state = 'called'; ex.landAt = t + wait; ex.wait = wait;
-    ex.waveAt = t + C.reinf.extractEvery / Math.max(0.8, Math.min(1.5, m.pressure));
+    ex.waveAt = t + C.reinf.extractEvery / Math.max(0.8, Math.min(C.reinf.extractPMax, callPressure(m)));     // (0.53.7: with the alert, and never easier than the start)
     m.radio(COMMS.extractCalled(wait), 'excall', 0);
     m.notice(tr('n.exCalled', { n: wait }), 'warn');
     if (m.seafAlive.length && !m.ls) { m.notice(tr('n.exSeaf'), 'warn'); m.radio(COMMS.exSeaf, 'exseaf', 0); }     // (0.39) get the SEAF picked up
     m.emit('extract_call', { x: ex.x, y: ex.y });
     alertRaise(m, 1, 'extract');     // (0.48)
     ex.calledAt = t;
-    callReinforcements(m, ex.x, ex.y, 'extract', { dist: [55, 105], extra: 1, count: reinfCount(m, 'extract', { first: true }) });      // the enemy always comes for an extraction (0.31: from more than one side)
+    callReinforcements(m, ex.x, ex.y, 'extract', { dist: [55, 105], extra: 1, count: reinfCount(m, 'extract', { first: true }), pMin: callPressure(m) });      // the enemy always comes for an extraction (0.31: from more than one side)
     return;
   }
   if (ex.state === 'called') {
     if (t >= ex.waveAt) {
-      ex.waveAt = t + C.reinf.extractEvery / Math.max(0.8, Math.min(1.5, m.pressure));
-      callReinforcements(m, ex.x, ex.y, 'extract', { dist: [55, 105], count: reinfCount(m, 'extract', { since: t - (ex.calledAt ?? t) }) });     // (0.31: more places at once the longer it takes)
+      ex.waveAt = t + C.reinf.extractEvery / Math.max(0.8, Math.min(C.reinf.extractPMax, callPressure(m)));     // (0.53.7: with the alert, and never easier than the start)
+      callReinforcements(m, ex.x, ex.y, 'extract', { dist: [55, 105], count: reinfCount(m, 'extract', { since: t - (ex.calledAt ?? t) }), pMin: callPressure(m) });     // (0.31: more places at once the longer it takes)
     }
     if (t >= ex.landAt) {
       ex.state = 'landing'; ex.touchAt = t + X.landSec;
@@ -102,7 +102,10 @@ export function updateExtract(m, dt) {
   if (ex.state === 'boarding') {
     for (const a of m.hdAlive) if (!a.mounted && !a.dead && (a.x - ex.x) ** 2 + (a.y - ex.y) ** 2 <= X.boardR * X.boardR) board(m, a);
     const waiting = m.hdAlive.filter((a) => !a.dead).length + m.pendingPods('H');
-    if ((waiting === 0 && ex.boardedH > 0) || t >= ex.leaveBy || (waiting === 0 && m.hd.lives <= 0)) {
+    // (0.53.7) nobody aboard yet but Helldivers still on their way (or coming down): it holds a little longer (holdMore)
+    const coming = m.hd.lives > 0 ? m.teams.filter((q) => !q.hd && !q.boarded).length : 0;     // (and those about to drop back in)
+    const hold = ex.boardedH === 0 && waiting + coming > 0 && t < ex.leaveBy + X.holdMore;
+    if ((waiting === 0 && ex.boardedH > 0) || (t >= ex.leaveBy && !hold) || (waiting === 0 && m.hd.lives <= 0)) {
       ex.state = 'away'; ex.awayAt = t; ex.leaveAt = t + X.orbitSec;
       m.radio(ex.boardedH ? COMMS.victory : COMMS.extractEmpty, 'exaway', 0);
       m.emit('extract_away', { x: ex.x, y: ex.y, n: ex.boardedH });

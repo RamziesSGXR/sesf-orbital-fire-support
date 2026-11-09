@@ -23,6 +23,13 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Extraction under fire, and the squad going for the full clear (0.53.7).**
+- **The extraction answers the alert.** The waves at an extraction are now sized with the alert: every chevron makes them bigger and more frequent, and from MOBILIZED up they come from one more side. They are never sized below where the mission started. Before, a player at an ALL-OUT extraction saw hardly an enemy: the waves followed the field's pressure, which every destroyed base had cut, and took no notice of the alert.
+- **A full map no longer blocks them.** When the map is at its enemy cap, the farthest patrols wandering out of everyone's sight are taken off to make room for the extraction's waves. Before, a map full of patrols far away could mean nothing came at all.
+- In bot tests at difficulty 7 (sharp bot, bots and squids), about twice as many enemies are near the pad while the pelican is coming, and most squads still get out.
+- **The squad goes for the full clear.** Four missions in five, once the objective is done (and with more than three lives), the squad is set on a full clear: every base and side objective left, nearest first, even if the mission clock runs out. A mission that times out after its objective still counts; only the extraction's pay is lost. Near the end they may still ask you, once, for a couple of minutes to get out too; say no and they finish the clear on the clock they have. The fifth mission they play it safe and only take what still fits before extraction. Down to three lives, they break off and head home, as before.
+- **Ready at the ramp.** For the last 15 seconds before the pelican lands, every Helldiver closes on the pad, fighting on the move. A squad wiped after the pelican is called comes back down by the pad, not 110–170 m away. And the pelican holds up to 25 seconds longer while nobody is aboard yet but Helldivers are on their way or about to drop back in.
+
 **Work sites, and dropping your own troops in the tutorial (0.53.6).**
 - **Work sites are left alone until you use them.** The refinery, salvage yard or dark-fluid lab is out of the enemy's mind until SEAF first go in and work it: no probes, no fire, no damage. The moment they do, the radio says the enemy will come for it now and to leave troopers outside to defend it. From then on probes come as before, and the radio says when one is on its way. Its notice on the map, and its panel, say so.
 - **A fallen site is left be.** Once it's down the enemy stops shooting it and sends no more probes, so SEAF can patch it up. Before, they kept pouring fire into the ruin.

@@ -26,6 +26,12 @@ export function initAlert(m, opts = {}) {
 export const alertStars = (m) => (m.alert ? m.alert.stars : 0);
 // how much harder each star makes the background pressure: patrol gaps divide by it, reinforcement chances multiply by it
 export const alertMul = (m) => 1 + A().pressure * alertStars(m);
+// (0.53.7) the pressure the waves at extraction are sized for: never below where the mission started (knocking bases out quiets
+// the field, not the enemy's answer to an extraction), and up with every star. Players stood at an ALL-OUT extraction with hardly
+// an enemy in sight: those waves were sized on the field's pressure alone, which every base destroyed had cut. (Sizing the alert's
+// drops on the squad the same way, and flooring the field's own pressure, were tried: bug missions at level 3 went from 3 lost
+// in 8 to 5, before the objective.)
+export const callPressure = (m) => Math.max(m.pressure, m.p0 || 1) * (1 + A().callPerStar * alertStars(m));
 
 function recompute(m, why) {
   const al = m.alert;

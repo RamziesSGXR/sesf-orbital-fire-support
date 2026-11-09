@@ -238,19 +238,24 @@ export function updateSquad(m, dt) {
   // him; the rest of the squad goes on as usual
   const hb = m.hellbomb && m.hellbomb.state === 'armed' ? m.hellbomb : null;
   const clearR = hb ? C.objective.hellbomb.blastR + C.objective.hellbomb.runPad : 0;
+  // (0.53.7) the pelican is about to come down: every Helldiver closes on the pad, fighting on the move, so the whole squad is at the
+  // ramp when it opens (they used to stand and fight wherever the last wave had drawn them, 50 m out, and die running for it)
+  const exg = m.phase === 'extract' ? m.extraction : null;
+  const gather = !!exg && (exg.state === 'landing' || (exg.state === 'called' && t >= exg.landAt - C.extract.gatherSec));
   // Helldivers drift to their slots around the anchor; they stand and fight while engaged.
   if (hds.length) {
     const chase = C.squad.chaseSpeed * bm * dt * Math.max(1, mod);
     const sites = m.phase !== 'clear' ? holdSites(m, sq.ax, sq.ay) : null;     // (0.26: an evacuation's two rings, split between them)
     for (const a of hds) {
       if (hb && !a.mounted && runClear(m, a, hb, clearR, C.squad.chaseSpeed * bm * C.objective.hellbomb.runMul * dt)) continue;
-      if (a.mounted || a.retreat) continue;   // a Helldiver who is falling back is not drifting to his slot
+      if (a.mounted || (a.retreat && !gather)) continue;   // a Helldiver who is falling back is not drifting to his slot (0.53.7: unless the pelican is coming)
       const selfEngaged = eg.nearest(a.x, a.y, C.squad.engageRange);
       let tx = sq.ax + a.ox, ty = sq.ay + a.oy;
       const hi = hds.indexOf(a), hn = hds.length;
       const site = sites ? sites[hi % sites.length] : null, si = sites ? Math.floor(hi / sites.length) : hi, sn = sites ? Math.ceil(hn / sites.length) : hn;
       const job = m.hellbomb && m.hellbomb.state === 'landed' && m.hellbomb.armer === a ? m.hellbomb : null;
       if (job) { tx = job.x; ty = job.y; }                                      // the one arming the Hellbomb goes right to it
+      else if (gather) { tx = exg.x + a.ox * 0.35; ty = exg.y + a.oy * 0.35; }   // (0.53.7) round the pad, ready for the ramp
       else if (site) { const p = threatSlot(m, site, si, sn); tx = p.x; ty = p.y; }     // holding a site: the walls that face the threat
       else if (sq.base && !sq.base.destroyed) {
         // at a base: fan out round it on the near side instead of shooting from one spot
@@ -265,7 +270,7 @@ export function updateSquad(m, dt) {
       if (!job && !site && m.terrain && !m.terrain.lineClear(sq.ax, sq.ay, tx, ty, 2)) { const p = pullIn(m.terrain, sq.ax, sq.ay, tx, ty); tx = p.x; ty = p.y; }
       const sw = steer(m.terrain, a, a.x, a.y, tx, ty, t);
       const dx = sw.x - a.x, dy = sw.y - a.y, d = Math.hypot(dx, dy);
-      const keepUp = (sq.fightOn || sq.fallback) && d > 4;      // fighting forward (or pulling back): keep with the anchor, shooting on the move
+      const keepUp = ((sq.fightOn || sq.fallback) && d > 4) || (gather && d > 2);      // fighting forward (or pulling back, or closing on the pad): keep with the anchor, shooting on the move
       if (d > 0.8 && (keepUp || (!selfEngaged && (!sq.engaged || d > 25))) && sq.state !== 'setup') {
         const s = Math.min(chase * speedMul(m, a) * (keepUp && !sq.fallback ? 0.75 : 1), d), nx = a.x + (dx / d) * s, ny = a.y + (dy / d) * s;
         if (canStep(m, a, nx, ny)) { a.x = nx; a.y = ny; }
