@@ -110,8 +110,7 @@ export function updateOil(m, o, dt, fns) {
       m.earn('objective', 60, o.x, o.y);
       if (o.trips >= K.trips) { fns.complete(m, o); return; }
       o.state = 'pump';
-      m.radio(tr('c.oil.trip', { n: o.trips, of: K.trips }), 'oiltrip', 0);
-      m.notice(tr('n.oilTrip', { n: o.trips, of: K.trips }), 'good');
+      m.radio(tr('c.oil.trip', { n: o.trips, of: K.trips }), 'oiltrip', 0);     // (0.53.9: no notice as well: it said the same thing, and the objective panel counts the loads)
     }
   }
 }

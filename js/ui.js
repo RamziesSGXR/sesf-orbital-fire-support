@@ -1770,6 +1770,8 @@ export function renderShop(root, opts) {
   // (0.24) SHOW ME: open the tab with the first new item in it
   if (opts.focus && fresh.size) { const f = firstNew(items, opts.fresh); if (f) shopTab = (SHOP_TABS.find((x) => x.secs.includes(f.section)) || SHOP_TABS[0]).id; }
   const scroll = root.querySelector('.shop-scroll'), keep = scroll ? scroll.scrollTop : 0;
+  // (0.53.9) on a phone the whole page scrolls (css): where it stood is kept across the redraw too (a purchase redraws it)
+  const page = root.closest('.screen'), pageKeep = page ? page.scrollTop : 0;
   root.innerHTML = '';
   root.appendChild(el('div', 'shop-cr', `${t('arm.credits')} <b>${fmtNum(wallet.bal)}</b>${opts.note ? `<span class="note">${esc(opts.note)}</span>` : ''}`));
   // (0.44) SESF coins: SPEND A COIN, then pick anything open but the Classified ones, free
@@ -1823,7 +1825,7 @@ export function renderShop(root, opts) {
     const can = items.some((it) => tb.secs.includes(it.section) && it.cost !== null && !it.locked && open(it) && (coinMode ? coinOk(it) : wallet.bal >= it.due) && !(live && !it.live));
     const b = el('button', 'btn tab' + (shopTab === tb.id ? ' on' : '') + (can ? ' can' : ''), esc(t('arm.tab.' + tb.id)));
     b.type = 'button'; b.dataset.tab = tb.id; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(shopTab === tb.id));
-    b.onclick = () => { shopTab = tb.id; root.querySelectorAll('.shop-tabs .tab').forEach((x) => { x.classList.toggle('on', x.dataset.tab === shopTab); x.setAttribute('aria-selected', String(x.dataset.tab === shopTab)); }); root.querySelectorAll('.tabpane').forEach((x) => x.classList.toggle('on', x.dataset.tab === shopTab)); const sc = root.querySelector('.shop-scroll'); if (sc) sc.scrollTop = 0; };
+    b.onclick = () => { shopTab = tb.id; root.querySelectorAll('.shop-tabs .tab').forEach((x) => { x.classList.toggle('on', x.dataset.tab === shopTab); x.setAttribute('aria-selected', String(x.dataset.tab === shopTab)); }); root.querySelectorAll('.tabpane').forEach((x) => x.classList.toggle('on', x.dataset.tab === shopTab)); const sc = root.querySelector('.shop-scroll'); if (sc) sc.scrollTop = 0; const tbar = root.querySelector('.shop-tabs'); if (tbar && tbar.getBoundingClientRect().top < 0) tbar.scrollIntoView({ block: 'start' }); };     // (0.53.9: a phone's page scrolled past the tabs comes back to them)
     tabs.appendChild(b);
   }
   root.appendChild(tabs);
@@ -1890,6 +1892,7 @@ export function renderShop(root, opts) {
   }
   root.appendChild(body);
   body.scrollTop = keep;
+  if (page) page.scrollTop = pageKeep;
   if (opts.focus) {        // (0.24) SHOW ME: bring the first new item into view and make the new ones pulse
     const f = body.querySelector('.tabpane.on .item.fresh');
     if (f) { body.scrollTop = Math.max(0, f.offsetTop - body.offsetTop - 12); body.querySelectorAll('.tabpane.on .item.fresh').forEach((c) => c.classList.add('pulse')); }
