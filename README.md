@@ -10,6 +10,8 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 > Unofficial fan project. Not affiliated with or endorsed by Arrowhead Game Studios or Sony Interactive Entertainment. It uses no game assets, text or audio: all art is drawn in code and all sound is synthesised.
 
+**Design document:** [docs/DESIGN.md](docs/DESIGN.md) explains the principles behind the game, every part of it, how it came together, and how updates are made.
+
 ## Quick start
 
 0. New here? Press **PLAY TUTORIAL** first, in the tutorial window on the title screen. It walks you through every control in one short, doomed mission (see [the tutorial](#tutorial-last-stand-on-mars)).
