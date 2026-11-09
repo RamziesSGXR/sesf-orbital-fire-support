@@ -204,24 +204,26 @@ export const CONFIG = {
     // Enemy attacks by faction and size: range (m), damage per hit, seconds between attacks, accuracy. (0.40) Every enemy can miss:
     // nothing is above 0.9, the melee heavies, the specials and the harvester's beam included (a beam that misses goes wide).
     atk: {
-      bugs:   { L: { range: 5,  dmg: 5,  every: 0.8, acc: 0.9 },
-                M: { range: 18, dmg: 16, every: 1.5, acc: 0.8 },
-                H: { range: 5.5, dmg: 70, every: 1.3, acc: 0.85, speed: 7.5 } },       // heavy runs at allies
+      // (0.53.8) bugs: lighter hits all round, and a charger that no longer outruns a Helldiver or takes him in two blows (they
+      // made bugs the hardest enemy at every level by far: at level 6 the bot lost half its missions to them, none to bots)
+      bugs:   { L: { range: 5,  dmg: 4,  every: 0.8, acc: 0.9 },
+                M: { range: 18, dmg: 13, every: 1.5, acc: 0.8 },
+                H: { range: 5.5, dmg: 30, every: 1.3, acc: 0.75, speed: 6.0 } },       // heavy runs at allies
       bots:   { L: { range: 38, dmg: 5,  every: 0.7, acc: 0.55 },
                 M: { range: 42, dmg: 17, every: 1.0, acc: 0.65 },
                 H: { range: 58, dmg: 50, every: 1.6, acc: 0.75, speed: 3.2, splash: 3.5 } },   // medium range cannon
       squids: { L: { range: 30, dmg: 6,  every: 0.9, acc: 0.7 },
-                M: { range: 36, dmg: 7,  every: 0.5, acc: 0.75 },     // (0.40) an overseer's rifle: quick shots (the same damage a second as its old bolt)
-                H: { range: 62, dmg: 120, every: 7, acc: 0.85, speed: 2.4, charge: 2.6, lock: 0.7, width: 3.2 } }, // the longest reach of any enemy: a charged beam
+                M: { range: 36, dmg: 9,  every: 0.5, acc: 0.75 },     // (0.40) an overseer's rifle: quick shots (0.53.8: 7 -> 9)
+                H: { range: 62, dmg: 120, every: 6, acc: 0.85, speed: 2.4, charge: 2.6, lock: 0.7, width: 3.2 } }, // the longest reach of any enemy: a charged beam (0.53.8: every 7 -> 6)
     },
   },
 
   // How many can be alive at once: liveCap at the drop, more with every minute of the mission (capPerMissionMin) and of the session
   // (capPerSessionMin), up to maxLive. So each mission starts lighter and fills up as it goes on.
   // Mostly light enemies: the bag is 36 light, 3 medium and 1 heavy per forty, so a heavy is an event and not a habit.
-  // Each faction has a way of fighting. Bugs swarm in big loose packs that rush the squad from every side. Bots stop at a standoff
+  // Each faction has a way of fighting. Bugs swarm in loose packs that rush the squad from every side (0.53.8: packs of 9, were 14). Bots stop at a standoff
   // distance and form a firing line across the approach. Squids spread out and surround whoever they hunt.
-  enemies:  { liveCap: 90, capPerMissionMin: 5, capPerSessionMin: 0.6, maxLive: 190, hardCap: 230, groupSize: 7, group: { bugs: 14, bots: 10, squids: 10 },
+  enemies:  { liveCap: 90, capPerMissionMin: 5, capPerSessionMin: 0.6, maxLive: 190, hardCap: 230, groupSize: 7, group: { bugs: 9, bots: 10, squids: 10 },     // (0.53.8: bugs 14 -> 9)
               // (0.40) the heavy draws include the specials (C.special.share of them), so heavies and specials scale together: the
               // difficulty's heavy factor, the war's heavy ramp (ramp.heavyEvery) and the heavy cap below are theirs together
               bag: { light: 32, medium: 4.5, heavy: 3 },
@@ -386,14 +388,18 @@ export const CONFIG = {
   ],
   // (0.40) truthAt: at this many off Mars Tharsis Control stops the game to say it plainly: not everyone is getting off
   // (0.53) winAt: this many off Mars and the tutorial is complete (MISSION COMPLETE: fight on, or move on)
-  lastStand: { personnel: 160, truthAt: 100, winAt: 70, squad: 6, lzOff: 46, lives: 10, breakAt: 3, waveFirst: 5, waveEvery: [12, 3.5], rampSec: 150, waveSize: [9, 9], waveGrow: 8,
+  // (0.53.8) war, fac: the tutorial keeps the war minutes and enemy damage it was tuned on when the levels were re-spaced and the
+  // squids' damage raised (the squid factor 0.75 with the overseer's and the beam's old rates comes to about 0.65 now)
+  lastStand: { war: 37, fac: 0.65, personnel: 160, truthAt: 100, winAt: 70, squad: 6, lzOff: 46, lives: 10, breakAt: 3, waveFirst: 5, waveEvery: [12, 3.5], rampSec: 150, waveSize: [9, 9], waveGrow: 8,
                heavyEvery: 3, hpGrow: 0.6, dmgGrow: 0.9, levelEvery: 25, maxHold: 480, glassSec: 10, beamEvery: 0.09, beamR: 13, waveR: 230, lessonR: 160, countdown: 900,
                jamOff: 115, jamR: 55 },     // (0.37) the Hellbomb lesson's disruptor: how far from the base, and the ground it jams
   // (0.40) opBonus: credits are worth 0.2 more for every mission already done in the operation (the second mission x1.2, the
   // third x1.4 and so on), on top of the level's pay; score is not.
   difficulty: { start: 3, spawn: 0.55, medium: 0.6, heavy: 0.4, boss: 0.3, curve: 1, reward: [0.75, 1.2], opBonus: 0.2, ramp: 0.6, beyond: 1,     // (0.31: ramp 0.39 -> 0.6, a level nearly every mission)
                 // war minutes at each level (1 to 10), war minutes a level past 10, and the share of each real session minute that counts
-                war: [0, 15, 37, 38, 39, 40, 40.5, 41, 41.5, 42], warBeyond: 1.5, sessionRamp: 0.075,     // (0.48: warBeyond 10 -> 1.5, so 10 to 11 is a step, not a cliff from 42 to 52)     // (0.19.2: ramp and sessionRamp halved; 0.40: the top flattened, so a session started at 10 can win its first mission)
+                // (0.53.8) the levels step evenly up to 9: 3 is easy, 6 hard, 9 very hard (it was 0, 15, 37, 38 ... 42: level 3 was
+                // nearly as tough as 10, and only the numbers of enemies told them apart)
+                war: [0, 9, 18, 25, 31, 36, 39, 40.5, 41.5, 42], warBeyond: 1.5, sessionRamp: 0.075,     // (0.48: warBeyond 10 -> 1.5, so 10 to 11 is a step, not a cliff from 42 to 52)     // (0.19.2: ramp and sessionRamp halved; 0.40: the top flattened, so a session started at 10 can win its first mission)
                 // (0.31) rankStep: a rank reached (ranks.at, missions done) makes every mission after it this much of a level harder too,
                 // so the more of the armory is open, the harder it gets. (0.40.1: halved, with a rank every mission, so the climb stays
                 // where it was.) From level 3: missions 1-14 at 3 4 4 5 6 7 7 8 9 10 10 11 11 12.
@@ -415,7 +421,8 @@ export const CONFIG = {
   pressure: { start: 1, perSessionMin: 0.035, perMissionMin: 0.12, onBaseKill: 0.6, floor: 0.5 },
   // The war escalates with every minute of the session, so the run only ends in failure: tougher, harder-hitting enemies and more heavies.
   // missionDmg: enemy damage also climbs a little with every minute of the mission itself.
-  ramp:     { base: 4.0, fac: { bugs: 1.2, bots: 0.8, squids: 0.75 }, hp: 0.02, dmg: 0.015, missionDmg: 0.06, mediumEvery: 25, heavyEvery: 45, hpCap: 7, dmgCap: 6 },
+  // (0.53.8) fac: bugs 1.2 -> 1.0, bots 0.8 -> 1.45, squids 0.75 -> 1.45, so each enemy is about as hard as the others at a level
+  ramp:     { base: 4.0, fac: { bugs: 1.0, bots: 1.45, squids: 1.45 }, hp: 0.02, dmg: 0.015, missionDmg: 0.06, mediumEvery: 25, heavyEvery: 45, hpCap: 7, dmgCap: 6 },
   // Enemy reinforcements. A patrol that finds the squad, or is shot at, may fire a flare (callChance, once per group); if the one
   // holding it is still alive when it has burned (flareSec), reinforcements arrive near it. They also come in waves at objective
   // sites (siteEvery) and at the extraction point once extraction is called (extractEvery). Each faction has its own way in:

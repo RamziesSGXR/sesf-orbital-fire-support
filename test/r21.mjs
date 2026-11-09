@@ -79,6 +79,7 @@ check('a bigger magazine bought mid-mission arrives with the extra rounds', p.gu
 {
   const q = new Mission({ seed: 9, faction: 'bots', biome: 'grass', difficulty: 1, events: false });
   q.deployNow(); for (let i = 0; i < 30 * 5; i++) q.step(1 / 30);
+  for (const a of q.seafAlive) a.hp = a.maxHp = 1e6;     // (0.53.8: the troopers outlive the bots round them: this is about the door, not the fight)
   q.wallet.bal = 1e5; q.selectSquad(-1);
   const sq = q.seafAlive.find((a) => a.sq >= 0).sq; q.selectSquad(sq);
   const at = { x: q.hx + 24, y: q.hy - 18 };

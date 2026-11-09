@@ -204,7 +204,9 @@ const nearHd = (m, a, d, ang = 0) => ({ x: a.x + Math.cos(ang) * d, y: a.y + Mat
   let h = 0; for (let i = 0; i < 4000; i++) if (m.drawToken() === 'H') h++;
   check('with the live cap of heavies reached, no more are drawn', h === 0, `${C.enemies.kindCap.H} allowed at once at the start`);
   m.enemies = [];
-  check('bigger packs of bugs than of bots or squids', C.enemies.group.bugs > C.enemies.group.bots && C.enemies.group.bugs > C.enemies.group.squids);
+  // (0.53.8) bug packs were cut from 14 to 9 to even the enemies out (bugs had been the hardest at every level by far); they still
+  // swarm (melee, from every side), but no longer in bigger packs than the others
+  check('(0.53.8) bug packs no bigger than the others\' (9; they were 14 and made bugs the hardest enemy at every level)', C.enemies.group.bugs === 9 && C.enemies.group.bugs <= C.enemies.group.bots);
 }
 
 // ---------------------------------------------------------------- spawns are out of sight
