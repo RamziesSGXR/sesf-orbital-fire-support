@@ -1,705 +1,714 @@
-# Orbital Fury: Design Document
+# Orbital Fury: Game Design Document
 
-**Version 0.53.9 · 8 November 2026**
+**Version 0.53.9 · November 2026 · [Play at orbitalfury.com](https://orbitalfury.com)**
 
-This is the design reference for Orbital Fury. It brings together the first pitch, the original design document (revisions 1 to 12), the difficulty policy decisions, the release notes in the [README](../README.md), and the design notes kept for each release. It describes the game as it stands, the principles behind it, how it got here, and how we work on it, so the next update starts from the same understanding.
-
-When this document and the code disagree, this document states the intent and the code is the bug, unless a later decision changed the intent. In that case, update this document.
+This is the blueprint for Orbital Fury: what the game is, how it plays, how its systems fit together, and how it is built. The [README](../README.md) is the player's manual and has every number. This document explains the design.
 
 ## Contents
 
-1. [What Orbital Fury is](#1-what-orbital-fury-is)
-2. [Design principles](#2-design-principles)
-3. [The game, element by element](#3-the-game-element-by-element)
-4. [How it came together](#4-how-it-came-together)
-5. [How we work](#5-how-we-work)
-6. [For the next update](#6-for-the-next-update)
-7. [Related documents](#7-related-documents)
+1. [Overview and high-level concept](#1-overview-and-high-level-concept)
+2. [Core gameplay and mechanics](#2-core-gameplay-and-mechanics)
+3. [Systems and economy](#3-systems-and-economy)
+4. [Content and worldbuilding](#4-content-and-worldbuilding)
+5. [Art, audio and UI](#5-art-audio-and-ui)
+6. [Technical and production details](#6-technical-and-production-details)
 
 ---
 
-## 1. What Orbital Fury is
+## 1. Overview and high-level concept
 
-Orbital Fury is a free browser game made for the **Super Earth Special Forces (SESF)** Helldivers 2 community. You are the gunner on a Super Destroyer in orbit. Four Helldivers drop to the planet below and fight on their own. You watch through a thermal view and keep them alive: you scan with the UAV, call orbital and Eagle strikes, fire the ship gun, drop and command SEAF troops, and have those troops build a defensive line.
+### One-sentence pitch
 
-You never control the Helldivers. They pick their own route, call their own stratagems and decide when to extract. What you do from orbit decides whether they get out.
+A free Helldivers 2 fan game in the browser, where you are the gunner on a Super Destroyer and keep four AI Helldivers alive from orbit with strikes, SEAF troops and a defensive line you build.
 
-- **Where it runs:** any modern browser on a computer, tablet or phone, at [orbitalfury.com](https://orbitalfury.com). There is nothing to install.
-- **Who made it:** Robert Troumbley (RamziesSGXR), Head Admin of the SESF, with SESF members as testers. Claude (Anthropic) was used as a coding assistant.
-- **What it is not:** an official product. It is an unofficial fan project, uses no Arrowhead or Sony assets, and sells nothing.
+### Target audience and platforms
 
-### The core loop
+| | |
+|---|---|
+| **Audience** | Helldivers 2 players, first of all the Super Earth Special Forces (SESF) Discord community. They know the stratagems and factions and want a short, shareable game to play between drops and compare scores in the channel. |
+| **Secondary audience** | Fans of real-time strategy, tower defence and roguelike runs who enjoy commanding rather than shooting. |
+| **Platforms** | Any modern browser on a computer, tablet or phone, including in-app browsers like Discord's. There is nothing to install. |
+| **Languages** | English, French and Spanish. |
+| **Price** | Free, with no ads, no purchases and no accounts. |
 
-1. **Operation.** Start an operation (Quick Play or the campaign) at a level from 1 to 10.
-2. **Armory.** Spend credits on stratagems, upgrades, SEAF and buildings.
-3. **Mission.** The squad drops after a 30-second countdown and goes for the objective. You support it in real time.
-4. **Debrief.** The result, the pay and a rank. Then choose a commendation and the next mission from three offers.
-5. **Repeat.** Each mission is harder than the last. The operation ends when a mission fails or you end it yourself, and the final score is posted to the SESF Discord.
+### Design pillars
 
----
+1. **You are their fire support.** The four Helldivers play themselves. You never give them an order. From level 3 up they lose without you, so every minute you spend covering them, instead of hitting something else, is the choice that makes the game.
+2. **Every shot is a risk.** Your strikes land a moment after you call them and hurt your own side. Careful aim beats volume of fire. The ship gun is the one safe tool.
+3. **The war only gets worse.** Every mission is harder than the last, pressure inside a mission never eases, and every operation ends eventually. You keep up by getting stronger, until you can't.
+4. **Every system is a choice.** Workers or guards, which mission to take next, which troops to bring, whether to pay for more time. More power always comes with a trade-off.
+5. **Anywhere, and made from nothing borrowed.** It runs on a phone as well as a computer. Every picture is drawn in code and every sound is synthesised. Nothing is taken from Arrowhead or Sony.
 
-## 2. Design principles
+### Player fantasy
 
-These are the rules the game has been built on. Most were written down early and then sharpened by playtests. Each one says where it came from, because knowing why a rule exists is what lets you decide when it applies.
-
-### 2.1 You are fire support, not the squad
-
-The Helldivers play themselves. The player aims, scans, drops and commands SEAF, but never gives the Helldivers an order.
-
-*Origin:* the first pitch (26 October 2026) and revision 2, which made it explicit: "Helldivers are never directed." Revision 4 removed the free-fire guns and turret control so the player "runs the sky and SEAF, and nothing else."
-
-*In practice:* when the squad does something dumb, fix the squad's AI (`js/sim/planner.js`, `squad.js`, `helldiver.js`). Don't add a way for the player to order them.
-
-### 2.2 The gunner is needed
-
-From level 3 up, the Helldivers lose without you. Supporting them, instead of hitting something else, is the main choice in the game: every minute spent covering them is a minute not spent elsewhere.
-
-*Origin:* revision 10 (0.10.0). Before it, the squad could win alone. After it, the squad won 2 of 18 first missions with nobody at the controls, and 12 of 12 with the bot gunner. Today about 5 in 18 survive alone at level 3.
-
-*In practice:* the balance test `test/difficulty.mjs` checks that nobody at the controls loses from level 3 up. A change that lets the squad win alone breaks this principle.
-
-### 2.3 Protect the dots
-
-Your strikes hurt your own side. Allies show as bright marks on the thermal view, and careful aim beats volume of fire. The **ship gun** is the one exception: it never hurts allies, so there is always a safe tool.
-
-*Origin:* the first pitch's pillar "Protect the dots." Revision 6 added trigger discipline (nobody fires through a friendly) and allies who run out of a marked blast.
-
-### 2.4 Difficulty only climbs
-
-- **Between missions,** difficulty never steps down. The starting level only moves you further along the same climb.
-- **Inside a mission,** pressure never flattens out or ends easier than it started, even after the bases are down.
-- **Destroying a base is a real, felt win.** That spawner is gone for good, and the alert spike it caused drops.
-- **Every run ends.** Player power stops growing once the armory is full, while the climb goes on. The war outgrows you eventually, and that is by design.
-
-*Origin:* the difficulty policy decisions (November 2026), built on revision 4's "a session that only ends in failure."
-
-### 2.5 Levels mean something
-
-Level 3 is easy, level 6 is hard, level 9 is very hard, and it keeps climbing past 10. At the same level, each enemy faction should be about as hard as the others.
-
-*Origin:* restated by the project lead on 8 November 2026, and built into 0.53.8 with a bot sweep of 12 missions per cell.
-
-### 2.6 Choices, not just numbers
-
-Every system should hand the player a decision.
-
-- **SEAF:** workers inside a work site or guards outside it.
-- **Next mission:** three offers, each with a difficulty bump and matching pay. There is no easy option.
-- **Troops:** a troop mix chosen before the mission, instead of more of everything.
-- **Time:** the squad asks for more time near the end, and you decide whether to pay for it.
-
-*Origin:* the decisions on mission choice, work sites and SEAF balance (0.50 to 0.52). They followed the finding that "SEAF in large numbers make the player very powerful."
-
-### 2.7 Readable at a glance, on any screen
-
-- **Layout:** the screen is laid out like a real-time strategy game (Age of Empires was the model), with nothing on top of anything else.
-- **Phones:** the phone is a first-class layout, not a shrunken desktop.
-- **Panels:** the command panel keeps the same height in every context, so nothing jumps.
-
-*Origin:* 0.20 (the RTS layout), 0.21 (three layouts), and 0.42 (phones running hot and cramped, reported by SESF testers).
-
-### 2.8 Nothing borrowed, nothing to install
-
-- **Art:** every picture is drawn in code.
-- **Sound:** every sound is synthesised live, and the music is composed in code.
-- **No outside files:** there are no image or audio files, no game engine, no frameworks, and no third-party libraries in the game.
-- **No account or server.** The game is one static site.
-
-*Origin:* the first pitch's pillar "Cheap to build and host," and the need to stay clear of Arrowhead's and Sony's assets. It also keeps the game small and fast on phones.
-
-### 2.9 Built with the community
-
-- **Sharing:** every ending screen has a report to paste into Discord, and the SESF feed announces each operation.
-- **Feedback:** players' reports drive the fix releases.
-- **Credits:** every tester is credited by name.
-
-*Origin:* the first pitch ("short, shareable runs" ending in a block of text to paste), and the way the game has been tested since its first week.
-
-### 2.10 One game, three languages
-
-The game is in English, French and Spanish, and every string exists in all three. Operation names, callsigns and Discord reports stay in English, so posts read the same in the channel whoever wrote them.
-
-*Origin:* revision 10. KTL (P.H.A.N.T.O.M. Helldivers) reviews the French.
+**You are the gunship overhead.** You see the battlefield through a thermal camera from orbit. You watch four tiny figures push into enemy territory, and you decide what lands on the ground around them: a railcannon on the charger closing on them, a barrage on the bug hole they haven't seen, a pelican of SEAF troops on the hill they'll need to hold. When they get out, it's because of you.
 
 ---
 
-## 3. The game, element by element
+## 2. Core gameplay and mechanics
 
-This section is the map of the game as of 0.53.9. The [README](../README.md) has the player-facing detail, with every control and number. This section explains what each part is for.
+### Core loop
 
-### 3.1 The gunner's tools
+**Inside a mission** (10 to 15 minutes):
 
-| Tool | What it does | Why it's there |
+```mermaid
+flowchart LR
+  A["Scan<br/>UAV, radar, towers"] --> B["Strike<br/>orbitals, Eagles, ship gun"]
+  B --> C["Command<br/>drop and order SEAF"]
+  C --> D["Build<br/>wire, trenches, turrets"]
+  D --> E["Support<br/>resupply, Hellbomb, more time"]
+  E --> A
+  E -.-> F["Extract"]
+```
+
+**Across an operation** (a run of missions):
+
+```mermaid
+flowchart LR
+  A["Armory<br/>buy and equip"] --> B["Briefing"] --> C["Mission"] --> D["Debrief<br/>pay and rank"]
+  D --> E["Commendation<br/>pick 1 of 3 perks"] --> F["Next mission<br/>pick 1 of 3 offers"] --> A
+  C -- "mission failed, or END OPERATION" --> G["Final score<br/>posted to the SESF Discord"]
+```
+
+### Controls summary
+
+| Action | Computer | Phone and tablet |
 |---|---|---|
-| **UAV scan** (slot 1) | Opens a timed circle of vision you can strike into. Allies under it dodge more and move faster. Its radar sweeps the whole map every few seconds and leaves blips. | Vision is the gunner's first resource. You can only hit what someone can see. |
-| **Orbital strikes** (slots 2 to 6) | Precision, barrage, 380 mm, railcannon, laser, gas, EMS, napalm, smoke and more. They land only inside the **strike zone** around allies or a UAV circle, and they hurt allies. | The main damage, and the jobs troops can't do. One precision strike kills one base spawner. |
-| **Eagles** (Hangar tab) | Fast strikes. Each Eagle slot has its own runs, then the Eagle flies back to rearm. You can rearm early with `0`. | Fast answers with a cost in time. |
-| **Minefields** | Only the enemy sets them off, but the blast hurts anyone near it. | Area denial for a line you can't hold with troops. |
-| **Utilities** | Med pod, smoke, shield dome and sentry. They are safe to drop on allies. | Ways to help the squad instead of hurting the enemy. |
-| **Ship gun** (slot 8) | Hold to fire anywhere you can see. It has heavy penetration, never hurts allies, and refills by itself. | The one tool ready at the drop, and always safe. |
-| **Artillery cannon** (slot 9) | A mini-nuke on a slow recharge. It only fires while crewed, and it can be built or captured. | A big late-game choice with friendly-fire risk. |
-| **Classified** | Four over-the-top stratagems for ranks 6 to 9, such as Super Earth's Final Word. | A reward for long operations. |
+| Select troops | Click a trooper; click again for his squad; `Shift`+click to add; drag a box | Tap; double-tap for the squad; hold a finger, then drag, for a box |
+| Arm a weapon | `1` UAV, `2` to `6` orbitals, `8` ship gun, `9` artillery cannon; `Q` / `E` cycle | Weapon bar |
+| Fire | Click (hold for the ship gun) | **CALL** (hold for the ship gun) |
+| Order the selection | Right-click: a post (hold beside it), an enemy (attack), the ground (move), a crate (build) | Tap the map |
+| SEAF drop | `G`, then place the ghost | **SEAF DROP**, then **PLACE** |
+| Squad orders | `X` auto, `V` move, `Z` protect, `N` attack, `C` escort; `R` draws a route, line or ring | Order buttons; **DRAW** |
+| Build | `B`, pick a build, place it; `Q` / `E` turn it | **BUILD** drawer |
+| Armory in a mission | `Y` | **ARMORY** |
+| Pause and plan | `P` or `Space`; orders given now go out in order on resume | Pause button |
+| Half speed | `,` | **1×** button |
+| Camera | `WASD`, right-drag, wheel to zoom, `F` follow the squad | Drag, pinch |
+| Big map | `Tab` or `L` | Tap the minimap |
+| Load a supply pod | `U`, then `1` to `3` | **LOAD POD**, then tap |
+| Approve more time | `K` | **APPROVE** |
+| Rearm the Eagles early | `0` | Tap an empty Eagle |
 
-**Rules that shape aiming:**
+Desktop keys can be rebound in Settings.
 
-- **The vision ladder (0.47).** Allies see farthest. They shoot less far than they see, and throw a stratagem beacon less far than they shoot. The strike zone always sits inside what the player can see. This cured enemies spawning beyond sight and walking in, and it made the strike range upgrade meaningful.
-- **Shooters give themselves away.** An enemy firing on allies is marked, and after three seconds it is locked. Your strikes can then hit it outside the zone.
-- **Facing matters.** Hits from behind do 1.5× damage, and 2.2× on heavies. Every unit shows which way it faces.
-- **Critical hits** do double damage. Orbitals crit most often.
+### Player actions and rules
 
-The catalogue holds 48 stratagems in all (`js/data/strat.js`). Twenty-eight are the gunner's: 17 orbitals (the utilities and three Classified included), 8 Eagles (Eagle Squadron included) and 3 minefields. The rest belong to the Helldivers.
+**The gunner's weapons**
 
-### 3.2 The Helldivers
+| Weapon | Rules |
+|---|---|
+| **UAV scan** (slot 1) | Opens a timed circle of vision you can strike into. Allies under it dodge more and move faster. Its radar marks every enemy on the map every few seconds. |
+| **Orbital strikes** (slots 2 to 6) | Land only inside the **strike zone** (a ring around allies) or a UAV circle. Each has its own recharge, delay and blast, and all of them hurt allies. |
+| **Eagles** | Arrive fast. Each Eagle has a few runs, then flies back to rearm (about 110 seconds). |
+| **Minefields** | Only enemies set them off, but the blast hurts anyone near. |
+| **Utilities** | Med pod, smoke, shield dome and sentry. They are safe to drop on allies. |
+| **Ship gun** (slot 8) | Hold to fire anywhere you can see, with no strike zone needed. It never hurts allies and its ammo refills by itself. It is ready the moment a mission starts. |
+| **Artillery cannon** (slot 9) | A mini-nuke on a slow recharge. It needs a crew and hurts allies. |
 
-Four AI Helldivers with **20 lives every mission**. They are not upgraded in the armory.
+**Seeing and aiming**
 
-**Kit:**
+- **The vision ladder.** Allies see farthest. They shoot less far than they see, and throw a stratagem beacon less far than they shoot. The strike zone sits inside what you can see.
+- **Fog.** Most of the map is hidden until an ally, a UAV or a tower sees it. Base locations are always known, but their insides are hidden under smoke until scouted.
+- **Locked shooters.** An enemy that fires on your allies is marked, and after three seconds it is locked: you can hit it outside the strike zone.
+- **The ground.** High ground sees farther and hits harder. Deep water can't be crossed on foot, and mud, snow and sand slow everyone.
 
-- **Weapons:** a Liberator, an Ultimatum (one round that kills anything in about 9 m), six grenades and stims.
-- **Stratagems:** their own, on separate clocks, always including at least two orbitals and leaning toward heavy weapons.
+**Damage and health**
 
-**The planner** (`js/sim/planner.js`) runs the squad's decisions:
+- **Facing.** Hits from behind do 1.5× damage, and 2.2× on heavies. Every unit shows which way it faces.
+- **Critical hits** do double damage. Orbitals crit most often (14%), then the ship gun (10%).
+- **Armour and shields.** Heavy armour shrugs off light fire. A charger's front takes only about 60% of a hit. Shields (Harvesters, warp ships, the Colossus) take every hit at full strength, then come back if left alone.
+- **Misses.** No enemy attack has accuracy above 90%, so everything can miss.
+- **No one-shots.** No single enemy hit takes more than 70% of a Helldiver's health.
+- **Helldivers** have 420 health, four stims, six grenades and an Ultimatum (one round that kills nearly anything in about 9 m). The squad has **20 lives per mission**. A dead Helldiver drops back in by pod while lives remain.
+- **SEAF troopers** have 100 health. A Medic can revive a downed trooper within 14 seconds. Every trooper lost is paid for at the end of the mission.
 
-- **Main objective:** they go for it, and take side missions near the way while the clock allows.
-- **Bases:** they mark an enemy base and wait about 18 seconds before going in. That pause is your window to soften it.
-- **Breaking off (0.40):** they pull back when a fight is lost, which means three deaths close together or a big wave coming in. They head for a quiet side task or a scored fallback point.
-- **Full clear (0.53.7):** after the objective, they go for a full clear of every base and side mission in 4 missions out of 5 when they have more than three lives. The roll is seeded per mission. Near the end they may ask for up to 2 more minutes, once.
+**Commanding SEAF**
+
+- **Drops:** each drop comes by pelican as its own squad (S1 to S9), and can land wherever allies can see.
+- **Orders:** auto, move, protect, attack and escort. You can also draw a route to run, a line to hold or a ring to defend. A move order is forced: troops keep moving and fire on the go.
+- **Pickups:** a pickup point flies troops back to the destroyer. They come back down on a shorter turnaround.
+- **Garrisons:** troops sent inside a building leave their squad and make the building work better.
+
+**Building**
+
+- **Placing:** pick a build, place its see-through ghost, and pay when you order it. A cargo pelican drops a crate, and the nearest squad (or the one picked) builds it.
+- **Queue:** a squad moves on to the next unbuilt placement by itself.
+- **Chaining:** wire and foxholes snap onto the free end of the last section, so a line is laid one piece at a time.
+- **Demolish:** a building blows up after a three-second fuse, hurting enemies around it.
+- **Restriction:** nothing can be built on a standing enemy base.
+
+**Time controls**
+
+- **Pause:** stops the game. You can still look around and plan orders, builds and strikes, which go out in order when you play on.
+- **Half speed:** everything still works.
+
+### Win and lose conditions
+
+| Result | When | What it means |
+|---|---|---|
+| **Victory** | The objective is done and the squad extracts by pelican | Full pay |
+| **Objective complete** | The objective is done, but the squad is lost or the clock runs out before extracting | The mission counts, without the extraction pay |
+| **Defeat** | All 20 lives are lost, or the 30-minute clock runs out, before the objective is done | The mission fails. Retry it, or the operation ends |
+| **Retired** | You leave from the pause menu | Always counts as a failed mission |
+
+**Ending an operation:**
+
+- **Failure:** an operation ends when a mission fails and isn't retried.
+- **By choice:** press **END OPERATION** after any counted mission. Ending this way pays an SESF coin.
+- **Score:** the final score is the credits earned over the operation.
+
+**The tutorial** is won when 70 people have been evacuated from Mars. After that you can fight on until the base falls.
+
+---
+
+## 3. Systems and economy
+
+### Progression systems
+
+**Inside an operation**
+
+| System | How it works |
+|---|---|
+| **Ranks** | One rank per mission finished, nine in all, from *Fresh Recruit* to *Super Earth's Favorite Gunner*. Each pays a level bonus (400 to 4,000 credits) and opens more of the armory. The ranks in between have names like *Liber-Tea Sommelier* and *Senior Button Presser*. |
+| **The armory** | Everything is visible from the start. What your rank hasn't reached shows the rank it needs. New unlocks pulse and say NEW. |
+| **Commendations** | After each mission, pick one of three perks that lasts the operation: **Orbital Efficiency**, **Hangar Crews**, **Gun Overcharge**, **Veteran Troops** or **Engineering Corps**. They stack, up to 10 per operation. |
+| **Classified** | Ranks 6 to 9 each unlock one over-the-top stratagem. |
+| **Retry** | Any mission can be flown again from the moment of the drop: same map, same enemy, and your credits and kit as they were. |
+
+**Across operations**
+
+- **SESF coins:** ending an operation yourself pays one (you can hold up to 3). A coin is a credit deposit toward any armory item in a later operation, worth more the further the ended operation got.
+- **Campaign checkpoints:** a cleared chapter stays cleared. The next chapter carries on with the kit, credits and rank you had when the last one was cleared.
+
+**What never grows:** the Helldivers themselves. They can't be upgraded, so your support is the only thing that makes them stronger.
+
+### In-game economy
+
+There is one currency, **credits**.
+
+| Credits come from | Credits go to |
+|---|---|
+| Kills (specials pay 3×) | Unlocking stratagems and utilities |
+| Destroyed bases, targets and super heavies | Upgrades: orbitals, ship gun, UAV, strike zone, SEAF, Hangar, buildables |
+| The objective, side missions and a full clear | Builds in a mission (each one paid when ordered) |
+| Extraction | SEAF losses, billed at the end of each mission, each one dearer than the last |
+| Work sites, paid as they are worked | Time extensions the squad asks for |
+| Strongboxes found on the map | |
+| Rank bonuses and SESF coins | |
+
+**Pay modifiers:**
+
+- **Level:** credits scale with the level, from ×0.75 at level 1 to ×1.20 at level 10.
+- **Offer bump:** a mission offer pays 15% more for each level of difficulty bump it carries.
+- **Operation bonus:** pay rises with each mission already done in the operation.
+
+**Spending rules:**
+
+- **Pay toward:** you can put credits toward any item and finish paying later. A deposit can't be taken back.
+- **Mid-mission buys:** the armory stays open during a mission (`Y`), and the war goes on while you shop.
+- **Pricing target:** prices are set so that a session of about three hours earns enough to buy everything.
+
+**Score** is the total credits earned over the operation, so taking riskier offers raises it.
+
+**The armory's tabs**
+
+| Tab | What it sells |
+|---|---|
+| **ORBITALS** | Orbital strikes, utilities and minefields, and their levels. All five slots are open from the start. |
+| **HANGAR** | Eagles; Pelican Fleet (up to six pelicans) and Pelican Bay (bigger drops). |
+| **SHIP** | The ship gun (Gun Barrels, Gun Ammo Bay, Ammo Synthesizer, Gun Stabilizers), the UAV (scan levels, Target Relay, Threat Warning) and the Strike Zone Range. |
+| **SEAF** | SEAF Barracks (more troops, no top level), SEAF Armor and Rifles, G-12 Grenades, Specialists, Field Medics, Leader Command, Combat Engineers, and troop mixes (standard, assault, armour, medical). |
+| **BUILDABLES** | Unlocks and levels for every build except the free foxhole and wire. |
+| **CLASSIFIED** | Orbital Liberty Storm, Eagle Squadron, Democracy Lance and Super Earth's Final Word. |
+
+### Artificial intelligence
+
+**The Helldivers (the squad)**
+
+The squad decides everything itself (`js/sim/planner.js`):
+
+- **The plan:** go for the main objective, taking side missions and bases near the way while the clock allows.
+- **Bases:** they mark an enemy base and wait about 18 seconds before going in, which gives you a window to soften it.
+- **Defences:** at a site they must hold, they take 25 quiet seconds to man the walls facing the threat.
+- **Breaking off:** they pull back when a fight is lost (three deaths close together, or a big wave coming) to a quiet side task or a scored fallback point.
+- **After the objective:** with more than three lives, they go for a **full clear** of the map 4 times in 5. Near the end of the clock they may ask you for up to 2 more minutes, once. Otherwise they head for extraction.
 - **Extraction:**
   - A Helldiver calls the pelican, and the squad holds the pad.
-  - Everyone gathers 15 seconds before it lands.
-  - A squad wiped after the call drops back at the pad.
-  - The pelican waits for Helldivers still on their way.
+  - Everyone gathers 15 seconds before the pelican lands.
+  - A squad wiped after the call drops back near the pad.
+  - The pelican waits for Helldivers who are still coming.
+- **Their own stratagems:** each Helldiver calls his own on his own clock, always including orbitals and heavy weapons. They use grenades and the Ultimatum on crowds and heavies, and share them out so two don't go at the same target.
+- **Talking to you:** they radio what they're about to do, ping where they're going, and ask for supplies or time.
 
-**Teamwork rules:** grenades and Ultimatums are shared out, so the squad doesn't spend them all on one spot. Nobody fires through a friendly. Everyone runs from a marked blast.
+**SEAF**
 
-### 3.3 SEAF: the troops you command
+- **Orders:** they follow your orders and fight what they meet.
+- **Cover:** they take cover close by when a fight starts, and stay in cover rather than stepping out to shoot.
+- **Leaders:** if the Squad Leader falls, the senior trooper takes over.
+- **Roles:** Specialists brace their MG and fire EATs at heavies, and Medics stim and revive.
+- **Building:** they build, repair posts when nothing is shooting at them, and return to what they built.
 
-SEAF are the player's ground force.
+**The enemy**
 
-**Drops and pickups:**
-
-- **Drops:** each drop comes down by **Pelican** as a squad of its own (S1 to S9).
-- **Fleet:** the Hangar sells up to six pelicans and bigger loads.
-- **Pickups:** a **pickup** point flies troops back up to the destroyer, and they come back on a shorter turnaround.
-- **Before the Helldivers land,** troops can drop in the landing zone's ring.
-
-**Orders:**
-
-- **Picking troops:** select by click, by squad, or by drawing a box.
-- **Basic orders:** auto, move, protect, attack and escort.
-- **Plays:** draw a route, a line or a ring on the map.
-- **Move orders are forced (0.46):** troops keep moving and fire on the go. They don't stop to fight anything they meet.
-
-**Roles:**
-
-- **Squad Leader:** with **Leader Command**, he gives a buff aura to troops near him.
-- **Riflemen.**
-- **Specialist:** an MG-43 and an EAT-17.
-- **Medic:** stims the wounded and revives the downed within 14 seconds.
-
-**Troop mixes (0.50):** choose a preset (assault, anti-armour, medical and so on) before the mission, instead of buying more of every role.
-
-**Cost:** every trooper lost is paid for at the end of the mission, each one dearer than the last.
-
-### 3.4 Building
-
-SEAF build what you order. A cargo pelican drops a crate, and the squad assembles it on the spot.
-
-| Build | Role |
+| Faction | Behaviour |
 |---|---|
-| **Concertina wire** | Free. It snaps on from a free end and slows the enemy without blocking fire. |
-| **Foxhole** | Free and dug in a line, one place per trooper. It chains like wire to make a trench. |
-| **Defilade bastion** | A ring, a line or an L-shaped corner of walls. |
-| **Heavy turret nest** | A heavy gun behind thick concrete. |
-| **Lookout tower** | It owns vision: a 180° cone at twice an ally's sight, so it also extends the strike zone. |
-| **Propaganda tower** | It gives allies nearby the UAV's boosts, with no vision. SEAF can drop at it. |
-| **Light bridge** | A hard-light span over water, sent down from the ship. |
-| **SAM site** | It shoots down dropships and warp ships. |
-| **Artillery cannon** | Weapon 9. |
+| **Bugs** | Swarm in loose packs from every side and fight up close. Chargers run at the squad. |
+| **Bots** | Slow. They stand off, form a firing line, and see farthest. The Commander blocks every strike inside its ring. |
+| **Squids** | Spread out and surround their target. Harvesters project a shield bubble over the squids around them. |
 
-**Supporting rules:**
+**Enemy awareness:**
 
-- **Ghost preview:** every build shows a see-through preview with who builds it and the price.
-- **Turning:** `Q` and `E` turn a build while you place it.
-- **Build queue:** a squad moves on to the next unbuilt placement by itself.
-- **Building in the pause:** you can lay out a whole position while paused.
-- **Garrisons:** troops sent inside a building leave their squad, can't be seen, and make it work better.
-- **Demolish:** blows a building up after a three-second fuse.
-- **No building on enemy bases:** a build can't be placed on a standing enemy base.
+- **Bases** sleep until someone enters their detection range or hits them. Then the garrison turns out, the base keeps sending groups one at a time, and neighbouring bases follow.
+- **Patrols** walk their own routes and come over when they hear fighting. Rifles, blasts, strikes and the ship gun each carry a different distance.
+- **Flares:** a patrol that sees the squad may fire one. If the holder isn't killed within about four seconds, reinforcements come by bug hole, dropship or warp ship.
 
-*Why:* building turns SEAF from more guns into a defensive puzzle. The 0.47 changes (foxholes as lines, the build queue, building while paused, and separate jobs for the two towers) all came from SESF testers trying to lay out real positions.
+**The director**
 
-### 3.5 The enemy
+The director keeps the pressure on (`js/sim/director.js`):
 
-Three factions. Each has its own tactics, units and special operation.
+- **Defended sites:** backup arrives at any site the squad is working, from two sides.
+- **Off the map:** patrols walk in from the edge for the whole mission, so the enemy never runs out.
+- **Extraction:** waves get bigger the higher the alert.
+- **Caps:** limits on the field keep the numbers playable.
 
-| | Bugs (Terminids) | Bots (Automatons) | Squids (Illuminate) |
-|---|---|---|---|
-| Tactics | Swarm from every side, in close | Slow, form a firing line, see farthest | Spread out and surround |
-| Light | Swarmer | Trooper | Drone |
-| Medium | Bruiser | Raider | Warrior (rifle) |
-| Special | Hive Guard | Commander (jams strikes in its ring) | Fleshmob |
-| Heavy | Charger | Tank | Harvester (shield bubble) |
-| Super heavy | Brood Titan | Siege Walker | Warp Colossus |
-| Reinforcements | Bug holes | Dropships | Warp ships (shielded) |
+**The alert level** works like a wanted level, shown on the HUD from CALM to EXTERMINATION.
 
-**Where they come from:**
+- **Spike:** attacking a base raises it, and destroying the base clears it.
+- **Ratchet:** every base destroyed, objective done, extraction called and time extension raises the baseline for good.
+- **Response:** higher alert brings new kinds of response, not just more enemies.
 
-- **Bases (0.49).** Bases are clusters of 2 to 4 spawners, hidden under smoke until scouted. Each spawner sends enemies out one at a time and falls to one precision strike.
-  - **Waking up:** a base sleeps until someone enters its detection range. When it wakes, its neighbours follow.
-  - **Heavies:** they come only by call-in, or sometimes as part of a garrison when a base is first seen.
-- **Patrols** walk routes from their bases and come over when they hear fighting.
-- **Off-map patrols (0.31)** walk in for the whole mission, even with every base down. The enemy never runs out.
-- **Flares.** A patrol that sees the squad may fire one. Kill the holder within about four seconds, or reinforcements come.
-- **Defended sites** draw calls from two sides.
-- **Extraction** draws waves sized by the alert level (0.53.7).
+**Difficulty scaling**
 
-**The alert level (0.48)** works like a wanted level.
+You pick the starting level from 1 to 10. It has no ceiling: past 10 come *Super Helldive +1*, *+2* and so on. Each level sets two things:
 
-- **The spike:** attacking a base raises it, and destroying the base clears it.
-- **The baseline:** each base destroyed, objective done, extraction called and time extension raises it a notch. It only goes up.
-- **The levels:** shown on the HUD as rank chevrons, from CALM to EXTERMINATION. Higher alert brings new kinds of response, not just more enemies.
-- **The gunner's own actions never change it.**
-
-**Fairness rules:**
-
-- No attack has accuracy above 0.9, so every enemy can miss.
-- No single hit takes more than 70% of a Helldiver's health.
-- A super heavy must die before the pelican lands.
-
-### 3.6 Missions
-
-**Main objectives:**
-
-- **Nuclear Launch:** hold the launch site, then fire the nuke yourself.
-- **VIP Rescue.**
-- **Destroy the Citadel:** a walled ring of bases around a keep that only a Hellbomb brings down.
-- **Evacuate Civilians.**
-
-**Faction operations:**
-
-- **Pump the Oil** (bugs).
-- **Destroy the Defence Cannon** (bots). While it stands, your strikes land wide.
-- **Bring Down the Shield Dome** (squids).
-- **Defend the Gun** (squids). Hold the planetary defence gun while it fires on the Illuminate mothership overhead. It is the campaign finale, and it can also turn up among the mission offers.
-
-**Side missions and finds:**
-
-- **Side missions:** a radio tower (lasting vision), an enemy broadcaster, hidden SEAF, an abandoned artillery cannon, and jammers that only a Hellbomb destroys (from the second mission).
-- **Finds:** a crashed pelican, a lost hellpod, a strongbox and a SEAF supply cache.
-
-**Work sites (0.52)** are a refinery for bugs, a salvage yard for bots and a lab for squids.
-
-- **Working it:** SEAF sent inside work it for pay and a buff to the gunner's tools (orbital charge, cheaper strikes, or UAV reveals).
-- **Asleep until worked:** since 0.53.6 the enemy leaves a site alone until it's worked.
-- **Defending it:** once worked, probes come with growing strength.
-- **Fallen:** a fallen site stops drawing fire and can be retaken.
-
-**The Hellbomb.** When the squad calls one, a panel opens in slow motion and you assemble the bomb part by part against a timer. A Helldiver arms it, and everyone runs.
-
-**Supply drops.** When the Helldivers run low, one asks for supplies. You load the pod by hand, and a fast load gives the squad a boost.
-
-**The map:**
-
-- **Size:** round, from 760 m across on the first mission up to 1.5 km.
-- **Terrain:** generated from the mission's seed, with water, slow ground and high ground.
-- **Biomes:** six (grass, ice, desert, jungle, moon and city).
-- **Time of day:** each mission drops at its own hour and the clock runs on through it. At night every soldier carries a flashlight (0.38).
-- **Clock:** a mission has a 30-minute limit and usually takes 10 to 15 minutes.
-
-**Winning and losing:**
-
-- **Victory:** the squad extracts.
-- **Objective complete:** the objective is done but the squad doesn't get out. The mission still counts, without the extraction pay.
-- **Defeat:** every life is lost, or the clock runs out, before the objective is done.
-
-### 3.7 Difficulty
-
-Each level sets two things.
-
-- **How many come:** patrols, backup, group sizes, the live cap, and how often mediums, heavies and super heavies turn up.
-- **How far the war has gone:** this is measured in "war minutes" and sets toughness, damage, how fast pressure builds and how many heavies come.
-
-**War minutes by level (0.53.8):**
+- **How many come:** patrols, backup, group sizes, the field cap, and how often mediums, heavies and super heavies appear.
+- **How far the war has gone:** measured in "war minutes", it sets the enemy's toughness and damage, how fast pressure builds, and how many heavies come.
 
 | Level | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
 |---|---|---|---|---|---|---|---|---|---|---|
+| Name | Trivial | Easy | Medium | Challenging | Hard | Extreme | Suicide Mission | Impossible | Helldive | Super Helldive |
 | War minutes | 0 | 9 | 18 | 25 | 31 | 36 | 39 | 40.5 | 41.5 | 42 |
+| Feel | | | easy | | | hard | | | very hard | |
 
-Past level 10 it carries on smoothly.
+Two curves move the level:
 
-**The two curves:**
+- **The operation curve:** each mission starts about 0.6 of a level higher than the last, plus an eighth of a level per rank. Past mission 10 the climb speeds up a little more each mission.
+- **The mission curve:** inside a mission, pressure starts at the mission's level and climbs with mission time and the alert. It resets for the next mission.
 
-- **The operation curve, between missions.** Each mission climbs about 0.6 of a level, plus an eighth of a level for each rank earned. From level 3, missions 1 to 10 run at 3 4 4 5 6 7 7 8 9 10. Past mission 10, with the armory fully open, each mission adds a little more than the one before (0.48), so even a strong player's operation ends.
-- **The mission curve, inside one mission.** Pressure starts at the mission's level and rises with mission time and the alert ratchet. It resets for the next mission.
-
-**Pay:** credits scale with the level, from ×0.75 at level 1 to ×1.20 at level 10. A mission offer with a difficulty bump pays 15% more per level of bump.
-
-**Faction balance (0.53.8):**
-
-- **Bugs** had been the hardest by far. The fix was a slower charger that no longer outruns a Helldiver, lighter hits, and smaller packs.
-- **Bots and squids** hit harder.
-
-**Measured balance (0.53.8).** The sharp bot played first missions with a new player's kit, 12 per cell:
+The three factions are tuned to be about as hard as each other at the same level. Measured with the bot gunner on a first mission, 12 missions per cell:
 
 | Level | Bugs | Bots | Squids |
 |---|---|---|---|
-| 3 | 11/12 won, 2 lives lost | 12/12, 1 | 12/12, 0 |
-| 6 | 11/12, 8 | 10/12, 15 | 12/12, 8 |
-| 9 | 5/12, 22 | 8/12, 23 | 4/12, 23 |
+| 3 | 11 of 12 won | 12 of 12 | 12 of 12 |
+| 6 | 11 of 12 | 10 of 12 | 12 of 12 |
+| 9 | 5 of 12 | 8 of 12 | 4 of 12 |
 
-### 3.8 Operations and progression
+**The bot gunner** (`js/sim/bot.js`) is an AI that plays the gunner's role. It is used only in testing, in three modes: nobody at the controls, a novice and a sharp player.
 
-**What an operation is:**
+---
 
-- **One run:** an operation is one run. Quick Play and the campaign are each one, saved separately.
-- **What carries over:** credits, rank and the armory carry from mission to mission.
-- **Retry:** any mission can be flown again with the same map and enemy, from the state at the drop.
+## 4. Content and worldbuilding
 
-**The armory** has six tabs: ORBITALS, HANGAR, SHIP, SEAF, BUILDABLES and CLASSIFIED.
+### Story and narrative
 
-- **Slots:** all five orbital slots are open from the start.
-- **Paying toward an item:** you can put credits toward any item and finish paying later. The deposit can't be taken back.
-- **Upgrade display:** every upgrade shows what it does now, what the next level adds, and its whole path.
+**Setting.** The game is set in the Helldivers 2 universe: Super Earth's Galactic War against the Terminids (bugs), the Automatons (bots) and the Illuminate (squids). It keeps that universe's tone of deadpan military satire. You are the gunner on a Super Destroyer, working with the **Super Earth Special Forces** and their SEAF troops.
 
-**Progression between missions:**
+**The tutorial: Last Stand on Mars.**
 
-- **Ranks:** one rank per mission finished, nine in all, from Fresh Recruit to Super Earth's Favorite Gunner. Each rank pays a level bonus and opens more of the armory.
-- **Commendations (0.51):** after each mission, pick one of three perks that lasts the operation. There are five kinds (Orbital Efficiency, Hangar Crews, Gun Overcharge, Veteran Troops and Engineering Corps). They stack, up to 10 per operation.
-- **Mission offers (0.51):** three cards, each with its enemy, objective, pay and a bump of +1, +2 or +3 levels. The campaign offers the bump only.
+- **When:** 20 May 2185, within the hour after New Haven falls.
+- **The threat:** the Illuminate **Great Host** enters the Sol system on its way to Super Earth, and Mars is in the way.
+- **Your job:** the Special Forces hold Base Tharsis and the last Pelicans off the planet, and you are their fire control overhead.
+- **How it plays:** personnel run for the hangar while the Host comes in growing waves. At 100 off Mars, command admits that not everyone will get out.
+- **How it ends:** the Host burns the plain to glass, and a last cinematic shows Mars burning as its ships pass.
 
-**Score and ending:**
+**The campaign: Operation Sweet Liberty.**
 
-- **Score** is the credits earned over the operation, so risky offers raise it.
-- **END OPERATION** ends a run on your terms and pays an **SESF coin** (you can hold up to 3). A coin is a credit deposit toward any later armory item, worth more the further the operation got.
+- **The threat:** the Illuminate mothership has been sighted at the edge of the home sector, and nothing in the fleet can touch it.
+- **The plan:** the Ministry of Science's one answer is a planetary defence gun on the outskirts of the capital, code name *Sweet Liberty*. It needs E-710 fuel to fire, and parts no factory can make.
+- **Your part:** your destroyer goes out to get them: fuel from the bugs, scrap from the bots, and a bloody nose for the squids on the way in. Then you hold the gun while it fires.
 
-**Saves:**
-
-- **Slots:** three save slots in the browser's own storage, with autosave after every mission.
-- **Ended runs:** an operation that ends frees its slot.
-- **Reset:** 0.53 reset old saves once (`SAVE_VER 2`). Settings, names, keys, callsign and coins were kept.
-- **Limits:** saves don't move between browsers, and clearing site data removes them. The title screen says so.
-
-### 3.9 The tutorial and the campaign
-
-**Tutorial: Last Stand on Mars.** It is set on 20 May 2185: the Illuminate Great Host is passing Mars on its way to Super Earth.
-
-- **The cards:** 16 cards teach one control at a time. Each card pauses the game next to the thing it's about.
-  - Since 0.53.6, you drop your own troops first and learn a drop's limits.
-- **The evacuation:** the Great Host comes in stages at 30, 60, 90 and 120 people evacuated.
-- **Winning:** at 70 evacuated it's MISSION COMPLETE. You then choose to fight on, go to the campaign, or go to the menu.
-- **The ending:** fight on and it ends as it always did, with Mars glassed.
-
-**Campaign: Operation Sweet Liberty (0.53).** The Illuminate mothership is coming for Super Earth. The only answer is the planetary defence gun *Sweet Liberty*, outside the capital. The campaign has ten chapters:
-
-| Arc | Chapters | Enemy | What you gather | Objectives |
+| Arc | Chapters | Enemy | Goal | Missions |
 |---|---|---|---|---|
-| The Dunes (desert) | 1 to 3 | Bugs | E-710 fuel | oil, VIP, citadel with a jammer |
-| The Glaciers (ice) | 4 to 6 | Bots | Scrap parts | defence cannon, evacuation, nuke |
-| The Jungle | 7 to 9 | Squids | Soften them up | shield dome, VIP at night, citadel |
-| Finale (city) | 10 | Squids | Hold the gun | the defence gun against the jellyfish mothership |
+| 1 · The Dunes | 1 to 3 | Bugs | E-710 fuel | Oil pump, VIP rescue, citadel with a spore spewer |
+| 2 · The Glaciers | 4 to 6 | Bots | Scrap parts | Defence cannon, evacuation, nuclear launch |
+| 3 · The Jungle | 7 to 9 | Squids | Thin out their forces | Shield dome, VIP at night, citadel |
+| Finale · The City | 10 | Squids | Hold Sweet Liberty | The gun against the mothership |
 
-**How the chapters run:**
+After chapter 10 the war goes on, mission after mission, until the operation ends.
 
-- **Lessons:** each chapter teaches something new on the radio as it comes up.
-- **Cinematics:** a briefing and debrief open and close each chapter, played like the tutorial's cinematics.
-- **The cast:** SESF command speaks on the radio.
-  - General Ramzies gives the orders.
-  - KTL of the P.H.A.N.T.O.M. Helldivers is his second.
-  - Rudolph the Red's Tibit Tigers are on the ground.
-  - Neonboot of F.E.A.R. speaks for the Ministry of Science.
-  - Mota, the SESF Knight of Midnight, speaks for the Ministry of Defense.
-- **Progress:** it's saved by chapter checkpoint. After chapter 10 the war goes on endlessly.
+**Main characters** (SESF command, on the radio):
 
-**The finale:**
-
-- **The gun:** it's dormant until the squad arrives. Then it sets up, charges, and fires five shots. Losing the gun is a defeat.
-- **The music:** it has its own theme, *LAST LIGHT*.
-- **The mothership:** it's drawn as a 3D jellyfish from the project lead's sketch (0.53.5).
-
-### 3.10 Interface
-
-- **The layout.** It's laid out like an RTS:
-  - **Top left:** resources.
-  - **Top centre:** the drop countdown and alerts.
-  - **Top right:** the clock and objective.
-  - **Left:** the Helldiver roster.
-  - **Bottom centre:** the command panel, with weapons above it.
-  - **Bottom right:** the minimap and log.
-- **The command panel** (TROOPS, BUILD and ARMORY) is always up, runs in real time, and keeps the same height in every context.
-- **Three layouts:** desktop, tablet and phone, picked automatically or in Settings. The phone layout puts the map first: thin top rows, Helldiver chips, a folded minimap, and the news in a radio tab instead of over the map.
-- **Pause and plan (0.22).** Orders, builds, drops and strikes given in the pause are numbered on the map and go out in order when you play on. There's also a half-speed mode.
-- **Tips everywhere.** Hover or tap anything for a one-line tip, and press ⓘ for the details. The field manual and the INFO panel explain every mission.
-- **Rebindable keys (0.50.1)** and a **UI size** setting.
-- **Phone performance (0.42):** a 30 fps cap by default, a resolution cap, a slower minimap, and a quality watchdog. These came from a report of phones running hot.
-
-### 3.11 Look and sound
-
-- **The look.** A gunship's thermal camera, white-hot or black-hot, with a deadpan radio voice.
-  - Terrain is shaded relief.
-  - Every unit, explosion, building and cinematic is drawn in Canvas 2D.
-  - Day and night lighting comes with flashlights, muzzle flashes and glowing shells.
-  - Health bars sit under unit names and scale with UI size.
-- **The music** (`js/music.js`) is composed in code and played live with Web Audio.
-  - **Pieces:** Orbit (menus), Briefing, Drop, a battle theme per faction (Bug Hunt, Iron Front, Cold Light), Swarm (a horde on screen), LAST LIGHT (the gun), Victory and Fallen.
-  - **How it follows the fight:** battle music rises in levels with how close and how heavy the fight is. Changes land on the bar, and pieces crossfade between decks.
-- **Sound effects** are synthesised from tones and noise. Every weapon, ours and theirs, has its own sound.
-
-### 3.12 Community features
-
-- **After action reports.** Every ending screen has COPY FOR DISCORD: a report in Discord's bold, always in English.
-- **The SESF feed (0.43).** Each operation posts once when it starts and once when it ends to the SESF Discord. It can be turned off in Settings, and it is the only data the game sends anywhere.
-- **Operation names (0.45)** can be typed or left as rolled.
-- **Feedback.** A FEEDBACK (DISCORD) button sits on the title screen, the pause menu and the final screen.
-- **Credits.** The CREDITS screen names the creator and every tester, tells the story from idea to launch, and lists the technology and the legal notice.
-
----
-
-## 4. How it came together
-
-### 4.1 Before the first build
-
-- **2024.** Helldivers 2 launches, and one wish keeps coming up across the community: a gunship stratagem, an AC-130 circling overhead and raining fire for the squad below. The SESF is founded around the same time.
-- **2024 to 2025.** The SESF tries other minigames, mostly Discord integrations, including a base-building game that grew too big and was set aside.
-- **2026.** The SESF staff's experience was in web applications, so a game in the browser played to that strength.
-
-### 4.2 The design revisions (26 to 29 October 2026)
-
-The first pitch set out the game:
-
-- five biomes;
-- three factions with light, medium and heavy units, at a 10 : 1 : 1 ratio;
-- 30-minute missions, with bases growing from 3 to 20 over a session;
-- four Helldivers and SEAF;
-- a score block with a session ID to paste into Discord.
-
-The original design document then went through twelve revisions in four days, each one answering a play session:
-
-| Rev | What changed | Why it matters now |
-|---|---|---|
-| 1 | The pitch: a thermal gunship view and shells that land a moment later. Big guns needed a laser designation. | The look and feel still come from here. |
-| 2 | Helldivers drop alone with 20 lives. SEAF only come when called. A strike zone was added. | Set the "never directed" rule. |
-| 3 | Stratagem loadouts, objectives, damage scaling | The first objective set. |
-| 4 | The armory, the gunner reduced to the sky and SEAF, and a session that only ends in failure | Removed the free-fire guns and set up the operation loop. |
-| 5 | The player directs and the Helldivers clear. Added the ship gun, troop pelicans, SEAF roles and drawn plays. | Where SEAF command was born. |
-| 6 | Tougher Helldivers, faction tactics, one gun, and real terrain (water, slow ground, high ground) | Factions began to feel different, and terrain began to matter. |
-| 7 | Facing, reinforcements, extraction, the evacuation, day and night | Hits from behind, and the extraction pad. |
-| 8 | Performance, the tactical map, supply drops | The supply pod minigame. |
-| 9 | A climb inside every mission, super heavies, utilities, range | The mission curve. |
-| 10 | The gunner is needed. Patrols, side missions, radar, three languages. | The "you are necessary" principle. |
-| 11 | Difficulty levels 1 to 10 | The level system. |
-| 12 (0.12) | Camera control, orders that stick, building, the citadel | The base of today's building system. |
-
-### 4.3 Becoming Orbital Fury (29 October to 6 November)
-
-- **30 October: the name.** The game takes the name **Orbital Fury** and its home at orbitalfury.com.
-- **0.19 to 0.32: tuning the climb.** The climb between missions was measured with whole bot sessions, halved when players found it steep, then raised to 0.6 a level per mission with a step per rank.
-- **0.20 to 0.23: the RTS interface.**
-  - The command panel and three layouts.
-  - Pause and plan, and the light bridge.
-  - Stratagem colours and Eagles.
-- **0.25 to 0.28: progression and story.**
-  - Ranks and Classified stratagems.
-  - SEAF roles.
-  - The tutorial's stages.
-  - The first campaign, *Operation Freedom Vista* on Fronteria.
-  - The command radio.
-- **0.29 to 0.33: sound.** The original score, battle themes for each faction, and smooth transitions.
-- **0.36 to 0.38: the title and more systems.**
-  - Demolish.
-  - The new title screen.
-  - Hellbomb side jobs.
-  - A five-chapter campaign.
-  - Lighting by the hour.
-- **0.39 to 0.45: features players asked for.**
-  - Pelicans, pickups and wire.
-  - Squad AI that knows when a fight is lost.
-  - A rank every mission.
-  - Save slots.
-  - Phones that stay cool.
-  - The SESF feed, the SESF coin, and named operations.
-
-**The trailer.** Two trailers were filmed from the game itself, with a YouTube title, a description and an Instagram poster. The game's own art and music made that possible with no outside assets.
-
-### 4.4 Twenty pull requests in two days (7 to 8 November)
-
-The repository's history starts at 0.45.0. From 0.46 on, every release went through its own pull request, was merged, and deployed to orbitalfury.com. The plan was first scheduled one phase per weekend. Then the project lead asked for all of it at once, pushed live at each milestone so finished work was never left unpublished.
-
-| Release | PR | What it did |
-|---|---|---|
-| 0.46 Fixes 1 | #1 | Autosave, ended runs clear their slot, SEAF drops as their own squad, forced move orders |
-| 0.47 Fixes 2 | #2, #3 | The vision ladder, foxhole lines, build queue, building while paused, the corner bastion, separate jobs for the two towers |
-| 0.48 Difficulty | #4, #5 | The alert level, the two curves, time extensions |
-| 0.49 Base overhaul | #6 | Bases as clusters of spawners, scouting, spawns one at a time |
-| 0.50 Armory and SEAF | #7, #8 | All slots open, paying toward items, coins as credits, troop mixes, Leader Command, rebindable keys |
-| 0.51 Choosing missions | #9 | Commendations, mission offers, score as credits |
-| 0.52 Work sites | #10 | Holdable work sites; one precision strike kills one spawner |
-| 0.53 Sweet Liberty | #11 | The ten-chapter campaign, the city, the defence gun, a tutorial you can win, the save reset |
-| 0.53.1 to 0.53.5 | #12 to #16 | Players' reports: work site doors, Eagles and bridges, the citadel stall, the jellyfish mothership, the development note |
-| 0.53.6 | #17 | Work sites left alone until worked; the tutorial has you drop your own troops |
-| 0.53.7 | #18 | Extraction waves sized by the alert; the squad goes for the full clear 80% of the time |
-| 0.53.8 | #19 | Levels re-spaced (3 easy, 6 hard, 9 very hard); bugs evened out with the other factions |
-| 0.53.9 | #20 | Phone armory scrolling, effects on the mission clock, one oil message instead of two |
-
-### 4.5 By the numbers (0.53.9)
-
-- **About 35,000 lines** of JavaScript, HTML and CSS, with no dependencies in the game.
-  - The simulation is 33 files in `js/sim/`, the renderer is 15 files in `js/render/`, and every tuning value sits in one 600-line `js/config.js`.
-  - About 2,450 lines of text in each of three languages.
-- **89 test scripts:** simulation checks (`r*.mjs`), browser walk-throughs at desktop, upright phone and sideways phone sizes (`ui*.mjs`), and the balance harnesses.
-- **48 stratagems,** 3 factions with 5 units each, 8 mission types, 6 biomes, 10 campaign chapters and a 16-step tutorial.
-- **Two weeks** from the first pitch (26 October) to 0.53.9 (8 November), with a new build almost every day and several a day at the end.
-
----
-
-## 5. How we work
-
-These practices kept a fast-moving project from breaking. They are light rules, not a process manual.
-
-### 5.1 Architecture that keeps things testable
-
-- **The simulation never draws, and the renderer never changes the world.**
-  - `js/sim/` holds the game. `js/render/` draws it. `js/ui.js` and `js/main.js` hold the screens and the wiring.
-  - Because of this split, the same game runs in a browser, in headless Node tests, and in trailer filming, without changes.
-- **A fixed step.** The simulation ticks at 30 Hz with an accumulator. Drawing runs at the display rate.
-- **Seeded randomness only.** The simulation uses `js/util/rng.js` (mulberry32) and never `Math.random`, so a mission is reproducible from its seed.
-  - New random features roll from their own stream, so adding one doesn't reshuffle every map. The Hellbomb jammer was placed this way.
-- **One clock for the mission.** Anything that moves in the world, effects included, runs on the mission's clock (`m.t`, or `fxNow(m)` in the renderer), so the pause stops it. The wall clock is only for interface animation (0.53.9).
-- **All tuning in `js/config.js`.** Balance changes never touch game logic. Tables of stratagems, perks, names, tips and the story live in `js/data/`.
-
-### 5.2 Decide first, then build
-
-- **Big changes start as decisions.** They are written down in *Orbital Fury: difficulty policy decisions* before any code: the principle, the options, and what was decided. Rules like "difficulty only climbs" and "every offer has a bump" came from there and settle later arguments.
-- **The project lead decides feel, and the code is checked against it.** For example: "level 3 is easy, 6 is hard, 9 is very hard."
-- **Parked questions stay visible.** One example is what can be upgraded mid-mission. They wait in the decisions doc until playtests settle them.
-
-### 5.3 Measure, don't guess
-
-- **The bot gunner** (`js/sim/bot.js`) plays whole missions headless in three modes: none (nobody at the controls), novice and sharp.
-- **Balance harnesses:**
-  - `test/difficulty.mjs` runs levels, objective types and whole operations with the bot shopping between missions.
-  - `test/balance.mjs` runs each faction at each level. Use `OF_CFG` to try a config change without editing the file.
-- **Cells, not single runs.** One mission swings widely with its seed, so compare 6 to 12 seeds per cell and record before and after in a table.
-- **Find the real cause before tuning.** For example, the charger did 58% of the killing, so pack size and its speed mattered more than damage. In 0.53.7, extraction ignored the alert because its waves used the field's pressure, which every destroyed base cuts.
-- **Try, measure, and revert when it's worse.** A change that makes another part of the game worse gets dropped. Examples include a hard map-edge clamp (squads got stuck), a cell-by-cell path check (SEAF got stuck more), and flooring the field's pressure (bugs got worse).
-- **Bots aren't people.** The novice bot plays about as well as the sharp one. Real players' reports and the SESF feed are the better guide for levels 3 to 6.
-
-### 5.4 Every fix gets a test
-
-- **Reproduce first.** A bug report becomes a test that fails on the old code, then the fix makes it pass. For example, r532 reproduces two stuck bridge crossings, and three checks in r52 fail without the 0.53.6 fix.
-- **Sim tests** (`test/rNN.mjs`) check rules in Node. **UI tests** (`test/uiNN.mjs`) drive Chromium through real screens with Playwright, at desktop, upright phone and sideways phone sizes.
-- **Every release adds its own test** (r539, ui539 and so on), and the full suite runs before a merge.
-- **When balance moves, fix the test fixture, not the rule.** For example, a test that measures what each level sends makes the squad unkillable while it measures.
-- **Flaky tests are listed by name.** ui33's music timing, ui42's frame rate and terrain timing can fail under load. Rerun them alone before treating a failure as real.
-
-### 5.5 Three languages in step
-
-Every player-facing string lives in `js/lang/en.js`, `fr.js` and `es.js` under the same key. `test/i18n.mjs` checks that every key exists in all three and that placeholders match. New text goes into all three in the same change.
-
-### 5.6 Releasing
-
-1. **Branch.** Make a branch from `main` for the release.
-2. **Build.** Build in steps, pushing work-in-progress commits at milestones, so nothing finished is ever lost.
-3. **Write it up.**
-   - Add a **What's new** entry at the top of the README, in plain words for players.
-   - Update the manual sections it touches.
-4. **Bump and bundle.**
-   - Bump the version in `package.json`, `js/config.js` and `test/r19.mjs`.
-   - Bundle with `npm run bundle`, which writes `dist/orbital-fury.html`.
-5. **Test.** Run the sim and UI suites.
-6. **Open a pull request.** The body lists what changed for players, the technical notes and the tests.
-7. **Merge and check.**
-   - Merge, and GitHub Pages deploys orbitalfury.com.
-   - Check that the Pages run finished and the live version string is right.
-8. **Record it.** Add a design note for the release to the project, and update the decisions doc.
-
-**Release rules:**
-
-- **One release, one pull request.** It keeps each change easy to review and to roll back.
-- **Never break the live game.** If a change can't be finished safely, ship what is safe and say what is left.
-
-### 5.7 Saves and players' data
-
-- **Storage keys:** saves live in the browser's storage under `ofs.*` keys.
-- **Changing the save format:** raise `SAVE_VER` and decide what a reset keeps. Settings, names, keys, callsign and coins have always been kept.
-- **Telling players:** the title screen warns that the game is in active development and that saves are per browser.
-- **Data sent:** the game sends nothing except the SESF feed, which players can turn off.
-
-### 5.8 Writing for players
-
-The README, the field manual, tips and release notes are written for players:
-
-- plain words and short sentences;
-- what they'll notice first;
-- version numbers in brackets so they can follow what changed.
-
-The decisions doc and the release design notes are for us, and they hold the code names and numbers.
-
----
-
-## 6. For the next update
-
-### 6.1 Before you start
-
-- [ ] Read this document's principles (section 2) and the decisions doc. Does the change fit them? If it changes one, record the new decision first.
-- [ ] Find the report or the goal, and how you'll know it's fixed: a test, a bot sweep, or a player confirming it.
-- [ ] Branch from the latest `main`.
-
-### 6.2 Where things live
-
-| To change... | Look in |
+| Character | Role |
 |---|---|
-| Any number (damage, timings, costs, levels) | `js/config.js` |
-| Stratagems, perks, names, tips, the campaign's chapters | `js/data/` |
-| The squad's decisions (objective, full clear, extraction, breaking off) | `js/sim/planner.js`, `squad.js`, `helldiver.js` |
-| Enemy behaviour, spawning, bases, reinforcements, the alert | `js/sim/enemies.js`, `director.js`, `spawners.js`, `reinforce.js`, `alert.js` |
-| SEAF, pelicans, building, posts | `js/sim/seaf.js`, `posts.js`, `defenders.js` (SEAF already holding a site at the start) |
-| Objectives, extraction, work sites, the defence gun | `js/sim/objectives.js`, `ops.js`, `extract.js`, `sites.js`, `gun.js` |
-| The tutorial | `js/tutorial.js`, `js/sim/laststand.js` |
-| Operations, saves, offers, the campaign run | `js/session.js`, `js/campaign.js` |
-| Screens and HUD | `index.html`, `js/ui.js`, `css/style.css` |
-| How anything looks | `js/render/` |
-| Music and sound | `js/music.js`, `js/audio.js` |
-| Text | `js/lang/en.js`, `fr.js`, `es.js` |
-| The SESF feed | `js/feed.js` |
+| **General Ramzies** | Gives the orders |
+| **KTL** of the P.H.A.N.T.O.M. Helldivers | His second in command |
+| **Rudolph the Red's Tibit Tigers** | The squad on the ground |
+| **Neonboot** of F.E.A.R. | The Ministry of Science's read on the enemy |
+| **Mota**, the SESF Knight of Midnight | Speaks for the Ministry of Defense |
+| **Tharsis Control** | Mars command in the tutorial |
 
-### 6.3 Traps we've already hit
+The cast is drawn from the SESF community and its allied Helldiver groups.
 
-- **Wall clock against mission clock.** Anything in the world must use the mission clock, or it keeps moving in a pause.
-- **New random draws shift old tests.** Draw from a separate stream, or give a test a little settling time.
-- **CSS for phones goes at the end of `style.css`,** or a later rule overrides it.
-- **A variable shadowed inside a long function** caused a temporal dead zone crash in 0.53.7. Name things for what they are.
-- **Pressure that drops as bases fall.** Anything sized on `m.pressure` gets weaker as the player wins. Use `callPressure(m)` when it should keep up with the alert.
-- **Bugs swing more than the others.** Re-run `test/balance.mjs` for all three factions after any change to enemies.
-- **Phones.** Test the upright phone at 375×667 and the sideways phone at 844×390. Lists that scroll inside a squeezed card were the 0.53.9 bug.
+**Dialogue style.**
 
-### 6.4 Open questions
+- **Radio lines:** short and dry, in a military register. Each mission has lines for the drop, the first heavy, a flare, a super heavy, lives running out, the objective and the pelican.
+- **Tone:** Super Earth mottos and patriotic satire, as in the source game.
+- **Squad radio:** the Helldivers announce what they're doing.
+- **Tips and teaching:** the campaign's teaching lines pair a cast line with a plain how-to tip.
 
-- **The defence gun at level 6.** The bot loses the gun after 3 shots, and at level 3 it wins with the gun at full health. Tune it from SESF feedback.
-- **What can be upgraded mid-mission:** everything (as now), the ship only, or the ship gun plus buildings. Parked until playtests settle it.
-- **The late-game target.** The sharp bot should struggle to clear 12 missions. In 0.53.8 it carried on for 15 to 16. Compare with real operations in the SESF feed before changing it.
-- **Telling a new player from a skilled one in tests.** The novice bot needs to play more like a new player.
-- **Defended sites since the 20 to 40 m throw (0.47).** The evacuation saves fewer civilians. The options are more SEAF or turret help there, a longer throw while holding a site, or leaning on the gunner's own strikes.
+### Level design
+
+**Maps.**
+
+- **Generation:** each mission's map is generated from its seed: a height map, water and ground types on an 8 m grid.
+- **Shape and size:** maps are round. The first is 760 m across, and each mission adds about 110 m, up to 1.5 km.
+- **Connections:** every island has a ford to the mainland, and everything is placed on dry land.
+- **Time of day:** each mission drops at its own hour and the clock runs on through it. At night, everyone carries a flashlight.
+
+| Biome | Ground |
+|---|---|
+| **Grass** | Winding rivers and lakes |
+| **Jungle** | Rivers, lakes and swamp (mud slows everyone) |
+| **Ice** | Crevasse rivers and snow drifts |
+| **Desert** | Mesas, dunes and small oases |
+| **Moon** | Craters and dust, no water |
+| **City** | Streets and blocks of buildings that block movement. Used for the finale and the defence gun. |
+
+**What's on a map.**
+
+- **Bases:** clusters of 2 to 4 spawners. Bases get more numerous, bigger and tighter later in an operation and at higher levels.
+- **The objective site:** walled, so allies spread out behind cover.
+- **The extraction pad:** on the map from the drop, locked until the objective is done, so SEAF can dig in early.
+- **Side missions:** a radio tower, an enemy broadcaster, hidden SEAF, an abandoned artillery cannon, and Hellbomb jammers from the second mission on.
+- **A work site** to garrison.
+- **Finds:** a crashed pelican, a lost hellpod, a Super Earth strongbox and a SEAF supply cache.
+
+**Mission types.**
+
+| Objective | Who | The job |
+|---|---|---|
+| Nuclear Launch | Any | Hold the launch site until it arms, then fire the nuke yourself |
+| VIP Rescue | Any | Find the VIP and escort them to the pickup |
+| Destroy the Citadel | Any | Break the ring of bases, then Hellbomb the keep |
+| Evacuate Civilians | Any | Hold while 44 civilians walk from the shelter to the hangar |
+| Pump the Oil | Bugs | Hold the pump through three tank loads |
+| Destroy the Defence Cannon | Bots | Knock out the cannon that throws your strikes wide |
+| Bring Down the Shield Dome | Squids | Take the nodes inside the dome |
+| Defend the Gun | Squids | Hold the defence gun while it shoots down the mothership |
+
+**Pacing inside a mission.**
+
+1. **Drop countdown:** 30 seconds of setup. The first SEAF drop is ready at once.
+2. **The push:** the Helldivers advance, mark bases and take side missions near the way.
+3. **The objective:** a quiet set-up, then backup calls that grow over time.
+4. **The choice:** a full clear (with a possible time ask) or straight to extraction.
+5. **Extraction:** a two-minute wait for the pelican under rising waves, then 20 seconds to board.
+
+**Pacing across an operation.**
+
+- **Escalation:** the level climbs every mission and maps grow.
+- **Two objectives:** after about an hour of play, each mission has two objectives.
+- **Heavier enemies:** heavies and super heavies grow more common.
+- **More power:** the armory opens one rank per mission until it's full at rank 9. After that, only commendations add power, while the climb continues.
+
+### Characters and enemies
+
+**Allies**
+
+| Unit | Description |
+|---|---|
+| **Helldivers** | Four, each in a squad colour with a visor at the front and a blinking backpack behind. Liberator rifle, Ultimatum, grenades, stims and their own stratagems. 420 health; they see 125 m. |
+| **SEAF Squad Leader** | Liberator, radio pack with antenna, gold chevron on the map. Gives the Leader Command aura. |
+| **SEAF Rifleman** | Liberator. Takes cover close by. 100 health; they see 90 m. |
+| **SEAF Specialist** | Heaviest armour, a braced MG-43 and an EAT-17 for heavies. |
+| **SEAF Medic** | Light grey and red armour, white medical pack, SMG-37. Stims and revives. |
+| **Pelicans** | Troop and cargo pelicans with a belly autocannon. The extraction pelican takes the squad home. |
+| **The Super Destroyer** | Your ship: a black drive block and a long hull with blue light lines, from the project lead's sketch. |
+
+**Enemies** (health at the start of an operation, before level and war scaling):
+
+| Size | Bugs | Bots | Squids |
+|---|---|---|---|
+| Light | **Swarmer**, 30 hp, 5 m reach | **Trooper**, 30 hp, 38 m | **Drone**, 30 hp, 30 m |
+| Medium | **Bruiser**, 200 hp, spits at 18 m | **Raider**, 200 hp, 42 m | **Warrior**, 200 hp, rifle at 36 m |
+| Special (pays 3×) | **Hive Guard**, about 340 hp, armoured front, melee | **Commander**, about 280 hp, 44 m, blocks strikes in its ring | **Fleshmob**, about 600 hp, slow melee mass that soaks about 60% of each hit |
+| Heavy | **Charger**, 1,000 hp, armoured front, runs at the squad | **Tank**, 1,500 hp, 58 m splash cannon | **Harvester**, 1,000 hp plus a shield bubble, 62 m beam |
+| Super heavy | **Brood Titan**, 4,500 hp, 50 m, spits and stomps | **Siege Walker**, 5,500 hp, 62 m, drops bots | **Warp Colossus**, 3,800 hp plus a shield, 78 m |
+| Reinforcements | Bug holes | Dropships | Shielded warp ships |
+
+Most of what comes is light, roughly 88 of every 100. A super heavy must die before the extraction pelican will land.
+
+**Bosses.** The **Illuminate mothership** is a giant jellyfish of light: a ribbed cap with a cyan rim, a collar of lights and seven swaying tendrils. It hangs over the city in the finale, cracks with every hit from the defence gun, and burns as it falls.
+
+### Item and asset list
+
+**The gunner's stratagems** (28)
+
+| Kind | Stratagems |
+|---|---|
+| **Orbital strikes** | Airburst Strike, 120mm HE Barrage, Precision Strike (the three to start), EMS Strike, Gas Strike, Walking Barrage, Napalm Barrage, 380mm HE Barrage, Railcannon Strike, Orbital Laser |
+| **Utilities** | Orbital Smoke Screen, Medical Drop, Orbital Shield Dome, Sentry Drop |
+| **Eagles** | Smoke Strike, Strafing Run, Airstrike, Cluster Bomb, Napalm Airstrike, 110mm Rocket Pods, 500kg Bomb |
+| **Minefields** | Anti-Personnel, Incendiary, Anti-Tank |
+| **Classified** | Orbital Liberty Storm (rank 6), Eagle Squadron (rank 7), Democracy Lance (rank 8), Super Earth's Final Word (rank 9) |
+
+**The Helldivers' own stratagems** (20)
+
+| Kind | Stratagems |
+|---|---|
+| **Support weapons** | Recoilless Rifle, Autocannon, Flamethrower, Railgun, Machine Gun, Spear, Expendable Anti-Tank |
+| **Defences** | Machine Gun, Gatling, Autocannon, Rocket and Mortar Sentries, Tesla Tower, Anti-Personnel Minefield, Shield Generator Relay |
+| **Vehicles and gear** | Fast Recon Vehicle, Patriot Exosuit, Jump Pack, Guard Dog Rover, Resupply |
+
+The Helldivers also call the orbital strikes and Eagles from the gunner's list, but not the utilities or the Classified ones.
+
+**Buildables**
+
+| Build | What it does |
+|---|---|
+| Concertina Wire | Free. Slows the enemy without blocking fire. |
+| Foxhole | Free, dug in a line. Troopers in it shoot faster. Foxholes chain into trenches. |
+| Defilade Bastions | Walls to fight from, as a ring, a line or an L-shaped corner. |
+| Heavy Turret Nest | A heavy gun behind thick concrete. |
+| Lookout Tower | A 180° cone of vision at twice an ally's sight, so the strike zone reaches farther. |
+| Propaganda Tower | Gives nearby allies the UAV's boosts. SEAF can drop at it. |
+| Light Bridge | A hard-light span over water, sent from the ship. |
+| SAM Site | Shoots down dropships and warp ships. |
+| Artillery Cannon | The gunner's weapon 9. |
+
+**Pickups and props**
+
+- **Finds:** a crashed pelican (ammo), a lost hellpod (a support weapon), a Super Earth strongbox (credits), and a SEAF supply cache (healing).
+- **Objective props:** launch sites, shelters and hangars, oil pumps, the VIP, the defence cannon, the shield dome and its nodes, the defence gun.
+- **Side props:** radio towers, enemy broadcasters, jammers, artillery cannons, and the work sites (an E-710 refinery, a salvage yard and a dark-fluid lab).
+- **The Hellbomb:** assembled by the gunner in a timed minigame, then armed by a Helldiver.
 
 ---
 
-## 7. Related documents
+## 5. Art, audio and UI
 
-- [README](../README.md): the player's manual, every release's notes, controls, enemy tables and credits.
-- **Orbital Fury: difficulty policy decisions** (Claude Doc): the decisions and their reasons, kept up to date.
-- **SEASF Orbital Fire Support: Game Design Document** (Claude Doc): the original document, revisions 1 to 12. It is kept as history.
-- **Design notes per release** (the *Multi-Minigame* project on claude.ai):
-  - 0.19 balance;
-  - 0.29 audio;
-  - 0.37 campaign;
-  - 0.39 pelicans;
-  - 0.40 squad AI;
-  - 0.41 saves;
-  - 0.42 phones;
-  - 0.43 SESF feed;
-  - 0.44 coin;
-  - 0.45 operation names;
-  - 0.46 and 0.47 fixes;
-  - the 0.48 to 0.53 rollout.
+### Art direction
 
-*Orbital Fury is a free, unofficial fan project, not affiliated with or endorsed by Arrowhead Game Studios or Sony Interactive Entertainment.*
+**Style.** A gunship's thermal camera seen from orbit. The ground is shaded relief, read in white-hot or black-hot. Units are small, clean vector shapes that read at a glance. Explosions are big and bright. The interface looks like military targeting software.
+
+**Palette.**
+
+| Colour | Use |
+|---|---|
+| Phosphor green `#9dffb8` | Interface text and lines, on dark translucent panels |
+| Super Earth yellow `#ffe600` | Accents, headings, Eagle stratagems |
+| Blue `#3da9ff` | Allies |
+| Red `#ff4a4a` | Enemies and bad news |
+| Amber `#ffb020` and orange `#ff7a3d` | Warnings; orbital stratagems |
+| Green `#7dff9b` | Minefields and defences |
+
+A colour-safe palette (yellow enemies, bright blue allies) is in Settings.
+
+**Type.** The game uses the system monospace font throughout, in capitals for headings and buttons.
+
+**Mood references.**
+
+- AC-130 gunship footage: thermal view, delayed shells, the radio voice.
+- The Helldivers 2 stratagem HUD and its colour coding.
+- Real-time strategy games (Age of Empires) for the interface layout.
+- The project lead's own sketches for the Super Destroyer and the Illuminate mothership.
+
+**How it's made.** Everything is drawn in code on an HTML canvas: the terrain, the units, the effects, the HUD, the 3D-looking mothership and the cinematics. There are no image files, and none of it is an AI-generated image. Lighting is done the same way: night, flashlights, muzzle flashes, glowing shells, and explosions lighting the ground.
+
+### Music and sound effects
+
+**The score** is composed in code and played live with the Web Audio API. There are no audio files.
+
+| Piece | Plays | Character |
+|---|---|---|
+| **Orbit** | Title and armory | Slow music-box bells and a pad, 84 BPM |
+| **Briefing** | Mission briefing | Clock ticks, low pulse, data blips |
+| **Drop** | The first moments of a mission | Riser, hellpod whoosh, the impact, a short march |
+| **Bug Hunt** | Battle against bugs | Toms and skittering hats, 120 BPM |
+| **Iron Front** | Battle against bots | Square-wave bass and metal clanks, 128 BPM |
+| **Cold Light** | Battle against squids | Shimmering arpeggios and a sine pulse, 112 BPM |
+| **Swarm** | A horde on screen | Double-time drums, a hit every bar, 140 BPM |
+| **LAST LIGHT** | The defence gun's fight | Boss theme, 132 BPM |
+| **Victory** | A won mission | Bells and an anthem |
+| **Fallen** | A loss | Slow horn, funeral taiko, a bell toll |
+
+**How the music follows the fight:**
+
+- **Battle levels:** battle music climbs through levels with how close and how heavy the fight is.
+- **Timing:** changes land on the bar, and pieces crossfade.
+- **Ducking:** cinematics and the pause lower the music.
+
+**Sound effects** are synthesised from tones and noise, and every weapon, ours and theirs, has its own sound. The functional cues are:
+
+- **Warnings:** an alarm and a siren for danger, a flare going up, an ally down, the deny buzz when a call can't go where you aimed.
+- **Readiness:** a chime when a stratagem is ready, and the call for a supply drop.
+- **Events:** a pod landing, a base destroyed, a side mission done or lost, the objective complete.
+- **Machines:** the pelican's rotor and the ship's hum.
+- **Interface:** clicks.
+
+Audio settings cover master, music and effects volume, a music style (dynamic, ambient or off), and mute.
+
+### User interface
+
+**Screen flow**
+
+```mermaid
+flowchart TD
+  T["Title<br/>Tutorial, Campaign, Quick Play, Load Game<br/>Settings, Credits, Feedback"] --> N["New Operation<br/>callsign, squad names, level, enemy"]
+  T --> TU["Tutorial: Last Stand on Mars"]
+  T --> L["Load Game<br/>three save slots"]
+  N --> A["Armory"]
+  L --> A
+  A --> B["Briefing"] --> M["Mission"]
+  M --> D["Debrief<br/>report, rank splash"]
+  D --> C["Commendation<br/>pick 1 of 3"] --> O["Next mission<br/>pick 1 of 3 offers"] --> A
+  D -- "failed or ended" --> F["Final score<br/>Copy for Discord"] --> T
+  TU -- "complete" --> CH{"Fight on, campaign,<br/>or main menu"}
+```
+
+**In-mission HUD (desktop, schematic)**
+
+```
++-------------------+--------------------------+-------------------------+
+| CREDITS  LIVES    |   DROP 0:30  DEPLOY NOW  |  12:41  MISSION 3       |
+| SEAF ON GROUND    |   [ big red alerts ]     |  OBJECTIVE              |
++-------------------+                          |  [ supply / time asks ] |
+| HELLDIVERS        |                          +-------------------------+
+| A1 ████ S G U     |          THE MAP         |                         |
+| B2 ███  S G       |      (thermal view)      |              log        |
+| C3 ████ S G U     |                          |          +-----------+  |
+| D4 ██   S         |                          |          |  MINIMAP  |  |
++-------------------+--------------------------+          |  INFO MENU|  |
+| SELECTION         | [1][2][3][4][5][6][8][9] |          +-----------+  |
+| tiles or post     | TROOPS · BUILD · ARMORY  |                         |
+|                   | command panel            |                         |
++-------------------+--------------------------+-------------------------+
+```
+
+**Layouts**
+
+- **Desktop:** RTS style, with nothing on top of anything else and nothing that scrolls.
+- **Tablet:** the desktop layout with controls sized for fingers.
+- **Phone:**
+  - Menu, pause and speed sit in one thin row with the resources.
+  - The Helldivers show as four chips.
+  - The weapons sit beside **CALL**.
+  - The command panel is two rows of big buttons, and Build and Armory open as drawers.
+  - The minimap folds away, and the news goes to a radio tab instead of over the map.
+- **Choosing one:** the layout is picked automatically by screen, or set in Settings.
+
+**Key elements**
+
+- **Command panel:** always up, real time, same height in every context. **TROOPS** has drops, orders, squads and formations. **BUILD** has every build and every crate on the map. **ARMORY** sells upgrades mid-mission.
+- **Selection panel:** a tile for each trooper (role and health), or a post with its crew and door.
+- **Helldiver roster:** health, what each is doing, and stratagem readiness.
+- **Health bars** sit under the names of heavies and specials. Labels scale with UI size.
+- **Tips:** hover or tap anything for a one-line tip. **ⓘ** opens the details.
+- **Supply pod:** a slow-motion panel where you fill three compartments.
+- **Hellbomb:** a slow-motion assembly panel.
+- **Reports:** every ending screen has an after action report with **COPY FOR DISCORD**.
+- **Menus:** the pause menu has Resume, mission info, the armory, Settings, Help (controls and field manual), Save Game, Radio Log, Main Menu and Retire.
+
+---
+
+## 6. Technical and production details
+
+### Game engine and tools
+
+| | |
+|---|---|
+| **Engine** | None. The game is plain JavaScript (ES modules), HTML5 Canvas 2D and the Web Audio API, with no framework or third-party library. |
+| **Hosting** | A static site on GitHub Pages at orbitalfury.com. There is no server or database. |
+| **Build** | esbuild bundles the game into one HTML file (`dist/orbital-fury.html`). |
+| **Testing** | Node runs the simulation headless. Playwright drives Chromium through the real screens at desktop, upright phone and sideways phone sizes. |
+| **Source control** | Git and GitHub, one pull request per release. |
+| **AI tools** | Claude (Anthropic), used as a coding assistant. |
+
+**Architecture.**
+
+- **Sim and render apart.** The simulation (`js/sim/`) never draws, and the renderer (`js/render/`) never changes the world. Because of this, the same game runs in the browser, in headless tests and in trailer filming.
+- **Fixed step.** The simulation runs at a fixed 30 ticks a second. Drawing runs at the screen's rate.
+- **Seeded randomness.** The simulation uses only a seeded random generator (`js/util/rng.js`), never `Math.random`, so a mission can be replayed exactly from its seed.
+- **One clock.** Everything in the world runs on the mission's clock, so a pause stops it all.
+- **Tuning in one place.** Every tuning number lives in `js/config.js`, so balance changes never touch game logic. Content tables (stratagems, perks, names, tips, the campaign) live in `js/data/`.
+- **Text.** All text lives in `js/lang/` (English, French, Spanish), and a test checks all three match.
+- **Saves.** Saves use the browser's local storage, versioned so a format change can reset them safely.
+
+**Performance budget.**
+
+- **Frame rate:** 30 frames a second by default on phones and 60 elsewhere.
+- **Resolution:** capped on phones.
+- **Fewer redraws:** the minimap is redrawn 10 times a second, and the menu redraws at 12 fps while paused.
+- **Watchdog:** an automatic quality step-down if frames run slow.
+
+**Size** (0.53.9): about 35,000 lines across 33 simulation files, 15 render files and the interface, with 89 test scripts.
+
+### Accessibility options
+
+| Option | Where |
+|---|---|
+| Three languages (English, French, Spanish) | Title screen, Settings |
+| Remappable keys | Settings > Controls |
+| UI size (bigger or smaller controls and labels) | Settings |
+| Interface layout (desktop, tablet, phone) | Settings |
+| Colour-safe palette | Settings |
+| Reduce flashing (slower strobes, softer explosions) | Settings |
+| Thermal view (white-hot or black-hot) and relief map | Settings, `T`, `H` |
+| Left-handed touch layout | Settings |
+| Touch drag speed | Settings |
+| Info tips on or off | Settings |
+| Speech bubbles on or off | Settings |
+| Lighting on or off; graphics quality; frame rate | Settings |
+| Minimap size | Settings |
+| Volumes, music style, mute | Settings > Audio |
+| Pause and plan; half speed | Always |
+| Hide the HUD | `F2`, or Settings |
+| Starting difficulty 1 to 10, and a choice of enemy | New Operation |
+| A tutorial that teaches one control at a time, a field manual and mission INFO | Always |
+
+### Scope and milestones
+
+**Milestones reached**
+
+| When | Milestone |
+|---|---|
+| 2024 | The idea: a gunship stratagem circling overhead, wished for across the Helldivers 2 community. The SESF is founded. |
+| 26 Oct 2026 | The pitch and the first design document, *Orbital Fire Support*. |
+| 26 to 29 Oct | Twelve design revisions in four days. They set the AI squad, SEAF command, terrain, the gunner being needed, three languages, difficulty levels and building. |
+| 30 Oct | Renamed **Orbital Fury**, live at orbitalfury.com. |
+| 31 Oct to 3 Nov (0.19 to 0.33) | The difficulty climb tuned with bot sessions. The RTS interface and the three layouts. Ranks and Classified stratagems. The first campaign and the radio. The original score. |
+| 4 to 6 Nov (0.36 to 0.45) | Demolish, the new title screen, Hellbomb side jobs, lighting, pelicans and pickups, smarter squad AI, save slots, cooler phones, the SESF feed and coin, named operations. Two trailers and a poster made from the game. |
+| 7 to 8 Nov (0.46 to 0.53.9) | 20 pull requests: the vision ladder, the alert level and two difficulty curves, the base overhaul, the armory rework, commendations and mission offers, work sites, *Operation Sweet Liberty* with the city and the defence gun, then six releases of fixes from players' reports. |
+
+**Must-haves (shipped)**
+
+- **The game:** the full mission and operation loop with three factions, eight mission types and six biomes.
+- **The squad and the enemy:** an AI Helldiver squad that wins only with your help, SEAF command and building, and the alert level with difficulty that climbs without end.
+- **Story:** a tutorial and a ten-chapter campaign.
+- **Platforms:** desktop, tablet and phone layouts, and three languages.
+- **Persistence:** saves, retries and checkpoints.
+- **Community:** Discord reports, the SESF feed and a feedback link.
+- **Ownership:** all original art and sound.
+
+**Nice-to-haves (not built yet)**
+
+- An online leaderboard (scores are compared by pasting in Discord today).
+- An installable app that works offline.
+- A multiplayer mode, such as one player as the gunner against another commanding the enemy.
+- More campaigns, biomes and enemy types.
+
+**Open questions**
+
+- **The defence gun at level 6:** it may be too hard. The bot loses the gun after three shots. It will be tuned from SESF feedback.
+- **Mid-mission upgrades:** what should be buyable during a mission? Everything (as now), the ship only, or the ship gun plus buildings. This waits for playtests.
+- **The late game:** the target is that a strong player struggles to clear 12 missions. The bot reaches 15 to 16, so this will be checked against real operations in the SESF feed.
+- **Defended sites:** the evacuation saves fewer civilians since Helldivers throw their strikes 20 to 40 m out.
+
+**How updates are made**
+
+1. **Decide.** Big changes are decided and written down first, in the *difficulty policy decisions* doc, with the principle behind them.
+2. **Measure.** Balance is measured with the bot gunner over 6 to 12 missions per case, never judged from one run. A change that makes something else worse is reverted.
+3. **Reproduce and test.** Every bug from a player's report gets a test that fails before the fix and passes after it.
+4. **Release.** Each release goes through its own pull request. It gets a plain-words *What's new* entry in the README, a version bump, the bundle and the full test suite. It is pushed live at each milestone, so finished work is never left unpublished.
+5. **Credit.** Testers are credited by name. Any outside asset would be added to the credits with its licence.
