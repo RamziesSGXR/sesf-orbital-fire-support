@@ -27,7 +27,7 @@ const g0 = p.garrison;
 check('a garrisoned nest for the check', g0 > 0, `${g0} inside`);
 // enemies round it, and an ally right beside it
 const g = spawnGroup(m, p.x + 6, p.y + 4, 'patrol'); g.hold = 1e9;
-for (const e of g.members) { e.x = p.x + (Math.random() - 0.5) * 8; e.y = p.y + (Math.random() - 0.5) * 8; e.hp = e.maxHp = 400; }
+for (const e of g.members) { e.x = p.x + (Math.random() - 0.5) * 8; e.y = p.y + (Math.random() - 0.5) * 8; e.hp = e.maxHp = 600; }     // (0.53.8: 600, under the blast's 650: with the smaller bug packs the troopers' rifles used to finish all of them inside the fuse)
 const near = m.seafAlive.find((a) => Math.hypot(a.x - p.x, a.y - p.y) < demoRadius(p));
 const hp0 = near ? near.hp : 0;
 const r1 = m.demolishPost(p);

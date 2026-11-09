@@ -23,6 +23,12 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Difficulty re-spaced, and the bugs tuned (0.53.8).**
+- **Level 3 is easy, 6 is hard, 9 is very hard.** Before, level 3 was nearly as far into the war as level 10 (38 of 42 war minutes), so the low levels weren't really easier. The steps now run evenly up to 9. The full table and test numbers are under Difficulty below.
+- **Bugs were the hardest enemy at every level by far.** Most Helldiver deaths were to chargers, which ran faster than a Helldiver and killed in two blows. Bugs now hit lighter all round, the charger is slower and weaker, and their packs are smaller (9, was 14). At level 6 the bot now wins 11 of 12 bug missions; it won 3 of 6 before.
+- **Bots and squids hit harder** (×1.45, was ×0.8 and ×0.75; overseers' rifles and the harvester's beam a little more), so they're as hard as bugs at the same level. At level 6, bot missions used to cost 3 lives; now about 15.
+- **The tutorial plays as before:** it keeps its own tuning.
+
 **Extraction under fire, and the squad going for the full clear (0.53.7).**
 - **The extraction answers the alert.** The waves at an extraction are now sized with the alert: every chevron makes them bigger and more frequent, and from MOBILIZED up they come from one more side. They are never sized below where the mission started. Before, a player at an ALL-OUT extraction saw hardly an enemy: the waves followed the field's pressure, which every destroyed base had cut, and took no notice of the alert.
 - **A full map no longer blocks them.** When the map is at its enemy cap, the farthest patrols wandering out of everyone's sight are taken off to make room for the extraction's waves. Before, a map full of patrols far away could mean nothing came at all.
@@ -424,7 +430,7 @@ Once the objective is done, the Helldivers decide what's next. With **more than 
 
 Every enemy comes in three sizes, plus a special medium and a super heavy of its own. Health is at the start of a session; the higher the difficulty and the longer the war, the tougher they get. Reach is how far they hit you from.
 
-**Bugs (Terminids)** swarm in big loose packs from every side. They're the fastest, hit hardest up close, and have the shortest sight.
+**Bugs (Terminids)** swarm in loose packs from every side. They fight up close, and have the shortest sight. Their charger runs at your Helldivers, but no faster than a Helldiver can run (0.53.8).
 
 | Enemy | Health | Reach | Notes |
 |---|---|---|---|
@@ -486,22 +492,36 @@ Pick the level your session **starts** at, from 1 to 10, on the title screen bef
 
 Each level sets two things. **How many come**: patrols, backup, group sizes, how many can be on the field, and how often mediums, heavies and super heavies turn up. And **how far the war has gone** (the **War** column, in "war minutes"): the enemy's toughness, how hard it hits, how fast the pressure builds and how many heavies come out of the bases. The session's own minutes add a little more to that. Higher levels pay more credits and more score, and your score block shows the level you started at and the highest you reached.
 
-From level 3 up, the Helldivers can't win a mission on their own: left alone, they run out of lives. Your fire support is what gets them through.
+**How hard each level is (0.53.8).** Level 3 is easy, 6 is hard and 9 is very hard, and it goes on getting harder past 10. Two curves set it:
+- **The operation curve, between missions.** The level you pick is only where the operation starts. Each mission climbs from there (and faster once the armory is all open), while what you buy in the armory makes you stronger. It never steps down between missions.
+- **The mission curve, inside one mission.** Each mission starts at its level and gets harder as it runs: the enemy hits harder minute by minute, the field fills up, and the alert only ratchets up (every base destroyed, the objective done and the extraction called). It starts again from the mission's level next time.
+
+In 0.53.8 the levels were re-spaced so each step is felt. Before, level 3 was nearly as far into the war as level 10, and only enemy numbers set them apart. The three enemies were also evened out: bugs (lighter hits, a slower charger that no longer outruns a Helldiver, smaller packs) had been the hardest at every level by far, while bots and squids hit too softly. A sharp bot on its first mission with a new player's kit (12 missions per cell):
+
+| Level | Bugs | Bots | Squids |
+|---|---|---|---|
+| 3 | 11 of 12 won, 2 lives lost | 12 of 12, 1 lost | 12 of 12, 0 lost |
+| 6 | 11 of 12, 8 lost | 10 of 12, 15 lost | 12 of 12, 8 lost |
+| 9 | 5 of 12, 22 lost | 8 of 12, 23 lost | 4 of 12, 23 lost |
+
+Before the change: at level 6, bugs won 3 of 6 and cost 22 lives against 3 for bots. In two whole operations from level 3, with the bot buying upgrades, it got through 15 and 16 missions, reaching level 16 or 17.
+
+Left alone, the Helldivers mostly lose from level 3 up (about 5 of 18 first missions survive with nobody at the controls). Your fire support is what gets them through.
 
 | Level | Name | Enemies | Mediums | Heavies | Super heavies | War | Credits and score |
 |---|---|---|---|---|---|---|---|
 | 1 | Trivial | 55% | 60% | 40% | 30% | 0 | ×0.75 |
-| 2 | Easy | 60% | 64% | 47% | 38% | 15 | ×0.80 |
-| 3 | Medium | 65% | 69% | 53% | 46% | 38 | ×0.85 |
-| 4 | Challenging | 70% | 73% | 60% | 53% | 41 | ×0.90 |
-| 5 | Hard | 75% | 78% | 67% | 61% | 44 | ×0.95 |
-| 6 | Extreme | 80% | 82% | 73% | 69% | 47 | ×1.00 |
-| 7 | Suicide Mission | 85% | 87% | 80% | 77% | 50 | ×1.05 |
-| 8 | Impossible | 90% | 91% | 87% | 84% | 53 | ×1.10 |
-| 9 | Helldive | 95% | 96% | 93% | 92% | 56 | ×1.15 |
-| 10 | Super Helldive | 100% | 100% | 100% | 100% | 60 | ×1.20 |
-| 12 | Super Helldive +2 | 110% | 109% | 113% | 116% | 80 | ×1.30 |
-| 15 | Super Helldive +5 | 125% | 122% | 133% | 139% | 110 | ×1.45 |
+| 2 | Easy | 60% | 64% | 47% | 38% | 9 | ×0.80 |
+| 3 | Medium | 65% | 69% | 53% | 46% | 18 | ×0.85 |
+| 4 | Challenging | 70% | 73% | 60% | 53% | 25 | ×0.90 |
+| 5 | Hard | 75% | 78% | 67% | 61% | 31 | ×0.95 |
+| 6 | Extreme | 80% | 82% | 73% | 69% | 36 | ×1.00 |
+| 7 | Suicide Mission | 85% | 87% | 80% | 77% | 39 | ×1.05 |
+| 8 | Impossible | 90% | 91% | 87% | 84% | 40.5 | ×1.10 |
+| 9 | Helldive | 95% | 96% | 93% | 92% | 41.5 | ×1.15 |
+| 10 | Super Helldive | 100% | 100% | 100% | 100% | 42 | ×1.20 |
+| 12 | Super Helldive +2 | 110% | 109% | 113% | 116% | 45 | ×1.30 |
+| 15 | Super Helldive +5 | 125% | 122% | 133% | 139% | 49.5 | ×1.45 |
 
 The percentages compare each level with level 10 (past 10 they keep climbing: two rows show where). "Enemies" covers everything that brings them in: patrols, backup calls, group sizes and how many can be on the field at once. "Mediums" and "heavies" are how often they turn up among those enemies.
 

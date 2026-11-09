@@ -58,6 +58,9 @@ const TUNED = snap();
     const m = new Mission({ seed: 31 + fac.length + 100 * k, faction: fac, biome: 'grass', events: false, missionN: 1, difficulty: d, objectives: ['vip'] });   // (0.18: the same objective at both levels, as before the round maps)
     let peak = 0, heavy = 0, med = 0;
     run(m, 300, (mm) => {
+      // (0.53.8) the squad can't fall here: this measures what the level sends, not how long an unaided squad lasts (bots hit
+      // harder now, and a squad wiped early ended the count early)
+      for (const a of mm.hdAlive) if (a.maxHp < 1e6) { a.hp = a.maxHp = 1e6; }
       let n = 0, h = 0, md = 0;
       for (const e of mm.enemies) if (!e.dead) { n++; if (e.kind === 'H') h++; if (e.kind === 'M') md++; }
       if (n > peak) peak = n; if (h > heavy) heavy = h; if (md > med) med = md;

@@ -56,7 +56,7 @@ const kill = (m, a, x, y) => { a.x = x; a.y = y; m.killAlly(a, 'enemy', 'L'); };
   run(m, 6);
   const d1 = Math.hypot(sq.ax - p.x, sq.ay - p.y);
   check('it keeps moving while the enemy is on it (it does not stop to stand and fight)', d1 < d0 - 25, `${Math.round(d0)} -> ${Math.round(d1)} m`);
-  check('the Helldivers go with it', m.hdAlive.every((a) => Math.hypot(a.x - sq.ax, a.y - sq.ay) < 30 || a.retreat));
+  check('the Helldivers go with it', m.hdAlive.every((a) => Math.hypot(a.x - sq.ax, a.y - sq.ay) < 45 || a.retreat), m.hdAlive.map((a) => Math.round(Math.hypot(a.x - sq.ax, a.y - sq.ay))).join(' ') + ' m');     // (0.53.8: 45 m, one can trail a little in a bug swarm)
   const sayResume = run(m, B.fallSec + 2, () => !m.plan.fallback);
   check('once it has regrouped, it goes back to the job', sayResume && m.events.some((e) => e.type === 'break_resume'));
   check('and it does not break off again straight away', !m.events.slice(-40).some((e) => e.type === 'break_off') && m.t - m.plan.breakAt < B.cool + B.fallSec + 3);

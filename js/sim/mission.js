@@ -102,7 +102,8 @@ export class Mission {
     this.terrain.clearDecks();                          // (light bridges from an earlier mission on the same ground come off)
     this.S = opts.sessionMinutes || 0; // session minutes played before this mission (the map grows with them)
     // (0.19) war minutes: how far the war has escalated (difficulty.js): the enemy's toughness, damage, numbers and heavies
-    this.W = warMinutes(opts.difficulty ?? null, this.S);
+    // (0.53.8) the tutorial keeps the war it was tuned on (the levels were re-spaced around it)
+    this.W = opts.lastStand && C.lastStand.war != null ? C.lastStand.war : warMinutes(opts.difficulty ?? null, this.S);
     // Which mission of the session this is (1 = the first): it sets the size of the area of operations.
     this.missionN = opts.missionN ?? Math.max(1, 1 + Math.floor(this.S / 9));
     this.ao = pickAO(this, this.missionN);
@@ -152,7 +153,8 @@ export class Mission {
     this.pressure = Math.max(C.pressure.floor, C.pressure.start + C.pressure.perSessionMin * this.W);
     this.p0 = this.pressure;     // (0.53.7) where it started: the extraction's waves are never sized below this
     this.hpMul = Math.min(C.ramp.hpCap, 1 + C.ramp.hp * this.W); // enemy toughness and damage grow with the war
-    const dBase = C.ramp.base * (C.ramp.fac[opts.faction] || 1);
+    this.dmgFac = opts.lastStand && C.lastStand.fac != null ? C.lastStand.fac : (C.ramp.fac[opts.faction] || 1);     // (0.53.8: the tutorial's own)
+    const dBase = C.ramp.base * this.dmgFac;
     this.dmgMul = Math.min(C.ramp.dmgCap * dBase, dBase * (1 + C.ramp.dmg * this.W));
     this.bag = [];
     this.hd = { lives: maxLives(), max: maxLives() };    // a full set of lives every mission

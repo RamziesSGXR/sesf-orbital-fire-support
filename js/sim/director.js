@@ -152,7 +152,7 @@ export function updateDirector(m, dt) {
   // Pressure rises with mission time (and is halved when a base falls).
   m.pressure = Math.max(C.pressure.floor, m.pressure + (C.pressure.perMissionMin / 60) * dt);
   // enemy damage climbs with the war (war minutes, difficulty.js) and, a little, with every minute of the mission
-  const base = C.ramp.base * (C.ramp.fac[m.faction.id] || 1);
+  const base = C.ramp.base * (m.dmgFac ?? (C.ramp.fac[m.faction.id] || 1));
   m.dmgMul = Math.min(C.ramp.dmgCap * base, base * (1 + C.ramp.dmg * (m.W ?? m.S ?? 0) + C.ramp.missionDmg * (m.t / 60))) * (m.ls ? m.ls.dmg : 1);     // (0.19: the last stand's Great Host keeps getting stronger)
 
   if (m.alive.length && m.phase !== 'over') {
