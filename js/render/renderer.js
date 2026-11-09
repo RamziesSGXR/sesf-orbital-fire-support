@@ -128,7 +128,20 @@ export class Renderer {
     if (!keepDecals) { this.fx.length = 0; this.shake = 0; this.launch.clear(); }
   }
 
-  handle(ev, now, m) {
+  // (0.53.9) The effects' clock: it runs with the mission (its own seconds), so a shell in flight, an explosion or a tracer stops
+  // when the game is paused and slows with it, and lands when the sim says it lands. (They ran on the wall clock: players saw a
+  // mortar round fly on through a pause and vanish, then go off later.) Map animations that are no part of the fight (the radio
+  // tower's waves, the ghosts, pulses) keep the wall clock.
+  fxNow(m) {
+    if (!m) return this._gclock || 0;
+    if (m !== this._gm) { this._gm = m; this._gmt = m.t; this._gclock = this._gclock || 0; }
+    const d = m.t - this._gmt;
+    if (d > 0 && d < 5) this._gclock += d;
+    this._gmt = m.t;
+    return this._gclock;
+  }
+  handle(ev, wall, m) {
+    const now = this.fxNow(m);
     this.launch.onEvent(ev, now);
     const fx = this.fx;
     if (fx.length > 320) return;
@@ -316,7 +329,7 @@ export class Renderer {
     const lit = this.settings.lighting !== false, lowFx = this.quality === 'low' || this.perf.low, hq = Math.round(todAt(m) * 4) / 4;
     const amb = lit ? ambient(todAt(m)) : null;
     this._layers(ctx, scale, W, H, tx, ty, skyTint(hq).col, lit ? washKey(hq) : null);   // the tint (and the wash) move in quarter-hour steps
-    if (amb) this.light.collect(m, this.fx, now, { x0: -tx / scale, y0: -ty / scale, x1: (W - tx) / scale, y1: (H - ty) / scale }, this.settings, amb);
+    if (amb) this.light.collect(m, this.fx, this.fxNow(m), { x0: -tx / scale, y0: -ty / scale, x1: (W - tx) / scale, y1: (H - ty) / scale }, this.settings, amb);
 
     // Everything the squad cannot see is dimmed, so what they can see reads as a bright pool around them. (0.38) At night the fog's
     // mask goes into the night's, and the two are laid on together.
@@ -442,7 +455,7 @@ export class Renderer {
       ctx.globalAlpha = 1;
     }
 
-    this.launch.draw(ctx, m, now, px, pal, fid);   // bodies in the air: above every unit on the ground
+    this.launch.draw(ctx, m, this.fxNow(m), px, pal, fid);   // bodies in the air: above every unit on the ground (0.53.9: on the mission clock, so they stop in a pause)
     drawAssets(ctx, m, now, px, labels, scale, pal);
     drawPings(ctx, m, now, px, labels, scale);
 
@@ -476,7 +489,7 @@ export class Renderer {
     // Effects, and the player's orbital shells coming down (0.40: and the nuke on its way from the launch site)
     this._icbm(ctx, m, now, px);
     this._incoming(ctx, m, now, px);
-    this._effects(ctx, now, px);
+    this._effects(ctx, this.fxNow(m), px);     // (0.53.9: on the mission's clock)
     drawGunSky(ctx, m, now, px);     // (0.53.5) the mothership over the defence gun, over everything on the ground
     // (0.38) the lights' colour over everything, then the hour's wash
     if (amb) this.light.glow(ctx, amb, lowFx);

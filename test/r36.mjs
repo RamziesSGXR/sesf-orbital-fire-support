@@ -35,6 +35,11 @@ check('one press sets the charges, with a short fuse', r1.ok && p.demo && Math.a
 check('the garrison steps out', p.garrison === 0 && m.seafAlive.every((a) => a.post !== p));
 const r2 = m.demolishPost(p);
 check('a press again before it blows pulls the charges', r2.ok && r2.cancelled && !p.demo);
+// (0.53.9) the Helldivers well away, and nothing of theirs in the air: a stratagem of theirs landing in the fuse took the group
+// first now and then (the check failed about one run in five)
+for (const a of m.hdAlive) { a.x = p.x + 260; a.y = p.y; }
+m.squad.ax = p.x + 260; m.squad.ay = p.y;
+m.shells = m.shells.filter((s) => s.by !== 'squad');
 m.demolishPost(p);
 const k0 = m.stats.killsPlayer || 0;
 m.events.length = 0;
