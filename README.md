@@ -23,6 +23,11 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Fixes from the players (0.53.9).**
+- **The armory on phones.** With the coin, loadout and rank above it, the list of upgrades was squeezed to a strip one line high, with no way to scroll it, so nothing could be bought. On phones (and any short window) the whole armory page now scrolls, the list at its full length, and DEPLOY, MENU and BACK stay pinned to the bottom of the screen. Buying something keeps the page where it was, and picking a tab from far down brings the tabs back into view.
+- **Paused means paused.** Rounds in flight, explosions, tracers and thrown bodies now run on the mission's clock: they stop when the game is paused and slow down at half speed. A Helldiver's mortar round used to fly on through a pause and vanish, then go off later.
+- **One message per oil load.** An oil load leaving was said twice at once, on the radio and in a notice. Now just the radio says it, and the objective panel counts the loads.
+
 **Difficulty re-spaced, and the bugs tuned (0.53.8).**
 - **Level 3 is easy, 6 is hard, 9 is very hard.** Before, level 3 was nearly as far into the war as level 10 (38 of 42 war minutes), so the low levels weren't really easier. The steps now run evenly up to 9. The full table and test numbers are under Difficulty below.
 - **Bugs were the hardest enemy at every level by far.** Most Helldiver deaths were to chargers, which ran faster than a Helldiver and killed in two blows. Bugs now hit lighter all round, the charger is slower and weaker, and their packs are smaller (9, was 14). At level 6 the bot now wins 11 of 12 bug missions; it won 3 of 6 before.

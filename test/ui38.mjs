@@ -50,8 +50,9 @@ const lum = (c) => 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2];
   const u0 = await pixel(ev, false, a.x, a.y), u1 = await pixel(ev, true, a.x, a.y);
   check('a trooper is as easy to see as before: drawn over the dark, not under it', lum(u1) >= lum(u0) * 0.9, `${lum(u0).toFixed(0)} → ${lum(u1).toFixed(0)}`);
   // a shot: a muzzle flash, in the enemy's colour for theirs
-  const mz = await ev(() => { const g = window.__game, r = g.renderer, m = g.mission, now = performance.now() / 1000;
-    r.fx.push({ k: 'trc', kind: 'streak', x: m.hx, y: m.hy, x2: m.hx + 50, y2: m.hy, t0: now, fl: 0.2, life: 0.34, col: '#ff4a3a', w: 1, len: 7, side: 'e', imp: false, d: 50 });
+  // (0.53.9: effects run on the mission's clock, renderer.fxNow)
+  const mz = await ev(() => { const g = window.__game, r = g.renderer, m = g.mission, now = performance.now() / 1000, fnow = r.fxNow(m);
+    r.fx.push({ k: 'trc', kind: 'streak', x: m.hx, y: m.hy, x2: m.hx + 50, y2: m.hy, t0: fnow - 0.01, fl: 0.2, life: 0.34, col: '#ff4a3a', w: 1, len: 7, side: 'e', imp: false, d: 50 });
     r.draw(m, g.cam, { now: now + 0.01, aim: null }); const L = r.light; return L.L.slice(0, L.n).some((o) => Math.hypot(o.x - m.hx, o.y - m.hy) < 0.01 && o.c[0] === 255 && o.c[1] === 70); });
   check('a shot gives a muzzle flash that lights the ground (an Automaton\'s in red)', mz);
   await page.screenshot({ path: path.join(ROOT, 'test', 'shots', `ui38_${mode}_night.png`) });
