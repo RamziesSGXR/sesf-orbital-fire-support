@@ -113,6 +113,7 @@ export function fillSaves(mode, slots, h) {
     const btn = (cls, key, f, dis = false) => { const x = el('button', 'btn ' + cls, esc(t(key))); x.type = 'button'; x.disabled = dis; x.onclick = () => f(n); acts.appendChild(x); return x; };
     if (save) btn(h.arm === `save${n}` ? 'danger' : 'primary', h.arm === `save${n}` ? 'sv.overwrite' : 'sv.saveHere', h.onSave);
     else if (s) btn(h.arm === `load${n}` ? 'danger' : 'primary', h.arm === `load${n}` ? 'sv.loadArm' : 'sv.load', h.onLoad);
+    if (s && !save && h.onCode) btn('sv-cd', 'sv.slotCode', h.onCode);     // (0.53.12) the slot's save code, into the box below
     if (s && !save) btn(h.arm === `del${n}` ? 'danger sv-del' : 'sv-del', h.arm === `del${n}` ? 'sv.deleteArm' : 'sv.delete', h.onDelete);
     li.appendChild(acts);
     ol.appendChild(li);
@@ -1989,6 +1990,13 @@ function deathList(res) {
   if (d.length > 140) rows.push(`<div class="d-none">${esc(t('deb.more', { n: d.length - 140 }))}</div>`);
   return rows.join('');
 }
+// (0.53.12) the Super Destroyer each group flew from, and how many of its Helldivers were lost
+function shipLine(res) {
+  const tms = (res.teams || []).filter((tm) => tm.ship);
+  if (!tms.length) return '';
+  return `<br><span class="d-ships">${esc(t('deb.x.ships'))} ` + tms.map((tm, i) => `<b style="color:${TEAM_COLOR[i] || '#fff'}">${esc(tm.letter)}</b> ${esc(tm.ship)}`
+    + (tm.deaths ? ` <small>(${esc(t('deb.x.shipLost', { n: tm.deaths }))})</small>` : '')).join(' · ') + '</span>';
+}
 export function fillDebrief(info, res, session, block = '', startCr = null) {
   $('d-op').textContent = info.chapter ? info.op : `${info.op} · ${t('hud.mission')} ${session && session.missions ? session.missions.length : 1}`;     // (0.37: the operation, and which mission of it)
   const o = $('d-outcome'); o.textContent = t('out.' + res.outcome); o.className = res.outcome;
@@ -2029,7 +2037,8 @@ export function fillDebrief(info, res, session, block = '', startCr = null) {
   const top = Object.entries(s.stratBy).sort((a, q) => q[1] - a[1]).slice(0, 3).map(([id, n]) => `${STRATS[id].name} x${n}`).join(', ');
   $('d-extra').innerHTML = `${esc(t(res.objDone ? (res.extracted ? 'deb.x.extracted' : 'deb.x.noExtract') : 'deb.x.noObj'))}<br>`
     + esc(t('deb.x.share', { a: pct(res.share.player), b: pct(res.share.squad), c: pct(res.share.strat) }))
-    + (s.stratCalls ? `<br>${esc(t('deb.x.calls', { n: s.stratCalls, top: top ? ` (${top})` : '', u: s.uavs, o: s.orbCalls }))}` : '');
+    + (s.stratCalls ? `<br>${esc(t('deb.x.calls', { n: s.stratCalls, top: top ? ` (${top})` : '', u: s.uavs, o: s.orbCalls }))}` : '')
+    + shipLine(res);
   // (0.51) the score is the credits earned: the mission's, and the operation's so far
   $('d-mscore').textContent = fmtNum(c.total);
   $('d-sscore').textContent = fmtNum(session.score);

@@ -25,6 +25,10 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Save codes and ship names (0.53.12).**
+- **Save codes.** SAVE GAME now shows your operation as a code under the slots. Copy it and keep it anywhere (a note, a message to yourself). To carry on, on this browser or another, paste it into the box in LOAD GAME and tap LOAD CODE: the operation carries on from the armory, credits, armory and rank and all, and takes a free save slot before it drops. Each filled slot in LOAD GAME also has a CODE button that puts that slot's code in the box, ready to copy. A code that's cut short or mistyped is turned away (it carries a short check), and so is one from before the 0.53 save reset. Loading a code over an operation under way asks for a second tap first, as LOAD does. During a mission the code holds the operation as it was at the start of that mission, like a save.
+- **Ship names in the reports.** The debrief now names each group's Super Destroyer, and how many of its Helldivers were lost. The after action report you copy has a Super Destroyers line, and the operation's final report lists the ships that flew in it (the ones you named first, since they fly every mission).
+
 **Difficulty (0.53.11).**
 - **Idle troops fade.** A SEAF squad that has had no new order for about 100 seconds fights worse, down to half damage over the next two minutes, and a notice says so. Any order (move, hold, clear, build) restores it. Snowballing SEAF still works, but only while you direct it.
 - **More enemies, for longer.** Past level 10 the crowd grows twice as fast per level, and the ceiling on enemies alive at once rises with the level (up to 340, it was a fixed 230).

@@ -98,8 +98,8 @@ await page.goto(`file://${ROOT}/dist/orbital-fury.html?skipstart`); await page.w
 check('LOAD GAME says two of the three slots are in use', /2 of 3 save slots in use/.test(await ev(() => document.getElementById('tt-load-sub').textContent)), await ev(() => document.getElementById('tt-load-sub').textContent));
 await tap('#btn-load-t'); await page.waitForTimeout(300);
 r = await rows();
-check('each saved slot shows the operation, the callsign, missions done, level, rank, credits and when it was saved; LOAD and DELETE',
-  /QUICK PLAY · OPERATION/.test(r[0].txt) && /SAVER · 1 mission done · level \d+ · Certified Patriot · [\d,]+ CR/.test(r[0].txt) && /Saved /.test(r[0].txt) && r[0].btns.join('|') === 'LOAD|DELETE' && r[2].empty, r[0].txt);
+check('each saved slot shows the operation, the callsign, missions done, level, rank, credits and when it was saved; LOAD, CODE (0.53.12) and DELETE',
+  /QUICK PLAY · OPERATION/.test(r[0].txt) && /SAVER · 1 mission done · level \d+ · Certified Patriot · [\d,]+ CR/.test(r[0].txt) && /Saved /.test(r[0].txt) && r[0].btns.join('|') === 'LOAD|CODE|DELETE' && r[2].empty, r[0].txt);
 await shot('load');
 await tap(slotBtn(1)); await page.waitForTimeout(800);
 const ld = await ev(() => { const g = window.__game; return { shop: document.getElementById('s-shop').classList.contains('on'), done: g.session.missions.length, bal: g.session.wallet.bal, slot: g.session.slot, cs: g.session.callsign }; });
@@ -116,10 +116,10 @@ await tap(slotBtn(2)); await page.waitForTimeout(300);
 r = await rows();
 const still = await ev(() => document.getElementById('s-saves').classList.contains('on'));
 check('loading slot 2 over the operation under way (slot 1\'s) asks a second tap, and says what it replaces', still && /TAP AGAIN TO LOAD/.test(r[1].btns[0]) && /replaces the QUICK PLAY operation/.test(r[1].txt), r[1].txt);
-await tap(slotBtn(2, 1)); await page.waitForTimeout(300);
+await tap(slotBtn(2, 2)); await page.waitForTimeout(300);
 r = await rows();
-check('DELETE asks a second tap too', /TAP AGAIN TO DELETE/.test(r[1].btns[1]) && !!(await slots())[1]);
-await tap(slotBtn(2, 1)); await page.waitForTimeout(300);
+check('DELETE asks a second tap too', /TAP AGAIN TO DELETE/.test(r[1].btns[2]) && !!(await slots())[1]);
+await tap(slotBtn(2, 2)); await page.waitForTimeout(300);
 S = await slots(); r = await rows();
 check('...and then clears the slot', !S[1] && r[1].empty && /Slot 2 cleared/.test(await ev(() => document.getElementById('sv-note').textContent)));
 

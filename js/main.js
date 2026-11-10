@@ -1576,6 +1576,12 @@ function drawSaves() {
       UI.overlay('s-saves', false);
       beginSession(true, s.key);
     },
+    onCode: async (n) => {
+      const s = slots[n - 1]; if (!s) return;
+      audio.click(); svCodeArm = false; codeArmBtn();
+      $('sv-code-ta').value = await S.runToCode(s.key, s.run);
+      await copyCode(t('sv.slotCoded', { n }));
+    },
     onSkip: () => { session.noSave = true; UI.overlay('s-saves', false); audio.click(); persist(); goBrief(); },     // (0.46) deploy without saving
     onDelete: (n) => {
       if (svArm !== `del${n}`) { svArm = `del${n}`; svNote = ''; audio.click(); drawSaves(); return; }
@@ -1585,11 +1591,46 @@ function drawSaves() {
     },
   });
 }
+// (0.53.12) SAVE CODE, under the slots: in SAVE GAME, this operation as a code to copy; in LOAD GAME, a box to paste one into
+// (or a slot's, from its CODE button). A code loads as LOAD does: the run carries on from the armory, and takes a free slot.
+let svCodeArm = false;
+const codeArmBtn = () => { $('sv-code-load').textContent = t(svCodeArm ? 'sv.loadArm' : 'sv.loadCode'); $('sv-code-load').classList.toggle('danger', svCodeArm); };
+async function copyCode(pre = '') {
+  const ta = $('sv-code-ta'), msg = $('sv-code-msg'), ro = ta.readOnly;
+  let ok = false;
+  try { await navigator.clipboard.writeText(ta.value); ok = true; }
+  catch { ta.readOnly = false; ta.focus(); ta.select(); try { ok = document.execCommand('copy'); } catch { ok = false; } ta.readOnly = ro; }
+  if (!ok) { ta.focus(); ta.select(); }
+  msg.textContent = [pre, t(ok ? 'sv.codeCopied' : 'sv.codeHand')].filter(Boolean).join(' ');
+}
+async function fillCode() {
+  const save = svMode === 'save', ta = $('sv-code-ta');
+  $('sv-code').classList.toggle('hidden', !!(svMode === 'auto' || (save && (!session || session.tutorial))));
+  $('sv-code-load').classList.toggle('hidden', save);
+  $('sv-code-copy').classList.toggle('hidden', !save);
+  ta.readOnly = save; ta.value = ''; $('sv-code-msg').textContent = ''; svCodeArm = false; codeArmBtn();
+  const mid = save && state === 'play' && mission && !mission.over;
+  $('sv-code-p').textContent = save ? t('sv.codeSave') + (mid ? ' ' + t('sv.codeMid') : '') : t('sv.codeLoad');
+  ta.placeholder = save ? '' : 'OFS1-…';
+  if (save && session && !session.tutorial) ta.value = await S.runToCode(runKey(session), keptRun());
+}
+$('sv-code-copy').onclick = () => { audio.click(); copyCode(); };
+$('sv-code-ta').oninput = () => { if (svCodeArm) { svCodeArm = false; codeArmBtn(); } $('sv-code-msg').textContent = ''; };
+$('sv-code-load').onclick = async () => {
+  const r = await S.codeToRun($('sv-code-ta').value), msg = $('sv-code-msg');
+  if (r.err) { audio.deny(); svCodeArm = false; codeArmBtn(); msg.textContent = t('sv.code.' + r.err); return; }
+  const rep = S.load(r.key, null);
+  if (rep && resumable(rep) && !svCodeArm) { svCodeArm = true; codeArmBtn(); audio.click(); msg.textContent = t(r.key === 'campRun' ? 'sv.replaceCamp' : 'sv.replaceQuick'); return; }
+  svCodeArm = false; codeArmBtn();
+  S.save(r.key, r.run); storyPick = null;
+  UI.overlay('s-saves', false);
+  beginSession(true, r.key);
+};
 function openSaves(mode) {
   audio.unlock(); audio.click();
   svMode = mode; svArm = null; svNote = '';
   if (mode === 'save') UI.overlay('s-pause', false);
-  drawSaves();
+  drawSaves(); fillCode();
   $('sv-skip').classList.toggle('hidden', mode !== 'auto');
   UI.overlay('s-saves', true);
 }
