@@ -1415,6 +1415,14 @@ body.touch #dropcd { top: calc(max(8px, env(safe-area-inset-top)) + var(--mmw) *
 .sv-acts { display: flex; flex-direction: column; gap: 6px; flex: 0 0 auto; }
 .sv-acts .btn { min-height: 38px; padding: 4px 12px; font-size: 11.5px; white-space: normal; max-width: 150px; }
 .sv-note { min-height: 1.2em; margin: 6px 0 0; color: var(--yellow); font-size: 12px; }
+/* (0.53.12) the save code */
+.sv-code { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(157, 255, 184, 0.2); text-align: left; }
+.sv-code h3 { margin: 0 0 4px; font-size: 12px; letter-spacing: 0.16em; color: var(--g-dim); }
+.sv-code .fine { margin: 0 0 6px; }
+#sv-code-ta { width: 100%; box-sizing: border-box; min-height: 64px; max-height: 120px; resize: vertical; font: 11px/1.35 ui-monospace, Menlo, Consolas, monospace; word-break: break-all; color: #cfeedd; background: rgba(4, 12, 8, 0.8); border: 1px solid rgba(157, 255, 184, 0.3); border-radius: 4px; padding: 6px 8px; }
+#sv-code-ta[readonly] { color: var(--g-dim); }
+.sv-code-b { display: flex; gap: 8px; margin-top: 6px; }
+.sv-code-b .btn { flex: 1; min-height: 38px; font-size: 11.5px; }
 @media (max-width: 560px) { .sv-slot { flex-direction: column; align-items: stretch; } .sv-acts { flex-direction: row; } .sv-acts .btn { flex: 1; max-width: none; } }
 /* phones: a compact card across the top, over the objective line, clear of the drop countdown under it */
 body.touch #tut { right: auto; left: 50%; transform: translateX(-50%); top: max(6px, env(safe-area-inset-top)); width: min(58vw, 480px);

@@ -484,6 +484,8 @@ export default {
   'deb.x.noObj': 'L’objectif n’a pas été accompli.',
   'deb.x.share': 'Dégâts infligés : vos orbitales {a}, escouade et SEAF {b}, stratagèmes {c}.',
   'deb.x.calls': 'Stratagèmes appelés : {n}{top}. Scans drone : {u}. Orbitales appelées : {o}.',
+  'deb.x.ships': 'Super Destroyers :',     // (0.53.12) the group's ship, after the mission
+  'deb.x.shipLost': '{n} perdu(s)',
 
   // ---------- fin de session ----------
   'fin.eyebrow': 'Opération terminée',
@@ -1518,6 +1520,22 @@ export default {
   'sv.autoNote': 'Chaque opération se sauvegarde après chaque mission, et les trois emplacements sont occupés. Choisissez-en un à remplacer, ou déployez sans sauvegarder.',
   'sv.skip': 'DÉPLOYER SANS SAUVEGARDER',
   'sv.autoSaved': 'Opération sauvegardée dans l’emplacement {n}.',
+  // (0.53.12) save codes
+  'sv.codeH': "CODE DE SAUVEGARDE",
+  'sv.codeSave': "Votre opération sous forme de code. Copiez-le et gardez-le où vous voulez (une note, un message à vous-même). Pour reprendre, sur ce navigateur ou un autre, collez-le dans CHARGER.",
+  'sv.codeMid': "Il garde l'opération telle qu'elle était au début de cette mission.",
+  'sv.codeLoad': "Vous avez un code de sauvegarde ? Collez-le ici et touchez CHARGER LE CODE. CODE sur un emplacement met son code ici, pour le copier.",
+  'sv.copyCode': "COPIER LE CODE",
+  'sv.loadCode': "CHARGER LE CODE",
+  'sv.slotCode': "CODE",
+  'sv.codeCopied': "Code copié. Gardez-le en lieu sûr.",
+  'sv.codeHand': "Sélectionnez le code dans la case et copiez-le à la main.",
+  'sv.slotCoded': "Le code de l'emplacement {n} est dans la case.",
+  'sv.code.empty': "Collez d'abord un code de sauvegarde dans la case.",
+  'sv.code.bad': "Ce code est incomplet ou contient une faute. Copiez le code en entier et réessayez.",
+  'sv.code.old': "Ce code date d'avant la remise à zéro des sauvegardes (0.53) : il ne peut pas être chargé.",
+  'sv.code.new': "Ce code vient d'une version plus récente du jeu. Rechargez la page, puis réessayez.",
+  'sv.code.zip': "Ce navigateur ne peut pas ouvrir ce code. Essayez avec un navigateur à jour.",
   'pause.homeConfirm': 'Revenir au menu principal ? Cette mission ne comptera pas : votre opération revient à son état au largage, et la même mission vous attend quand vous reprenez. Touchez encore pour confirmer.',
   // ---------- 0.17.2: tips over the picked button ----------
   'tip.dmg': '{n} DÉG',

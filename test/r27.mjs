@@ -84,11 +84,14 @@ const run = (m, s, each) => { for (let i = 0, n = Math.round(s / dt); i < n && !
   check('...with the result, objective, kills, losses and score, a line each (and the damage split once there is any)', ['**Result:**', '**Objective:**', '**Kills:**', '**Helldivers:**', '**SEAF:**', '**Score:**'].every((k) => L.some((x) => x.startsWith(k))) && /EVACUATE CIVILIANS ✅/.test(r), r.replace(/\n/g, ' / ').slice(0, 300));
   check('a campaign chapter: named, and the General\'s last word as a quote', /Campaign: Operation Sweet Liberty, chapter 1 of 10 · ARC 1 · THE DUNES/.test(r) && /^> RAMZIES: ".+"$/m.test(r));
   check('short enough for one Discord message, no web address, the version at the foot', r.length < 2000 && !/https?:|\.com/i.test(r) && L[L.length - 1] === `Orbital Fury v${C.share.version}`, `${r.length} chars`);
+  check('(0.53.12) the groups\' Super Destroyers, by letter, in the report', /^\*\*Super Destroyers:\*\* A SES [A-Z][\w ]+ of [\w ]+ · B SES /m.test(r) && res.teams.every((tm) => r.includes(tm.ship)), L.find((x) => /Super Destroyers/.test(x)));
+  check('(0.53.12) and kept with the mission, for the operation\'s report', s.missions[0].ships.length === res.teams.length && s.missions[0].ships[0] === res.teams[0].ship);
   setLang('fr');
   check('in English whatever the language played in', aarMission(s, info, res) === r);
   setLang('en');
   const fin = finalise(s), b = aarSession(s, fin), B = b.split('\n');
   check('at the end of a session: the totals and every mission on a numbered line', B[0] === '**ORBITAL FURY · OPERATION AFTER ACTION REPORT**' && /FINAL SCORE/.test(B[1]) && /1 mission, 1 won/.test(B[2]) && /DIFFICULTY 3 MEDIUM/.test(B[2]) && B.some((x) => /^1\. THE FUEL LINE · BUGS · /.test(x)) && B.some((x) => x.startsWith('**Totals:**')), b.replace(/\n/g, ' / ').slice(0, 300));
+  check('(0.53.12) the operation\'s report names its Super Destroyers', /^\*\*Super Destroyers:\*\* SES /m.test(b) && b.includes(res.teams[0].ship), B.find((x) => /Super Destroyers/.test(x)));
   const t = aarStand({ outcome: 'glassed', kills: 260, civSaved: 134, lastStand: { held: 552, lifted: 9, pop: 200 } }, 'KESTREL'), T = t.split('\n');
   check('the tutorial\'s last stand has its own report: personnel off Mars, the hold, the rank', /LAST STAND AT THARSIS/.test(t) && /\*\*Personnel off Mars:\*\* 134 of 200 · 9 pelicans away · held 09:12/.test(t) && /Rank \d+, /.test(t) && /Gunner KESTREL/.test(t), T.slice(2, 5).join(' / '));
 }

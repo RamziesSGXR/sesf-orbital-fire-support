@@ -484,6 +484,8 @@ export default {
   'deb.x.noObj': 'The objective was not completed.',
   'deb.x.share': 'Damage dealt: your orbitals {a}, squad and SEAF {b}, stratagems {c}.',
   'deb.x.calls': 'Stratagems called: {n}{top}. UAV scans: {u}. Orbitals called: {o}.',
+  'deb.x.ships': 'Super Destroyers:',     // (0.53.12) the group's ship, after the mission
+  'deb.x.shipLost': '{n} lost',
 
   // ---------- final ----------
   'fin.eyebrow': 'Operation complete',
@@ -1518,6 +1520,22 @@ export default {
   'sv.autoNote': 'Every operation saves itself after each mission, and all three slots are in use. Pick one to overwrite, or deploy without saving.',
   'sv.skip': 'DEPLOY WITHOUT SAVING',
   'sv.autoSaved': 'Operation saved to slot {n}.',
+  // (0.53.12) save codes
+  'sv.codeH': "SAVE CODE",
+  'sv.codeSave': "Your operation as a code. Copy it and keep it anywhere (a note, a message to yourself). To carry on, on this browser or another, paste it into LOAD GAME.",
+  'sv.codeMid': "It holds the operation as it was at the start of this mission.",
+  'sv.codeLoad': "Have a save code? Paste it here and tap LOAD CODE. CODE on a slot puts that slot's code here, to copy.",
+  'sv.copyCode': "COPY CODE",
+  'sv.loadCode': "LOAD CODE",
+  'sv.slotCode': "CODE",
+  'sv.codeCopied': "Code copied. Keep it somewhere safe.",
+  'sv.codeHand': "Select the code in the box and copy it by hand.",
+  'sv.slotCoded': "Slot {n}'s code is in the box.",
+  'sv.code.empty': "Paste a save code in the box first.",
+  'sv.code.bad': "That code is cut short or has a typo. Copy the whole code and try again.",
+  'sv.code.old': "That code is from before saves were reset (0.53), so it can't be loaded.",
+  'sv.code.new': "That code is from a newer version of the game. Reload the page, then try again.",
+  'sv.code.zip': "This browser can't open that code. Try it in an up-to-date browser.",
   'pause.homeConfirm': 'Back to the main menu? This mission will not count: your operation goes back to how it was at the drop, and the same mission waits for you when you resume. Tap again to confirm.',
   // ---------- 0.17.2: tips over the picked button ----------
   'tip.dmg': '{n} DMG',

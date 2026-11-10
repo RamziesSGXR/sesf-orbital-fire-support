@@ -83,6 +83,41 @@ export function putSlot(n, key, run, at = Date.now()) {
   const a = getSlots(); a[n - 1] = { at, key: key === 'campRun' ? 'campRun' : 'session', run: { ...JSON.parse(JSON.stringify(run)), slot: n } };
   return save('slots', a);
 }
+// (0.53.12) A save code: a run written out as text, to keep anywhere and load on any browser (LOAD GAME > LOAD CODE).
+// "OFS<z>-<data>-<check>": z 1 when the data is deflated (CompressionStream), 0 when not; data the JSON { v (SAVE_VER), k ('s'
+// QUICK PLAY | 'c' campaign), r (the run, with no slot of its own) } in base64url; check four characters of a hash of the data,
+// so a code cut short or mistyped is caught. It is not a lock: a code can be edited, as the browser's storage can.
+const b64u = (u8) => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+const unb64u = (s) => { const b = atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
+export const codeSum = (s) => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return (h % 1679616).toString(36).padStart(4, '0').toUpperCase(); };
+const pipe = async (u8, T) => new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new T('deflate-raw'))).arrayBuffer());
+export async function runToCode(key, run) {
+  const r = JSON.parse(JSON.stringify(run)); delete r.slot; delete r.noSave;
+  let u8 = new TextEncoder().encode(JSON.stringify({ v: SAVE_VER, k: key === 'campRun' ? 'c' : 's', r })), z = 0;
+  if (typeof CompressionStream === 'function') { try { u8 = await pipe(u8, CompressionStream); z = 1; } catch { /* sent as it is */ } }
+  const d = b64u(u8);
+  return `OFS${z}-${d}-${codeSum(d)}`;
+}
+// { key ('session' | 'campRun'), run } from a code, or { err: 'empty' | 'bad' | 'old' | 'new' | 'zip' }
+export async function codeToRun(code) {
+  const c = String(code || '').replace(/\s+/g, '');
+  if (!c) return { err: 'empty' };
+  const m = /^OFS([01])-([A-Za-z0-9_-]+)-([0-9A-Za-z]{4})$/.exec(c);
+  if (!m || codeSum(m[2]) !== m[3].toUpperCase()) return { err: 'bad' };
+  let u8;
+  try { u8 = unb64u(m[2]); } catch { return { err: 'bad' }; }
+  if (m[1] === '1') {
+    if (typeof DecompressionStream !== 'function') return { err: 'zip' };
+    try { u8 = await pipe(u8, DecompressionStream); } catch { return { err: 'bad' }; }
+  }
+  let o;
+  try { o = JSON.parse(new TextDecoder().decode(u8)); } catch { return { err: 'bad' }; }
+  if (!o || typeof o !== 'object' || !o.r || typeof o.r !== 'object' || !Array.isArray(o.r.missions) || o.r.tutorial) return { err: 'bad' };
+  if ((o.v | 0) < SAVE_VER) return { err: 'old' };
+  if ((o.v | 0) > SAVE_VER) return { err: 'new' };
+  delete o.r.slot; delete o.r.noSave;
+  return { key: o.k === 'c' ? 'campRun' : 'session', run: o.r };
+}
 export function clearSlot(n) { const a = getSlots(); if (n >= 1 && n <= SLOTS) { a[n - 1] = null; save('slots', a); } }
 
 export const DEFAULT_SETTINGS = {
@@ -210,6 +245,7 @@ export function recordMission(s, info, result) {
     op: info.op, faction: info.faction, biome: info.biome,
     // (0.51) the score is what the mission earned in credits (pts: its old points, kept for the record); bump: the levels it was
     // flown above the operation's climb (the offer picked)
+    ships: (result.teams || []).map((tm) => tm.ship).filter(Boolean),     // (0.53.12) the groups' Super Destroyers
     outcome: result.outcome, score: c.total, pts: result.score, bump: info.bump || 0, seconds: Math.round(result.t),
     bases: result.bases, baseTotal: result.baseTotal, pois: result.pois, kills: result.kills,
     lostH: result.stats.lostH, lostS: result.stats.lostS, earned: c.total, spent: c.spent,

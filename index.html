@@ -427,6 +427,14 @@
       <p id="sv-intro" class="fine"></p>
       <ol id="sv-list" class="sv-list"></ol>
       <p id="sv-note" class="sv-note" role="status"></p>
+      <!-- (0.53.12) a save code: copy the operation out as text, or paste one in -->
+      <div id="sv-code" class="sv-code">
+        <h3 data-t="sv.codeH">SAVE CODE</h3>
+        <p id="sv-code-p" class="fine"></p>
+        <textarea id="sv-code-ta" rows="3" spellcheck="false" autocomplete="off" autocapitalize="off" data-ta="sv.codeH"></textarea>
+        <div class="sv-code-b"><button id="sv-code-copy" class="btn" type="button" data-t="sv.copyCode">COPY CODE</button><button id="sv-code-load" class="btn primary" type="button" data-t="sv.loadCode">LOAD CODE</button></div>
+        <p id="sv-code-msg" class="sv-note" role="status"></p>
+      </div>
       <div class="btns"><button id="sv-back" class="btn" type="button" data-t="ui.backBtn">BACK</button><button id="sv-skip" class="btn hidden" type="button" data-t="sv.skip">DEPLOY WITHOUT SAVING</button></div>
     </div>
   </section>

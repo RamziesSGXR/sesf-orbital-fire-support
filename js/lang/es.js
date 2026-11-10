@@ -484,6 +484,8 @@ export default {
   'deb.x.noObj': 'El objetivo no se cumplió.',
   'deb.x.share': 'Daño causado: tus orbitales {a}, escuadrón y SEAF {b}, estratagemas {c}.',
   'deb.x.calls': 'Estratagemas llamadas: {n}{top}. Escaneos de dron: {u}. Orbitales llamadas: {o}.',
+  'deb.x.ships': 'Superdestructores:',     // (0.53.12) the group's ship, after the mission
+  'deb.x.shipLost': '{n} caído(s)',
 
   // ---------- fin de sesión ----------
   'fin.eyebrow': 'Operación terminada',
@@ -1518,6 +1520,22 @@ export default {
   'sv.autoNote': 'Cada operación se guarda sola después de cada misión, y las tres ranuras están ocupadas. Elige una para sobrescribir, o despliega sin guardar.',
   'sv.skip': 'DESPLEGAR SIN GUARDAR',
   'sv.autoSaved': 'Operación guardada en la ranura {n}.',
+  // (0.53.12) save codes
+  'sv.codeH': "CÓDIGO DE GUARDADO",
+  'sv.codeSave': "Tu operación como un código. Cópialo y guárdalo donde quieras (una nota, un mensaje a ti mismo). Para seguir, en este navegador u otro, pégalo en CARGAR PARTIDA.",
+  'sv.codeMid': "Guarda la operación tal como estaba al empezar esta misión.",
+  'sv.codeLoad': "¿Tienes un código de guardado? Pégalo aquí y toca CARGAR CÓDIGO. CÓDIGO en una ranura pone aquí el código de esa ranura, para copiarlo.",
+  'sv.copyCode': "COPIAR CÓDIGO",
+  'sv.loadCode': "CARGAR CÓDIGO",
+  'sv.slotCode': "CÓDIGO",
+  'sv.codeCopied': "Código copiado. Guárdalo en un lugar seguro.",
+  'sv.codeHand': "Selecciona el código en la caja y cópialo a mano.",
+  'sv.slotCoded': "El código de la ranura {n} está en la caja.",
+  'sv.code.empty': "Primero pega un código de guardado en la caja.",
+  'sv.code.bad': "Ese código está incompleto o tiene un error. Copia el código entero y vuelve a intentarlo.",
+  'sv.code.old': "Ese código es de antes del reinicio de los guardados (0.53), así que no se puede cargar.",
+  'sv.code.new': "Ese código es de una versión más nueva del juego. Recarga la página y vuelve a intentarlo.",
+  'sv.code.zip': "Este navegador no puede abrir ese código. Prueba con un navegador actualizado.",
   'pause.homeConfirm': '¿Volver al menú principal? Esta misión no contará: tu operación vuelve a como estaba en el despliegue, y la misma misión te espera cuando continúes. Toca otra vez para confirmar.',
   // ---------- 0.17.2: tips over the picked button ----------
   'tip.dmg': '{n} DAÑO',
