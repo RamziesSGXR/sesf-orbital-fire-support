@@ -31,12 +31,27 @@ function specialKit(fid, e) {
   if (P.jamR) { e.jamR = P.jamR; e.jamPh = (e.id * 7.31) % (P.jamSec + P.jamCool); }     // (0.40: where in its on / off cycle it starts)
 }
 
+// (0.54) The new enemy of the faction: a light bug may be a leaper, a medium bot a rocketeer, a medium squid a commander.
+function variantKit(m, fid, e) {
+  const V = C.variants[fid];
+  if (!V || e.sub || e.kind !== (fid === 'bugs' ? 'L' : 'M') || m.vrng.next() >= V.share) return;
+  e.v = V.id; e.hp = e.maxHp = Math.round(e.maxHp * V.hp); e.speed *= V.speed;
+  if (V.aura) e.auraR = V.aura.r;
+}
+// How a new group marches (C.formations).
+function formOf(m, fid) {
+  if (fid === 'bots') return m.vrng.next() < C.formations.bots.square ? 'square' : 'line';
+  if (fid === 'bugs') return m.vrng.next() < C.formations.bugs.trail ? 'trail' : 'swarm';
+  return 'school';
+}
+
 export function spawnGroup(m, x, y, state = 'patrol', opts = {}) {
   const fac = m.faction, rng = m.rng;
   const g = {
     id: m.nextId++, cx: x, cy: y, state, members: [], target: null, targetT: 0, tp: null, fuzzT: 0,
     alertT: opts.alertT ?? (state === 'hunt' ? C.enemies.alert.loseSec : 0), senseT: rng.next() * 0.25,
     home: { x, y }, pt: null, patrolT: 0, base: opts.base || null, garrison: !!opts.base, engaged: false, faceT: 0, ux: 1, uy: 0,
+    form: formOf(m, fac.id), hx: 1, hy: 0, formT: 0,       // (0.54) how it marches, and the way it is heading
   };
   // opts.kinds: exactly these (the last stand's scripted groups), not drawn from the bag
   for (let i = 0, n = opts.kinds ? opts.kinds.length : opts.size || m.groupSize; i < n; i++) {     // (opts.size: a smaller pack, 0.31)
@@ -54,6 +69,7 @@ export function spawnGroup(m, x, y, state = 'patrol', opts = {}) {
     // Heavies have their own pace: the charger sprints, the tank rolls, the harvester stalks.
     if (kind === 'H') { e.speed = attackProfile(fac.id, 'H').speed * m.biome.speed; heavyKit(fac.id, e); }
     else if (special) specialKit(fac.id, e);
+    else variantKit(m, fac.id, e);
     g.members.push(e); m.enemies.push(e);
   }
   m.groups.push(g);

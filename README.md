@@ -25,6 +25,15 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**New enemies, and groups that move in formation (0.54).**
+- **Bug LEAPER.** A light bug that clears the last 12 to 38 metres to its prey in one jump (about 60 m/s, over in half a second or less), then bites. Nothing can hurt it in the air; it jumps again every few seconds. About one light bug in five.
+- **Bot ROCKETEER.** A medium that stands still and fires a barrage of eight light rockets at one spot. A ring on the ground shows where they will land, so move. Out of the medium draws, about three in ten.
+- **Squid WARLORD.** A medium with a gold pennant and a gold ring: every squid inside it is faster, hits harder, fires quicker and takes less damage, and the buff ends when the warlord dies. About two in ten of the mediums.
+- **Formations.** Bots march in one long line across the way they face, or in a square, with the mediums at the back. Bugs go like ants: a trail where each follows the one ahead and the bigger ones lead, or a loose swarm as before. Squids move as a school: the lights circle the leaders in the middle, and in a fight the leaders stand with the ring rather than in front of it.
+- **Squids on two legs.** The drone and the warrior are redrawn walking on two legs.
+- **Names hidden (Settings > Show names).** The names of buildings and enemies no longer show on the map unless Show names is on, or the thing is selected or under your aim. HIDE UI (F2) now hides every map label and the arrows to off-screen objectives too.
+- The new enemies are rolled on a stream of their own, so maps and the special mediums are the same as before. Numbers are in `CONFIG.variants` and `CONFIG.formations`. A new test, `test/r54.mjs`, covers them.
+
 **Fixes from the players (0.53.10).**
 - **Propaganda Tower text.** Its armory card said "Troopers inside widen it" right after the line about vision, so it read as if troopers widen its vision (it has none since 0.47). It now says what they widen: the area where allies get the UAV's boost, up to a UAV scan's reach.
 

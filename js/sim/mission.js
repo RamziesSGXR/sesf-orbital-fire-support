@@ -93,6 +93,7 @@ export class Mission {
     this.seed = opts.seed >>> 0;
     this.rng = new RNG(this.seed);
     this.crng = new RNG((this.seed ^ 0x5bd1e995) >>> 0);   // cosmetic randomness (names, chatter), never touches the sim
+    this.vrng = new RNG((this.seed ^ 0x5bd1e995) >>> 0);   // (0.54) which enemies are the new variants, and how a group marches (apart again)
     this.srng = new RNG((this.seed ^ 0x2c1b3c6d) >>> 0);   // which mediums come out special (kept apart, so the map does not change)
     this.rrng = new RNG((this.seed ^ 0x6a09e667) >>> 0);   // (0.31) off-map patrols and how many places a call comes in at (kept apart too)
     this.faction = FACTIONS[opts.faction];

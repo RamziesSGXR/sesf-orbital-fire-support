@@ -173,7 +173,7 @@ function shared(m, a, q) {
   return false;
 }
 // An enemy's attack: its kind's for the faction, or a special medium's own (CONFIG.special).
-export const profileOf = (fid, e) => (e.sub ? C.special[fid].atk : C.combat.atk[fid][e.kind]);
+export const profileOf = (fid, e) => (e.sub ? C.special[fid].atk : e.v && C.variants[fid].atk ? C.variants[fid].atk : C.combat.atk[fid][e.kind]);   // (0.54: a variant's own, if it has one)
 
 // Ground movement goes round deep water: NAV is the mission's terrain for this tick, and steer() picks the point to walk to.
 // AOB is the mission's area of operations: every goal is pulled inside it, and nobody walks out of it (a route can only be found
@@ -210,6 +210,7 @@ export function shoreToward(tr, tx, ty, x, y) {
   return tr.nearestLand(tx, ty);
 }
 function moveToward(o, tx, ty, speed, dt, size) {
+  if (o.buff > NAVT) speed *= C.variants.squids.aura.speed;      // (0.54) under a commander's aura
   if (WIRES.length) { const k = wireMul(o, dt); if (k <= 0) { o.vx = 0; o.vy = 0; return; } speed *= k; }
   if (AOB) {      // (the round area: nobody goes out of it; done in place, this runs for every enemy every tick)
     const R = (AOB.R || AOB.size / 2) - 3, dx = tx - AOB.cx, dy = ty - AOB.cy, d2 = dx * dx + dy * dy;
@@ -348,6 +349,106 @@ function bossAttack(m, e, dt, t) {
   }
 }
 
+// ---------------------------------------------------------------- (0.54) the new enemies
+// Leaper: the jump is a straight dash from here to a spot just short of the prey, at a fixed speed (maxD / sec), over in a blink.
+function leapStep(m, e) {
+  const L = e.lp, u = Math.min(1, (m.t - L.t0) / L.dur);
+  e.x = L.x0 + (L.x1 - L.x0) * u; e.y = L.y0 + (L.y1 - L.y0) * u;
+  e.vx = (L.x1 - L.x0) / L.dur; e.vy = (L.y1 - L.y0) / L.dur; e.face = L.face; e.air = Math.sin(u * Math.PI);
+  if (u >= 1) {
+    e.lp = null; e.air = 0; e.vx = 0; e.vy = 0;
+    e.leapCd = m.t + C.variants.bugs.cool * (0.8 + ((e.id * 0.37) % 1) * 0.4);
+    m.emit('leap_land', { x: e.x, y: e.y });
+  }
+}
+function tryLeap(m, e, p, d) {
+  const V = C.variants.bugs, t = m.t;
+  if (e.lp || (e.leapCd || 0) > t || d < V.minD || d > V.maxD) return false;
+  const k = (d - 3) / d, lx = e.x + (p.x - e.x) * k, ly = e.y + (p.y - e.y) * k;
+  if (m.terrain.blocked(lx, ly) || (AOB && ((lx - AOB.cx) ** 2 + (ly - AOB.cy) ** 2 > ((AOB.R || AOB.size / 2) - 2) ** 2))) { e.leapCd = t + 1; return false; }
+  e.lp = { t0: t, dur: Math.max(0.3, d / (V.maxD / V.sec)), x0: e.x, y0: e.y, x1: lx, y1: ly, face: Math.atan2(ly - e.y, lx - e.x) };
+  e.air = 0;
+  m.emit('leap', { x: e.x, y: e.y, tx: lx, ty: ly, id: e.id });
+  return true;
+}
+// Rocketeer: aims once, then sends the whole barrage at that spot (each rocket lands a few metres off it), standing still while it does.
+function rocketeer(m, e, dt, t, p) {
+  const V = C.variants.bots;
+  if (e.vol) {
+    const v = e.vol;
+    v.gap -= dt;
+    while (v.left > 0 && v.gap <= 0) {
+      const [ox, oy] = m.rng.inDisc(V.scatter), tx = v.x + ox, ty = v.y + oy;
+      m.bossShells.push({ x: tx, y: ty, at: t + V.flight, dmg: p.dmg * m.dmgMul, splash: p.splash, fx: e.x, fy: e.y, rocket: true });
+      m.emit('tracer', { x: e.x, y: e.y, tx, ty, s: 'e', f: 'bots', k: 'M', hit: true, rocket: true, fl: V.flight, snd: 'botsM' });
+      v.left--; v.gap += V.gap;
+    }
+    e.aimA = Math.atan2(v.y - e.y, v.x - e.x); e.aimUntil = t + 0.4;
+    if (v.left <= 0) e.vol = null;
+    return;
+  }
+  e.atk -= dt;
+  if (e.atk > 0 || !e.tgt || e.tgt.dead) return;
+  const a = e.tgt;
+  e.atk = p.every;
+  e.vol = { left: V.n, gap: 0.35, x: a.x + (a.vx || 0) * V.flight * 0.5, y: a.y + (a.vy || 0) * V.flight * 0.5 };   // (a short wind-up, then it leads a moving target a little)
+  e.aimA = Math.atan2(a.y - e.y, a.x - e.x); e.aimUntil = t + 1.2;
+  reveal(m, e);
+}
+// Commander: everything of its own side within the aura is buffed for a moment at a time (e.buff = the time it lasts until).
+function commanderAura(m, t) {
+  for (const c of m.enemies) {
+    if (c.dead || c.v !== 'cmdr') continue;
+    const r2 = c.auraR * c.auraR;
+    for (const q of m.enemies) if (q !== c && !q.dead && !q.boss && (q.x - c.x) ** 2 + (q.y - c.y) ** 2 <= r2) q.buff = t + 0.6;
+  }
+}
+
+// ---------------------------------------------------------------- (0.54) formations
+// Where an enemy walks to while it keeps up with its group: its slot (g.cx + ox, g.cy + oy), or, in an ant trail, a spot `gap` metres
+// behind the one ahead of it on the line from that one to itself (so the trail follows the leader's path).
+function homeOf(g, e) {
+  const f = e.fol;
+  if (f && !f.dead) {
+    const dx = e.x - f.x, dy = e.y - f.y, d = Math.hypot(dx, dy), gap = C.formations.bugs.gap;
+    if (d > 0.01) return d < gap * 1.05 ? { x: e.x, y: e.y } : { x: f.x + (dx / d) * gap, y: f.y + (dy / d) * gap };
+  }
+  return { x: g.cx + e.ox, y: g.cy + e.oy };
+}
+const isLeader = (e) => e.kind !== 'L';
+// Bots and bugs: slots in the group's own frame (forward = the way it is heading, or at its target once it hunts). Twice a second.
+function arrangeForm(g) {
+  const F = C.formations, hunt = g.state === 'hunt', hx = hunt ? g.ux : g.hx, hy = hunt ? g.uy : g.hy, sx = -hy, sy = hx;
+  const live = g.members.filter((q) => !q.dead && !q.boss);
+  const put = (q, fwd, side) => { q.ox = hx * fwd + sx * side; q.oy = hy * fwd + sy * side; };
+  if (g.form === 'trail') {
+    const order = live.filter(isLeader).concat(live.filter((q) => !isLeader(q))), gap = F.bugs.gap, n = order.length;
+    order.forEach((q, i) => { q.fol = i && !isLeader(q) ? order[i - 1] : null; put(q, ((n - 1) / 2 - i) * gap, 0); });
+    return;
+  }
+  if (g.form === 'swarm') { for (const q of live) q.fol = null; return; }
+  const lead = live.filter(isLeader), rest = live.filter((q) => !isLeader(q));
+  const lineSp = F.bots.line.spacing, blk = F.bots.block.spacing;
+  if (g.form === 'line') {
+    rest.forEach((q, i) => put(q, 0, (i - (rest.length - 1) / 2) * lineSp));
+    lead.forEach((q, i) => put(q, -F.bots.rank, (i - (lead.length - 1) / 2) * lineSp));
+  } else {
+    const cols = Math.max(1, Math.ceil(Math.sqrt(rest.length))), rows = Math.max(1, Math.ceil(rest.length / cols));
+    rest.forEach((q, i) => put(q, ((rows - 1) / 2 - Math.floor(i / cols)) * blk, ((i % cols) - (cols - 1) / 2) * blk));
+    lead.forEach((q, i) => put(q, -((rows - 1) / 2 + 1) * blk - blk * 0.5, (i - (lead.length - 1) / 2) * blk));
+  }
+}
+// Squids: a school. The leaders stay in the middle, the rest circle them in two rings (the outer one the other way round).
+function arrangeSchool(g, t) {
+  const S = C.formations.squids, live = g.members.filter((q) => !q.dead && !q.boss);
+  const lead = live.filter((q) => q.kind !== 'L'), rest = live.filter((q) => q.kind === 'L');
+  lead.forEach((q, i) => { const a = (i / Math.max(1, lead.length)) * TAU + t * 0.2; const r = lead.length > 1 ? S.mid : 0; q.ox = Math.cos(a) * r; q.oy = Math.sin(a) * r; });
+  rest.forEach((q, i) => {
+    const outer = i % 2, a = (i / rest.length) * TAU + (outer ? -1 : 1) * t * S.spin, r = outer ? S.outer : S.inner;
+    q.ox = Math.cos(a) * r; q.oy = Math.sin(a) * r;
+  });
+}
+
 // ---------------------------------------------------------------- how each faction fights
 const TAU = Math.PI * 2;
 const wrap = (a) => { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TAU; return a; };
@@ -358,15 +459,16 @@ function swarmMove(m, g, e, tgt, dt, size, sightE) {
   const S = C.enemies.tactics.swarm, t = m.t;
   if (e.kind === 'H' || e.sub === 'guard') {   // the charger sprints at whatever is nearest; the hive guard leads the pack straight in
     if (tgt && Math.hypot(tgt.x - e.x, tgt.y - e.y) < 180) moveToward(e, tgt.x, tgt.y, e.speed, dt, size);
-    else moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size);
+    else { const h = homeOf(g, e); moveToward(e, h.x, h.y, e.speed * 1.5, dt, size); }
     return;
   }
   if (e.tgt) { e.vx = 0; e.vy = 0; return; }   // in biting range
   e.ptT -= dt;
   if (e.ptT <= 0) { e.ptT = 0.25 + m.rng.next() * 0.15; e.pt = nearestTarget(m, e.x, e.y, sightE * 1.6); }
   const p = e.pt && !e.pt.dead ? e.pt : null;
-  if (!p) { moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size); return; }
+  if (!p) { const h = homeOf(g, e); moveToward(e, h.x, h.y, e.speed * 1.5, dt, size); return; }
   const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1;
+  if (e.v === 'leap' && tryLeap(m, e, p, d)) return;      // (0.54) the last stretch in one jump
   // each bug keeps its own side of the approach (a wide arc either way of the pack's bearing) until it is almost on top of the target,
   // so the pack spreads into a wide front and wraps round the squad instead of arriving as one column
   const bear = Math.atan2(g.cy - p.y, g.cx - p.x) + wrap(e.ang) * (S.arc / Math.PI), off = Math.min(S.reach, d * S.fan);
@@ -383,29 +485,29 @@ function arrangeLine(g, L) {
     if (q.dead) return;
     const i = q.kind === 'H' ? 0 : lights.indexOf(q), lane = q.kind === 'H' ? 0 : (i - (n - 1) / 2) * L.spacing;
     q.lane = lane;
-    const back = q.kind === 'H' ? L.tankBack : q.sub === 'cmd' ? L.rank * 1.6 : q.kind === 'M' ? L.rank * 0.5 : 0;   // the commander hangs back behind the line
-    q.ox = nx * lane - g.ux * back; q.oy = ny * lane - g.uy * back;
   });
 }
 function lineMove(m, g, e, tgt, dt, size, atk) {
   const L = C.enemies.tactics.line;
-  if (e.tgt) { e.vx = 0; e.vy = 0; return; }   // something is in range: stand and shoot
+  if (e.tgt || e.vol) { e.vx = 0; e.vy = 0; return; }   // something is in range: stand and shoot
   if (!tgt) { moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size); return; }
   const range = profileOf(m.faction.id, e).range, d = Math.hypot(tgt.x - e.x, tgt.y - e.y);
-  if (d > L.arm + range) { moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size); return; }
-  const stand = range * L.standoff + (e.kind === 'H' ? L.tankBack : 0), nx = -g.uy, ny = g.ux;
+  if (d > L.arm + range) { moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size); return; }   // (still marching: its slot in the line or the block)
+  const stand = range * L.standoff + (e.kind === 'H' ? L.tankBack : e.kind === 'M' ? L.rank * 0.5 : 0) + (e.sub === 'cmd' ? L.rank * 1.1 : 0), nx = -g.uy, ny = g.ux;   // (the leaders stand behind the line)
   moveToward(e, tgt.x - g.ux * stand + nx * (e.lane || 0), tgt.y - g.uy * stand + ny * (e.lane || 0), e.speed * 1.3, dt, size);
 }
 
 // Squids: encirclement. Everything hunting one target spreads evenly round it (assignRings, twice a second); each one walks the
 // ring toward its own slot while it closes to its firing distance, shooting as it goes, and stops once it is in place.
+// (0.54) a squid leader (a medium that is not the fleshmob) keeps inside the ring instead of on it
+const midOf = (e) => e.kind === 'M' && !e.sub && !e.boss;
 function assignRings(m) {
   const byT = new Map();
   for (const g of m.groups) {
     if (g.state !== 'hunt' || !g.target || g.target.dead) continue;
     let l = byT.get(g.target);
     if (!l) byT.set(g.target, (l = []));
-    for (const e of g.members) if (!e.dead && e.kind !== 'H') l.push(e);
+    for (const e of g.members) if (!e.dead && e.kind !== 'H' && !midOf(e)) l.push(e);
   }
   for (const [tg, l] of byT) {
     if (!l.length) continue;
@@ -424,9 +526,16 @@ function ringMove(m, g, e, tgt, dt, size, atk, engaged) {
     return;
   }
   const range = profileOf(m.faction.id, e).range, Rr = range * R.radius, d = Math.hypot(tgt.x - e.x, tgt.y - e.y);
-  if (d > R.arm + Rr) {   // still on the way in: move with the pack
+  if (d > R.arm + Rr) {   // still on the way in: move with the school
     if (e.tgt) { e.vx = 0; e.vy = 0; return; }
     moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size);
+    return;
+  }
+  if (midOf(e)) {   // (0.54) a leader holds a little way in from the ring, behind its lights
+    const Rm = Rr * C.formations.squids.hold;
+    if (Math.abs(d - Rm) < R.slack) { e.vx = 0; e.vy = 0; return; }
+    const cur = Math.atan2(e.y - tgt.y, e.x - tgt.x);
+    moveToward(e, tgt.x + Math.cos(cur) * Rm, tgt.y + Math.sin(cur) * Rm, e.speed * 1.2, dt, size);
     return;
   }
   const cur = Math.atan2(e.y - tgt.y, e.x - tgt.x), diff = e.slot === undefined ? 0 : wrap(e.slot - cur);
@@ -442,7 +551,8 @@ export function updateEnemies(m, dt) {
   const sightE = fac.sight * m.biome.ping;
   NAV = m.terrain; NAVT = m.t; AOB = m.ao;
   WIRES.length = 0; for (const p of m.posts) if (p.what === 'wire' && !p.dead && p.wireHp > 0) WIRES.push(p);
-  const atk = C.combat.atk[fac.id], SP = C.special[fac.id], prof = (e) => (e.sub ? SP.atk : atk[e.kind]);
+  const atk = C.combat.atk[fac.id], prof = (e) => profileOf(fac.id, e);
+  if (fac.id === 'squids') commanderAura(m, t);
   if (fac.id === 'squids') { m.ringT = (m.ringT || 0) - dt; if (m.ringT <= 0) { m.ringT = 0.5; assignRings(m); } }
   // Commanders jam the ground round them (see jammedAt); a heavy's shield comes back once it has been left alone a while.
   const jam = m.jammers || (m.jammers = []);
@@ -463,6 +573,14 @@ export function updateEnemies(m, dt) {
       n++; if (e.speed < minSpeed) minSpeed = e.speed;
     }
     if (!n) continue;
+    // (0.54) the way the group is heading (smoothed), and where each member keeps in its formation
+    {
+      const mx = g.cx - (g.lx ?? g.cx), my = g.cy - (g.ly ?? g.cy), md = Math.hypot(mx, my);
+      g.lx = g.cx; g.ly = g.cy;
+      if (md > 0.01) { const k = Math.min(1, dt * 3), hx = g.hx + (mx / md - g.hx) * k, hy = g.hy + (my / md - g.hy) * k, hn = Math.hypot(hx, hy) || 1; g.hx = hx / hn; g.hy = hy / hn; }
+      if (fac.id === 'squids') arrangeSchool(g, t);
+      else if ((g.formT -= dt) <= 0) { g.formT = 0.5; arrangeForm(g); }
+    }
 
     // Notice allies at the enemy's own (shorter) sight, four times a second.
     g.senseT -= dt;
@@ -510,7 +628,8 @@ export function updateEnemies(m, dt) {
         if (e.dead) continue;
         e.tgt = null;
         if (e.stunUntil > t) { e.vx = 0; e.vy = 0; continue; }
-        moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 0.8, dt, size);
+        const h = homeOf(g, e);
+        moveToward(e, h.x, h.y, e.speed * 0.8, dt, size);
       }
       continue;
     }
@@ -583,7 +702,8 @@ export function updateEnemies(m, dt) {
     for (const e of g.members) {
       if (e.dead) continue;
       if (e.boss) { bossMove(m, e, dt, size); continue; }
-      if (e.stunUntil > t || e.ch) { e.vx = 0; e.vy = 0; continue; }
+      if (e.lp) { leapStep(m, e); continue; }                   // (0.54) in the air
+      if (e.stunUntil > t || e.ch || e.vol) { e.vx = 0; e.vy = 0; continue; }
       if (fac.id === 'bugs') { swarmMove(m, g, e, tgt, dt, size, sightE); continue; }
       if (fac.id === 'bots') { lineMove(m, g, e, tgt, dt, size, atk); continue; }
       ringMove(m, g, e, tgt, dt, size, atk, engaged);
@@ -595,14 +715,16 @@ export function updateEnemies(m, dt) {
     if (g.state !== 'hunt' || g.hold > t) continue;
     for (const e of g.members) {
       if (e.dead) continue;
-      if (e.stunUntil > t) { e.ch = null; continue; }
+      if (e.stunUntil > t) { e.ch = null; e.vol = null; continue; }
+      if (e.lp) continue;
       const p = prof(e);
       if (e.boss) { bossAttack(m, e, dt, t); continue; }
+      if (e.v === 'rkt') { rocketeer(m, e, dt, t, p); continue; }
       if (e.kind === 'H' && fac.id === 'squids') { e.atk -= dt; squidHeavy(m, e, p, t); continue; }
       if (!e.tgt) continue;
       e.atk -= dt;
       if (e.atk > 0) continue;
-      e.atk += p.every;
+      e.atk += e.buff > t ? p.every * C.variants.squids.aura.rate : p.every;     // (0.54: a buffed squid fires quicker)
       const a = e.tgt;
       if (a.dead) continue;
       e.aimA = Math.atan2(a.y - e.y, a.x - e.x); e.aimUntil = t + 0.9;    // turn to face what it is shooting
@@ -615,13 +737,13 @@ export function updateEnemies(m, dt) {
       const melee = (fac.id === 'bugs' && e.kind !== 'M') || e.sub === 'guard' || e.sub === 'soak';
       m.emit('tracer', { x: e.x, y: e.y, tx, ty, s: 'e', f: fac.id, k: e.kind, hit, melee, snd: fac.id + e.kind });
       if (!hit) continue;
-      const hi = m.terrain.attackMul(e.x, e.y, a.x, a.y) * bandDmg(band);     // shooting down from a rise hits harder; far shots softer
+      const hi = m.terrain.attackMul(e.x, e.y, a.x, a.y) * bandDmg(band), bf = e.buff > t ? C.variants.squids.aura.dmg : 1;     // shooting down from a rise hits harder; far shots softer
       if (p.splash) {
-        m.aGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * m.dmgMul * hi, 'enemy', e.kind, e.x, e.y));
-        m.tGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * m.dmgMul * hi, 'enemy', e.kind));
+        m.aGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * bf * m.dmgMul * hi, 'enemy', e.kind, e.x, e.y));
+        m.tGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * bf * m.dmgMul * hi, 'enemy', e.kind));
         for (const cv of m.civs) if (!cv.dead && !cv.safe && (cv.x - tx) ** 2 + (cv.y - ty) ** 2 <= p.splash * p.splash) m.hurtCiv(cv, p.dmg * m.dmgMul, 'enemy');
         m.emit('boom', { x: tx, y: ty, r: p.splash, dmg: p.dmg, by: 'enemy' });
-      } else hurtTarget(m, a, p.dmg * m.dmgMul * hi, 'enemy', e.kind, e.x, e.y);
+      } else hurtTarget(m, a, p.dmg * bf * m.dmgMul * hi, 'enemy', e.kind, e.x, e.y);
     }
   }
 }

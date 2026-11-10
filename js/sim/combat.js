@@ -87,13 +87,14 @@ export function soakBubble(m, b, dmg) {
 // as well as anything), and only what gets through meets the armour.
 export function hurtEnemy(m, e, dmg, by, fx, fy, cs, pierce = false, armor = 1) {
   if (e.dead || !(dmg > 0)) return 0;
+  if (e.lp) return 0;                          // (0.54) a leaper in mid-jump cannot be hit
   if (e.cover && covered(e)) return 0;
   if (!pierce && m.bubbles && m.bubbles.length) {
     const b = ABOVE ? bubbleFor(m, e.x, e.y) : bubbleFor(m, e.x, e.y, fx, fy);
     if (b && b.src !== e) { dmg = soakBubble(m, b, dmg); if (dmg <= 0) { e.hurtAt = m.t; return 0; } }
   }
   const k = hitMul(m, e, fx, fy, cs === undefined ? (by === 'player' ? 'player' : 'ally') : cs, pierce);
-  dmg *= k * (e.soak && !pierce ? e.soak : 1);     // the fleshmob takes only part of every hit
+  dmg *= k * (e.soak && !pierce ? e.soak : 1) * (e.buff > m.t ? C.variants.squids.aura.taken : 1);   // (0.54: under a commander's aura)     // the fleshmob takes only part of every hit
   if (e.shield > 0 && !pierce) {         // a shield (a squid heavy, the Warp Colossus) soaks up damage first, at full strength
     const soak = Math.min(e.shield, dmg);
     e.shield -= soak; e.shieldAt = m.t; dmg -= soak;

@@ -2159,6 +2159,7 @@ export function buildSettings(settings, onChange) {
   row(t('set.cards'), t('set.cardsHint'), select('cards', [['side', t('set.on')], ['off', t('set.off')]]));
   row(t('set.flash'), t('set.flashHint'), toggle('reduceFlash'));
   row(t('set.color'), t('set.colorHint'), toggle('colorblind'));
+  row(t('set.names'), t('set.namesHint'), toggle('showNames'));     // (0.54)
   sec('set.sec.controls');
   row(t('set.lefty'), t('set.leftyHint'), toggle('lefty'));
   row(t('set.touch'), '', range('touchSens', 0.5, 2, 0.1));
@@ -2439,6 +2440,7 @@ export function fillMissionInfo(m, info) {
   const CR = C.combat.crit, BD = C.combat.bands;
   parts.push(`<h3>${t('info.hits')}</h3><p>${esc(t('info.hitsV', { a: C.combat.back.mul, b: C.combat.back.heavy, m: CR.mul, p: pctS(CR.player), g: pctS(CR.gun), s: pctS(CR.ally), e: pctS(CR.enemy) }))}</p>`);
   parts.push(`<h3>${t('info.range')}</h3><p>${esc(t('info.rangeV', { a: pctS(BD.short), b: pctS(BD.dmg[0]), c: pctS(BD.acc[1]), d: pctS(BD.dmg[1]), e: pctS(BD.acc[2]), f: pctS(BD.dmg[2]) }))}</p>`);
+  parts.push(`<h3>${t('info.variants')}</h3><p>${esc(t('info.variantsV'))}</p>`);     // (0.54)
   const Bm = m.boss;
   parts.push(`<h3>${t('info.boss')}</h3><p>${Bm && !Bm.dead ? t('info.bossOn', { name: esc(Bm.name) }) : Bm ? esc(t('info.bossDead', { name: Bm.name })) : ''}${esc(t('info.bossV', { fac: f.name.toLowerCase(), name: t('boss.' + m.faction.id), cr: fmtNum(C.boss.reward), how: t('info.boss.' + m.faction.id) }))}</p>`);
   parts.push(`<h3>${t('info.supply')}</h3><p>${esc(t('info.supplyV', { f: C.supply.fastSec, b: C.supply.boostSec }))}</p>`);

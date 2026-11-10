@@ -202,6 +202,7 @@ export class Renderer {
       case 'objective_done':
         fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 90, t0: now, life: 1.6, a: 1, col: '#7dff9b' }); fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 55, t0: now, life: 1.2, a: 1, col: '#ffe600' });
         break;
+      case 'leap_land': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 4, t0: now, life: 0.3, a: 0.5 * flash, col: '#fff3d0' }); break;
       case 'kill': fx.push({ k: 'ring', x: ev.x, y: ev.y, r: SUBTYPES[ev.kind].r * 2.2, t0: now, life: 0.3, a: 0.7, col: this.enemyColor(m) }); break;
       case 'ally_fire': fx.push({ k: 'line', x: ev.x, y: ev.y, x2: ev.tx, y2: ev.ty, t0: now, life: 0.1, col: '#bfe4ff' }); break;
       case 'enemy_fire': fx.push({ k: 'line', x: ev.x, y: ev.y, x2: ev.tx, y2: ev.ty, t0: now, life: 0.1, col: this.enemyColor(m) }); break;
@@ -270,7 +271,8 @@ export class Renderer {
     let kind = 'streak', col, w, flight, len = 7;
     if (ev.s === 'e') {
       col = this.enemyColor(m);
-      if (ev.melee) { kind = 'slash'; flight = 0.001; w = ev.k === 'H' ? 2.6 : 1.4; }
+      if (ev.rocket) { kind = 'shell'; flight = ev.fl; w = 1.6; len = 8; col = '#ffb070'; }     // (0.54) a rocketeer's rocket: a hot dot with a smoke line
+      else if (ev.melee) { kind = 'slash'; flight = 0.001; w = ev.k === 'H' ? 2.6 : 1.4; }
       else if (ev.f === 'bugs') { kind = 'glob'; w = 2; flight = cl(d / 40, 0.12, 0.6); }
       else if (ev.f === 'bots') { w = ev.k === 'H' ? 3 : ev.k === 'M' ? 1.5 : 1; flight = cl(d / 120, 0.08, 0.45); len = ev.k === 'H' ? 11 : 6; if (ev.k === 'H') kind = 'shell'; }
       else if (ev.k === 'M') { w = 1.3; flight = cl(d / 130, 0.07, 0.4); len = 6; }     // (0.40) a squid overseer's rifle: gunfire, not a bolt
@@ -341,7 +343,9 @@ export class Renderer {
     const pal = { ally: this.allyColor(), enemy: this.enemyColor(m) };
     drawAoEdge(ctx, m, px, -tx / scale, -ty / scale, (W - tx) / scale, (H - ty) / scale);
     const labels = this.labels; labels.length = 0;
+    const nm = (i0) => { for (let i = i0; i < labels.length; i++) labels[i].nm = true; };     // (0.54) names of buildings and enemies: hidden unless Settings > Show names, or selected / under the aim
     const aim = ui.aim;
+    this._namesFor = [ui.sel, aim].filter((o) => o && Number.isFinite(o.x) && Number.isFinite(o.y));
     ctx.lineJoin = 'round';
 
     // Fire, gas, EMS and smoke on the ground, then the UAV circles
@@ -355,7 +359,7 @@ export class Renderer {
     drawCover(ctx, m, px);
     drawCitadelWalls(ctx, m, pal.enemy, px);
     // Bases: always known from orbit.
-    const sqBase = m.squad.base, tgBs = seafTargets(m);
+    const sqBase = m.squad.base, tgBs = seafTargets(m), nm0 = labels.length;
     for (const b of m.bases) {
       const r = Math.max(b.r || C.bases.radius, px(9));
       if (b.destroyed) { drawBaseRuin(ctx, b, now, px); continue; }
@@ -397,10 +401,13 @@ export class Renderer {
       }
     }
 
+    nm(nm0);
+    const nm1 = labels.length;
     drawPois(ctx, m, now, px, labels, scale, pal);
     drawSides(ctx, m, now, px, labels, scale);
     drawArty(ctx, m, now, px, labels, scale);
     drawPosts(ctx, m, now, px, labels, scale, ui.sel || null);
+    nm(nm1);
     drawCrates(ctx, m, now, px, labels);
     drawMarks(ctx, m, now, px, labels, scale);
     drawBeacons(ctx, m, now, px, labels, scale, ui.placing === 'seaf');
@@ -432,7 +439,9 @@ export class Renderer {
       else drawEnemyBody(ctx, e, fid, enemyR(e, SUBTYPES[e.kind], px), pal.enemy, now, px, t - e.hurtAt < 0.06);
       ctx.globalAlpha = 1;
     }
+    const nm2 = labels.length;
     drawEnemyExtras(ctx, m, now, px, labels, scale, pal);
+    nm(nm2);
     drawRevealed(ctx, m, now, px, pal.enemy);
     drawFlares(ctx, m, now, px, labels, scale, pal);
 
@@ -699,7 +708,11 @@ export class Renderer {
     ctx.font = `${Math.round(10 * d)}px ui-monospace, Menlo, Consolas, monospace`;
     ctx.textAlign = 'center';
     const small = document.body.classList.contains('touch');
-    let list = this.labels.map((l) => ({ l, x: w2sx(l.x), y: w2sy(l.y) + l.dy * d }));
+    // (0.54) Hide UI (F2) takes every map label with it; otherwise the names of buildings and enemies show only with Settings > Show
+    // names, or for what is selected or under the aim (within 12 m of it)
+    if (document.body.classList.contains('hide-ui')) return;
+    const keep = this._namesFor || [], showAll = !!(this.settings && this.settings.showNames);
+    let list = this.labels.filter((l) => !l.nm || showAll || keep.some((k) => (k.x - l.x) ** 2 + (k.y - l.y) ** 2 < 144)).map((l) => ({ l, x: w2sx(l.x), y: w2sy(l.y) + l.dy * d }));
     // (0.53.5) health bars that go with a label (a heavy's, a special's): drawn in screen space, right under its name, at the
     // labels' size, so they never slip behind the name when zoomed out (they used to be drawn on the map, under the label's box)
     const barsH = (l) => (l.bars ? l.bars.length * 5 * d + 2 * d : 0), withBars = list.filter((o) => o.l.bars);
@@ -1238,6 +1251,7 @@ export class Renderer {
   }
 
   _edgeArrows(ctx, m, w2sx, w2sy, scale, ui) {
+    if (document.body.classList.contains('hide-ui')) return;     // (0.54) Hide UI: the arrows to off-screen objectives and their names too
     const W = this.W, H = this.H, pad = 34 * this.dpr, d = this.dpr;
     const items = [];
     // every team: each Helldiver in its group colour, and each SEAF squad in its squad colour

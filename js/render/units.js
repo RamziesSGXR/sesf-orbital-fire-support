@@ -141,6 +141,8 @@ export function drawEnemyBody(ctx, e, fac, r, col, now, px, hot) {
   const k = e.kind, dark = 'rgba(0,0,0,0.6)', lw = (n) => Math.max(px(n), 0.05);
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   const body = hot ? '#ffffff' : col;
+  const air = e.air || 0;     // (0.54) a leaper in mid-jump: a shadow on the ground, and it grows as it comes up
+  if (air > 0) { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ell(ctx, -0.1 * r, 0, r * 1.0, r * 0.75); ctx.fill(); ctx.scale(1 + 0.55 * air, 1 + 0.55 * air); }
   // dark halo
   ctx.fillStyle = 'rgba(0,0,0,0.55)'; ell(ctx, -0.1 * r, 0, r * 1.25, r * 1.1); ctx.fill();
   const pulse = 0.6 + 0.4 * Math.sin(now * 6 + e.id);
@@ -173,6 +175,16 @@ export function drawEnemyBody(ctx, e, fac, r, col, now, px, hot) {
       for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(hx + hr * 0.6, s * hr * 0.55); ctx.quadraticCurveTo(hx + hr * 1.6, s * hr * 0.9, hx + hr * 1.75, s * hr * 0.15); ctx.stroke(); }
       ctx.fillStyle = '#ffffff'; for (const s of [-1, 1]) { circ(ctx, hx + hr * 0.45, s * hr * 0.4, Math.max(0.09 * r, px(0.7))); ctx.fill(); }
     }
+    if (e.v === 'leap') {
+      // (0.54) the leaper: big folded hind legs (stretched out behind it in the air) and a pale stripe down the back
+      ctx.strokeStyle = '#fff3d0'; ctx.lineWidth = lw(1.5);
+      for (const s of [-1, 1]) {
+        ctx.beginPath(); ctx.moveTo(-0.15 * r, s * 0.3 * r);
+        if (air > 0.05) { ctx.lineTo(-0.9 * r, s * 0.35 * r); ctx.lineTo(-1.65 * r, s * 0.12 * r); } else { ctx.lineTo(-0.55 * r, s * 1.0 * r); ctx.lineTo(-1.15 * r, s * 0.55 * r); }
+        ctx.stroke();
+      }
+      ctx.strokeStyle = '#fff3d0'; ctx.lineWidth = lw(0.9); line(ctx, 0.35 * r, 0, -0.95 * r, 0);
+    }
   } else if (fac === 'bots') {
     if (k === 'H') {
       // the tank: hull and treads, a turret with its barrel to the front, hot exhaust vents at the back (its weak spot)
@@ -199,7 +211,17 @@ export function drawEnemyBody(ctx, e, fac, r, col, now, px, hot) {
       ctx.fillStyle = '#ffffff'; circ(ctx, 0.47 * r, 0, Math.max(0.1 * r, px(0.9))); ctx.fill();
       ctx.strokeStyle = '#ffd6c8'; ctx.lineWidth = lw(k === 'M' ? 1.8 : 1.4); ctx.lineCap = 'butt';
       line(ctx, 0.1 * r, W * 0.8 * r, 1.25 * r, W * 0.7 * r);
-      if (k === 'M') line(ctx, 0.1 * r, -W * 0.8 * r, 1.25 * r, -W * 0.7 * r);
+      if (k === 'M' && e.v !== 'rkt') line(ctx, 0.1 * r, -W * 0.8 * r, 1.25 * r, -W * 0.7 * r);
+      if (e.v === 'rkt') {
+        // (0.54) the rocketeer: a rocket pod on each shoulder, three tubes a side, their tips glowing as they fire
+        const fire = e.vol ? 1 : 0;
+        for (const s of [-1, 1]) {
+          ctx.fillStyle = hot ? '#fff' : 'rgba(30,20,20,0.9)'; ctx.strokeStyle = rgba(col, 0.9); ctx.lineWidth = lw(0.8);
+          rect(ctx, -0.5 * r, s * W * 0.95 * r - 0.2 * r, 0.4 * r, s * W * 0.95 * r + 0.2 * r); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = fire ? '#fff2c0' : '#ff9a4a';
+          for (const o of [-0.12, 0, 0.12]) { circ(ctx, 0.4 * r, s * W * 0.95 * r + o * r, Math.max(0.06 * r, px(0.6))); ctx.fill(); }
+        }
+      }
     }
   } else {
     // squids
@@ -215,27 +237,53 @@ export function drawEnemyBody(ctx, e, fac, r, col, now, px, hot) {
       ctx.fillStyle = body; circ(ctx, 0, 0, 0.55 * r); ctx.fill(); ctx.strokeStyle = dark; ctx.lineWidth = lw(1); ctx.stroke();
       ctx.fillStyle = '#ffffff'; circ(ctx, 0.48 * r, 0, Math.max(0.16 * r, px(1.2))); ctx.fill();
       ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = lw(0.8); ctx.beginPath(); ctx.arc(0, 0, 0.36 * r, -0.6, 0.6); ctx.stroke();
-    } else if (k === 'M') {
-      // an overseer: a long body with fins, a lens at the front and a cloak trailing behind
-      ctx.fillStyle = rgba(col, 0.55);
-      ctx.beginPath(); ctx.moveTo(-0.2 * r, -0.55 * r); ctx.lineTo(-1.2 * r, -0.35 * r + Math.sin(now * 4 + e.id) * 0.1 * r); ctx.lineTo(-1.2 * r, 0.35 * r); ctx.lineTo(-0.2 * r, 0.55 * r); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = body; ell(ctx, 0, 0, 0.75 * r, 0.42 * r); ctx.fill(); ctx.strokeStyle = dark; ctx.lineWidth = lw(0.8); ctx.stroke();
-      for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(0.1 * r, s * 0.35 * r); ctx.lineTo(-0.25 * r, s * 0.95 * r); ctx.lineTo(-0.35 * r, s * 0.3 * r); ctx.closePath(); ctx.fill(); }
-      ctx.fillStyle = '#ffffff'; circ(ctx, 0.62 * r, 0, Math.max(0.13 * r, px(1))); ctx.fill();
-      // (0.40) its rifle, held out in front: a dark barrel with a glowing emitter at the muzzle
-      ctx.strokeStyle = dark; ctx.lineWidth = lw(2.2); ctx.lineCap = 'butt'; line(ctx, 0.05 * r, 0.5 * r, 1.4 * r, 0.42 * r);
-      ctx.strokeStyle = '#e6d8ff'; ctx.lineWidth = lw(1.1); line(ctx, 0.15 * r, 0.5 * r, 1.35 * r, 0.42 * r);
-      ctx.fillStyle = rgba(col, 0.6 + 0.4 * pulse); circ(ctx, 1.4 * r, 0.42 * r, Math.max(0.1 * r, px(0.9))); ctx.fill();
     } else {
-      // a drone: a floating dart with its eye at the point and two tendrils trailing
-      ctx.strokeStyle = rgba(col, 0.75); ctx.lineWidth = lw(0.9);
-      for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(-0.4 * r, s * 0.18 * r); ctx.quadraticCurveTo(-0.9 * r, s * (0.3 + 0.15 * Math.sin(now * 6 + e.id)) * r, -1.35 * r, s * 0.1 * r); ctx.stroke(); }
-      ctx.fillStyle = body; ctx.beginPath(); ctx.moveTo(0.85 * r, 0); ctx.lineTo(-0.45 * r, -0.62 * r); ctx.lineTo(-0.2 * r, 0); ctx.lineTo(-0.45 * r, 0.62 * r); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = dark; ctx.lineWidth = lw(0.7); ctx.stroke();
-      ctx.fillStyle = '#ffffff'; circ(ctx, 0.42 * r, 0, Math.max(0.12 * r, px(0.8))); ctx.fill();
+      drawSquidBiped(ctx, e, r, col, body, dark, lw, now, px, pulse);
     }
   }
   ctx.restore();
+}
+
+// (0.54) The squid on two legs: a mantle trailing behind a domed head with its lens at the front, broad shoulders, two jointed legs that
+// stride (opposite feet forward, only while it is moving) and arms out in front (the warrior holds its rifle; the warlord has a
+// gold crest and a pennant on its back).
+function drawSquidBiped(ctx, e, r, col, body, dark, lw, now, px, pulse) {
+  const M = e.kind === 'M', cmd = e.v === 'cmdr', sp = Math.hypot(e.vx || 0, e.vy || 0), walk = sp > 0.3 ? 1 : 0;
+  const sw = Math.sin(now * (4 + sp * 0.7) + e.id * 1.7) * walk, wob = Math.sin(now * 3 + e.id) * 0.08 * r;
+  // the mantle, trailing
+  ctx.fillStyle = rgba(col, 0.6);
+  ctx.beginPath(); ctx.moveTo(-0.05 * r, -0.4 * r); ctx.quadraticCurveTo(-0.7 * r, -0.42 * r, -1.4 * r, wob); ctx.quadraticCurveTo(-0.7 * r, 0.42 * r, -0.05 * r, 0.4 * r); ctx.closePath(); ctx.fill();
+  if (cmd) {   // the pennant: a pole off the back and a gold flag
+    ctx.strokeStyle = '#ffe9a0'; ctx.lineWidth = lw(0.9); line(ctx, -0.35 * r, 0, -0.95 * r, -0.95 * r);
+    ctx.fillStyle = '#ffd24a'; ctx.beginPath(); ctx.moveTo(-0.95 * r, -0.95 * r); ctx.lineTo(-1.55 * r, -0.8 * r + wob); ctx.lineTo(-0.95 * r, -0.55 * r); ctx.closePath(); ctx.fill();
+  }
+  // two legs: hip, knee out to the side, foot planted forward or back (dark outline under a lighter leg so they read on any ground)
+  for (const s of [-1, 1]) {
+    const fx = sw * s * 0.6 * r, fy = s * 0.72 * r;
+    for (const [c, w] of [[dark, M ? 3.2 : 2.6], [rgba(col, 1), M ? 1.9 : 1.5]]) {
+      ctx.strokeStyle = c; ctx.lineWidth = lw(w); ctx.beginPath(); ctx.moveTo(0, s * 0.25 * r); ctx.lineTo(fx * 0.35, s * 1.0 * r); ctx.lineTo(fx, fy); ctx.stroke();
+    }
+    ctx.fillStyle = '#e9dcff'; ell(ctx, fx + 0.08 * r, fy, 0.2 * r, 0.12 * r); ctx.fill();
+  }
+  // torso and head
+  ctx.fillStyle = body; ell(ctx, 0, 0, 0.42 * r, (M ? 0.45 : 0.38) * r); ctx.fill(); ctx.strokeStyle = dark; ctx.lineWidth = lw(0.8); ctx.stroke();
+  ctx.fillStyle = body; circ(ctx, 0.48 * r, 0, (M ? 0.28 : 0.24) * r); ctx.fill(); ctx.stroke();
+  if (cmd) { ctx.strokeStyle = '#ffd24a'; ctx.lineWidth = lw(1.6); ctx.beginPath(); ctx.arc(0.45 * r, 0, 0.5 * r, -1.0, 1.0); ctx.stroke(); }
+  ctx.fillStyle = '#ffffff'; circ(ctx, 0.62 * r, 0, Math.max(0.11 * r, px(0.9))); ctx.fill();
+  // the arms: the warrior and the warlord hold a rifle (barrel, glowing emitter); a drone has two short tendrils with a spark each
+  if (M) {
+    ctx.strokeStyle = rgba(col, 0.95); ctx.lineWidth = lw(1.1); line(ctx, 0.25 * r, -0.45 * r, 0.75 * r, -0.2 * r);
+    ctx.strokeStyle = dark; ctx.lineWidth = lw(2.2); ctx.lineCap = 'butt'; line(ctx, 0.1 * r, 0.5 * r, 1.4 * r, 0.42 * r);
+    ctx.strokeStyle = '#e6d8ff'; ctx.lineWidth = lw(1.1); line(ctx, 0.2 * r, 0.5 * r, 1.35 * r, 0.42 * r); ctx.lineCap = 'round';
+    ctx.fillStyle = rgba(col, 0.6 + 0.4 * pulse); circ(ctx, 1.4 * r, 0.42 * r, Math.max(0.1 * r, px(0.9))); ctx.fill();
+  } else {
+    ctx.strokeStyle = rgba(col, 0.9); ctx.lineWidth = lw(0.9);
+    for (const s of [-1, 1]) {
+      const ex = 0.95 * r, ey = s * (0.38 + 0.08 * Math.sin(now * 5 + e.id + s)) * r;
+      ctx.beginPath(); ctx.moveTo(0.25 * r, s * 0.38 * r); ctx.quadraticCurveTo(0.6 * r, s * 0.6 * r, ex, ey); ctx.stroke();
+      ctx.fillStyle = rgba(col, 0.6 + 0.4 * pulse); circ(ctx, ex, ey, Math.max(0.07 * r, px(0.6))); ctx.fill();
+    }
+  }
 }
 
 // The special mediums (CONFIG.special): the hive guard, the commander and the fleshmob, drawn in the unit's own frame.

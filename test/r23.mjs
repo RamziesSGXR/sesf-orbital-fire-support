@@ -59,14 +59,17 @@ check('every squad\'s sixteen hold at least two orbitals', draws.every((n) => n 
   // minefields
   const im = p.slots.findIndex((s) => s.id === 'mine_ap'), it2 = p.slots.findIndex((s) => s.id === 'mine_at');
   const a = m.hdAlive[0], spot = { x: a.x + 60, y: a.y + 30 };
+  // (0.54) the squad may stand by the water, and a minefield cannot go in it: take a spot all dry round it
+  const dry = (x, y) => m.terrain.isLand(x, y) && [0, 1, 2, 3, 4, 5, 6, 7].every((q) => m.terrain.isLand(x + Math.cos(q * 0.785) * 20, y + Math.sin(q * 0.785) * 20));
+  for (let q = 0; q < 16 && !dry(spot.x, spot.y); q++) { spot.x = a.x + Math.cos(q * 0.39) * 60; spot.y = a.y + Math.sin(q * 0.39) * 60; }
   p.slots[im].readyAt = 0; p.aimX = spot.x; p.aimY = spot.y;
   check('an anti-personnel minefield is called', fireSlot(m, im));
   run(m, 4);
   const ap = m.assets.find((s) => s.kind === 'mines' && s.sid === 'mine_ap');
   check('it comes down: mines on the ground, the gunner\'s', ap && ap.by === 'player' && ap.left > 10, ap ? `${ap.left} mines` : 'none');
   if (ap) {
-    const e = m.enemies.find((x) => !x.dead && x.kind === 'L') || m.enemies.find((x) => !x.dead);
-    if (e) { e.x = ap.mines[0].x; e.y = ap.mines[0].y; m.dirtyE = true; const hp0 = e.hp; run(m, 0.5); check('an enemy that walks onto one sets it off', ap.left < ap.mines.length && (e.dead || e.hp < hp0), `${ap.mines.length - ap.left} gone off`); }
+    const e = m.enemies.find((x) => !x.dead && !x.cover && x.kind === 'L') || m.enemies.find((x) => !x.dead && !x.cover);
+    if (e) { e.hp = e.maxHp = 1e6; e.x = ap.mines[0].x; e.y = ap.mines[0].y; m.dirtyE = true; const hp0 = e.hp; run(m, 0.5); check('an enemy that walks onto one sets it off', ap.left < ap.mines.length && (e.dead || e.hp < hp0), `${ap.mines.length - ap.left} gone off`); }
   }
   p.slots[it2].readyAt = 0; p.aimX = spot.x + 40; p.aimY = spot.y; fireSlot(m, it2); run(m, 4);
   const at = m.assets.find((s) => s.kind === 'mines' && s.sid === 'mine_at');
