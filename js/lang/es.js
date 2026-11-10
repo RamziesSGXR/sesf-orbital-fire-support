@@ -1372,7 +1372,7 @@ export default {
   'kit.bld.bastion': 'Bastiones de desenfilada',
   'kit.bld.bastion.b': 'Un anillo de muros bajos (o una línea, o una esquina en L). Quien esté detrás recibe menos fuego. Cada nivel añade muros y mejor protección.',
   'kit.bld.tower': 'Torre de propaganda',
-  'kit.bld.tower.b': 'Los SEAF pueden desplegarse aquí desde cualquier punto del mapa. Mientras siga en pie, cada aliado al alcance de un escaneo del dron recibe el impulso del dron (velocidad y esquiva, según tus mejoras del dron). No da visión: eso es cosa de la Torre de vigía. Con soldados dentro se amplía. Tarda en levantarse. Cada nivel la hace más resistente, más amplia y más rápida de levantar.',
+  'kit.bld.tower.b': 'Los SEAF pueden desplegarse aquí desde cualquier punto del mapa. Mientras siga en pie, cada aliado cercano recibe el impulso del dron (velocidad y esquiva, según tus mejoras del dron). Con soldados dentro esa zona se amplía, hasta el alcance de un escaneo del dron. No da visión: eso es cosa de la Torre de vigía. Tarda en levantarse. Cada nivel la hace más resistente, más amplia y más rápida de levantar.',
   'kit.bld.sam': 'Sitio antiaéreo',
   'kit.bld.sam.b': 'Un sitio de misiles automático que derriba naves de desembarco y naves de distorsión hasta el alcance del dron, incluso mientras llegan. Cada nivel lo hace más resistente, más rápido y más potente.',
   'st.bBastion': '{n} MUROS EN ANILLO · DETIENEN EL {p}% DEL FUEGO ENEMIGO · {cr} CR CADA UNO',

@@ -25,6 +25,9 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Fixes from the players (0.53.10).**
+- **Propaganda Tower text.** Its armory card said "Troopers inside widen it" right after the line about vision, so it read as if troopers widen its vision (it has none since 0.47). It now says what they widen: the area where allies get the UAV's boost, up to a UAV scan's reach.
+
 **Fixes from the players (0.53.9).**
 - **The armory on phones.** With the coin, loadout and rank above it, the list of upgrades was squeezed to a strip one line high, with no way to scroll it, so nothing could be bought. On phones (and any short window) the whole armory page now scrolls, the list at its full length, and DEPLOY, MENU and BACK stay pinned to the bottom of the screen. Buying something keeps the page where it was, and picking a tab from far down brings the tabs back into view.
 - **Paused means paused.** Rounds in flight, explosions, tracers and thrown bodies now run on the mission's clock: they stop when the game is paused and slow down at half speed. A Helldiver's mortar round used to fly on through a pause and vanish, then go off later.

@@ -1372,7 +1372,7 @@ export default {
   'kit.bld.bastion': 'Defilade Bastions',
   'kit.bld.bastion.b': 'A ring of low walls (or a line, or an L-shaped corner). Anyone behind them takes less fire. Each level adds walls and better protection.',
   'kit.bld.tower': 'Propaganda Tower',
-  'kit.bld.tower.b': 'SEAF can drop here from anywhere on the map. While it stands, every ally within a UAV scan\'s reach of it gets the UAV\'s boost (speed and dodge, at your UAV upgrades). It gives no vision: that is the Lookout Tower\'s job. Troopers inside widen it. It takes a while to put up. Each level makes it tougher, wider and quicker to raise.',
+  'kit.bld.tower.b': 'SEAF can drop here from anywhere on the map. While it stands, every ally near it gets the UAV\'s boost (speed and dodge, at your UAV upgrades). Troopers inside widen that area, up to a UAV scan\'s reach. It gives no vision: that is the Lookout Tower\'s job. It takes a while to put up. Each level makes it tougher, wider and quicker to raise.',
   'kit.bld.sam': 'SAM Site',
   'kit.bld.sam.b': 'An automatic missile site that shoots down dropships and warp ships out to UAV-scan range, even on their way in. Each level makes it tougher, faster and harder-hitting.',
   'st.bBastion': '{n} WALLS IN A RING · STOP {p}% OF ENEMY FIRE · {cr} CR EACH',

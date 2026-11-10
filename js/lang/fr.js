@@ -1372,7 +1372,7 @@ export default {
   'kit.bld.bastion': 'Bastions défilés',
   'kit.bld.bastion.b': 'Un anneau de murets (ou une ligne, ou un angle en L). Ceux qui sont derrière prennent moins de tirs. Chaque niveau ajoute des murs et une meilleure protection.',
   'kit.bld.tower': 'Tour de propagande',
-  'kit.bld.tower.b': 'Les SEAF peuvent y être largués de n’importe où sur la carte. Tant qu’elle tient, chaque allié à portée d’un drone reçoit le bonus du drone (vitesse et esquive, selon vos améliorations du drone). Elle ne donne aucune vue : c’est le rôle de la Tour de guet. Des soldats à l’intérieur l’élargissent. Elle met du temps à monter. Chaque niveau la rend plus solide, plus large et plus rapide à dresser.',
+  'kit.bld.tower.b': 'Les SEAF peuvent y être largués de n’importe où sur la carte. Tant qu’elle tient, chaque allié proche reçoit le bonus du drone (vitesse et esquive, selon vos améliorations du drone). Des soldats à l’intérieur élargissent cette zone, jusqu’à la portée d’un scan du drone. Elle ne donne aucune vue : c’est le rôle de la Tour de guet. Elle met du temps à monter. Chaque niveau la rend plus solide, plus large et plus rapide à dresser.',
   'kit.bld.sam': 'Site sol-air',
   'kit.bld.sam.b': 'Un site de missiles automatique qui abat les navettes et les vaisseaux de distorsion jusqu’à la portée du drone, même pendant leur approche. Chaque niveau le rend plus solide, plus rapide et plus puissant.',
   'st.bBastion': '{n} MURETS EN CERCLE · ARRÊTENT {p}% DU FEU ENNEMI · {cr} CR CHACUN',
