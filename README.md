@@ -25,6 +25,11 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**The squid mothership (0.54.1).**
+- **SAM farming gets an answer.** Once SAM sites have shot down about four warp ships in a squid mission, a MOTHERSHIP (the campaign's jellyfish) comes in and hangs over the map, sending out two groups of troops every 24 seconds for as long as it lives. It has a huge shield and health pool and heals, and a SAM hit does only a fifth of its damage: it takes about 20 sites firing all the time to bring it down. The ship gun and the orbital strikes hit it at full strength.
+- **It falls, and stays.** A mothership that is shot down sinks over seven seconds, burning, and crashes with a blast that clears what is under it. The wreck stays on the map. 70 seconds later the next set comes: two, then three.
+- Squids only; the tutorial has none.
+
 **New enemies, and groups that move in formation (0.54).**
 - **Bug LEAPER.** A light bug that clears the last 12 to 38 metres to its prey in one jump (about 60 m/s, over in half a second or less), then bites. Nothing can hurt it in the air; it jumps again every few seconds. About one light bug in five.
 - **Bot ROCKETEER.** A medium that stands still and fires a barrage of six light rockets, aimed at the thickest bunch of your troops. Each rocket is a small blast (4 m), so a pile of allies all gets hurt. Rings on the ground show where they will land, so spread out and move. Out of the medium draws, about three in ten.

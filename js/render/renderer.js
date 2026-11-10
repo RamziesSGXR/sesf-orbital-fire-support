@@ -12,7 +12,7 @@ import { drawAoEdge, drawSides, drawBeacons, drawRevealed, drawRadar, drawArty, 
 import { OPS } from '../data/data.js';
 import { t as tr } from '../i18n.js';
 import { beaconAt } from '../sim/sides.js';
-import { drawFlares, drawHoles, drawDrops, drawEvac, drawExtraction, drawExtractionPelican, critText, drawSupply } from './reinf.js';
+import { drawFlares, drawHoles, drawDrops, drawEvac, drawMotherGround, drawMotherSky, drawExtraction, drawExtractionPelican, critText, drawSupply } from './reinf.js';
 import { drawBaseArt, drawBaseRuin, drawCover, drawCitadelWalls, drawCannonArt, drawNodeArt } from './sites.js';
 import { drawPosts, postArt, lzArt, cone } from './posts.js';
 const lzArtGhost = (ctx, x, y, R, now, px, ok) => lzArt(ctx, x, y, R, now, px, ok);
@@ -492,6 +492,7 @@ export class Renderer {
 
     drawPelicans(ctx, m, now, px, labels, scale, pal);
     drawExtractionPelican(ctx, m, now, px);     // (0.53.5: over the pad's walls)
+    drawMotherGround(ctx, m, now);
     drawDrops(ctx, m, now, px, labels, scale, pal);
     drawSupply(ctx, m, now, px, labels, scale, (team) => (m.teams[team] ? m.teams[team].color : '#9dffb8'));
     if (ui.draw) drawStroke(ctx, m, now, px, labels, scale, ui.draw);
@@ -508,6 +509,7 @@ export class Renderer {
     this._icbm(ctx, m, now, px);
     this._incoming(ctx, m, now, px);
     this._effects(ctx, this.fxNow(m), px);     // (0.53.9: on the mission's clock)
+    drawMotherSky(ctx, m, now, px, labels, scale);
     drawGunSky(ctx, m, now, px);     // (0.53.5) the mothership over the defence gun, over everything on the ground
     // (0.38) the lights' colour over everything, then the hour's wash
     if (amb) this.light.glow(ctx, amb, lowFx);
@@ -1286,7 +1288,7 @@ export class Renderer {
     for (const p of m.pods) if (p.type === 'H' && !p.start) items.push({ x: p.x, y: p.y, col: '#ffe600', label: tr('lab.drop') });
     for (const b of m.breaches) if (!b.dead && !b.kind) items.push({ x: b.x, y: b.y, col: this.enemyColor(m), label: tr('lab.breach') });
     for (const b of m.breaches) if (!b.dead && b.kind === 'hole') items.push({ x: b.x, y: b.y, col: this.enemyColor(m), label: tr('lab.bugHole') });
-    for (const dr of m.drops || []) if (dr.state === 'hover' || dr.state === 'in') items.push({ x: dr.tx ?? dr.x, y: dr.ty ?? dr.y, col: this.enemyColor(m), label: tr(dr.kind === 'ship' ? 'n.dropship' : 'n.warpship') });
+    for (const dr of m.drops || []) if (dr.state === 'hover' || dr.state === 'in') items.push({ x: dr.tx ?? dr.x, y: dr.ty ?? dr.y, col: this.enemyColor(m), label: tr(dr.mom ? 'lab.mother' : dr.kind === 'ship' ? 'n.dropship' : 'n.warpship') });
     if (m.boss && !m.boss.dead) items.push({ x: m.boss.x, y: m.boss.y, col: '#ff6a4a', label: m.boss.name, far: true });
     const SU = m.supply;
     if (SU && SU.state === 'inbound' && SU.drop) items.push({ x: SU.drop.x, y: SU.drop.y, col: '#9dffb8', obj: true, label: tr('lab.supply') });

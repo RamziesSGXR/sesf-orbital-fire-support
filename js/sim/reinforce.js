@@ -17,6 +17,7 @@ import { COMMS } from '../data/data.js';
 import { spawnGroup } from './director.js';
 import { compass } from './enemies.js';
 import { damageArea } from './combat.js';
+import { initMother, updateMother, stepMother, motherDown, samKill } from './mother.js';
 
 const R = C.reinf;
 const ALL = { L: 1, M: 1, H: 0.6, B: 0.2 };
@@ -24,6 +25,7 @@ const ALL = { L: 1, M: 1, H: 0.6, B: 0.2 };
 export function initReinf(m) {
   m.reinf = { readyAt: 20, active: 0, n: 0, siteAt: 0 };
   m.drops = [];
+  initMother(m);
 }
 
 // How many groups one reinforcement brings (count: from how many places at once; a few more in all when it is several).
@@ -134,6 +136,7 @@ export function callReinforcements(m, x, y, why = 'flare', opts = {}) {
 }
 
 // The groups that come out of a reinforcement go straight for the squad.
+export function releaseDrop(m, x, y, src, ship = null) { return release(m, x, y, src, ship); }
 function release(m, x, y, src, ship = null) {
   const g = spawnGroup(m, x, y, 'hunt', { alertT: 45, emerge: true });
   g.reinf = true; g.called = true;
@@ -145,7 +148,7 @@ function release(m, x, y, src, ship = null) {
 // ---------------------------------------------------------------- each tick
 export function updateReinf(m, dt) {
   const t = m.t, st = m.reinf;
-  st.active = m.drops.filter((d) => !d.dead).length + m.breaches.filter((b) => !b.dead && b.kind === 'hole').length;
+  st.active = m.drops.filter((d) => !d.dead && !d.mom).length + m.breaches.filter((b) => !b.dead && b.kind === 'hole').length;
 
   // A group that has just found the squad, or has just been shot at, may fire a flare (once).
   if (m.phase !== 'over') {
@@ -180,10 +183,12 @@ export function updateReinf(m, dt) {
     }
   }
 
+  updateMother(m, dt);
   // Dropships and warp ships: in, low and hovering while the troops come down, then out.
   for (let i = m.drops.length - 1; i >= 0; i--) {
     const d = m.drops[i], D = R[d.kind === 'ship' ? 'bots' : 'squids'];
     d.vis = m.visLevel(d.x, d.y);
+    if (d.mom) { if (stepMother(m, d, dt)) m.drops.splice(i, 1); continue; }
     if (d.maxShield && d.state !== 'down' && d.shield < d.maxShield && t - d.shieldAt > D.regenDelay) d.shield = Math.min(d.maxShield, d.shield + D.regen * dt);
     if (d.state === 'down') {
       d.fallT += dt; d.alt = Math.max(0, d.alt - dt * 0.8);
@@ -231,6 +236,7 @@ export function updateReinf(m, dt) {
 // any: hits it even when it is not low (a SAM site's missile).
 export function damageDrop(m, d, dmg, by, any = false) {
   if (d.dead || d.state === 'down' || (!d.low && !any) || !(dmg > 0)) return;
+  if (d.mom && any) dmg *= C.mother.samMul;      // (0.55) a SAM site's hit is a fraction of itself on a mothership
   if (d.shield > 0) {     // (0.31) a warp ship's shield takes the hit first, like a harvester's
     const soak = Math.min(d.shield, dmg);
     d.shield -= soak; d.shieldAt = m.t; dmg -= soak; d.hurtAt = m.t;
@@ -240,6 +246,8 @@ export function damageDrop(m, d, dmg, by, any = false) {
   d.hp -= dmg; d.hurtAt = m.t;
   if (by in m.stats.dmg) m.stats.dmg[by] += Math.min(dmg, d.hp + dmg);
   if (d.hp > 0) return;
+  if (d.mom) { motherDown(m, d, by); return; }
+  if (any) samKill(m);
   const D = R[d.kind === 'ship' ? 'bots' : 'squids'];
   d.state = 'down'; d.fallT = 0; d.low = false;
   m.stats.dropsDown = (m.stats.dropsDown || 0) + 1;
