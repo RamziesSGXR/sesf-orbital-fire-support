@@ -158,6 +158,8 @@ function pendingFor(m, i) { let n = 0; for (const p of m.pelicans) if (p.squad =
 export function pendingTroops(m) { let n = 0; for (const p of m.pelicans) n += p.roles.length - p.dropped; return n; }
 
 // ---------------------------------------------------------------- orders
+// (0.54) an order of any kind, or this, counts as the squad being directed (the test bot uses it to stay sharp).
+export function touchSquad(m, q) { q.ordT = m.t; q.staleSaid = false; }
 export function setSquadOrder(m, q, kind, x = 0, y = 0, extra = null) {
   const o = newOrder(kind, x, y, 0);   // orders stick until the player gives another one
   if (extra) Object.assign(o, extra);
@@ -596,8 +598,20 @@ export function updateSeaf(m, dt, speed, bm) {
     if (!(a.sq >= 0 && a.sq < by.length)) a.sq = 0;
     by[a.sq].push(a);
   }
+  // (0.54) stale orders: a squad nobody has given an order for a while fights worse (C.seaf.stale), so a big idle SEAF no longer
+  // wins on its own. A new order object (any way it comes) restarts the clock; the notice goes up once per squad per stale spell.
+  const SL = C.seaf.stale, dm0 = m.kitDmg;
   sf.squads.forEach((q, i) => {
     q.n = by[i].length;
+    if (q.order !== q.ordSeen) { q.ordSeen = q.order; q.ordT = m.t; q.staleSaid = false; }
+    let f = 1;
+    if (SL && !m.ls && q.n) {
+      const x = Math.min(1, Math.max(0, (m.t - (q.ordT ?? m.t) - SL.sec) / SL.ramp));
+      f = 1 - SL.max * x * x * (3 - 2 * x);
+      if (x > 0.05 && !q.staleSaid) { q.staleSaid = true; m.notice(tr('n.seafStale', { sq: i + 1 }), 'warn'); }
+    }
+    q.stale = 1 - f;
+    for (const a of by[i]) a.dmgMul = dm0 * f;
     if (!q.n) { q.tgt = null; q.stand = null; if (q.order.kind === 'auto') q.cx = q.cy = 0; return; }
     let cx = 0, cy = 0;
     for (const a of by[i]) { cx += a.x; cy += a.y; }

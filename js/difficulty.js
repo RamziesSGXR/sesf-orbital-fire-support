@@ -55,14 +55,14 @@ export function levelAt(start, n) {
 
 // A factor for level d: `lo` at level 1 rising to 1 at level 10 (the steps shrink toward the top when CONFIG.difficulty.curve > 1),
 // and on up past 10, beyond x the average step a level.
-function factor(lo, d) {
+function factor(lo, d, extra = 1) {
   d = clampAny(d);
   if (d <= LEVELS) return 1 - (1 - lo) * Math.pow((LEVELS - d) / (LEVELS - 1), D().curve);
-  return 1 + (1 - lo) * D().beyond * (d - LEVELS) / (LEVELS - 1);
+  return 1 + (1 - lo) * D().beyond * extra * (d - LEVELS) / (LEVELS - 1);
 }
 export function levelFactors(d) {
   const L = D();
-  return { spawn: factor(L.spawn, d), medium: factor(L.medium, d), heavy: factor(L.heavy, d), boss: factor(L.boss, d), reward: reward(d) };
+  return { spawn: factor(L.spawn, d, L.beyondSpawn || 1), medium: factor(L.medium, d), heavy: factor(L.heavy, d), boss: factor(L.boss, d), reward: reward(d) };
 }
 // Credits and score: reward[0] at level 1 up to reward[1] at level 10, the same step each level, and on at that step past 10.
 export function reward(d) {
@@ -76,7 +76,7 @@ const RULES = [
   ['patrols.every', 'spawn', 'div'], ['patrols.interceptSec', 'spawn', 'div'], ['patrols.interceptFirst', 'spawn', 'div'],
   ['bases.garrisonGroups', 'spawn', 'int', 1], ['bases.garrisonCap', 'spawn', 'int', 4],
   ['fortress.garrisonGroups', 'spawn', 'int', 1], ['fortress.garrisonCap', 'spawn', 'int', 6],
-  ['enemies.liveCap', 'spawn', 'mul'], ['enemies.capPerMissionMin', 'spawn', 'mul'], ['enemies.maxLive', 'spawn', 'mul'],
+  ['enemies.liveCap', 'spawn', 'mul'], ['enemies.capPerMissionMin', 'spawn', 'mul'], ['enemies.maxLive', 'spawn', 'mul'], ['enemies.hardCap', 'spawn', 'up'],
   ['enemies.group.bugs', 'spawn', 'grp'], ['enemies.group.bots', 'spawn', 'grp'], ['enemies.group.squids', 'spawn', 'grp'],
   ['reinf.callChance', 'spawn', 'mul'], ['reinf.cooldownSec', 'spawn', 'div'], ['reinf.groups', 'spawn', 'int', 1], ['reinf.maxGroups', 'spawn', 'int', 1],
   ['reinf.siteEvery', 'spawn', 'div'], ['reinf.extractEvery', 'spawn', 'div'],
@@ -107,6 +107,7 @@ export function applyDifficulty(d) {
     let v;
     if (kind === 'mul') v = b * k;
     else if (kind === 'div') v = b / k;
+    else if (kind === 'up') v = Math.min(D().hardCapMax || b, Math.max(b, Math.round(b * k)));     // (0.54) only ever raised, past level 10
     else if (kind === 'int') v = Math.max(min, Math.round(b * k));
     else v = Math.max(4, Math.round(b * (0.4 + 0.6 * k)));          // groups shrink less than the numbers of them
     set(path, v);

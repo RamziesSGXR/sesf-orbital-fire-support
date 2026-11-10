@@ -1054,6 +1054,7 @@ export default {
   'n.shipDown': '{what} ABATTU  +{cr} CR',
   'n.shipDownN': '{what} ABATTU  {n} GROUPES AVEC LUI  +{cr} CR',
   'n.seafDown': 'PELICAN SEAF POSÉ  {n} SOLDATS{extra}  ESCOUADE {sq}',
+  'n.seafStale': 'ESCOUADE {sq} SANS ORDRES · COMBAT AFFAIBLI · DONNEZ-EN UN',
   'n.spotter': 'UN OBSERVATEUR SEAF A APPELÉ UNE MISSION DE TIR DE L’AIGLE',
   'n.pickedUp': '{who} A PRIS : {name}',
   'n.exoToFrv': '{who} QUITTE L’EXOSQUELETTE POUR LE VÉHICULE',

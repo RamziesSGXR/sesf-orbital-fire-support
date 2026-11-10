@@ -2,6 +2,7 @@
 // the nuke, and shopping between missions. Used by the headless balance test and the ?bot=1 demo.
 import { CONFIG as C } from '../config.js';
 import { buy, shopItems, seafStats } from '../data/kit.js';
+import { touchSquad } from './seaf.js';
 import { slotStats, aimGeom, UAV_REACH, ORB_SLOTS, eagleReady } from './player.js';
 import { pickNukeTarget } from './objectives.js';
 import { acceptSupply, fillSupply } from './supply.js';
@@ -15,9 +16,9 @@ import { answerTime } from './planner.js';
 // (whether it splits its SEAF into two squads). The defaults are a sharp, tireless gunner; NOVICE is closer to a new player.
 export function makeBot(skill = {}) {
   return { next: 0, orderT: 0, nukeT: null, rot: 0, aimNoise: skill.aimNoise ?? 3, react: skill.react ?? 0.3, gunT: 0, gunOn: false, lineFor: 0, splitDone: false, commit: null,
-    gun: skill.gun ?? 1, orders: skill.orders ?? 1, supply: skill.supply ?? 1.5, split: skill.split ?? true };
+    gun: skill.gun ?? 1, orders: skill.orders ?? 1, supply: skill.supply ?? 1.5, split: skill.split ?? true, reorder: skill.reorder ?? 70 };
 }
-export const NOVICE = { aimNoise: 9, react: 2.5, gun: 0.5, orders: 6, supply: 6, split: false };
+export const NOVICE = { aimNoise: 9, react: 2.5, gun: 0.5, orders: 6, supply: 6, split: false, reorder: 150 };
 
 // What the bot buys, in order: each entry is one purchase (the third 'up:orb_120' means level 4), so the list reads as a build that
 // carries on from mission to mission. It saves for the next entry rather than spending on cheaper ones further down; an entry it
@@ -120,6 +121,8 @@ function orders(m, bot) {
     if (bc) m.callSeaf(bc.x, bc.y, { hold: false });
     else m.callSeaf(m.hx + Math.cos(dir) * 25, m.hy + Math.sin(dir) * 25, { hold: false });      // (0.27.3: the bot sends its new squads straight off, as before)
   }
+  // (0.54) a sharp player keeps handing orders out: touch every squad on a timer so none of them goes stale
+  if (t >= (bot.touchT || 0)) { bot.touchT = t + (bot.reorder ?? 70); for (const q of m.seaf.squads) if (q.n) touchSquad(m, q); }
   // keep a pair of squads when there are enough troopers
   if (bot.split && !bot.splitDone && m.seafAlive.length >= 6) { bot.splitDone = true; splitHalf(m); }
   const u = p.slots[0];
