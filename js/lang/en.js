@@ -1053,6 +1053,7 @@ export default {
   'n.shipDown': '{what} SHOT DOWN  +{cr} CR',
   'n.shipDownN': '{what} SHOT DOWN  {n} GROUPS WITH IT  +{cr} CR',
   'n.seafDown': 'SEAF PELICAN DOWN  {n} TROOPERS{extra}  SQUAD {sq}',
+  'n.seafStale': 'SQUAD {sq} HAS HAD NO ORDERS · FIGHTING WORSE · GIVE THEM ONE',
   'n.spotter': 'SEAF SPOTTER CALLED AN EAGLE FIRE MISSION',
   'n.pickedUp': '{who} PICKED UP THE {name}',
   'n.exoToFrv': '{who} LEAVES THE EXOSUIT FOR THE VEHICLE',

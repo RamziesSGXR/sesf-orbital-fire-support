@@ -1053,6 +1053,7 @@ export default {
   'n.shipDown': '{what} DERRIBADA  +{cr} CR',
   'n.shipDownN': '{what} DERRIBADA  {n} GRUPOS CON ELLA  +{cr} CR',
   'n.seafDown': 'PELICAN SEAF EN TIERRA  {n} SOLDADOS{extra}  ESCUADRA {sq}',
+  'n.seafStale': 'ESCUADRA {sq} SIN ÓRDENES · LUCHA PEOR · DALE UNA',
   'n.spotter': 'UN OBSERVADOR SEAF PIDIÓ UNA MISIÓN DE FUEGO DEL ÁGUILA',
   'n.pickedUp': '{who} RECOGIÓ: {name}',
   'n.exoToFrv': '{who} DEJA EL EXOTRAJE POR EL VEHÍCULO',

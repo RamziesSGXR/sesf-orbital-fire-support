@@ -48,7 +48,9 @@ export const CONFIG = {
   // (0.40) backCut: troopers a pickup took up come back down on a shorter turnaround: each of them in a drop takes backCut / (a
   // full load) off that pelican's cooldown, so a full load of them comes round in 40% of the time. What one drop cannot carry
   // stays aboard, and cuts the next drop's cooldown the same way.
-  seaf:     { max: 12, dropSize: 5, dropCooldownSec: 45, firstDropSec: 0, backCut: 0.6, startSec: 25, startR: 140, dropDelaySec: 6, patrolRadius: 30, patrolSpeed: 2.5,
+  seaf:     { max: 12, dropSize: 5,
+            // (0.54) stale orders: after `sec` seconds with no new order a squad's damage fades over `ramp` seconds, down to 1 - `max`
+            stale: { sec: 100, ramp: 130, max: 0.5 }, dropCooldownSec: 45, firstDropSec: 0, backCut: 0.6, startSec: 25, startR: 140, dropDelaySec: 6, patrolRadius: 30, patrolSpeed: 2.5,
               followSpread: 28, protectR: 36, protectLeash: 80, clearR: 55, clearMaxSec: 70,
               // (0.26) four roles: a Squad Leader in every drop, Riflemen, Specialists (MG-43 and EAT-17) and Medics. Everyone carries
               // G-12 grenades (grenades each, plus the armory's G-12 upgrade).
@@ -395,7 +397,7 @@ export const CONFIG = {
                jamOff: 115, jamR: 55 },     // (0.37) the Hellbomb lesson's disruptor: how far from the base, and the ground it jams
   // (0.40) opBonus: credits are worth 0.2 more for every mission already done in the operation (the second mission x1.2, the
   // third x1.4 and so on), on top of the level's pay; score is not.
-  difficulty: { start: 3, spawn: 0.55, medium: 0.6, heavy: 0.4, boss: 0.3, curve: 1, reward: [0.75, 1.2], opBonus: 0.2, ramp: 0.6, beyond: 1,     // (0.31: ramp 0.39 -> 0.6, a level nearly every mission)
+  difficulty: { start: 3, spawn: 0.55, medium: 0.6, heavy: 0.4, boss: 0.3, curve: 1, reward: [0.75, 1.2], opBonus: 0.2, ramp: 0.6, beyond: 1, beyondSpawn: 2, hardCapMax: 340,     // (0.31: ramp 0.39 -> 0.6, a level nearly every mission)
                 // war minutes at each level (1 to 10), war minutes a level past 10, and the share of each real session minute that counts
                 // (0.53.8) the levels step evenly up to 9: 3 is easy, 6 hard, 9 very hard (it was 0, 15, 37, 38 ... 42: level 3 was
                 // nearly as tough as 10, and only the numbers of enemies told them apart)
@@ -596,6 +598,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.53.10',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.53.11',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };
