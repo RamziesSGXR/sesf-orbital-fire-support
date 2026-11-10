@@ -25,6 +25,10 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Super heavy arrivals (0.55.1).**
+- **Each super heavy has its own entrance.** The Brood Titan's ground swells and cracks, then it bursts out of a crater in a spray of earth. The Siege Walker is dropped from orbit: a red target ring tightens and its shadow grows as it falls trailing fire, then it slams down in a shockwave and rises out of the dust. The Warp Colossus warps in: a column of light and rings of glyphs close in while it builds up out of light, then a flash.
+- The screen shakes on the impact, with a sound to match. While it arrives (about 3 seconds) it can't move, fight or be hurt.
+
 **Super heavies, reinforced (0.55).**
 - **New art.** All three super heavies are redrawn. The Warp Colossus is now a great C, a claw that opens wider as it charges. Squids no longer have tails.
 - **New weapons.** The Brood Titan sprays acid over an area, and the blobs leave burning pools. The Siege Walker carries two turrets on its back. The Warp Colossus's beam comes down short of its target and walks across the ground after the squad, like the orbital laser: keep moving to get out of it.

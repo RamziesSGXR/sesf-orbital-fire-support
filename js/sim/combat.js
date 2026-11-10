@@ -88,6 +88,7 @@ export function soakBubble(m, b, dmg) {
 export function hurtEnemy(m, e, dmg, by, fx, fy, cs, pierce = false, armor = 1) {
   if (e.dead || !(dmg > 0)) return 0;
   if (e.lp) return 0;                          // (0.54) a leaper in mid-jump cannot be hit
+  if (e.arriveUntil && m.t < e.arriveUntil) return 0;     // (0.55.1) a super heavy still arriving
   if (e.cover && covered(e)) return 0;
   if (!pierce && m.bubbles && m.bubbles.length) {
     const b = ABOVE ? bubbleFor(m, e.x, e.y) : bubbleFor(m, e.x, e.y, fx, fy);

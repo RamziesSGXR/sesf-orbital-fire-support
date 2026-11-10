@@ -43,6 +43,10 @@ export function spawnBoss(m, opts = {}) {
     face: Math.atan2(m.hy - sp.y, m.hx - sp.x), aimA: 0, aimUntil: 0, guard: !!opts.guard,
     shield: D.shield || 0, maxShield: D.shield || 0, shieldAt: -99, deployAt: t + (D.deploy ? D.deploy.every : 1e9), born: t,
   };
+  // (0.55.1) its arrival (C.boss.arrive): the titan bursts out of the ground, the walker is dropped from orbit, the colossus warps in.
+  // While it arrives it neither moves, fights nor takes damage; the impact (hit, a share of the way) shakes the ground.
+  const AR = B.arrive && B.arrive[m.faction.id];
+  if (AR) { e.arriveAt = t; e.arriveUntil = t + AR.sec; e.arriveHit = t + AR.sec * AR.hit; e.deployAt += AR.sec; }
   g.members.push(e); m.enemies.push(e);
   m.boss = e;
   const dir = compass(sp.x - m.cx, sp.y - m.cy), dist = Math.round(Math.hypot(sp.x - m.cx, sp.y - m.cy));
@@ -110,6 +114,7 @@ export function updateBoss(m, dt) {
   }
   const e = m.boss;
   if (!e) return;
+  if (e.arriveHit && !e.landed && t >= e.arriveHit) { e.landed = true; m.emit('boss_land', { x: e.x, y: e.y, kind: e.boss, r: e.r }); }
   if (e.dead) {
     if (!e.paid) {
       e.paid = true;

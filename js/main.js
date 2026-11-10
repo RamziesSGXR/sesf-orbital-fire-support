@@ -1900,6 +1900,7 @@ function onEvent(ev, now) {
       break;
     case 'boss_down': audio.baseDown(); audio.objective(); hud.message(t('msg.bossDown', { name: ev.name }), 3000); break;
     case 'boss_block': audio.deny(); break;
+    case 'boss_land': if (ev.kind === 'squids') audio.beam(); audio.boom(14, 1, P); break;     // (0.55.1) a super heavy's arrival lands
     case 'boss_leave': audio.ready(); hud.message(t('msg.bossLeft', { name: ev.name }), 2600); break;
     case 'supply_ask': audio.supAsk(); hud.wake(6000); break;
     case 'supply_fill': audio.slowIn(); break;
