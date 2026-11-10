@@ -611,6 +611,8 @@ export const CONFIG = {
           // (0.55) every super heavy reaches as far as the allies see (C.sight.helldiver x the biome x reachMul), stops at standOff of
           // that, and backs away from anyone inside backOff of it
           reachMul: 1, standOff: 0.85, backOff: 0.5,
+          // (0.55.1) arrivals: sec long, the impact at `hit` of the way (render/bossin.js draws them)
+          arrive: { bugs: { sec: 3.2, hit: 0.45 }, bots: { sec: 2.8, hit: 0.55 }, squids: { sec: 3.4, hit: 0.7 } },
           reinf: { from: 10, perLevel: 0.012, max: 0.35, botsAfter: 4, perDown: 0.04, maxPer: 3, gapSec: 100, minT: 120 },
           bugs:   { hp: 4500, r: 10, speed: 2.3, stop: 7,
                     spit: { range: 50, dmg: 38, splash: 6, every: 3.8, flight: 1.1, acc: 0.8 }, stomp: { range: 10, dmg: 85, every: 1.8, splash: 5.5, acc: 0.8 },
@@ -647,6 +649,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.55.0',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.55.1',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

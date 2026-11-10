@@ -101,7 +101,7 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
   check('and more likely later', late > early && late / 200 <= C.boss.maxChance + 0.08, `${late} of 200 at two hours`);
   for (const fac of ['bugs', 'bots', 'squids']) {
     const m = quiet(fac, 610, { boss: true, bossAt: 1e9 });
-    const e = spawnBoss(m);
+    const e = spawnBoss(m); if (e) e.arriveUntil = e.arriveHit = 0;     // (0.55.1: its arrival is test/r551.mjs; here it is in at once)
     for (const h of m.hdAlive) { h.ult = 0; h.gren = 0; }      // (0.15: the squad's own grenades and Ultimatum kept out of this one)
     check(`${fac}: the ${C.boss[fac].name} spawns out of the squad's sight`, e && Math.hypot(e.x - m.hx, e.y - m.hy) > C.sight.helldiver, e ? `${Math.round(Math.hypot(e.x - m.hx, e.y - m.hy))} m off` : 'none');
     let evs = [];
@@ -135,7 +135,7 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
   // a stand-off at the pad does not last for ever: after a long wait it withdraws (and pays nothing)
   {
     const m = quiet('bots', 615, { boss: true, bossAt: 1e9 });
-    const e = spawnBoss(m);
+    const e = spawnBoss(m); if (e) e.arriveUntil = e.arriveHit = 0;     // (0.55.1: its arrival is test/r551.mjs; here it is in at once)
     m.objDone = true; m.phase = 'extract'; m.extraction.state = null;
     for (const h of m.alive) { h.hp = h.maxHp = 1e9; }
     run(m, 0.2);
@@ -154,7 +154,7 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
   }
   // the colossus's shield takes the first hits and comes back when left alone
   const m = quiet('squids', 620, { boss: true, bossAt: 1e9 });
-  const e = spawnBoss(m);
+  const e = spawnBoss(m); if (e) e.arriveUntil = e.arriveHit = 0;     // (0.55.1: its arrival is test/r551.mjs; here it is in at once)
   const hp0 = e.hp;
   hurtEnemy(m, e, 500, 'player', e.x - 5, e.y);
   check('the colossus\'s shield soaks hits before its body', e.hp === hp0 && e.shield < e.maxShield, `shield ${Math.round(e.shield)}/${e.maxShield}`);

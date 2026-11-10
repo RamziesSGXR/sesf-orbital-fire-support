@@ -791,7 +791,7 @@ export function updateEnemies(m, dt) {
     }
     for (const e of g.members) {
       if (e.dead) continue;
-      if (e.boss) { bossMove(m, e, dt, size); continue; }
+      if (e.boss) { if (t < (e.arriveUntil || 0)) { e.vx = 0; e.vy = 0; continue; } bossMove(m, e, dt, size); continue; }
       if (e.lp) { leapStep(m, e); continue; }                   // (0.54) in the air
       if (e.stunUntil > t || e.ch || e.vol) { e.vx = 0; e.vy = 0; continue; }
       if (fac.id === 'bugs') { swarmMove(m, g, e, tgt, dt, size, sightE); continue; }
@@ -808,7 +808,7 @@ export function updateEnemies(m, dt) {
       if (e.stunUntil > t) { e.ch = null; e.vol = null; continue; }
       if (e.lp) continue;
       const p = prof(e);
-      if (e.boss) { bossAttack(m, e, dt, t); continue; }
+      if (e.boss) { if (t < (e.arriveUntil || 0)) continue; bossAttack(m, e, dt, t); continue; }     // (0.55.1: not while it arrives)
       if (e.v === 'rkt') { rocketeer(m, e, dt, t, p); continue; }
       if (e.v === 'mort') { bombardier(m, e, dt, t, p); continue; }
       if (e.kind === 'H' && fac.id === 'squids') { e.atk -= dt; squidHeavy(m, e, p, t); continue; }

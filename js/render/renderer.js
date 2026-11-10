@@ -12,6 +12,7 @@ import { drawAoEdge, drawSides, drawBeacons, drawRevealed, drawRadar, drawArty, 
 import { OPS } from '../data/data.js';
 import { t as tr } from '../i18n.js';
 import { beaconAt } from '../sim/sides.js';
+import { drawBossArrival, arriving } from './bossin.js';
 import { drawFlares, drawHoles, drawDrops, drawEvac, drawAcidPools, drawMotherGround, drawMotherSky, drawExtraction, drawExtractionPelican, critText, drawSupply } from './reinf.js';
 import { drawBaseArt, drawBaseRuin, drawCover, drawCitadelWalls, drawCannonArt, drawNodeArt } from './sites.js';
 import { drawPosts, postArt, lzArt, cone } from './posts.js';
@@ -171,6 +172,7 @@ export class Renderer {
         break;
       }
       case 'tracer': this._tracer(ev, now, m); break;
+      case 'boss_land': this.shake = Math.min(26, this.shake + (ev.kind === 'squids' ? 8 : 18)); break;     // (0.55.1)
       case 'beam': {
         fx.push({ k: 'beam', x: ev.x, y: ev.y, x2: ev.tx, y2: ev.ty, w: ev.w, t0: now, life: 0.45, col: this.enemyColor(m) });
         const dx = ev.tx - ev.x, dy = ev.ty - ev.y, L = Math.hypot(dx, dy) || 1, black = this.settings.polarity === 'black';
@@ -450,7 +452,11 @@ export class Renderer {
     for (const e of m.enemies) {
       if (e.dead || e.vis <= 0) continue;
       ctx.globalAlpha = e.vis >= 2 ? 1 : 0.6;
-      if (e.boss) drawBossBody(ctx, e, fid, bossR(e, px), pal.enemy, now, px, t - e.hurtAt < 0.06, t);
+      if (e.boss) {
+        const br = bossR(e, px), body = (q) => drawBossBody(ctx, q, fid, br, pal.enemy, now, px, t - e.hurtAt < 0.06, t);
+        if (arriving(e, t)) drawBossArrival(ctx, e, fid, br, pal.enemy, now, px, t, body);     // (0.55.1) its arrival
+        else body(e);
+      }
       else drawEnemyBody(ctx, e, fid, enemyR(e, SUBTYPES[e.kind], px), pal.enemy, now, px, t - e.hurtAt < 0.06);
       ctx.globalAlpha = 1;
     }

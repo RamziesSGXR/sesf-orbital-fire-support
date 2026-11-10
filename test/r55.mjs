@@ -81,13 +81,13 @@ check('bot bases have one or two turrets', !!bt && mb.bases.filter((b) => b.spaw
   check('a base turret fires at a Helldiver in reach', shots > 0, `shots ${shots}`); mb.emit = on; }
 { const T = bt.turrets[0]; bt.alert = true; mb.damageBase(bt, 5000, 'strat', undefined, undefined, { x: T.x, y: T.y, rad: 1 }); check('a turret can be destroyed', T.dead); }
 // ---- the super heavies' new weapons
-{ const m3 = mk('bugs', 8, 7301); run(m3, 2); m3.bossPlan = { at: m3.t }; m3.objDone = true; run(m3, 1); const e = m3.boss, a = m3.hdAlive[0];
+{ const m3 = mk('bugs', 8, 7301); run(m3, 2); m3.bossPlan = { at: m3.t }; m3.objDone = true; run(m3, 1); const e = m3.boss, a = m3.hdAlive[0]; run(m3, e.arriveUntil - m3.t + 0.1);     // (0.55.1: past its arrival)
   e.x = a.x + 30; e.y = a.y; e.atk3 = 0; run(m3, 2.5);
   check('the titan sprays acid that leaves pools', (m3.acidPools || []).length >= 3, String((m3.acidPools || []).length)); }
-{ const m3 = mk('bots', 8, 7302); run(m3, 2); m3.bossPlan = { at: m3.t }; m3.objDone = true; run(m3, 1); const e = m3.boss, a = m3.hdAlive[0];
+{ const m3 = mk('bots', 8, 7302); run(m3, 2); m3.bossPlan = { at: m3.t }; m3.objDone = true; run(m3, 1); const e = m3.boss, a = m3.hdAlive[0]; run(m3, e.arriveUntil - m3.t + 0.1);     // (0.55.1: past its arrival)
   e.x = a.x + 30; e.y = a.y; run(m3, 4);
   check('the walker has turrets on its back that fire', e.turrets && e.turrets.some((T) => T.firedAt > 0)); }
-{ const m3 = mk('squids', 8, 7303); run(m3, 2); m3.bossPlan = { at: m3.t }; m3.objDone = true; run(m3, 1); const e = m3.boss, a = m3.hdAlive[0];
+{ const m3 = mk('squids', 8, 7303); run(m3, 2); m3.bossPlan = { at: m3.t }; m3.objDone = true; run(m3, 1); const e = m3.boss, a = m3.hdAlive[0]; run(m3, e.arriveUntil - m3.t + 0.1);     // (0.55.1: past its arrival)
   e.x = a.x + 40; e.y = a.y; e.atk = 0; let walk = null, moved = 0;
   for (let i = 0; i < 30 * 6; i++) { m3.step(1 / 30); if (e.walk) { if (walk) moved = Math.max(moved, Math.hypot(e.walk.x - walk.x, e.walk.y - walk.y)); else walk = { x: e.walk.x, y: e.walk.y }; } }
   check('the colossus beam comes down and walks', !!walk && moved > 3, moved.toFixed(1)); }
