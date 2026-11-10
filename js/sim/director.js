@@ -1,6 +1,6 @@
 // The director: continuous enemy spawning just outside the squad's sight, despawning, bases, support calls,
 // pods, last stand and extraction.
-import { stepSpawners, checkSeen } from './spawners.js';
+import { stepSpawners, checkSeen, stepDefences } from './spawners.js';
 import { alertSpike } from './alert.js';
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
@@ -197,6 +197,7 @@ export function updateDirector(m, dt) {
       if (b.destroyed) continue;
       for (const a of m.hdAlive) if ((a.x - b.x) ** 2 + (a.y - b.y) ** 2 <= R2) { b.near = true; break; }
       checkSeen(m, b);     // (0.49) its layout shows once anyone sees it
+      stepDefences(m, b, dt);     // (0.55) shields and turrets
       if (!b.alert) {
         const rg = ringOf(m, b), D2 = rg.R * rg.R;
         for (const a of m.alive) if (!a.dead && (a.x - rg.x) ** 2 + (a.y - rg.y) ** 2 <= D2) { alertBase(m, b, a.type === 'S' ? 'seaf' : 'squad'); break; }

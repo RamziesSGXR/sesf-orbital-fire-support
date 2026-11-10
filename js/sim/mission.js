@@ -882,6 +882,8 @@ export class Mission {
     // (0.47) down the lookout's cone, past what anyone sees: the strike zone no longer reaches past sight (the vision ladder), so
     // the spotting is no longer held to it; what it shows there is seen, not yet in reach
     for (const u of this.spotters) G.near(u.x, u.y, u.r, (e) => { if (e.vis < 1 && inCone(u, e.x, e.y)) { e.vis = 1; e.spotted = true; } });
+    // (0.55) a super heavy on the field is always seen (and can always be hit: see nearLock)
+    if (this.boss && !this.boss.dead && !this.boss.left) this.boss.vis = 2;
   }
   // What the squad can see (2), what only the player can see just beyond that (1), or nothing (0). A UAV circle counts as seen by all.
   visLevel(x, y) {
@@ -940,6 +942,9 @@ export class Mission {
   // Enemies locked by their own fire (see combat.js reveal) can be struck anywhere: is (x, y) on one?
   nearLock(x, y, r = C.reveal.lockR) {
     for (const e of this.locked) if (!e.dead && (e.x - x) ** 2 + (e.y - y) ** 2 <= r * r) return e;
+    // (0.55) a super heavy and a mothership can be fired on wherever they are: aim anywhere on them
+    const B = this.boss; if (B && !B.dead && (B.x - x) ** 2 + (B.y - y) ** 2 <= (r + B.r * 1.5) ** 2) return B;
+    for (const d of this.drops || []) if (d.mom && !d.dead && d.state !== 'down' && (d.x - x) ** 2 + (d.y - y) ** 2 <= (r + d.r) ** 2) return d;
     return null;
   }
   _lockScan(dt) {

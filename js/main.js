@@ -1831,7 +1831,9 @@ function musicScene() {
 // and a kick from things going wrong (a Helldiver down, an alarm) that fades over a few seconds. Counted every 0.3 s.
 // (0.30) And how crowded the screen is, for the swarm music: the enemy in the camera's view that can be seen (weighted the same
 // way), scaled back when the view is zoomed out wider than the usual 400 m (so zooming out doesn't fill it on its own).
-let heatT = 0, heatV = 0, heatKick = 0, crowdV = 0;
+let heatT = 0, heatV = 0, heatKick = 0, crowdV = 0, hypeT = 0;
+// (0.55) a super heavy or a mothership in the camera's view: the boss theme (LAST LIGHT) at full tilt, held 6 s after it leaves
+const hype = () => state === 'play' && mission && !mission.over && hypeT > 0;
 function musicHeat(dt) {
   heatKick = Math.max(0, heatKick - dt * 0.05);
   if (!mission || state !== 'play') { heatV = 0; crowdV = 0; return 0; }
@@ -1840,14 +1842,17 @@ function musicHeat(dt) {
     heatT = 0.3;
     const hs = mission.hdAlive || [];
     const vw = cam.view, vh = cam.view * ((renderer.H || 9) / (renderer.W || 16)), hw = vw / 2, hh = vh / 2;
-    let w = 0, c = 0, boss = false;
+    let w = 0, c = 0, boss = false, seen = false;
+    const inView = (x, y, pad = 0) => Math.abs(x - cam.x) < hw + pad && Math.abs(y - cam.y) < hh + pad;
+    for (const d of mission.drops || []) if (d.mom && !d.dead && d.state !== 'down' && inView(d.x, d.y, 60)) seen = true;
     for (const e of mission.enemies) {
       if (e.dead) continue;
-      if (e.boss) boss = true;
+      if (e.boss) { boss = true; if (e.vis > 0 && inView(e.x, e.y, 10)) seen = true; }
       const k = e.kind === 'H' ? 3 : e.kind === 'M' ? 1.6 : 1;
       for (const a of hs) { const dx = e.x - a.x, dy = e.y - a.y; if (dx * dx + dy * dy < 90 * 90) { w += k; break; } }
       if (Math.abs(e.x - cam.x) < hw && Math.abs(e.y - cam.y) < hh && mission.visLevel(e.x, e.y) > 0) c += k;
     }
+    if (seen) hypeT = 6; else hypeT = Math.max(0, hypeT - 0.3);
     heatV = Math.min(1, w / 30);
     if (boss) heatV = Math.max(heatV, 0.7);
     crowdV = c / Math.max(1, vw / 400);     // (zoomed out past the usual view, the count is scaled back; a tall phone screen counts as it is)
@@ -1855,6 +1860,7 @@ function musicHeat(dt) {
   // (0.48) the alert level sets a floor under the score: each star brings more of it in (battle level 1 at one star, 2 at three,
   // 3 at five), and a star going up kicks it (onEvent 'alert'), landing on the bar like any level change
   const st = mission.alert ? mission.alert.stars : 0, floor = [0, 0.12, 0.2, 0.36, 0.48, 0.62][Math.min(5, st)];
+  if (hype()) return 1;
   return Math.min(1, Math.max(heatV, floor) + heatKick);
 }
 
@@ -1876,7 +1882,7 @@ function onEvent(ev, now) {
       if (ev.r >= 10 && input.touch && !settings.reduceFlash && navigator.vibrate) navigator.vibrate(ev.nuke ? 80 : 12);
       break;
     case 'tracer': if (mission.visLevel(ev.x, ev.y) > 0 || mission.visLevel(ev.tx, ev.ty) > 0) audio.snd(ev.snd || ev.s, L, P); break;
-    case 'beam': audio.beam(); break;
+    case 'beam': case 'beam_walk': audio.beam(); break;
     case 'gun': audio.snd('shipgat', L, P); break;
     case 'heal': audio.snd('heal', L, P); break;
     case 'util_call': audio.stratCall(); afterCall(ev); break;
@@ -1976,7 +1982,7 @@ function frame(ts) {
   frameAt = ts; frame.n = (frame.n || 0) + 1;
   const now = ts / 1000;
   const dt = Math.min(0.25, Math.max(0, now - lastT)); lastT = now;
-  { const sc = musicScene(); music.update(dt, sc, musicHeat(dt), { run: state === 'play' ? mission : null, crowd: crowdV, mood: state === 'final' || state === 'glass' ? 'lose' : state === 'play' && mission && mission.over ? (mission.outcome === 'victory' || mission.outcome === 'complete' ? 'win' : 'lose') : endMood, faction: mission && mission.faction ? (gunFight() ? 'gun' : mission.faction.id) : null }); }
+  { const sc = musicScene(); music.update(dt, sc, musicHeat(dt), { run: state === 'play' ? mission : null, crowd: crowdV, mood: state === 'final' || state === 'glass' ? 'lose' : state === 'play' && mission && mission.over ? (mission.outcome === 'victory' || mission.outcome === 'complete' ? 'win' : 'lose') : endMood, faction: mission && mission.faction ? (gunFight() || hype() ? 'gun' : mission.faction.id) : null }); }
   if (!renderer.W) return;
 
   // Frame-time watchdog for the auto quality setting.

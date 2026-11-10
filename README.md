@@ -25,6 +25,15 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Super heavies, reinforced (0.55).**
+- **New art.** All three super heavies are redrawn. The Warp Colossus is now a great C, a claw that opens wider as it charges. Squids no longer have tails.
+- **New weapons.** The Brood Titan sprays acid over an area, and the blobs leave burning pools. The Siege Walker carries two turrets on its back. The Warp Colossus's beam comes down short of its target and walks across the ground after the squad, like the orbital laser: keep moving to get out of it.
+- **Seen and reached.** A super heavy (or a mothership) on the field is always visible and can always be targeted. Every super heavy fights from the edge of the squad's natural sight (125 m), stops there, and backs off when the squad gets close. None walk on top of the squad any more.
+- **They come by reinforcement.** From level 11 up, a bot dropship can bring a super heavy and one can dig out of a bug hole, more often the higher the level. Shooting down a lot of bot dropships also raises the chance, and a super heavy aboard a dropship that is shot down walks out of the wreck. At most three a mission, never two at once, and none once the pelican is on its way.
+- **Hype music.** Whenever a super heavy or a mothership is on screen, the boss theme plays at full intensity.
+- **Bases by faction.** Bug bases have 3 to 8 holes to close. Squid spawners carry light shields that come back when left alone. Bot bases have one or two turrets that fire on anyone in reach and can be destroyed.
+- **Mothership fixes.** It never hangs over or crashes onto the extraction pad, an objective or the landing zone. Its wreck lies on the ground, under everything. After the third set is shot down no more come that mission, and every mission starts fresh.
+
 **The squid mothership (0.54.1).**
 - **SAM farming gets an answer.** Once SAM sites have shot down about four warp ships in a squid mission, a MOTHERSHIP (the campaign's jellyfish) comes in and hangs over the map, sending out two groups of troops every 24 seconds for as long as it lives. It has a huge shield and health pool and heals, and a SAM hit does only a fifth of its damage: it takes about 20 sites firing all the time to bring it down. The ship gun and the orbital strikes hit it at full strength.
 - **It falls, and stays.** A mothership that is shot down sinks over seven seconds, burning, and crashes with a blast that clears what is under it. The wreck stays on the map. 70 seconds later the next set comes: two, then three.

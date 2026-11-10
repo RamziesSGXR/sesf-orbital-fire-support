@@ -338,10 +338,20 @@ function motherView(m, d, now) {
   const cracks = Math.min(6, Math.floor((1 - (d.hp + d.shield) / (d.maxHp + d.maxShield)) * 7));
   return { fall, o: { x: d.x, y: d.y - 40 + fall * 90, s: MS, th: 0.78 + fall * 0.5, yaw, t: now, cracks, burn: fall > 0 ? 0.4 + fall * 0.6 : 0 }, yaw };
 }
-export function drawMotherGround(ctx, m, now) {
+export function drawMotherGround(ctx, m, now, labels = null, scale = 1) {
   for (const w of m.motherWrecks || []) {
     ctx.fillStyle = 'rgba(20,12,10,0.55)'; ctx.beginPath(); ctx.ellipse(w.x, w.y, w.r * 1.25, w.r * 0.95, 0, 0, TAU); ctx.fill();
     ctx.fillStyle = 'rgba(60,30,18,0.35)'; ctx.beginPath(); ctx.ellipse(w.x, w.y, w.r * 0.8, w.r * 0.6, 0, 0, TAU); ctx.fill();
+  }
+  // (0.55) the wreck is on the ground: under every unit, so it never hides the pad or a fight
+  for (const w of m.motherWrecks || []) {
+    drawJelly(ctx, model(now), { x: w.x, y: w.y + 18, s: MS * 0.7, th: 1.45, yaw: w.yaw + 1.5, t: now, cracks: 6, burn: 1, alpha: 0.85, dim: 0.45 });
+    for (let i = 0; i < 4; i++) {         // smoke and embers
+      const k = ((now * 0.35 + i * 0.25) % 1), a = (1 - k) * 0.35;
+      ctx.fillStyle = `rgba(40,36,36,${a})`; ctx.beginPath(); ctx.arc(w.x + Math.sin(i * 2.3 + now) * 14, w.y - k * 70, 8 + k * 22, 0, TAU); ctx.fill();
+    }
+    ctx.fillStyle = `rgba(255,140,50,${0.25 + 0.15 * Math.sin(now * 9)})`; ctx.beginPath(); ctx.arc(w.x, w.y + 10, 16, 0, TAU); ctx.fill();
+    if (labels) labels.push({ x: w.x, y: w.y, dy: -w.r * scale * 0.6, text: tr('lab.motherWreck'), col: '#9a9a9a', pri: 1, nm: true });
   }
   for (const d of m.drops) {
     if (!d.mom || d.dead) continue;
@@ -350,15 +360,6 @@ export function drawMotherGround(ctx, m, now) {
   }
 }
 export function drawMotherSky(ctx, m, now, px, labels, scale) {
-  for (const w of m.motherWrecks || []) {
-    drawJelly(ctx, model(now), { x: w.x, y: w.y + 18, s: MS * 0.9, th: 1.28, yaw: w.yaw + 1.5, t: now, cracks: 6, burn: 1, alpha: 0.92, dim: 0.35 });
-    for (let i = 0; i < 4; i++) {         // smoke and embers
-      const k = ((now * 0.35 + i * 0.25) % 1), a = (1 - k) * 0.35;
-      ctx.fillStyle = `rgba(40,36,36,${a})`; ctx.beginPath(); ctx.arc(w.x + Math.sin(i * 2.3 + now) * 14, w.y - k * 70, 8 + k * 22, 0, TAU); ctx.fill();
-    }
-    ctx.fillStyle = `rgba(255,140,50,${0.25 + 0.15 * Math.sin(now * 9)})`; ctx.beginPath(); ctx.arc(w.x, w.y + 10, 16, 0, TAU); ctx.fill();
-    labels.push({ x: w.x, y: w.y, dy: -w.r * scale * 0.6, text: tr('lab.motherWreck'), col: '#9a9a9a', pri: 1 });
-  }
   for (const d of m.drops) {
     if (!d.mom || d.dead) continue;
     const v = motherView(m, d, now), under = m.alive.some((a) => !a.dead && Math.hypot(a.x - d.x, a.y - d.y) < d.r * 1.1);
@@ -372,5 +373,20 @@ export function drawMotherSky(ctx, m, now, px, labels, scale) {
     hpBar(ctx, d.x, d.y + d.r * 1.7, d.r * 2.6, px(4), d.shield / d.maxShield, '#8fd0ff');
     hpBar(ctx, d.x, d.y + d.r * 1.7 + px(6), d.r * 2.6, px(5), d.hp / d.maxHp, '#d96bff');
     labels.push({ x: d.x, y: d.y, dy: -d.r * scale * 1.6, text: tr('lab.mother'), col: '#d96bff', pri: 3 });
+  }
+}
+
+// (0.55) acid pools from the brood titan's spray: a sickly green puddle that bubbles and shrinks as it dries
+export function drawAcidPools(ctx, m, now, px) {
+  for (const q of m.acidPools || []) {
+    const life = Math.max(0, Math.min(1, (q.until - m.t) / 1.5)), grow = Math.min(1, (m.t - q.born) / 0.3), r = q.r * grow * (0.75 + 0.25 * life);
+    const g = ctx.createRadialGradient(q.x, q.y, 0, q.x, q.y, r);
+    g.addColorStop(0, `rgba(200,255,90,${0.55 * life})`); g.addColorStop(0.7, `rgba(120,200,40,${0.4 * life})`); g.addColorStop(1, 'rgba(90,160,20,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, TAU); ctx.fill();
+    for (let i = 0; i < 3; i++) {
+      const k = (now * 0.9 + i * 0.33 + q.born) % 1, a = i * 2.1 + q.born;
+      ctx.strokeStyle = `rgba(230,255,170,${(1 - k) * 0.6 * life})`; ctx.lineWidth = px(1);
+      ctx.beginPath(); ctx.arc(q.x + Math.cos(a) * r * 0.4, q.y + Math.sin(a) * r * 0.4, 0.3 + k * 1.2, 0, TAU); ctx.stroke();
+    }
   }
 }

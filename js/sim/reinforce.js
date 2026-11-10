@@ -17,6 +17,7 @@ import { COMMS } from '../data/data.js';
 import { spawnGroup } from './director.js';
 import { compass } from './enemies.js';
 import { damageArea } from './combat.js';
+import { rollReinfHeavy, reinfHeavy } from './boss.js';
 import { initMother, updateMother, stepMother, motherDown, samKill } from './mother.js';
 
 const R = C.reinf;
@@ -97,11 +98,13 @@ export function callReinforcements(m, x, y, why = 'flare', opts = {}) {
   const st = m.reinf, fac = m.faction.id, t = m.t;
   let count = Math.max(1, opts.count || 1);
   const n = groupsFor(m, opts.extra || 0, count, opts.pMin || 0, opts.maxN || 0);
-  if (n <= 0) return 0;
-  count = Math.min(count, n);
+  // (0.55) no room for troops (the map at its cap): a super heavy may still come in on its own, in a craft of its own
+  let only = false;
+  if (n <= 0) { if (fac === 'squids' || !rollReinfHeavy(m)) return 0; only = true; }
+  count = only ? 1 : Math.min(count, n);
   const ring = opts.dist || (why === 'flare' ? R.dist : R.siteDist), a0 = m.rrng.angle();
   const dirs = [], sizes = [];
-  for (let k = 0; k < count; k++) sizes.push(Math.floor(n / count) + (k < n % count ? 1 : 0));
+  for (let k = 0; k < count; k++) sizes.push(only ? 0 : Math.floor(n / count) + (k < n % count ? 1 : 0));
   sizes.forEach((nk, k) => {
     const p = dropSpot(m, x, y, ring[0], ring[1], count > 1 ? a0 + (k * Math.PI * 2) / count : null);
     if (!p) return;
@@ -109,21 +112,22 @@ export function callReinforcements(m, x, y, why = 'flare', opts = {}) {
     const dir = compass(p.x - m.cx, p.y - m.cy), id = m.nextId++;
     if (fac === 'bugs') {
       // (0.31) a hole spits packs, a little at a time, and holds out a while before it can be shot closed
-      const B = R.bugs, packs = Math.ceil(nk * B.packs);
+      const B = R.bugs, packs = only ? 1 : Math.ceil(nk * B.packs);
       m.breaches.push({ id, kind: 'hole', x: p.x, y: p.y, r: B.r, hp: B.hp, maxHp: B.hp, born: t, warnUntil: t + B.warnSec, next: t + B.warnSec,
         every: B.every, left: packs, total: packs, groups: nk, linger: B.lingerSec, until: Infinity, dead: false, hurtAt: -9, reward: B.reward, why,
-        hardUntil: t + B.warnSec + B.minOpen });
+        hardUntil: t + B.warnSec + B.minOpen, heavy: only || rollReinfHeavy(m) });
     } else {
       const D = R[fac], a = m.rng.angle();
       const sx = p.x - Math.cos(a) * D.approach, sy = p.y - Math.sin(a) * D.approach;
       m.drops.push({ id, drop: true, kind: fac === 'bots' ? 'ship' : 'warp', x: sx, y: sy, tx: p.x, ty: p.y, dx: Math.cos(a), dy: Math.sin(a), state: 'in',
         alt: 1, hp: D.hp, maxHp: D.hp, r: D.r, left: nk, total: nk, dropT: 0, hoverT: 0, outT: 0, low: false, dead: false, hurtAt: -9, born: t, why, vis: 0, face: a,
-        ...(D.shield ? { shield: D.shield, maxShield: D.shield, shieldAt: -99 } : {}) });     // (0.31: a warp ship's shield)
+        ...(D.shield ? { shield: D.shield, maxShield: D.shield, shieldAt: -99 } : {}), heavy: only || (fac === 'bots' && rollReinfHeavy(m)) });     // (0.31: a warp ship's shield)
     }
     dirs.push(dir);
     m.emit('reinf', { x: p.x, y: p.y, kind: fac, n: nk, why, of: count });
   });
   if (!dirs.length) return 0;
+  if (only) { m.notice(tr('n.heavyInbound', { name: tr('boss.' + fac), dir: dirs[0].toUpperCase() }), 'bad'); return dirs.length; }     // (0.55)
   if (dirs.length === 1) {
     m.radio(COMMS.reinforcements(dirs[0]), 'reinf', 6);
     m.notice(tr('n.reinf.' + fac, { dir: dirs[0].toUpperCase(), n }), 'warn');
@@ -188,7 +192,7 @@ export function updateReinf(m, dt) {
   for (let i = m.drops.length - 1; i >= 0; i--) {
     const d = m.drops[i], D = R[d.kind === 'ship' ? 'bots' : 'squids'];
     d.vis = m.visLevel(d.x, d.y);
-    if (d.mom) { if (stepMother(m, d, dt)) m.drops.splice(i, 1); continue; }
+    if (d.mom) { d.vis = 2; if (stepMother(m, d, dt)) m.drops.splice(i, 1); continue; }     // (0.55: always seen)
     if (d.maxShield && d.state !== 'down' && d.shield < d.maxShield && t - d.shieldAt > D.regenDelay) d.shield = Math.min(d.maxShield, d.shield + D.regen * dt);
     if (d.state === 'down') {
       d.fallT += dt; d.alt = Math.max(0, d.alt - dt * 0.8);
@@ -203,6 +207,7 @@ export function updateReinf(m, dt) {
           for (const e of g.members) { e.hp = Math.max(1, Math.round(e.hp * D.survHp)); e.stunUntil = t + 1.2; }
         }
         if (d.survivors) m.emit('wreck_out', { x: d.x, y: d.y, n: d.survivors });
+        if (d.heavy) { d.heavy = false; reinfHeavy(m, aoX(m, d.x, 8), aoY(m, d.y, 8), D.survHp); }     // (0.55) the super heavy aboard walks out of the wreck
       }
       continue;
     }
@@ -214,7 +219,8 @@ export function updateReinf(m, dt) {
       if (dist <= 1) { d.state = 'hover'; d.alt = 0.25; d.hoverT = D.hover + d.left * D.every; d.dropT = 0.4; m.emit('drop_arrive', { x: d.x, y: d.y, kind: d.kind }); }
     } else if (d.state === 'hover') {
       d.low = true; d.hoverT -= dt; d.dropT -= dt;
-      if (d.left > 0 && d.dropT <= 0) {
+      if (d.heavy && d.dropT <= 0) { d.heavy = false; d.dropT = D.every * 2; d.hoverT += D.every * 2; reinfHeavy(m, aoX(m, d.x, 8), aoY(m, d.y, 8)); }     // (0.55)
+      else if (d.left > 0 && d.dropT <= 0) {
         d.dropT = D.every; d.left--;
         const [ox, oy] = m.rng.inDisc(7);
         release(m, aoX(m, d.x + ox, 6), aoY(m, d.y + oy, 6), d.kind, d);

@@ -369,7 +369,12 @@ export const CONFIG = {
               // (0.49) each base is min..max small spawners (sim/spawners.js), hp each (one precision strike), r across; (0.52) the base is
               // size[0] to size[1] m across its middle (the biggest a 380 barrage), more spawners the bigger, gap apart; troops: every trickleSec; a heavy may already be in its garrison when
               // it is first seen: heavy[0] at level 1 to heavy[1] at level 10, never over heavyMax
-              spawners: { min: 2, max: 4, hp: 500, r: 4, size: [16, 28], gap: 26, trickleSec: 0.6, heavy: [0.08, 0.45], heavyMax: 0.6 } },
+              spawners: { min: 2, max: 4, hp: 500, r: 4, size: [16, 28], gap: 26, trickleSec: 0.6, heavy: [0.08, 0.45], heavyMax: 0.6,
+                // (0.55) by faction: the bugs' bases have 3 to 8 holes (smaller, closer); the squids' spawners a light shield (shield hp,
+                // regen a second once regenDelay s unhit); the bots' bases turrets[0] turret(s), turrets[1] in a big one, turretHp each
+                fac: { bugs: { min: 3, max: 8, hp: 360, gap: 17, size: [18, 40] }, squids: { shield: 240, regen: 50, regenDelay: 5 }, bots: { turrets: [1, 2], turretHp: 650 } } } },
+  // (0.55) enemy turrets (sim/eturret.js): a bot base's and those on a Siege Walker's back
+  eturret:  { range: 58, every: 1.25, dmg: 10, acc: 0.55, r: 3.2, turn: 3 },
   // The big base for the destroy-the-citadel objective.
   // Objective sites under siege (objectives.js siege): while the squad works an objective the enemy calls backup every `every`
   // seconds, down to `minEvery`, with up to `extra` more groups, over rampSec seconds at the site. A call waits (capWait s) while
@@ -478,7 +483,7 @@ export const CONFIG = {
   // SAM hit is cut to samMul (about 20 sites to bring it down). When every one is down, the next set comes after respawnSec, one more
   // each time up to maxShips. crashSec: how long it falls; crashR/crashDmg the blast where it lands; the wreck stays.
   mother:   { after: 4, minT: 150, hp: 36000, shield: 24000, heal: 220, regen: 260, regenDelay: 6, samMul: 0.2, r: 62, speed: 38, approach: 520, dist: [150, 230],
-              firstWave: 8, waveEvery: 24, groups: 2, maxShips: 3, respawnSec: 70, crashSec: 7, crashR: 60, crashDmg: 700, reward: 900 },
+              firstWave: 8, waveEvery: 24, groups: 2, maxShips: 3, respawnSec: 70, crashSec: 7, crashR: 60, crashDmg: 700, reward: 900, keepR: 110 },
   // Points of interest: random spots SEAF can take out for credits. Guarded by an enemy group that wakes when allies come close.
   // (0.18: fewer of these; the finds below are the rest)
   poi:      { min: 2, max: 4, hp: 520, r: 18, minFromLz: 260, spacing: 160, guardR: 130, rifleMul: 0.8,
@@ -601,12 +606,25 @@ export const CONFIG = {
   // land. hp grows with half the session's health ramp, damage with the damage ramp. Back hits do the heavy multiplier.
   // giveUpSec: once the squad has waited this long at the extraction point with it still alive, it withdraws (no bounty).
   boss: { chance: 0.12, perSessionMin: 0.003, maxChance: 0.5, window: [170, 450], dist: [190, 240], reward: 700, score: 3000, giveUpSec: 210,
+          // (0.55) super heavies brought by reinforcements (boss.js reinfHeavyChance): per call, (level - from) x perLevel, and for the bots
+          // perDown more for each dropship shot down this mission past botsAfter; at most max, maxPer a mission, gapSec apart, not before minT
+          // (0.55) every super heavy reaches as far as the allies see (C.sight.helldiver x the biome x reachMul), stops at standOff of
+          // that, and backs away from anyone inside backOff of it
+          reachMul: 1, standOff: 0.85, backOff: 0.5,
+          reinf: { from: 10, perLevel: 0.012, max: 0.35, botsAfter: 4, perDown: 0.04, maxPer: 3, gapSec: 100, minT: 120 },
           bugs:   { hp: 4500, r: 10, speed: 2.3, stop: 7,
-                    spit: { range: 50, dmg: 38, splash: 6, every: 3.8, flight: 1.1, acc: 0.8 }, stomp: { range: 10, dmg: 85, every: 1.8, splash: 5.5, acc: 0.8 } },
+                    spit: { range: 50, dmg: 38, splash: 6, every: 3.8, flight: 1.1, acc: 0.8 }, stomp: { range: 10, dmg: 85, every: 1.8, splash: 5.5, acc: 0.8 },
+                    // (0.55) the spray: n blobs over a cone `cone` rad wide out to range m, every s (first after `first` s); every
+                    // other blob leaves a pool (r m, dps to allies in it, sec long)
+                    spray: { first: 6, every: 10, range: 46, n: 12, cone: 0.7, dmg: 18, splash: 4.5, flight: 1.0, pool: { r: 5, dps: 16, sec: 7 } } },
           bots:   { hp: 5500, r: 11, speed: 1.7, stop: 40,
-                    cannon: { range: 62, dmg: 26, splash: 4, every: 1.6, acc: 0.7 }, deploy: { every: 30 } },
+                    cannon: { range: 62, dmg: 26, splash: 4, every: 1.6, acc: 0.7 }, deploy: { every: 30 },
+                    // (0.55) turrets on its back (x, y in its radii, +x forward), as a bot base's (C.eturret), damage x turretMul
+                    turrets: [[-0.45, -0.42], [-0.45, 0.42]], turretMul: 1.2 },
           squids: { hp: 3800, shield: 2000, regen: 120, regenDelay: 7, r: 12, speed: 1.9, stop: 48,
-                    beam: { range: 78, dmg: 120, charge: 2.6, every: 7.5, width: 4.5, lock: 0.7, acc: 0.85 } } },
+                    // (0.55) walk: its beam walks the ground like the orbital laser (enemies.js colossusBeam): charge s, then dur s
+                    // burning width across at dps, starting lead m short of the target and steering at follow m/s; every s between
+                    walk: { range: 78, charge: 2.2, lock: 0.6, dur: 5, dps: 60, width: 6, follow: 7, lead: 16, every: 7 } } },
   // Resupply on request: the Helldivers ask, the player loads a pod in slow motion (cells per compartment, fillSec real seconds at
   // the most), and a load finished within fastSec real seconds boosts the Helldivers' damage and pace for boostSec.
   supply:   { firstSec: 60, need: 1.5, askSec: 30, cells: 4, fillSec: 13, slowmo: 0.25, fastSec: 5, dropSec: 3.5, cooldownSec: 75, declineCooldownSec: 60,
@@ -629,6 +647,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.54.1',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.55.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

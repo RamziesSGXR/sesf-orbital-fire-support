@@ -29,10 +29,10 @@ export const bossDef = (m) => C.boss[m.faction.id];
 // difficulty levels.
 export function spawnBoss(m, opts = {}) {
   const B = C.boss, D = bossDef(m), t = m.t;
-  const sp = opts.at ? { x: opts.at.x + (opts.at.r || 20) + 10, y: opts.at.y } : hiddenSpot(m, m.hx, m.hy, B.dist[0], B.dist[1], 16) || pickSpawn(m, 16);
+  const sp = opts.spot ? { x: opts.spot.x, y: opts.spot.y } : opts.at ? { x: opts.at.x + (opts.at.r || 20) + 10, y: opts.at.y } : hiddenSpot(m, m.hx, m.hy, B.dist[0], B.dist[1], 16) || pickSpawn(m, 16);
   if (!sp) return null;
   if (opts.at && m.terrain.blocked(sp.x, sp.y)) { const l = m.terrain.nearestLand(sp.x, sp.y); sp.x = l.x; sp.y = l.y; }
-  const g = spawnGroup(m, sp.x, sp.y, 'hunt', { alertT: 1e9 });    // an escort comes with it
+  const g = spawnGroup(m, sp.x, sp.y, 'hunt', opts.spot ? { alertT: 1e9, size: 2 } : { alertT: 1e9 });    // an escort comes with it
   g.alertT = 1e9; g.bossGroup = true;
   let hp = Math.round(D.hp * (1 + (m.hpMul - 1) * 0.5));     // tougher later in the session, but only half as fast as the rest
   if (opts.guard) { const f = levelFactors(m.difficulty ?? 10).spawn, lo = C.fortress.guardHp; hp = Math.round(hp * (lo + (1 - lo) * Math.max(0, Math.min(1, (f - C.difficulty.spawn) / (1 - C.difficulty.spawn))))); }
@@ -53,6 +53,34 @@ export function spawnBoss(m, opts = {}) {
   return e;
 }
 
+// (0.55) A super heavy brought in by a reinforcement: a bot dropship carries one, or one digs out of a bug hole. The chance per call
+// (CONFIG.boss.reinf) starts at level `from` and climbs perLevel a level; for the bots it also climbs with every dropship shot down
+// this mission past botsAfter (shooting them down from afar no longer stems the tide for free). Never while a super heavy is on the
+// field, never once the pelican is on its way, at most maxPer a mission and gapSec apart.
+export function reinfHeavyChance(m) {
+  const K = C.boss.reinf, fac = m.faction.id;
+  if (!K || m.ls || fac === 'squids' || bossAlive(m)) return 0;
+  if ((m.heavyN || 0) >= K.maxPer || m.t < (m.heavyAt ?? -1e9) + K.gapSec || m.t < K.minT) return 0;
+  if (m.extraction && m.extraction.state && m.extraction.state !== 'open') return 0;
+  let c = Math.max(0, ((m.difficulty ?? 10) - K.from) * K.perLevel);
+  if (fac === 'bots') { const n = (m.stats.dropsDown || 0) - K.botsAfter + 1; if (n > 0) c += n * K.perDown; }
+  return Math.min(K.max, c);
+}
+// Roll for one reinforcement; on a hit the slot is taken (so two calls at once cannot both bring one).
+export function rollReinfHeavy(m) {
+  const c = reinfHeavyChance(m);
+  if (c <= 0 || m.rrng.next() >= c) return false;
+  m.heavyN = (m.heavyN || 0) + 1; m.heavyAt = m.t;
+  return true;
+}
+// It arrives at (x, y). hurt: the share of its health left (out of a crashed dropship).
+export function reinfHeavy(m, x, y, hurt = 1) {
+  if (bossAlive(m)) return null;
+  const e = spawnBoss(m, { spot: { x, y } });
+  if (e) { e.hp = Math.max(1, Math.round(e.hp * hurt)); e.reinf = true; m.bossPlan = null; m.stats.bossReinf = (m.stats.bossReinf || 0) + 1; }
+  return e;
+}
+
 export function updateBoss(m, dt) {
   const t = m.t, B = C.boss;
   if (m.bossPlan && !m.boss && m.phase !== 'over' && m.hdAlive.length && (t >= m.bossPlan.at || m.objDone)) {
@@ -68,6 +96,17 @@ export function updateBoss(m, dt) {
     m.tGrid.near(s.x, s.y, s.splash, (o) => hurtTarget(m, o, s.dmg, 'enemy', sk));
     for (const cv of m.civs) if (!cv.dead && !cv.safe && (cv.x - s.x) ** 2 + (cv.y - s.y) ** 2 <= s.splash * s.splash) m.hurtCiv(cv, s.dmg, 'enemy');
     m.emit('boom', { x: s.x, y: s.y, r: s.splash, dmg: s.dmg, by: 'enemy', acid: !s.rocket && !s.mortar, rocket: !!s.rocket, mortar: !!s.mortar });
+    if (s.pool) { const P = C.boss.bugs.spray.pool; (m.acidPools = m.acidPools || []).push({ x: s.x, y: s.y, r: P.r, until: t + P.sec, born: t, tick: 0 }); }     // (0.55)
+  }
+  // (0.55) acid pools left by the titan's spray: they burn any ally standing in them
+  if (m.acidPools && m.acidPools.length) {
+    const P = C.boss.bugs.spray.pool;
+    for (let i = m.acidPools.length - 1; i >= 0; i--) {
+      const q = m.acidPools[i];
+      if (t >= q.until) { m.acidPools.splice(i, 1); continue; }
+      q.tick -= dt; if (q.tick > 0) continue; q.tick += 0.25;
+      m.aGrid.near(q.x, q.y, q.r, (o) => { if (!o.dead && !o.mounted) hurtTarget(m, o, P.dps * 0.25 * m.dmgMul, 'enemy', 'M'); });
+    }
   }
   const e = m.boss;
   if (!e) return;

@@ -12,6 +12,7 @@
 import { CONFIG as C } from '../config.js';
 import { t as tr } from '../i18n.js';
 import { spawnGroup, unseenSpot } from './director.js';
+import { turretStep } from './eturret.js';
 
 const S = () => C.bases.spawners;
 // a small deterministic generator per base, so adding spawners changes nothing else about the map
@@ -19,7 +20,9 @@ function lcg(seed) { let s = (seed >>> 0) || 1; return () => ((s = (s * 1664525 
 
 export function addSpawners(m, b, seed = 0) {
   if (S().off) return null;     // (a switch for tests and tuning: the old single structure)
-  const K = S(), r = lcg((seed * 7919 + b.id * 104729) ^ 0x5eed);
+  // (0.55) each faction's bases differ: the bugs' have more holes (up to eight), the squids' spawners carry light shields, the
+  // bots' have one or two turrets (S().fac)
+  const fac = m.faction ? m.faction.id : 'bugs', F = (S().fac || {})[fac] || {}, K = { ...S(), ...F }, r = lcg((seed * 7919 + b.id * 104729) ^ 0x5eed);
   // (0.52) its size, and so how many: a small base has two, the biggest (a 380 barrage across) four; they stand round a ring wide
   // enough that each is gap metres or more from the next, so one strike (even a precision strike at its top level) takes one
   let R = K.size[0] + r() * (K.size[1] - K.size[0]);
@@ -32,11 +35,18 @@ export function addSpawners(m, b, seed = 0) {
     for (let k = 0; k < n; k++) {
       const a = a0 + (k / n) * Math.PI * 2 + (r() - 0.5) * 0.3, x = b.x + Math.cos(a) * ring, y = b.y + Math.sin(a) * ring;
       if (m.terrain && m.terrain.blocked(x, y) && tries < 7) break;
-      out.push({ id: `${b.id}.${k}`, x, y, hp: K.hp, maxHp: K.hp, r: K.r, dead: false, k, base: b });     // (its own ids: m.nextId is left as it was)
+      out.push({ id: `${b.id}.${k}`, x, y, hp: K.hp, maxHp: K.hp, r: K.r, dead: false, k, base: b, ...(K.shield ? { shield: K.shield, maxShield: K.shield, shieldAt: -99 } : {}) });     // (its own ids: m.nextId is left as it was)
     }
     if (out.length === n && out.every((p, i) => out.every((q, j) => i === j || Math.hypot(p.x - q.x, p.y - q.y) >= K.gap - 0.01))) L = out;
   }
   if (!L) { const a0 = r() * Math.PI * 2; L = Array.from({ length: n }, (_, k) => { const a = a0 + (k / n) * Math.PI * 2; return { id: `${b.id}.${k}`, x: b.x + Math.cos(a) * ring, y: b.y + Math.sin(a) * ring, hp: K.hp, maxHp: K.hp, r: K.r, dead: false, k, base: b }; }); }
+  if (K.shield) for (const q of L) if (!q.maxShield) { q.shield = q.maxShield = K.shield; q.shieldAt = -99; }
+  // (0.55) a bot base's turrets: one, or two in a big base, set between its spawners and the middle
+  b.turrets = null;
+  if (K.turrets) {
+    const nt = f >= 0.5 ? K.turrets[1] : K.turrets[0], a0 = r() * Math.PI * 2;
+    b.turrets = Array.from({ length: nt }, (_, k) => { const a = a0 + (k + 0.5) * Math.PI * 2 / Math.max(1, nt) + Math.PI / n; return { id: `${b.id}.t${k}`, x: b.x + Math.cos(a) * ring * 0.5, y: b.y + Math.sin(a) * ring * 0.5, hp: K.turretHp, maxHp: K.turretHp, r: C.eturret.r, dead: false, face: a, turret: true }; });
+  }
   b.spawners = L; b.hp = b.maxHp = K.hp * n; b.seen = false; b.trickle = 0; b.r = Math.round(R);
   return L;
 }
@@ -45,8 +55,9 @@ export const liveSpawners = (b) => (b.spawners || []).filter((s) => !s.dead);
 // Damage to a clustered base. at: the blast's middle and reach ({ x, y, rad }), or a shot's source ({ x, y }), or nothing (the
 // nearest to the middle). Returns true when it handled it.
 export function hitSpawners(m, b, dmg, at) {
-  const L = liveSpawners(b);
-  if (!L.length) return false;
+  const L0 = liveSpawners(b);
+  if (!L0.length) return false;
+  const L = b.turrets ? L0.concat(b.turrets.filter((q) => !q.dead)) : L0;     // (0.55) a turret takes hits like a spawner
   // (0.52: no 'a big enough hit takes the lot' any more: a precision strike was enough for it. A Hellbomb takes every spawner its
   // blast reaches, as any blast does.)
   let hit = [];
@@ -56,8 +67,11 @@ export function hitSpawners(m, b, dmg, at) {
     hit = [L.reduce((p, s) => (Math.hypot(s.x - fx, s.y - fy) < Math.hypot(p.x - fx, p.y - fy) ? s : p))];
   }
   for (const s of hit) {
-    const d = Math.min(dmg, s.hp);
-    s.hp -= dmg; b.hp = Math.max(0, b.hp - d); s.hurtAt = m.t;
+    let dd = dmg;
+    if (s.shield > 0) { const soak = Math.min(s.shield, dd); s.shield -= soak; dd -= soak; s.shieldAt = m.t; s.hurtAt = m.t; if (dd <= 0) continue; }     // (0.55) the squids' light shield
+    if (s.turret) { s.hp -= dd; s.hurtAt = m.t; if (s.hp <= 0 && !s.dead) { s.dead = true; s.hp = 0; m.emit('boom', { x: s.x, y: s.y, r: 5, dmg: 0, by: 'base', big: true }); m.notice(tr('n.turretDown'), 'good'); } continue; }
+    const d = Math.min(dd, s.hp);
+    s.hp -= dd; b.hp = Math.max(0, b.hp - d); s.hurtAt = m.t;
     if (s.hp <= 0) killSpawner(m, b, s);
   }
   return true;
@@ -97,6 +111,13 @@ export function stepSpawners(m, b, dt) {
     if (b.alert && g.state !== 'hunt') { g.state = 'hunt'; g.alertT = C.enemies.alert.loseSec; g.garrison = false; }
   }
   return true;
+}
+// (0.55) each tick, awake or not: the squids' shields come back, a bot base's turrets fire at allies in reach
+export function stepDefences(m, b, dt) {
+  if (!b.spawners || b.destroyed) return;
+  const F = (S().fac || {})[m.faction.id] || {};
+  if (F.shield) for (const q of b.spawners) if (!q.dead && q.maxShield && q.shield < q.maxShield && m.t - q.shieldAt > F.regenDelay) q.shield = Math.min(q.maxShield, q.shield + F.regen * dt);
+  if (b.turrets) for (const T of b.turrets) if (!T.dead) { const was = T.firedAt; turretStep(m, T, T.x, T.y, dt); if (T.firedAt !== was && !b.alert) b.seen = true; }
 }
 // seen from anywhere (an ally's sight, a UAV, a relay or a lookout's view): its layout shows
 export function checkSeen(m, b) {

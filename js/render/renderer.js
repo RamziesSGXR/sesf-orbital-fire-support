@@ -6,13 +6,13 @@ import { drawZones, drawMarkers, drawObjectives, drawAssets, drawEnemyExtras, dr
 import { drawSquadOrders, drawSeafMark, drawStroke, drawPelicans, drawMiniSeaf, seafTargets, squadsInUse, squadColor } from './squads.js';
 
 import { slotStats } from '../sim/player.js';
-import { drawAllyBody, drawEnemyBody, enemyR, drawBossBody, bossR } from './units.js';
+import { drawAllyBody, drawEnemyBody, enemyR, drawBossBody, bossR, drawTurretArt } from './units.js';
 import { Launch } from './launch.js';
 import { drawAoEdge, drawSides, drawBeacons, drawRevealed, drawRadar, drawArty, drawCrates, drawMarks } from './ops.js';
 import { OPS } from '../data/data.js';
 import { t as tr } from '../i18n.js';
 import { beaconAt } from '../sim/sides.js';
-import { drawFlares, drawHoles, drawDrops, drawEvac, drawMotherGround, drawMotherSky, drawExtraction, drawExtractionPelican, critText, drawSupply } from './reinf.js';
+import { drawFlares, drawHoles, drawDrops, drawEvac, drawAcidPools, drawMotherGround, drawMotherSky, drawExtraction, drawExtractionPelican, critText, drawSupply } from './reinf.js';
 import { drawBaseArt, drawBaseRuin, drawCover, drawCitadelWalls, drawCannonArt, drawNodeArt } from './sites.js';
 import { drawPosts, postArt, lzArt, cone } from './posts.js';
 const lzArtGhost = (ctx, x, y, R, now, px, ok) => lzArt(ctx, x, y, R, now, px, ok);
@@ -352,6 +352,7 @@ export class Renderer {
 
     // Fire, gas, EMS and smoke on the ground, then the UAV circles
     drawZones(ctx, m, now, px);
+    drawAcidPools(ctx, m, now, px);     // (0.55) the brood titan's spray
     drawUavs(ctx, m, now, px, labels, scale);
 
     // The extraction pad and its pelican
@@ -383,6 +384,18 @@ export class Renderer {
             drawBaseArt(ctx, sb, m.faction.id, pal.enemy, inZ, now, px);
             if (sp.hp < sp.maxHp && !hideUi) { const bw = sb.r * 2.2; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25, bw, px(3)); ctx.fillStyle = pal.enemy; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25, bw * Math.max(0, sp.hp / sp.maxHp), px(3)); }
             if (t - (sp.hurtAt ?? -99) < 0.12) { ctx.strokeStyle = '#fff'; ctx.lineWidth = px(2); ctx.beginPath(); ctx.arc(sp.x, sp.y, sb.r * 1.1, 0, TAU); ctx.stroke(); }
+            if (sp.maxShield && sp.shield > 0) {      // (0.55) the squids' light shield: a bubble that flares when hit
+              const f = sp.shield / sp.maxShield, hit = t - (sp.shieldAt ?? -9) < 0.15, R = sb.r * 1.55;
+              ctx.fillStyle = `rgba(150,200,255,${(hit ? 0.2 : 0.05) + 0.06 * f})`; ctx.beginPath(); ctx.arc(sp.x, sp.y, R, 0, TAU); ctx.fill();
+              ctx.strokeStyle = `rgba(190,225,255,${hit ? 0.95 : 0.3 + 0.4 * f})`; ctx.lineWidth = px(hit ? 2 : 1.2); ctx.beginPath(); ctx.arc(sp.x, sp.y, R, 0, TAU); ctx.stroke();
+              if (f < 1 && !hideUi) { const bw = sb.r * 2.2; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25 - px(4), bw, px(2.5)); ctx.fillStyle = '#8fd0ff'; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25 - px(4), bw * f, px(2.5)); }
+            }
+          }
+          for (const T of b.turrets || []) {      // (0.55) a bot base's turrets
+            const R = Math.max(T.r, px(5));
+            if (T.dead) { ctx.fillStyle = 'rgba(30,30,30,0.7)'; ctx.beginPath(); ctx.arc(T.x, T.y, R, 0, TAU); ctx.fill(); continue; }
+            drawTurretArt(ctx, T.x, T.y, T.face || 0, R, pal.enemy, px, t - (T.hurtAt ?? -99) < 0.1, t - (T.firedAt ?? -9));
+            if (T.hp < T.maxHp && !hideUi) { const bw = R * 2.4; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(T.x - bw / 2, T.y + R * 1.5, bw, px(3)); ctx.fillStyle = pal.enemy; ctx.fillRect(T.x - bw / 2, T.y + R * 1.5, bw * T.hp / T.maxHp, px(3)); }
           }
         }
         if (tgBs.has(b) && !hideUi) this._bracket(ctx, b.x, b.y, r * 1.5, px(1.8), pal.ally);
@@ -492,7 +505,7 @@ export class Renderer {
 
     drawPelicans(ctx, m, now, px, labels, scale, pal);
     drawExtractionPelican(ctx, m, now, px);     // (0.53.5: over the pad's walls)
-    drawMotherGround(ctx, m, now);
+    drawMotherGround(ctx, m, now, labels, scale);
     drawDrops(ctx, m, now, px, labels, scale, pal);
     drawSupply(ctx, m, now, px, labels, scale, (team) => (m.teams[team] ? m.teams[team].color : '#9dffb8'));
     if (ui.draw) drawStroke(ctx, m, now, px, labels, scale, ui.draw);

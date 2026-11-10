@@ -111,7 +111,9 @@ function quiet(faction = 'bugs', seed = 77, opts = {}) {
     const sx = m.hx, sy = m.hy, d0 = way(e.x, e.y, sx, sy);   // where the squad was when it came in
     for (let i = 0; i < 30 * 30; i++) { m.step(dt); for (const v of m.events) evs.push(v.type); m.events.length = 0; }
     const d1 = way(e.x, e.y, sx, sy);
-    check(`${fac}: it hunts the Helldivers`, d1 < d0 - 30,     // (a slow walker: 30 m closer in half a minute)
+    // (0.55) or it has reached its stand-off: it fights from the edge of the squad's sight and stops there
+    const near = Math.min(...m.hdAlive.map((h) => Math.hypot(h.x - e.x, h.y - e.y)));
+    check(`${fac}: it hunts the Helldivers`, d1 < d0 - 30 || near <= C.sight.helldiver * C.boss.standOff + 5,     // (a slow walker: 30 m closer in half a minute)
       `${Math.round(d0)} m from the squad, then ${Math.round(d1)} m from where it was`);
     check(`${fac}: it can't be stunned`, (() => { e.stunUntil = m.t + 10; m.step(dt); return e.stunUntil <= m.t; })());
     // the extraction will not be called while it lives

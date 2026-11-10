@@ -8,6 +8,7 @@ import { steer } from './terrain.js';
 import { softNear, baseNear } from './pois.js';
 import { bark } from './chatter.js';
 import { dropNear } from './reinforce.js';
+import { turretStep } from './eturret.js';
 import { claim, claimedBy } from './helldiver.js';
 
 const DIRS = ['e', 'ne', 'n', 'nw', 'w', 'sw', 's', 'se'];
@@ -282,24 +283,95 @@ function squidHeavy(m, e, p, t) {
 }
 // (while charging, the harvester turns to its target: see the charge branch above, which keeps aimA fresh)
 
+// (0.55) The warp colossus's walking beam, like the destroyer's orbital laser: after a charge (a line to the target, then a ring
+// where it will touch down), a column of light comes down `lead` metres short of the target, between it and the colossus, and
+// walks: it steers at the nearest ally at `follow` m/s (it never jumps), burning everyone inside width/2 at dps, for dur seconds.
+// Running across it is how you get out of it; standing still is how you die. e.walk: the beam on the ground (render/world.js).
+function colossusBeam(m, e, p, t, dt) {
+  const W = e.walk;
+  if (W) {
+    if (t >= W.until) { e.walk = null; e.atk = p.every; return; }
+    let best = null, bd = Infinity;
+    for (const a of m.alive) { if (a.dead || a.mounted) continue; const d2 = (a.x - W.x) ** 2 + (a.y - W.y) ** 2; if (d2 < bd) { bd = d2; best = a; } }
+    if (best) {
+      const dx = best.x - W.x, dy = best.y - W.y, d = Math.sqrt(bd);
+      if (d > 0.05) { const s2 = Math.min(p.follow * dt, d); W.x += (dx / d) * s2; W.y += (dy / d) * s2; }
+    }
+    // never farther out than its reach
+    const ox = W.x - e.x, oy = W.y - e.y, od = Math.hypot(ox, oy);
+    if (od > p.range) { W.x = e.x + (ox / od) * p.range; W.y = e.y + (oy / od) * p.range; }
+    e.aimA = Math.atan2(W.y - e.y, W.x - e.x); e.aimUntil = t + 0.5;
+    const R = p.width / 2, dmg = p.dps * dt * m.dmgMul;
+    m.aGrid.near(W.x, W.y, R + 1, (o) => { if (!o.dead && !o.mounted) hurtTarget(m, o, dmg, 'enemy', 'H', e.x, e.y); });
+    for (const cv of m.civs) if (!cv.dead && !cv.safe && (cv.x - W.x) ** 2 + (cv.y - W.y) ** 2 <= (R + 1) ** 2) m.hurtCiv(cv, dmg, 'enemy');
+    for (const s of m.assets) if (!s.dead && s.kind !== 'mines' && (s.x - W.x) ** 2 + (s.y - W.y) ** 2 <= (R + 2) ** 2) hurtTarget(m, s, dmg, 'enemy');
+    W.trail.push(W.x, W.y); if (W.trail.length > 80) W.trail.splice(0, 2);
+    return;
+  }
+  if (e.ch) {
+    const c = e.ch;
+    if (!c.tgt || c.tgt.dead) c.tgt = nearestTarget(m, e.x, e.y, p.range);
+    if (!c.tgt) { e.ch = null; return; }
+    if (t < c.t0 + c.dur - p.lock) { c.tx = c.tgt.x; c.ty = c.tgt.y; }
+    e.aimA = Math.atan2(c.ty - e.y, c.tx - e.x); e.aimUntil = t + 0.5;
+    if (t >= c.t0 + c.dur) {
+      const dx = c.tx - e.x, dy = c.ty - e.y, d = Math.hypot(dx, dy) || 1, k = Math.max(0, d - p.lead) / d;
+      e.walk = { x: e.x + dx * k, y: e.y + dy * k, t0: t, until: t + p.dur, trail: [] };
+      e.ch = null;
+      m.emit('beam_walk', { x: e.walk.x, y: e.walk.y });
+    }
+    return;
+  }
+  if (e.atk > 0) return;
+  const tgt = nearestTarget(m, e.x, e.y, p.range);
+  if (tgt) { e.ch = { t0: t, dur: p.charge, tgt, tx: tgt.x, ty: tgt.y }; reveal(m, e); }
+}
+
 // ---------------------------------------------------------------- super heavies (sim/boss.js spawns them)
 // It walks at the nearest ally until it is at its own fighting distance (the titan wants to be on top of you, the walker and the
 // colossus stand off and shoot), turning slowly, round water like everyone else.
+// (0.55) how far a super heavy reaches: the allies' natural sight (C.sight.helldiver, by the biome), so it hits from as far as
+// they can see it, and no farther
+export const bossReach = (m) => C.sight.helldiver * ((m.biome && m.biome.ping) || 1) * (C.boss.reachMul || 1);
 function bossMove(m, e, dt, size) {
   const D = C.boss[e.boss];
   let best = null, bd = Infinity;     // it hunts the Helldivers (anyone else only once they are gone)
   for (const a of (m.hdAlive.length ? m.hdAlive : m.alive)) { if (a.dead || a.mounted) continue; const d2 = (a.x - e.x) ** 2 + (a.y - e.y) ** 2; if (d2 < bd) { bd = d2; best = a; } }
   const gx = best ? best.x : m.hx, gy = best ? best.y : m.hy, d = Math.sqrt(bd);
-  if (best && d <= D.stop) { e.vx = 0; e.vy = 0; e.aimA = Math.atan2(gy - e.y, gx - e.x); e.aimUntil = m.t + 0.5; return; }
+  // (0.55) every super heavy fights from the edge of the allies' own sight (bossReach): it closes to standOff of that and stops,
+  // and backs off when the squad gets well inside it (never on top of them)
+  const R = bossReach(m), K = C.boss;
+  if (best && d < R * K.backOff) { const ux = (e.x - gx) / (d || 1), uy = (e.y - gy) / (d || 1); moveToward(e, e.x + ux * 20, e.y + uy * 20, e.speed * 0.8, dt, size); e.face = Math.atan2(gy - e.y, gx - e.x); e.aimA = e.face; e.aimUntil = m.t + 0.5; e.g.cx = e.x; e.g.cy = e.y; return; }
+  if (best && d <= R * K.standOff) { e.vx = 0; e.vy = 0; e.aimA = Math.atan2(gy - e.y, gx - e.x); e.aimUntil = m.t + 0.5; return; }
   moveToward(e, gx, gy, e.speed * (d > 260 ? 1.6 : 1), dt, size);    // far off it closes faster, so it always gets to the fight
   e.g.cx = e.x; e.g.cy = e.y;
 }
 function bossAttack(m, e, dt, t) {
-  const D = C.boss[e.boss], see = m.faction.sight * m.biome.ping * 1.3, dm = m.dmgMul;
+  const D = C.boss[e.boss], see = bossReach(m), dm = m.dmgMul;     // (0.55: its reach is the allies' sight)
   if (e.aimUntil > t) reveal(m, e);
-  if (e.boss === 'squids') { e.atk -= dt; squidHeavy(m, e, { ...D.beam, range: Math.min(D.beam.range, see) }, t); return; }
+  if (e.boss === 'squids') { e.atk -= dt; colossusBeam(m, e, { ...D.walk, range: see }, t, dt); return; }
   e.atk -= dt; e.atk2 -= dt;
   if (e.boss === 'bugs') {
+    // (0.55) the spray: every so often it rears up and hoses a cone of acid over the ground ahead, blobs landing all across it
+    // and leaving pools that burn whoever stands in them for a while (C.boss.bugs.spray)
+    const SP = D.spray;
+    if (SP) {
+      e.atk3 = (e.atk3 ?? SP.first) - dt;
+      if (e.atk3 <= 0) {
+        const tg = nearestTarget(m, e.x, e.y, see);
+        if (tg) {
+          e.atk3 = SP.every;
+          const a0 = Math.atan2(tg.y - e.y, tg.x - e.x), d0 = Math.hypot(tg.x - e.x, tg.y - e.y);
+          e.aimA = a0; e.aimUntil = t + 1.4; e.sprayAt = t;
+          for (let k = 0; k < SP.n; k++) {
+            const a = a0 + (k / (SP.n - 1) - 0.5) * SP.cone + (m.rng.next() - 0.5) * 0.12, dd = Math.max(8, Math.min(see, d0 * (0.7 + 0.5 * m.rng.next())));
+            const tx = e.x + Math.cos(a) * dd, ty = e.y + Math.sin(a) * dd, fl = SP.flight * (0.7 + 0.6 * dd / see) + k * 0.04;
+            m.bossShells.push({ x: tx, y: ty, at: t + fl, dmg: SP.dmg * dm, splash: SP.splash, fx: e.x, fy: e.y, pool: k % 2 === 0 });
+            m.emit('tracer', { x: e.x, y: e.y, tx, ty, s: 'e', f: 'bugs', k: 'B', hit: true, big: true, fl, snd: k === 0 ? 'bugsB' : 'quiet' });
+          }
+        } else e.atk3 = 0.5;
+      }
+    }
     // stomp whatever is underfoot; spit acid at anyone farther off
     if (e.atk <= 0) {
       const tg = nearestTarget(m, e.x, e.y, D.stomp.range);
@@ -315,10 +387,10 @@ function bossAttack(m, e, dt, t) {
       } else e.atk = 0.3;
     }
     if (e.atk2 <= 0) {
-      const tg = nearestTarget(m, e.x, e.y, Math.min(D.spit.range, see));
+      const tg = nearestTarget(m, e.x, e.y, see);
       if (tg && Math.hypot(tg.x - e.x, tg.y - e.y) > D.stomp.range) {
         e.atk2 = D.spit.every;
-        const hit = m.rng.next() < D.spit.acc * bandAcc(bandOf(Math.hypot(tg.x - e.x, tg.y - e.y), D.spit.range));
+        const hit = m.rng.next() < D.spit.acc * bandAcc(bandOf(Math.hypot(tg.x - e.x, tg.y - e.y), see));
         let tx = tg.x + (tg.vx || 0) * D.spit.flight * 0.5, ty = tg.y + (tg.vy || 0) * D.spit.flight * 0.5;
         if (!hit) { const [ox, oy] = m.rng.inDisc(7); tx += ox; ty += oy; }
         e.aimA = Math.atan2(ty - e.y, tx - e.x); e.aimUntil = t + 0.8;
@@ -328,12 +400,18 @@ function bossAttack(m, e, dt, t) {
     }
     return;
   }
+  // (0.55) the walker's back: turrets like a bot base's, each on its own target
+  if (D.turrets) {
+    if (!e.turrets) e.turrets = D.turrets.map(([ox, oy]) => ({ ox, oy, face: e.face, cool: 0.5 + 0.4 * (ox + oy + 1) }));
+    const c = Math.cos(e.face), sn = Math.sin(e.face);
+    for (const T of e.turrets) turretStep(m, T, e.x + (T.ox * c - T.oy * sn) * e.r, e.y + (T.ox * sn + T.oy * c) * e.r, dt, D.turretMul || 1, see);
+  }
   // the walker: twin cannons at whatever is nearest in reach
   if (e.atk > 0) return;
-  const P = D.cannon, tg = nearestTarget(m, e.x, e.y, Math.min(P.range, see));
+  const P = D.cannon, tg = nearestTarget(m, e.x, e.y, see);
   if (!tg) { e.atk = 0.3; return; }
   e.atk = P.every;
-  const d = Math.hypot(tg.x - e.x, tg.y - e.y), b = bandOf(d, P.range);
+  const d = Math.hypot(tg.x - e.x, tg.y - e.y), b = bandOf(d, see);
   e.aimA = Math.atan2(tg.y - e.y, tg.x - e.x); e.aimUntil = t + 0.8;
   for (const side of [-1, 1]) {
     const hit = m.rng.next() < P.acc * bandAcc(b);

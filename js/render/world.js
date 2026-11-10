@@ -577,16 +577,36 @@ function drawBossExtras(ctx, m, e, now, px, labels, scale, col) {
   const p = 0.5 + 0.5 * Math.sin(now * 2.5);
   ctx.strokeStyle = `rgba(255,70,50,${0.45 + 0.35 * p})`; ctx.lineWidth = px(1.6);
   ctx.setLineDash([px(8), px(5)]); ring(ctx, e.x, e.y, r * (1.75 + 0.08 * p)); ctx.stroke(); ctx.setLineDash([]);
-  if (e.ch && D.beam) {
-    const c = e.ch, f = Math.max(0, Math.min(1, (t - c.t0) / c.dur)), B = D.beam;
-    const dx = c.tx - e.x, dy = c.ty - e.y, d = Math.hypot(dx, dy) || 1, L = Math.max(B.range, d), locked = t >= c.t0 + c.dur - B.lock;
-    ctx.strokeStyle = locked ? 'rgba(255,255,255,0.95)' : rgba(col, 0.35 + 0.5 * f); ctx.lineWidth = locked ? Math.max(B.width * 0.5, px(2.5)) : px(1.2 + 2 * f);
-    ctx.setLineDash(locked ? [] : [px(6), px(4)]);
-    ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x + (dx / d) * L, e.y + (dy / d) * L); ctx.stroke(); ctx.setLineDash([]);
+  if (e.ch && D.walk) {
+    // (0.55) the colossus charging: a line to its target, and a ring where the beam will come down that tightens as it charges
+    const c = e.ch, f = Math.max(0, Math.min(1, (t - c.t0) / c.dur)), B = D.walk, locked = t >= c.t0 + c.dur - B.lock;
+    const dx = c.tx - e.x, dy = c.ty - e.y, d = Math.hypot(dx, dy) || 1, k = Math.max(0, d - B.lead) / d, gx = e.x + dx * k, gy = e.y + dy * k;
+    ctx.strokeStyle = rgba(col, 0.3 + 0.5 * f); ctx.lineWidth = px(1.2 + 2 * f); ctx.setLineDash([px(6), px(4)]);
+    ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(c.tx, c.ty); ctx.stroke(); ctx.setLineDash([]);
+    ctx.strokeStyle = locked ? 'rgba(255,255,255,0.95)' : `rgba(255,120,220,${0.4 + 0.5 * f})`; ctx.lineWidth = px(2);
+    ring(ctx, gx, gy, B.width / 2 + (1 - f) * 10); ctx.stroke();
+  }
+  if (e.walk && D.walk) {
+    // (0.55) the walking beam: its scorched track, the column of light from the claw's mouth to the ground, and the burn where it
+    // touches down
+    const W = e.walk, B = D.walk, life = Math.min(1, (t - W.t0) / 0.25) * Math.min(1, (W.until - t) / 0.4), fl = 0.8 + 0.2 * Math.sin(now * 40);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    if (W.trail.length >= 4) {
+      ctx.strokeStyle = 'rgba(30,10,30,0.45)'; ctx.lineWidth = B.width * 0.8; ctx.beginPath(); ctx.moveTo(W.trail[0], W.trail[1]);
+      for (let i = 2; i < W.trail.length; i += 2) ctx.lineTo(W.trail[i], W.trail[i + 1]); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,120,220,0.35)'; ctx.lineWidth = B.width * 0.25; ctx.stroke();
+    }
+    const fa = e.face || 0, sx = e.x + Math.cos(fa) * e.r * 0.2, sy = e.y + Math.sin(fa) * e.r * 0.2;
+    ctx.strokeStyle = `rgba(220,120,255,${0.55 * life})`; ctx.lineWidth = B.width * 1.1 * fl; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(W.x, W.y); ctx.stroke();
+    ctx.strokeStyle = `rgba(255,255,255,${0.9 * life})`; ctx.lineWidth = B.width * 0.35 * fl; ctx.stroke();
+    const gr = ctx.createRadialGradient(W.x, W.y, 0, W.x, W.y, B.width * 1.6);
+    gr.addColorStop(0, `rgba(255,255,255,${life})`); gr.addColorStop(0.4, `rgba(255,140,230,${0.75 * life})`); gr.addColorStop(1, 'rgba(180,60,255,0)');
+    ctx.fillStyle = gr; ring(ctx, W.x, W.y, B.width * 1.6); ctx.fill();
+    ctx.lineCap = 'butt';
   }
   if (e.maxShield && e.shield > 0) {
     const f = e.shield / e.maxShield, hit = t - (e.shieldAt || -9) < 0.15;
-    ctx.fillStyle = `rgba(150,200,255,${(hit ? 0.22 : 0.08) + 0.08 * f})`; ring(ctx, e.x, e.y, r * 1.45); ctx.fill();
+    ctx.fillStyle = `rgba(150,200,255,${(hit ? 0.14 : 0.03) + 0.03 * f})`; ring(ctx, e.x, e.y, r * 1.45); ctx.fill();
     ctx.strokeStyle = `rgba(190,225,255,${hit ? 0.95 : 0.35 + 0.4 * f})`; ctx.lineWidth = px(hit ? 2.2 : 1.4); ring(ctx, e.x, e.y, r * 1.45); ctx.stroke();
   }
   const w = Math.max(r * 3, px(70)), y = e.y - r * 2.1 - px(10);

@@ -1056,6 +1056,8 @@ export default {
   'n.shipDown': '{what} SHOT DOWN  +{cr} CR',
   'n.shipDownN': '{what} SHOT DOWN  {n} GROUPS WITH IT  +{cr} CR',
   'n.seafDown': 'SEAF PELICAN DOWN  {n} TROOPERS{extra}  SQUAD {sq}',
+  'n.turretDown': 'BASE TURRET DESTROYED',
+  'n.heavyInbound': 'SUPER HEAVY INBOUND {dir}: {name}',
   'n.mother': 'MOTHERSHIP INBOUND · SAM SITES BARELY SCRATCH IT · USE THE SHIP GUN AND STRIKES',
   'n.motherN': '{n} MOTHERSHIPS INBOUND · SHIP GUN AND STRIKES, NOT SAMS',
   'n.motherDown': 'MOTHERSHIP DOWN · +{cr} CR',
