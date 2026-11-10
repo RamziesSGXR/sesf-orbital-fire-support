@@ -1056,6 +1056,8 @@ export default {
   'n.shipDown': '{what} DERRIBADA  +{cr} CR',
   'n.shipDownN': '{what} DERRIBADA  {n} GRUPOS CON ELLA  +{cr} CR',
   'n.seafDown': 'PELICAN SEAF EN TIERRA  {n} SOLDADOS{extra}  ESCUADRA {sq}',
+  'n.turretDown': 'TORRETA DE LA BASE DESTRUIDA',
+  'n.heavyInbound': 'SUPERPESADO EN CAMINO {dir}: {name}',
   'n.mother': 'NAVE NODRIZA EN CAMINO · LOS SAM APENAS LA RASGUÑAN · CAÑÓN Y ATAQUES',
   'n.motherN': '{n} NAVES NODRIZA EN CAMINO · CAÑÓN Y ATAQUES, NO SAM',
   'n.motherDown': 'NAVE NODRIZA ABATIDA · +{cr} CR',

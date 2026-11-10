@@ -10,6 +10,7 @@ import { sideDestroyed } from './sides.js';
 import { RNG } from '../util/rng.js';
 import { STRATS } from '../data/strat.js';
 import { inAO } from './ao.js';
+import { reinfHeavy } from './boss.js';
 
 const P = C.poi;
 
@@ -125,6 +126,7 @@ export function updatePois(m, dt) {
     if (t >= b.next && b.left > 0) {
       b.next = t + b.every; b.left--;
       if (b.left === b.total - 1) m.emit('breach_open', { x: b.x, y: b.y, id: b.id });
+      if (b.heavy) { b.heavy = false; reinfHeavy(m, b.x, b.y); }      // (0.55) a super heavy digs out of it
       if (m.enemies.length < C.enemies.hardCap) {
         const size = b.groups ? Math.max(2, Math.round(m.groupSize * C.reinf.bugs.pack)) : undefined;     // (0.31: a pack at a time)
         const g = spawnGroup(m, b.x + rng.range(-3, 3), b.y + rng.range(-3, 3), 'hunt', { alertT: 45, emerge: true, size });

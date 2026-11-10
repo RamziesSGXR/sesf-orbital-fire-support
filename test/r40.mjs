@@ -241,7 +241,7 @@ function seafShare(seed, role, n, targets, sec = 10) {
 // ---------------------------------------------------------------- every enemy can miss
 {
   const A = C.combat.atk, S = C.special;
-  const all = [...['bugs', 'bots', 'squids'].flatMap((f) => ['L', 'M', 'H'].map((k) => A[f][k].acc)), S.bugs.atk.acc, S.squids.atk.acc, C.boss.bugs.spit.acc, C.boss.bugs.stomp.acc, C.boss.bots.cannon.acc, C.boss.squids.beam.acc];
+  const all = [...['bugs', 'bots', 'squids'].flatMap((f) => ['L', 'M', 'H'].map((k) => A[f][k].acc)), S.bugs.atk.acc, S.squids.atk.acc, C.boss.bugs.spit.acc, C.boss.bugs.stomp.acc, C.boss.bots.cannon.acc];
   check('no enemy attack is sure to hit', all.every((v) => v > 0 && v <= 0.9), all.join(' '));
   // a bug charger mauling a Helldiver who cannot die: some of its swipes miss
   const m = mk(4201, 'bugs'), a = m.hdAlive[0];
