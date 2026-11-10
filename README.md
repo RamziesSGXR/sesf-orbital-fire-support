@@ -25,6 +25,10 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Difficulty (0.53.11).**
+- **Idle troops fade.** A SEAF squad that has had no new order for about 100 seconds fights worse, down to half damage over the next two minutes, and a notice says so. Any order (move, hold, clear, build) restores it. Snowballing SEAF still works, but only while you direct it.
+- **More enemies, for longer.** Past level 10 the crowd grows twice as fast per level, and the ceiling on enemies alive at once rises with the level (up to 340, it was a fixed 230).
+
 **Fixes from the players (0.53.10).**
 - **Propaganda Tower text.** Its armory card said "Troopers inside widen it" right after the line about vision, so it read as if troopers widen its vision (it has none since 0.47). It now says what they widen: the area where allies get the UAV's boost, up to a UAV scan's reach.
 
