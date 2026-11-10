@@ -5,6 +5,7 @@ import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { pelicanBody, pelicanDetail } from './squads.js';
 import { drawCivBody } from './units.js';
+import { jellyModel, drawJelly, drawJellyShadow } from './jelly.js';
 
 const TAU = Math.PI * 2;
 function rgba(hex, a) {
@@ -94,6 +95,7 @@ function warpBody(ctx, s) {
 export function drawDrops(ctx, m, now, px, labels, scale, pal) {
   const col = pal.enemy, t = m.t;
   for (const d of m.drops) {
+    if (d.mom) continue;      // (0.54.1) the mothership is drawn over everything (drawMotherSky), its shadow in drawMotherGround
     const s = Math.max(d.kind === 'ship' ? 13 : 15, px(18)) * (0.85 + 0.35 * d.alt), ang = Math.atan2(d.dy, d.dx);
     const spin = d.state === 'down' ? d.fallT * 4 : 0;
     // shadow on the ground: farther from the craft the higher it is
@@ -324,3 +326,51 @@ export function drawExtractionPelican(ctx, m, now, px) {
 
 // Pings of hits that matter: critical hits from the destroyer and hits on a heavy's back.
 export function critText(f) { return tr(f & 1 ? (f & 2 ? 'lab.rearCrit' : 'lab.rearHit') : f & 2 ? 'lab.crit' : 'lab.armor'); }   // (4 alone: the armoured front took it)
+
+// ---------------------------------------------------------------- (0.54.1) the mothership and its wreck
+// The campaign's jellyfish (jelly.js), bigger than any citadel, hanging over the map. Falling it tips, burns and sinks; the wreck
+// stays where it came down, scorched and still smoking.
+let jAt = -1, jM = null;
+const model = (now) => { if (jAt !== now) { jAt = now; jM = jellyModel(now); } return jM; };
+const MS = 0.5;       // model scale: R 200 units -> 100 m
+function motherView(m, d, now) {
+  const fall = d.state === 'down' ? Math.min(1, d.fallT / C.mother.crashSec) : 0, yaw = (d.yaw || 0) + now * 0.05 + fall * 1.5;
+  const cracks = Math.min(6, Math.floor((1 - (d.hp + d.shield) / (d.maxHp + d.maxShield)) * 7));
+  return { fall, o: { x: d.x, y: d.y - 40 + fall * 90, s: MS, th: 0.78 + fall * 0.5, yaw, t: now, cracks, burn: fall > 0 ? 0.4 + fall * 0.6 : 0 }, yaw };
+}
+export function drawMotherGround(ctx, m, now) {
+  for (const w of m.motherWrecks || []) {
+    ctx.fillStyle = 'rgba(20,12,10,0.55)'; ctx.beginPath(); ctx.ellipse(w.x, w.y, w.r * 1.25, w.r * 0.95, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = 'rgba(60,30,18,0.35)'; ctx.beginPath(); ctx.ellipse(w.x, w.y, w.r * 0.8, w.r * 0.6, 0, 0, TAU); ctx.fill();
+  }
+  for (const d of m.drops) {
+    if (!d.mom || d.dead) continue;
+    const v = motherView(m, d, now);
+    drawJellyShadow(ctx, model(now), { s: MS, yaw: v.yaw, gx: d.x, gy: d.y + 130, A: 420 - v.fall * 330, lx: 0.45, lz: 0.25, alpha: 0.34 * (1 - v.fall * 0.4) });
+  }
+}
+export function drawMotherSky(ctx, m, now, px, labels, scale) {
+  for (const w of m.motherWrecks || []) {
+    drawJelly(ctx, model(now), { x: w.x, y: w.y + 18, s: MS * 0.9, th: 1.28, yaw: w.yaw + 1.5, t: now, cracks: 6, burn: 1, alpha: 0.92, dim: 0.35 });
+    for (let i = 0; i < 4; i++) {         // smoke and embers
+      const k = ((now * 0.35 + i * 0.25) % 1), a = (1 - k) * 0.35;
+      ctx.fillStyle = `rgba(40,36,36,${a})`; ctx.beginPath(); ctx.arc(w.x + Math.sin(i * 2.3 + now) * 14, w.y - k * 70, 8 + k * 22, 0, TAU); ctx.fill();
+    }
+    ctx.fillStyle = `rgba(255,140,50,${0.25 + 0.15 * Math.sin(now * 9)})`; ctx.beginPath(); ctx.arc(w.x, w.y + 10, 16, 0, TAU); ctx.fill();
+    labels.push({ x: w.x, y: w.y, dy: -w.r * scale * 0.6, text: tr('lab.motherWreck'), col: '#9a9a9a', pri: 1 });
+  }
+  for (const d of m.drops) {
+    if (!d.mom || d.dead) continue;
+    const v = motherView(m, d, now), under = m.alive.some((a) => !a.dead && Math.hypot(a.x - d.x, a.y - d.y) < d.r * 1.1);
+    drawJelly(ctx, model(now), { ...v.o, alpha: (under ? 0.5 : 0.93) * (1 - v.fall * 0.3) });
+    if (d.state === 'down') continue;
+    const t = m.t, f = d.maxShield ? d.shield / d.maxShield : 0, hit = t - (d.shieldAt || -9) < 0.15;
+    if (f > 0) {
+      ctx.fillStyle = `rgba(150,200,255,${(hit ? 0.1 : 0.03) + 0.03 * f})`; ctx.beginPath(); ctx.arc(d.x, d.y - 20, d.r * 1.5, 0, TAU); ctx.fill();
+      ctx.strokeStyle = `rgba(190,225,255,${hit ? 0.9 : 0.2 + 0.3 * f})`; ctx.lineWidth = px(hit ? 2 : 1.2); ctx.beginPath(); ctx.arc(d.x, d.y - 20, d.r * 1.5, 0, TAU); ctx.stroke();
+    }
+    hpBar(ctx, d.x, d.y + d.r * 1.7, d.r * 2.6, px(4), d.shield / d.maxShield, '#8fd0ff');
+    hpBar(ctx, d.x, d.y + d.r * 1.7 + px(6), d.r * 2.6, px(5), d.hp / d.maxHp, '#d96bff');
+    labels.push({ x: d.x, y: d.y, dy: -d.r * scale * 1.6, text: tr('lab.mother'), col: '#d96bff', pri: 3 });
+  }
+}

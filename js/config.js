@@ -473,6 +473,12 @@ export const CONFIG = {
               bugs:   { warnSec: 2.5, every: 2.2, pack: 0.5, packs: 3, hp: 2400, minOpen: 10, floor: 0.25, r: 8, lingerSec: 6, reward: 90, rifle: 0.35 },
               bots:   { speed: 75, approach: 460, hover: 1.2, every: 0.9, hp: 1100, r: 9, lowR: 110, reward: 160, crash: 380, survive: 0.5, survHp: 0.7 },
               squids: { speed: 55, approach: 420, hover: 1.6, every: 1.1, hp: 1700, r: 12, lowR: 90, reward: 260, crash: 420, shield: 1400, regen: 70, regenDelay: 5 } },
+  // (0.54.1) The squid mothership (sim/mother.js): comes after `after` warp ships have been shot down by SAM sites (and not before minT s),
+  // hangs `dist` metres from the squad and drops `groups` groups every waveEvery s. hp and shield are huge, it heals `heal` hp/s, and a
+  // SAM hit is cut to samMul (about 20 sites to bring it down). When every one is down, the next set comes after respawnSec, one more
+  // each time up to maxShips. crashSec: how long it falls; crashR/crashDmg the blast where it lands; the wreck stays.
+  mother:   { after: 4, minT: 150, hp: 36000, shield: 24000, heal: 220, regen: 260, regenDelay: 6, samMul: 0.2, r: 62, speed: 38, approach: 520, dist: [150, 230],
+              firstWave: 8, waveEvery: 24, groups: 2, maxShips: 3, respawnSec: 70, crashSec: 7, crashR: 60, crashDmg: 700, reward: 900 },
   // Points of interest: random spots SEAF can take out for credits. Guarded by an enemy group that wakes when allies come close.
   // (0.18: fewer of these; the finds below are the rest)
   poi:      { min: 2, max: 4, hp: 520, r: 18, minFromLz: 260, spacing: 160, guardR: 130, rifleMul: 0.8,
@@ -623,6 +629,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.54.0',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.54.1',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };
