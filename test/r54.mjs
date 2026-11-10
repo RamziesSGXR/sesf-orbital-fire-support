@@ -1,8 +1,9 @@
-// Revision 54 checks: the three new enemies (the bug leaper, the bot rocketeer, the squid warlord) and how groups move (bots in a line or
+// Revision 54 checks: the three new enemies (the bug leaper, the bot rocketeer, the squid bombardier) and how groups move (bots in a line or
 // a square, bugs in an ant trail or a swarm, squids in a school). Run: node test/r54.mjs
 import { Mission } from '../js/sim/mission.js';
 import { CONFIG as C } from '../js/config.js';
 import { spawnGroup } from '../js/sim/director.js';
+import { makePost } from '../js/sim/posts.js';
 import { hurtEnemy } from '../js/sim/combat.js';
 import { readFileSync } from 'node:fs';
 
@@ -23,6 +24,8 @@ function quiet(faction, seed = 77) {
 // a dry spot well away from the squad, and the squad (one ally, hp topped up) moved to a given offset from it
 function land(m) { const a = m.hdAlive[0]; for (let r = 80; r < 200; r += 10) for (let q = 0; q < 12; q++) { const x = a.x + Math.cos(q * 0.52) * r, y = a.y + Math.sin(q * 0.52) * r; if ([0, 1, 2, 3].every((i) => m.terrain.isLand(x + Math.cos(i * 1.57) * 40, y + Math.sin(i * 1.57) * 40))) return { x, y }; } return { x: a.x + 100, y: a.y }; }
 function place(m, at, dx, dy) { const a = m.hdAlive[0]; a.x = at.x + dx; a.y = at.y + dy; a.hp = a.maxHp = 5000; for (const o of m.hdAlive) if (o !== a) { o.x = at.x + dx + 6; o.y = at.y + dy + 6; } m.squad.ax = a.x; m.squad.ay = a.y; return a; }
+// (the squad kept in a pile at the given spots while it runs: the AI would walk them apart)
+function pinned(m, sec, spots) { for (let i = 0, n = Math.round(sec / dt); i < n && !m.over; i++) { m.hdAlive.forEach((o, k) => { o.x = spots[k % spots.length][0]; o.y = spots[k % spots.length][1]; o.hp = Math.max(o.hp, 1); }); m.step(dt); } }
 const make = (m, at, kinds, state = 'hunt') => { const g = spawnGroup(m, at.x, at.y, state, { kinds }); g.alertT = 1e9; for (const e of g.members) e.hp = e.maxHp = 1e6; m.dirtyE = true; return g; };
 // (a group left to stand where it is, facing along +x, so its slots can be read off)
 const still = (g) => { g.hx = 1; g.hy = 0; g.pt = { x: g.cx, y: g.cy }; g.patrolT = 1e9; };
@@ -32,13 +35,13 @@ const still = (g) => { g.hx = 1; g.hy = 0; g.pt = { x: g.cx, y: g.cy }; g.patrol
   for (const f of ['bugs', 'bots', 'squids']) check(`${f} have a variant and a share for it`, !!C.variants[f] && C.variants[f].share > 0 && C.variants[f].share < 1);
   const L = { en: 'en', fr: 'fr', es: 'es' };
   let ok = true;
-  for (const lg of Object.keys(L)) { const s = readFileSync(new URL(`../js/lang/${lg}.js`, import.meta.url), 'utf8'); for (const k of ['kind.bugs.leap', 'kind.bots.rkt', 'kind.squids.cmdr', 'info.variants', 'info.variantsV']) if (!s.includes(`'${k}'`)) ok = false; }
+  for (const lg of Object.keys(L)) { const s = readFileSync(new URL(`../js/lang/${lg}.js`, import.meta.url), 'utf8'); for (const k of ['kind.bugs.leap', 'kind.bots.rkt', 'kind.squids.mort', 'info.variants', 'info.variantsV']) if (!s.includes(`'${k}'`)) ok = false; }
   check('the new names and the field-manual text are in English, French and Spanish', ok);
 }
 
 // ---------------------------------------------------------------- the roll: each faction gets its variant, on a stream of its own
 {
-  for (const [f, kind, id] of [['bugs', 'L', 'leap'], ['bots', 'M', 'rkt'], ['squids', 'M', 'cmdr']]) {
+  for (const [f, kind, id] of [['bugs', 'L', 'leap'], ['bots', 'M', 'rkt'], ['squids', 'M', 'mort']]) {
     const m = quiet(f), at = land(m);
     const g = spawnGroup(m, at.x, at.y, 'patrol', { kinds: Array(200).fill(kind) });
     const n = g.members.filter((e) => e.v === id).length, st = g.members.find((e) => e.v === id), plain = g.members.find((e) => !e.v);
@@ -99,20 +102,33 @@ const still = (g) => { g.hx = 1; g.hy = 0; g.pt = { x: g.cx, y: g.cy }; g.patrol
   check('and they hurt what they are aimed at', a.hp < a.maxHp, `${(a.maxHp - a.hp).toFixed(0)} damage`);
 }
 
-// ---------------------------------------------------------------- the warlord
+// ---------------------------------------------------------------- the bombardier, and the blast of both
 {
-  const m = quiet('squids'), at = land(m); place(m, at, 140, 0);
-  const g = make(m, at, ['M', 'L', 'L'], 'patrol'), [c, near, far] = g.members, A = C.variants.squids.aura;
-  c.v = 'cmdr'; c.auraR = A.r; c.x = at.x; c.y = at.y; near.x = at.x + A.r * 0.5; near.y = at.y; far.x = at.x + A.r * 2.5; far.y = at.y;
-  for (const q of g.members) { q.ox = q.x - at.x; q.oy = q.y - at.y; q.hp = q.maxHp = 1e6; }
-  m.dirtyE = true; run(m, 0.5);
-  check('squids inside its ring are buffed', near.buff > m.t - 0.1, `until ${near.buff}`);
-  check('squids outside it are not', !(far.buff > m.t - 0.1));
-  check('it does not buff itself', !(c.buff > m.t - 0.1));
-  const d0 = near.hp; hurtEnemy(m, near, 20, 'player', near.x, near.y); const dBuff = d0 - near.hp;
-  const f0 = far.hp; hurtEnemy(m, far, 20, 'player', far.x, far.y); const dFar = f0 - far.hp;
-  check('a buffed squid takes less damage', dBuff < dFar * 0.95 && Math.abs(dBuff / dFar - A.taken) < 0.05, `${dBuff.toFixed(1)} vs ${dFar.toFixed(1)}`);
-  check('the buff ends once the warlord is dead', (() => { c.dead = true; run(m, 1); return !(near.buff > m.t); })());
+  const m = quiet('squids'), at = land(m), V = C.variants.squids;
+  const a = place(m, at, 50, 0), spots = [[a.x, a.y], [a.x + 1.5, a.y + 1], [a.x - 1, a.y + 2], [a.x + 0.5, a.y - 2]];
+  for (const o of m.hdAlive) { o.hp = o.maxHp = 1e6; }
+  const g = make(m, at, ['M'], 'hunt'), e = g.members[0];
+  e.v = 'mort'; e.x = at.x; e.y = at.y; e.atk = 0; g.cx = at.x; g.cy = at.y;
+  const sh = [], booms = [], emit0 = m.emit.bind(m);
+  m.emit = (type, ev) => { if (type === 'tracer' && ev.mortar) sh.push(ev); if (type === 'boom' && ev.mortar) booms.push(ev); return emit0(type, ev); };
+  const hp0 = m.hdAlive.map((o) => o.hp);
+  pinned(m, 20, spots);
+  check('a bombardier lobs mortar shells, one at a time', sh.length >= 3 && sh.length <= 6, `${sh.length} shells in 20 s (one every ${V.atk.every} s)`);
+  check('each takes a moment to land, with a wide blast that is not acid', booms.length >= 2 && booms.every((b) => b.r === V.atk.splash && !b.acid), `${booms.length} blasts, r ${V.atk.splash} m`);
+  const hit = m.hdAlive.filter((o, i) => o.hp < hp0[i]).length;
+  check('shells hurt the whole pile', hit === m.hdAlive.length, `${hit} of ${m.hdAlive.length} hurt`);
+  check('it aims at the middle of the pile', sh.every((x) => Math.hypot(x.tx - a.x, x.ty - a.y) < V.scatter + 3.5), '');
+  check('the old warlord is gone', !C.variants.squids.aura);
+}
+{
+  // the rocketeer's barrage is a blast too: one volley on a pile hurts all of it
+  const m = quiet('bots'), at = land(m), V = C.variants.bots, a = place(m, at, 45, 0);
+  const spots = [[a.x, a.y], [a.x + 1.5, a.y - 1], [a.x - 1, a.y + 1.5], [a.x + 0.5, a.y + 2]];
+  for (const o of m.hdAlive) { o.hp = o.maxHp = 1e6; }
+  const g = make(m, at, ['M'], 'hunt'), e = g.members[0]; e.v = 'rkt'; e.x = at.x; e.y = at.y; e.atk = 0; g.cx = at.x; g.cy = at.y;
+  const hp0 = m.hdAlive.map((o) => o.hp); pinned(m, 4, spots);
+  const hit = m.hdAlive.filter((o, i) => o.hp < hp0[i]).length;
+  check('a rocket barrage hurts most of the pile it lands on (the rest were just outside the blasts)', hit >= m.hdAlive.length - 1 && hit >= 3, `${hit} of ${m.hdAlive.length} hurt, blast r ${V.atk.splash} m`);
 }
 
 // ---------------------------------------------------------------- formations
@@ -164,16 +180,27 @@ const still = (g) => { g.hx = 1; g.hy = 0; g.pt = { x: g.cx, y: g.cy }; g.patrol
 {
   const m = quiet('squids'), at = land(m), a = place(m, at, 60, 0);
   const g = make(m, at, ['L', 'L', 'L', 'L', 'M'], 'hunt'); g.target = a;
-  const lead = g.members.find((e) => e.kind === 'M'); lead.v = 'cmdr'; lead.auraR = C.variants.squids.aura.r;
+  const lead = g.members.find((e) => e.kind === 'M'); lead.v = 'mort';
   run(m, 20);
   const dl = Math.hypot(lead.x - a.x, lead.y - a.y), ds = g.members.filter((e) => e.kind === 'L' && !e.dead).map((e) => Math.hypot(e.x - a.x, e.y - a.y));
-  check('in the fight the leader stands inside the ring of lights', ds.length === 0 || dl < Math.max(...ds) + 1, `leader ${dl.toFixed(0)} m, lights ${ds.map((x) => x.toFixed(0)).join('/')}`);
+  check('in the fight the bombardier stands back at its own range, behind the lights', ds.length === 0 || dl > Math.min(...ds), `leader ${dl.toFixed(0)} m, lights ${ds.map((x) => x.toFixed(0)).join('/')}`);
 }
 
 // ---------------------------------------------------------------- nothing breaks over a long run (all three, finite positions, deterministic)
 {
   const sig = (f) => { const m = new Mission({ seed: 91, faction: f, biome: 'grass', events: true, sessionMinutes: 0, boss: false }); run(m, 150); let bad = 0, v = 0; for (const e of m.enemies) { if (!Number.isFinite(e.x + e.y + e.hp)) bad++; if (e.v) v++; } return { bad, v, n: m.enemies.length, t: Math.round(m.hdAlive[0] ? m.hdAlive[0].x : 0) }; };
   for (const f of ['bugs', 'bots', 'squids']) { const a = sig(f), b = sig(f); check(`${f}: 150 s of a mission, no bad numbers, same result twice`, a.bad === 0 && JSON.stringify(a) === JSON.stringify(b), JSON.stringify(a)); }
+}
+// ---------------------------------------------------------------- turret nests and the cannon: no crew needed, a small sight of their own
+{
+  const m = quiet('bots'), at = land(m), a = place(m, at, 400, 0);
+  const mg = makePost(m, 'mg', at.x, at.y), cn = makePost(m, 'arty', at.x + 60, at.y);
+  mg.hp = mg.maxHp; run(m, 1);
+  check('a heavy turret nest with no crew fires at the full rate', mg.crew === 0 && mg.rate === 1 && mg.manned, `rate ${mg.rate}`);
+  const R = C.build.nestSight;
+  check('the nest sees a small way round itself, crew or none', m.relays.some((u) => u.kind === 'nest' && u.x === mg.x && u.y === mg.y && u.r >= R * 0.9 * 0.5), `${R} m`);
+  check('so does the cannon', m.relays.some((u) => u.kind === 'nest' && u.x === cn.x && u.y === cn.y));
+  check('and an enemy that walks up to it is seen', (() => { const g = make(m, at, ['L'], 'patrol'); const e = g.members[0]; e.x = mg.x + R * 0.5; e.y = mg.y; m.dirtyE = true; run(m, 0.5); return e.vis >= 1; })());
 }
 console.log(fails ? `${fails} FAILED` : 'ALL PASS');
 process.exit(fails ? 1 : 0);

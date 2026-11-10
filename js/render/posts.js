@@ -11,6 +11,7 @@ function ring(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, Math.max(0.01, r), 
 // (0.47) a 180-degree half disc of radius r toward `face` (a lookout's view)
 export function cone(ctx, x, y, r, face) { ctx.beginPath(); ctx.moveTo(x, y); ctx.arc(x, y, r, face - Math.PI / 2, face + Math.PI / 2); ctx.closePath(); }
 function hpBar(ctx, x, y, w, h, f, col) {
+  if (document.body.classList.contains('hide-ui')) return;     // (0.54) Hide UI: no health bars
   ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(x - w / 2 - 0.3, y - 0.3, w + 0.6, h + 0.6);
   ctx.fillStyle = col; ctx.fillRect(x - w / 2, y, w * Math.max(0, Math.min(1, f)), h);
 }

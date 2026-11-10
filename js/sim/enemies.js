@@ -210,7 +210,6 @@ export function shoreToward(tr, tx, ty, x, y) {
   return tr.nearestLand(tx, ty);
 }
 function moveToward(o, tx, ty, speed, dt, size) {
-  if (o.buff > NAVT) speed *= C.variants.squids.aura.speed;      // (0.54) under a commander's aura
   if (WIRES.length) { const k = wireMul(o, dt); if (k <= 0) { o.vx = 0; o.vy = 0; return; } speed *= k; }
   if (AOB) {      // (the round area: nobody goes out of it; done in place, this runs for every enemy every tick)
     const R = (AOB.R || AOB.size / 2) - 3, dx = tx - AOB.cx, dy = ty - AOB.cy, d2 = dx * dx + dy * dy;
@@ -391,17 +390,31 @@ function rocketeer(m, e, dt, t, p) {
   if (e.atk > 0 || !e.tgt || e.tgt.dead) return;
   const a = e.tgt;
   e.atk = p.every;
-  e.vol = { left: V.n, gap: 0.35, x: a.x + (a.vx || 0) * V.flight * 0.5, y: a.y + (a.vy || 0) * V.flight * 0.5 };   // (a short wind-up, then it leads a moving target a little)
+  const c = densest(m, a, p.splash);
+  e.vol = { left: V.n, gap: 0.35, x: c.x + (a.vx || 0) * V.flight * 0.5, y: c.y + (a.vy || 0) * V.flight * 0.5 };   // (a short wind-up, at the thickest bunch, leading a moving one a little)
   e.aimA = Math.atan2(a.y - e.y, a.x - e.x); e.aimUntil = t + 1.2;
   reveal(m, e);
 }
-// Commander: everything of its own side within the aura is buffed for a moment at a time (e.buff = the time it lasts until).
-function commanderAura(m, t) {
-  for (const c of m.enemies) {
-    if (c.dead || c.v !== 'cmdr') continue;
-    const r2 = c.auraR * c.auraR;
-    for (const q of m.enemies) if (q !== c && !q.dead && !q.boss && (q.x - c.x) ** 2 + (q.y - c.y) ** 2 <= r2) q.buff = t + 0.6;
-  }
+// Where a blast does the most: the middle of the biggest bunch of allies (within `splash` of each other) near the target, so a pile of
+// troopers is what gets hit. Falls back to the target itself.
+function densest(m, a, splash) {
+  let best = a, bn = 0;
+  m.aGrid.near(a.x, a.y, splash * 3, (c) => { let n = 0; m.aGrid.near(c.x, c.y, splash, () => { n++; }); if (n > bn) { bn = n; best = c; } });
+  let sx = 0, sy = 0, n = 0;
+  m.aGrid.near(best.x, best.y, splash, (c) => { sx += c.x; sy += c.y; n++; });
+  return n ? { x: sx / n, y: sy / n } : { x: a.x, y: a.y };
+}
+// Bombardier: one mortar shell at a time, with a flight time you can see coming (a ring on the ground) and a wide blast.
+function bombardier(m, e, dt, t, p) {
+  const V = C.variants.squids;
+  e.atk -= dt;
+  if (e.atk > 0 || !e.tgt || e.tgt.dead) return;
+  e.atk = p.every;
+  const a = e.tgt, c = densest(m, a, p.splash), [ox, oy] = m.rng.inDisc(V.scatter), tx = c.x + (a.vx || 0) * V.flight * 0.4 + ox, ty = c.y + (a.vy || 0) * V.flight * 0.4 + oy;
+  m.bossShells.push({ x: tx, y: ty, at: t + V.flight, dmg: p.dmg * m.dmgMul, splash: p.splash, fx: e.x, fy: e.y, mortar: true });
+  m.emit('tracer', { x: e.x, y: e.y, tx, ty, s: 'e', f: 'squids', k: 'M', hit: true, big: true, mortar: true, fl: V.flight, snd: 'squidsM' });
+  e.aimA = Math.atan2(ty - e.y, tx - e.x); e.aimUntil = t + 0.9;
+  reveal(m, e);
 }
 
 // ---------------------------------------------------------------- (0.54) formations
@@ -552,7 +565,6 @@ export function updateEnemies(m, dt) {
   NAV = m.terrain; NAVT = m.t; AOB = m.ao;
   WIRES.length = 0; for (const p of m.posts) if (p.what === 'wire' && !p.dead && p.wireHp > 0) WIRES.push(p);
   const atk = C.combat.atk[fac.id], prof = (e) => profileOf(fac.id, e);
-  if (fac.id === 'squids') commanderAura(m, t);
   if (fac.id === 'squids') { m.ringT = (m.ringT || 0) - dt; if (m.ringT <= 0) { m.ringT = 0.5; assignRings(m); } }
   // Commanders jam the ground round them (see jammedAt); a heavy's shield comes back once it has been left alone a while.
   const jam = m.jammers || (m.jammers = []);
@@ -720,11 +732,12 @@ export function updateEnemies(m, dt) {
       const p = prof(e);
       if (e.boss) { bossAttack(m, e, dt, t); continue; }
       if (e.v === 'rkt') { rocketeer(m, e, dt, t, p); continue; }
+      if (e.v === 'mort') { bombardier(m, e, dt, t, p); continue; }
       if (e.kind === 'H' && fac.id === 'squids') { e.atk -= dt; squidHeavy(m, e, p, t); continue; }
       if (!e.tgt) continue;
       e.atk -= dt;
       if (e.atk > 0) continue;
-      e.atk += e.buff > t ? p.every * C.variants.squids.aura.rate : p.every;     // (0.54: a buffed squid fires quicker)
+      e.atk += p.every;
       const a = e.tgt;
       if (a.dead) continue;
       e.aimA = Math.atan2(a.y - e.y, a.x - e.x); e.aimUntil = t + 0.9;    // turn to face what it is shooting
@@ -737,13 +750,13 @@ export function updateEnemies(m, dt) {
       const melee = (fac.id === 'bugs' && e.kind !== 'M') || e.sub === 'guard' || e.sub === 'soak';
       m.emit('tracer', { x: e.x, y: e.y, tx, ty, s: 'e', f: fac.id, k: e.kind, hit, melee, snd: fac.id + e.kind });
       if (!hit) continue;
-      const hi = m.terrain.attackMul(e.x, e.y, a.x, a.y) * bandDmg(band), bf = e.buff > t ? C.variants.squids.aura.dmg : 1;     // shooting down from a rise hits harder; far shots softer
+      const hi = m.terrain.attackMul(e.x, e.y, a.x, a.y) * bandDmg(band);     // shooting down from a rise hits harder; far shots softer
       if (p.splash) {
-        m.aGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * bf * m.dmgMul * hi, 'enemy', e.kind, e.x, e.y));
-        m.tGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * bf * m.dmgMul * hi, 'enemy', e.kind));
+        m.aGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * m.dmgMul * hi, 'enemy', e.kind, e.x, e.y));
+        m.tGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * m.dmgMul * hi, 'enemy', e.kind));
         for (const cv of m.civs) if (!cv.dead && !cv.safe && (cv.x - tx) ** 2 + (cv.y - ty) ** 2 <= p.splash * p.splash) m.hurtCiv(cv, p.dmg * m.dmgMul, 'enemy');
         m.emit('boom', { x: tx, y: ty, r: p.splash, dmg: p.dmg, by: 'enemy' });
-      } else hurtTarget(m, a, p.dmg * bf * m.dmgMul * hi, 'enemy', e.kind, e.x, e.y);
+      } else hurtTarget(m, a, p.dmg * m.dmgMul * hi, 'enemy', e.kind, e.x, e.y);
     }
   }
 }

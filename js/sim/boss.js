@@ -63,11 +63,11 @@ export function updateBoss(m, dt) {
     const s = m.bossShells[i];
     if (t < s.at) continue;
     m.bossShells.splice(i, 1);
-    const sk = s.rocket ? 'M' : 'H';
+    const sk = s.rocket || s.mortar ? 'M' : 'H';
     m.aGrid.near(s.x, s.y, s.splash, (o) => hurtTarget(m, o, s.dmg, 'enemy', sk, s.fx, s.fy));
     m.tGrid.near(s.x, s.y, s.splash, (o) => hurtTarget(m, o, s.dmg, 'enemy', sk));
     for (const cv of m.civs) if (!cv.dead && !cv.safe && (cv.x - s.x) ** 2 + (cv.y - s.y) ** 2 <= s.splash * s.splash) m.hurtCiv(cv, s.dmg, 'enemy');
-    m.emit('boom', { x: s.x, y: s.y, r: s.splash, dmg: s.dmg, by: 'enemy', acid: !s.rocket, rocket: !!s.rocket });
+    m.emit('boom', { x: s.x, y: s.y, r: s.splash, dmg: s.dmg, by: 'enemy', acid: !s.rocket && !s.mortar, rocket: !!s.rocket, mortar: !!s.mortar });
   }
   const e = m.boss;
   if (!e) return;

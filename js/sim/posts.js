@@ -364,7 +364,7 @@ export function updatePosts(m, dt) {
   for (const p of m.posts.slice()) if (p.what === 'wire' && !p.dead && p.wireHp <= 0) { removePost(m, p); m.stats.wireTorn = (m.stats.wireTorn || 0) + 1; m.emit('wire_torn', { x: p.x, y: p.y, id: p.id }); }
   for (const a of m.alive) { a.inPost = null; a.inside = null; }
   // the tower's cover is rebuilt each tick from the manned towers
-  if (m.relays.some((u) => u.tower)) m.relays = m.relays.filter((u) => !u.tower);
+  if (m.relays.some((u) => u.tower || u.nest)) m.relays = m.relays.filter((u) => !u.tower && !u.nest);
   m.spotters = [];
   for (const p of m.posts) {
     if (p.dead) continue;
@@ -397,9 +397,11 @@ export function updatePosts(m, dt) {
       }
     } else if (ns && p.garrison < (p.cap || 0)) for (const q of m.seaf.squads) if (q.n && q.order.kind === 'post' && q.order.post === p && q.order.garrison) garrisonPost(m, p, q.i);   // (it counts them in)
     p.manned = true;                   // (0.18: everything works on its own; a crew makes it better)
+    // (0.54) a turret nest and a cannon see a little way on their own (an ally's sight is C.sight.helldiver; this is C.build.nestSight metres), crew or none
+    if ((p.what === 'mg' || p.what === 'arty') && !p.fallen) m.relays.push({ x: p.x, y: p.y, r: Math.round(C.build.nestSight * ((m.biome && m.biome.ping) || 1)), kind: 'nest', nest: true });
     p.crewed = n > 0;
     if (p.what === 'mg') {
-      p.rate = n >= 2 ? 1 : n === 1 ? 0.8 : 0.55;        // on its own it fires at about half its crewed rate
+      p.rate = n >= 2 ? 1.15 : 1;                        // (0.54) it needs no crew: on its own it fires at the full rate, and a full crew a little faster
       turretStep(m, p, dt);
     } else if (p.what === 'sam') samStep(m, p, dt);
     else if (p.what === 'lookout') {

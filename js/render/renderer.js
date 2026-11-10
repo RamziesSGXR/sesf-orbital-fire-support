@@ -271,7 +271,8 @@ export class Renderer {
     let kind = 'streak', col, w, flight, len = 7;
     if (ev.s === 'e') {
       col = this.enemyColor(m);
-      if (ev.rocket) { kind = 'shell'; flight = ev.fl; w = 1.6; len = 8; col = '#ffb070'; }     // (0.54) a rocketeer's rocket: a hot dot with a smoke line
+      if (ev.mortar) { kind = 'shell'; flight = ev.fl; w = 2.4; len = 10; }     // (0.54) a bombardier's shell: lobbed, it arcs up and comes down
+      else if (ev.rocket) { kind = 'shell'; flight = ev.fl; w = 1.6; len = 8; col = '#ffb070'; }     // (0.54) a rocketeer's rocket: a hot dot with a smoke line
       else if (ev.melee) { kind = 'slash'; flight = 0.001; w = ev.k === 'H' ? 2.6 : 1.4; }
       else if (ev.f === 'bugs') { kind = 'glob'; w = 2; flight = cl(d / 40, 0.12, 0.6); }
       else if (ev.f === 'bots') { w = ev.k === 'H' ? 3 : ev.k === 'M' ? 1.5 : 1; flight = cl(d / 120, 0.08, 0.45); len = ev.k === 'H' ? 11 : 6; if (ev.k === 'H') kind = 'shell'; }
@@ -343,6 +344,7 @@ export class Renderer {
     const pal = { ally: this.allyColor(), enemy: this.enemyColor(m) };
     drawAoEdge(ctx, m, px, -tx / scale, -ty / scale, (W - tx) / scale, (H - ty) / scale);
     const labels = this.labels; labels.length = 0;
+    const hideUi = document.body.classList.contains('hide-ui');     // (0.54) Hide UI: no outlines, rings or health bars either
     const nm = (i0) => { for (let i = i0; i < labels.length; i++) labels[i].nm = true; };     // (0.54) names of buildings and enemies: hidden unless Settings > Show names, or selected / under the aim
     const aim = ui.aim;
     this._namesFor = [ui.sel, aim].filter((o) => o && Number.isFinite(o.x) && Number.isFinite(o.y));
@@ -379,11 +381,11 @@ export class Renderer {
             const sb = { ...b, x: sp.x, y: sp.y, r: Math.max(sp.r * 1.5, px(6)), hp: sp.hp, maxHp: sp.maxHp, spawners: undefined };
             if (sp.dead) { drawBaseRuin(ctx, sb, now, px); continue; }
             drawBaseArt(ctx, sb, m.faction.id, pal.enemy, inZ, now, px);
-            if (sp.hp < sp.maxHp) { const bw = sb.r * 2.2; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25, bw, px(3)); ctx.fillStyle = pal.enemy; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25, bw * Math.max(0, sp.hp / sp.maxHp), px(3)); }
+            if (sp.hp < sp.maxHp && !hideUi) { const bw = sb.r * 2.2; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25, bw, px(3)); ctx.fillStyle = pal.enemy; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25, bw * Math.max(0, sp.hp / sp.maxHp), px(3)); }
             if (t - (sp.hurtAt ?? -99) < 0.12) { ctx.strokeStyle = '#fff'; ctx.lineWidth = px(2); ctx.beginPath(); ctx.arc(sp.x, sp.y, sb.r * 1.1, 0, TAU); ctx.stroke(); }
           }
         }
-        if (tgBs.has(b)) this._bracket(ctx, b.x, b.y, r * 1.5, px(1.8), pal.ally);
+        if (tgBs.has(b) && !hideUi) this._bracket(ctx, b.x, b.y, r * 1.5, px(1.8), pal.ally);
         if (b === sqBase && !b.fortress) labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 16, text: tr('lab.base'), col: 'rgba(215,230,220,0.9)' });
         continue;
       }
@@ -391,10 +393,10 @@ export class Renderer {
       else if (b.node) drawNodeArt(ctx, b, pal.enemy, now, px);
       else drawBaseArt(ctx, b, m.faction.id, pal.enemy, inZ, now, px);
       if (t - (b.lastHit ?? -99) < 0.12) { ctx.strokeStyle = '#fff'; ctx.lineWidth = px(2); ctx.beginPath(); ctx.arc(b.x, b.y, r * 1.1, 0, TAU); ctx.stroke(); }
-      if (tgBs.has(b)) this._bracket(ctx, b.x, b.y, r * 1.5, px(1.8), pal.ally);
+      if (tgBs.has(b) && !hideUi) this._bracket(ctx, b.x, b.y, r * 1.5, px(1.8), pal.ally);
       if (b.cannon && !b.destroyed) labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 18, text: tr('lab.cannon'), col: pal.enemy, pri: 2 });
       if (b === sqBase && !b.fortress && !b.cannon) labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 4, text: tr('lab.base'), col: 'rgba(215,230,220,0.9)' });
-      if (b.hp < b.maxHp || b.fortress) {
+      if ((b.hp < b.maxHp || b.fortress) && !hideUi) {
         const bw = r * 2.2, f = b.hp / b.maxHp;
         ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(b.x - bw / 2, b.y + r * 1.25, bw, px(4));
         ctx.fillStyle = pal.enemy; ctx.fillRect(b.x - bw / 2, b.y + r * 1.25, bw * f, px(4));
@@ -440,8 +442,15 @@ export class Renderer {
       ctx.globalAlpha = 1;
     }
     const nm2 = labels.length;
-    drawEnemyExtras(ctx, m, now, px, labels, scale, pal);
+    if (!hideUi) drawEnemyExtras(ctx, m, now, px, labels, scale, pal);
     nm(nm2);
+    // (0.54) rockets and mortar shells in the air: a ring where each will land, filling as it comes down
+    for (const s of m.bossShells || []) {
+      if (!s.mortar && !s.rocket) continue;
+      const f = Math.max(0, Math.min(1, 1 - (s.at - m.t) / (s.mortar ? C.variants.squids.flight : C.variants.bots.flight)));
+      ctx.fillStyle = `rgba(255,120,60,${0.05 + 0.18 * f})`; ctx.strokeStyle = `rgba(255,150,70,${0.45 + 0.4 * f})`; ctx.lineWidth = px(s.mortar ? 1.5 : 1);
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.splash, 0, TAU); ctx.fill(); ctx.stroke();
+    }
     drawRevealed(ctx, m, now, px, pal.enemy);
     drawFlares(ctx, m, now, px, labels, scale, pal);
 
@@ -453,14 +462,14 @@ export class Renderer {
       const phase = this.settings.reduceFlash ? ((now + a.id * 0.13) % 2) / 2 : ((now + (a.id % 5) * 0.07) % 1);
       const on = this.settings.reduceFlash ? phase < 0.15 : phase < 0.18;
       const r = Math.max(H_ ? 2.6 : 1.9, px(H_ ? 7 : 5));
-      if (on) {   // the IR strobe on the backpack flashes a ring
+      if (on && !hideUi) {   // the IR strobe on the backpack flashes a ring
         ctx.strokeStyle = pal.ally; ctx.lineWidth = px(1.2); ctx.globalAlpha = 0.6;
         ctx.beginPath(); ctx.arc(a.x, a.y, r * 2.1, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
       }
       drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t);
-      if (t - a.hurtAt < 0.1) { ctx.strokeStyle = '#ff6a6a'; ctx.lineWidth = px(1.5); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.3, 0, TAU); ctx.stroke(); }
-      if (H_) { ctx.strokeStyle = tm ? tm.color : '#e8f6ff'; ctx.globalAlpha = 0.8; ctx.lineWidth = px(1.3); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.55, 0, TAU); ctx.stroke(); }
-      else drawSeafMark(ctx, m, a, r * 0.8, px, seafMulti, on);
+      if (t - a.hurtAt < 0.1 && !hideUi) { ctx.strokeStyle = '#ff6a6a'; ctx.lineWidth = px(1.5); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.3, 0, TAU); ctx.stroke(); }
+      if (H_ && !hideUi) { ctx.strokeStyle = tm ? tm.color : '#e8f6ff'; ctx.globalAlpha = 0.8; ctx.lineWidth = px(1.3); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.55, 0, TAU); ctx.stroke(); }
+      else if (!hideUi) drawSeafMark(ctx, m, a, r * 0.8, px, seafMulti, on);
       ctx.globalAlpha = 1;
     }
 

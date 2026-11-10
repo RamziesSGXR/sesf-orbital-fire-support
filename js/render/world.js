@@ -16,6 +16,7 @@ const O = C.objective;
 
 function ring(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); }
 function hpBar(ctx, x, y, w, h, f, col) {
+  if (document.body.classList.contains('hide-ui')) return;     // (0.54) Hide UI: no health bars
   ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(x - w / 2, y, w, h);
   ctx.fillStyle = col; ctx.fillRect(x - w / 2, y, w * Math.max(0, Math.min(1, f)), h);
 }
@@ -336,7 +337,7 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
       ctx.setLineDash([px(8), px(6)]); ctx.lineDashOffset = -now * px(8); ring(ctx, o.x, o.y, o.r); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
       const g = o.gun;
       if (!o.done && o.state === 'fire') { ctx.strokeStyle = '#7de0ff'; ctx.lineWidth = px(4); ctx.beginPath(); ctx.arc(o.x, o.y, o.r + px(6), -Math.PI / 2, -Math.PI / 2 + TAU * g.charge); ctx.stroke(); }
-      if (g.hp < g.maxHp && !g.dead) { const w = Math.max(14, px(40)), f = Math.max(0, g.hp / g.maxHp); ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(o.x - w / 2, o.y + o.r + px(10), w, px(4)); ctx.fillStyle = f > 0.4 ? '#7dff9b' : '#ff4a4a'; ctx.fillRect(o.x - w / 2, o.y + o.r + px(10), w * f, px(4)); }
+      if (g.hp < g.maxHp && !g.dead && !document.body.classList.contains('hide-ui')) { const w = Math.max(14, px(40)), f = Math.max(0, g.hp / g.maxHp); ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(o.x - w / 2, o.y + o.r + px(10), w, px(4)); ctx.fillStyle = f > 0.4 ? '#7dff9b' : '#ff4a4a'; ctx.fillRect(o.x - w / 2, o.y + o.r + px(10), w * f, px(4)); }
       const txt = o.done ? tr('lab.gunDone') : o.state === 'fire' ? tr('lab.gunFire', { n: o.shots + 1, of: o.need, p: Math.round(g.charge * 100) }) : tr('lab.gun');
       labels.push({ x: o.x, y: o.y, dy: -Math.max(o.r * scale, 12) - 6, text: txt, col: o.done ? '#7dff9b' : g.hp < g.maxHp * 0.4 ? '#ff6a4a' : '#ffe600', pri: 2 });
     } else if (o.type === 'oil') {
@@ -483,11 +484,6 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal) {
       ctx.strokeStyle = 'rgba(200,230,255,0.55)'; ctx.lineWidth = px(1); ctx.setLineDash([px(2), px(2.5)]);
       ring(ctx, e.x, e.y, Math.max(e.r, px(4)) + px(2.5)); ctx.stroke(); ctx.setLineDash([]);
     }
-    if (e.buff > t) {     // (0.54) under a warlord's aura: a small gold chevron over it
-      const y0 = e.y - Math.max(e.r, px(4)) - px(3);
-      ctx.strokeStyle = 'rgba(255,215,90,0.95)'; ctx.lineWidth = px(1.3);
-      ctx.beginPath(); ctx.moveTo(e.x - px(2.6), y0); ctx.lineTo(e.x, y0 - px(3)); ctx.lineTo(e.x + px(2.6), y0); ctx.stroke();
-    }
     if (e.v) drawVariantExtras(ctx, m, e, now, px, labels, scale, col);
     if (e.boss) { drawBossExtras(ctx, m, e, now, px, labels, scale, col); continue; }
     if (e.sub) { drawSpecialExtras(ctx, m, e, now, px, labels, scale, col); continue; }
@@ -534,15 +530,10 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal) {
 }
 
 // A special medium: the commander's jammer bubble (shown wherever the commander is known), a ring and health bar, and its name.
-// (0.54) The three new enemies: the warlord's aura, the rocketeer's barrage marked on the ground where it will land, the leaper's jump.
+// (0.54) The three new enemies: the rocketeer's barrage and the bombardier's shell marked on the ground where they will land, the leaper's jump.
 function drawVariantExtras(ctx, m, e, now, px, labels, scale, col) {
   const r = Math.max(e.r, px(6.5));
-  if (e.v === 'cmdr') {
-    const p = 0.5 + 0.5 * Math.sin(now * 3 + e.id);
-    ctx.fillStyle = `rgba(255,210,80,${0.035 + 0.03 * p})`; ring(ctx, e.x, e.y, e.auraR); ctx.fill();
-    ctx.strokeStyle = `rgba(255,215,90,${0.28 + 0.25 * p})`; ctx.lineWidth = px(1.1); ctx.setLineDash([px(3), px(5)]); ctx.lineDashOffset = -now * px(8);
-    ring(ctx, e.x, e.y, e.auraR); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
-  } else if (e.v === 'rkt' && e.vol) {
+  if (e.v === 'rkt' && e.vol) {
     const v = e.vol, V = C.variants.bots, p = 0.5 + 0.5 * Math.sin(now * 14);
     ctx.strokeStyle = `rgba(255,150,70,${0.5 + 0.4 * p})`; ctx.lineWidth = px(1.2); ctx.setLineDash([px(3), px(3)]);
     ring(ctx, v.x, v.y, V.scatter); ctx.stroke();

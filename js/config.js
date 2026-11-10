@@ -156,6 +156,7 @@ export const CONFIG = {
               // UAV's circle), and any enemy within spot (times reach) that is inside the strike zone is shown on the map.
               // (0.47) the lookout sees down a 180-degree cone toward its face: coneMul x a Helldiver's sight (x its level's reach
               // factor, below; a crew adds a fifth), and spots for the fire support spotMul farther in the same cone.
+              nestSight: 32,     // (0.54) the small sight of a turret nest and of a cannon, in metres
               lookout: { cost: 400, sec: 30, cap: 2, hp: 1500, reach: 1.35, spot: 1.6, unlock: 0, up: 200, coneMul: 2, spotMul: 1.25 },
               // bridge: a hard-light span across water (at most span metres of it), built from a crate on the near bank. Anyone
               // walks it: Helldivers, SEAF and the enemy.
@@ -269,11 +270,13 @@ export const CONFIG = {
   //          jumps); nothing can hurt it while it is in the air.
   //   bots   ROCKETEER: a medium that stands and fires a barrage (n light rockets, `gap` s apart, each `flight` s in the air and landing
   //          within `scatter` m of where the volley was aimed), then reloads (atk.every).
-  //   squids COMMANDER: a medium that buffs every enemy within aura.r: faster, harder hitting and quicker firing, and it takes less damage.
+  //   squids BOMBARDIER: a medium with a mortar: it lobs a shell (flight s in the air, landing within scatter m of its aim) with a big
+  //          blast (splash), aimed at the middle of the thickest bunch of allies near its target, so a pile of troopers is the target.
+  //   (the rocketeer and the bombardier both aim at the densest bunch: C.variants.*.atk.splash is the blast radius)
   variants: {
     bugs:   { id: 'leap', share: 0.22, hp: 1.15, speed: 1.0, minD: 12, maxD: 38, sec: 0.55, cool: 3.2 },
-    bots:   { id: 'rkt',  share: 0.3, hp: 1.15, speed: 0.8, n: 8, gap: 0.14, flight: 0.9, scatter: 4.5, atk: { range: 64, dmg: 11, splash: 3, every: 6.5, acc: 0.7 } },
-    squids: { id: 'cmdr', share: 0.2, hp: 1.2, speed: 0.9, atk: { range: 34, dmg: 8, every: 0.8, acc: 0.7 }, aura: { r: 34, speed: 1.1, dmg: 1.15, rate: 0.92, taken: 0.9 } },
+    bots:   { id: 'rkt',  share: 0.3, hp: 1.15, speed: 0.8, n: 6, gap: 0.14, flight: 0.9, scatter: 4.5, atk: { range: 64, dmg: 7, splash: 4, every: 8, acc: 0.7 } },
+    squids: { id: 'mort', share: 0.2, hp: 1.2, speed: 0.8, flight: 1.6, scatter: 3, atk: { range: 62, dmg: 22, splash: 6, every: 6, acc: 0.7 } },
   },
   // (0.54) How a group moves while it is not yet in the fight (the fight itself is C.enemies.tactics). Each group draws one at spawn.
   //   bots   LINE (one long rank abreast of the way they face) or SQUARE (a block, ranks one behind the other); the mediums (the

@@ -245,18 +245,14 @@ export function drawEnemyBody(ctx, e, fac, r, col, now, px, hot) {
 }
 
 // (0.54) The squid on two legs: a mantle trailing behind a domed head with its lens at the front, broad shoulders, two jointed legs that
-// stride (opposite feet forward, only while it is moving) and arms out in front (the warrior holds its rifle; the warlord has a
-// gold crest and a pennant on its back).
+// stride (opposite feet forward, only while it is moving) and arms out in front (the warrior holds its rifle; the bombardier carries
+// a mortar tube).
 function drawSquidBiped(ctx, e, r, col, body, dark, lw, now, px, pulse) {
-  const M = e.kind === 'M', cmd = e.v === 'cmdr', sp = Math.hypot(e.vx || 0, e.vy || 0), walk = sp > 0.3 ? 1 : 0;
+  const M = e.kind === 'M', mort = e.v === 'mort', sp = Math.hypot(e.vx || 0, e.vy || 0), walk = sp > 0.3 ? 1 : 0;
   const sw = Math.sin(now * (4 + sp * 0.7) + e.id * 1.7) * walk, wob = Math.sin(now * 3 + e.id) * 0.08 * r;
   // the mantle, trailing
   ctx.fillStyle = rgba(col, 0.6);
   ctx.beginPath(); ctx.moveTo(-0.05 * r, -0.4 * r); ctx.quadraticCurveTo(-0.7 * r, -0.42 * r, -1.4 * r, wob); ctx.quadraticCurveTo(-0.7 * r, 0.42 * r, -0.05 * r, 0.4 * r); ctx.closePath(); ctx.fill();
-  if (cmd) {   // the pennant: a pole off the back and a gold flag
-    ctx.strokeStyle = '#ffe9a0'; ctx.lineWidth = lw(0.9); line(ctx, -0.35 * r, 0, -0.95 * r, -0.95 * r);
-    ctx.fillStyle = '#ffd24a'; ctx.beginPath(); ctx.moveTo(-0.95 * r, -0.95 * r); ctx.lineTo(-1.55 * r, -0.8 * r + wob); ctx.lineTo(-0.95 * r, -0.55 * r); ctx.closePath(); ctx.fill();
-  }
   // two legs: hip, knee out to the side, foot planted forward or back (dark outline under a lighter leg so they read on any ground)
   for (const s of [-1, 1]) {
     const fx = sw * s * 0.6 * r, fy = s * 0.72 * r;
@@ -268,10 +264,16 @@ function drawSquidBiped(ctx, e, r, col, body, dark, lw, now, px, pulse) {
   // torso and head
   ctx.fillStyle = body; ell(ctx, 0, 0, 0.42 * r, (M ? 0.45 : 0.38) * r); ctx.fill(); ctx.strokeStyle = dark; ctx.lineWidth = lw(0.8); ctx.stroke();
   ctx.fillStyle = body; circ(ctx, 0.48 * r, 0, (M ? 0.28 : 0.24) * r); ctx.fill(); ctx.stroke();
-  if (cmd) { ctx.strokeStyle = '#ffd24a'; ctx.lineWidth = lw(1.6); ctx.beginPath(); ctx.arc(0.45 * r, 0, 0.5 * r, -1.0, 1.0); ctx.stroke(); }
   ctx.fillStyle = '#ffffff'; circ(ctx, 0.62 * r, 0, Math.max(0.11 * r, px(0.9))); ctx.fill();
   // the arms: the warrior and the warlord hold a rifle (barrel, glowing emitter); a drone has two short tendrils with a spark each
-  if (M) {
+  if (mort) {
+    // the bombardier: a fat mortar tube carried along its back (a dark barrel with a glowing mouth), both arms on it, a base plate behind
+    ctx.strokeStyle = dark; ctx.lineWidth = lw(5); ctx.lineCap = 'butt'; line(ctx, -0.75 * r, 0, 0.6 * r, 0);
+    ctx.strokeStyle = '#d9c8ff'; ctx.lineWidth = lw(2.2); line(ctx, -0.7 * r, 0, 0.55 * r, 0); ctx.lineCap = 'round';
+    ctx.fillStyle = `rgba(255,170,90,${0.55 + 0.4 * (e.atk < 0.6 ? 1 : pulse)})`; circ(ctx, 0.62 * r, 0, Math.max(0.17 * r, px(1.2))); ctx.fill();
+    ctx.fillStyle = dark; rect(ctx, -0.95 * r, -0.3 * r, -0.75 * r, 0.3 * r); ctx.fill();
+    ctx.strokeStyle = rgba(col, 0.95); ctx.lineWidth = lw(1.1); line(ctx, 0.2 * r, -0.4 * r, 0.1 * r, -0.05 * r); line(ctx, 0.2 * r, 0.4 * r, 0.1 * r, 0.05 * r);
+  } else if (M) {
     ctx.strokeStyle = rgba(col, 0.95); ctx.lineWidth = lw(1.1); line(ctx, 0.25 * r, -0.45 * r, 0.75 * r, -0.2 * r);
     ctx.strokeStyle = dark; ctx.lineWidth = lw(2.2); ctx.lineCap = 'butt'; line(ctx, 0.1 * r, 0.5 * r, 1.4 * r, 0.42 * r);
     ctx.strokeStyle = '#e6d8ff'; ctx.lineWidth = lw(1.1); line(ctx, 0.2 * r, 0.5 * r, 1.35 * r, 0.42 * r); ctx.lineCap = 'round';

@@ -36,7 +36,6 @@ function variantKit(m, fid, e) {
   const V = C.variants[fid];
   if (!V || e.sub || e.kind !== (fid === 'bugs' ? 'L' : 'M') || m.vrng.next() >= V.share) return;
   e.v = V.id; e.hp = e.maxHp = Math.round(e.maxHp * V.hp); e.speed *= V.speed;
-  if (V.aura) e.auraR = V.aura.r;
 }
 // How a new group marches (C.formations).
 function formOf(m, fid) {
