@@ -8,7 +8,7 @@ import { orbSiteMul, uavSiteMul } from './sites.js';
 import { COMMS } from '../data/data.js';
 import { orbStats, uavStats, gunStats, buildStats, buildLevel, hangarStats } from '../data/kit.js';
 import { noise, alertGroup } from './enemies.js';
-import { damageArea, hurtEnemy, jammedAt } from './combat.js';
+import { ffBlast, damageArea, hurtEnemy, jammedAt } from './combat.js';
 import { domeAt } from './ops.js';
 import { strikeAt, queueZone, destroyAsset } from './strat.js';
 
@@ -122,7 +122,8 @@ function explode(m, sh) {
       if (e.boss) hurtEnemy(m, e, e.maxHp * U.bossFrac, by, null, null, '', false);
       else hurtEnemy(m, e, e.maxHp * U.kill * 1.5 * (sh.dmgMul || 1), by, sh.fx ?? sh.x, sh.fy ?? sh.y, '', true);
     });
-    damageArea(m, sh.x, sh.y, sh.ultAoe, U.structDmg, { L: 0, M: 0, H: 0, B: 1 }, by, false, '', sh.x, sh.y);     // and what stands there
+    damageArea(m, sh.x, sh.y, sh.ultAoe, U.structDmg, { L: 0, M: 0, H: 0, B: 1 }, by, 'none', '', sh.x, sh.y);     // and what stands there
+    ffBlast(m, sh.x, sh.y, sh.ultAoe, C.ff.ultDmg, { L: 1, M: 1, H: 1, B: 0 }, by, sh.fx, sh.fy);     // (0.58) and any of ours caught in it
     noise(m, sh.x, sh.y, C.noise.strike);
     m.emit('boom', { x: sh.x, y: sh.y, r: sh.ultAoe, dmg: 9999, by, ult: true, big: true });
     return;

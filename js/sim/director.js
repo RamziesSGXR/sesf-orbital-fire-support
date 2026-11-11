@@ -231,7 +231,7 @@ export function updateDirector(m, dt) {
     if (t < p.landAt) continue;
     m.pods.splice(i, 1);
     if (p.type === 'H') {
-      damageArea(m, p.x, p.y, C.helldivers.podRadius, C.helldivers.podDmg, POD_MULT, 'squad', false);
+      damageArea(m, p.x, p.y, C.helldivers.podRadius, C.helldivers.podDmg, POD_MULT, 'squad', 'none');
       const a = m.addAlly('H', p.x, p.y, { team: p.team });
       m.emit('pod_land', { type: 'H', x: p.x, y: p.y, n: 1, r: C.helldivers.podRadius });
       m.emit('boom', { x: p.x, y: p.y, r: C.helldivers.podRadius, dmg: C.helldivers.podDmg, by: 'squad', pod: true });

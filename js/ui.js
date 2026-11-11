@@ -8,7 +8,7 @@ import { STORY } from './data/story.js';
 import { buildCostMul, PERKS, perkN, perkPct, perksTotal } from './data/perks.js';
 import { costSiteMul, siteGain } from './sim/sites.js';
 import { GROUPS as KEY_GROUPS, label as keyLabelOf, keyOf as keyOfAction, defaultOf as defaultKeyOf } from './keys.js';
-import { shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, hangarStats, shownAt, TIER_MAX, tierItems, itemTier, FLAT_BUILDS, fleetSize, coinOk, payStep, MIXES, mixOpen, mixNeeds } from './data/kit.js';
+import { penOf, GUN_PEN, shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, hangarStats, shownAt, TIER_MAX, tierItems, itemTier, FLAT_BUILDS, fleetSize, coinOk, payStep, MIXES, mixOpen, mixNeeds } from './data/kit.js';
 import { stratReady, stratOnline } from './sim/strat.js';
 import { slotStats } from './sim/player.js';
 import { compass } from './sim/enemies.js';
@@ -1294,6 +1294,7 @@ export class Hud {
     const c = $('selpop');
     this.selObj = s && !s.dead ? s : null;
     if (!s || !m || !pos) { if (!c.classList.contains('hidden')) c.classList.add('hidden'); this.selKey = ''; return; }
+    if (s.g !== undefined && (s.kind === 'L' || s.kind === 'M' || s.kind === 'H')) { this._enemyPop(m, s, pos, force); return; }     // (0.58) an enemy picked: what it is
     const post = s.kind === 'post' ? s : null, sentry = s.kind === 'turret' ? s : null, site = !post && !sentry ? s : null;
     const hp = s.maxHp ? Math.round((100 * s.hp) / s.maxHp) : s.wireMax ? Math.round((100 * Math.max(0, s.wireHp)) / s.wireMax) : null;
     const lzs = post && post.what === 'lz' ? lzStatus(m, post) : '';
@@ -1324,6 +1325,20 @@ export class Hud {
       c.innerHTML = `<div class="sp-t"><b>${name}</b>${btns ? `<span class="sp-d">${btns}</span>` : ''}</div>`
         + (hp !== null ? `<i class="sp-hp${hp < 35 ? ' low' : ''}"><u style="width:${hp}%"></u></i>` : '')
         + (sub ? `<div class="sp-s">${sub}${post && post.repairing ? ` · ${esc(t('sel.repairing'))}` : ''}</div>` : '');
+      c.classList.remove('hidden');
+    }
+    c.style.transform = `translate(${Math.round(pos.x)}px, ${Math.round(pos.y)}px) translate(-50%, -100%)`;
+  }
+  // (0.58) An enemy picked on the map: its name, its armour (and so what gets through it), its health and shield.
+  _enemyPop(m, e, pos, force) {
+    const c = $('selpop'), hp = Math.max(0, Math.round((100 * e.hp) / e.maxHp)), sh = e.maxShield ? Math.round((100 * Math.max(0, e.shield)) / e.maxShield) : null;
+    const key = ['e', e.id, hp, sh, getLang()].join('|');
+    if (force || key !== this.selKey) {
+      this.selKey = key;
+      const name = e.boss ? t('boss.' + m.faction.id) : e.sub ? t(`kind.${m.faction.id}.${e.sub}`) : t(`kind.${m.faction.id}.${e.kind}`);
+      const arm = e.boss ? 'super' : e.kind === 'H' ? 'heavy' : e.kind === 'M' ? 'medium' : 'light';
+      const sub = `${esc(t('sel.armor'))} ${esc(t('pen.' + arm))}${sh !== null ? ` · ${esc(t('sel.shield'))} ${sh}%` : ''}<br>${esc(t('sel.armorHint.' + arm))}`;
+      c.innerHTML = `<div class="sp-t"><b>${esc(name.toUpperCase())}</b></div><i class="sp-hp${hp < 35 ? ' low' : ''}"><u style="width:${hp}%"></u></i><div class="sp-s">${sub}</div>`;
       c.classList.remove('hidden');
     }
     c.style.transform = `translate(${Math.round(pos.x)}px, ${Math.round(pos.y)}px) translate(-50%, -100%)`;
@@ -2169,6 +2184,7 @@ export function buildSettings(settings, onChange) {
   row(t('set.flash'), t('set.flashHint'), toggle('reduceFlash'));
   row(t('set.color'), t('set.colorHint'), toggle('colorblind'));
   row(t('set.names'), t('set.namesHint'), toggle('showNames'));     // (0.54)
+  row(t('set.blasts'), t('set.blastsHint'), toggle('showBlasts'));     // (0.58)
   sec('set.sec.controls');
   row(t('set.lefty'), t('set.leftyHint'), toggle('lefty'));
   row(t('set.touch'), '', range('touchSens', 0.5, 2, 0.1));
@@ -2285,6 +2301,8 @@ const row = (k, v) => `<div class="ic-row"><span>${k}</span><b>${v}</b></div>`;
 const pctS = (v) => `${Math.round(v * 100)}%`;
 
 // What a weapon slot does, with its real numbers at its current level.
+// (0.58) a weapon's penetration in short: the class it beats, and its damage against light / medium / heavy armour
+function penShort(mult) { const p = penOf(mult); return p ? `${t('pen.' + p.lvl)} · ${pctS(p.l)}/${pctS(p.m)}/${pctS(p.h)}` : ''; }
 export function weaponInfo(m, i) {
   const s = m.player.slots[i];
   if (!s || s.type === 'empty') return '';
@@ -2299,6 +2317,7 @@ export function weaponInfo(m, i) {
     return `<div class="ic-h">${t('hud.w.gun')} <i>${t('card.gun.h', { a: lv.dmg, b: lv.ammo, c: lv.regen, d: lv.spread })}</i></div>`
       + row(t('card.dmg'), t('card.gun.dmgV', { d: g.dmg.toFixed(1), r: C.gun.rps })) + row(t('card.gun.mag'), t('card.gun.magV', { n: Math.round(g.ammo), r: g.regen.toFixed(1) }))
       + row(t('card.gun.spread'), t('card.gun.spreadV', { a: g.spread.toFixed(1), b: (g.spread + g.bloom).toFixed(1) })) + row(t('card.crit'), t('card.critV', { p: pctS(K.gun), m: K.mul }))
+      + row(t('card.pen'), esc(penShort(GUN_PEN())))
       + `<div class="ic-b">${esc(t('card.gun.b'))}</div>`;
   }
   if (s.type === 'arty') {
@@ -2327,7 +2346,7 @@ export function weaponInfo(m, i) {
   else {
     h += row(t('card.dmg'), st.n > 1 ? t('card.shells', { d: Math.round(st.dmg), n: st.n }) : String(Math.round(st.dmg))) + row(t('card.blast'), M(f0(st.splash)) + (st.len ? t('card.spread', { n: st.len }) : ''));
     if (st.zone) h += row(t('card.then'), t('card.thenV', { kind: t('card.zone.' + st.zone.kind), r: f0(st.zone.r), s: f0(st.zone.sec) }));
-    h += row(t('card.vs'), `${pctS(st.mult.H)} / ${pctS(st.mult.B)}`);
+    h += row(t('card.pen'), esc(penShort(st.mult))) + row(t('card.vs'), `${pctS(st.mult.H)} / ${pctS(st.mult.B)}`);     // (0.58: penetration)
   }
   h += row(t('card.impact'), S(st.delay)) + row(t('card.recharge'), S(cd)) + row(t('card.crit'), t('card.critV', { p: pctS(K.player), m: K.mul }));
   if (s.uses !== Infinity) h += row(t('card.uses'), String(s.uses));
@@ -2448,6 +2467,7 @@ export function fillMissionInfo(m, info) {
   parts.push(`<h3>${t('info.radar')}</h3><p>${esc(t('info.radarV', { n: C.reveal.lockSec }))}</p>`);
   const CR = C.combat.crit, BD = C.combat.bands;
   parts.push(`<h3>${t('info.hits')}</h3><p>${esc(t('info.hitsV', { a: C.combat.back.mul, b: C.combat.back.heavy, m: CR.mul, p: pctS(CR.player), g: pctS(CR.gun), s: pctS(CR.ally), e: pctS(CR.enemy) }))}</p>`);
+  parts.push(`<h3>${t('info.ff')}</h3><p>${esc(t('info.ffV', { own: pctS(C.ff.own), react: C.ff.react, fuse: C.combat.grenadier.fuse }))}</p><p>${esc(t('info.penV', { g: penShort(C.combat.grenadier.mult), r: penShort(C.combat.rocketeer.mult), s: penShort(GUN_PEN()) }))}</p><p>${esc(t('info.rocksV', { p: pctS(1 - C.scenery.coverMul) }))}</p>`);     // (0.58, 0.59)
   parts.push(`<h3>${t('info.range')}</h3><p>${esc(t('info.rangeV', { a: pctS(BD.short), b: pctS(BD.dmg[0]), c: pctS(BD.acc[1]), d: pctS(BD.dmg[1]), e: pctS(BD.acc[2]), f: pctS(BD.dmg[2]) }))}</p>`);
   parts.push(`<h3>${t('info.variants')}</h3><p>${esc(t('info.variantsV'))}</p>`);     // (0.54)
   const Bm = m.boss;

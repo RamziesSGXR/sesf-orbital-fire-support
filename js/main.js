@@ -376,7 +376,12 @@ function pickAt(sx, sy) {
   // (0.20) like an RTS, the trooper under the cursor wins over the building he stands by, unless the click is nearer the building's middle
   let man = null, md = Infinity;
   for (const a of m.seafAlive) if ((a.sq >= 0 || a.sq === -3) && !a.inside) { const d = Math.hypot(a.x - w.x, a.y - w.y); if (d <= Math.max(3, r * 0.6) && d < md) { md = d; man = a; } }
-  return man && (!best || md < bd) ? man : best;
+  if (man && (!best || md < bd)) return man;
+  if (best) return best;
+  // (0.58) nothing of ours there: an enemy in sight under the cursor is picked, to see what it is (its armour, its health)
+  let foe = null, fd = Infinity;
+  for (const e of m.enemies) if (!e.dead && e.vis > 0) { const d = Math.hypot(e.x - w.x, e.y - w.y), lim = Math.max(3, r * 0.6) + (e.boss ? e.r * 1.4 : e.r || 1); if (d <= lim && d < fd) { fd = d; foe = e; } }
+  return foe;
 }
 function select(o) { sel = o; audio.click(); placeSel(true); if (tac) hud.fillTactical(mission, sel); }
 function deselect() { if (!sel) return; sel = null; hud.selPop(mission, null); if (tac) hud.fillTactical(mission, null); }
@@ -456,6 +461,7 @@ function doorPin(post, squad) {
 // The selected post's panel sits just above it on the map (and follows it as the camera moves).
 function placeSel(force = false) {
   if (!sel || !mission) return;
+  if (sel.dead || (sel.g !== undefined && sel.vis <= 0)) { deselect(); return; }     // (0.58) a picked enemy that died or went out of sight
   const R = sel.kind === 'post' ? (sel.what === 'bastion' ? sel.r + 2 : sel.what === 'site' ? sel.r * 0.6 : 5) : sel.pieces ? (sel.R || 8) * 0.7 : 5;
   const q = renderer.worldToScreen(sel.x, sel.y - R, canvas);
   hud.selPop(mission, sel, q ? { x: q.x, y: q.y - 10 } : null, force);

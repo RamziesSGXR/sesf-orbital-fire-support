@@ -3,7 +3,7 @@
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { ALLY } from '../data/data.js';
-import { fireShot, hurtTarget, hurtAlly, hurtEnemy, nearestTarget, inZoneKind, pickClear, eBlocker, bandOf, bandAcc, bandDmg, reveal } from './combat.js';
+import { armorOf, fireShot, hurtTarget, hurtAlly, hurtEnemy, nearestTarget, inZoneKind, pickClear, eBlocker, bandOf, bandAcc, bandDmg, reveal } from './combat.js';
 import { steer } from './terrain.js';
 import { softNear, baseNear } from './pois.js';
 import { bark } from './chatter.js';
@@ -55,8 +55,8 @@ for (const [k, d] of [['spec', C.combat.seafMg], ['medic', C.combat.seafSmg]]) R
 const gunOf = (a) => (a.type === 'H' ? RIFLE.H : RIFLE[a.role] || RIFLE.S);
 
 // SEAF specialists. A grenadier lobs frags at groups; a rocket trooper hunts mediums and heavies.
-const GRENADE = { dmg: C.combat.grenadier.dmg, acc: C.combat.grenadier.acc, splash: C.combat.grenadier.splash, flight: C.combat.grenadier.flight, range: C.combat.grenadier.range, mult: { L: 1, M: 0.9, H: 0.3, B: 0.25 } };
-const ROCKET = { dmg: C.combat.rocketeer.dmg, acc: C.combat.rocketeer.acc, splash: C.combat.rocketeer.splash, flight: C.combat.rocketeer.flight, range: C.combat.rocketeer.range, mult: { L: 1, M: 1, H: 0.8, B: 0.3 } };
+const GRENADE = { dmg: C.combat.grenadier.dmg, acc: C.combat.grenadier.acc, splash: C.combat.grenadier.splash, flight: C.combat.grenadier.flight, range: C.combat.grenadier.range, fuse: C.combat.grenadier.fuse, mult: C.combat.grenadier.mult };
+const ROCKET = { dmg: C.combat.rocketeer.dmg, acc: C.combat.rocketeer.acc, splash: C.combat.rocketeer.splash, flight: C.combat.rocketeer.flight, range: C.combat.rocketeer.range, mult: C.combat.rocketeer.mult };
 
 export function updateAllies(m, dt) {
   const sq = m.squad, P = C.poi;
@@ -134,7 +134,7 @@ export function updateAllies(m, dt) {
             if (e) { fireShot(m, a, e, prof, 'squad', 'a', 'rocket'); if (e.kind) claim(m, a, e, 'rocket', 1, C.hd.stagger.seafRocket); }
             else {
               m.emit('tracer', { x: a.x, y: a.y, tx: t.x, ty: t.y, s: 'a', hit: true, big: true, fl: prof.flight, snd: 'rocket' });
-              m.shells.push({ x: t.x, y: t.y, at: m.t + prof.flight, dmg: prof.dmg, splash: prof.splash, mult: prof.mult, by: 'squad', friendly: false, quiet: true });
+              m.shells.push({ x: t.x, y: t.y, at: m.t + prof.flight, land: m.t + prof.flight, born: m.t, dmg: prof.dmg, splash: prof.splash, mult: prof.mult, by: 'squad', friendly: false, quiet: true });
             }
             bark(m, a, 'rocket', '');
           } else a.spT = 0.4;
@@ -840,7 +840,15 @@ export function updateEnemies(m, dt) {
         m.tGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * m.dmgMul * hi, 'enemy', e.kind));
         for (const cv of m.civs) if (!cv.dead && !cv.safe && (cv.x - tx) ** 2 + (cv.y - ty) ** 2 <= p.splash * p.splash) m.hurtCiv(cv, p.dmg * m.dmgMul, 'enemy');
         m.emit('boom', { x: tx, y: ty, r: p.splash, dmg: p.dmg, by: 'enemy' });
-      } else hurtTarget(m, a, p.dmg * m.dmgMul * hi, 'enemy', e.kind, e.x, e.y);
+      } else {
+        // (0.58) the same glancing hits on our side: a light round on a Helldiver's armour may skip off
+        const R = C.ric, k = a.type ? Math.max(R.minPen, (R.vs[e.kind] || {})[armorOf(a)] ?? 1) : 1;
+        if (k < 1 && rng.next() < Math.min(R.max, R.base + (1 - k) * R.perGap)) {
+          hurtTarget(m, a, p.dmg * m.dmgMul * hi * Math.max(R.minPen, k * R.chip), 'enemy', e.kind, e.x, e.y);
+          const ra = Math.atan2(a.y - e.y, a.x - e.x) + Math.PI + (rng.next() - 0.5) * 2.4;
+          m.emit('ricochet', { x: a.x, y: a.y, tx: a.x + Math.cos(ra) * 9, ty: a.y + Math.sin(ra) * 9, ally: true });
+        } else hurtTarget(m, a, p.dmg * m.dmgMul * hi, 'enemy', e.kind, e.x, e.y);     // (a clean hit: as before)
+      }
     }
   }
 }

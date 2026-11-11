@@ -248,7 +248,7 @@ export function hbStep(m, owner, dt, siege) {
   if (hb.state === 'armed' && t >= hb.fuseAt) {
     hb.state = 'done';
     const dived = hbDives(m, hb), D = K.dodge;     // (0.38.1) anyone still inside may dive clear (and the dive still hurts)
-    damageArea(m, hb.x, hb.y, K.blastR, K.dmg, ALL, 'strat', false, '');
+    damageArea(m, hb.x, hb.y, K.blastR, K.dmg, ALL, 'strat', 'none', '');     // (0.58: allies are dealt with by the dive above, not twice)
     m.aGrid.near(hb.x, hb.y, K.blastR, (a) => { if (!a.dead) hurtAlly(m, a, dived.has(a) ? a.maxHp * D.graze : K.dmg, 'enemy', true, 'enemy'); });
     for (const c of m.civs) if (!c.dead && (c.x - hb.x) ** 2 + (c.y - hb.y) ** 2 <= K.blastR * K.blastR) m.hurtCiv(c, K.dmg, 'strat');
     if (dived.size) m.notice(tr(dived.size > 1 ? 'n.hbDives' : 'n.hbDive', { n: dived.size }), 'good');

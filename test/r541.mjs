@@ -24,7 +24,7 @@ const hp0 = d.hp + d.shield;
 const sam = (n, sec) => { for (let i = 0; i < sec * 30; i++) { if (i % Math.round(2.4 * 30) === 0) for (let k = 0; k < n; k++) damageDrop(m, d, 320, 'strat', true); m.step(1 / 30); } };
 d.shield = 0; d.hp = d.maxHp; sam(8, 60);
 check('8 SAM sites cannot wear it down', d.hp >= d.maxHp - 1, d.hp.toFixed(0));
-sam(30, 60);
+sam(30, 40);     // (0.58: 40 s, so it is hurt but still up for the strike check; at 60 the squad's own fire can finish it)
 check('30 SAM sites do hurt it', d.hp < d.maxHp - 3000, d.hp.toFixed(0));
 // the ship gun / strikes at full strength
 d.shield = 0; const before = d.hp; damageDrop(m, d, 5000, 'strat', false);

@@ -3,6 +3,7 @@
 // (path), or a drawn formation (line, ring). Medics patch up anyone nearby; spotters radio in Eagle fire missions.
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
+import { rockNear } from './scenery.js';
 import { aoX, aoY } from './ao.js';
 import { COMMS } from '../data/data.js';
 import { seafStats, buildStats, buildLevel, hangarStats } from '../data/kit.js';
@@ -742,7 +743,15 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
     if (en && !a.forced && o.kind !== 'post' && !holdSite) {
       // (0.26) Riflemen (and the Squad Leader) in a fight go for cover if there is some close by: a wall, a foxhole, a rock line
       const cv = (a.role === 'rifle' || a.role === 'leader') ? siteAt(m, a.x, a.y, C.seaf.coverSeek) : null;
-      if (!cv || !cv.pieces || !cv.pieces.length) continue;
+      if (!cv || !cv.pieces || !cv.pieces.length) {
+        // (0.59) no walls near: a big rock will do. They get behind it, on the side away from the nearest enemy.
+        const rk = a.role === 'rifle' || a.role === 'leader' ? rockNear(m, a.x, a.y, C.seaf.coverSeek) : null, foe = rk && m.eGrid.nearest(a.x, a.y, 70);
+        if (!rk || !foe) continue;
+        const dx = rk.x - foe.x, dy = rk.y - foe.y, d = Math.hypot(dx, dy) || 1, k = ((a.id % 3) - 1) * 0.5;
+        const px2 = rk.x + (dx / d) * (rk.r + 1.3) - (dy / d) * k * rk.r, py2 = rk.y + (dy / d) * (rk.r + 1.3) + (dx / d) * k * rk.r;
+        if (Math.hypot(px2 - a.x, py2 - a.y) > 1.2) walk(m, a, px2, py2, speed, dt);
+        continue;
+      }
       const p = coverSlot(cv, a.id % cv.pieces.length, cv.pieces.length, 0);
       if (Math.hypot(p.x - a.x, p.y - a.y) <= 1.2) continue;
       walk(m, a, p.x, p.y, speed, dt);

@@ -132,7 +132,7 @@ export function fireUltimatum(m, a, e) {
   // (0.26) the round is a blast: every enemy in it dies, whatever its armour or shield (a super heavy loses a big piece). It lands
   // where the target was; a miss lands short or wide, and the blast still takes what is there.
   void hp;
-  m.shells.push({ x: e.x, y: e.y, at: m.t + U.flight, lock: hit ? e : null, by: 'squad', friendly: false, fx: a.x, fy: a.y,
+  m.shells.push({ x: e.x, y: e.y, at: m.t + U.flight, born: m.t, land: m.t + U.flight, lock: hit ? e : null, by: 'squad', friendly: false, fx: a.x, fy: a.y,
     ultAoe: U.splash, bossDmg: e.boss ? dmg : 0, dmg: 0, splash: 0, miss: !hit, dmgMul: a.dmgMul || 1 });
 }
 

@@ -197,7 +197,7 @@ function redBeacon(ctx, x, y, now, px, scale, live) {
 function callout(labels, x, y, lift, text) { labels.push({ x, y, dy: -lift - 8, text, col: '#ff5a4a', pri: 2 }); }
 
 // ---------- markers: stratagem calls, pods, rail / barrage / laser / nuke warnings ----------
-export function drawMarkers(ctx, m, now, px, labels, scale) {
+export function drawMarkers(ctx, m, now, px, labels, scale, outlines = true) {
   const t = m.t;
   for (const mk of m.markers) {
     let mx = mk.x, my = mk.y;
@@ -226,14 +226,15 @@ export function drawMarkers(ctx, m, now, px, labels, scale) {
       const col = left > 0 ? (tc ? hexRgb(tc) : '255,230,0') : '255,170,40';
       if (tc && left > 0) beacon(ctx, mx, my, now, px, col);
       const corridor = (mk.pat === 'line' || mk.pat === 'walk') && mk.ux !== undefined;
-      if (corridor) drawCorridor(ctx, mk, mx, my, now, px, col, pulse);
+      if (!outlines) { /* (0.58) where it will land is not drawn: the blast is what shows */ }
+      else if (corridor) drawCorridor(ctx, mk, mx, my, now, px, col, pulse);
       else {
         ctx.strokeStyle = `rgba(${col},${0.5 + pulse * 0.4})`; ctx.lineWidth = px(1.8);
         ctx.setLineDash([px(6), px(5)]); ctx.lineDashOffset = -now * px(10);
         ring(ctx, mx, my, Math.max(mk.r, px(8))); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
         ctx.fillStyle = `rgba(${col},0.05)`; ring(ctx, mx, my, Math.max(mk.r, px(8))); ctx.fill();
       }
-      if (mk.fly && mk.ux !== undefined) drawApproach(ctx, mk, mx, my, now, px, col, corridor ? mk.len / 2 + mk.rad : Math.max(mk.r, px(8)), left > 0);
+      if (outlines && mk.fly && mk.ux !== undefined) drawApproach(ctx, mk, mx, my, now, px, col, corridor ? mk.len / 2 + mk.rad : Math.max(mk.r, px(8)), left > 0);
       ctx.fillStyle = `rgba(${col},0.95)`; ctx.beginPath(); ctx.moveTo(mx, my - px(5)); ctx.lineTo(mx + px(4), my + px(3)); ctx.lineTo(mx - px(4), my + px(3)); ctx.closePath(); ctx.fill();
       labels.push({ x: mx, y: my, dy: -Math.max(mk.r * scale, 8) - 6, text: left > 0 ? `${mk.id.toUpperCase()} ${left.toFixed(0)}S` : mk.id.toUpperCase(), col: '#ffe600' , pri: 2 });
     } else if (mk.type === 'pod') {
@@ -241,7 +242,7 @@ export function drawMarkers(ctx, m, now, px, labels, scale) {
       if (mk.team >= 0) beacon(ctx, mx, my, now, px, hexRgb(TEAM_COLOR[mk.team]));
       if (mk.util) {      // a ship utility on its way down: a blue ring the size of what it will cover
         ctx.strokeStyle = 'rgba(127,216,255,0.9)'; ctx.fillStyle = 'rgba(127,216,255,0.08)'; ctx.lineWidth = px(2); ctx.setLineDash([px(6), px(5)]); ctx.lineDashOffset = -now * px(10);
-        ring(ctx, mx, my, mk.r); ctx.fill(); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+        if (outlines) { ring(ctx, mx, my, mk.r); ctx.fill(); ctx.stroke(); } ctx.setLineDash([]); ctx.lineDashOffset = 0;
         ctx.lineWidth = px(2.5); ctx.beginPath(); ctx.moveTo(mx, my - 120 * f); ctx.lineTo(mx, my - 4); ctx.stroke();
         ctx.fillStyle = '#7fd8ff'; ctx.fillRect(mx - px(3), my - 120 * f - px(3), px(6), px(6));
         labels.push({ x: mx, y: my, dy: mk.r * scale + 14, text: `${(STRATS[mk.id]?.name || tr('lab.utility')).toUpperCase()} ${Math.max(0, mk.end - t).toFixed(1)}S`, col: '#7fd8ff', pri: 2 });
@@ -453,6 +454,9 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
 }
 
 // ---------- enemy extras: heavy tags, charge telegraphs, speed streaks, damage flashes ----------
+// (0.58) the rings where blasts will land: only with Settings > Show blast areas (the renderer sets it each frame)
+let SHOW_BLASTS = false;
+export function setShowBlasts(v) { SHOW_BLASTS = !!v; }
 export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal, vb = null) {
   const t = m.t, fac = m.faction, col = pal.enemy;
   for (const e of m.enemies) {
@@ -585,7 +589,7 @@ function drawBossExtras(ctx, m, e, now, px, labels, scale, col) {
     ctx.strokeStyle = rgba(col, 0.3 + 0.5 * f); ctx.lineWidth = px(1.2 + 2 * f); ctx.setLineDash([px(6), px(4)]);
     ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(c.tx, c.ty); ctx.stroke(); ctx.setLineDash([]);
     ctx.strokeStyle = locked ? 'rgba(255,255,255,0.95)' : `rgba(255,120,220,${0.4 + 0.5 * f})`; ctx.lineWidth = px(2);
-    ring(ctx, gx, gy, B.width / 2 + (1 - f) * 10); ctx.stroke();
+    if (SHOW_BLASTS) { ring(ctx, gx, gy, B.width / 2 + (1 - f) * 10); ctx.stroke(); }
   }
   if (e.walk && D.walk) {
     // (0.55) the walking beam: its scorched track, the column of light from the claw's mouth to the ground, and the burn where it

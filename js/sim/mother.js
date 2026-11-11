@@ -74,7 +74,7 @@ export function stepMother(m, d, dt) {
     d.low = false;
     if (d.fallT % 0.6 < dt) m.emit('boom', { x: d.x + (m.rng.next() - 0.5) * d.r * 1.6, y: d.y + (m.rng.next() - 0.5) * d.r * 1.6, r: 8, dmg: 0, by: 'strat', big: true });
     if (d.fallT >= K.crashSec) {
-      damageArea(m, d.x, d.y, K.crashR, K.crashDmg, ALL, 'strat', false, '');
+      damageArea(m, d.x, d.y, K.crashR, K.crashDmg, ALL, 'strat', 'none', '');
       m.emit('boom', { x: d.x, y: d.y, r: K.crashR, dmg: K.crashDmg, by: 'strat', big: true });
       m.motherWrecks.push({ x: d.x, y: d.y, yaw: d.yaw, born: t, r: K.r });
       d.dead = true;

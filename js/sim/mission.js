@@ -30,6 +30,7 @@ import { setupObjectives, updateObjectives, completeObjective, startSetup } from
 import { placeBase, setupLastStand, updateLastStand, lsBegin, lsSpawn, lsJammer, lsSupply } from './laststand.js';
 import { setupPois, updatePois, damagePoi, damageBreach } from './pois.js';
 import { setupCover } from './cover.js';
+import { setupScenery } from './scenery.js';
 import { updateChatter } from './chatter.js';
 import { initKit, updateHelldivers } from './helldiver.js';
 import { buildDanger, updateEvade } from './safety.js';
@@ -259,6 +260,7 @@ export class Mission {
     this.extraction = { x: ex.x, y: ex.y, revealed: true, holdT: 0, nextWave: Infinity };     // (on the map from the drop; locked until the objective is done)
     // Cover round the sites the squad will have to hold.
     setupCover(this);
+    setupScenery(this);     // (0.59) rocks, trees, grass and the enemy's marks
 
     // Points of interest SEAF can take out for credits.
     setupPois(this);
