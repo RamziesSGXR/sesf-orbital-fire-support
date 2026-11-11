@@ -30,6 +30,25 @@ export function hitMul(m, tgt, fx, fy, cs, pierce = false) {
   return k;
 }
 
+// (0.58) friendly fire. The armour class a blast's table is read for: an enemy's kind (a super heavy: H), an ally's (Helldivers
+// medium, SEAF light), anything else light.
+export const armorOf = (o) => (o.g !== undefined || o.kind === 'L' || o.kind === 'M' || o.kind === 'H' ? (o.boss ? 'H' : o.kind) : C.ff.allyArmor[o.type] || 'L');
+// The share of a hit on one's own side: half, unless it comes from right behind a unit and lands on it (a rocket in the back).
+export function ownMul(tgt, fx, fy, x = fx, y = fy) {
+  const F = C.ff;
+  if (fx === undefined || fx === null || tgt.face === undefined) return F.own;
+  if ((tgt.x - x) ** 2 + (tgt.y - y) ** 2 > F.backR * F.backR) return F.own;
+  const dx = fx - tgt.x, dy = fy - tgt.y, d = Math.hypot(dx, dy);
+  if (d < 1.2) return F.own;
+  return (dx * Math.cos(tgt.face) + dy * Math.sin(tgt.face)) / d < B.cos ? 1 : F.own;
+}
+// A blast's share on the allies (and civilians) in it, when the allies' own side set it off: the table for their armour, x ownMul.
+export function ffBlast(m, x, y, rad, dmg, mult, by, fx, fy) {
+  const who = by === 'player' ? 'player' : 'squad';
+  m.aGrid.near(x, y, rad, (a) => { const k = mult[armorOf(a)] ?? 1; if (k > 0) hurtAlly(m, a, dmg * k * ownMul(a, fx, fy, x, y), who, true, 'friendly'); });
+  for (const c of m.civs) if (!c.dead && (c.x - x) ** 2 + (c.y - y) ** 2 <= rad * rad) m.hurtCiv(c, dmg * (mult.L ?? 1) * C.ff.own, by);
+}
+
 // ---------- enemies ----------
 // by: 'player' (the destroyer), 'squad' (rifles) or 'strat' (stratagems, turrets, vehicles, support weapons).
 // (fx, fy): where the hit comes from, for the back bonus. cs: whose crit chance (defaults to the attacker's side; '' for none).
@@ -129,17 +148,21 @@ export function damageArea(m, x, y, rad, dmg, mult, by = 'player', friendly = tr
     alertGroup(m, e.g);
     hurtEnemy(m, e, dmg, by, fx, fy, cs, false, e.boss && mult.boss !== undefined ? mult.boss : mult[e.kind]);   // (a few blasts set their own share for a super heavy)
   });
-  ABOVE = false;
+  const above = ABOVE; ABOVE = false;
   for (const d of m.drops) if (!d.dead && d.hp > 0 && d.low && Math.hypot(d.x - x, d.y - y) <= rad + d.r) m.damageDrop(d, dmg * (mult.H ?? 1), by);
-  if (friendly) {
-    const ffk = by === 'player' ? C.ff.player : 1;     // (0.57) the player's own fire is harder on allies
-    m.aGrid.near(x, y, rad, (a) => hurtAlly(m, a, dmg * ffk, by === 'player' ? 'player' : 'enemy', true, by === 'player' ? 'friendly' : 'enemy'));
-    for (const c of m.civs) if (!c.dead && (c.x - x) ** 2 + (c.y - y) ** 2 <= rad * rad) m.hurtCiv(c, dmg, by);
+  // (0.58) every blast hurts everyone in it: an enemy's (by 'enemy') at full strength, one from the allies' own side (the player,
+  // the squad, a stratagem) at the friendly-fire share against each ally's armour. friendly 'none': a few that never touch allies
+  // (a pod landing, a ship coming down).
+  if (friendly !== 'none') {
+    if (by === 'enemy') {
+      m.aGrid.near(x, y, rad, (a) => hurtAlly(m, a, dmg, 'enemy', true, 'enemy'));
+      for (const c of m.civs) if (!c.dead && (c.x - x) ** 2 + (c.y - y) ** 2 <= rad * rad) m.hurtCiv(c, dmg, by);
+    } else ffBlast(m, x, y, rad, dmg, mult, by, above ? undefined : fx, above ? undefined : fy);
   }
   const sm = by === 'strat' || by === 'squad' ? C.structure.stratMul : 1;   // anything the squad calls hits structures harder
   for (const b of m.bases) {
     if (b.destroyed) continue;
-    if (Math.hypot(b.x - x, b.y - y) <= rad + b.r) m.damageBase(b, dmg * mult.B * sm, by, ABOVE ? undefined : fx, ABOVE ? undefined : fy, { x, y, rad });     // (0.49: where it hit, for a cluster's spawners)
+    if (Math.hypot(b.x - x, b.y - y) <= rad + b.r) m.damageBase(b, dmg * mult.B * sm, by, above ? undefined : fx, above ? undefined : fy, { x, y, rad });     // (0.49: where it hit, for a cluster's spawners)
   }
   // Points of interest and breaches are soft: any real explosion hurts them.
   const pm = Math.max(mult.B, 0.25);
@@ -318,18 +341,31 @@ export function fireShot(m, src, e, prof, by, side = 'a', snd = '') {
   alertGroup(m, e.g);
   const mult = prof.mult || { L: 1, M: 1, H: 1, B: 0.1 };
   if (prof.flight > 0) {
-    m.shells.push({ x: tx, y: ty, at: m.t + prof.flight, dmg: prof.dmg, splash: prof.splash || 0, mult, by, friendly: false, quiet: true, fx: src.x, fy: src.y });
+    // (0.58) a grenade lands and lies there until its fuse is out (seen, and run from); a rocket goes off where it lands
+    const fuse = snd === 'grenade' ? Math.max(prof.flight, prof.fuse ?? C.combat.grenadier.fuse) : prof.flight;
+    m.shells.push({ x: tx, y: ty, at: m.t + fuse, land: m.t + prof.flight, born: m.t, gren: snd === 'grenade', dmg: prof.dmg, splash: prof.splash || 0, mult, by, friendly: true, quiet: true, fx: src.x, fy: src.y });
     return hit;
   }
   if (!hit) {
     // (0.57) a miss flies on: a friendly who has stepped into its path takes it
-    if (side === 'a' && !(prof.flight > 0)) { const b = blocker(m, src, tx, ty); if (b) { m.stats.stray = (m.stats.stray || 0) + 1; hurtAlly(m, b, prof.dmg * C.ff.strayMul, by === 'player' ? 'player' : 'squad', false, 'friendly'); } }
+    if (side === 'a' && !(prof.flight > 0)) { const b = blocker(m, src, tx, ty); if (b) { m.stats.stray = (m.stats.stray || 0) + 1; hurtAlly(m, b, prof.dmg * C.ff.strayMul * (prof.flight > 0 ? 1 : 1), by === 'player' ? 'player' : 'squad', false, 'friendly'); } }
     return false;
   }
   if (e.drop) { m.damageDrop(e, prof.dmg * (mult.H ?? 1), by); return true; }      // a dropship or a warp ship
   if (prof.splash > 0) {
-    damageArea(m, tx, ty, prof.splash, prof.dmg, mult, by, false, undefined, src.x, src.y);
+    damageArea(m, tx, ty, prof.splash, prof.dmg, mult, by, true, undefined, src.x, src.y);
     if (prof.splash >= 3) { m.emit('boom', { x: tx, y: ty, r: prof.splash, dmg: prof.dmg, by }); if (prof.splash >= 6) noise(m, tx, ty, C.noise.blast); }
-  } else hurtEnemy(m, e, prof.dmg, by, src.x, src.y, undefined, false, mult[e.kind]);
+  } else {
+    // (0.58) a round that hits armour heavier than it can go through may glance off (the more it is outmatched, the likelier):
+    // it still does a little (durability damage), and flies off somewhere else. Any hit does at least minPen of its damage.
+    const R = C.ric, k = Math.max(R.minPen, e.boss && mult.boss !== undefined ? mult.boss : mult[e.kind] ?? 1);
+    const ch = k >= 1 ? R.base : Math.min(R.max, R.base + (1 - k) * R.perGap);
+    if ((m.vrng || m.rng).next() < ch) {
+      m.stats.ricochets = (m.stats.ricochets || 0) + 1;
+      hurtEnemy(m, e, prof.dmg * Math.max(R.minPen, k * R.chip), by, src.x, src.y, '', false, 1);
+      const a = Math.atan2(e.y - src.y, e.x - src.x) + Math.PI + ((m.vrng || m.rng).next() - 0.5) * 2.4;
+      m.emit('ricochet', { x: e.x, y: e.y, tx: e.x + Math.cos(a) * 9, ty: e.y + Math.sin(a) * 9, fac: m.faction.id, kind: e.kind });
+    } else hurtEnemy(m, e, prof.dmg, by, src.x, src.y, undefined, false, k);
+  }
   return true;
 }

@@ -41,13 +41,22 @@ export const CONFIG = {
               maxHit: 0.7,
               retreat: { at: 0.36, resume: 0.7, speed: 1.3, enemyR: 46, calmSec: 3, minSec: 2.5, maxSec: 10, cool: 8 },
               // trigger discipline: a shot is held when a friendly stands in the line of fire; now and then it is taken anyway
-              fire: { lane: 1.9, collateral: 0.03, ffMul: 0.85 } },     // (0.57: they hold fire more, and a shot taken anyway hurts more)
+              fire: { lane: 1.9, collateral: 0.03, ffMul: 0.5 } },     // (0.57: they hold fire more, and a shot taken anyway hurts more)
   // (0.57) performance: past visBig (enemies x allies) the sight pass runs every other tick
   perf: { visBig: 40000 },
+  // (0.58) ricochets: a direct hit glances off with chance base, plus perGap for each step its damage share against that armour is
+  // short of full (a rifle on a heavy: likely), at most max; a glancing hit does chip of what it would have, and every hit at least minPen
+  ric: { base: 0.03, perGap: 0.55, max: 0.6, chip: 0.4, minPen: 0.05,
+         // an enemy round's share against each armour of ours, by the enemy's kind (Helldivers medium, SEAF light)
+         vs: { L: { L: 1, M: 0.7 }, M: { L: 1, M: 0.9 }, H: { L: 1, M: 1 } } },
   // (0.57) friendly fire. stray: a missed direct shot that passes a friendly on its way hurts it (x strayMul). enemy: the enemy holds
   // fire for its own the same way (lane, collateral: the share of blocked shots taken anyway, ffMul), and its splash hurts its own
   // (x splashMul). player: the player's own strikes and gun on allies, x this. flee: how fast allies run out of a strike (m/s).
-  ff: { strayMul: 0.85, enemy: { lane: 1.6, collateral: 0.06, ffMul: 0.7, splashMul: 0.5 }, player: 1.35, flee: { hd: 7.5, seaf: 6 } },
+  // (0.58) own: every hit on one's own side (a shot taken anyway, a stray, any blast, the player's strikes on allies) does this
+  // share, except a rocket or a blast that lands in a unit's back from right behind it (within backR of it): that is the full hit.
+  // A blast hurts everyone in it by the weapon's own table against their armour (allyArmor: Helldivers medium, SEAF light).
+  // react: how long an ally takes to see a blast coming (a grenade on the ground, a shell in the air) before running from it.
+  ff: { own: 0.5, backR: 2.2, react: 0.5, ultDmg: 500, allyArmor: { H: 'M', S: 'L' }, strayMul: 0.5, enemy: { lane: 1.6, collateral: 0.06, ffMul: 0.5, splashMul: 0.5 }, flee: { hd: 7.5, seaf: 6 } },
   // SEAF arrive when the player calls a pod. By default they go and clear the nearest objective on their own.
   // (0.18) the first drop is ready at once (the mission starts on the tactical screen); until startSec a drop can go anywhere
   // within startR of the landing zone, before the Helldivers are down.
@@ -199,8 +208,8 @@ export const CONFIG = {
     // and a little extra damage, out to `medium` it is a little worse, and at long range (out to the reach) it is clearly worse.
     bands: { short: 0.4, medium: 0.75, acc: [1, 0.85, 0.65], dmg: [1.1, 0.9, 0.75] },
     // SEAF specialists. Grenades lob, rockets are the answer to heavies. Both also hurt POIs and breaches.
-    grenadier: { dmg: 55, splash: 4.2, every: 7, range: 40, flight: 0.85, acc: 0.8, minR: 9, group: 3 },     // (0.26) the G-12 every trooper throws
-    rocketeer: { dmg: 300, splash: 5, every: 5.2, range: 78, flight: 0.55, acc: 0.85 },     // (0.26) the Specialist's EAT-17
+    grenadier: { dmg: 55, splash: 4.2, every: 7, range: 40, flight: 0.85, fuse: 2, acc: 0.8, minR: 9, group: 3, mult: { L: 1, M: 0.9, H: 0.3, B: 0.25 } },     // (0.26) the G-12 every trooper throws
+    rocketeer: { dmg: 300, splash: 5, every: 5.2, range: 78, flight: 0.55, acc: 0.85, mult: { L: 1, M: 1, H: 0.8, B: 0.3 } },     // (0.26) the Specialist's EAT-17
     // (0.26) the Specialist's MG-43 (braced, a steady stream) and the Medic's SMG-37 Defender (short and quick)
     seafMg:  { dps: 21, burst: 0.25, acc: 0.62, range: 54, mult: { L: 1, M: 0.55, H: 0.16 } },
     seafSmg: { dps: 11, burst: 0.3, acc: 0.78, range: 30, mult: { L: 1, M: 0.45, H: 0.1 } },

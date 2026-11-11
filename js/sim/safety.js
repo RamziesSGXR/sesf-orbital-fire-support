@@ -12,7 +12,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 function shapeOf(mk) {
   if (mk.type === 'nuke') return { x1: mk.x, y1: mk.y, x2: mk.x, y2: mk.y, r: mk.r + 8, hard: true };
   if (mk.type !== 'strat' || !mk.pat) return null;
-  const hard = mk.by === 'player', rad = mk.rad || 6;
+  const hard = true, rad = mk.rad || 6;     // (0.58: the squad's own strikes hurt it too now)
   if (mk.pat === 'line' || mk.pat === 'walk') {
     const h = (mk.len || 0) / 2;
     return { x1: mk.x - mk.ux * h, y1: mk.y - mk.uy * h, x2: mk.x + mk.ux * h, y2: mk.y + mk.uy * h, r: rad + 2, hard };
@@ -30,6 +30,19 @@ export function buildDanger(m) {
     if (s) out.push(s);
   }
   for (const b of m.beams) if (t >= b.start - 1.5 && t < b.end) out.push({ x1: b.cx, y1: b.cy, x2: b.cx, y2: b.cy, r: (b.width / 2) * m.biome.splash + 7, hard: true });
+  // (0.58) everything else that is about to go off: a grenade on the ground or in the air, a rocket or a shell on its way, the enemy's
+  // rockets, mortars and acid, and the pools the acid leaves. Each counts from when it appeared (t0): see updateEvade.
+  for (const sh of m.shells) {
+    const r = sh.ultAoe || sh.splash || 0;
+    if (r <= 0 || !sh.born) continue;
+    out.push({ x1: sh.x, y1: sh.y, x2: sh.x, y2: sh.y, r: r + 1.5, hard: true, t0: sh.born });
+  }
+  for (const sh of m.bossShells || []) {
+    if (!(sh.splash > 0)) continue;
+    if (sh.born === undefined) sh.born = t;
+    out.push({ x1: sh.x, y1: sh.y, x2: sh.x, y2: sh.y, r: sh.splash + 1.5, hard: true, t0: sh.born });
+  }
+  for (const q of m.acidPools || []) out.push({ x1: q.x, y1: q.y, x2: q.x, y2: q.y, r: q.r + 1, hard: true, t0: q.born });
 }
 
 // Distance from a point to a shape's spine, and the closest point on it.
@@ -69,6 +82,7 @@ export function updateEvade(m, dt) {
     if (a.dead || a.mounted) continue;
     let worst = null, wd = 0;
     for (const s of list) {
+      if (s.t0 !== undefined && t - s.t0 < C.ff.react) continue;     // (0.58) half a second to see it coming
       const sp = spine(s, a.x, a.y), pad = s.hard ? 2.5 : 0;
       if (!s.hard && (a.engaged || m.eGrid.nearest(a.x, a.y, 14))) continue;   // the squad's own blast: only when not fighting
       const depth = s.r + pad - sp.d;

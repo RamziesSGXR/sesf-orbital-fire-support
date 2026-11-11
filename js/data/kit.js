@@ -222,7 +222,40 @@ export function shownAt(it, tier) { return tier >= TIER_MAX || itemTier(it.id) <
 // What a rank opens, as item ids (one per thing: 'own:x' rather than its upgrades), in armory order.
 export function tierItems(kit, tier) { return shopItems(kit).filter((it) => itemTier(it.id) === tier && !it.id.startsWith('up:')).map((it) => it.id); }
 
+// (0.58) Penetration: how hard a weapon hits each armour class (its damage table: light, medium, heavy), and the class it beats
+// (the heaviest it does at least half its damage to). Shown in the armory, on the weapon cards and in the field manual.
+export function penOf(mult) {
+  if (!mult) return null;
+  const l = mult.L ?? 1, md = mult.M ?? 1, h = mult.H ?? 1;
+  return { lvl: h >= 0.5 ? 'heavy' : md >= 0.5 ? 'medium' : 'light', l, m: md, h };
+}
+export function penLine(mult) {
+  const p = penOf(mult);
+  if (!p) return '';
+  const pc = (v) => `${Math.round(v * 100)}%`;
+  return t('pen.line', { lvl: t('pen.' + p.lvl), l: pc(p.l), m: pc(p.m), h: pc(p.h) });
+}
+export const GUN_PEN = () => ({ L: 1, M: 1, H: 0.7, B: C.gun.struct });     // (the ship gun's: sim/player.js GUN_MULT)
+// The damage table behind an armory item, if it has one.
+function itemMult(id) {
+  if (id.startsWith('own:') || id.startsWith('up:')) { const o = orbStats(id.split(':')[1], 1); return o.mult || null; }
+  if (id.startsWith('gun.')) return GUN_PEN();
+  if (id === 'seaf.gren') return C.combat.grenadier.mult;
+  if (id === 'seaf.rocket') return C.combat.rocketeer.mult;
+  return null;
+}
 export function shopItems(kit) {
+  const out = shopItems0(kit);
+  for (const it of out) {
+    const mt = itemMult(it.id);
+    if (!mt) continue;
+    const b = Object.getOwnPropertyDescriptor(it, 'blurb');
+    const base = b && b.get ? b.get.bind(it) : () => b && b.value;
+    Object.defineProperty(it, 'blurb', { get: () => `${base() || ''} ${penLine(mt)}`.trim(), enumerable: true, configurable: true });
+  }
+  return out;
+}
+function shopItems0(kit) {
   const items = [];
   // (0.50) no slots to buy: all five are open from the start
   // (0.39) The Hangar is open from the start: what is bought there is more pelicans (the Pelican Fleet) and bigger loads (seaf.drop,

@@ -205,7 +205,7 @@ export function updateReinf(m, dt) {
     if (d.state === 'down') {
       d.fallT += dt; d.alt = Math.max(0, d.alt - dt * 0.8);
       if (d.fallT >= 1.1) {
-        damageArea(m, d.x, d.y, 11, D.crash, ALL, 'strat', false, '');
+        damageArea(m, d.x, d.y, 11, D.crash, ALL, 'strat', 'none', '');
         m.emit('boom', { x: d.x, y: d.y, r: 11, dmg: D.crash, by: 'strat', big: true });
         m.drops.splice(i, 1);
         // (0.31) a dropship's troops climb out of the wreck, hurt (a warp ship takes everyone with it)
