@@ -2,6 +2,7 @@
 import { CONFIG as C } from '../config.js';
 import { SUBTYPES } from '../data/data.js';
 import { scorch, makeDecals, mark } from './terrain.js';
+import { drawSceneryGround, drawSceneryHigh, stirScenery, updatePresence, drawPresence } from './scenery.js';
 import { setShowBlasts, drawZones, drawMarkers, drawObjectives, drawAssets, drawEnemyExtras, drawPois, drawUavs, drawPings, drawGunSky } from './world.js';
 import { drawSquadOrders, drawSeafMark, drawStroke, drawPelicans, drawMiniSeaf, seafTargets, squadsInUse, squadColor } from './squads.js';
 
@@ -176,6 +177,7 @@ export class Renderer {
         break;
       }
       case 'tracer': this._tracer(ev, now, m); break;
+      case 'rock_break': if (fx.length < 330) { fx.push({ k: 'smoke', x: ev.x, y: ev.y, r: ev.r * 2.2, t0: now, life: 3, drift: 1 }); fx.push({ k: 'shock', x: ev.x, y: ev.y, r: ev.r * 2.5, t0: now, life: 0.3, a: 0.5 }); } this.shake = Math.min(10, this.shake + 2); break;     // (0.59) a big rock breaks up
       case 'ricochet': if (fx.length < 340) fx.push({ k: 'ric', x: ev.x, y: ev.y, x2: ev.tx, y2: ev.ty, t0: now, life: 0.22 }); break;     // (0.58)
       case 'boss_land': this.shake = Math.min(26, this.shake + (ev.kind === 'squids' ? 8 : 18)); break;     // (0.55.1)
       case 'beam': {
@@ -457,7 +459,11 @@ export class Renderer {
     // Enemies: what the squad can see (full) or the player can see a little beyond that (fainter). A dark halo keeps
     // them readable on any biome.
     const fid = m.faction.id;
-    this._ground(ctx, m, now, px, onScr);     // (0.58) craters and footprints, under everyone
+    stirScenery(m, now, vb, this.fx);     // (0.59) grass pushed aside, ripples where anyone wades
+    updatePresence(this, m, now);
+    drawSceneryGround(ctx, m, now, px, scale, vb);     // (0.59) rocks, grass, the enemy's marks on the ground
+    drawPresence(ctx, this, m, now, px, vb, true);      // (0.59) the bugs' scent
+    this._prints(ctx, m, now, px, onScr);     // (0.58) craters and footprints, under everyone
     drawRadar(ctx, m, now, px, pal.enemy);
     // (0.56) level of detail: an ordinary enemy smaller than LOD screen pixels (zoomed out) is drawn as a dot with a halo, all
     // of them in four paths (seen and half-seen, halo and body) instead of its full body; the hurt flash still shows
@@ -470,6 +476,8 @@ export class Renderer {
         if (er <= LOD) { (e.vis >= 2 ? lod1 : lod0).push(e, er); if (t - e.hurtAt < 0.06) hot.push(e, er); continue; }
       }
       ctx.globalAlpha = e.vis >= 2 ? 1 : 0.6;
+      if (!e.boss) { const sr = enemyR(e, SUBTYPES[e.kind], px); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(e.x + sr * 0.45, e.y + sr * 0.35, sr * 0.95, sr * 0.7, 0, 0, TAU); ctx.fill(); }     // (0.59) its shadow
+      else { const sr = e.r * 1.5; ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(e.x + sr * 0.5, e.y + sr * 0.4, sr * 1.1, sr * 0.8, 0, 0, TAU); ctx.fill(); }
       if (e.boss) {
         const br = bossR(e, px), body = (q) => drawBossBody(ctx, q, fid, br, pal.enemy, now, px, t - e.hurtAt < 0.06, t);
         if (arriving(e, t)) drawBossArrival(ctx, e, fid, br, pal.enemy, now, px, t, body);     // (0.55.1) its arrival
@@ -524,6 +532,7 @@ export class Renderer {
         ctx.strokeStyle = pal.ally; ctx.lineWidth = px(1.2); ctx.globalAlpha = 0.6;
         ctx.beginPath(); ctx.arc(a.x, a.y, r * 2.1, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
       }
+      ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(a.x + r * 0.45, a.y + r * 0.35, r * 0.95, r * 0.7, 0, 0, TAU); ctx.fill();     // (0.59) its shadow
       drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t);
       if (t - a.hurtAt < 0.1 && !hideUi) { ctx.strokeStyle = '#ff6a6a'; ctx.lineWidth = px(1.5); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.3, 0, TAU); ctx.stroke(); }
       if (H_ && !hideUi) { ctx.strokeStyle = tm ? tm.color : '#e8f6ff'; ctx.globalAlpha = 0.8; ctx.lineWidth = px(1.3); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.55, 0, TAU); ctx.stroke(); }
@@ -531,6 +540,8 @@ export class Renderer {
       ctx.globalAlpha = 1;
     }
 
+    drawSceneryHigh(ctx, m, now, px, scale, vb);     // (0.59) canopies, banners and pillars over the units
+    drawPresence(ctx, this, m, now, px, vb, false);   // (0.59) the squids' heat haze, the bots' smoke
     this.launch.draw(ctx, m, this.fxNow(m), px, pal, fid);   // bodies in the air: above every unit on the ground (0.53.9: on the mission clock, so they stop in a pause)
     drawAssets(ctx, m, now, px, labels, scale, pal);
     drawPings(ctx, m, now, px, labels, scale);
@@ -1056,7 +1067,7 @@ export class Renderer {
   // (0.58) What is left on the ground: a crater where each big blast landed (a dark bowl, its rim lit on one side), fading over
   // its life; and footprints where anyone in sight walks, a print every stride, fading in FP_LIFE seconds. Bugs leave rows of
   // little claw dots, bots square treads, squids three-toed prints, ours boot prints.
-  _ground(ctx, m, now, px, onScr) {
+  _prints(ctx, m, now, px, onScr) {
     const cr = this.craters;
     for (let i = cr.length - 1; i >= 0; i--) {
       const c = cr[i], p = (now - c.t0) / c.life;
@@ -1070,40 +1081,60 @@ export class Renderer {
       ctx.beginPath(); ctx.arc(c.x, c.y, c.r * 0.92, c.a + Math.PI * 0.9, c.a + Math.PI * 1.9); ctx.stroke();
     }
     // new prints: anyone in sight on screen who has gone a stride since the last one
-    const P = this.prints, fp = this._fp, step = (o) => (o.type ? 1.1 : o.kind === 'H' ? 2.2 : o.kind === 'M' ? 1.5 : 1.1);
-    const fac = m.faction.id, add = (o, kind) => {
-      if (o.dead || o.mounted || o.inside || o.lp || o.boss || !onScr(o.x, o.y, 4)) return;
+    // (0.59) what each leaves: its own kind of print, or (no feet, or huge ones) its own mark
+    const markOf = (o) => {
+      if (o.type) return 'boot';
+      if (o.boss) return fac === 'bugs' ? 'claw' : fac === 'bots' ? 'bigfoot' : 'pad';
+      if (fac === 'bugs') return o.kind === 'H' || o.sub === 'guard' ? 'claw' : 'bugs';
+      if (fac === 'bots') return o.kind === 'H' ? 'tread' : 'bots';
+      return o.sub === 'soak' ? 'drag' : o.kind === 'H' ? 'pad' : 'squids';
+    };
+    const P = this.prints, fp = this._fp, step = (o) => (o.type ? 1.1 : o.boss ? o.r * 0.9 : o.kind === 'H' ? 2.2 : o.kind === 'M' ? 1.5 : 1.1);
+    const fac = m.faction.id, add = (o) => {
+      if (o.dead || o.mounted || o.inside || o.lp || !onScr(o.x, o.y, 4)) return;
       const q = fp.get(o.id);
       if (!q) { fp.set(o.id, { x: o.x, y: o.y, n: 0 }); return; }
       const dx = o.x - q.x, dy = o.y - q.y, d2 = dx * dx + dy * dy, st = step(o);
       if (d2 < st * st) return;
       const d = Math.sqrt(d2), ux = dx / d, uy = dy / d, side = (q.n++ & 1) ? 1 : -1, w = o.type ? 0.35 : o.kind === 'H' ? 0.9 : 0.45;
-      P.push({ x: o.x - uy * w * side, y: o.y + ux * w * side, ux, uy, k: kind, s: o.kind === 'H' ? 1.6 : 1, t: now });
+      const mk = markOf(o), wide = mk === 'tread' || mk === 'drag' ? 0 : w * (o.boss ? 3 : 1);
+      P.push({ x: o.x - uy * wide * side, y: o.y + ux * wide * side, ux, uy, k: mk, s: o.boss ? o.r * 0.35 : o.kind === 'H' ? 1.6 : 1, t: now });
       q.x = o.x; q.y = o.y;
     };
     if (P.length < FP_MAX) {
-      for (const a of m.alive) add(a, 'boot');
-      for (const e of m.enemies) if (e.vis > 0) add(e, fac);
+      for (const a of m.alive) add(a);
+      for (const e of m.enemies) if (e.vis > 0) add(e);
     }
     if (fp.size > 4000) fp.clear();
     // draw them in four bands of age (four alphas), one path a band and kind, built in one pass
     let cut = 0; while (cut < P.length && now - P[cut].t > FP_LIFE) cut++;
     if (cut) P.splice(0, cut);
     if (!P.length) return;
-    const KINDS = ['boot', 'bugs', 'bots', 'squids'], col = ['40,34,26', '58,52,30', '30,30,34', '48,34,58'], paths = [], used = [];
-    for (let i = 0; i < 16; i++) { paths.push(new Path2D()); used.push(false); }
+    const KINDS = ['boot', 'bugs', 'bots', 'squids', 'claw', 'tread', 'pad', 'drag', 'bigfoot'], NK = KINDS.length;
+    const col = ['40,34,26', '58,52,30', '30,30,34', '48,34,58', '52,44,26', '26,26,28', '44,30,56', '70,40,60', '24,24,26'], paths = [], used = [];
+    for (let i = 0; i < 4 * NK; i++) { paths.push(new Path2D()); used.push(false); }
     for (const f of P) {
       if (!onScr(f.x, f.y, 1)) continue;
-      const band = Math.min(3, Math.floor(((now - f.t) / FP_LIFE) * 4)), ki = KINDS.indexOf(f.k), pa = paths[band * 4 + ki], s = f.s;
-      used[band * 4 + ki] = true;
+      const band = Math.min(3, Math.floor(((now - f.t) / FP_LIFE) * 4)), ki = KINDS.indexOf(f.k), pa = paths[band * NK + ki], s = f.s;
+      if (ki < 0) continue;
+      used[band * NK + ki] = true;
+      if (ki >= 4) {
+        const an = Math.atan2(f.uy, f.ux), c = Math.cos(an), sn = Math.sin(an);
+        if (ki === 4) { for (const o of [-0.5, 0, 0.5]) { const x = f.x + (c * 0.5 - sn * o) * s, y = f.y + (sn * 0.5 + c * o) * s; pa.moveTo(x - c * 0.6 * s, y - sn * 0.6 * s); pa.lineTo(x + c * 0.1 * s - sn * 0.12 * s, y + sn * 0.1 * s + c * 0.12 * s); pa.lineTo(x + c * 0.1 * s + sn * 0.12 * s, y + sn * 0.1 * s - c * 0.12 * s); pa.closePath(); } }
+        else if (ki === 5) { for (const o of [-1.1, 1.1]) { const x = f.x - sn * o, y = f.y + c * o; for (let j = 0; j < 3; j++) { const xx = x + c * (j - 1) * 0.55, yy = y + sn * (j - 1) * 0.55; pa.rect(xx - 0.22, yy - 0.22, 0.44, 0.44); } } }
+        else if (ki === 6) { pa.moveTo(f.x + 0.55 * s, f.y); pa.ellipse(f.x, f.y, 0.55 * s, 0.45 * s, an, 0, TAU); }
+        else if (ki === 7) { pa.moveTo(f.x + c * 1.2, f.y + sn * 1.2); pa.ellipse(f.x, f.y, 1.2, 0.6, an, 0, TAU); }
+        else { const r = 0.6 * s; pa.moveTo(f.x + c * r - sn * r * 0.7, f.y + sn * r + c * r * 0.7); pa.lineTo(f.x + c * r + sn * r * 0.7, f.y + sn * r - c * r * 0.7); pa.lineTo(f.x - c * r + sn * r * 0.7, f.y - sn * r - c * r * 0.7); pa.lineTo(f.x - c * r - sn * r * 0.7, f.y - sn * r + c * r * 0.7); pa.closePath(); }
+        continue;
+      }
       if (ki === 2) { const r = 0.35 * s; pa.rect(f.x - r, f.y - r, r * 2, r * 2); }
       else if (ki === 1) { for (const o of [-0.35, 0, 0.35]) { const x = f.x - f.uy * o * s, y = f.y + f.ux * o * s; pa.moveTo(x + 0.13 * s, y); pa.arc(x, y, 0.13 * s, 0, TAU); } }
       else if (ki === 3) { for (const o of [-0.5, 0, 0.5]) { const x = f.x + (f.ux * 0.35 - f.uy * o * 0.5) * s, y = f.y + (f.uy * 0.35 + f.ux * o * 0.5) * s; pa.moveTo(x + 0.12 * s, y); pa.arc(x, y, 0.12 * s, 0, TAU); } }
       else { const an = Math.atan2(f.uy, f.ux); pa.moveTo(f.x + Math.cos(an) * 0.38, f.y + Math.sin(an) * 0.38); pa.ellipse(f.x, f.y, 0.38, 0.2, an, 0, TAU); }
     }
-    for (let band = 0; band < 4; band++) for (let ki = 0; ki < 4; ki++) {
-      if (!used[band * 4 + ki]) continue;
-      ctx.fillStyle = `rgba(${col[ki]},${0.42 * (1 - band / 4)})`; ctx.fill(paths[band * 4 + ki]);
+    for (let band = 0; band < 4; band++) for (let ki = 0; ki < NK; ki++) {
+      if (!used[band * NK + ki]) continue;
+      ctx.fillStyle = `rgba(${col[ki]},${0.42 * (1 - band / 4)})`; ctx.fill(paths[band * NK + ki]);
     }
   }
   _effects(ctx, now, px) {
@@ -1126,6 +1157,11 @@ export class Renderer {
           ctx.beginPath(); ctx.arc(f.x + Math.cos(ang) * dist, f.y + Math.sin(ang) * dist, Math.max(px(1.3), f.r * 0.14 * (1 - p * 0.5)), 0, TAU); ctx.fill();
         }
         ctx.globalAlpha = 1; continue;
+      }
+      if (f.k === 'ripple') {     // (0.59) a ring spreading on the water
+        ctx.strokeStyle = `rgba(200,230,255,${0.5 * (1 - p)})`; ctx.lineWidth = Math.max(px(1), 0.15);
+        ctx.beginPath(); ctx.ellipse(f.x, f.y, f.r * (0.6 + 1.6 * p), f.r * (0.45 + 1.2 * p), 0, 0, TAU); ctx.stroke();
+        continue;
       }
       if (f.k === 'ric') {        // (0.58) a ricochet: a bright streak skipping off, and a spark where it struck
         const q = Math.min(1, p * 1.6), hx = f.x + (f.x2 - f.x) * q, hy = f.y + (f.y2 - f.y) * q, tx = f.x + (f.x2 - f.x) * Math.max(0, q - 0.35), ty = f.y + (f.y2 - f.y) * Math.max(0, q - 0.35);

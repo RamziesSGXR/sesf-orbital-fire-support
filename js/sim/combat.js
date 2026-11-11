@@ -1,5 +1,6 @@
 // Damage rules shared by every side: hurting enemies, allies and placed assets, shields, smoke, and shots with tracers.
 import { CONFIG as C } from '../config.js';
+import { damageRock } from './scenery.js';
 import { ALLY } from '../data/data.js';
 import { uavBuff } from '../data/kit.js';
 import { coverMul } from './cover.js';
@@ -149,6 +150,7 @@ export function damageArea(m, x, y, rad, dmg, mult, by = 'player', friendly = tr
     hurtEnemy(m, e, dmg, by, fx, fy, cs, false, e.boss && mult.boss !== undefined ? mult.boss : mult[e.kind]);   // (a few blasts set their own share for a super heavy)
   });
   const above = ABOVE; ABOVE = false;
+  if (rad >= 2.5) damageRock(m, x, y, rad, dmg * Math.max(mult.B ?? 0.3, 0.3));     // (0.59) a big rock in it takes the hit, and may break up
   for (const d of m.drops) if (!d.dead && d.hp > 0 && d.low && Math.hypot(d.x - x, d.y - y) <= rad + d.r) m.damageDrop(d, dmg * (mult.H ?? 1), by);
   // (0.58) every blast hurts everyone in it: an enemy's (by 'enemy') at full strength, one from the allies' own side (the player,
   // the squad, a stratagem) at the friendly-fire share against each ally's armour. friendly 'none': a few that never touch allies

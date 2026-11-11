@@ -2467,7 +2467,7 @@ export function fillMissionInfo(m, info) {
   parts.push(`<h3>${t('info.radar')}</h3><p>${esc(t('info.radarV', { n: C.reveal.lockSec }))}</p>`);
   const CR = C.combat.crit, BD = C.combat.bands;
   parts.push(`<h3>${t('info.hits')}</h3><p>${esc(t('info.hitsV', { a: C.combat.back.mul, b: C.combat.back.heavy, m: CR.mul, p: pctS(CR.player), g: pctS(CR.gun), s: pctS(CR.ally), e: pctS(CR.enemy) }))}</p>`);
-  parts.push(`<h3>${t('info.ff')}</h3><p>${esc(t('info.ffV', { own: pctS(C.ff.own), react: C.ff.react, fuse: C.combat.grenadier.fuse }))}</p><p>${esc(t('info.penV', { g: penShort(C.combat.grenadier.mult), r: penShort(C.combat.rocketeer.mult), s: penShort(GUN_PEN()) }))}</p>`);     // (0.58)
+  parts.push(`<h3>${t('info.ff')}</h3><p>${esc(t('info.ffV', { own: pctS(C.ff.own), react: C.ff.react, fuse: C.combat.grenadier.fuse }))}</p><p>${esc(t('info.penV', { g: penShort(C.combat.grenadier.mult), r: penShort(C.combat.rocketeer.mult), s: penShort(GUN_PEN()) }))}</p><p>${esc(t('info.rocksV', { p: pctS(1 - C.scenery.coverMul) }))}</p>`);     // (0.58, 0.59)
   parts.push(`<h3>${t('info.range')}</h3><p>${esc(t('info.rangeV', { a: pctS(BD.short), b: pctS(BD.dmg[0]), c: pctS(BD.acc[1]), d: pctS(BD.dmg[1]), e: pctS(BD.acc[2]), f: pctS(BD.dmg[2]) }))}</p>`);
   parts.push(`<h3>${t('info.variants')}</h3><p>${esc(t('info.variantsV'))}</p>`);     // (0.54)
   const Bm = m.boss;

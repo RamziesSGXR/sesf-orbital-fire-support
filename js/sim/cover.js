@@ -3,6 +3,7 @@
 // a Helldiver or trooper standing at one takes less from enemy fire (CONFIG.cover.mul), and when the squad holds a site its
 // Helldivers and troopers spread out to the walls instead of bunching up in the middle.
 import { CONFIG as C } from '../config.js';
+import { rockAt } from './scenery.js';
 
 const TAU = Math.PI * 2;
 
@@ -49,6 +50,7 @@ export function coverMul(m, x, y) {
   const r2 = C.cover.r * C.cover.r;
   let best = 1;
   for (const p of m.cover || []) if ((p.x - x) ** 2 + (p.y - y) ** 2 <= r2) best = Math.min(best, p.mul || C.cover.mul);
+  if (best === 1 && rockAt(m, x, y, C.scenery.coverPad)) best = C.scenery.coverMul;     // (0.59) behind a big rock
   return best;
 }
 export const inCover = (m, x, y) => coverMul(m, x, y) < 1;

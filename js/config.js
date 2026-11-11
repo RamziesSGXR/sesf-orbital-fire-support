@@ -44,6 +44,8 @@ export const CONFIG = {
               fire: { lane: 1.9, collateral: 0.03, ffMul: 0.5 } },     // (0.57: they hold fire more, and a shot taken anyway hurts more)
   // (0.57) performance: past visBig (enemies x allies) the sight pass runs every other tick
   perf: { visBig: 40000 },
+  // (0.59) scenery (sim/scenery.js): a big rock's toughness (rockHp, scaled by its size) and the share of a blast's damage it takes
+  scenery: { rockHp: 1400, rockTake: 1, coverPad: 2.2, coverMul: 0.6 },     // (coverMul: what still gets through behind a big rock)
   // (0.58) ricochets: a direct hit glances off with chance base, plus perGap for each step its damage share against that armour is
   // short of full (a rifle on a heavy: likely), at most max; a glancing hit does chip of what it would have, and every hit at least minPen
   ric: { base: 0.03, perGap: 0.55, max: 0.6, chip: 0.4, minPen: 0.05,
