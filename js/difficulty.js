@@ -78,7 +78,7 @@ const RULES = [
   ['fortress.garrisonGroups', 'spawn', 'int', 1], ['fortress.garrisonCap', 'spawn', 'int', 6],
   ['enemies.liveCap', 'spawn', 'mul'], ['enemies.capPerMissionMin', 'spawn', 'mul'], ['enemies.maxLive', 'spawn', 'mul'], ['enemies.hardCap', 'spawn', 'up'],
   ['enemies.group.bugs', 'spawn', 'grp'], ['enemies.group.bots', 'spawn', 'grp'], ['enemies.group.squids', 'spawn', 'grp'],
-  ['mother.groups', 'spawn', 'int', 1], ['mother.waveEvery', 'spawn', 'div'], ['reinf.callChance', 'spawn', 'mul'], ['reinf.cooldownSec', 'spawn', 'div'], ['reinf.groups', 'spawn', 'int', 1], ['reinf.maxGroups', 'spawn', 'int', 1],
+  ['mother.groups', 'spawn', 'int', 1], ['mother.waveEvery', 'spawn', 'div'], ['reinf.callChance', 'spawn', 'mul'], ['reinf.cooldownSec', 'spawn', 'div'], ['reinf.groups', 'spawn', 'int', 1], ['reinf.maxGroups', 'spawn', 'int', 1], ['reinf.maxActive', 'spawn', 'int', 1],
   ['reinf.siteEvery', 'spawn', 'div'], ['reinf.extractEvery', 'spawn', 'div'],
   ['bases.spawners.trickleSec', 'spawn', 'div'],     // (0.49) a cluster base lets its troops out faster the higher the level
   ['siege.every', 'spawn', 'div'], ['siege.minEvery', 'spawn', 'div'], ['siege.extra', 'spawn', 'int', 0], ['siege.cap', 'spawn', 'int', 8],

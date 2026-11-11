@@ -25,6 +25,12 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Lighter, and more of them (0.56).**
+- **Faster drawing.** Units and effects off screen are no longer drawn, and zoomed out each ordinary enemy is a dot instead of its full body. With 600 enemies on screen, a zoomed-out frame takes about 7 ms to draw, down from about 93 ms.
+- **SAM sites carry 24 missiles.** Their loaded tubes and a bar underneath show what is left. An empty site says EMPTY and stops firing; build another to keep the sky covered.
+- **More dropships at higher levels.** From level 6 each reinforcement call sends extra craft (one more every four levels, up to four more), and more of them can be in the air at once. The ceiling on enemies alive at once now goes up to 600.
+- **The mothership brings a super heavy.** Its first wave comes 5 seconds after it is in place (it was 8), and it brings a Warp Colossus down with the troops, unless another super heavy is already on the field.
+
 **Super heavy arrivals (0.55.1).**
 - **Each super heavy has its own entrance.** The Brood Titan's ground swells and cracks, then it bursts out of a crater in a spray of earth. The Siege Walker is dropped from orbit: a red target ring tightens and its shadow grows as it falls trailing fire, then it slams down in a shockwave and rises out of the dust. The Warp Colossus warps in: a column of light and rings of glyphs close in while it builds up out of light, then a flash.
 - The screen shakes on the impact, with a sound to match. While it arrives (about 3 seconds) it can't move, fight or be hurt.

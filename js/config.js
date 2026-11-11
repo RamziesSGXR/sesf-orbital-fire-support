@@ -162,7 +162,7 @@ export const CONFIG = {
               // walks it: Helldivers, SEAF and the enemy.
               bridge:  { cost: 250, sec: 16, span: 110, w: 14, unlock: 0, up: 160, dropSec: 30 },     // (0.22: dropped from the ship where an ally can see, dropSec after the call; nobody builds it)
               tower:   { cost: 700, sec: 50, cap: 1, hp: 1400, unlock: 0, up: 220 },
-              sam:     { cost: 550, sec: 34, hp: 1600, dmg: 320, every: 2.4, unlock: 700, up: 260 },
+              sam:     { cost: 550, sec: 34, hp: 1600, dmg: 320, every: 2.4, unlock: 700, up: 260, ammo: 24 },     // (0.56: ammo, missiles a site)
               arty:    { cost: 1100, sec: 44, cap: 2, hp: 2200, unlock: 2200, up: 600 } },
   // The Artillery Cannon: a SEAF gun the player fires like a stratagem (weapon 9) while someone mans it, anywhere on the map that an
   // ally can see (or locked), on a slow recharge. Each round is a mini-nuke. Built from the armory unlock, or captured on the map (a side
@@ -427,7 +427,7 @@ export const CONFIG = {
                jamOff: 115, jamR: 55 },     // (0.37) the Hellbomb lesson's disruptor: how far from the base, and the ground it jams
   // (0.40) opBonus: credits are worth 0.2 more for every mission already done in the operation (the second mission x1.2, the
   // third x1.4 and so on), on top of the level's pay; score is not.
-  difficulty: { start: 3, spawn: 0.55, medium: 0.6, heavy: 0.4, boss: 0.3, curve: 1, reward: [0.75, 1.2], opBonus: 0.2, ramp: 0.6, beyond: 1, beyondSpawn: 2, hardCapMax: 340,     // (0.31: ramp 0.39 -> 0.6, a level nearly every mission)
+  difficulty: { start: 3, spawn: 0.55, medium: 0.6, heavy: 0.4, boss: 0.3, curve: 1, reward: [0.75, 1.2], opBonus: 0.2, ramp: 0.6, beyond: 1, beyondSpawn: 2, hardCapMax: 600,     // (0.31: ramp 0.39 -> 0.6, a level nearly every mission)
                 // war minutes at each level (1 to 10), war minutes a level past 10, and the share of each real session minute that counts
                 // (0.53.8) the levels step evenly up to 9: 3 is easy, 6 hard, 9 very hard (it was 0, 15, 37, 38 ... 42: level 3 was
                 // nearly as tough as 10, and only the numbers of enemies told them apart)
@@ -474,7 +474,9 @@ export const CONFIG = {
   reinf:    { callChance: 0.55, cooldownSec: 20, flareSec: 4, maxActive: 5, groups: 3, perPressure: 0.5, maxGroups: 4,
               dist: [28, 60], minAlly: 26, siteEvery: 30, extractEvery: 24, extractPMax: 1.6, siteDist: [70, 120],
               multi: { perExtra: 1, perCap: 2, flareMin: 6, flareChance: 0.2, flarePerMin: 0.025, flareMax: 0.55, siteMin: 10, siteChance: 0.4,
-                       extractCall: 2, extractLate: 15, extractStep: 40, extractMax: 3, extractHot: 3 },
+                       extractCall: 2, extractLate: 15, extractStep: 40, extractMax: 3, extractHot: 3,
+                       // (0.56) by level: from levelFrom, levelPer more craft a call each level, at most levelMax more
+                       levelFrom: 5, levelPer: 0.25, levelMax: 4 },
               bugs:   { warnSec: 2.5, every: 2.2, pack: 0.5, packs: 3, hp: 2400, minOpen: 10, floor: 0.25, r: 8, lingerSec: 6, reward: 90, rifle: 0.35 },
               bots:   { speed: 75, approach: 460, hover: 1.2, every: 0.9, hp: 1100, r: 9, lowR: 110, reward: 160, crash: 380, survive: 0.5, survHp: 0.7 },
               squids: { speed: 55, approach: 420, hover: 1.6, every: 1.1, hp: 1700, r: 12, lowR: 90, reward: 260, crash: 420, shield: 1400, regen: 70, regenDelay: 5 } },
@@ -483,7 +485,7 @@ export const CONFIG = {
   // SAM hit is cut to samMul (about 20 sites to bring it down). When every one is down, the next set comes after respawnSec, one more
   // each time up to maxShips. crashSec: how long it falls; crashR/crashDmg the blast where it lands; the wreck stays.
   mother:   { after: 4, minT: 150, hp: 36000, shield: 24000, heal: 220, regen: 260, regenDelay: 6, samMul: 0.2, r: 62, speed: 38, approach: 520, dist: [150, 230],
-              firstWave: 8, waveEvery: 24, groups: 2, maxShips: 3, respawnSec: 70, crashSec: 7, crashR: 60, crashDmg: 700, reward: 900, keepR: 110 },
+              firstWave: 5, waveEvery: 24, groups: 2, maxShips: 3, respawnSec: 70, crashSec: 7, crashR: 60, crashDmg: 700, reward: 900, keepR: 110 },
   // Points of interest: random spots SEAF can take out for credits. Guarded by an enemy group that wakes when allies come close.
   // (0.18: fewer of these; the finds below are the rest)
   poi:      { min: 2, max: 4, hp: 520, r: 18, minFromLz: 260, spacing: 160, guardR: 130, rifleMul: 0.8,
@@ -649,6 +651,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.55.1',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.56.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

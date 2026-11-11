@@ -1056,6 +1056,8 @@ export default {
   'n.shipDown': '{what} ABATTU  +{cr} CR',
   'n.shipDownN': '{what} ABATTU  {n} GROUPES AVEC LUI  +{cr} CR',
   'n.seafDown': 'PELICAN SEAF POSÉ  {n} SOLDATS{extra}  ESCOUADE {sq}',
+  'n.samEmpty': 'SITE SAM À COURT DE MISSILES',
+  'lab.samEmpty': 'VIDE',
   'n.turretDown': 'TOURELLE DE BASE DÉTRUITE',
   'n.heavyInbound': 'SUPER LOURD EN APPROCHE {dir} : {name}',
   'n.mother': 'VAISSEAU-MÈRE EN APPROCHE · LES SAM L\'ÉGRATIGNENT À PEINE · CANON ET FRAPPES',

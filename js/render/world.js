@@ -453,10 +453,11 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
 }
 
 // ---------- enemy extras: heavy tags, charge telegraphs, speed streaks, damage flashes ----------
-export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal) {
+export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal, vb = null) {
   const t = m.t, fac = m.faction, col = pal.enemy;
   for (const e of m.enemies) {
     if (e.dead || e.vis <= 0) continue;
+    if (vb && !e.boss) { const R = (e.jamR || 0) + 20; if (e.x + R < vb.x0 || e.x - R > vb.x1 || e.y + R < vb.y0 || e.y - R > vb.y1) continue; }     // (0.56) off screen
     if (t - e.hurtAt < 0.09) {
       ctx.strokeStyle = '#fff'; ctx.lineWidth = px(1.2);
       const r = Math.max(e.r, px(e.kind === 'L' ? 3.5 : e.kind === 'M' ? 5.5 : 8.5));

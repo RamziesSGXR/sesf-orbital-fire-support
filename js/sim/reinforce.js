@@ -61,6 +61,14 @@ function makeRoom(m, need) {
 }
 // (0.31) From how many places at once: why is the reason for the call; now: mission seconds.
 export function reinfCount(m, why, opts = {}) {
+  return Math.min(R.maxActive, reinfCount0(m, why, opts) + levelCraft(m));
+}
+// (0.56) the higher the level, the more craft each call sends (multi.levelFrom, levelPer a level, at most levelMax more)
+export function levelCraft(m) {
+  const M = R.multi;
+  return Math.min(M.levelMax || 0, Math.floor(Math.max(0, (m.difficulty ?? 0) - (M.levelFrom ?? 99)) * (M.levelPer || 0)));
+}
+function reinfCount0(m, why, opts = {}) {
   const M = R.multi, min = m.t / 60;
   if (why === 'flare') {
     if (min < M.flareMin || m.reinf.active + 2 > R.maxActive) return 1;

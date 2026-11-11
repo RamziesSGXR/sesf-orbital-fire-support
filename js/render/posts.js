@@ -213,8 +213,15 @@ function art(ctx, p, now, px, t) {
     ctx.strokeStyle = '#a9b4ad'; ctx.lineWidth = lw(1); ring(ctx, 0, 0, s * 0.8); ctx.stroke();
     ctx.fillStyle = '#d6e1da';
     for (const oy of [-0.55, -0.18, 0.18, 0.55]) ctx.fillRect(-s * 0.4, oy * s - s * 0.13, s * 1.25, s * 0.26);
-    ctx.fillStyle = '#ff5a3a'; for (const oy of [-0.55, -0.18, 0.18, 0.55]) ctx.fillRect(s * 0.85, oy * s - s * 0.13, s * 0.18, s * 0.26);
+    const left = p.ammo === undefined ? 4 : Math.min(4, p.ammo);     // (0.56) the tubes still loaded show their red tips
+    ctx.fillStyle = '#ff5a3a'; [-0.55, -0.18, 0.18, 0.55].forEach((oy, i) => { if (i < left) ctx.fillRect(s * 0.85, oy * s - s * 0.13, s * 0.18, s * 0.26); });
     ctx.restore();
+    if (p.maxAmmo && p.maxAmmo < Infinity) {      // missiles left, under it
+      const f = p.ammo / p.maxAmmo, w = 6, y0 = y + 3.6;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x - w / 2, y0, w, Math.max(px(3), 0.5));
+      ctx.fillStyle = p.ammo > 0 ? (f < 0.25 ? '#ffb020' : '#e8f0ea') : '#ff4a3a'; ctx.fillRect(x - w / 2, y0, p.ammo > 0 ? w * f : w, Math.max(px(3), 0.5));
+      if (p.ammo <= 0) { ctx.font = `bold ${px(10)}px monospace`; ctx.textAlign = 'center'; ctx.fillStyle = '#ff6a5a'; ctx.fillText(tr('lab.samEmpty'), x, y0 + px(14)); }
+    }
     return;
   }
   ctx.restore();

@@ -6,7 +6,7 @@ import { Mission } from '../js/sim/mission.js';
 import { CONFIG as C } from '../js/config.js';
 import { hurtEnemy, hurtAlly, damageArea } from '../js/sim/combat.js';
 import { spawnGroup } from '../js/sim/director.js';
-import { callReinforcements } from '../js/sim/reinforce.js';
+import { levelCraft, callReinforcements } from '../js/sim/reinforce.js';
 import { startExtract, completeObjective } from '../js/sim/objectives.js';
 import { strikeAt } from '../js/sim/strat.js';
 import { makeBot, botStep } from '../js/sim/bot.js';
@@ -91,7 +91,8 @@ for (const fac of ['bugs', 'bots', 'squids']) {
   const count = (mm) => { for (const e of mm.events) if (e.type === 'reinf_spawn') { spawned++; if (mm.visLevel(e.x, e.y) > 0) seenSpawn++; } mm.events.length = 0; return false; };
   run(m, C.reinf.flareSec + 1, count);
   const holes = m.breaches.filter((b) => b.kind === 'hole').length, ships = m.drops.length;
-  check(`${fac}: the flare brings reinforcements the faction's own way`, fac === 'bugs' ? holes === 1 : ships === 1, `holes ${holes}, ships ${ships}`);
+  const want = 1 + levelCraft(m);     // (0.56: more craft a call at higher levels)
+  check(`${fac}: the flare brings reinforcements the faction's own way`, fac === 'bugs' ? holes === want : ships === want, `holes ${holes}, ships ${ships}, want ${want}`);
   let hunting = true;
   run(m, 18, (mm) => { for (const q of mm.groups) if (q.reinf && q.state !== 'hunt') hunting = false; return count(mm); });
   check(`${fac}: groups come out of it and go straight for the squad`, spawned >= C.reinf.groups && hunting, `${spawned} groups (had ${before})`);

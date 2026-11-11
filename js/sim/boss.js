@@ -31,7 +31,7 @@ export function spawnBoss(m, opts = {}) {
   const B = C.boss, D = bossDef(m), t = m.t;
   const sp = opts.spot ? { x: opts.spot.x, y: opts.spot.y } : opts.at ? { x: opts.at.x + (opts.at.r || 20) + 10, y: opts.at.y } : hiddenSpot(m, m.hx, m.hy, B.dist[0], B.dist[1], 16) || pickSpawn(m, 16);
   if (!sp) return null;
-  if (opts.at && m.terrain.blocked(sp.x, sp.y)) { const l = m.terrain.nearestLand(sp.x, sp.y); sp.x = l.x; sp.y = l.y; }
+  if ((opts.at || opts.spot) && m.terrain.blocked(sp.x, sp.y)) { const l = m.terrain.nearestLand(sp.x, sp.y); sp.x = l.x; sp.y = l.y; }
   const g = spawnGroup(m, sp.x, sp.y, 'hunt', opts.spot ? { alertT: 1e9, size: 2 } : { alertT: 1e9 });    // an escort comes with it
   g.alertT = 1e9; g.bossGroup = true;
   let hp = Math.round(D.hp * (1 + (m.hpMul - 1) * 0.5));     // tougher later in the session, but only half as fast as the rest
