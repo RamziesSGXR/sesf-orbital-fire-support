@@ -112,5 +112,12 @@ export function applyDifficulty(d) {
     else v = Math.max(4, Math.round(b * (0.4 + 0.6 * k)));          // groups shrink less than the numbers of them
     set(path, v);
   }
+  // (0.57) past level 10 the crowd keeps growing: the live ceiling climbs liveBeyond a level on top of the rules, up to hardCapMax
+  // (1,000 at the very top), and the hard cap with it
+  if (d > LEVELS && D().liveBeyond) {
+    const k = 1 + (d - LEVELS) * D().liveBeyond, top = D().hardCapMax || Infinity;
+    set('enemies.maxLive', Math.min(top, Math.round(C.enemies.maxLive * k)));
+    set('enemies.hardCap', Math.min(top, Math.max(C.enemies.hardCap, Math.round(C.enemies.hardCap * k), C.enemies.maxLive + 40)));
+  }
   applied = d;
 }

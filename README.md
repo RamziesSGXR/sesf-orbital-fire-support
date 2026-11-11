@@ -25,6 +25,11 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**The big fight, and friendly fire (0.57).**
+- **Up to 1,000 enemies.** Past level 10 the crowd keeps climbing: about 400 alive at once by level 15, about 700 by level 20, and 1,000 from level 25. The game now runs a fight of 1,000 enemies against 300 allied units: in very big fights the who-sees-what pass runs every other tick, and picking a target tests the line of fire to only the few nearest enemies.
+- **Friendly fire, both sides.** Troops hold fire when a friendly is in the line of fire, and only rarely take the shot anyway (it hurts more when they do). A missed shot flies on, and a friendly who has stepped into its path takes it. The enemy now plays by the same rules: it holds fire for its own, its stray shots and the ones it takes anyway hit its own, and its splash, rockets and mortars hurt its own too (a kill that way pays credits but no score).
+- **Your fire is harder on allies.** Your strikes and the ship gun do 35% more to allies, and allies run out of a strike more slowly, so watch where you drop them.
+
 **Lighter, and more of them (0.56).**
 - **Faster drawing.** Units and effects off screen are no longer drawn, and zoomed out each ordinary enemy is a dot instead of its full body. With 600 enemies on screen, a zoomed-out frame takes about 7 ms to draw, down from about 93 ms.
 - **SAM sites carry 24 missiles.** Their loaded tubes and a bar underneath show what is left. An empty site says EMPTY and stops firing; build another to keep the sky covered.

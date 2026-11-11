@@ -4,6 +4,7 @@
 // they are still explosions, so anyone caught inside the blast footprint steps out unless they are in the middle of a fight.
 import { aoX, aoY } from './ao.js';
 import { bark } from './chatter.js';
+import { CONFIG as C } from '../config.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -76,7 +77,7 @@ export function updateEvade(m, dt) {
     if (!worst) continue;
     let dx = a.x - worst.sp.px, dy = a.y - worst.sp.py, d = Math.hypot(dx, dy);
     if (d < 0.05) { const s = worst.s; dx = -(s.y2 - s.y1) || 1; dy = (s.x2 - s.x1) || 0; d = Math.hypot(dx, dy) || 1; }
-    const H = a.type === 'H', speed = (H ? 10.5 : 8.5) * bm * (H && t < a.stimUntil ? 1.3 : 1) * dt;
+    const H = a.type === 'H', speed = (H ? C.ff.flee.hd : C.ff.flee.seaf) * bm * (H && t < a.stimUntil ? 1.3 : 1) * dt;
     const nx = aoX(m, a.x + (dx / d) * speed, 4), ny = aoY(m, a.y + (dy / d) * speed, 4);
     if (!m.terrain.blocked(nx, ny)) { a.x = nx; a.y = ny; } else if (!m.terrain.blocked(nx, a.y)) a.x = nx; else if (!m.terrain.blocked(a.x, ny)) a.y = ny;
     a.fleeAt = t;

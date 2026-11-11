@@ -3,7 +3,7 @@
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { ALLY } from '../data/data.js';
-import { fireShot, hurtTarget, hurtAlly, nearestTarget, inZoneKind, pickClear, bandOf, bandAcc, bandDmg, reveal } from './combat.js';
+import { fireShot, hurtTarget, hurtAlly, hurtEnemy, nearestTarget, inZoneKind, pickClear, eBlocker, bandOf, bandAcc, bandDmg, reveal } from './combat.js';
 import { steer } from './terrain.js';
 import { softNear, baseNear } from './pois.js';
 import { bark } from './chatter.js';
@@ -815,9 +815,13 @@ export function updateEnemies(m, dt) {
       if (!e.tgt) continue;
       e.atk -= dt;
       if (e.atk > 0) continue;
-      e.atk += p.every;
       const a = e.tgt;
-      if (a.dead) continue;
+      if (a.dead) { e.atk += p.every; continue; }
+      // (0.57) trigger discipline: another of theirs in the line of fire, it holds (now and then it fires anyway, and hits it)
+      const melee0 = (fac.id === 'bugs' && e.kind !== 'M') || e.sub === 'guard' || e.sub === 'soak', FE = C.ff.enemy;
+      const blk = !melee0 && p.range > 8 ? eBlocker(m, e, a.x, a.y) : null;
+      if (blk && rng.next() >= FE.collateral) { e.atk = 0.3; continue; }
+      e.atk += p.every;
       e.aimA = Math.atan2(a.y - e.y, a.x - e.x); e.aimUntil = t + 0.9;    // turn to face what it is shooting
       reveal(m, e);                                                      // and gives its position away
       const smoke = inZoneKind(m, a.x, a.y, 'smoke') ? 0.35 : 1;
@@ -827,10 +831,12 @@ export function updateEnemies(m, dt) {
       if (!hit) { const [ox, oy] = rng.inDisc(3.5); tx += ox; ty += oy; }
       const melee = (fac.id === 'bugs' && e.kind !== 'M') || e.sub === 'guard' || e.sub === 'soak';
       m.emit('tracer', { x: e.x, y: e.y, tx, ty, s: 'e', f: fac.id, k: e.kind, hit, melee, snd: fac.id + e.kind });
-      if (!hit) continue;
+      if (blk) { m.stats.ffE = (m.stats.ffE || 0) + 1; hurtEnemy(m, blk, p.dmg * m.dmgMul * FE.ffMul, 'enemy', e.x, e.y, ''); }
+      if (!hit) { if (!melee) { const sb = eBlocker(m, e, tx, ty); if (sb) hurtEnemy(m, sb, p.dmg * m.dmgMul * C.ff.strayMul, 'enemy', e.x, e.y, ''); } continue; }
       const hi = m.terrain.attackMul(e.x, e.y, a.x, a.y) * bandDmg(band);     // shooting down from a rise hits harder; far shots softer
       if (p.splash) {
         m.aGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * m.dmgMul * hi, 'enemy', e.kind, e.x, e.y));
+        m.eGrid.near(tx, ty, p.splash, (o) => { if (o !== e && !o.boss) hurtEnemy(m, o, p.dmg * m.dmgMul * FE.splashMul, 'enemy', tx, ty, ''); });     // (0.57) its own too
         m.tGrid.near(tx, ty, p.splash, (o) => hurtTarget(m, o, p.dmg * m.dmgMul * hi, 'enemy', e.kind));
         for (const cv of m.civs) if (!cv.dead && !cv.safe && (cv.x - tx) ** 2 + (cv.y - ty) ** 2 <= p.splash * p.splash) m.hurtCiv(cv, p.dmg * m.dmgMul, 'enemy');
         m.emit('boom', { x: tx, y: ty, r: p.splash, dmg: p.dmg, by: 'enemy' });

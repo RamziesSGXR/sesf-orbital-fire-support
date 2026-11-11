@@ -244,11 +244,14 @@ function seafShare(seed, role, n, targets, sec = 10) {
   const all = [...['bugs', 'bots', 'squids'].flatMap((f) => ['L', 'M', 'H'].map((k) => A[f][k].acc)), S.bugs.atk.acc, S.squids.atk.acc, C.boss.bugs.spit.acc, C.boss.bugs.stomp.acc, C.boss.bots.cannon.acc];
   check('no enemy attack is sure to hit', all.every((v) => v > 0 && v <= 0.9), all.join(' '));
   // a bug charger mauling a Helldiver who cannot die: some of its swipes miss
-  const m = mk(4201, 'bugs'), a = m.hdAlive[0];
-  a.hp = a.maxHp = 1e9; for (const h of m.hdAlive) { h.gren = 0; h.ult = 0; }
-  const g = spawnGroup(m, a.x + 4, a.y, 'hunt', { kinds: ['H'] }), e = g.members[0]; e.hp = e.maxHp = 1e9;
+  // (0.57: over three fights, so the share does not hang on one random stream)
   let hit = 0, miss = 0;
-  for (let i = 0; i < 30 * 60; i++) { m.step(dt); for (const ev of m.events) if (ev.type === 'tracer' && ev.s === 'e' && ev.k === 'H') { if (ev.hit) hit++; else miss++; } m.events.length = 0; }
+  for (const seed of [4201, 4202, 4203]) {
+    const m = mk(seed, 'bugs'), a = m.hdAlive[0];
+    a.hp = a.maxHp = 1e9; for (const h of m.hdAlive) { h.gren = 0; h.ult = 0; }
+    const g = spawnGroup(m, a.x + 4, a.y, 'hunt', { kinds: ['H'] }), e = g.members[0]; e.hp = e.maxHp = 1e9;
+    for (let i = 0; i < 30 * 60; i++) { m.step(dt); for (const ev of m.events) if (ev.type === 'tracer' && ev.s === 'e' && ev.k === 'H') { if (ev.hit) hit++; else miss++; } m.events.length = 0; }
+  }
   check('a charger\'s swipes miss now and then', hit + miss >= 20 && miss / (hit + miss) > 0.05 && miss / (hit + miss) < 0.3, `${miss} of ${hit + miss} missed`);
   // a harvester's beam at a Helldiver who stands still: it misses some of the time
   const m2 = mk(4202, 'squids'), b = m2.hdAlive[0];
