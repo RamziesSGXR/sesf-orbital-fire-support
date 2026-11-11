@@ -30,7 +30,7 @@ import { setupObjectives, updateObjectives, completeObjective, startSetup } from
 import { placeBase, setupLastStand, updateLastStand, lsBegin, lsSpawn, lsJammer, lsSupply } from './laststand.js';
 import { setupPois, updatePois, damagePoi, damageBreach } from './pois.js';
 import { setupCover } from './cover.js';
-import { setupScenery } from './scenery.js';
+import { setupScenery, placeMarks } from './scenery.js';
 import { updateChatter } from './chatter.js';
 import { initKit, updateHelldivers } from './helldiver.js';
 import { buildDanger, updateEvade } from './safety.js';
@@ -294,6 +294,7 @@ export class Mission {
     setupDefenders(this);
     this.countdown = opts.countdown || 0; this.dropAt = this.countdown + C.helldivers.initialDropSec;    // (0.18) the drop countdown
     if (opts.lastStand) setupLastStand(this);
+    placeMarks(this);     // (0.58.2) the enemy's banners, ruins and mushrooms, once everything they belong to is placed
     this._refreshAlive();               // (the mission starts paused on the tactical screen: who is on the ground already shows)
   }
 

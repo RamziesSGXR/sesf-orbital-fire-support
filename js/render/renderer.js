@@ -465,18 +465,22 @@ export class Renderer {
     drawPresence(ctx, this, m, now, px, vb, true);      // (0.59) the bugs' scent
     this._prints(ctx, m, now, px, onScr);     // (0.58) craters and footprints, under everyone
     drawRadar(ctx, m, now, px, pal.enemy);
-    // (0.56) level of detail: an ordinary enemy smaller than LOD screen pixels (zoomed out) is drawn as a dot with a halo, all
-    // of them in four paths (seen and half-seen, halo and body) instead of its full body; the hurt flash still shows
-    const LOD = scale < (this.perf.low ? 6 : 4.2) * (this.dpr || 1) ? Infinity : px(this.perf.low ? 10.5 : 7.2), lod0 = [], lod1 = [], hot = [];     // (zoomed well out: every ordinary enemy)
+    // (0.56) level of detail: an ordinary enemy can be drawn as a dot with a halo, all of them in four paths (seen and half-seen,
+    // halo and body) instead of its full body; the hurt flash still shows. (0.58.2) Only when a crowd is on screen: at the normal
+    // zoom every enemy is at its least size, so the old size test turned all of them into dots. Lights go to dots past a few
+    // hundred on screen, mediums past twice that (half those when the frame rate has dropped).
+    let nOn = 0;
+    for (const e of m.enemies) if (!e.dead && e.vis > 0 && !e.boss && !e.sub && onScr(e.x, e.y, 8)) nOn++;
+    const crowd = this.perf.low ? 150 : 300, dotKinds = nOn > crowd * 2 ? 'LM' : nOn > crowd ? 'L' : '', lod0 = [], lod1 = [], hot = [];
     for (const e of m.enemies) {
       if (e.dead || e.vis <= 0) continue;
       if (!onScr(e.x, e.y, e.boss ? e.r * 4 : 8)) continue;
       if (!e.boss && !e.sub) {
         const er = enemyR(e, SUBTYPES[e.kind], px);
-        if (er <= LOD) { (e.vis >= 2 ? lod1 : lod0).push(e, er); if (t - e.hurtAt < 0.06) hot.push(e, er); continue; }
+        if (dotKinds && dotKinds.includes(e.kind)) { (e.vis >= 2 ? lod1 : lod0).push(e, er); if (t - e.hurtAt < 0.06) hot.push(e, er); continue; }
       }
       ctx.globalAlpha = e.vis >= 2 ? 1 : 0.6;
-      if (!e.boss) { const sr = enemyR(e, SUBTYPES[e.kind], px); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(e.x + sr * 0.45, e.y + sr * 0.35, sr * 0.95, sr * 0.7, 0, 0, TAU); ctx.fill(); }     // (0.59) its shadow
+      if (!e.boss) { const sr = enemyR(e, SUBTYPES[e.kind], px); ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(e.x + sr * 0.4, e.y + sr * 0.5, sr * 0.7, sr * 0.38, 0, 0, TAU); ctx.fill(); }     // (0.59) its shadow (0.58.2: a flat one under its feet, not a disc behind it)
       else { const sr = e.r * 1.5; ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(e.x + sr * 0.5, e.y + sr * 0.4, sr * 1.1, sr * 0.8, 0, 0, TAU); ctx.fill(); }
       if (e.boss) {
         const br = bossR(e, px), body = (q) => drawBossBody(ctx, q, fid, br, pal.enemy, now, px, t - e.hurtAt < 0.06, t);
