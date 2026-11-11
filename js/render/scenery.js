@@ -120,7 +120,20 @@ export function drawSceneryHigh(ctx, m, now, px, scale, vb) {
   const sc = m.scenery;
   if (!sc) return;
   const fac = m.faction.id, under = (x, y, r) => m.alive.some((a) => !a.dead && (a.x - x) ** 2 + (a.y - y) ** 2 < r * r);
-  each(sc, vb, 'trees', (t) => {
+  if (scale < 3.2) {
+    // zoomed well out: a trunk and a two-tone crown each, all of them in four paths
+    const trunk = new Path2D(), dark = new Path2D(), lite = new Path2D(), pine = new Path2D();
+    each(sc, vb, 'trees', (t) => {
+      const cy = t.y - t.h * 0.72;
+      trunk.rect(t.x - t.r * 0.1, cy, t.r * 0.2, t.y - cy);
+      if (t.kind === 'pine') { pine.moveTo(t.x - t.r, t.y - t.h * 0.3); pine.lineTo(t.x, t.y - t.h); pine.lineTo(t.x + t.r, t.y - t.h * 0.3); pine.closePath(); return; }
+      if (t.kind === 'cactus' || t.kind === 'dead') return;
+      dark.moveTo(t.x + t.r * 0.8, cy); dark.arc(t.x, cy, t.r * 0.8, 0, TAU);
+      lite.moveTo(t.x - t.r * 0.2 + t.r * 0.45, cy - t.r * 0.25); lite.arc(t.x - t.r * 0.2, cy - t.r * 0.25, t.r * 0.45, 0, TAU);
+    });
+    ctx.fillStyle = '#4a3424'; ctx.fill(trunk); ctx.fillStyle = '#1f3f2d'; ctx.fill(pine);
+    ctx.fillStyle = '#255227'; ctx.fill(dark); ctx.fillStyle = '#4e8a3a'; ctx.fill(lite);
+  } else each(sc, vb, 'trees', (t) => {
     const see = under(t.x, t.y - t.h * 0.5, t.r * 1.2) ? 0.45 : 1;
     ctx.globalAlpha = see; drawTree(ctx, t, now, px); ctx.globalAlpha = 1;
   });

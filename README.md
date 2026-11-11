@@ -25,6 +25,15 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Friendly fire, armour and a living battlefield (0.58).**
+- **Every blast hurts everyone in it.** Grenades, rockets, mortars, acid and your own strikes all hurt whoever is in the blast. Each weapon's damage against light, medium and heavy armour applies to every side (Helldivers count as medium armour, SEAF as light). A hit on one's own side does half damage, except a rocket or blast right into a unit's back, which does the full hit.
+- **Time to react.** Allies take half a second to see a blast coming, then run from it. Grenades land and go off 2 seconds after they're thrown, so you can see them lying there.
+- **Ricochets.** A round that hits armour heavier than it can go through may glance off (you see it skip away), but it still does a little damage. Every hit does at least a little.
+- **Penetration shown.** The armory and every weapon card show what each weapon gets through. Click an enemy to see its armour, health and shield.
+- **You see the blast, not the plan.** Where a strike, grenade or shell will land is no longer drawn; your troops still know. Settings › Show blast areas turns the rings back on. Big blasts leave craters that fade, and hits throw off ichor from bugs, sparks from bots and glowing goo from squids.
+- **The ground.** Every planet now has its own rocks, trees and grass: meadows and woods, jungle, snow pines, desert cactus and stone, red spires on Mars, boulders on the Moon, rubble in the city. Big rocks are cover (troopers with no walls near get behind one), and a big blast breaks them up. Grass parts where something walks, and water ripples round anyone wading. Trees, rocks, poles and walls cast shadows from one light.
+- **Footprints and the enemy's mark.** Everyone leaves fading tracks: boots, claw marks, bot feet, tank treads, the fleshmob's drag, giant prints for the super heavies. The enemy also marks the ground it holds: the bots fly red banners and flags and leave black smoke, the squids leave ruins and pillars and a heat haze, and the bugs leave glowing mushroom patches, ruins and an orange scent.
+
 **The big fight, and friendly fire (0.57).**
 - **Up to 1,000 enemies.** Past level 10 the crowd keeps climbing: about 400 alive at once by level 15, about 700 by level 20, and 1,000 from level 25. The game now runs a fight of 1,000 enemies against 300 allied units: in very big fights the who-sees-what pass runs every other tick, and picking a target tests the line of fire to only the few nearest enemies.
 - **Friendly fire, both sides.** Troops hold fire when a friendly is in the line of fire, and only rarely take the shot anyway (it hurts more when they do). A missed shot flies on, and a friendly who has stepped into its path takes it. The enemy now plays by the same rules: it holds fire for its own, its stray shots and the ones it takes anyway hit its own, and its splash, rockets and mortars hurt its own too (a kill that way pays credits but no score).
