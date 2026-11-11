@@ -52,5 +52,11 @@ for (const bio of ['grass', 'desert', 'jungle', 'ice', 'mars', 'moon', 'city']) 
   check('beside a big rock is cover', coverMul(m, q.x + q.r + 1, q.y) < 1 && rockAt(m, q.x + q.r + 1, q.y) === q);
   damageArea(m, q.x, q.y, 6, q.maxHp * 2, { L: 1, M: 1, H: 1, B: 1 }, 'player', true);
   check('a big blast breaks it up into rubble, and it is cover no more', q.broken && coverMul(m, q.x + q.r + 1, q.y) === 1 && m.scenery.rubble.length >= 5); }
+// (0.58.2) the bots' banners and flags stand only by what the bots hold, each tied to it
+{ const m = new Mission({ seed: 5803, faction: 'bots', biome: 'grass', events: false, objectives: ['cannon'] });
+  const fl = m.scenery.marks.filter((o) => o.kind === 'banner' || o.kind === 'flag');
+  check('(0.58.2) every bot banner and flag belongs to a base, the cannon or a side structure', fl.length >= 10 && fl.every((o) => o.own && Math.hypot(o.x - o.own.x, o.y - o.own.y) < (o.own.r || 10) + 130), `${fl.length} flags, ${fl.filter((o) => !o.own).length} loose`);
+  const b = m.bases[0], mine = fl.filter((o) => o.own === b); b.destroyed = true;
+  check('(0.58.2) a destroyed base takes its flags down with it', mine.length >= 3 && mine.every((o) => o.own.destroyed), mine.length); }
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS');
 process.exit(fails ? 1 : 0);

@@ -25,6 +25,12 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Enemies look like themselves again; the bots' flags (0.58.2).**
+- **No more blobs.** Since 0.56 every ordinary enemy was drawn as a plain dot at the normal zoom. A speed-up meant only for when you're zoomed far out was kicking in all the time. Enemies have their full bodies again. The dots now only appear when a few hundred enemies are on screen at once.
+- **Bot banners and flags only where the bots are.** They no longer stand at random across the map. Each base flies a pair of banners at the side facing your landing zone, with more flags around it. The cannon or dome they guard and their side structures get a few too.
+- **They fall with what they belong to.** Destroy a base and its banners and flags lie on the ground.
+- Enemy shadows are a flat one under the feet, not a disc behind them.
+
 **Phone fixes (0.58.1).**
 - **Tapping an enemy no longer takes over the troop panel.** Since 0.58 a tap on an enemy shows its armour and health. It was also selecting the enemy, so the troop panel treated it as a work site and your troops, SEAF DROP and orders vanished from it. Now a tapped enemy only gets its popup; your selection and the panel stay as they were.
 - **The TROOPS tab is on phones.** TROOPS, BUILD and ARMORY are all in the panel's side column now, as icons, so you can always get back to your troops and the SEAF call.

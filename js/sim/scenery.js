@@ -19,7 +19,7 @@ const LAND = {
 };
 // What the enemy leaves: near each base (round it, between rB0 and rB1 metres out) and across the map.
 const MARKS = {
-  bots:   { base: [['banner', 3], ['flag', 2]], wide: [['flag', 26], ['banner', 8]] },
+  bots:   { base: [['banner', 3], ['flag', 4]], wide: [] },     // (0.58.2) the bots' colours only where the bots are: see placeMarks
   squids: { base: [['ruin', 3], ['pillar', 3]], wide: [['ruin', 22], ['pillar', 18]] },
   bugs:   { base: [['shrooms', 4], ['ruin', 1]], wide: [['shrooms', 46], ['ruin', 16]] },
 };
@@ -73,28 +73,59 @@ export function setupScenery(m) {
     if (!free(x, y, 1)) continue;
     sc.rubble.push({ x, y, r: rng.range(0.4, 1.4), a: rng.angle(), seed: rng.next() * 1000 }); n++;
   }
-  // the enemy's marks
-  const M = MARKS[m.faction.id];
-  if (M) {
-    for (const b of m.bases) for (const [kind, n] of M.base) for (let k = 0; k < n; k++) {
-      for (let tries = 0; tries < 12; tries++) {
-        const a = rng.angle(), d = (b.r || 20) + rng.range(4, 22), x = b.x + Math.cos(a) * d, y = b.y + Math.sin(a) * d;
-        if (!free(x, y, 3)) continue;
-        sc.marks.push(markOf(sc, rng, kind, x, y)); break;
-      }
-    }
-    for (const [kind, n] of M.wide) for (let k = 0, put = 0; k < n * 5 && put < n; k++) {
-      const x = rng.range(0, S), y = rng.range(0, S);
-      if (!free(x, y, 6) || nearBase(x, y, 6)) continue;
-      sc.marks.push(markOf(sc, rng, kind, x, y)); put++;
-    }
-  }
   // the big rocks by 32 m cell, for the cover tests (asked on every hit)
   sc.rockGrid = new Map();
   for (const q of sc.rocks) if (q.big) for (const k of cellsOf(q.x, q.y, q.r + 3)) { let l = sc.rockGrid.get(k); if (!l) sc.rockGrid.set(k, (l = [])); l.push(q); }
   m.scenery = sc;
+  sc.free = free; sc.nearBase = nearBase;
   void K;
 }
+
+// (0.58.2) The enemy's marks, once the bases, objectives and side structures are all on the map (mission.js calls this after them).
+// The bots' banners and flags stand only where the bots hold something: round each base (a pair flanking the way in, the rest
+// round it), round a cannon or dome they guard, and by their side structures. Each knows what it belongs to (own) and is drawn
+// fallen once that is destroyed. The squids' ruins and the bugs' mushrooms are also strewn across a world they hold.
+export function placeMarks(m) {
+  const sc = m.scenery, M = MARKS[m.faction.id];
+  if (!sc || !M) return;
+  const rng = new RNG(((m.seed ?? 1) ^ 0xf1a95) >>> 0), S = C.world.size, free = sc.free, nearBase = sc.nearBase;
+  const put = (kind, x, y, own) => { const o = markOf(sc, rng, kind, x, y); if (own) o.own = own; sc.marks.push(o); return o; };
+  const ring = (own, cx, cy, r0, list, tries = 14) => {
+    for (const [kind, n] of list) for (let k = 0; k < n; k++) for (let t = 0; t < tries; t++) {
+      const a = rng.angle(), d = r0 + rng.range(4, 20), x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d;
+      if (!free(x, y, 3) && !(own && t > tries / 2 && m.terrain.isLand(x, y) && !m.terrain.blocked(x, y))) continue;
+      put(kind, x, y, own); break;
+    }
+  };
+  if (m.faction.id === 'bots') {
+    for (const b of m.bases) {
+      const r = b.r || 20, big = b.fortress ? 2 : 1;
+      // a pair of banners flanking the way in (the side facing the landing zone)
+      const a = Math.atan2(m.lz.y - b.y, m.lz.x - b.x), d = r + 5;
+      for (const sgn of [-1, 1]) {
+        const x = b.x + Math.cos(a) * d + Math.cos(a + Math.PI / 2) * sgn * 4.5, y = b.y + Math.sin(a) * d + Math.sin(a + Math.PI / 2) * sgn * 4.5;
+        if (m.terrain.isLand(x, y) && !m.terrain.blocked(x, y)) put('banner', x, y, b);
+      }
+      ring(b, b.x, b.y, r, [['banner', 1 + rng.int(2) * big], ['flag', (2 + rng.int(3)) * big]]);
+    }
+    for (const o of m.objectives) if ((o.type === 'cannon' || o.type === 'dome') && o.x != null) ring(o, o.x, o.y, (o.type === 'dome' ? C.objective.dome.R : 0) + 30, [['banner', 2], ['flag', 2]]);
+    for (const p of m.pois) if (p.isPoi && p.maxHp > 0) ring(p, p.x, p.y, (p.r || 10) + 2, [['banner', rng.int(2)], ['flag', 1 + rng.int(2)]]);
+    return;
+  }
+  for (const b of m.bases) for (const [kind, n] of M.base) for (let k = 0; k < n; k++) {
+    for (let tries = 0; tries < 12; tries++) {
+      const a = rng.angle(), d = (b.r || 20) + rng.range(4, 22), x = b.x + Math.cos(a) * d, y = b.y + Math.sin(a) * d;
+      if (!free(x, y, 3)) continue;
+      put(kind, x, y, null); break;
+    }
+  }
+  for (const [kind, n] of M.wide) for (let k = 0, got = 0; k < n * 5 && got < n; k++) {
+    const x = rng.range(0, S), y = rng.range(0, S);
+    if (!free(x, y, 6) || nearBase(x, y, 6)) continue;
+    put(kind, x, y, null); got++;
+  }
+}
+
 
 function rock(sc, rng, x, y, r, big) {
   const n = 6 + rng.int(4), pts = [];

@@ -4,6 +4,9 @@
 // ripples. The enemy also leaves its mark on the ground it holds and walks: the bugs an orange scent, the squids a heat haze, the
 // bots a drift of black smoke, strongest where they gather (their bases) and fading where they have gone.
 const TAU = Math.PI * 2;
+// (0.58.2) a banner or flag whose base, objective or side structure is destroyed lies on the ground
+const down = (o) => !!(o.own && (o.own.destroyed || o.own.done || o.own.dead));
+const standing = (o) => (o.kind === 'banner' || o.kind === 'flag') ? !down(o) : o.kind === 'pillar';
 const SH = { x: 0.55, y: 0.4 };          // where a shadow falls, per metre of height
 const CELL = 64;                          // the bucket size for finding what is on screen
 
@@ -93,7 +96,7 @@ export function drawSceneryGround(ctx, m, now, px, scale, vb) {
   const pa = new Path2D();
   each(sc, vb, 'rocks', (q) => { if (!q.broken) shadowPath(pa, q.x, q.y, q.r * 1.05, q.r * 0.8, q.h); });
   each(sc, vb, 'trees', (t) => treeShadow(pa, t));
-  each(sc, vb, 'marks', (o) => { if (o.kind === 'banner' || o.kind === 'flag' || o.kind === 'pillar') shadowPath(pa, o.x, o.y, (o.kind === 'pillar' ? 0.9 : 0.35) * o.s, (o.kind === 'pillar' ? 0.9 : 0.35) * o.s, (o.kind === 'banner' ? 7 : o.kind === 'flag' ? 5 : o.h) * o.s); });
+  each(sc, vb, 'marks', (o) => { if (standing(o)) shadowPath(pa, o.x, o.y, (o.kind === 'pillar' ? 0.9 : 0.35) * o.s, (o.kind === 'pillar' ? 0.9 : 0.35) * o.s, (o.kind === 'banner' ? 7 : o.kind === 'flag' ? 5 : o.h) * o.s); });
   ctx.fillStyle = 'rgba(0,0,0,0.27)'; ctx.fill(pa, 'nonzero');
   // rocks: the side (dark, below), the top (lit), a highlight on the upper-left edge
   each(sc, vb, 'rocks', (q) => {
@@ -115,7 +118,7 @@ export function drawSceneryGround(ctx, m, now, px, scale, vb) {
 // ---------------------------------------------------------------- the high layer (over the units): canopies, banners, pillars
 // (0.59) for a showcase picture: one tree drawn on its own
 export function drawTreeAlone(ctx, t, now, px) { const pa = new Path2D(); treeShadow(pa, t); ctx.fillStyle = 'rgba(0,0,0,0.27)'; ctx.fill(pa); drawTree(ctx, t, now, px); }
-export function drawMarkAlone(ctx, o, fac, now, px) { if (o.kind === 'banner' || o.kind === 'flag' || o.kind === 'pillar') { const pa = new Path2D(); shadowPath(pa, o.x, o.y, (o.kind === 'pillar' ? 0.9 : 0.35) * o.s, (o.kind === 'pillar' ? 0.9 : 0.35) * o.s, (o.kind === 'banner' ? 7 : o.kind === 'flag' ? 5 : o.h) * o.s); ctx.fillStyle = 'rgba(0,0,0,0.27)'; ctx.fill(pa); } drawMark(ctx, o, fac, now, px, false); drawMark(ctx, o, fac, now, px, true); }
+export function drawMarkAlone(ctx, o, fac, now, px) { if (standing(o)) { const pa = new Path2D(); shadowPath(pa, o.x, o.y, (o.kind === 'pillar' ? 0.9 : 0.35) * o.s, (o.kind === 'pillar' ? 0.9 : 0.35) * o.s, (o.kind === 'banner' ? 7 : o.kind === 'flag' ? 5 : o.h) * o.s); ctx.fillStyle = 'rgba(0,0,0,0.27)'; ctx.fill(pa); } drawMark(ctx, o, fac, now, px, false); drawMark(ctx, o, fac, now, px, true); }
 export function drawSceneryHigh(ctx, m, now, px, scale, vb) {
   const sc = m.scenery;
   if (!sc) return;
@@ -234,6 +237,17 @@ function drawMark(ctx, o, fac, now, px, high) {
   }
   // a banner (tall, a hanging cloth) or a flag (shorter, a flying one): the bots' red, with their mark
   const tall = o.kind === 'banner', H = (tall ? 7 : 5) * s, top = o.y - H;
+  if (down(o)) {     // (0.58.2) knocked flat: the pole along the ground, the cloth crumpled and dark at its end, on the ground layer
+    if (high) return;
+    const fa = o.a, cx = Math.cos(fa), cy = Math.sin(fa) * 0.6, ex = o.x + cx * H, ey = o.y + cy * H;
+    ctx.strokeStyle = '#262626'; ctx.lineWidth = Math.max(px(1.2), 0.22 * s); ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(ex, ey); ctx.stroke();
+    const L = (tall ? 3.6 : 2.4) * s, w = (tall ? 1.7 : 1.2) * s, nx = -cy, ny = cx;
+    ctx.fillStyle = '#6e1a14'; ctx.beginPath();
+    ctx.moveTo(ex, ey); ctx.lineTo(ex - cx * L, ey - cy * L);
+    ctx.lineTo(ex - cx * L + nx * w, ey - cy * L + ny * w + 0.3 * s); ctx.lineTo(ex - cx * L * 0.4 + nx * w * 1.2, ey - cy * L * 0.4 + ny * w); ctx.lineTo(ex + nx * w * 0.8, ey + ny * w * 0.8); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(20,16,14,0.5)'; ctx.beginPath(); ctx.arc(ex - cx * L * 0.5 + nx * w * 0.5, ey - cy * L * 0.5 + ny * w * 0.5, 0.45 * s, 0, TAU); ctx.fill();
+    return;
+  }
   if (!high) return;
   ctx.strokeStyle = '#2b2b2b'; ctx.lineWidth = Math.max(px(1.2), 0.22 * s); ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x, top); ctx.stroke();
   const wave = (t) => Math.sin(now * 3 + o.seed + t * 4) * 0.35 * s;
