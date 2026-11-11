@@ -25,6 +25,11 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Phone fixes (0.58.1).**
+- **Tapping an enemy no longer takes over the troop panel.** Since 0.58 a tap on an enemy shows its armour and health. It was also selecting the enemy, so the troop panel treated it as a work site and your troops, SEAF DROP and orders vanished from it. Now a tapped enemy only gets its popup; your selection and the panel stay as they were.
+- **The TROOPS tab is on phones.** TROOPS, BUILD and ARMORY are all in the panel's side column now, as icons, so you can always get back to your troops and the SEAF call.
+- **Small landscape phones:** the threat meter takes its short form, so it no longer runs under the mission clock.
+
 **Friendly fire, armour and a living battlefield (0.58).**
 - **Every blast hurts everyone in it.** Grenades, rockets, mortars, acid and your own strikes all hurt whoever is in the blast. Each weapon's damage against light, medium and heavy armour applies to every side (Helldivers count as medium armour, SEAF as light). A hit on one's own side does half damage, except a rocket or blast right into a unit's back, which does the full hit.
 - **Time to react.** Allies take half a second to see a blast coming, then run from it. Grenades land and go off 2 seconds after they're thrown, so you can see them lying there.

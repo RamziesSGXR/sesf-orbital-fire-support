@@ -383,8 +383,18 @@ function pickAt(sx, sy) {
   for (const e of m.enemies) if (!e.dead && e.vis > 0) { const d = Math.hypot(e.x - w.x, e.y - w.y), lim = Math.max(3, r * 0.6) + (e.boss ? e.r * 1.4 : e.r || 1); if (d <= lim && d < fd) { fd = d; foe = e; } }
   return foe;
 }
-function select(o) { sel = o; audio.click(); placeSel(true); if (tac) hud.fillTactical(mission, sel); }
-function deselect() { if (!sel) return; sel = null; hud.selPop(mission, null); if (tac) hud.fillTactical(mission, null); }
+function select(o) { insp = null; sel = o; audio.click(); placeSel(true); if (tac) hud.fillTactical(mission, sel); }
+function deselect() { if (insp) { insp = null; hud.selPop(mission, null); } if (!sel) return; sel = null; hud.selPop(mission, null); if (tac) hud.fillTactical(mission, null); }
+// (0.58.1) An enemy tapped: only its popup (armour, health), never a selection. Selecting it made the troop panel take it for a
+// defence site ("Work site") and lost the player's place; the selection and the panel are left as they were.
+let insp = null;
+const isFoe = (o) => o && o.g !== undefined && !o.type && (o.kind === 'L' || o.kind === 'M' || o.kind === 'H');
+function placeInsp(force = false) {
+  if (!insp || !mission) return;
+  if (insp.dead || insp.vis <= 0) { insp = null; hud.selPop(mission, null); return; }
+  const q = renderer.worldToScreen(insp.x, insp.y - (insp.boss ? insp.r * 1.5 : 3), canvas);
+  hud.selPop(mission, insp, q ? { x: q.x, y: q.y - 10 } : null, force);
+}
 // A click (or a tap) that is not a command: a post, sentry or site is selected; a trooper is picked alone; open ground clears it.
 // (0.19.5) One click (or tap) picks just that trooper, so one man can be sent somewhere; a double click (or double tap) picks his
 // whole squad; Shift+click (on a phone, a finger held on him) adds him to the troopers picked, or takes him out.
@@ -392,6 +402,7 @@ function clickAt(sx, sy) {
   if (!mission || mission.over || !(live() || soft)) return;
   const o = pickAt(sx, sy);
   if (!o) { deselect(); return; }
+  if (isFoe(o)) { if (sel) { sel = null; if (tac) hud.fillTactical(mission, null); } insp = o; audio.click(); placeInsp(true); return; }
   if (o.type === 'S') {
     deselect(); audio.click();
     const now = performance.now(), again = clickAt.id === o.id && now - (clickAt.t || 0) < 450;
@@ -461,7 +472,7 @@ function doorPin(post, squad) {
 // The selected post's panel sits just above it on the map (and follows it as the camera moves).
 function placeSel(force = false) {
   if (!sel || !mission) return;
-  if (sel.dead || (sel.g !== undefined && sel.vis <= 0)) { deselect(); return; }     // (0.58) a picked enemy that died or went out of sight
+  if (sel.dead) { deselect(); return; }
   const R = sel.kind === 'post' ? (sel.what === 'bastion' ? sel.r + 2 : sel.what === 'site' ? sel.r * 0.6 : 5) : sel.pieces ? (sel.R || 8) * 0.7 : 5;
   const q = renderer.worldToScreen(sel.x, sel.y - R, canvas);
   hud.selPop(mission, sel, q ? { x: q.x, y: q.y - 10 } : null, force);
@@ -2047,7 +2058,7 @@ function frame(ts) {
     if (sel && (sel.dead || (sel.kind !== 'post' && sel.kind && !mission.assets.includes(sel)))) deselect();
     const ga = placing ? ghostAt || (input.touch ? null : aimWorld()) : null;     // (0.22: the ghost of what is being placed)
     renderer.draw(mission, cam, { now, aim: drawing || box ? null : { x: p.aimX, y: p.aimY }, armed, placing, ghost: ga, plan: planQ, draw: stroke, snap: (x, y) => snap(x, y), sel, box, pface: placeFace, pshape: placeShape });
-    if (sel) placeSel();
+    if (sel) placeSel(); else if (insp) placeInsp();
     sizeMini();
     // (0.42) the minimap at 10 a second, and not at all while it is folded away
     if (!document.body.classList.contains('mini-off') && now - (frame.miniAt || 0) > 0.1) { frame.miniAt = now; renderer.drawMinimap($('minimap'), mission, cam); }
