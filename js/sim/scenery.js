@@ -57,7 +57,7 @@ export function setupScenery(m) {
     if (L.forest && dense(x, y) < L.forest && rng.next() < 0.8) continue;
     const r = L.tree === 'jungle' ? rng.range(4, 7.5) : L.tree === 'cactus' ? rng.range(0.9, 1.6) : L.tree === 'pine' ? rng.range(2.2, 3.4) : rng.range(2.6, 4.6);
     if (!free(x, y, r * 0.6) || nearBase(x, y, 6)) continue;
-    sc.trees.push({ id: sc.id++, x, y, r, kind: L.tree, h: r * (L.tree === 'pine' ? 2.6 : L.tree === 'cactus' ? 2.4 : 1.6), seed: rng.next() * 1000, a: rng.angle() });
+    sc.trees.push({ id: sc.id++, x, y, r, kind: L.tree, h: r * (L.tree === 'pine' ? 2.6 : L.tree === 'cactus' ? 2.4 : L.tree === 'jungle' ? 2.1 : 2.4), seed: rng.next() * 1000, a: rng.angle() });
     n++;
   }
   // grass tufts: thicker in the meadows and the jungle's undergrowth

@@ -36,7 +36,8 @@ check('the enemy ceiling reaches 1,000 at the top levels', c25 === 1000 && l25 =
 // ---- the player's strikes are harder on allies; allies run slower
 { const m = mk('bugs'), a = m.hdAlive[0]; a.hp = a.maxHp = 1e6; const hp0 = a.hp;
   damageArea(m, a.x, a.y, 5, 100, { L: 1, M: 1, H: 1, B: 1 }, 'player', true);
-  check('a player blast hurts an ally x' + C.ff.player, Math.abs((hp0 - a.hp) - 100 * C.ff.player) < 1, (hp0 - a.hp).toFixed(1));
+  // (0.58: half, like every hit on one's own side, read against his armour: this blast's table is 1 for all)
+  check('a player blast hurts an ally at the friendly-fire share', Math.abs((hp0 - a.hp) - 100 * C.ff.own) < 1, (hp0 - a.hp).toFixed(1));
   check('allies run out of a strike slower than before', C.ff.flee.hd < 10.5 && C.ff.flee.seaf < 8.5); }
 
 // ---- the big fight runs

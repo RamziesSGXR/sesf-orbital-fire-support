@@ -32,7 +32,35 @@ function each(sc, vb, list, fn) {
   const x0 = Math.max(0, ((vb.x0 - 16) / CELL) | 0), x1 = ((vb.x1 + 16) / CELL) | 0, y0 = Math.max(0, ((vb.y0 - 16) / CELL) | 0), y1 = ((vb.y1 + 30) / CELL) | 0;
   for (let cx = x0; cx <= x1; cx++) for (let cy = y0; cy <= y1; cy++) { const b = I.get(cx * 1000 + cy); if (b) for (const o of b[list]) fn(o); }
 }
-const shadowEll = (ctx, x, y, rx, ry, h, a) => { ctx.fillStyle = `rgba(0,0,0,${a})`; ctx.beginPath(); ctx.ellipse(x + h * SH.x, y + h * SH.y, rx, ry, 0, 0, TAU); ctx.fill(); };
+// a shadow that starts at the foot and stretches away from the light, as long as the thing is tall: the foot's own patch, then a
+// long one laid along the light's direction
+const SHA = Math.atan2(SH.y, SH.x), SHL = Math.hypot(SH.x, SH.y);
+// Shadows go into one path (pa) and are filled once, so where two overlap (a trunk's and its crown's, two trees side by side) the
+// ground is no darker than under one.
+// a tree's: the trunk's thin band out from the foot, and the crown's shape where it falls on the ground
+// a polygon traced the same way round as the ellipses (clockwise on screen), so the shapes add up instead of cutting holes
+function poly(pa, pts) {
+  let A = 0; for (let i = 0; i < pts.length; i++) { const [x1, y1] = pts[i], [x2, y2] = pts[(i + 1) % pts.length]; A += x1 * y2 - x2 * y1; }
+  if (A < 0) pts = pts.slice().reverse();
+  pa.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) pa.lineTo(pts[i][0], pts[i][1]); pa.closePath();
+}
+function treeShadow(pa, t) {
+  if (t.kind === 'cactus' || t.kind === 'dead') { shadowPath(pa, t.x, t.y, t.r * 0.5, t.r * 0.4, t.h); return; }
+  const ch = t.h * 0.72, L = ch * SHL, dx = Math.cos(SHA), dy = Math.sin(SHA), ex = t.x + dx * L, ey = t.y + dy * L, w = t.r * 0.11;
+  poly(pa, [[t.x - dy * w, t.y + dx * w], [ex - dy * w, ey + dx * w], [ex + dy * w, ey - dx * w], [t.x + dy * w, t.y - dx * w]]);
+  if (t.kind === 'pine') { const bx = t.x + dx * L * 0.25, by = t.y + dy * L * 0.25, ww = t.r * 0.7; poly(pa, [[bx - dy * ww, by + dx * ww], [t.x + dx * L * 1.15, t.y + dy * L * 1.15], [bx + dy * ww, by - dx * ww]]); }
+  else { pa.moveTo(ex + Math.cos(SHA) * t.r * 0.95, ey + Math.sin(SHA) * t.r * 0.95); pa.ellipse(ex, ey, t.r * 0.95, t.r * 0.75, SHA, 0, TAU); }
+}
+function shadowPath(pa, x, y, rx, ry, h) {
+  const L = h * SHL, cx = x + Math.cos(SHA) * L * 0.5, cy = y + Math.sin(SHA) * L * 0.5, a = Math.max(rx, L * 0.5 + rx * 0.4);
+  pa.moveTo(cx + Math.cos(SHA) * a, cy + Math.sin(SHA) * a); pa.ellipse(cx, cy, a, Math.min(rx, ry), SHA, 0, TAU);
+}
+const shadowEll = (ctx, x, y, rx, ry, h, a) => {
+  ctx.fillStyle = `rgba(0,0,0,${a})`; ctx.beginPath();
+  const L = h * SHL;
+  ctx.ellipse(x + Math.cos(SHA) * L * 0.5, y + Math.sin(SHA) * L * 0.5, Math.max(rx, L * 0.5 + rx * 0.4), Math.min(rx, ry), SHA, 0, TAU);
+  ctx.fill();
+};
 
 // ---------------------------------------------------------------- the ground layer (under every unit)
 export function drawSceneryGround(ctx, m, now, px, scale, vb) {
@@ -62,9 +90,11 @@ export function drawSceneryGround(ctx, m, now, px, scale, vb) {
     ctx.lineCap = 'butt';
   }
   // the shadows of everything tall, first, so nothing's shadow falls over another's body
-  each(sc, vb, 'rocks', (q) => { if (!q.broken) shadowEll(ctx, q.x, q.y, q.r * 1.05, q.r * 0.8, q.h, q.big ? 0.32 : 0.22); });
-  each(sc, vb, 'trees', (t) => { if (t.kind !== 'cactus') shadowEll(ctx, t.x, t.y, t.r * 1.1, t.r * 0.75, t.h, 0.26); else shadowEll(ctx, t.x, t.y, t.r * 0.6, t.r * 0.4, t.h, 0.28); });
-  each(sc, vb, 'marks', (o) => { if (o.kind === 'banner' || o.kind === 'flag' || o.kind === 'pillar') shadowEll(ctx, o.x, o.y, 1.1 * o.s, 0.6 * o.s, (o.kind === 'banner' ? 7 : o.kind === 'flag' ? 5 : o.h) * o.s, 0.28); });
+  const pa = new Path2D();
+  each(sc, vb, 'rocks', (q) => { if (!q.broken) shadowPath(pa, q.x, q.y, q.r * 1.05, q.r * 0.8, q.h); });
+  each(sc, vb, 'trees', (t) => treeShadow(pa, t));
+  each(sc, vb, 'marks', (o) => { if (o.kind === 'banner' || o.kind === 'flag' || o.kind === 'pillar') shadowPath(pa, o.x, o.y, (o.kind === 'pillar' ? 0.9 : 0.35) * o.s, (o.kind === 'pillar' ? 0.9 : 0.35) * o.s, (o.kind === 'banner' ? 7 : o.kind === 'flag' ? 5 : o.h) * o.s); });
+  ctx.fillStyle = 'rgba(0,0,0,0.27)'; ctx.fill(pa, 'nonzero');
   // rocks: the side (dark, below), the top (lit), a highlight on the upper-left edge
   each(sc, vb, 'rocks', (q) => {
     if (q.broken) return;
@@ -83,6 +113,9 @@ export function drawSceneryGround(ctx, m, now, px, scale, vb) {
 }
 
 // ---------------------------------------------------------------- the high layer (over the units): canopies, banners, pillars
+// (0.59) for a showcase picture: one tree drawn on its own
+export function drawTreeAlone(ctx, t, now, px) { const pa = new Path2D(); treeShadow(pa, t); ctx.fillStyle = 'rgba(0,0,0,0.27)'; ctx.fill(pa); drawTree(ctx, t, now, px); }
+export function drawMarkAlone(ctx, o, fac, now, px) { if (o.kind === 'banner' || o.kind === 'flag' || o.kind === 'pillar') { const pa = new Path2D(); shadowPath(pa, o.x, o.y, (o.kind === 'pillar' ? 0.9 : 0.35) * o.s, (o.kind === 'pillar' ? 0.9 : 0.35) * o.s, (o.kind === 'banner' ? 7 : o.kind === 'flag' ? 5 : o.h) * o.s); ctx.fillStyle = 'rgba(0,0,0,0.27)'; ctx.fill(pa); } drawMark(ctx, o, fac, now, px, false); drawMark(ctx, o, fac, now, px, true); }
 export function drawSceneryHigh(ctx, m, now, px, scale, vb) {
   const sc = m.scenery;
   if (!sc) return;
@@ -95,11 +128,15 @@ export function drawSceneryHigh(ctx, m, now, px, scale, vb) {
 }
 
 function drawTree(ctx, t, now, px) {
-  const sway = Math.sin(now * 0.9 + t.seed) * 0.12 * t.r, cx = t.x + sway, cy = t.y - t.h * 0.55;
+  const sway = Math.sin(now * 0.9 + t.seed) * 0.12 * t.r, cx = t.x + sway, cy = t.y - t.h * 0.72;     // (the crown high enough that the trunk shows under it)
   if (t.kind === 'cactus') {
-    ctx.fillStyle = '#3d6b33'; ctx.fillRect(t.x - t.r * 0.35, t.y - t.h, t.r * 0.7, t.h);
-    ctx.fillRect(t.x - t.r * 1.0, t.y - t.h * 0.7, t.r * 0.65, t.r * 0.35); ctx.fillRect(t.x - t.r * 1.0, t.y - t.h * 0.95, t.r * 0.3, t.h * 0.3);
-    ctx.fillStyle = '#5f9a4c'; ctx.fillRect(t.x - t.r * 0.35, t.y - t.h, t.r * 0.25, t.h);
+    const w = t.r * 0.42, cap = (x, y0, y1, ww) => { ctx.beginPath(); ctx.moveTo(x - ww, y1); ctx.lineTo(x - ww, y0 + ww); ctx.arc(x, y0 + ww, ww, Math.PI, 0); ctx.lineTo(x + ww, y1); ctx.closePath(); ctx.fill(); };
+    ctx.fillStyle = '#3d6b33';
+    cap(t.x, t.y - t.h, t.y, w);
+    cap(t.x - t.r * 0.95, t.y - t.h * 0.85, t.y - t.h * 0.45, w * 0.7); ctx.fillRect(t.x - t.r * 0.95, t.y - t.h * 0.5, t.r * 0.95, w * 0.8);
+    cap(t.x + t.r * 0.9, t.y - t.h * 0.7, t.y - t.h * 0.32, w * 0.65); ctx.fillRect(t.x, t.y - t.h * 0.37, t.r * 0.9, w * 0.75);
+    ctx.fillStyle = '#6aa654'; cap(t.x - w * 0.45, t.y - t.h + w * 0.2, t.y, w * 0.35);
+    ctx.strokeStyle = 'rgba(20,40,15,0.5)'; ctx.lineWidth = Math.max(px(1), 0.06); ctx.beginPath(); ctx.moveTo(t.x + w * 0.35, t.y - t.h + w); ctx.lineTo(t.x + w * 0.35, t.y); ctx.stroke();
     return;
   }
   if (t.kind === 'dead') {
@@ -110,8 +147,18 @@ function drawTree(ctx, t, now, px) {
     return;
   }
   // a trunk, then the crown in two tones
-  ctx.strokeStyle = t.kind === 'pine' ? '#3b2a1e' : '#4a3424'; ctx.lineWidth = Math.max(px(1.5), t.r * 0.16);
+  const tw = Math.max(px(2), t.r * (t.kind === 'pine' ? 0.18 : 0.24));
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = t.kind === 'pine' ? '#3b2a1e' : '#4a3424'; ctx.lineWidth = tw;
   ctx.beginPath(); ctx.moveTo(t.x, t.y); ctx.lineTo(cx, cy); ctx.stroke();
+  ctx.strokeStyle = t.kind === 'pine' ? '#5a4330' : '#6e5038'; ctx.lineWidth = tw * 0.4;     // the lit side of the trunk
+  ctx.beginPath(); ctx.moveTo(t.x - tw * 0.25, t.y); ctx.lineTo(cx - tw * 0.25, cy); ctx.stroke();
+  if (t.kind !== 'pine') {     // a couple of branches into the crown
+    ctx.strokeStyle = '#4a3424'; ctx.lineWidth = tw * 0.45; ctx.beginPath();
+    for (const sd of [-1, 1]) { const y0 = t.y - t.h * 0.45; ctx.moveTo(t.x + sway * 0.6, y0); ctx.lineTo(t.x + sd * t.r * 0.45 + sway, y0 - t.h * 0.2); }
+    ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
   if (t.kind === 'pine') {
     for (let i = 0; i < 3; i++) {
       const w = t.r * (1 - i * 0.25), y = t.y - t.h * (0.35 + i * 0.22);
@@ -123,9 +170,11 @@ function drawTree(ctx, t, now, px) {
   const jungle = t.kind === 'jungle', dark = jungle ? '#173a1c' : '#2c5a26', mid = jungle ? '#24572a' : '#417a33', lite = jungle ? '#3f7f3c' : '#6aa24c';
   const blobs = jungle ? 6 : 5;
   ctx.fillStyle = dark; ctx.beginPath();
-  for (let i = 0; i < blobs; i++) { const a = t.a + (i / blobs) * TAU, r = t.r * 0.62; ctx.moveTo(cx + Math.cos(a) * r * 0.55 + r, cy + Math.sin(a) * r * 0.45); ctx.arc(cx + Math.cos(a) * r * 0.55, cy + Math.sin(a) * r * 0.45, r, 0, TAU); }
+  for (let i = 0; i < blobs; i++) { const a = t.a + (i / blobs) * TAU, r = t.r * 0.55; ctx.moveTo(cx + Math.cos(a) * r * 0.6 + r, cy + Math.sin(a) * r * 0.45); ctx.arc(cx + Math.cos(a) * r * 0.6, cy + Math.sin(a) * r * 0.45, r, 0, TAU); }
   ctx.fill();
-  ctx.fillStyle = mid; ctx.beginPath(); ctx.arc(cx - t.r * 0.12, cy - t.r * 0.15, t.r * 0.7, 0, TAU); ctx.fill();
+  // the underside in shade (the light is above and to the left), so the crown reads as a dome over the trunk
+  ctx.fillStyle = jungle ? 'rgba(5,20,8,0.45)' : 'rgba(10,30,8,0.4)'; ctx.beginPath(); ctx.ellipse(cx + t.r * 0.12, cy + t.r * 0.28, t.r * 0.78, t.r * 0.45, 0, 0, Math.PI); ctx.fill();
+  ctx.fillStyle = mid; ctx.beginPath(); ctx.arc(cx - t.r * 0.12, cy - t.r * 0.15, t.r * 0.62, 0, TAU); ctx.fill();
   ctx.fillStyle = lite; ctx.beginPath(); ctx.arc(cx - t.r * 0.3, cy - t.r * 0.35, t.r * 0.38, 0, TAU); ctx.fill();
 }
 
@@ -172,7 +221,7 @@ function drawMark(ctx, o, fac, now, px, high) {
   }
   // a banner (tall, a hanging cloth) or a flag (shorter, a flying one): the bots' red, with their mark
   const tall = o.kind === 'banner', H = (tall ? 7 : 5) * s, top = o.y - H;
-  if (!high) { ctx.fillStyle = '#2a2a2a'; ctx.beginPath(); ctx.ellipse(o.x, o.y, 0.5 * s, 0.3 * s, 0, 0, TAU); ctx.fill(); return; }
+  if (!high) return;
   ctx.strokeStyle = '#2b2b2b'; ctx.lineWidth = Math.max(px(1.2), 0.22 * s); ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x, top); ctx.stroke();
   const wave = (t) => Math.sin(now * 3 + o.seed + t * 4) * 0.35 * s;
   ctx.fillStyle = '#b3241c'; ctx.beginPath();

@@ -5,6 +5,7 @@
 import { aoX, aoY } from './ao.js';
 import { bark } from './chatter.js';
 import { CONFIG as C } from '../config.js';
+import { demoRadius } from './posts.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -42,6 +43,7 @@ export function buildDanger(m) {
     if (sh.born === undefined) sh.born = t;
     out.push({ x1: sh.x, y1: sh.y, x2: sh.x, y2: sh.y, r: sh.splash + 1.5, hard: true, t0: sh.born });
   }
+  for (const p of m.posts || []) if (p.demo && !p.dead) out.push({ x1: p.x, y1: p.y, x2: p.x, y2: p.y, r: demoRadius(p) + 2, hard: true, t0: p.demo.set ?? -1e9 });     // a post set to blow
   for (const q of m.acidPools || []) out.push({ x1: q.x, y1: q.y, x2: q.x, y2: q.y, r: q.r + 1, hard: true, t0: q.born });
 }
 
