@@ -1,0 +1,43 @@
+// (0.58.1) Phones: an enemy tapped only shows its popup; the TROOPS tab is there; troopers can still be picked.
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const { chromium } = require('playwright');
+const b = await chromium.launch(); const errs = []; let bad = 0;
+const ok = (c, m, d) => { console.log((c ? 'PASS  ' : 'FAIL  ') + m + (d !== undefined ? '  (' + JSON.stringify(d) + ')' : '')); if (!c) bad++; };
+const BASE = 'file://' + new URL('../dist', import.meta.url).pathname + '/orbital-fury.html?skipstart&seed=4141&faction=bots&biome=grass&tod=12';
+const page = await (await b.newContext({ viewport: { width: 400, height: 860 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage();
+page.on('pageerror', (e) => errs.push(String(e)));
+const ev = (f, a) => page.evaluate(f, a);
+await page.goto(BASE); await ev(() => { localStorage.clear(); localStorage.setItem('ofs.notice', 'true'); localStorage.setItem('ofs.saveVer', '2'); });
+await page.goto(BASE); await page.waitForTimeout(800);
+await ev(() => document.getElementById('btn-play').click()); await page.waitForTimeout(300);
+await ev(() => { document.getElementById('callsign').value = 'fx'; document.getElementById('btn-lock').click(); }); await page.waitForTimeout(300);
+await ev(() => document.getElementById('shop-go').click());
+await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
+await ev(() => document.getElementById('b-continue').click()); await page.waitForTimeout(1500);
+await ev(() => { const m = window.__game.mission; m.deployNow(); for (let i = 0; i < 30 * 6; i++) m.step(1 / 30); m.callSeaf(m.hx + 15, m.hy, {}); for (let i = 0; i < 30 * 25 && !m.seafAlive.length; i++) m.step(1 / 30); });
+await page.waitForTimeout(800);
+const tabs = await ev(() => [...document.querySelectorAll('#tactical .tct')].map((x) => x.dataset.tab + ':' + getComputedStyle(x).display));
+ok(tabs.join(' ') === 'units:flex build:flex armory:flex', '(0.58.1) phones show the TROOPS tab beside BUILD and ARMORY', tabs);
+const before = await ev(() => window.__game.mission.seaf.sel);
+// put an enemy in sight next to the squad, centre the camera on it, tap it
+const at0 = 1; const at = await ev(() => { const g = window.__game, m = g.mission, a = m.hdAlive[0]; const e = m.enemies.find((x) => !x.dead && !x.boss); e.x = a.x + 12; e.y = a.y; e.vis = 2; e.speed = 0; g.cam.x = e.x; g.cam.y = e.y; g.cam.follow = false; g.cam.view = 90; e.fire = 0; e.cd = 99; e.hp = e.maxHp = 1e9; e.armor = 9; return { x: e.x, y: e.y, id: e.id }; });
+await page.waitForTimeout(400);
+const sp = await ev((at) => { const g = window.__game, c = document.getElementById('game') || document.querySelector('canvas'); const q = g.renderer.worldToScreen(at.x, at.y, c); return q; }, at);
+await ev((at) => { const e = window.__game.mission.enemies.find((x) => x.id === at.id); e.x = at.x; e.y = at.y; }, at); await page.touchscreen.tap(sp.x, sp.y); await page.waitForTimeout(500);
+const st = await ev(() => ({ pop: !document.getElementById('selpop').classList.contains('hidden'), popText: document.getElementById('selpop').innerText.replace(/\s+/g, ' ').slice(0, 80), tab: document.getElementById('tactical').dataset.tab }));
+ok(st.pop && /ARMOR/.test(st.popText), 'tapping an enemy shows its armour', st.popText);
+ok(st.tab === 'units' && !(await ev(() => window.__game.sel)), 'tapping an enemy selects nothing and leaves the troop panel as it was', { tab: st.tab });
+// tap the TROOPS tab, then tap a trooper
+await page.tap('#tactical .tct[data-tab="build"]').catch(() => {}); await page.waitForTimeout(300);
+ok((await ev(() => document.getElementById('tactical').dataset.tab)) === 'build', 'BUILD opens');
+await page.tap('#tactical .tct[data-tab="units"]').catch((e) => console.log('tap units fail', String(e).slice(0, 60))); await page.waitForTimeout(300);
+ok((await ev(() => document.getElementById('tactical').dataset.tab)) === 'units', 'the TROOPS tab brings the troops back');
+const tr = await ev(() => { const g = window.__game, m = g.mission, a = m.seafAlive[0]; g.cam.x = a.x; g.cam.y = a.y; return { x: a.x, y: a.y, id: a.id }; });
+await page.waitForTimeout(300);
+const tp = await ev((at) => { const g = window.__game, c = document.querySelector('canvas'); const q = g.renderer.worldToScreen(at.x, at.y, c); return q; }, tr);
+await page.touchscreen.tap(tp.x, tp.y); await page.waitForTimeout(400);
+const pk = await ev(() => ({ sel: window.__game.mission.seaf.sel, pick: (window.__game.mission.seaf.pick || []).length }));
+ok(pk.sel === -2 && pk.pick === 1, 'a trooper tapped after that is picked', pk);
+ok(!errs.length, 'no page errors', errs.slice(0, 3)); await b.close();
+console.log(bad ? bad + ' FAILED' : 'ALL PASS'); process.exit(bad ? 1 : 0);

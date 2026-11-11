@@ -1974,10 +1974,10 @@ body.rts.lay-phone.lay-port #hud { --bbx: 196px; --wsh: 84px; --callw: 64px; }
 body.rts.lay-phone:not(.touch) #hud { --callw: 0px; }
 body.rts.lay-phone #hud:has(#tactical[data-tab="build"]), body.rts.lay-phone #hud:has(#tactical[data-tab="armory"]) { --bbn: var(--bbx); }
 /* gone on a phone: the mission's name and score lines, the objective's second line, INFO (a tap on the clock or the objective
-   opens it), the TROOPS button (BUILD or ARMORY pressed again goes back), the join-a-squad row, the five formation buttons (one
+   opens it), the join-a-squad row (0.58.1: the TROOPS button stays, so the way back to the troops is always in sight), the five formation buttons (one
    FORM button steps through them), key letters, and the S1-S9 row's labels */
 body.rts.lay-phone #hud #opname, body.rts.lay-phone #hud .mb-sc, body.rts.lay-phone #hud #combo, body.rts.lay-phone #hud #obj-sub, body.rts.lay-phone #hud #btn-info,
-body.rts.lay-phone #hud #tactical .tct[data-tab="units"], body.rts.lay-phone #hud #tactical .tac-sq, body.rts.lay-phone #hud #tactical .tac-form, body.rts.lay-phone #hud #tactical .tc-l,
+body.rts.lay-phone #hud #tactical .tac-sq, body.rts.lay-phone #hud #tactical .tac-form, body.rts.lay-phone #hud #tactical .tc-l,
 body.rts.lay-phone #hud #tactical .tct kbd, body.rts.lay-phone #hud #tactical .tco .k, body.rts.lay-phone #hud #tactical .sqa .k, body.rts.lay-phone #hud #tactical .bld .k { display: none !important; }
 /* the minimap's column is not a box on a phone: its pieces sit on their own */
 body.rts.lay-phone #hud .hud-br, body.rts.lay-phone #hud .mm-wrap, body.rts.lay-phone #hud .mm-btns { display: contents; }
@@ -2714,4 +2714,16 @@ body.touch .desk-only { display: none !important; }     /* (0.50.1) desktop-only
   #s-shop .shop-go { position: sticky; bottom: -10px; z-index: 3; margin-bottom: -6px; padding: 8px 0 12px; gap: 6px; flex-wrap: wrap; background: linear-gradient(to bottom, rgba(3, 14, 8, 0.92), rgba(2, 10, 5, 0.98)); }
   #s-shop .shop-go .btn { min-height: 44px; padding: 6px 12px; font-size: 12px; margin: 0; }
   #s-shop .shop-go #shop-go { flex: 1 1 150px; font-size: 14px; letter-spacing: 0.08em; white-space: nowrap; }
+}
+/* (0.58.1) Phones show all three tabs (TROOPS, BUILD, ARMORY) in the side column: too short for a label each, so icons only, a size up */
+body.rts.lay-phone #hud #tactical .tct span { display: none !important; } body.rts.lay-phone #hud #tactical .tct i { font-size: 19px; line-height: 1; }
+/* (0.58.1) Small landscape phones (about 667 wide): the long threat meter ran under the mission clock; it takes the portrait's short form */
+@media (max-width: 760px) {
+  body.rts.lay-phone.lay-land #hud #topbar .alertc span { display: none; }
+  body.rts.lay-phone.lay-land #hud #topbar .alertc b span.st { display: none; }
+  body.rts.lay-phone.lay-land #hud #topbar .alertc b span.st:first-child { display: inline-block; background: #ffb020; }
+  body.rts.lay-phone.lay-land #hud #topbar .alertc:not(.lit) b i.st:first-child { background: rgba(255, 200, 160, 0.3); }
+  body.rts.lay-phone.lay-land #hud #topbar .alertc b em.al-n { display: inline; color: #ffd08a; font-size: 18px; }
+  body.rts.lay-phone.lay-land #hud #topbar .alertc b em.al-n.hot { color: #ff5a3c; }
+  body.rts.lay-phone.lay-land #hud #topbar .alertc { padding: 0 6px; }
 }
