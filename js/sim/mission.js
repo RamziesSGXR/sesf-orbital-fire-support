@@ -978,6 +978,8 @@ export class Mission {
       c.last = this.t;
       this.sc.kills += Math.round(st.pts * rw * c.mult);
       this.stats.killsPlayer++;
+    } else if (by === 'enemy') {
+      this.stats.ffKillsE = (this.stats.ffKillsE || 0) + 1;     // (0.57) killed by its own side's fire: no score, still worth its credits
     } else {
       this.sc.allyKills += Math.floor(st.pts * rw * C.score.allyKillShare);
       this.stats.killsAlly++;
@@ -1271,8 +1273,11 @@ export class Mission {
     this._snap();
     this._refreshAlive();
     this.eGrid.clear(); this.aGrid.clear(); this.tGrid.clear();
-    for (const e of this.enemies) if (!e.dead) { this.eGrid.insert(e); e.vis = 0; e.spotted = false; }
-    this._visAll();
+    // (0.57) in a very big fight (enemies x allies past visBig) who sees what is worked out every other tick, and kept between
+    this._visN = (this._visN || 0) + 1;
+    const doVis = this.enemies.length * this.alive.length < C.perf.visBig || (this._visN & 1) === 0;
+    if (doVis) { for (const e of this.enemies) if (!e.dead) { this.eGrid.insert(e); e.vis = 0; e.spotted = false; } this._visAll(); }
+    else for (const e of this.enemies) if (!e.dead) { this.eGrid.insert(e); if (e.vis === undefined) e.vis = 0; }
     for (const a of this.alive) if (!a.mounted && !a.inside && !a.down) this.aGrid.insert(a);     // (0.26: nor the downed, lying low)     // (the crew inside a building are out of reach: posts.js)
     for (const s of this.assets) if (!s.dead && s.kind !== 'mines' && !s.fallen && !s.asleep) this.tGrid.insert(s);     // (0.53.6: not a fallen work site, or one not yet worked: nobody shoots at those)
 

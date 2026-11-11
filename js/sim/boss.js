@@ -10,7 +10,7 @@ import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
 import { spawnGroup, hiddenSpot, pickSpawn } from './director.js';
 import { compass } from './enemies.js';
-import { hurtTarget } from './combat.js';
+import { hurtEnemy, hurtTarget } from './combat.js';
 import { levelFactors } from '../difficulty.js';
 
 export function initBoss(m, opts = {}) {
@@ -98,6 +98,7 @@ export function updateBoss(m, dt) {
     const sk = s.rocket || s.mortar ? 'M' : 'H';
     m.aGrid.near(s.x, s.y, s.splash, (o) => hurtTarget(m, o, s.dmg, 'enemy', sk, s.fx, s.fy));
     m.tGrid.near(s.x, s.y, s.splash, (o) => hurtTarget(m, o, s.dmg, 'enemy', sk));
+    m.eGrid.near(s.x, s.y, s.splash, (o) => { if (!o.boss) hurtEnemy(m, o, s.dmg * C.ff.enemy.splashMul, 'enemy', s.x, s.y, ''); });     // (0.57) its own side too
     for (const cv of m.civs) if (!cv.dead && !cv.safe && (cv.x - s.x) ** 2 + (cv.y - s.y) ** 2 <= s.splash * s.splash) m.hurtCiv(cv, s.dmg, 'enemy');
     m.emit('boom', { x: s.x, y: s.y, r: s.splash, dmg: s.dmg, by: 'enemy', acid: !s.rocket && !s.mortar, rocket: !!s.rocket, mortar: !!s.mortar });
     if (s.pool) { const P = C.boss.bugs.spray.pool; (m.acidPools = m.acidPools || []).push({ x: s.x, y: s.y, r: P.r, until: t + P.sec, born: t, tick: 0 }); }     // (0.55)

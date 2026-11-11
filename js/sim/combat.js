@@ -132,7 +132,8 @@ export function damageArea(m, x, y, rad, dmg, mult, by = 'player', friendly = tr
   ABOVE = false;
   for (const d of m.drops) if (!d.dead && d.hp > 0 && d.low && Math.hypot(d.x - x, d.y - y) <= rad + d.r) m.damageDrop(d, dmg * (mult.H ?? 1), by);
   if (friendly) {
-    m.aGrid.near(x, y, rad, (a) => hurtAlly(m, a, dmg, by === 'player' ? 'player' : 'enemy', true, by === 'player' ? 'friendly' : 'enemy'));
+    const ffk = by === 'player' ? C.ff.player : 1;     // (0.57) the player's own fire is harder on allies
+    m.aGrid.near(x, y, rad, (a) => hurtAlly(m, a, dmg * ffk, by === 'player' ? 'player' : 'enemy', true, by === 'player' ? 'friendly' : 'enemy'));
     for (const c of m.civs) if (!c.dead && (c.x - x) ** 2 + (c.y - y) ** 2 <= rad * rad) m.hurtCiv(c, dmg, by);
   }
   const sm = by === 'strat' || by === 'squad' ? C.structure.stratMul : 1;   // anything the squad calls hits structures harder
@@ -251,19 +252,43 @@ export function blocker(m, src, tx, ty) {
   return found;
 }
 
+// (0.57) The same for the enemy: another enemy standing in the line of fire from enemy `src` to (tx, ty).
+export function eBlocker(m, src, tx, ty) {
+  const lane = C.ff.enemy.lane, dx = tx - src.x, dy = ty - src.y, len2 = dx * dx + dy * dy, len = Math.sqrt(len2);
+  if (len < 4) return null;
+  let found = null, fu = 9;
+  m.eGrid.near(src.x + dx / 2, src.y + dy / 2, len / 2 + lane + 3, (o) => {
+    if (o === src || o.dead || o.boss || o.lp) return;
+    const u = ((o.x - src.x) * dx + (o.y - src.y) * dy) / len2;
+    if (u <= 0.04 || u >= 0.97 || u >= fu) return;
+    const px = src.x + dx * u - o.x, py = src.y + dy * u - o.y, w = lane + (o.r || 1) * 0.4;
+    if (px * px + py * py <= w * w) { fu = u; found = o; }
+  });
+  return found;
+}
+
 // The best enemy in range for a direct shot: the closest one with a clear lane. If every target has a friendly in the way, the
 // result carries that friendly in `block` and the caller decides whether to hold fire or take the shot (now and then it does).
+// (0.57) the candidates are gathered first and the lane is tested nearest first, at most PICK_TRIES of them: with hundreds of
+// enemies in range, testing the lane to every one of them was most of the cost of a big fight
+const PICK_TRIES = 5, candE = [], candD = [];
 export function pickClear(m, a, range, accept) {
-  let best = null, bd = Infinity, blk = null, bb = Infinity, who = null;
+  candE.length = 0; candD.length = 0;
   m.eGrid.near(a.x, a.y, range, (e, d2) => {
-    if (d2 >= bd && d2 >= bb) return;
     if (e.cover && covered(e)) return;          // still under its ship: not worth a bullet yet
     if (accept && !accept(e)) return;
-    const b = blocker(m, a, e.x, e.y);
-    if (!b) { if (d2 < bd) { bd = d2; best = e; } }
-    else if (d2 < bb) { bb = d2; blk = e; who = b; }
+    // keep the PICK_TRIES nearest (insertion into a short sorted list)
+    let i = candD.length;
+    if (i >= PICK_TRIES && d2 >= candD[i - 1]) return;
+    if (i < PICK_TRIES) { candD.push(d2); candE.push(e); } else { candD[i - 1] = d2; candE[i - 1] = e; i--; }
+    while (i > 0 && candD[i - 1] > d2) { candD[i] = candD[i - 1]; candE[i] = candE[i - 1]; candD[i - 1] = d2; candE[i - 1] = e; i--; }
   });
-  if (best) return { e: best, block: null };
+  let blk = null, who = null;
+  for (let i = 0; i < candE.length; i++) {
+    const e = candE[i], b = blocker(m, a, e.x, e.y);
+    if (!b) return { e, block: null };
+    if (!blk) { blk = e; who = b; }
+  }
   return blk ? { e: blk, block: who } : null;
 }
 
@@ -296,7 +321,11 @@ export function fireShot(m, src, e, prof, by, side = 'a', snd = '') {
     m.shells.push({ x: tx, y: ty, at: m.t + prof.flight, dmg: prof.dmg, splash: prof.splash || 0, mult, by, friendly: false, quiet: true, fx: src.x, fy: src.y });
     return hit;
   }
-  if (!hit) return false;
+  if (!hit) {
+    // (0.57) a miss flies on: a friendly who has stepped into its path takes it
+    if (side === 'a' && !(prof.flight > 0)) { const b = blocker(m, src, tx, ty); if (b) { m.stats.stray = (m.stats.stray || 0) + 1; hurtAlly(m, b, prof.dmg * C.ff.strayMul, by === 'player' ? 'player' : 'squad', false, 'friendly'); } }
+    return false;
+  }
   if (e.drop) { m.damageDrop(e, prof.dmg * (mult.H ?? 1), by); return true; }      // a dropship or a warp ship
   if (prof.splash > 0) {
     damageArea(m, tx, ty, prof.splash, prof.dmg, mult, by, false, undefined, src.x, src.y);
