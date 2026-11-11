@@ -9,6 +9,7 @@ import { t as tr } from '../i18n.js';
 import { aoX, aoY } from './ao.js';
 import { damageArea } from './combat.js';
 import { releaseDrop } from './reinforce.js';
+import { reinfHeavy } from './boss.js';
 
 const ALL = { L: 1, M: 1, H: 0.6, B: 0.2 };
 
@@ -92,6 +93,8 @@ export function stepMother(m, d, dt) {
     d.waveT -= dt;
     if (d.waveT <= 0) {
       d.waveT = K.waveEvery;
+      // (0.56) its first wave brings a super heavy down with the troops (a warp colossus; not while another super heavy lives)
+      if (!d.heavyDone) { d.heavyDone = true; const [hx, hy] = m.rng.inDisc(d.r * 0.4); reinfHeavy(m, aoX(m, d.x + hx, 12), aoY(m, d.y + hy, 12)); }
       if (m.enemies.length < C.enemies.hardCap - 40) for (let k = 0; k < K.groups; k++) {
         const [ox, oy] = m.rng.inDisc(d.r * 0.55);
         releaseDrop(m, aoX(m, d.x + ox, 6), aoY(m, d.y + oy, 6), 'mother', null);

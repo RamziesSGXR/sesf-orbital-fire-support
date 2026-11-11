@@ -206,7 +206,7 @@ export function makePost(m, what, x, y, opts = {}) {
     const sp = opts.span || m.terrain.findSpan(x, y, S.span);
     if (sp) { p.span = sp; p.w = S.w; p.x = (sp.x1 + sp.x2) / 2; p.y = (sp.y1 + sp.y2) / 2; p.face = Math.atan2(sp.y2 - sp.y1, sp.x2 - sp.x1); m.terrain.addDeck(sp, S.w); }
   }
-  if (what === 'sam') { p.cool = 1; p.every = S.every; p.dmg = S.dmg; }
+  if (what === 'sam') { p.cool = 1; p.every = S.every; p.dmg = S.dmg; p.ammo = p.maxAmmo = C.build.sam.ammo || Infinity; }     // (0.56: ammo, its missiles in all)
   if (what === 'arty') m.arty.push(p);
   if (what === 'tower') m.beacons.push({ id: m.nextId++, x, y, relit: true, built: true, post: p });
   if (p.maxHp > 0) m.assets.push(p);          // the enemy can shoot it down (the foxhole and the bastions cannot be destroyed)
@@ -433,6 +433,7 @@ export function updatePosts(m, dt) {
 // The SAM site: missiles at the nearest dropship or warp ship in reach, low or not (it is built to bring them down on the way in).
 function samStep(m, p, dt) {
   p.reach = towerReach(m, p);
+  if (p.ammo <= 0) return;      // (0.56) out of missiles: it stands there empty
   p.cool -= dt;
   if (p.cool > 0) return;
   let best = null, bd = p.reach * p.reach;
@@ -450,6 +451,7 @@ function samStep(m, p, dt) {
   m.samQ = m.samQ || [];
   m.samQ.push({ at: m.t + fl, d, dmg });
   m.stats.samShots = (m.stats.samShots || 0) + 1;
+  if (p.ammo !== undefined && --p.ammo <= 0) { p.ammo = 0; m.notice(tr('n.samEmpty'), 'warn'); m.emit('sam_empty', { x: p.x, y: p.y }); }
 }
 export function updateSam(m) {
   if (!m.samQ || !m.samQ.length) return;

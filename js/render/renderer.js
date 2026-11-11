@@ -343,6 +343,9 @@ export class Renderer {
     ctx.setTransform(scale, 0, 0, scale, tx, ty);
 
     const px = (n) => n / scale; // pixels -> meters
+    // (0.56) what is on screen, in metres, with a margin: units and effects outside it are not drawn
+    const vb = this._vb = { x0: -tx / scale - 30, y0: -ty / scale - 30, x1: (W - tx) / scale + 30, y1: (H - ty) / scale + 30 };
+    const onScr = (x, y, r = 0) => x + r >= vb.x0 && x - r <= vb.x1 && y + r >= vb.y0 && y - r <= vb.y1;
     const pal = { ally: this.allyColor(), enemy: this.enemyColor(m) };
     drawAoEdge(ctx, m, px, -tx / scale, -ty / scale, (W - tx) / scale, (H - ty) / scale);
     const labels = this.labels; labels.length = 0;
@@ -449,8 +452,16 @@ export class Renderer {
     // them readable on any biome.
     const fid = m.faction.id;
     drawRadar(ctx, m, now, px, pal.enemy);
+    // (0.56) level of detail: an ordinary enemy smaller than LOD screen pixels (zoomed out) is drawn as a dot with a halo, all
+    // of them in four paths (seen and half-seen, halo and body) instead of its full body; the hurt flash still shows
+    const LOD = scale < (this.perf.low ? 6 : 4.2) * (this.dpr || 1) ? Infinity : px(this.perf.low ? 10.5 : 7.2), lod0 = [], lod1 = [], hot = [];     // (zoomed well out: every ordinary enemy)
     for (const e of m.enemies) {
       if (e.dead || e.vis <= 0) continue;
+      if (!onScr(e.x, e.y, e.boss ? e.r * 4 : 8)) continue;
+      if (!e.boss && !e.sub) {
+        const er = enemyR(e, SUBTYPES[e.kind], px);
+        if (er <= LOD) { (e.vis >= 2 ? lod1 : lod0).push(e, er); if (t - e.hurtAt < 0.06) hot.push(e, er); continue; }
+      }
       ctx.globalAlpha = e.vis >= 2 ? 1 : 0.6;
       if (e.boss) {
         const br = bossR(e, px), body = (q) => drawBossBody(ctx, q, fid, br, pal.enemy, now, px, t - e.hurtAt < 0.06, t);
@@ -460,8 +471,20 @@ export class Renderer {
       else drawEnemyBody(ctx, e, fid, enemyR(e, SUBTYPES[e.kind], px), pal.enemy, now, px, t - e.hurtAt < 0.06);
       ctx.globalAlpha = 1;
     }
+    for (const [L, al] of [[lod0, 0.6], [lod1, 1]]) {
+      if (!L.length) continue;
+      ctx.globalAlpha = al;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.beginPath();
+      for (let i = 0; i < L.length; i += 2) { const e = L[i], r = L[i + 1] * 1.25; ctx.moveTo(e.x + r, e.y); ctx.arc(e.x, e.y, r, 0, TAU); }
+      ctx.fill();
+      ctx.fillStyle = pal.enemy; ctx.beginPath();
+      for (let i = 0; i < L.length; i += 2) { const e = L[i], r = L[i + 1] * (e.kind === 'H' ? 0.85 : 0.7); ctx.moveTo(e.x + r, e.y); ctx.arc(e.x, e.y, r, 0, TAU); }
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    if (hot.length) { ctx.fillStyle = '#ffffff'; ctx.beginPath(); for (let i = 0; i < hot.length; i += 2) { const e = hot[i], r = hot[i + 1] * 0.7; ctx.moveTo(e.x + r, e.y); ctx.arc(e.x, e.y, r, 0, TAU); } ctx.fill(); }
     const nm2 = labels.length;
-    if (!hideUi) drawEnemyExtras(ctx, m, now, px, labels, scale, pal);
+    if (!hideUi) drawEnemyExtras(ctx, m, now, px, labels, scale, pal, vb);
     nm(nm2);
     // (0.54) rockets and mortar shells in the air: a ring where each will land, filling as it comes down
     for (const s of m.bossShells || []) {
@@ -477,6 +500,7 @@ export class Renderer {
     const seafMulti = squadsInUse(m) > 1 || m.seaf.sel >= 0;
     for (const a of m.alive) {
       if (a.dead || a.inside) continue;               // (inside a building: hidden; selecting it shows them)
+      if (!onScr(a.x, a.y, 6)) continue;              // (0.56)
       const H_ = a.type === 'H', tm = H_ ? m.teams[a.team] : null;
       const phase = this.settings.reduceFlash ? ((now + a.id * 0.13) % 2) / 2 : ((now + (a.id % 5) * 0.07) % 1);
       const on = this.settings.reduceFlash ? phase < 0.15 : phase < 0.18;
@@ -1015,11 +1039,15 @@ export class Renderer {
     }
   }
   _effects(ctx, now, px) {
-    const fx = this.fx;
+    const fx = this.fx, vb = this._vb;
     for (let i = fx.length - 1; i >= 0; i--) {
       const f = fx[i], p = (now - f.t0) / f.life;
       if (p >= 1) { fx.splice(i, 1); continue; }
       if (p < 0) continue;
+      if (vb && f.x != null && !(f.r >= 10)) {       // (0.56) off screen (big blasts and columns of light always drawn): not drawn (a tracer by the box round its two ends; big blasts get room)
+        const R = (f.r || 0) * 3 + 60, xa = f.x2 != null ? Math.min(f.x, f.x2) : f.x, xb = f.x2 != null ? Math.max(f.x, f.x2) : f.x, ya = f.y2 != null ? Math.min(f.y, f.y2) : f.y, yb = f.y2 != null ? Math.max(f.y, f.y2) : f.y;
+        if (xb + R < vb.x0 || xa - R > vb.x1 || yb + R < vb.y0 || ya - R > vb.y1) continue;
+      }
       const a = (1 - p) * (f.a ?? 1);
       if (f.k === 'trc') { this._drawTracer(ctx, f, now, px); continue; }
       if (this._fx23(ctx, f, p, now, px)) continue;     // (0.23) the stratagems' own explosions
