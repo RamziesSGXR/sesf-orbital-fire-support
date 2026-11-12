@@ -331,7 +331,7 @@ export function drawPresence(ctx, st, m, now, px, vb, low) {
     }
   }
   // (the shimmer reads the frame back: on HIGH graphics only, never on a phone, and not once the game has had to lighten itself)
-  if (haze) { if (st.quality === 'high' && !st.phone && !(st.perf && st.perf.low)) drawShimmer(ctx, haze, now); drawHaze(ctx, haze, now); }
+  if (haze) { if (st.quality === 'high' && !st.phone && !(st.perf && (st.perf.low || st.perf.tier >= 1))) drawShimmer(ctx, haze, now); drawHaze(ctx, haze, now); }
 }
 // (0.61) The squids' heat haze, seen from above: the picture under it shimmers (drawShimmer), with a soft violet warmth that
 // breathes over it. No lines are drawn. Where the shimmer is off (see drawPresence), the warmth alone.

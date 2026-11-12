@@ -25,6 +25,7 @@ const handsBusy = (m) => !!m && (supplyFilling(m) || hbFilling(m));     // the s
 import { t, tEn, setLang, getLang, applyDom, startLang } from './i18n.js';
 import { clampLevel, LEVELS, levelName, TOP } from './difficulty.js';
 import { answerTime } from './sim/planner.js';
+import { spawnGroup } from './sim/director.js';
 import { POSTS, makePost, foxholeSlots, turns, wirePlan, chains, chainPlan, planChain } from './sim/posts.js';
 import { addJammer } from './sim/sides.js';
 import { squadCentres, FORMS, targetSquads } from './sim/seaf.js';
@@ -65,6 +66,7 @@ let menuSoft = false;         // the HUD menu stopped the game (closing it, or a
 let speed = 1;                // game speed: 1, or 0.5 (half speed: everything still works, only slower)
 let session = null, info = null, mission = null, bot = null, lastRes = null;
 let firePending = false;
+let lagFor = 0;
 let acc = 0, lastT = 0, overAt = 0, endHandled = false;
 let focusT = 0, focusTo = 0.5;
 let terrainKey = '', briefCtl = null, settingsReturn = null, namesReturn = null, armNote, armBal = 0;
@@ -135,7 +137,7 @@ function onSettingChange(key) {
   if (key === 'sfx' || key === 'volume') { audio.unlock(); audio.ready(); }     // (0.29) a blip at the new level, so it can be heard
   if (key === 'lang') relang();
   if ((key === 'polarity' || key === 'relief') && info) buildFor(info.biome, info.seed, true);
-  if (key === 'quality') { renderer.perf.low = false; renderer.resize(); if (info) buildFor(info.biome, info.seed, true); }
+  if (key === 'quality') { renderer.perf.low = false; renderer.perf.tier = 0; renderer.resize(); if (info) buildFor(info.biome, info.seed, true); }
 }
 
 // A new language: the static page, then whatever screen is up is drawn again in it.
@@ -2061,7 +2063,8 @@ function onEvent(ev, now) {
 // (0.42) The frame rate cap (Settings > Frame rate): AUTO is 30 a second on a phone and 60 elsewhere, so a 90 or 120 Hz screen does
 // not draw the game twice as often as it needs, and a phone does not run hot. A frame that comes too soon is skipped whole.
 let frameAt = 0;
-function fpsCap() { const f = settings.fps; return f === 'max' ? 0 : f === '30' ? 30 : f === '60' ? 60 : applyLayout.last === 'phone' ? 30 : 60; }
+// (0.61.4) AUTO on a computer: as fast as the screen, up to 144 (it was 60); 30 on a phone. 144 is a choice too.
+function fpsCap() { const f = settings.fps; return f === 'max' ? 0 : f === '30' ? 30 : f === '60' ? 60 : f === '144' ? 144 : applyLayout.last === 'phone' ? 30 : 144; }
 function frame(ts) {
   requestAnimationFrame(frame);
   const cap = paused && !soft && state === 'play' ? 12 : fpsCap();     // (the pause menu over a still game: no need to redraw it often; 0.53.4: not the soft pause, where the map is panned and planned on)
@@ -2077,6 +2080,12 @@ function frame(ts) {
   if (settings.quality === 'auto' && state === 'play' && !paused && !renderer.perf.low) {
     slowFor = ema > (cap ? Math.max(30, 1800 / cap) : 30) ? slowFor + dt : 0;     // (0.42: slow for the cap, not for 60)
     if (slowFor > 4) { renderer.perf.low = true; renderer.resize(); }
+    // (0.61.4) before that: under 50 frames a second for two seconds on a computer, and the extras go, one step at a time (the
+    // units' true sides and the heat shimmer, then the whole 3D look), so the game holds 60 where it can
+    if ((!cap || cap >= 60) && (renderer.perf.tier || 0) < 2) {
+      lagFor = ema > 20 ? lagFor + dt : 0;
+      if (lagFor > 2) { renderer.perf.tier = (renderer.perf.tier || 0) + 1; lagFor = 0; }
+    }
   }
   fpsT += dt; fpsN++; if (fpsT >= 0.5) { fps = fpsN / fpsT; fpsT = 0; fpsN = 0; }
 
@@ -2126,7 +2135,8 @@ function frame(ts) {
     const p = mission.player;
     if (sel && (sel.dead || (sel.kind !== 'post' && sel.kind && !mission.assets.includes(sel)))) deselect();
     const ga = placing ? ghostAt || (input.touch ? null : aimWorld()) : null;     // (0.22: the ghost of what is being placed)
-    renderer.draw(mission, cam, { now, aim: drawing || box ? null : { x: p.aimX, y: p.aimY }, armed, placing, ghost: ga, plan: planQ, draw: stroke, snap: (x, y) => snap(x, y), sel, box, pface: placeFace, pshape: placeShape });
+    const tw = !paused && state === 'play' && !mission.over && !cinema.on && !(tut && tut.held); if (tw) tween(mission, acc / STEP);
+    try { renderer.draw(mission, cam, { now, aim: drawing || box ? null : { x: p.aimX, y: p.aimY }, armed, placing, ghost: ga, plan: planQ, draw: stroke, snap: (x, y) => snap(x, y), sel, box, pface: placeFace, pshape: placeShape }); } finally { if (tw) untween(mission); }
     if (sel) placeSel(); else if (insp) placeInsp();
     sizeMini();
     // (0.42) the minimap at 10 a second, and not at all while it is folded away
@@ -2166,6 +2176,27 @@ function hover(now) {
   document.body.classList.toggle('canpick', on);
 }
 
+// (0.61.4) The mission runs 30 steps a second; the picture is drawn as often as the screen allows. So that movement is smooth at
+// 60 or 144 frames a second (it used to move 30 times a second whatever the frame rate), everything that walks or flies is drawn
+// part-way between where it stood a step ago and where it stands now. keepPrev notes where everyone stands before each step;
+// tween moves them to the in-between place for the drawing, and untween puts them back. A jump (a drop, a warp) is not tweened.
+const TWEEN = (m) => [m.alive, m.enemies, m.pelicans, m.civs, m.drops];
+function keepPrev(m) { for (const L of TWEEN(m)) if (L) for (const o of L) { o._px = o.x; o._py = o.y; } }
+let tweened = false;
+function tween(m, k) {
+  if (!(k >= 0 && k < 0.98) || settings.smooth === false) return;
+  tweened = true;
+  for (const L of TWEEN(m)) if (L) for (const o of L) {
+    if (o._px === undefined) { o._tx = undefined; continue; }
+    const dx = o.x - o._px, dy = o.y - o._py;
+    if (dx * dx + dy * dy > 36 || (dx === 0 && dy === 0)) { o._tx = undefined; continue; }
+    o._tx = o.x; o._ty = o.y; o.x = o._px + dx * k; o.y = o._py + dy * k;
+  }
+}
+function untween(m) {
+  if (!tweened) return; tweened = false;
+  for (const L of TWEEN(m)) if (L) for (const o of L) if (o._tx !== undefined) { o.x = o._tx; o.y = o._ty; o._tx = undefined; }
+}
 function simulate(dt, now) {
   const m = mission;
   if (!m.over) {
@@ -2182,6 +2213,7 @@ function simulate(dt, now) {
   const cap = 6 * FAST + 2;
   while (acc >= STEP && n < cap) {
     if (bot) botStep(m, bot);
+    keepPrev(m);
     m.step(STEP); acc -= STEP; n++;
   }
   if (acc > STEP * cap) acc = 0;
@@ -2207,7 +2239,7 @@ window.__game = { hud, audio, music, get tut() { return tut; }, get frames() { r
   get paused() { return paused; }, get soft() { return soft; }, get speed() { return speed; }, softPause, togglePause, retryMission, toggleSpeed,
   cam, input, renderer, settings, order, get placing() { return placing; }, get drawing() { return drawing; }, squadAct, selectSquad, focusTeam, strokeBegin, strokeMove, strokeEnd, goShop, openArmory, closeArmory,
   setSetting: (k, v) => { settings[k] = v; onSettingChange(k); },
-  makePost: (w, x, y, o) => (mission ? makePost(mission, w, x, y, o) : null), addJammer: (x, y) => (mission ? addJammer(mission, x, y) : null), select: (o) => select(o), get sel() { return sel; }, buildMenu, setTac, get tac() { return tac; },
+  makePost: (w, x, y, o) => (mission ? makePost(mission, w, x, y, o) : null), spawnGroup: (x, y, o) => (mission ? spawnGroup(mission, x, y, 'hunt', o) : null), addJammer: (x, y) => (mission ? addJammer(mission, x, y) : null), select: (o) => select(o), get sel() { return sel; }, buildMenu, setTac, get tac() { return tac; },
   radioLog, tickRadio: () => { if (castRadio && mission && !mission.over) castRadio.tick(mission); }, get castRadio() { return castRadio; },
   wirePlan: (x, y, f) => (mission ? wirePlan(mission, x, y, f) : null), placeTurn: (d) => placeTurn(d), placeShapeToggle: () => placeShapeToggle(), get placeFace() { return placeFace; }, get placeShape() { return placeShape; },
   arm, disarm, get armed() { return armed; }, get cinema() { return cinema; }, clickAt, commandAt, get plan() { return planQ.length; }, get planItems() { return planQ; }, runOrder: (k, x, y) => runOrder(k, x, y), planFire: () => planFire(), setForm: (f) => setForm(f), get ghost() { return ghostAt; }, get placing2() { return placing; }, setPlacing, deselect, setHideUi, get hideUi() { return hideUi; }, get held() { return session && session.held; }, goHome,

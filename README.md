@@ -25,6 +25,13 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Players' feedback: strike areas, gun tracers, a smoother game (0.61.4).**
+- **Your own strikes show where they will land.** Every strike you call (the ship's orbitals and your Eagles) draws its area on the ground again: the ring or the corridor, and the Eagle's approach line. Nothing the Helldivers call does: theirs still show only their beacon. Settings > Show blast areas now only adds the rings for the enemy's rockets, mortar shells and grenades.
+- **The ship's Gatling gun throws more tracers.** Each round is a longer, brighter streak down out of the sky, with two more tracers beside it striking the ground round the mark.
+- **Smoother movement.** The mission runs 30 steps a second, and until now everything moved 30 times a second whatever your frame rate. Now troops, enemies, pelicans and dropships are drawn part-way between steps, so they move every frame: 60 times a second at 60, 144 at 144.
+- **Frame rate.** Settings > Frame rate has a 144 choice, and AUTO on a computer is now as fast as your screen, up to 144 (it was capped at 60). Phones stay at 30 on AUTO.
+- **Holding 60.** If the game drops under 50 frames a second for two seconds on a computer, it drops its extras one step at a time (first the units' true sides and the heat shimmer, then the whole 3D look) before it lowers the graphics. The units' sides also cost about half what they did.
+
 **Towers (0.61.3).**
 - **SEAF drops no longer snap onto a Propaganda Tower.** A drop called within 40 m of a tower lands where you call it (it used to jump to the tower itself). The tower still lets you call the drop there from anywhere on the map. Pickups by a tower work the same way.
 - **The Propaganda Tower looks like one.** In the 3D look it stands up: a lattice mast narrowing to the top, four yellow loudspeaker horns, a Super Earth banner hanging from an arm, a red light on its tip, and broadcast rings going out while someone mans it.

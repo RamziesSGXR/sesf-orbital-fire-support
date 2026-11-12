@@ -581,7 +581,7 @@ export default {
   'set.cards': 'Bulles d’info', 'set.cardsHint': 'Une courte astuce sur tout ce que vous choisissez dans une barre. Touchez ⓘ pour le reste',
   'set.touch': 'Vitesse de glissé tactile',
   'set.gfx': 'Graphismes', 'set.gfxHint': 'Auto réduit les détails si le jeu saccade', 'set.auto': 'Auto', 'set.high': 'Élevés', 'set.low': 'Bas',
-  'set.fps': 'Images par seconde', 'set.fpsHint': 'Au plus. Auto : 30 sur un téléphone (il chauffe moins et la batterie dure) et 60 ailleurs', 'set.fpsAuto': 'Auto', 'set.fpsMax': 'Sans limite',
+  'set.fps': 'Images par seconde', 'set.fpsHint': 'Au plus. Auto : 30 sur un téléphone (il chauffe moins et la batterie dure) et aussi vite que votre écran ailleurs, jusqu’à 144', 'set.fpsAuto': 'Auto', 'set.fpsMax': 'Sans limite',
   'set.reliefOn': 'RELIEF : EAU EN BLEU, TERRAIN LENT HACHURÉ, HAUTEURS EN ORANGE',
   'set.reliefOff': 'RELIEF DÉSACTIVÉ',
   'info.close': 'Fermer les infos mission',
@@ -1063,7 +1063,7 @@ export default {
   'n.seafDown': 'PELICAN SEAF POSÉ  {n} SOLDATS{extra}  ESCOUADE {sq}',
   'info.rocksV': 'Le terrain a sa propre couverture : un soldat contre un gros rocher prend {p} de moins du tir ennemi, et les fusiliers au combat sans mur proche se mettent derrière un rocher, à l\\\'abri de l\\\'ennemi. Une grosse explosion réduit le rocher en gravats, et il ne couvre plus rien. Arbres et hautes herbes ne cachent rien, mais on voit l\\\'herbe s\\\'écarter là où quelque chose passe, et l\\\'ennemi laisse sa marque là où il se rassemble : une odeur orange pour les insectes, une brume de chaleur pour les calmars, une fumée noire pour les bots.',
   'set.blasts': 'Afficher les zones d\'explosion',
-  'set.blastsHint': 'Trace un cercle là où chaque frappe, grenade, roquette et obus va tomber. Désactivé : vous ne voyez que l\'explosion (vos troupes savent quand même où elle tombera).',
+  'set.blastsHint': "Vos propres frappes montrent toujours où elles vont tomber. Ceci trace aussi un cercle là où tombera chaque roquette, obus de mortier et grenade de l'ennemi. Les frappes des Helldivers ne montrent que leur balise.",
   'set.relief3d': "Aspect 3D",     // (0.61.2)
   'set.relief3dHint': "Les unités et les bâtiments ont des côtés et des ombres plus longues, sous la même lumière que le terrain et les arbres. AUTO : activé, sauf sur téléphone et en graphismes BAS (c'est du dessin en plus).",
   'pen.line': 'Pénétration : {lvl} (légère {l}, moyenne {m}, lourde {h}).',

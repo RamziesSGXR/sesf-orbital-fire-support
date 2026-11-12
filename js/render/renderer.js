@@ -60,7 +60,7 @@ export class Renderer {
     this.noise = null; this.noisePat = null;
     this.quality = 'high';
     this.settings = { polarity: 'white', colorblind: false, reduceFlash: false, bubbles: true };
-    this.perf = { slow: 0, low: false };
+    this.perf = { slow: 0, low: false, tier: 0 };     // (0.61.4) tier: 1 the units' true sides and the heat shimmer are off, 2 the 3D look is off
   }
 
   setSettings(s) { this.settings = s; }
@@ -228,7 +228,14 @@ export class Renderer {
         // The ship gun: rounds fall from above onto the aim point.
         const black = this.settings.polarity === 'black';
         for (const [gx, gy] of ev.pts) {
-          fx.push({ k: 'trc', kind: 'streak', x: gx + (Math.random() - 0.5) * 6, y: gy - 70 - Math.random() * 40, x2: gx, y2: gy, t0: now, fl: 0.06, life: 0.2, col: '#ffe9a8', w: 1.5, len: 26, hit: true, big: false, side: 'p', imp: false, d: 90 });
+          // (0.61.4) more to see: each round a long bright streak down out of the sky (leaning as the shells do), and two more
+          // tracers beside it that strike the ground round the mark (for show: the hit is the round's)
+          const h0 = 150 + Math.random() * 70;
+          fx.push({ k: 'trc', kind: 'streak', x: gx + h0 * 0.18 + (Math.random() - 0.5) * 6, y: gy - h0, x2: gx, y2: gy, t0: now, fl: 0.09, life: 0.26, col: '#ffe9a8', w: 2.2, len: 46, hit: true, big: false, side: 'p', imp: false, d: h0 });
+          if (fx.length < 420) for (let j = 0; j < 2; j++) {
+            const ox = (Math.random() - 0.5) * 7, oy = (Math.random() - 0.5) * 7, h1 = 140 + Math.random() * 90, dl = 0.02 + Math.random() * 0.05;
+            fx.push({ k: 'trc', kind: 'streak', x: gx + ox + h1 * 0.18 + (Math.random() - 0.5) * 8, y: gy + oy - h1, x2: gx + ox, y2: gy + oy, t0: now + dl, fl: 0.09, life: 0.24, col: '#ffd27a', w: 1.4, len: 38, hit: false, big: false, side: 'p', imp: false, d: h1 });
+          }
           if (Math.random() < 0.18) this._mark(gx, gy, 0.5, black);
         }
         break;
@@ -371,7 +378,7 @@ export class Renderer {
     drawExtraction(ctx, m, now, px, labels, scale);
 
     // Cover at the sites the squad holds, and the citadel's walls
-    { const r3 = this.settings.relief3d; setFlat(r3 === 'off' || this.quality === 'low' || this.perf.low || (r3 !== 'on' && this.phone && this.qset !== 'high')); } reliefFrame(now); this.flat3d = isFlat();     // (0.61) the slight 3D look (render/relief.js)
+    { const r3 = this.settings.relief3d; setFlat(r3 === 'off' || this.quality === 'low' || this.perf.low || (r3 !== 'on' && (this.perf.tier >= 2 || (this.phone && this.qset !== 'high')))); } reliefFrame(now); this.flat3d = isFlat();     // (0.61) the slight 3D look (render/relief.js)
     drawCover(ctx, m, px);
     drawCitadelWalls(ctx, m, pal.enemy, px);
     // Bases: always known from orbit.
@@ -475,7 +482,7 @@ export class Renderer {
     const flat = isFlat(), wallE = shadeHex(pal.enemy, 0.34), wallA = shadeHex(pal.ally, 0.36);
     setRelief(!flat);
     let nAll = nOn; for (const a of m.alive) if (!a.dead && !a.inside && onScr(a.x, a.y, 6)) nAll++;
-    const fine = !flat && nAll <= 90;
+    const fine = !flat && nAll <= 60 && !(this.perf.tier >= 1);
     if (fine) setRelief(2);
     const crowd = this.perf.low ? 150 : 300, dotKinds = nOn > crowd * 2 ? 'LM' : nOn > crowd ? 'L' : '', lod0 = [], lod1 = [], hot = [];
     for (const e of m.enemies) {
