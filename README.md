@@ -25,6 +25,8 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Sci-fi interface, beta (0.59.1).** An opt-in new look for the whole interface, on desktop and phones: amber and cyan on dark plates, thin lines, cut corners. Open the game with `?ui=scifi` on the address to turn it on (it stays on in that browser); `?ui=classic` turns it off. The default look is unchanged.
+
 **Super heavies that are worth the name; a lighter ship gun; effects you can see (0.59).**
 - **Super heavies only from difficulty level 8.** That applies to every way one turns up: at random, at five threat chevrons, as a citadel's guardian, or in the mothership's first drop. Reinforcement heavies still start at 10.
 - **Much tougher, and all equal.** The Brood Titan, Siege Walker and Warp Colossus each take about 20,000 damage to kill, 3 times what the old full 600-round ship gun could do to one. The Colossus's shield counts toward that. The squid mothership has 80,000 in all, as much as four super heavies.
