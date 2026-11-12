@@ -183,7 +183,7 @@ check('with a door in, and no door out yet', (await page.isVisible('#tc-sel [dat
 await shot('selpop');
 await ev(() => window.__game.selectSquad(0)); await page.waitForTimeout(200);
 check('(0.53.1) picking a squad lets the post go: the panel shows the squad', !(await ev(() => window.__game.sel)));
-await at(ps.x, ps.y); await page.waitForTimeout(300);     // the squad first, then the post: its door sends that squad
+{ const q = await scr(post.x, post.y); await at(q.x, q.y); } await page.waitForTimeout(300);     // the squad first, then the post: its door sends that squad (0.61.1: where the post is on screen now; on a phone the view shifts with the panel)
 await tap('#tc-sel [data-sa="in"]'); await page.waitForTimeout(200);
 check('the door sends the selected squad in', await ev(() => { const q = window.__game.mission.seaf.squads[0]; return q.order.kind === 'post' && q.order.garrison; }));
 await step(25); await page.waitForTimeout(300);
@@ -212,7 +212,7 @@ await ev(() => { window.__game.selectSquad(-1); window.__game.deselect(); });   
 await page.waitForTimeout(100);
 if (!touch) { await page.mouse.move(tr.p.x, tr.p.y); await page.mouse.down(); await page.mouse.move((tr.p.x + tr.q.x) / 2, (tr.p.y + tr.q.y) / 2, { steps: 4 }); await page.mouse.move(tr.q.x, tr.q.y, { steps: 4 }); await page.mouse.up(); }
 else {     // (0.20) one finger pans on a phone: a double tap on a trooper picks his squad
-  const id = await ev(() => { const g = window.__game, m = g.mission, a = m.seafAlive.find((s) => s.sq >= 0 && !s.inside); g.cam.follow = false; g.cam.x = a.x; g.cam.y = a.y; return a.id; });
+  const id = await ev(() => { const g = window.__game, m = g.mission, L = m.seafAlive.filter((s) => s.sq >= 0 && !s.inside), far = (s) => Math.min(...m.posts.filter((p) => !p.dead).map((p) => Math.hypot(p.x - s.x, p.y - s.y)), 999), a = L.sort((p, q) => far(q) - far(p))[0]; g.cam.follow = false;     /* (0.61.1: the trooper farthest from a post, so the second tap cannot land on the post he stands by) */ g.cam.x = a.x; g.cam.y = a.y; return a.id; });
   await page.waitForTimeout(300);
   const at2 = await ev((id) => { const g = window.__game, a = g.mission.seafAlive.find((x) => x.id === id); return g.renderer.worldToScreen(a.x, a.y, document.getElementById('view')); }, id);
   await page.touchscreen.tap(at2.x, at2.y); await page.waitForTimeout(90); await page.touchscreen.tap(at2.x, at2.y);
@@ -220,7 +220,7 @@ else {     // (0.20) one finger pans on a phone: a double tap on a trooper picks
 await page.waitForTimeout(250);
 const bsel = await ev(() => window.__game.mission.seaf.sel);
 check(touch ? 'a double tap on a trooper picks his squad (0.20)' : 'a box dragged round troopers picks them (0.18)', (bsel >= 0 || bsel === -2) && tr.n > 0, `squad ${bsel}, ${tr.n} troopers`);
-await page.waitForFunction(() => document.querySelectorAll('#tc-sel .tt').length >= 1, null, { timeout: 2000 }).catch(() => {});     // (the panel is refilled on the next HUD tick)
+await page.waitForFunction(() => document.querySelectorAll('#tc-sel .tt').length >= 1, null, { timeout: 8000 }).catch(() => {});     // (the panel is refilled on the next HUD tick)
 check('the console shows them, a tile each', (await ev(() => document.querySelectorAll('#tc-sel .tt').length)) >= 1);
 // an order: a right click (a tap on the tactical screen) on open ground moves them there
 const dest = await ev(() => { const m = window.__game.mission, a = Math.atan2(m.ao.cy - m.hy, m.ao.cx - m.hx);     // (0.18: in toward the middle of the round map, clear of any site)

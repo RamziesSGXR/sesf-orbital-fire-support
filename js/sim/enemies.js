@@ -529,15 +529,39 @@ function arrangeForm(g) {
     lead.forEach((q, i) => put(q, -((rows - 1) / 2 + 1) * blk - blk * 0.5, (i - (lead.length - 1) / 2) * blk));
   }
 }
-// Squids: a school. The leaders stay in the middle, the rest circle them in two rings (the outer one the other way round).
+// Squids: a school. The leaders stay in the middle; the lights circle them in rings, each ring the other way round from the one
+// inside it. (0.61.1) It is as wide as it is many (a ring holds what fits `gap` metres apart; the rest go in the next ring out), so
+// one blast no longer takes a whole school; it breathes in and out; and it startles: a hit on one of it, or one lost, and it
+// bursts outward, then closes up again.
+export function schoolRings(n, S = C.formations.squids) {
+  const rings = [];
+  for (let k = 0, left = n; left > 0; k++) { const r = S.inner + k * S.ringGap, cap = Math.max(3, Math.floor((TAU * r) / S.gap)), c = Math.min(cap, left); rings.push({ r, n: c }); left -= c; }
+  return rings;
+}
+const startled = (g, t) => ((g.startle ?? -99) > t ? C.formations.squids.startle.speed : 1);
 function arrangeSchool(g, t) {
   const S = C.formations.squids, live = g.members.filter((q) => !q.dead && !q.boss);
   const lead = live.filter((q) => q.kind !== 'L'), rest = live.filter((q) => q.kind === 'L');
-  lead.forEach((q, i) => { const a = (i / Math.max(1, lead.length)) * TAU + t * 0.2; const r = lead.length > 1 ? S.mid : 0; q.ox = Math.cos(a) * r; q.oy = Math.sin(a) * r; });
-  rest.forEach((q, i) => {
-    const outer = i % 2, a = (i / rest.length) * TAU + (outer ? -1 : 1) * t * S.spin, r = outer ? S.outer : S.inner;
-    q.ox = Math.cos(a) * r; q.oy = Math.sin(a) * r;
-  });
+  // startled: one of it hurt this moment, or fewer of it than a moment ago
+  // (not again until it has closed up and swum on a while: under steady fire it scatters, re-forms, scatters)
+  if (t >= (g.startleOk ?? 0)) {
+    let hit = g.schoolN !== undefined && live.length < g.schoolN;
+    if (!hit) for (const q of live) if (t - (q.hurtAt ?? -99) < 0.15) { hit = true; break; }
+    if (hit) { g.startle = t + S.startle.sec; g.startleOk = g.startle + S.startle.rest; }
+  }
+  g.schoolN = live.length;
+  const st = Math.max(0, Math.min(1, ((g.startle ?? -99) - t) / S.startle.sec)), burst = 1 + (S.startle.mul - 1) * Math.sin(Math.min(1, st * 1.6) * Math.PI / 2);
+  const size = burst * (1 + S.breathe * Math.sin((t / S.breatheSec) * TAU + (g.id || 0)));
+  lead.forEach((q, i) => { const a = (i / Math.max(1, lead.length)) * TAU + t * 0.2; const r = lead.length > 1 ? S.mid * (lead.length > 3 ? 1.6 : 1) * burst : 0; q.ox = Math.cos(a) * r; q.oy = Math.sin(a) * r; });
+  let i = 0, k = 0;
+  for (const ring of schoolRings(rest.length, S)) {
+    const dir = k % 2 ? -1 : 1, w = S.spin * (S.inner / ring.r);
+    for (let j = 0; j < ring.n; j++, i++) {
+      const q = rest[i], a = (j / ring.n) * TAU + dir * t * w + k * 0.7, r = ring.r * size;
+      q.ox = Math.cos(a) * r; q.oy = Math.sin(a) * r;
+    }
+    k++;
+  }
 }
 
 // ---------------------------------------------------------------- how each faction fights
@@ -613,13 +637,13 @@ function ringMove(m, g, e, tgt, dt, size, atk, engaged) {
   if (!tgt || e.kind === 'H') {
     if (e.tgt) { e.vx = 0; e.vy = 0; return; }
     if (e.kind === 'H' && engaged && tgt) { moveToward(e, tgt.x, tgt.y, e.speed, dt, size); return; }
-    moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size);
+    moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5 * startled(g, m.t), dt, size);
     return;
   }
   const range = profileOf(m.faction.id, e).range, Rr = range * R.radius, d = Math.hypot(tgt.x - e.x, tgt.y - e.y);
   if (d > R.arm + Rr) {   // still on the way in: move with the school
     if (e.tgt) { e.vx = 0; e.vy = 0; return; }
-    moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size);
+    moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5 * startled(g, m.t), dt, size);
     return;
   }
   if (midOf(e)) {   // (0.54) a leader holds a little way in from the ring, behind its lights
