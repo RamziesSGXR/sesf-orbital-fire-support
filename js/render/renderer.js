@@ -109,15 +109,10 @@ export class Renderer {
     this.fog.width = Math.ceil(W / 4); this.fog.height = Math.ceil(H / 4);
     const c = ov.getContext('2d');
     c.clearRect(0, 0, W, H);
-    // Scanlines
-    c.fillStyle = 'rgba(0,0,0,0.20)';
-    const gap = Math.max(3, Math.round(3 * dpr));
-    for (let y = 0; y < H; y += gap) c.fillRect(0, y, W, Math.max(1, Math.round(dpr)));
-    // Film grain, baked in once (a moving grain was a full-screen blend every frame)
-    if (this.noise) { c.globalAlpha = 0.04; c.fillStyle = c.createPattern(this.noise, 'repeat'); c.fillRect(0, 0, W, H); c.globalAlpha = 1; }
-    // Vignette
-    const g = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.hypot(W, H) * 0.55);
-    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.72)');
+    // (0.59) No scanlines or film grain any more: they cut through the small things on the ground (footprints, sparks, ricochets).
+    // A clean modern feed: only a light darkening toward the corners.
+    const g = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.55, W / 2, H / 2, Math.hypot(W, H) * 0.6);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.3)');
     c.fillStyle = g; c.fillRect(0, 0, W, H);
     // Frame corners
     c.strokeStyle = 'rgba(157,255,184,0.5)'; c.lineWidth = Math.max(1, dpr * 1.5);
@@ -178,7 +173,8 @@ export class Renderer {
       }
       case 'tracer': this._tracer(ev, now, m); break;
       case 'rock_break': if (fx.length < 330) { fx.push({ k: 'smoke', x: ev.x, y: ev.y, r: ev.r * 2.2, t0: now, life: 3, drift: 1 }); fx.push({ k: 'shock', x: ev.x, y: ev.y, r: ev.r * 2.5, t0: now, life: 0.3, a: 0.5 }); } this.shake = Math.min(10, this.shake + 2); break;     // (0.59) a big rock breaks up
-      case 'ricochet': if (fx.length < 340) fx.push({ k: 'ric', x: ev.x, y: ev.y, x2: ev.tx, y2: ev.ty, t0: now, life: 0.22 }); break;     // (0.58)
+      case 'ricochet': if (fx.length < 340) fx.push({ k: 'ric', x: ev.x, y: ev.y, x2: ev.tx, y2: ev.ty, t0: now, life: 0.34 }); break;     // (0.58; 0.59: a little longer)
+      case 'gunhit': if (fx.length < 300) { const P = BURST[ev.fac] || BURST.bots, a = Math.random() * TAU; fx.push({ k: 'burst', x: ev.x, y: ev.y, ux: Math.cos(a), uy: Math.sin(a), c1: P[0], c2: P[1], n: ev.kind === 'H' || ev.boss ? 8 : 5, r: 1.6, t0: now, life: 0.4, seed: Math.random() * 100 }); } break;     // (0.59) a ship gun round into an enemy
       case 'boss_land': this.shake = Math.min(26, this.shake + (ev.kind === 'squids' ? 8 : 18)); break;     // (0.55.1)
       case 'beam': {
         fx.push({ k: 'beam', x: ev.x, y: ev.y, x2: ev.tx, y2: ev.ty, w: ev.w, t0: now, life: 0.45, col: this.enemyColor(m) });
@@ -1114,12 +1110,15 @@ export class Renderer {
     let cut = 0; while (cut < P.length && now - P[cut].t > FP_LIFE) cut++;
     if (cut) P.splice(0, cut);
     if (!P.length) return;
+    // (0.59) prints are a few pixels at least: at the normal zoom a boot print is under a pixel, so they grow as the map zooms out
+    // (far enough out, a line of them reads as a trail)
+    const Z = Math.max(1, px(4.5) / 0.6);
     const KINDS = ['boot', 'bugs', 'bots', 'squids', 'claw', 'tread', 'pad', 'drag', 'bigfoot'], NK = KINDS.length;
     const col = ['40,34,26', '58,52,30', '30,30,34', '48,34,58', '52,44,26', '26,26,28', '44,30,56', '70,40,60', '24,24,26'], paths = [], used = [];
     for (let i = 0; i < 4 * NK; i++) { paths.push(new Path2D()); used.push(false); }
     for (const f of P) {
       if (!onScr(f.x, f.y, 1)) continue;
-      const band = Math.min(3, Math.floor(((now - f.t) / FP_LIFE) * 4)), ki = KINDS.indexOf(f.k), pa = paths[band * NK + ki], s = f.s;
+      const band = Math.min(3, Math.floor(((now - f.t) / FP_LIFE) * 4)), ki = KINDS.indexOf(f.k), pa = paths[band * NK + ki], s = f.s * Z;
       if (ki < 0) continue;
       used[band * NK + ki] = true;
       if (ki >= 4) {
@@ -1127,18 +1126,18 @@ export class Renderer {
         if (ki === 4) { for (const o of [-0.5, 0, 0.5]) { const x = f.x + (c * 0.5 - sn * o) * s, y = f.y + (sn * 0.5 + c * o) * s; pa.moveTo(x - c * 0.6 * s, y - sn * 0.6 * s); pa.lineTo(x + c * 0.1 * s - sn * 0.12 * s, y + sn * 0.1 * s + c * 0.12 * s); pa.lineTo(x + c * 0.1 * s + sn * 0.12 * s, y + sn * 0.1 * s - c * 0.12 * s); pa.closePath(); } }
         else if (ki === 5) { for (const o of [-1.1, 1.1]) { const x = f.x - sn * o, y = f.y + c * o; for (let j = 0; j < 3; j++) { const xx = x + c * (j - 1) * 0.55, yy = y + sn * (j - 1) * 0.55; pa.rect(xx - 0.22, yy - 0.22, 0.44, 0.44); } } }
         else if (ki === 6) { pa.moveTo(f.x + 0.55 * s, f.y); pa.ellipse(f.x, f.y, 0.55 * s, 0.45 * s, an, 0, TAU); }
-        else if (ki === 7) { pa.moveTo(f.x + c * 1.2, f.y + sn * 1.2); pa.ellipse(f.x, f.y, 1.2, 0.6, an, 0, TAU); }
+        else if (ki === 7) { pa.moveTo(f.x + c * 1.2 * Z, f.y + sn * 1.2 * Z); pa.ellipse(f.x, f.y, 1.2 * Z, 0.6 * Z, an, 0, TAU); }
         else { const r = 0.6 * s; pa.moveTo(f.x + c * r - sn * r * 0.7, f.y + sn * r + c * r * 0.7); pa.lineTo(f.x + c * r + sn * r * 0.7, f.y + sn * r - c * r * 0.7); pa.lineTo(f.x - c * r + sn * r * 0.7, f.y - sn * r - c * r * 0.7); pa.lineTo(f.x - c * r - sn * r * 0.7, f.y - sn * r + c * r * 0.7); pa.closePath(); }
         continue;
       }
       if (ki === 2) { const r = 0.35 * s; pa.rect(f.x - r, f.y - r, r * 2, r * 2); }
       else if (ki === 1) { for (const o of [-0.35, 0, 0.35]) { const x = f.x - f.uy * o * s, y = f.y + f.ux * o * s; pa.moveTo(x + 0.13 * s, y); pa.arc(x, y, 0.13 * s, 0, TAU); } }
       else if (ki === 3) { for (const o of [-0.5, 0, 0.5]) { const x = f.x + (f.ux * 0.35 - f.uy * o * 0.5) * s, y = f.y + (f.uy * 0.35 + f.ux * o * 0.5) * s; pa.moveTo(x + 0.12 * s, y); pa.arc(x, y, 0.12 * s, 0, TAU); } }
-      else { const an = Math.atan2(f.uy, f.ux); pa.moveTo(f.x + Math.cos(an) * 0.38, f.y + Math.sin(an) * 0.38); pa.ellipse(f.x, f.y, 0.38, 0.2, an, 0, TAU); }
+      else { const an = Math.atan2(f.uy, f.ux); pa.moveTo(f.x + Math.cos(an) * 0.38 * Z, f.y + Math.sin(an) * 0.38 * Z); pa.ellipse(f.x, f.y, 0.38 * Z, 0.2 * Z, an, 0, TAU); }
     }
     for (let band = 0; band < 4; band++) for (let ki = 0; ki < NK; ki++) {
       if (!used[band * NK + ki]) continue;
-      ctx.fillStyle = `rgba(${col[ki]},${0.42 * (1 - band / 4)})`; ctx.fill(paths[band * NK + ki]);
+      ctx.fillStyle = `rgba(${col[ki]},${0.7 * (1 - band / 4)})`; ctx.fill(paths[band * NK + ki]);
     }
   }
   _effects(ctx, now, px) {
@@ -1156,9 +1155,9 @@ export class Renderer {
       if (f.k === 'burst') {      // (0.58) droplets and sparks thrown on along the shot, fading
         for (let i = 0; i < f.n; i++) {
           const h1 = Math.sin(f.seed + i * 12.9898) * 43758.5453, rnd = h1 - Math.floor(h1), h2 = Math.sin(f.seed + i * 78.233) * 12543.21, rnd2 = h2 - Math.floor(h2);
-          const ang = Math.atan2(f.uy, f.ux) + (rnd - 0.5) * 2.2, dist = f.r * (0.4 + 1.6 * rnd2) * Math.sqrt(p);
+          const R0 = Math.max(f.r, px(f.n > 6 ? 11 : 7)), ang = Math.atan2(f.uy, f.ux) + (rnd - 0.5) * 2.2, dist = R0 * (0.4 + 1.6 * rnd2) * Math.sqrt(p);     // (0.59: never under a few pixels)
           ctx.fillStyle = i % 3 === 0 ? f.c2 : f.c1; ctx.globalAlpha = (1 - p) * 0.95;
-          ctx.beginPath(); ctx.arc(f.x + Math.cos(ang) * dist, f.y + Math.sin(ang) * dist, Math.max(px(1.3), f.r * 0.14 * (1 - p * 0.5)), 0, TAU); ctx.fill();
+          ctx.beginPath(); ctx.arc(f.x + Math.cos(ang) * dist, f.y + Math.sin(ang) * dist, Math.max(px(1.8), f.r * 0.14 * (1 - p * 0.5)), 0, TAU); ctx.fill();
         }
         ctx.globalAlpha = 1; continue;
       }
@@ -1168,9 +1167,10 @@ export class Renderer {
         continue;
       }
       if (f.k === 'ric') {        // (0.58) a ricochet: a bright streak skipping off, and a spark where it struck
-        const q = Math.min(1, p * 1.6), hx = f.x + (f.x2 - f.x) * q, hy = f.y + (f.y2 - f.y) * q, tx = f.x + (f.x2 - f.x) * Math.max(0, q - 0.35), ty = f.y + (f.y2 - f.y) * Math.max(0, q - 0.35);
-        ctx.strokeStyle = `rgba(255,245,210,${1 - p})`; ctx.lineWidth = px(1.4); ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy); ctx.stroke();
-        if (p < 0.4) { ctx.fillStyle = `rgba(255,255,255,${1 - p / 0.4})`; ctx.beginPath(); ctx.arc(f.x, f.y, Math.max(px(2.2), 0.6), 0, TAU); ctx.fill(); }
+        const L0 = Math.max(1, px(30) / Math.hypot(f.x2 - f.x, f.y2 - f.y)), x2 = f.x + (f.x2 - f.x) * L0, y2 = f.y + (f.y2 - f.y) * L0;     // (0.59: at least 30 pixels long)
+        const q = Math.min(1, p * 1.6), hx = f.x + (x2 - f.x) * q, hy = f.y + (y2 - f.y) * q, tx = f.x + (x2 - f.x) * Math.max(0, q - 0.35), ty = f.y + (y2 - f.y) * Math.max(0, q - 0.35);
+        ctx.strokeStyle = `rgba(255,245,210,${1 - p})`; ctx.lineWidth = px(2); ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy); ctx.stroke();
+        if (p < 0.4) { ctx.fillStyle = `rgba(255,255,255,${1 - p / 0.4})`; ctx.beginPath(); ctx.arc(f.x, f.y, Math.max(px(3.2), 0.6), 0, TAU); ctx.fill(); }
         continue;
       }
       if (this._fx23(ctx, f, p, now, px)) continue;     // (0.23) the stratagems' own explosions

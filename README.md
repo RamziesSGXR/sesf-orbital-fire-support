@@ -25,6 +25,15 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Super heavies that are worth the name; a lighter ship gun; effects you can see (0.59).**
+- **Super heavies only from difficulty level 8.** That applies to every way one turns up: at random, at five threat chevrons, as a citadel's guardian, or in the mothership's first drop. Reinforcement heavies still start at 10.
+- **Much tougher, and all equal.** The Brood Titan, Siege Walker and Warp Colossus each take about 20,000 damage to kill, 3 times what the old full 600-round ship gun could do to one. The Colossus's shield counts toward that. The squid mothership has 80,000 in all, as much as four super heavies.
+- **The ship gun starts light.** It has 200 rounds and light penetration: full damage to light enemies, a third to mediums, about a tenth to heavies. A new armory upgrade, **Penetrator Rounds**, takes it to medium and then heavy penetration. The other gun upgrades are unchanged; each Ammo Bay level still adds 150 rounds.
+- **Ricochets and hits from the ship gun.** Its rounds now glance off armour they can't go through, doing a little durability damage and throwing a bright streak, as rifle rounds already did. Every round that strikes an enemy throws off that faction's burst: bug ichor, bot sparks or squid goo.
+- **Effects sized for the screen.** Hit bursts, ricochet streaks and footprints were sized in metres, so at the normal zoom (especially on phones) they were a pixel or less. They now have a minimum size on screen; far enough out, a line of footprints reads as a trail. Bug scent, squid heat haze and bot smoke are stronger.
+- **No more old-TV filter.** The scanlines and film grain over the map are gone, and the dark edges are much lighter. They were cutting through the small details on the ground.
+- **Phones:** the PLACE bar's text no longer wraps one word a line.
+
 **Enemies look like themselves again; the bots' flags (0.58.2).**
 - **No more blobs.** Since 0.56 every ordinary enemy was drawn as a plain dot at the normal zoom. A speed-up meant only for when you're zoomed far out was kicking in all the time. Enemies have their full bodies again. The dots now only appear when a few hundred enemies are on screen at once.
 - **Bot banners and flags only where the bots are.** They no longer stand at random across the map. Each base flies a pair of banners at the side facing your landing zone, with more flags around it. The cannon or dome they guard and their side structures get a few too.

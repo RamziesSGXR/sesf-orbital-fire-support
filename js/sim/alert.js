@@ -16,7 +16,7 @@
 import { CONFIG as C } from '../config.js';
 import { t as tr } from '../i18n.js';
 import { callReinforcements } from './reinforce.js';
-import { spawnBoss } from './boss.js';
+import { spawnBoss, heavyLevelOk } from './boss.js';
 
 const A = () => C.alert;
 
@@ -82,7 +82,7 @@ export function updateAlert(m, dt) {
     }
   } else al.dropAt = Infinity;
   // the super heavy
-  if (s >= K.boss && !al.bossTried && !m.boss && m.hdAlive.length) {
+  if (s >= K.boss && !al.bossTried && !m.boss && m.hdAlive.length && heavyLevelOk(m)) {
     al.bossTried = true;
     if (m.rrng.next() < K.bossChance) spawnBoss(m);
   }

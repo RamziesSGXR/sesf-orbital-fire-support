@@ -147,7 +147,20 @@ export function damageArea(m, x, y, rad, dmg, mult, by = 'player', friendly = tr
   m.eGrid.near(x, y, body ? rad + C.gun.bodyMax : rad, (e, d2) => {
     if (body && d2 > rad * rad && (e.kind === 'L' || d2 > (rad + (e.r || 0) * C.gun.body) ** 2)) return;
     alertGroup(m, e.g);
-    hurtEnemy(m, e, dmg, by, fx, fy, cs, false, e.boss && mult.boss !== undefined ? mult.boss : mult[e.kind]);   // (a few blasts set their own share for a super heavy)
+    const k0 = e.boss && mult.boss !== undefined ? mult.boss : mult[e.kind];
+    if (body) {
+      // (0.59) a Ship Gun round into armour heavier than it goes through may glance off, as a rifle round does (C.ric): a little
+      // durability damage and a streak skipping away. Every round that strikes throws off the enemy's own kind of burst.
+      const R = C.ric, k = Math.max(R.minPen, k0 ?? 1), ch = k >= 1 ? R.base : Math.min(R.max, R.base + (1 - k) * R.perGap), vr = m.vrng || m.rng;
+      if (vr.next() < ch) {
+        m.stats.ricochets = (m.stats.ricochets || 0) + 1;
+        hurtEnemy(m, e, dmg * Math.max(R.minPen, k * R.chip), by, fx, fy, '', false, 1);
+        if (m.t - (m._gunRicT || -9) > 0.05) { m._gunRicT = m.t; const a = vr.angle(); m.emit('ricochet', { x: e.x, y: e.y, tx: e.x + Math.cos(a) * 9, ty: e.y + Math.sin(a) * 9, fac: m.faction.id, kind: e.kind }); }
+        return;
+      }
+      if (m.t - (m._gunHitT || -9) > 0.03) { m._gunHitT = m.t; m.emit('gunhit', { x: e.x, y: e.y, fac: m.faction.id, kind: e.kind, boss: !!e.boss }); }
+    }
+    hurtEnemy(m, e, dmg, by, fx, fy, cs, false, k0);   // (a few blasts set their own share for a super heavy)
   });
   const above = ABOVE; ABOVE = false;
   if (rad >= 2.5) damageRock(m, x, y, rad, dmg * Math.max(mult.B ?? 0.3, 0.3));     // (0.59) a big rock in it takes the hit, and may break up

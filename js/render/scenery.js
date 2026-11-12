@@ -312,7 +312,7 @@ export function drawPresence(ctx, st, m, now, px, vb, low) {
       for (let i = 0; i < 3; i++) {
         const ox = (((h * (i + 1) * 7.3) % 1) - 0.5) * PCELL, oy = (((h * (i + 2) * 3.7) % 1) - 0.5) * PCELL, r = PCELL * (0.25 + 0.2 * ((h * (i + 5)) % 1));
         const g = ctx.createRadialGradient(cx + ox, cy + oy, 0, cx + ox, cy + oy, r);
-        g.addColorStop(0, `rgba(255,140,30,${0.16 * a})`); g.addColorStop(1, 'rgba(255,120,20,0)');
+        g.addColorStop(0, `rgba(255,140,30,${0.24 * a})`); g.addColorStop(1, 'rgba(255,120,20,0)');
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx + ox, cy + oy, r, 0, TAU); ctx.fill();
       }
       ctx.fillStyle = `rgba(255,170,70,${0.5 * a})`;
@@ -320,7 +320,7 @@ export function drawPresence(ctx, st, m, now, px, vb, low) {
       ctx.globalAlpha = 1;
     } else if (fac === 'squids') {
       // a heat haze: thin bright ripples rising and wavering over the ground
-      ctx.strokeStyle = `rgba(230,210,255,${0.12 * a})`; ctx.lineWidth = Math.max(px(1), 0.25);
+      ctx.strokeStyle = `rgba(230,210,255,${0.24 * a})`; ctx.lineWidth = Math.max(px(1.2), 0.25);
       ctx.beginPath();
       for (let i = 0; i < 4; i++) {
         const ph = (now * 0.35 + h * 5 + i * 0.25) % 1, y = cy + PCELL * 0.4 - ph * PCELL * 0.9, x0 = cx - PCELL * 0.4, w = PCELL * 0.8;
@@ -328,13 +328,13 @@ export function drawPresence(ctx, st, m, now, px, vb, low) {
         for (let s = 1; s <= 8; s++) ctx.lineTo(x0 + (w * s) / 8, y + Math.sin(now * 4 + s * 1.3 + i + h * 9) * 0.6);
       }
       ctx.stroke();
-      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, PCELL * 0.7); g.addColorStop(0, `rgba(190,140,255,${0.06 * a})`); g.addColorStop(1, 'rgba(190,140,255,0)');
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, PCELL * 0.7); g.addColorStop(0, `rgba(190,140,255,${0.12 * a})`); g.addColorStop(1, 'rgba(190,140,255,0)');
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, PCELL * 0.7, 0, TAU); ctx.fill();
     } else {
       // black smoke: dark puffs drifting up and away
       for (let i = 0; i < 3; i++) {
         const ph = (now * 0.08 + h * 3 + i / 3) % 1, x = cx + (((h * (i + 1) * 11.7) % 1) - 0.5) * PCELL * 0.8 + ph * 6, y = cy + (((h * (i + 4) * 6.1) % 1) - 0.5) * PCELL * 0.8 - ph * 10, r = 3 + ph * 7;
-        ctx.fillStyle = `rgba(18,18,20,${0.22 * a * Math.sin(ph * Math.PI)})`; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+        ctx.fillStyle = `rgba(18,18,20,${0.32 * a * Math.sin(ph * Math.PI)})`; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
       }
     }
   }

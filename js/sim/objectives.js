@@ -14,7 +14,7 @@ import { updateEvac } from './civilians.js';
 import { lsStatus } from './laststand.js';
 import { openExtract } from './extract.js';
 import { aoX, aoY, aoScale } from './ao.js';
-import { spawnBoss } from './boss.js';
+import { spawnBoss, heavyLevelOk } from './boss.js';
 
 const O = C.objective;
 const TYPES = ['nuke', 'vip', 'fortress', 'evac'];
@@ -360,7 +360,7 @@ export function updateObjectives(m, dt) {
       if ((o.parts || [o.base]).every((b) => b.destroyed)) completeObjective(m, o);
       else if ((o.parts || [o.base]).some((b) => b.alert) && squadAt(m, o.base.x, o.base.y, C.siege.fortressR + C.fortress.partR + C.fortress.detectR)) {
         // once the citadel is awake: its guardian, a super heavy, turns out (unless one is already out)
-        if (!o.guarded) { o.guarded = true; if (!(m.boss && !m.boss.dead)) { m.bossPlan = null; spawnBoss(m, { at: o.base, guard: true }); } }
+        if (!o.guarded) { o.guarded = true; if (!(m.boss && !m.boss.dead) && heavyLevelOk(m)) { m.bossPlan = null; spawnBoss(m, { at: o.base, guard: true }); } }
         if (!o.outerDown) siege(m, o, o.base.x, o.base.y, dt);   // the citadel calls for help while it is attacked (not once only the keep is left)
       }
     }

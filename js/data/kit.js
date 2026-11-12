@@ -30,7 +30,7 @@ export function newKit() {
   for (const id of C.kit.startLoadout) owned[id] = 1;
   const loadout = Array(C.kit.slotsMax).fill('');
   C.kit.startLoadout.forEach((id, i) => { loadout[i] = id; });
-  return { slots: C.kit.slotsStart, loadout, owned, hangar: 1, pel: 1, uav: 1, uavb: { speed: 0, dodge: 0 }, seaf: { cap: 0, drop: 0, hp: 0, gren: 0, rocket: 0, medic: 0, spot: 0, build: 0 }, sup: { lives: 0, zone: 0 }, gun: { dmg: 0, ammo: 0, regen: 0, spread: 0 },
+  return { slots: C.kit.slotsStart, loadout, owned, hangar: 1, pel: 1, uav: 1, uavb: { speed: 0, dodge: 0 }, seaf: { cap: 0, drop: 0, hp: 0, gren: 0, rocket: 0, medic: 0, spot: 0, build: 0 }, sup: { lives: 0, zone: 0 }, gun: { dmg: 0, ammo: 0, regen: 0, spread: 0, pen: 0 },
     build: { bastion: 1, mg: 1, lookout: 1, bridge: 1, tower: 1, sam: 0, arty: 0 },
     paid: {}, mix: 'standard', slotRef: 1, perks: {} };     // (0.51) perks: the operation's commendations (data/perks.js)     // (0.50) credits paid toward items, by armory id; the SEAF troop mix
 }
@@ -157,6 +157,7 @@ export function gunStats(kit) {
   return {
     ammo: G.ammo + G.upAmmo * (g.ammo || 0), dmg: G.dmg * (1 + G.upDmg * (g.dmg || 0)) * gunMul(kit), regen: G.regen * (1 + G.upRegen * (g.regen || 0)) * gunMul(kit),     // (0.51: Gun Overcharge)
     spread: G.spread * (1 - G.upSpread * (g.spread || 0)), bloom: G.bloom * (1 - G.upSpread * (g.spread || 0)),
+    pen: GUN_PEN(kit),     // (0.59)
   };
 }
 // Helldiver lives are the same every mission and reset at each drop. The Helldivers themselves are not upgraded in the armory.
@@ -188,7 +189,7 @@ export const zoneExtra = (kit) => C.kit.zonePer * kit.sup.zone;
 // Names and blurbs come from the language tables (kit.<group>.<key> and kit.<group>.<key>.b).
 const SEAF_UP = { cap: { max: Infinity, price: 300, endless: true }, drop: { max: 3, price: 400 }, hp: { max: 4, price: 350 }, build: { max: 4, price: 300 }, gren: { max: 4, price: 300 },
   rocket: { max: 4, price: 350 }, medic: { max: 4, price: 300 }, spot: { max: 4, price: 400 } };
-const GUN_UP = { dmg: { max: 5, price: 300 }, ammo: { max: 5, price: 250 }, regen: { max: 5, price: 250 }, spread: { max: 5, price: 300 } };
+const GUN_UP = { dmg: { max: 5, price: 300 }, ammo: { max: 5, price: 250 }, pen: { max: 2, price: 650 }, regen: { max: 5, price: 250 }, spread: { max: 5, price: 300 } };     // (0.59: pen)
 const SUP_UP = { zone: { max: 4, price: 450 } };
 const LIVES_PRICE = 300;      // the old Reinforcement Budget (extra Helldiver lives), kept only to refund old saves
 // the number a blurb quotes, if it has one
@@ -206,7 +207,7 @@ export const slotCost = (n) => price(n === 4 ? 700 : 1500);
 // The classified stratagems carry their rank in STRATS (secret).
 const ITEM_TIER = {
   'slot:4': 0, util_smoke: 0, orb_ems: 0, 'gun.dmg': 0, 'gun.ammo': 0, uav: 0, 'seaf.cap': 0, 'seaf.drop': 0, 'seaf.hp': 0, 'bld:bastion': 0, 'bld:mg': 0,
-  util_med: 1, orb_gas: 1, orb_walk: 1, 'gun.regen': 1, 'uavb.speed': 1, 'seaf.build': 1, 'seaf.gren': 1, 'bld:lookout': 1, 'bld:bridge': 1, 'sup.zone': 1,
+  util_med: 1, orb_gas: 1, orb_walk: 1, 'gun.regen': 1, 'gun.pen': 1, 'uavb.speed': 1, 'seaf.build': 1, 'seaf.gren': 1, 'bld:lookout': 1, 'bld:bridge': 1, 'sup.zone': 1,
   pel: 2, eagle_smoke: 2, eagle_strafe: 2, eagle_air: 2, mine_ap: 2, orb_napalm: 2, util_shield: 2, 'gun.spread': 2, 'uavb.dodge': 2, 'seaf.rocket': 2, 'seaf.medic': 2, 'bld:tower': 2,
   'slot:5': 3, eagle_cluster: 3, eagle_napalm: 3, mine_inc: 3, orb_380: 3, util_sentry: 3, 'seaf.spot': 3, 'bld:sam': 3,
   eagle_rockets: 4, mine_at: 4, orb_rail: 4,
@@ -235,11 +236,12 @@ export function penLine(mult) {
   const pc = (v) => `${Math.round(v * 100)}%`;
   return t('pen.line', { lvl: t('pen.' + p.lvl), l: pc(p.l), m: pc(p.m), h: pc(p.h) });
 }
-export const GUN_PEN = () => ({ L: 1, M: 1, H: 0.7, B: C.gun.struct });     // (the ship gun's: sim/player.js GUN_MULT)
+// (0.59) the ship gun's damage table at its Penetrator Rounds level: light, then medium, then heavy (sim/player.js)
+export const GUN_PEN = (kit) => ({ ...C.gun.pen[Math.max(0, Math.min(C.gun.pen.length - 1, (kit && kit.gun && kit.gun.pen) || 0))], B: C.gun.struct });
 // The damage table behind an armory item, if it has one.
-function itemMult(id) {
+function itemMult(id, kit) {
   if (id.startsWith('own:') || id.startsWith('up:')) { const o = orbStats(id.split(':')[1], 1); return o.mult || null; }
-  if (id.startsWith('gun.')) return GUN_PEN();
+  if (id.startsWith('gun.')) return id === 'gun.pen' && kit ? GUN_PEN({ gun: { pen: Math.min(C.gun.pen.length - 1, (kit.gun.pen || 0) + (kit.gun.pen < C.gun.pen.length - 1 ? 1 : 0)) } }) : GUN_PEN(kit);     // (Penetrator Rounds: what the next level gives)
   if (id === 'seaf.gren') return C.combat.grenadier.mult;
   if (id === 'seaf.rocket') return C.combat.rocketeer.mult;
   return null;
@@ -247,7 +249,7 @@ function itemMult(id) {
 export function shopItems(kit) {
   const out = shopItems0(kit);
   for (const it of out) {
-    const mt = itemMult(it.id);
+    const mt = itemMult(it.id, kit);
     if (!mt) continue;
     const b = Object.getOwnPropertyDescriptor(it, 'blurb');
     const base = b && b.get ? b.get.bind(it) : () => b && b.value;

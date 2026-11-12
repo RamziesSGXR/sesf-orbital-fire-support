@@ -99,11 +99,12 @@ const quiet = (faction = 'bots', seed = 61) => { const m = new Mission({ seed, f
   m.uavs.push({ x: X, y: Y, r: 60, born: m.t, until: m.t + 999 });
   const hp0 = h.hp, sh0 = h.shield || 0;
   const p = m.player, gi = p.slots.findIndex((s) => s.type === 'gun');
+  m.kit.gun.pen = 2; m.kit.gun.ammo = 2; p.gun.ammo = p.gun.max = 500;     // (0.59) heavy Penetrator Rounds and a bigger magazine bought
   m.selectWeapon(gi); run(m, 0.6);
   let t0 = m.t;
   const r0 = m.stats.gunRounds || 0;
   run(m, 30, () => { if (!h.dead) { h.x = X; h.y = Y; h.vx = h.vy = 0; g.state = 'patrol'; m.setAim(h.x, h.y); m.setFiring(true); } else m.setFiring(false); });
-  check('the ship gun is heavy-penetrating: it brings a Harvester down, shield and all, inside one magazine', h.dead && (m.stats.gunRounds || 0) - r0 <= C.gun.ammo, `${Math.round(hp0)} hp + ${Math.round(sh0)} shield; ${h.dead ? 'down' : Math.round(h.hp) + ' hp left'} after ${Math.round(m.t - t0)} s, ${(m.stats.gunRounds || 0) - r0} rounds`);
+  check('with heavy Penetrator Rounds the ship gun brings a Harvester down, shield and all, inside one magazine', h.dead && (m.stats.gunRounds || 0) - r0 <= 500, `${Math.round(hp0)} hp + ${Math.round(sh0)} shield; ${h.dead ? 'down' : Math.round(h.hp) + ' hp left'} after ${Math.round(m.t - t0)} s, ${(m.stats.gunRounds || 0) - r0} rounds`);
 }
 
 // ---------------------------------------------------------------- dead Helldivers come back together

@@ -1625,6 +1625,7 @@ function statLine(it, kit) {
     if (id === 'gun.ammo') return t('st.gunAmmo', { n: Math.round(g.ammo) });
     if (id === 'gun.regen') return t('st.gunRegen', { n: f1(g.regen) });
     if (id === 'gun.spread') return t('st.gunSpread', { a: f1(g.spread), b: f1(g.spread + g.bloom) });
+    if (id === 'gun.pen') return t('st.gunPen', { lvl: t('pen.' + penOf(g.pen).lvl) });
   }
   if (id === 'sup.zone') return t('st.zoneR', { n: C.sight.strikeBonus + zoneExtra(kit) });
   if (id.startsWith('uavb.')) { const b = uavBuff(kit); return t(id === 'uavb.speed' ? 'st.uavSpeed' : 'st.uavDodge', { p: Math.round((id === 'uavb.speed' ? b.speed : b.dodge) * 100) }); }
@@ -1681,6 +1682,7 @@ function keyAt(it, kit, L) {
   if (id === 'gun.ammo') return String(Math.round(g.ammo));
   if (id === 'gun.regen') return t('st.k.ps', { n: g.regen.toFixed(1) });
   if (id === 'gun.spread') return t('st.k.m', { n: g.spread.toFixed(1) });
+  if (id === 'gun.pen') return t('pen.' + penOf(g.pen).lvl);
   if (id === 'sup.zone') return t('st.k.m', { n: C.sight.strikeBonus + zoneExtra(k) });
   if (it.build) {
     const B = buildStats(it.build, Math.max(1, L));
@@ -2317,7 +2319,7 @@ export function weaponInfo(m, i) {
     return `<div class="ic-h">${t('hud.w.gun')} <i>${t('card.gun.h', { a: lv.dmg, b: lv.ammo, c: lv.regen, d: lv.spread })}</i></div>`
       + row(t('card.dmg'), t('card.gun.dmgV', { d: g.dmg.toFixed(1), r: C.gun.rps })) + row(t('card.gun.mag'), t('card.gun.magV', { n: Math.round(g.ammo), r: g.regen.toFixed(1) }))
       + row(t('card.gun.spread'), t('card.gun.spreadV', { a: g.spread.toFixed(1), b: (g.spread + g.bloom).toFixed(1) })) + row(t('card.crit'), t('card.critV', { p: pctS(K.gun), m: K.mul }))
-      + row(t('card.pen'), esc(penShort(GUN_PEN())))
+      + row(t('card.pen'), esc(penShort(GUN_PEN(m.kit))))
       + `<div class="ic-b">${esc(t('card.gun.b'))}</div>`;
   }
   if (s.type === 'arty') {
@@ -2467,11 +2469,11 @@ export function fillMissionInfo(m, info) {
   parts.push(`<h3>${t('info.radar')}</h3><p>${esc(t('info.radarV', { n: C.reveal.lockSec }))}</p>`);
   const CR = C.combat.crit, BD = C.combat.bands;
   parts.push(`<h3>${t('info.hits')}</h3><p>${esc(t('info.hitsV', { a: C.combat.back.mul, b: C.combat.back.heavy, m: CR.mul, p: pctS(CR.player), g: pctS(CR.gun), s: pctS(CR.ally), e: pctS(CR.enemy) }))}</p>`);
-  parts.push(`<h3>${t('info.ff')}</h3><p>${esc(t('info.ffV', { own: pctS(C.ff.own), react: C.ff.react, fuse: C.combat.grenadier.fuse }))}</p><p>${esc(t('info.penV', { g: penShort(C.combat.grenadier.mult), r: penShort(C.combat.rocketeer.mult), s: penShort(GUN_PEN()) }))}</p><p>${esc(t('info.rocksV', { p: pctS(1 - C.scenery.coverMul) }))}</p>`);     // (0.58, 0.59)
+  parts.push(`<h3>${t('info.ff')}</h3><p>${esc(t('info.ffV', { own: pctS(C.ff.own), react: C.ff.react, fuse: C.combat.grenadier.fuse }))}</p><p>${esc(t('info.penV', { g: penShort(C.combat.grenadier.mult), r: penShort(C.combat.rocketeer.mult), s: penShort(GUN_PEN(m && m.kit)) }))}</p><p>${esc(t('info.rocksV', { p: pctS(1 - C.scenery.coverMul) }))}</p>`);     // (0.58, 0.59)
   parts.push(`<h3>${t('info.range')}</h3><p>${esc(t('info.rangeV', { a: pctS(BD.short), b: pctS(BD.dmg[0]), c: pctS(BD.acc[1]), d: pctS(BD.dmg[1]), e: pctS(BD.acc[2]), f: pctS(BD.dmg[2]) }))}</p>`);
   parts.push(`<h3>${t('info.variants')}</h3><p>${esc(t('info.variantsV'))}</p>`);     // (0.54)
   const Bm = m.boss;
-  parts.push(`<h3>${t('info.boss')}</h3><p>${Bm && !Bm.dead ? t('info.bossOn', { name: esc(Bm.name) }) : Bm ? esc(t('info.bossDead', { name: Bm.name })) : ''}${esc(t('info.bossV', { fac: f.name.toLowerCase(), name: t('boss.' + m.faction.id), cr: fmtNum(C.boss.reward), how: t('info.boss.' + m.faction.id) }))}</p>`);
+  parts.push(`<h3>${t('info.boss')}</h3><p>${Bm && !Bm.dead ? t('info.bossOn', { name: esc(Bm.name) }) : Bm ? esc(t('info.bossDead', { name: Bm.name })) : ''}${esc(t('info.bossV', { lvl: C.boss.minLevel, fac: f.name.toLowerCase(), name: t('boss.' + m.faction.id), cr: fmtNum(C.boss.reward), how: t('info.boss.' + m.faction.id) }))}</p>`);
   parts.push(`<h3>${t('info.supply')}</h3><p>${esc(t('info.supplyV', { f: C.supply.fastSec, b: C.supply.boostSec }))}</p>`);
   parts.push(`<h3>${t('info.fail')}</h3><p>${esc(t('info.failV', { n: Math.round(m.limitSec / 60) }))}</p>`);
   $('info-body').innerHTML = parts.map((x) => `<section class="ib-sec">${x}</section>`).join('');      // (0.27.1: a section each, for the desktop grid)
