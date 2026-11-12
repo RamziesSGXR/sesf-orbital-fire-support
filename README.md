@@ -25,6 +25,12 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**The sci-fi interface is the game's look (0.60).**
+- The new interface is now the default everywhere, on desktop and phones: menus, armory, briefing, the mission screen and the tactical panels. Amber is what you spend or call, cyan is information and troops, red is the enemy.
+- The last green pieces follow it too: the frame corners round the map, the minimap's rim and the big map's grid.
+- `?ui=classic` on the address brings the old green look back (remembered in that browser); `?ui=scifi` returns.
+- How to rebuild this style in another project: `docs/scifi-ui-style.md`.
+
 **Sci-fi interface, beta (0.59.1).** An opt-in new look for the whole interface, on desktop and phones: amber and cyan on dark plates, thin lines, cut corners. Open the game with `?ui=scifi` on the address to turn it on (it stays on in that browser); `?ui=classic` turns it off. The default look is unchanged.
 
 **Super heavies that are worth the name; a lighter ship gun; effects you can see (0.59).**
