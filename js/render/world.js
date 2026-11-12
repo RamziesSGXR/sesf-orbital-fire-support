@@ -228,7 +228,9 @@ export function drawMarkers(ctx, m, now, px, labels, scale, outlines = true) {
       const col = left > 0 ? (tc ? hexRgb(tc) : '255,230,0') : '255,170,40';
       if (tc && left > 0) beacon(ctx, mx, my, now, px, col);
       const corridor = (mk.pat === 'line' || mk.pat === 'walk') && mk.ux !== undefined;
-      if (!outlines) { /* (0.58) where it will land is not drawn: the blast is what shows */ }
+      // (0.61.4) the player's own strikes (the ship's and the Eagles') always show where they will land; only these reach here
+      const own = outlines || mk.by === 'player' || mk.by === undefined;
+      if (!own) { /* (0.58) where it will land is not drawn: the blast is what shows */ }
       else if (corridor) drawCorridor(ctx, mk, mx, my, now, px, col, pulse);
       else {
         ctx.strokeStyle = `rgba(${col},${0.5 + pulse * 0.4})`; ctx.lineWidth = px(1.8);
@@ -236,7 +238,7 @@ export function drawMarkers(ctx, m, now, px, labels, scale, outlines = true) {
         ring(ctx, mx, my, Math.max(mk.r, px(8))); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
         ctx.fillStyle = `rgba(${col},0.05)`; ring(ctx, mx, my, Math.max(mk.r, px(8))); ctx.fill();
       }
-      if (outlines && mk.fly && mk.ux !== undefined) drawApproach(ctx, mk, mx, my, now, px, col, corridor ? mk.len / 2 + mk.rad : Math.max(mk.r, px(8)), left > 0);
+      if (own && mk.fly && mk.ux !== undefined) drawApproach(ctx, mk, mx, my, now, px, col, corridor ? mk.len / 2 + mk.rad : Math.max(mk.r, px(8)), left > 0);
       ctx.fillStyle = `rgba(${col},0.95)`; ctx.beginPath(); ctx.moveTo(mx, my - px(5)); ctx.lineTo(mx + px(4), my + px(3)); ctx.lineTo(mx - px(4), my + px(3)); ctx.closePath(); ctx.fill();
       labels.push({ x: mx, y: my, dy: -Math.max(mk.r * scale, 8) - 6, text: left > 0 ? `${mk.id.toUpperCase()} ${left.toFixed(0)}S` : mk.id.toUpperCase(), col: '#ffe600' , pri: 2 });
     } else if (mk.type === 'pod') {
@@ -244,7 +246,7 @@ export function drawMarkers(ctx, m, now, px, labels, scale, outlines = true) {
       if (mk.team >= 0) beacon(ctx, mx, my, now, px, hexRgb(TEAM_COLOR[mk.team]));
       if (mk.util) {      // a ship utility on its way down: a blue ring the size of what it will cover
         ctx.strokeStyle = 'rgba(127,216,255,0.9)'; ctx.fillStyle = 'rgba(127,216,255,0.08)'; ctx.lineWidth = px(2); ctx.setLineDash([px(6), px(5)]); ctx.lineDashOffset = -now * px(10);
-        if (outlines) { ring(ctx, mx, my, mk.r); ctx.fill(); ctx.stroke(); } ctx.setLineDash([]); ctx.lineDashOffset = 0;
+        ring(ctx, mx, my, mk.r); ctx.fill(); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;     // (0.61.4: the player's own, always shown)
         ctx.lineWidth = px(2.5); ctx.beginPath(); ctx.moveTo(mx, my - 120 * f); ctx.lineTo(mx, my - 4); ctx.stroke();
         ctx.fillStyle = '#7fd8ff'; ctx.fillRect(mx - px(3), my - 120 * f - px(3), px(6), px(6));
         labels.push({ x: mx, y: my, dy: mk.r * scale + 14, text: `${(STRATS[mk.id]?.name || tr('lab.utility')).toUpperCase()} ${Math.max(0, mk.end - t).toFixed(1)}S`, col: '#7fd8ff', pri: 2 });

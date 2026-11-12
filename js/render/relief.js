@@ -53,7 +53,7 @@ export function dark(ctx, col) {
 }
 // draw(c) paints the body at its place; it is painted dark at the ground and up, then as itself h metres up
 export function raiseUnit(ctx, h, wall, draw) {
-  const k = ctx.getTransform().a || 1, lift = h * LIGHT.up, n = Math.max(1, Math.min(4, Math.round((lift * k) / 2.2)));
+  const k = ctx.getTransform().a || 1, lift = h * LIGHT.up, n = Math.max(1, Math.min(2, Math.round((lift * k) / 3)));     // (0.61.4: two dark layers at most; four cost too much with many on screen)
   const d = dark(ctx, wall);
   darks.get(ctx).fat = (lift / n) * 1.1;
   for (let i = 0; i < n; i++) { ctx.save(); ctx.translate(0, -(lift * i) / n); draw(d); ctx.restore(); }

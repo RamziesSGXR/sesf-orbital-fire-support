@@ -581,7 +581,7 @@ export default {
   'set.cards': 'Info tips', 'set.cardsHint': 'A short tip over anything you pick on a bar. Tap ⓘ for the rest',
   'set.touch': 'Touch drag speed',
   'set.gfx': 'Graphics', 'set.gfxHint': 'Auto lowers detail if the game stutters', 'set.auto': 'Auto', 'set.high': 'High', 'set.low': 'Low',
-  'set.fps': 'Frame rate', 'set.fpsHint': 'Frames a second at most. Auto is 30 on a phone (cooler, and the battery lasts) and 60 elsewhere', 'set.fpsAuto': 'Auto', 'set.fpsMax': 'No limit',
+  'set.fps': 'Frame rate', 'set.fpsHint': 'Frames a second at most. Auto is 30 on a phone (cooler, and the battery lasts) and as fast as your screen elsewhere, up to 144', 'set.fpsAuto': 'Auto', 'set.fpsMax': 'No limit',
   'set.reliefOn': 'RELIEF MAP: BLUE WATER, HATCHED SLOW GROUND, ORANGE HIGH GROUND',
   'set.reliefOff': 'RELIEF MAP OFF',
   'info.close': 'Close mission info',
@@ -1063,7 +1063,7 @@ export default {
   'n.seafDown': 'SEAF PELICAN DOWN  {n} TROOPERS{extra}  SQUAD {sq}',
   'info.rocksV': 'The ground has its own cover: a trooper beside a big rock takes {p} less from enemy fire, and riflemen in a fight with no walls near get behind one, away from the enemy. A big blast breaks a rock up into rubble, and it is cover no more. Trees and tall grass hide nothing, but you can watch the grass part where something walks, and the enemy leaves its mark where it gathers: the bugs an orange scent, the squids a heat haze, the bots black smoke.',
   'set.blasts': 'Show blast areas',
-  'set.blastsHint': 'Draw a ring where each strike, grenade, rocket and shell will land. Off: you see only the blast itself (your troops still know where it will hit).',
+  'set.blastsHint': "Your own strikes always show where they will land. This also draws a ring where each enemy rocket, mortar shell and grenade will land. The Helldivers' own strikes show their beacon only.",
   'set.relief3d': "3D look",     // (0.61.2)
   'set.relief3dHint': "Units and buildings get sides and longer shadows, in the same light as the land and the trees. AUTO: on, except on phones and LOW graphics (it is extra drawing).",
   'pen.line': 'Penetration: {lvl} (light {l}, medium {m}, heavy {h}).',
