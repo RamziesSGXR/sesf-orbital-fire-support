@@ -299,11 +299,16 @@ export const CONFIG = {
   //   bots   LINE (one long rank abreast of the way they face) or SQUARE (a block, ranks one behind the other); the mediums (the
   //          leaders) are always at the back.
   //   bugs   TRAIL (ants: each follows the one ahead, `gap` metres behind it, the leaders in front) or SWARM (loose, as before).
-  //   squids SCHOOL: the lights circle (`spin` rad/s) the leaders, who keep to the middle; two rings, radius inner..outer metres.
+  //   squids SCHOOL: the lights circle the leaders, who keep to the middle. (0.61.1) The school is as wide as it is many: rings
+  //          `ringGap` metres apart, the first `inner` metres out, each holding as many as fit `gap` metres apart, turning opposite
+  //          ways (the first at `spin` rad/s, the wider ones slower, so all swim at the same pace). It breathes: in and out by
+  //          `breathe` of its size every `breatheSec`. Like fish it startles: when one of it is hit or lost it bursts outward to
+  //          `startle.mul` times its size at `startle.speed` times its pace, and closes up again over `startle.sec` seconds; it
+  //          cannot be startled again for `startle.rest` seconds after that.
   formations: {
     bots:   { square: 0.45, line: { spacing: 6.5 }, block: { spacing: 5.2 }, rank: 7 },
     bugs:   { trail: 0.5, gap: 3.2 },
-    squids: { inner: 5, outer: 10, spin: 0.5, mid: 2.2, hold: 1.0 },
+    squids: { inner: 7, ringGap: 6.5, gap: 6.5, spin: 0.38, mid: 3, hold: 1.0, breathe: 0.12, breatheSec: 5, startle: { mul: 1.75, sec: 4, speed: 1.6, rest: 5 } },
   },
   // Patrols: every base keeps perBase (more later in the session and the mission, up to maxPerBase) out on a route of its own, radius
   // metres out, replacing a lost one every `every` seconds while it stands; atStart are out at the drop. An intercept is a patrol
@@ -674,6 +679,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.61.0',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.61.1',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

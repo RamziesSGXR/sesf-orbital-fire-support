@@ -169,10 +169,35 @@ const still = (g) => { g.hx = 1; g.hy = 0; g.pt = { x: g.cx, y: g.cy }; g.patrol
     run(m, 1);
     const lights = g.members.filter((e) => e.kind === 'L'), lead = g.members.filter((e) => e.kind === 'M');
     const rl = lights.map((e) => Math.hypot(e.ox, e.oy)), rm = lead.map((e) => Math.hypot(e.ox, e.oy));
-    check('a school: the leaders stay in the middle, the lights round them', Math.max(...rm) <= S.mid + 0.01 && Math.min(...rl) >= S.inner - 0.01 && Math.max(...rl) <= S.outer + 0.01, `lights ${Math.min(...rl).toFixed(1)}-${Math.max(...rl).toFixed(1)} m, leaders ${Math.max(...rm).toFixed(1)} m`);
+    check('a school: the leaders stay in the middle, the lights round them', Math.max(...rm) <= S.mid + 0.01 && Math.min(...rl) >= S.inner * (1 - S.breathe) - 0.01 && Math.max(...rl) <= S.inner * (1 + S.breathe) + 0.01, `lights ${Math.min(...rl).toFixed(1)}-${Math.max(...rl).toFixed(1)} m, leaders ${Math.max(...rm).toFixed(1)} m`);
     const a0 = Math.atan2(lights[0].oy, lights[0].ox); run(m, 1);
     const a1 = Math.atan2(lights[0].oy, lights[0].ox), d = Math.atan2(Math.sin(a1 - a0), Math.cos(a1 - a0));
     check('and they circle', Math.abs(d) > 0.2 && Math.abs(d) < 1.2, `${d.toFixed(2)} rad in a second`);
+  }
+  // (0.61.1) a big school is wide: rings a few metres apart, nobody shoulder to shoulder, so one blast cannot take it all
+  {
+    const m = quiet('squids'), at = land(m); place(m, at, 320, 0);
+    const kinds = []; for (let i = 0; i < 20; i++) kinds.push('L'); kinds.push('M', 'M');
+    const g = make(m, at, kinds, 'patrol'), S = C.formations.squids;
+    run(m, 1);
+    const lights = g.members.filter((e) => e.kind === 'L');
+    const rr = lights.map((e) => Math.hypot(e.ox, e.oy)), far = Math.max(...rr);
+    let near = Infinity; for (let i = 0; i < lights.length; i++) for (let j = i + 1; j < lights.length; j++) near = Math.min(near, Math.hypot(lights[i].ox - lights[j].ox, lights[i].oy - lights[j].oy));
+    check('(0.61.1) twenty lights: more than one ring, the school well over 10 m out', far > 12 && new Set(rr.map((r) => Math.round(r))).size >= 2, `${far.toFixed(1)} m out`);
+    check('(0.61.1) ...and nobody closer than about 5 m to the next (it was under 3 m)', near > 4.8, `${near.toFixed(1)} m`);
+    const inBlast = (R) => { let best = 0; for (const c of lights) { let n = 0; for (const e of lights) if (Math.hypot(e.ox - c.ox, e.oy - c.oy) <= R) n++; best = Math.max(best, n); } return best; };
+    check('(0.61.1) a 12 m blast on its best spot takes well under half of them (it took them all)', inBlast(12) <= 9, `${inBlast(12)} of ${lights.length}`);
+    // startled: one of it hit, and it bursts outward, faster; then closes up again
+    const r0 = far; lights[0].hurtAt = m.t; run(m, 1.2);
+    const r1 = Math.max(...lights.map((e) => Math.hypot(e.ox, e.oy)));
+    check('(0.61.1) one of it hit: the school bursts outward', r1 > r0 * 1.4 && g.startle > m.t, `${r0.toFixed(1)} -> ${r1.toFixed(1)} m`);
+    run(m, S.startle.sec + 1);
+    const r2 = Math.max(...lights.map((e) => Math.hypot(e.ox, e.oy)));
+    check('(0.61.1) ...and closes up again', r2 < r0 * 1.2, `${r2.toFixed(1)} m`);
+    check('(0.61.1) it cannot be startled again at once', (() => { lights[2].hurtAt = m.t; run(m, 0.3); return !(g.startle > m.t); })());
+    run(m, S.startle.rest);
+    lights[1].dead = true; run(m, 0.3);
+    check('(0.61.1) one of it lost: it startles too', g.startle > m.t);
   }
 }
 

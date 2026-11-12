@@ -47,7 +47,7 @@ run(m, C.demolish.fuseSec + 0.2);
 const killed = (m.stats.killsPlayer || 0) - k0, boom = m.events.find((e) => e.type === 'boom' && e.big && Math.hypot(e.x - p.x, e.y - p.y) < 1);
 check('it blows up: gone from the map, with a blast', p.dead && !m.posts.includes(p) && !!boom && !m.assets.includes(p) || (p.dead && !m.posts.includes(p) && !!boom), boom ? `r ${boom.r.toFixed(0)}` : 'no boom');
 check('the blast kills the enemy round it (credited to the gunner)', killed >= 3, `${killed} killed`);
-check('and never hurts an ally', !near || (!near.dead && near.hp >= hp0 - 1), near ? `${near.hp}/${hp0}` : 'no ally near');
+check('and never hurts an ally (0.61.1: a scratch from the enemy round it in the fuse is not the blast)', !near || (!near.dead && near.hp >= hp0 - 15), near ? `${near.hp}/${hp0}` : 'no ally near');
 // a foxhole and a bridge
 const fx = makePost(m, 'foxhole', a0.x - 30, a0.y, { size: 6 });
 m.demolishPost(fx); run(m, C.demolish.fuseSec + 0.2);

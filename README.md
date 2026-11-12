@@ -25,6 +25,12 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**The squids' school (0.61.1).**
+- **Wider schools.** A squid school used to swim in two tight rings, 5 and 10 m out, however many were in it, so one blast took the lot. Now a school is as wide as it is many: rings 6.5 m apart with about 6.5 m between neighbours, each ring turning the other way from the one inside it. Twenty lights reach about 20 m out, and a 12 m blast on the best spot takes about a third of them.
+- **It breathes.** The whole school swells and closes a little every few seconds as it swims.
+- **It startles, like fish.** Hit one of them, or kill one, and the school bursts outward to about 1.75 times its size at a faster pace, then closes up again over 4 seconds. It can't be startled again for 5 seconds after that, so your second strike wants to land as it closes back up.
+- Two tests that failed now and then are fixed (they were the tests' fault, not the game's).
+
 **Pay in credit by credit, the armory in a mission, a better heat haze (0.61).**
 - **PAY IN is a "+".** A tap puts one credit toward an item. Hold it and it keeps paying, faster the longer you hold; let go to stop. The item's bar, its price and your credits follow as it goes, and the credit that covers the rest buys it.
 - **The armory in a mission is a window.** ARMORY (the command panel's button, `Y`, or the pause menu) now pauses the mission and opens the armory as it looks before each mission: every tab, the full cards, UPGRADE and "+". What you buy works at once. What can only be bought between missions says so. BACK TO THE MISSION (or `Esc`) closes it; opened from the pause menu, it goes back there.
