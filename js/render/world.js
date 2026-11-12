@@ -46,6 +46,7 @@ function shipView(m, o, now) {
 }
 // The mothership and the gun's shots at it: over every unit (it fades back while anyone is under it, so the fight there shows).
 const RAISE_W = { wall: 0.56 };
+const RAISE_L = { wall: 0.56, live: true };     // (0.62.1) for what moves: its top painted every frame (relief.js)
 export function drawGunSky(ctx, m, now, px) {
   for (const o of m.objectives) {
     if (o.type !== 'gun') continue;
@@ -293,7 +294,7 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
     const col = o.done ? 'rgba(125,255,155,0.55)' : active ? '#ffe600' : 'rgba(255,230,0,0.45)';
     if (o.type === 'nuke') {
       const r = o.r;
-      raise(ctx, o, o.x, o.y, o.r * 1.5 + 6, 2.2, (c) => drawNukeSite(c, o, now, px), RAISE_W);
+      raise(ctx, o, o.x, o.y, o.r * 1.5 + 6, 2.2, (c) => drawNukeSite(c, o, now, px), RAISE_L);
       ctx.strokeStyle = o.state === 'armed' ? `rgba(255,70,50,${0.5 + 0.5 * pulse})` : col; ctx.lineWidth = px(active ? 2.2 : 1.4);
       ctx.setLineDash([px(8), px(6)]); ctx.lineDashOffset = -now * px(8); ring(ctx, o.x, o.y, r); if (!VIEW.quiet) ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
       // a small trefoil beside the pad, so the site reads as the launch site from far out
@@ -310,7 +311,7 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
       labels.push({ x: o.x, y: o.y, dy: -Math.max(r * scale, 12) - 6, text: txt, col: o.state === 'armed' ? '#ff6a4a' : o.done ? '#7dff9b' : '#ffe600' , pri: 2 });
     } else if (o.type === 'vip') {
       const v = o.vip;
-      raise(ctx, o, o.x, o.y, 14, 1.3, (c) => drawCrash(c, o.x, o.y, (o.x * 7 + o.y) | 0, now, px), RAISE_W);
+      raise(ctx, o, o.x, o.y, 14, 1.3, (c) => drawCrash(c, o.x, o.y, (o.x * 7 + o.y) | 0, now, px), RAISE_L);
       drawPad(ctx, o.dx, o.dy, o.state === 'carry' || o.state === 'deliver', now, px);
       if (!o.done) {
         // crash site (until picked up) and the pickup point
@@ -347,7 +348,7 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
       const txt = o.done ? tr('lab.gunDone') : o.state === 'fire' ? tr('lab.gunFire', { n: o.shots + 1, of: o.need, p: Math.round(g.charge * 100) }) : tr('lab.gun');
       labels.push({ x: o.x, y: o.y, dy: -Math.max(o.r * scale, 12) - 6, text: txt, col: o.done ? '#7dff9b' : g.hp < g.maxHp * 0.4 ? '#ff6a4a' : '#ffe600', pri: 2 });
     } else if (o.type === 'oil') {
-      raise(ctx, o, o.x, o.y, o.r * 1.5 + 6, 2.4, (c) => drawOilSite(c, o, now, px), RAISE_W);
+      raise(ctx, o, o.x, o.y, o.r * 1.5 + 6, 2.4, (c) => drawOilSite(c, o, now, px), RAISE_L);
       ctx.strokeStyle = col; ctx.lineWidth = px(active ? 2.2 : 1.4);
       ctx.setLineDash([px(8), px(6)]); ctx.lineDashOffset = -now * px(8); ring(ctx, o.x, o.y, o.r); if (!VIEW.quiet) ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
       if (!o.done && o.state !== 'travel' && o.state !== 'setup') {
@@ -384,7 +385,7 @@ export function drawAssets(ctx, m, now, px, labels, scale, pal) {
     if (s.dead) continue;
     const hit = t - s.hurtAt < 0.12;
     if (s.kind === 'turret') {
-      let r = 0; raise(ctx, s, s.x, s.y, Math.max(5, px(22)), 1.1, (c) => { r = sentryArt(c, s, now, px, hit, ac); s._r = r; }, { wall: 0.56, every: 1, sig: Math.round((s.face || 0) * 12) * 2 + (hit ? 1 : 0) }); r = r || s._r || Math.max(2, px(8));
+      let r = 0; raise(ctx, s, s.x, s.y, Math.max(5, px(22)), 1.1, (c) => { r = sentryArt(c, s, now, px, hit, ac); s._r = r; }, { wall: 0.56, live: true, sig: Math.round((s.face || 0) * 12) * 2 + (hit ? 1 : 0) }); r = r || s._r || Math.max(2, px(8));
       const f = s.hp / s.maxHp;
       if (f < 0.999) hpBar(ctx, s.x, s.y + r * 2 + px(2), r * 2.6, px(2.4), f, f > 0.35 ? '#7dff9b' : '#ff4a4a');
       labels.push({ x: s.x, y: s.y, dy: -r * 1.8 * scale - 8, text: tr(`strat.${s.sid}.tag`), col: ac , pri: 0 });
@@ -630,7 +631,7 @@ export function drawPois(ctx, m, now, px, labels, scale, pal) {
   const t = m.t, tgs = seafTargets(m);
   for (const q of m.loot || []) {
     if (q.done && q.kind !== 'wreck') { if (t - q.at < 2) { const k = (t - q.at) / 2; ctx.strokeStyle = `rgba(255,230,0,${1 - k})`; ctx.lineWidth = px(2); ring(ctx, q.x, q.y, q.r * (1 + k)); ctx.stroke(); } continue; }
-    raise(ctx, q, q.x, q.y, Math.max(q.r * 1.6, 8), q.kind === 'wreck' ? 1.3 : 0.8, (c) => drawLootArt(c, q, now, px), RAISE_W);
+    raise(ctx, q, q.x, q.y, Math.max(q.r * 1.6, 8), q.kind === 'wreck' ? 1.3 : 0.8, (c) => drawLootArt(c, q, now, px), RAISE_L);
     if (!q.done && m.visLevel(q.x, q.y) > 0) labels.push({ x: q.x, y: q.y, dy: -Math.max(q.r * 0.8, px(10)) * scale - 6, text: tr('loot.' + q.kind), col: '#d9e8b0', pri: 0 });
   }
   for (const p of m.pois) {
@@ -642,7 +643,7 @@ export function drawPois(ctx, m, now, px, labels, scale, pal) {
     }
     const hit = t - p.hurtAt < 0.12, R = Math.max(p.r, px(9)), seen = m.visLevel(p.x, p.y) > 0;
     const col = hit ? '#ffffff' : seen ? '#ffb020' : 'rgba(255,176,32,0.65)';
-    raise(ctx, p, p.x, p.y, Math.max(p.r, px(9)) * 1.7, 1.6, (c) => drawPoiArt(c, p, m.faction.id, pal.enemy, seen, now, px), { wall: 0.56, sig: (seen ? 1 : 0) + (hit ? 2 : 0) });
+    raise(ctx, p, p.x, p.y, Math.max(p.r, px(9)) * 1.7, 1.6, (c) => drawPoiArt(c, p, m.faction.id, pal.enemy, seen, now, px), { wall: 0.56, live: true, sig: (seen ? 1 : 0) + (hit ? 2 : 0) });
     ctx.strokeStyle = col; ctx.lineWidth = px(seen ? 1.6 : 1.2);
     ctx.setLineDash([px(4), px(4)]); ctx.globalAlpha = 0.7; ring(ctx, p.x, p.y, R); if (!VIEW.quiet) ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
     ctx.fillStyle = 'rgba(255,176,32,0.07)'; ring(ctx, p.x, p.y, R); ctx.fill();

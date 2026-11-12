@@ -1,7 +1,7 @@
 // The art of fixed places, seen from above: enemy bases and the citadel (a hive nest, a fabricator or a warp gate, by faction),
 // points of interest, the nuclear launch site and the VIP's crash site and pickup pad. Each draws in metres around the place's
 // centre; the state that matters (health, progress, labels) is drawn by the callers in renderer.js and world.js.
-import { raise, isFlat } from './relief.js';
+import { raise, isFlat, baking } from './relief.js';
 const TAU = Math.PI * 2;
 function rgba(hex, a) {
   if (hex.startsWith('rgb')) return hex;
@@ -306,10 +306,12 @@ export function drawOilSite(ctx, o, now, px) {
   // the beam rocking on its post
   const rock = pump ? Math.sin(now * 2.4) * 0.35 : 0;
   ctx.fillStyle = '#3c403c'; ctx.fillRect(-0.6, -0.6, 1.2, 1.2);
-  ctx.save(); ctx.rotate(rock);
-  ctx.fillStyle = '#ffb020'; ctx.fillRect(-5.5, -0.5, 9, 1);
-  ctx.fillStyle = '#2b2f2b'; ctx.beginPath(); ctx.moveTo(3.5, -1.2); ctx.lineTo(5.6, 0); ctx.lineTo(3.5, 1.2); ctx.closePath(); ctx.fill();   // the horse's head
-  ctx.restore();
+  if (!baking()) {     // (0.62.1: it rocks, so it has no walls of its own: relief.js)
+    ctx.save(); ctx.rotate(rock);
+    ctx.fillStyle = '#ffb020'; ctx.fillRect(-5.5, -0.5, 9, 1);
+    ctx.fillStyle = '#2b2f2b'; ctx.beginPath(); ctx.moveTo(3.5, -1.2); ctx.lineTo(5.6, 0); ctx.lineTo(3.5, 1.2); ctx.closePath(); ctx.fill();   // the horse's head
+    ctx.restore();
+  }
   ctx.fillStyle = '#2b2f2b'; ctx.fillRect(-6.4, -1.6, 2, 3.2);         // the counterweight
   // the tank and its gauge
   ctx.fillStyle = '#4e5650'; ctx.beginPath(); ctx.arc(0, -8.5, 3.2, 0, Math.PI * 2); ctx.fill();

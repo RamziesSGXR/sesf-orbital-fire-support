@@ -25,6 +25,8 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**No more stutter on buildings (0.62.1).** Bases, points of interest, mission sites, posts and turrets no longer judder as the camera sways: they glide with the ground instead of stepping a pixel at a time. What moves on them (the oil pump's beam, pulsing lights, smoke, a turret turning or firing) now moves every frame instead of jumping every few seconds.
+
 **Solid ground (0.62).**
 - **Nobody walks through things any more.** Boulders, tree trunks, your turret nests, towers, SAM and artillery sites, and the enemy's buildings and turrets are solid. Helldivers, SEAF and the enemy go round them, sliding along the edge the way they slide along a shore.
 - **Who is let in.** A trooper walks into the post it mans or was sent to man. Enemies come out of their own bases. Whatever starts inside something (a pod that lands on a rock) walks out. What flies, a Helldiver on a jump pack, and the bosses are not held; the heavies walk over trees and small boulders and round the rest.
