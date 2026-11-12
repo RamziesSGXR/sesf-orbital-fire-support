@@ -64,7 +64,7 @@ await page.screenshot({ path: out('9-names') });
 await page.click('#names-save'); await page.waitForTimeout(300); await page.click('#btn-settings-close'); await page.waitForTimeout(300);
 await page.click('#btn-armory-m'); await page.waitForTimeout(300);
 await page.screenshot({ path: out('10-armory') });
-await page.click('#tactical .tct[data-tab="units"]'); await page.waitForTimeout(300);     // (0.19.1: the armory is a tab of the sheet; the menu has shut and the game runs)
+await page.click('#arm-close'); await page.waitForTimeout(300); await page.click('#btn-resume-m'); await page.waitForTimeout(300);     // (0.61: the armory is a window; closed, it goes back to the pause menu it came from)
 await page.waitForTimeout(2500);
 await page.screenshot({ path: out('11-after') });
 console.log('errors:', errs.length ? '\n' + errs.join('\n') : 'none');

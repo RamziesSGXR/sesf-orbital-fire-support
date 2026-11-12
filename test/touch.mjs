@@ -103,9 +103,11 @@ check('pinch changes zoom', Math.abs(v1 - v0) > 1, `${v0.toFixed(0)} -> ${v1.toF
 await tap('#btn-menu'); await page.waitForTimeout(250);
 check('MENU opens the pause menu', await page.evaluate(() => document.getElementById('s-pause').classList.contains('on')));
 await tap('#btn-armory-m'); await page.waitForTimeout(400);
-check('mission armory opens: the sheet on its armory tab, the menu shut, the game running', await page.evaluate(() => window.__game.tac && window.__game.hud.tcTab === 'armory' && !document.getElementById('s-pause').classList.contains('on') && !window.__game.paused));
+check('(0.61) mission armory opens as a window from the pause menu: the menu shut, the mission waiting', await page.evaluate(() => document.getElementById('s-armory').classList.contains('on') && !document.getElementById('s-pause').classList.contains('on') && window.__game.paused && document.querySelectorAll('#arm-root .btn.pay').length > 0));
 await page.screenshot({ path: path.join(root, `test/shots/t4-${vp}-armory.png`) });
-await toTroops(); await page.waitForTimeout(300);
+await tap('#arm-close'); await page.waitForTimeout(300);
+check('(0.61) closed, it goes back to the pause menu it came from', await page.evaluate(() => !document.getElementById('s-armory').classList.contains('on') && document.getElementById('s-pause').classList.contains('on')));
+await tap('#btn-resume-m'); await page.waitForTimeout(300);
 await tap('#btn-pause'); await page.waitForTimeout(300);
 check('the pause button soft-pauses (no menu)', await page.evaluate(() => window.__game.soft && !document.getElementById('s-pause').classList.contains('on')));
 await tap('#sp-menu'); await page.waitForTimeout(300);
