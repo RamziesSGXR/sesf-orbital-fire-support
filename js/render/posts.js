@@ -2,6 +2,7 @@
 // a crew and has none), its health when hurt, a wrench while it is being patched up, and, when selected, its reach and brackets.
 // Turrets the Helldivers called (sentries) show their reach only when selected too.
 import { t as tr } from '../i18n.js';
+import { VIEW } from './view.js';
 import { raise, isFlat, LIGHT } from './relief.js';
 import { siteGain } from '../sim/sites.js';
 import { postReach, foxholeSlots, demoRadius, wireEnds } from '../sim/posts.js';
@@ -395,6 +396,7 @@ export function postIcon(cv, what) {
 // (0.20) What troopers can use (a post with places in it, a defence site to man) wears one colour: a dashed cyan ring.
 const USE = 'rgba(61, 224, 255, 0.85)';
 function useRing(ctx, x, y, R, px, now) {
+  if (VIEW.quiet || !VIEW.squad) return;     // (0.61.5) only while a squad is selected (it could be sent there), and not while placing
   ctx.save(); ctx.setLineDash([px(4), px(3)]); ctx.lineDashOffset = -now * px(6); ctx.strokeStyle = USE; ctx.lineWidth = px(1.4);
   ring(ctx, x, y, R); ctx.stroke(); ctx.restore();
 }

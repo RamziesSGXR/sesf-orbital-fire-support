@@ -2,6 +2,7 @@
 // enemy breaches, UAV circles and Helldiver pings. (SEAF squads and the pelican are in squads.js.)
 // Every function draws in world space (meters). px(n) converts screen pixels to meters at the current zoom.
 import { jellyModel, drawJelly, drawJellyShadow, jellyFoot } from './jelly.js';
+import { VIEW } from './view.js';
 import { raise } from './relief.js';
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
@@ -240,7 +241,7 @@ export function drawMarkers(ctx, m, now, px, labels, scale, outlines = true) {
       }
       if (own && mk.fly && mk.ux !== undefined) drawApproach(ctx, mk, mx, my, now, px, col, corridor ? mk.len / 2 + mk.rad : Math.max(mk.r, px(8)), left > 0);
       ctx.fillStyle = `rgba(${col},0.95)`; ctx.beginPath(); ctx.moveTo(mx, my - px(5)); ctx.lineTo(mx + px(4), my + px(3)); ctx.lineTo(mx - px(4), my + px(3)); ctx.closePath(); ctx.fill();
-      labels.push({ x: mx, y: my, dy: -Math.max(mk.r * scale, 8) - 6, text: left > 0 ? `${mk.id.toUpperCase()} ${left.toFixed(0)}S` : mk.id.toUpperCase(), col: '#ffe600' , pri: 2 });
+      labels.push({ x: mx, y: my, dy: -Math.max(mk.r * scale, 8) - 6, text: left > 0 ? `${mk.id.toUpperCase()} ${left.toFixed(0)}S` : mk.id.toUpperCase(), col: '#ffe600' , pri: 2, own: true });
     } else if (mk.type === 'pod') {
       const total = mk.end - mk.start, f = Math.max(0, Math.min(1, (mk.end - t) / total));
       if (mk.team >= 0) beacon(ctx, mx, my, now, px, hexRgb(TEAM_COLOR[mk.team]));
@@ -249,7 +250,7 @@ export function drawMarkers(ctx, m, now, px, labels, scale, outlines = true) {
         ring(ctx, mx, my, mk.r); ctx.fill(); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;     // (0.61.4: the player's own, always shown)
         ctx.lineWidth = px(2.5); ctx.beginPath(); ctx.moveTo(mx, my - 120 * f); ctx.lineTo(mx, my - 4); ctx.stroke();
         ctx.fillStyle = '#7fd8ff'; ctx.fillRect(mx - px(3), my - 120 * f - px(3), px(6), px(6));
-        labels.push({ x: mx, y: my, dy: mk.r * scale + 14, text: `${(STRATS[mk.id]?.name || tr('lab.utility')).toUpperCase()} ${Math.max(0, mk.end - t).toFixed(1)}S`, col: '#7fd8ff', pri: 2 });
+        labels.push({ x: mx, y: my, dy: mk.r * scale + 14, text: `${(STRATS[mk.id]?.name || tr('lab.utility')).toUpperCase()} ${Math.max(0, mk.end - t).toFixed(1)}S`, col: '#7fd8ff', pri: 2, own: true });
         continue;
       }
       ctx.strokeStyle = '#ffe600'; ctx.lineWidth = px(2); ctx.setLineDash([px(4), px(4)]);
@@ -294,7 +295,7 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
       const r = o.r;
       raise(ctx, o, o.x, o.y, o.r * 1.5 + 6, 2.2, (c) => drawNukeSite(c, o, now, px), RAISE_W);
       ctx.strokeStyle = o.state === 'armed' ? `rgba(255,70,50,${0.5 + 0.5 * pulse})` : col; ctx.lineWidth = px(active ? 2.2 : 1.4);
-      ctx.setLineDash([px(8), px(6)]); ctx.lineDashOffset = -now * px(8); ring(ctx, o.x, o.y, r); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      ctx.setLineDash([px(8), px(6)]); ctx.lineDashOffset = -now * px(8); ring(ctx, o.x, o.y, r); if (!VIEW.quiet) ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
       // a small trefoil beside the pad, so the site reads as the launch site from far out
       const rr = Math.max(4, px(8)), tx = o.x + r * 0.7, ty = o.y - r * 0.7;
       ctx.fillStyle = col;
@@ -339,7 +340,7 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
     } else if (o.type === 'gun') {
       drawGun(ctx, m, o, now, px);
       ctx.strokeStyle = col; ctx.lineWidth = px(active ? 2.2 : 1.4);
-      ctx.setLineDash([px(8), px(6)]); ctx.lineDashOffset = -now * px(8); ring(ctx, o.x, o.y, o.r); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      ctx.setLineDash([px(8), px(6)]); ctx.lineDashOffset = -now * px(8); ring(ctx, o.x, o.y, o.r); if (!VIEW.quiet) ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
       const g = o.gun;
       if (!o.done && o.state === 'fire') { ctx.strokeStyle = '#7de0ff'; ctx.lineWidth = px(4); ctx.beginPath(); ctx.arc(o.x, o.y, o.r + px(6), -Math.PI / 2, -Math.PI / 2 + TAU * g.charge); ctx.stroke(); }
       if (g.hp < g.maxHp && !g.dead && !document.body.classList.contains('hide-ui')) { const w = Math.max(14, px(40)), f = Math.max(0, g.hp / g.maxHp); ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(o.x - w / 2, o.y + o.r + px(10), w, px(4)); ctx.fillStyle = f > 0.4 ? '#7dff9b' : '#ff4a4a'; ctx.fillRect(o.x - w / 2, o.y + o.r + px(10), w * f, px(4)); }
@@ -348,7 +349,7 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
     } else if (o.type === 'oil') {
       raise(ctx, o, o.x, o.y, o.r * 1.5 + 6, 2.4, (c) => drawOilSite(c, o, now, px), RAISE_W);
       ctx.strokeStyle = col; ctx.lineWidth = px(active ? 2.2 : 1.4);
-      ctx.setLineDash([px(8), px(6)]); ctx.lineDashOffset = -now * px(8); ring(ctx, o.x, o.y, o.r); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      ctx.setLineDash([px(8), px(6)]); ctx.lineDashOffset = -now * px(8); ring(ctx, o.x, o.y, o.r); if (!VIEW.quiet) ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
       if (!o.done && o.state !== 'travel' && o.state !== 'setup') {
         ctx.strokeStyle = o.onPump ? '#ff6a4a' : '#7dff9b'; ctx.lineWidth = px(4);
         ctx.beginPath(); ctx.arc(o.x, o.y, o.r + px(6), -Math.PI / 2, -Math.PI / 2 + TAU * (o.state === 'load' ? 1 : o.fill)); ctx.stroke();
@@ -643,7 +644,7 @@ export function drawPois(ctx, m, now, px, labels, scale, pal) {
     const col = hit ? '#ffffff' : seen ? '#ffb020' : 'rgba(255,176,32,0.65)';
     raise(ctx, p, p.x, p.y, Math.max(p.r, px(9)) * 1.7, 1.6, (c) => drawPoiArt(c, p, m.faction.id, pal.enemy, seen, now, px), { wall: 0.56, sig: (seen ? 1 : 0) + (hit ? 2 : 0) });
     ctx.strokeStyle = col; ctx.lineWidth = px(seen ? 1.6 : 1.2);
-    ctx.setLineDash([px(4), px(4)]); ctx.globalAlpha = 0.7; ring(ctx, p.x, p.y, R); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+    ctx.setLineDash([px(4), px(4)]); ctx.globalAlpha = 0.7; ring(ctx, p.x, p.y, R); if (!VIEW.quiet) ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
     ctx.fillStyle = 'rgba(255,176,32,0.07)'; ring(ctx, p.x, p.y, R); ctx.fill();
     if (tgs.has(p)) bracket(ctx, p.x, p.y, R * 1.5, px(1.8), pal.ally);
     if (p.hp < p.maxHp) hpBar(ctx, p.x, p.y + R * 1.15, R * 2, px(4), p.hp / p.maxHp, '#ffb020');

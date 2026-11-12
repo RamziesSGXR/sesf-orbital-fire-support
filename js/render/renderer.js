@@ -8,6 +8,7 @@ import { drawSquadOrders, drawSeafMark, drawStroke, drawPelicans, drawMiniSeaf, 
 
 import { slotStats } from '../sim/player.js';
 import { drawAllyBody, drawEnemyBody, enemyR, drawBossBody, bossR, drawTurretArt, setRelief } from './units.js';
+import { VIEW } from './view.js';
 import { liftUnit, dropUnit, unitShadow, shadeHex, raise, raiseUnit, setFlat, isFlat, reliefFrame, reliefClear } from './relief.js';
 import { Launch } from './launch.js';
 import { drawAoEdge, drawSides, drawBeacons, drawRevealed, drawRadar, drawArty, drawCrates, drawMarks } from './ops.js';
@@ -30,7 +31,7 @@ const TAU = Math.PI * 2;
 // (0.60) the interface's line colour for what the renderer draws as chrome (the frame corners, the minimap's rim and grid)
 const uiRgb = () => (typeof document !== 'undefined' && document.body.classList.contains('ui-scifi') ? '127,233,224' : '157,255,184');
 // (0.58) the colours a hit throws off, by faction: the main colour, then the bright one
-const FP_LIFE = 14, FP_MAX = 6000;     // (0.58) footprints: how long one lasts, how many at most
+const FP_LIFE = 9, FP_MAX = 6000;     // (0.58) footprints: how long one lasts, how many at most
 const BURST = { bugs: ['#a9d63a', '#f2ff9a'], bots: ['#ff9a3a', '#fff0c0'], squids: ['#b26cff', '#7af6ff'] };
 const TASK_LABEL = { base: 'lab.base', radio: 'lab.radio', propaganda: 'lab.prop', rescue: 'lab.rescue', arty: 'lab.artySite', jammer: 'lab.jam', spore: 'lab.spore' };
 const slotCd = (m, i) => { const st = slotStats(m, i); return st ? st.cd : 0; };
@@ -366,6 +367,7 @@ export class Renderer {
     const hideUi = document.body.classList.contains('hide-ui');     // (0.54) Hide UI: no outlines, rings or health bars either
     const nm = (i0) => { for (let i = i0; i < labels.length; i++) labels[i].nm = true; };     // (0.54) names of buildings and enemies: hidden unless Settings > Show names, or selected / under the aim
     const aim = ui.aim;
+    VIEW.quiet = !!ui.placing; VIEW.squad = !!(m.seaf && (m.seaf.sel >= 0 || m.seaf.sel === -2 || (m.seaf.multi && m.seaf.multi.length)));     // (0.61.5)
     this._namesFor = [ui.sel, aim].filter((o) => o && Number.isFinite(o.x) && Number.isFinite(o.y));
     ctx.lineJoin = 'round';
 
@@ -588,9 +590,15 @@ export class Renderer {
       const left = Math.max(0, p.landAt - t);
       const total = p.start ? C.helldivers.initialDropSec : p.type === 'H' ? C.helldivers.dropDelaySec : C.seaf.dropDelaySec;
       const f = Math.min(1, left / total), col = p.type === 'H' ? '#ffe600' : pal.ally;
-      ctx.strokeStyle = col; ctx.lineWidth = px(2); ctx.setLineDash([px(5), px(5)]);
-      ctx.beginPath(); ctx.arc(p.x, p.y, 20, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
-      ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.arc(p.x, p.y, 8 + 34 * f, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
+      ctx.strokeStyle = col;
+      if (p.type === 'H') {     // (0.61.5) a Helldiver's pod: a beacon where it will land, no zones (it is theirs, not the player's)
+        const bl = 0.5 + 0.5 * Math.sin(now * 8 + p.x);
+        ctx.fillStyle = col; ctx.globalAlpha = 0.35 + 0.5 * bl; ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(px(3), 0.7), 0, TAU); ctx.fill();
+        ctx.globalAlpha = 0.25 * (1 - bl); ctx.lineWidth = px(1.2); ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(px(3), 0.7) * (1.5 + 2 * bl), 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
+      } else if (!VIEW.quiet) {     // the player's own SEAF drop: one small ring
+        ctx.lineWidth = px(1.6); ctx.setLineDash([px(5), px(5)]); ctx.globalAlpha = 0.7;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, TAU); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+      }
       ctx.lineWidth = px(2.5); ctx.beginPath(); ctx.moveTo(p.x, p.y - 160 * f); ctx.lineTo(p.x, p.y - 8); ctx.stroke();
       const tm = p.type === 'H' ? m.teams[p.team] : null;
       labels.push({ x: p.x, y: p.y, dy: 42, text: `${p.type === 'H' ? (tm ? m.slotTag(tm) : tr('lab.helldiver')) : `SEAF x${p.n}`} ${Math.ceil(left)}S`, col: tm ? tm.color : col , pri: 1 });
@@ -829,7 +837,10 @@ export class Renderer {
     // names, or for what is selected or under the aim (within 12 m of it)
     if (document.body.classList.contains('hide-ui')) return;
     const keep = this._namesFor || [], showAll = !!(this.settings && this.settings.showNames);
-    let list = this.labels.filter((l) => !l.nm || showAll || keep.some((k) => (k.x - l.x) ** 2 + (k.y - l.y) ** 2 < 144)).map((l) => ({ l, x: w2sx(l.x), y: w2sy(l.y) + l.dy * d }));
+    // (0.61.5) and so with every other label that is not urgent (pri 3) or the player's own strike: the map stays clear, and a name
+    // shows when the thing is selected or the aim is on it (within 20 m)
+    const quietL = (l) => l.nm || ((l.pri ?? 1) < 3 && !l.own);
+    let list = this.labels.filter((l) => !quietL(l) || showAll || keep.some((k) => (k.x - l.x) ** 2 + (k.y - l.y) ** 2 < (l.nm ? 144 : 400))).map((l) => ({ l, x: w2sx(l.x), y: w2sy(l.y) + l.dy * d }));
     // (0.53.5) health bars that go with a label (a heavy's, a special's): drawn in screen space, right under its name, at the
     // labels' size, so they never slip behind the name when zoomed out (they used to be drawn on the map, under the label's box)
     const barsH = (l) => (l.bars ? l.bars.length * 5 * d + 2 * d : 0), withBars = list.filter((o) => o.l.bars);
@@ -1149,14 +1160,16 @@ export class Renderer {
     if (!P.length) return;
     // (0.59) prints are a few pixels at least: at the normal zoom a boot print is under a pixel, so they grow as the map zooms out
     // (far enough out, a line of them reads as a trail)
-    const Z = Math.max(1, px(4.5) / 0.6);
+    // (0.61.5) prints are their true size and faint, a left and a right, and are not drawn at all once the map is zoomed out so far
+    // that one would be under a pixel: no more smoke-like trails behind everyone
+    const Z = 1, tiny = px(1) > 0.34;
     const KINDS = ['boot', 'bugs', 'bots', 'squids', 'claw', 'tread', 'pad', 'drag', 'bigfoot'], NK = KINDS.length;
     const col = ['40,34,26', '58,52,30', '30,30,34', '48,34,58', '52,44,26', '26,26,28', '44,30,56', '70,40,60', '24,24,26'], paths = [], used = [];
     for (let i = 0; i < 4 * NK; i++) { paths.push(new Path2D()); used.push(false); }
     for (const f of P) {
       if (!onScr(f.x, f.y, 1)) continue;
       const band = Math.min(3, Math.floor(((now - f.t) / FP_LIFE) * 4)), ki = KINDS.indexOf(f.k), pa = paths[band * NK + ki], s = f.s * Z;
-      if (ki < 0) continue;
+      if (ki < 0 || (tiny && f.s < 2.5)) continue;
       used[band * NK + ki] = true;
       if (ki >= 4) {
         const an = Math.atan2(f.uy, f.ux), c = Math.cos(an), sn = Math.sin(an);
@@ -1170,11 +1183,15 @@ export class Renderer {
       if (ki === 2) { const r = 0.35 * s; pa.rect(f.x - r, f.y - r, r * 2, r * 2); }
       else if (ki === 1) { for (const o of [-0.35, 0, 0.35]) { const x = f.x - f.uy * o * s, y = f.y + f.ux * o * s; pa.moveTo(x + 0.13 * s, y); pa.arc(x, y, 0.13 * s, 0, TAU); } }
       else if (ki === 3) { for (const o of [-0.5, 0, 0.5]) { const x = f.x + (f.ux * 0.35 - f.uy * o * 0.5) * s, y = f.y + (f.uy * 0.35 + f.ux * o * 0.5) * s; pa.moveTo(x + 0.12 * s, y); pa.arc(x, y, 0.12 * s, 0, TAU); } }
-      else { const an = Math.atan2(f.uy, f.ux); pa.moveTo(f.x + Math.cos(an) * 0.38 * Z, f.y + Math.sin(an) * 0.38 * Z); pa.ellipse(f.x, f.y, 0.38 * Z, 0.2 * Z, an, 0, TAU); }
+      else {     // a boot: the sole, and the heel behind it
+        const an = Math.atan2(f.uy, f.ux), c = Math.cos(an), sn = Math.sin(an);
+        pa.moveTo(f.x + c * 0.36, f.y + sn * 0.36); pa.ellipse(f.x + c * 0.12, f.y + sn * 0.12, 0.24, 0.13, an, 0, TAU);
+        pa.moveTo(f.x - c * 0.14, f.y - sn * 0.14); pa.ellipse(f.x - c * 0.25, f.y - sn * 0.25, 0.11, 0.11, an, 0, TAU);
+      }
     }
     for (let band = 0; band < 4; band++) for (let ki = 0; ki < NK; ki++) {
       if (!used[band * NK + ki]) continue;
-      ctx.fillStyle = `rgba(${col[ki]},${0.7 * (1 - band / 4)})`; ctx.fill(paths[band * NK + ki]);
+      ctx.fillStyle = `rgba(${col[ki]},${0.3 * (1 - band / 4)})`; ctx.fill(paths[band * NK + ki]);
     }
   }
   _effects(ctx, now, px) {
