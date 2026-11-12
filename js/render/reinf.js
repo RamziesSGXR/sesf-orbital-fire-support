@@ -100,7 +100,7 @@ export function drawDrops(ctx, m, now, px, labels, scale, pal) {
     const spin = d.state === 'down' ? d.fallT * 4 : 0;
     // shadow on the ground: farther from the craft the higher it is
     const off = 4 + d.alt * 30;
-    ctx.save(); ctx.translate(d.x + off * 0.6, d.y + off); ctx.rotate(ang + spin);
+    ctx.save(); ctx.translate(d.x + off * 1.05, d.y + off * 0.76); ctx.rotate(ang + spin);
     ctx.fillStyle = 'rgba(0,0,0,0.18)'; (d.kind === 'ship' ? dropshipBody : warpBody)(ctx, s * 1.05); ctx.fill();
     ctx.fillStyle = 'rgba(0,0,0,0.42)'; (d.kind === 'ship' ? dropshipBody : warpBody)(ctx, s * 0.88); ctx.fill();
     ctx.restore();
@@ -309,8 +309,8 @@ export function drawExtractionPelican(ctx, m, now, px) {
   if (ex.state === 'landing') alt = Math.max(0, (ex.touchAt - t) / C.extract.landSec);
   if (ex.state === 'away') { const k = t - ex.awayAt; alt = Math.min(1.4, k * 0.5); y -= k * k * 6; }
   const s = 18 * (1 + 0.3 * alt), off = alt * 26;
-  ctx.fillStyle = 'rgba(0,0,0,0.18)'; pelicanBody(ctx, x + off * 0.6, y + off, ang, s * 1.08); ctx.fill();
-  ctx.fillStyle = 'rgba(0,0,0,0.42)'; pelicanBody(ctx, x + off * 0.6, y + off, ang, s * 0.92); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.18)'; pelicanBody(ctx, x + off * 1.05, y + off * 0.76, ang, s * 1.08); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.42)'; pelicanBody(ctx, x + off * 1.05, y + off * 0.76, ang, s * 0.92); ctx.fill();
   if (ex.state === 'boarding') {   // the ramp at the back
     ctx.fillStyle = 'rgba(220,235,245,0.6)'; ctx.fillRect(x - 2.5, y + s * 0.95, 5, 6);
   }

@@ -358,7 +358,7 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
         if (o.pel.state === 'in') { const u = Math.min(1, k / K.inSec), e = 1 - (1 - u) * (1 - u); x = sx + (o.px - sx) * e; y = sy + (o.py - sy) * e; alt = 1 - e; }
         else if (o.pel.state === 'out') { const u = Math.min(1, k / K.outSec), e = u * u; x = o.px + 160 * e; y = o.py - 110 * e; alt = e; }
         const s = 14 * (1 + 0.3 * alt), off = 4 + alt * 26, ang = Math.atan2(o.py - sy, o.px - sx);
-        ctx.fillStyle = 'rgba(0,0,0,0.38)'; pelicanBody(ctx, x + off * 0.6, y + off, ang, s * 0.92); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.38)'; pelicanBody(ctx, x + off * 1.05, y + off * 0.76, ang, s * 0.92); ctx.fill();
         pelicanDetail(ctx, x, y, ang, s, now, 1, 1, null);
         pelicanBody(ctx, x, y, ang, s); ctx.fillStyle = '#d8e8f2'; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = px(2); ctx.stroke();
         pelicanDetail(ctx, x, y, ang, s, now, 0, 1, null);

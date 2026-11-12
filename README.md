@@ -25,6 +25,12 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Towers (0.61.3).**
+- **SEAF drops no longer snap onto a Propaganda Tower.** A drop called within 40 m of a tower lands where you call it (it used to jump to the tower itself). The tower still lets you call the drop there from anywhere on the map. Pickups by a tower work the same way.
+- **The Propaganda Tower looks like one.** In the 3D look it stands up: a lattice mast narrowing to the top, four yellow loudspeaker horns, a Super Earth banner hanging from an arm, a red light on its tip, and broadcast rings going out while someone mans it.
+- **The Lookout Tower stands on its stilts**, braced, with its platform and searchlight on top.
+- **Shadows all fall the same way now.** The Lookout Tower's, the Propaganda Tower's, the Eagle's, the pelicans' and the dropships' shadows pointed their own ways; they now fall down and to the right like the trees' and everything else's.
+
 **A slight 3D look (0.61.2).**
 - **Units.** Helldivers, SEAF and every enemy now have sides: the body is drawn a little up from its feet with its own shape, dark, underneath it, and its shadow falls down and to the right, as long as the unit is tall. The light is the same as the land's and the trees' (from the upper left). With a big crowd on screen the sides are simpler, and at the widest zoom the crowd's dots are as before.
 - **Buildings.** Enemy bases, turrets, cannons and nodes, your turret nests, towers, SAM and artillery sites, sentries, bastion walls and sandbags, work sites, crashes, caches and points of interest all stand up off the ground with walls and a cast shadow.

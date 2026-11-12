@@ -205,6 +205,11 @@ const seafReady = (m, n = 5) => { m.seaf.readyAt = 0; m.callSeaf(m.hx + 10, m.hy
   // (0.15: paid when ordered; a cargo pelican brings the crate and SEAF deploy it. 0.16: the drop beacon became the Propaganda Tower)
   check('SEAF ordered to build a propaganda tower build it, and it is paid for when ordered', r.ok && !!bc && spent === before + C.build.tower.cost && m.wallet.spent === spent, r.ok ? `${m.beacons.length} beacons` : JSON.stringify(r));
   check('a built tower takes a SEAF drop', bc && !!beaconAt(m, bc.x, bc.y));
+  if (bc) {     // (0.61.3) a drop called near the tower lands where it was called, not on the tower
+    m.seaf.readyAt = 0; for (const p of m.pelicans || []) p.busyUntil = 0;
+    const n0 = m.events.length, cx = bc.x + 22, cy = bc.y - 15, rr = m.callSeaf(cx, cy), evp = m.events.slice(n0).find((e) => e.type === 'pod_call');
+    check('(0.61.3) a drop called near a tower lands where it was called (it used to jump onto the tower)', !rr.ok ? rr.reason === 'cooldown' || rr.reason === 'full' : evp && Math.hypot(evp.x - cx, evp.y - cy) < 0.01, rr.ok ? `${Math.hypot(evp.x - bc.x, evp.y - bc.y).toFixed(0)} m from the tower` : rr.reason);
+  }
   const q = m.seaf.squads.find((x) => x.n);
   check('and the squad stays to man it', q && q.order.kind === 'post');
   m.seafBuild('mg', spot.x + 12, spot.y); run(m, C.build.mg.sec + 30, calm);

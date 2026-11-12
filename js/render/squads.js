@@ -242,8 +242,8 @@ export function drawPelicans(ctx, m, now, px, labels, scale, pal) {
     }
     // shadow on the ground, further from the craft the higher it is
     const off = 4 + alt * 26;
-    ctx.fillStyle = 'rgba(0,0,0,0.18)'; pelicanBody(ctx, p.x + off * 0.6, p.y + off, ang, s * 1.08); ctx.fill();
-    ctx.fillStyle = 'rgba(0,0,0,0.42)'; pelicanBody(ctx, p.x + off * 0.6, p.y + off, ang, s * 0.92); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.18)'; pelicanBody(ctx, p.x + off * 1.05, p.y + off * 0.76, ang, s * 1.08); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.42)'; pelicanBody(ctx, p.x + off * 1.05, p.y + off * 0.76, ang, s * 0.92); ctx.fill();
     // the craft: dark halo, then a bright thermal body, its rockets burning (pushing it along on the way in and out, straight down
     // over the spot)
     const fx = Math.cos(ang), fy = Math.sin(ang);

@@ -639,7 +639,7 @@ export class Renderer {
   }
   _ghost(ctx, m, k, at, now, px, labels, scale, pal, snapFn, ui = {}) {
     const bc = k === 'seaf' || k === 'pickup' ? beaconAt(m, at.x, at.y) : null;     // over a lit drop beacon: it snaps there
-    const sp = bc || (snapFn && k !== 'seaf' && k !== 'pickup' && !k.startsWith('build:') ? snapFn(at.x, at.y) : at);
+    const sp = (bc && !bc.post ? bc : null) || (snapFn && k !== 'seaf' && k !== 'pickup' && !k.startsWith('build:') ? snapFn(at.x, at.y) : at);
     let ax = sp.x, ay = sp.y;
     const bk = k.startsWith('build:') ? k.slice(6) : null;
     let ok = true, why = '', text = '', gr = 0;
@@ -1248,7 +1248,7 @@ export class Renderer {
           ctx.lineTo(-s * 0.3, s * 0.12); ctx.lineTo(-s * 0.5, s * 0.82); ctx.lineTo(-s * 0.32, s * 0.82); ctx.lineTo(s * 0.12, s * 0.12); ctx.lineTo(s * 0.55, s * 0.09);
           ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); if (line) { ctx.strokeStyle = line; ctx.lineWidth = px(1); ctx.stroke(); }
         };
-        ctx.save(); ctx.translate(x + s * 0.7, y + s * 1.1); ctx.rotate(ang); jet('rgba(0,0,0,0.22)'); ctx.restore();     // its shadow
+        ctx.save(); ctx.translate(x + s * 1.05, y + s * 0.76); ctx.rotate(ang); jet('rgba(0,0,0,0.22)'); ctx.restore();     // its shadow (0.61.3: down and to the right, as every other)
         ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
         ctx.strokeStyle = 'rgba(255,255,255,0.28)'; ctx.lineWidth = px(1.2); ctx.beginPath(); ctx.moveTo(-s * 0.95, 0); ctx.lineTo(-s * 4.5, 0); ctx.stroke();     // the trail
         jet('rgba(214,222,228,0.95)', 'rgba(30,40,48,0.7)');

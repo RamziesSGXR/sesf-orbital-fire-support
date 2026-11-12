@@ -680,7 +680,7 @@ export default {
   'info.sides': 'SIDE OBJECTIVES',
   'info.sidesV': '<b>Radio tower:</b> a Helldiver powers it up; the ground round it then stays in view, and strikes can be called there, for the rest of the mission. <b>Broadcast tower:</b> an enemy tower that rallies patrols onto the squad. Destroy it; while it is still strong the squad asks you for a Hellbomb. <b>Jammer:</b> a spore spewer, stratagem jammer or cognitive disruptor. No orbital or stratagem lands inside its dashed ring (the ship gun still fires there), and only a Hellbomb brings it down: the squad clears round it, you assemble the Hellbomb, one of them arms it and they run. <b>Hidden SEAF:</b> a SEAF squad lying low somewhere near the way. You cannot see them or anything round them until a Helldiver or one of your SEAF walks close by; then they join you.',
   'info.beacons': 'SEAF DROP POINTS',
-  'info.beaconsV': 'Propaganda Towers SEAF build (BUILD, then PROPAGANDA TOWER). A SEAF drop aimed at one lands there, wherever the squad is.',
+  'info.beaconsV': 'Propaganda Towers SEAF build (BUILD, then PROPAGANDA TOWER). A SEAF drop called within {n} m of one lands where you call it, wherever the squad is.',
   'info.radar': 'RADAR AND REVEALED ENEMIES',
   'info.radarV': 'The UAV sweeps the whole map every few seconds (faster with upgrades): faint marks where every enemy was. An enemy that fires on your allies gives itself away (red diamond). Keep it revealed for {n} seconds and it is locked (white brackets): your strikes and the ship gun can hit it anywhere.',
   'info.hits': 'HITS',

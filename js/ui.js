@@ -2528,7 +2528,7 @@ export function fillMissionInfo(m, info) {
   parts.push(`<h3>${esc(t('info.enemy', { name: f.name }))}</h3><p>${esc(t('info.fac.' + m.faction.id))}</p>`);
   parts.push(`<h3>${t('info.patrols')}</h3><p>${esc(t('info.patrolsV'))}</p>`);
   parts.push(`<h3>${t('info.sides')}</h3><p>${t('info.sidesV')}${m.faction.id === 'bugs' ? ' ' + t('info.side.spore') : ''}</p>`);     // (0.40: the bugs' spore tower)
-  parts.push(`<h3>${t('info.beacons')}</h3><p>${esc(t('info.beaconsV', { n: Math.round(C.beacons.darkSec / 60) }))}</p>`);
+  parts.push(`<h3>${t('info.beacons')}</h3><p>${esc(t('info.beaconsV', { n: C.beacons.r }))}</p>`);
   parts.push(`<h3>${t('info.build')}</h3><p>${t('info.buildV')}</p>`);
   parts.push(`<h3>${t('info.cover')}</h3><p>${t('info.coverV')}</p>`);
   parts.push(`<h3>${t('info.uavBuff')}</h3><p>${t('info.uavBuffV')}</p>`);
