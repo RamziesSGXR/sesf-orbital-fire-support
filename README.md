@@ -25,6 +25,12 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Solid ground (0.62).**
+- **Nobody walks through things any more.** Boulders, tree trunks, your turret nests, towers, SAM and artillery sites, and the enemy's buildings and turrets are solid. Helldivers, SEAF and the enemy go round them, sliding along the edge the way they slide along a shore.
+- **Who is let in.** A trooper walks into the post it mans or was sent to man. Enemies come out of their own bases. Whatever starts inside something (a pod that lands on a rock) walks out. What flies, a Helldiver on a jump pack, and the bosses are not held; the heavies walk over trees and small boulders and round the rest.
+- **Nobody gets stuck.** Anyone held up for a second and a half without getting anywhere is let through for three seconds. That is also how a bug reaches the wall it wants to claw.
+- **Still walked on:** foxholes, wire, landing zones, bridges, bastion walls (troopers stand between them), and the mission's own buildings that people must enter (the shelter, the hangar, objectives).
+
 **A clearer map (0.61.5).**
 - **Fewer zones.** A Helldiver's pod coming down shows a small blinking beacon where it will land, not two rings (it is theirs, not yours). Your own SEAF drop shows one small ring. The dashed cyan rings round posts and sites you can man show only while a squad is selected (when you could send it there). While you are placing a building or a drop, the rings round objectives, sites and the evacuation area are hidden, so you can see the ghost and the ground.
 - **Names only when you want them.** Labels over buildings, objectives, drops and squads are hidden until the thing is selected or your aim is within 20 m of it. What stays: your own strikes' countdowns, urgent warnings (a nuke coming in), the Helldiver groups' tags, and the arrows at the screen's edge.

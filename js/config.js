@@ -4,6 +4,11 @@ export const CONFIG = {
   // missionSec is the clock for the whole mission. The objective has to be done before it runs out.
   // The session has no win screen: it carries on mission after mission until one fails.
   world:    { size: 1600, tickHz: 30, missionSec: 1800, extraSecPerBase: 0, viewWidth: 400, zoomMin: 90, zoomMax: 800 },
+  // (0.62) Solid things (sim/solids.js): nobody walks through a boulder, a tree trunk or a building; they go round. rock: how much
+  // of a rock's radius is solid, for rocks of rockMin metres and up; trunk: a tree's trunk as a share of its crown, between
+  // trunkMin and trunkMax metres; base: how much of an enemy building's radius is solid. A mover held up for giveTicks steps
+  // without making giveDist metres is let through for thruSec seconds.
+  solids:   { on: true, rock: 0.82, rockMin: 1.5, trunk: 0.2, trunkMin: 0.45, trunkMax: 0.9, base: 0.5, giveTicks: 45, giveDist: 1.5, thruSec: 3 },
   // The area of operations: each mission is fought in a square of the map, start metres across on the first mission and perMission
   // more on each one after, up to max. The first maps are small enough to clear completely.
   ao:       { start: 760, perMission: 110, max: 1500, margin: 40, tries: 14 },
@@ -679,6 +684,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.61.5',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };
