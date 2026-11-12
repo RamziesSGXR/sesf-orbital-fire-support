@@ -1064,6 +1064,8 @@ export default {
   'info.rocksV': 'The ground has its own cover: a trooper beside a big rock takes {p} less from enemy fire, and riflemen in a fight with no walls near get behind one, away from the enemy. A big blast breaks a rock up into rubble, and it is cover no more. Trees and tall grass hide nothing, but you can watch the grass part where something walks, and the enemy leaves its mark where it gathers: the bugs an orange scent, the squids a heat haze, the bots black smoke.',
   'set.blasts': 'Show blast areas',
   'set.blastsHint': 'Draw a ring where each strike, grenade, rocket and shell will land. Off: you see only the blast itself (your troops still know where it will hit).',
+  'set.relief3d': "3D look",     // (0.61.2)
+  'set.relief3dHint': "Units and buildings get sides and longer shadows, in the same light as the land and the trees. AUTO: on, except on phones and LOW graphics (it is extra drawing).",
   'pen.line': 'Penetration: {lvl} (light {l}, medium {m}, heavy {h}).',
   'pen.light': 'LIGHT',
   'pen.medium': 'MEDIUM',

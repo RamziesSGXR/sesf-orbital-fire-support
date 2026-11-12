@@ -2,6 +2,7 @@
 // a crew and has none), its health when hurt, a wrench while it is being patched up, and, when selected, its reach and brackets.
 // Turrets the Helldivers called (sentries) show their reach only when selected too.
 import { t as tr } from '../i18n.js';
+import { raise } from './relief.js';
 import { siteGain } from '../sim/sites.js';
 import { postReach, foxholeSlots, demoRadius, wireEnds } from '../sim/posts.js';
 import { lzStatus } from '../sim/seaf.js';
@@ -311,13 +312,16 @@ function useRing(ctx, x, y, R, px, now) {
   ctx.save(); ctx.setLineDash([px(4), px(3)]); ctx.lineDashOffset = -now * px(6); ctx.strokeStyle = USE; ctx.lineWidth = px(1.4);
   ring(ctx, x, y, R); ctx.stroke(); ctx.restore();
 }
+// (0.61) how tall each post stands, and how far its drawing reaches [height m, reach m, has its own shadows]
+const POST_H = { mg: [1.1, 7], lookout: [2.6, 9, 1], tower: [4.2, 8], sam: [1.7, 11], arty: [1.6, 17], site: [1.8, 11] };
 export function drawPosts(ctx, m, now, px, labels, scale, sel) {
   const t = m.t;
   for (const s of m.coverSites || []) if (s.kind !== 'built' && !s.dead && s !== sel) useRing(ctx, s.x, s.y, Math.max(px(10), (s.R || 8) * 0.8), px, now);
   for (const k of m.trenches || []) trenchArt(ctx, k.pts, k.face, grow(px));      // (0.39) the trenches between foxholes
   for (const p of m.posts || []) {
     if (p.dead) continue;
-    art(ctx, p, now, px, t);
+    const ph = POST_H[p.what];
+    if (ph) raise(ctx, p, p.x, p.y, Math.max(ph[1], (p.r || 0) * 1.35 + 4), ph[0], (c) => art(c, p, now, px, t), { wall: 0.56, noShadow: !!ph[2], every: 1.2, sig: Math.round((p.face || 0) * 12) * 8 + (t - p.hurtAt < 0.12 ? 1 : 0) + (p.manned ? 2 : 0) + (p.ghost ? 4 : 0) }); else art(ctx, p, now, px, t);
     if (p.what === 'lz') { labels.push({ x: p.x, y: p.y, dy: -p.r * scale - 8, text: `${tr('build.lz').toUpperCase()} · ${lzStatus(m, p)}`, col: '#8fe0ff', pri: 2 }); continue; }
     if (p.what === 'site') {     // (0.52) the work site: its name and how it stands, always shown
       if (p !== sel && !p.fallen) useRing(ctx, p.x, p.y, p.r + px(4), px, now);

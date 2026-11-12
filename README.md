@@ -25,6 +25,12 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**A slight 3D look (0.61.2).**
+- **Units.** Helldivers, SEAF and every enemy now have sides: the body is drawn a little up from its feet with its own shape, dark, underneath it, and its shadow falls down and to the right, as long as the unit is tall. The light is the same as the land's and the trees' (from the upper left). With a big crowd on screen the sides are simpler, and at the widest zoom the crowd's dots are as before.
+- **Buildings.** Enemy bases, turrets, cannons and nodes, your turret nests, towers, SAM and artillery sites, sentries, bastion walls and sandbags, work sites, crashes, caches and points of interest all stand up off the ground with walls and a cast shadow.
+- **Your weapons.** A shell coming down throws a shadow that closes in on its mark. A blast's fireball climbs off the ground while its glow stays on it. Debris is thrown higher and has a shadow. Smoke climbs and shades the ground beside it.
+- **Settings > 3D look:** AUTO, ON or OFF. AUTO is on, except on phones and LOW graphics, where the game stays flat as before (it is extra drawing).
+
 **The squids' school (0.61.1).**
 - **Wider schools.** A squid school used to swim in two tight rings, 5 and 10 m out, however many were in it, so one blast took the lot. Now a school is as wide as it is many: rings 6.5 m apart with about 6.5 m between neighbours, each ring turning the other way from the one inside it. Twenty lights reach about 20 m out, and a 12 m blast on the best spot takes about a third of them.
 - **It breathes.** The whole school swells and closes a little every few seconds as it swims.

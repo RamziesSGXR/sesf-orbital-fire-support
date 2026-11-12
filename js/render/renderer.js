@@ -7,7 +7,8 @@ import { setShowBlasts, drawZones, drawMarkers, drawObjectives, drawAssets, draw
 import { drawSquadOrders, drawSeafMark, drawStroke, drawPelicans, drawMiniSeaf, seafTargets, squadsInUse, squadColor } from './squads.js';
 
 import { slotStats } from '../sim/player.js';
-import { drawAllyBody, drawEnemyBody, enemyR, drawBossBody, bossR, drawTurretArt } from './units.js';
+import { drawAllyBody, drawEnemyBody, enemyR, drawBossBody, bossR, drawTurretArt, setRelief } from './units.js';
+import { liftUnit, dropUnit, unitShadow, shadeHex, raise, raiseUnit, setFlat, isFlat, reliefFrame, reliefClear } from './relief.js';
 import { Launch } from './launch.js';
 import { drawAoEdge, drawSides, drawBeacons, drawRevealed, drawRadar, drawArty, drawCrates, drawMarks } from './ops.js';
 import { OPS } from '../data/data.js';
@@ -39,6 +40,7 @@ function wallsArt(ctx, walls) {
   const L = C.build.bastion.lineLen;
   for (const q of walls) { const ux = -Math.sin(q.ang), uy = Math.cos(q.ang); ctx.beginPath(); ctx.moveTo(q.x - ux * L / 2, q.y - uy * L / 2); ctx.lineTo(q.x + ux * L / 2, q.y + uy * L / 2); ctx.stroke(); }
 }
+const RAISE_B = { steps: 22, wall: 0.58, shadow: 0.3 };
 export class Renderer {
   constructor(canvas) {
     this.cv = canvas;
@@ -125,7 +127,7 @@ export class Renderer {
   }
 
   setTerrain(cv, keepDecals = false) {
-    this.terrain = cv;
+    this.terrain = cv; reliefClear();     // (0.61.2: a new map: the buildings' kept pictures go)
     if (!keepDecals || !this.decal) this.decal = makeDecals();
     if (!keepDecals) { this.fx.length = 0; this.shake = 0; this.launch.clear(); this.craters.length = 0; this.prints.length = 0; this._fp.clear(); }
   }
@@ -369,6 +371,7 @@ export class Renderer {
     drawExtraction(ctx, m, now, px, labels, scale);
 
     // Cover at the sites the squad holds, and the citadel's walls
+    { const r3 = this.settings.relief3d; setFlat(r3 === 'off' || this.quality === 'low' || this.perf.low || (r3 !== 'on' && this.phone && this.qset !== 'high')); } reliefFrame(now); this.flat3d = isFlat();     // (0.61) the slight 3D look (render/relief.js)
     drawCover(ctx, m, px);
     drawCitadelWalls(ctx, m, pal.enemy, px);
     // Bases: always known from orbit.
@@ -391,7 +394,7 @@ export class Renderer {
           for (const sp of b.spawners) {
             const sb = { ...b, x: sp.x, y: sp.y, r: Math.max(sp.r * 1.5, px(6)), hp: sp.hp, maxHp: sp.maxHp, spawners: undefined };
             if (sp.dead) { drawBaseRuin(ctx, sb, now, px); continue; }
-            drawBaseArt(ctx, sb, m.faction.id, pal.enemy, inZ, now, px);
+            raise(ctx, sp, sb.x, sb.y, sb.r * 1.7, sb.r * 0.42, (c) => drawBaseArt(c, sb, m.faction.id, pal.enemy, inZ, now, px), { ...RAISE_B, sig: inZ ? 1 : 0 });
             if (sp.hp < sp.maxHp && !hideUi) { const bw = sb.r * 2.2; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25, bw, px(3)); ctx.fillStyle = pal.enemy; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25, bw * Math.max(0, sp.hp / sp.maxHp), px(3)); }
             if (t - (sp.hurtAt ?? -99) < 0.12) { ctx.strokeStyle = '#fff'; ctx.lineWidth = px(2); ctx.beginPath(); ctx.arc(sp.x, sp.y, sb.r * 1.1, 0, TAU); ctx.stroke(); }
             if (sp.maxShield && sp.shield > 0) {      // (0.55) the squids' light shield: a bubble that flares when hit
@@ -404,7 +407,7 @@ export class Renderer {
           for (const T of b.turrets || []) {      // (0.55) a bot base's turrets
             const R = Math.max(T.r, px(5));
             if (T.dead) { ctx.fillStyle = 'rgba(30,30,30,0.7)'; ctx.beginPath(); ctx.arc(T.x, T.y, R, 0, TAU); ctx.fill(); continue; }
-            drawTurretArt(ctx, T.x, T.y, T.face || 0, R, pal.enemy, px, t - (T.hurtAt ?? -99) < 0.1, t - (T.firedAt ?? -9));
+            raise(ctx, T, T.x, T.y, R * 2.6, R * 0.7, (c) => drawTurretArt(c, T.x, T.y, T.face || 0, R, pal.enemy, px, t - (T.hurtAt ?? -99) < 0.1, t - (T.firedAt ?? -9)), { ...RAISE_B, sig: Math.round((T.face || 0) * 12) * 4 + (t - (T.hurtAt ?? -99) < 0.1 ? 1 : 0) + (t - (T.firedAt ?? -9) < 0.12 ? 2 : 0) });
             if (T.hp < T.maxHp && !hideUi) { const bw = R * 2.4; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(T.x - bw / 2, T.y + R * 1.5, bw, px(3)); ctx.fillStyle = pal.enemy; ctx.fillRect(T.x - bw / 2, T.y + R * 1.5, bw * T.hp / T.maxHp, px(3)); }
           }
         }
@@ -412,9 +415,9 @@ export class Renderer {
         if (b === sqBase && !b.fortress) labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 16, text: tr('lab.base'), col: 'rgba(215,230,220,0.9)' });
         continue;
       }
-      if (b.cannon) drawCannonArt(ctx, b, pal.enemy, now, px, t);
-      else if (b.node) drawNodeArt(ctx, b, pal.enemy, now, px);
-      else drawBaseArt(ctx, b, m.faction.id, pal.enemy, inZ, now, px);
+      if (b.cannon) raise(ctx, b, b.x, b.y, b.r * 2.4, b.r * 0.5, (c) => drawCannonArt(c, b, pal.enemy, now, px, t), { ...RAISE_B, every: 0.5 });
+      else if (b.node) raise(ctx, b, b.x, b.y, b.r * 1.8, b.r * 0.5, (c) => drawNodeArt(c, b, pal.enemy, now, px), RAISE_B);
+      else raise(ctx, b, b.x, b.y, b.r * 1.7, b.r * 0.42, (c) => drawBaseArt(c, b, m.faction.id, pal.enemy, inZ, now, px), { ...RAISE_B, sig: inZ ? 1 : 0 });
       if (t - (b.lastHit ?? -99) < 0.12) { ctx.strokeStyle = '#fff'; ctx.lineWidth = px(2); ctx.beginPath(); ctx.arc(b.x, b.y, r * 1.1, 0, TAU); ctx.stroke(); }
       if (tgBs.has(b) && !hideUi) this._bracket(ctx, b.x, b.y, r * 1.5, px(1.8), pal.ally);
       if (b.cannon && !b.destroyed) labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 18, text: tr('lab.cannon'), col: pal.enemy, pri: 2 });
@@ -458,7 +461,7 @@ export class Renderer {
     // them readable on any biome.
     const fid = m.faction.id;
     stirScenery(m, now, vb, this.fx);     // (0.59) grass pushed aside, ripples where anyone wades
-    updatePresence(this, m, now);
+    this.groundSize = SIZE; updatePresence(this, m, now);
     drawSceneryGround(ctx, m, now, px, scale, vb);     // (0.59) rocks, grass, the enemy's marks on the ground
     drawPresence(ctx, this, m, now, px, vb, true);      // (0.59) the bugs' scent
     this._prints(ctx, m, now, px, onScr);     // (0.58) craters and footprints, under everyone
@@ -469,6 +472,11 @@ export class Renderer {
     // hundred on screen, mediums past twice that (half those when the frame rate has dropped).
     let nOn = 0;
     for (const e of m.enemies) if (!e.dead && e.vis > 0 && !e.boss && !e.sub && onScr(e.x, e.y, 8)) nOn++;
+    const flat = isFlat(), wallE = shadeHex(pal.enemy, 0.34), wallA = shadeHex(pal.ally, 0.36);
+    setRelief(!flat);
+    let nAll = nOn; for (const a of m.alive) if (!a.dead && !a.inside && onScr(a.x, a.y, 6)) nAll++;
+    const fine = !flat && nAll <= 90;
+    if (fine) setRelief(2);
     const crowd = this.perf.low ? 150 : 300, dotKinds = nOn > crowd * 2 ? 'LM' : nOn > crowd ? 'L' : '', lod0 = [], lod1 = [], hot = [];
     for (const e of m.enemies) {
       if (e.dead || e.vis <= 0) continue;
@@ -478,14 +486,27 @@ export class Renderer {
         if (dotKinds && dotKinds.includes(e.kind)) { (e.vis >= 2 ? lod1 : lod0).push(e, er); if (t - e.hurtAt < 0.06) hot.push(e, er); continue; }
       }
       ctx.globalAlpha = e.vis >= 2 ? 1 : 0.6;
-      if (!e.boss) { const sr = enemyR(e, SUBTYPES[e.kind], px); ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(e.x + sr * 0.4, e.y + sr * 0.5, sr * 0.7, sr * 0.38, 0, 0, TAU); ctx.fill(); }     // (0.59) its shadow (0.58.2: a flat one under its feet, not a disc behind it)
+      // (0.61) a slight 3D: its shadow as long as it is tall, a dark side under it, the body drawn a little up from its feet
+      let up = 0;
+      if (!e.boss && !flat) {
+        const sr = enemyR(e, SUBTYPES[e.kind], px), eh = sr * (e.kind === 'H' ? 0.62 : e.kind === 'M' ? 0.5 : 0.4);
+        if (fine) {     // few enough on screen: true sides, whatever its shape
+          unitShadow(ctx, e.x, e.y, sr, eh, e.vis >= 2 ? 1 : 0.6);
+          raiseUnit(ctx, eh, wallE, (c) => drawEnemyBody(c, e, fid, sr, pal.enemy, now, px, t - e.hurtAt < 0.06));
+          ctx.globalAlpha = 1; continue;
+        }
+        up = liftUnit(ctx, e.x, e.y, sr, eh, wallE, e.vis >= 2 ? 1 : 0.6);
+      }
+      else if (!e.boss) { const sr = enemyR(e, SUBTYPES[e.kind], px); ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(e.x + sr * 0.4, e.y + sr * 0.5, sr * 0.7, sr * 0.38, 0, 0, TAU); ctx.fill(); }     // (0.59) its shadow (0.58.2: a flat one under its feet, not a disc behind it)
       else { const sr = e.r * 1.5; ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(e.x + sr * 0.5, e.y + sr * 0.4, sr * 1.1, sr * 0.8, 0, 0, TAU); ctx.fill(); }
       if (e.boss) {
         const br = bossR(e, px), body = (q) => drawBossBody(ctx, q, fid, br, pal.enemy, now, px, t - e.hurtAt < 0.06, t);
         if (arriving(e, t)) drawBossArrival(ctx, e, fid, br, pal.enemy, now, px, t, body);     // (0.55.1) its arrival
-        else body(e);
+        else if (flat) body(e);
+        else raiseUnit(ctx, br * 0.34, wallE, (c) => drawBossBody(c, e, fid, br, pal.enemy, now, px, t - e.hurtAt < 0.06, t));
       }
       else drawEnemyBody(ctx, e, fid, enemyR(e, SUBTYPES[e.kind], px), pal.enemy, now, px, t - e.hurtAt < 0.06);
+      if (up) dropUnit(ctx, up);
       ctx.globalAlpha = 1;
     }
     for (const [L, al] of [[lod0, 0.6], [lod1, 1]]) {
@@ -534,8 +555,15 @@ export class Renderer {
         ctx.strokeStyle = pal.ally; ctx.lineWidth = px(1.2); ctx.globalAlpha = 0.6;
         ctx.beginPath(); ctx.arc(a.x, a.y, r * 2.1, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
       }
-      ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(a.x + r * 0.45, a.y + r * 0.35, r * 0.95, r * 0.7, 0, 0, TAU); ctx.fill();     // (0.59) its shadow
-      drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t);
+      let up = 0;
+      if (fine) {     // (0.61)
+        unitShadow(ctx, a.x, a.y, r, r * (H_ ? 0.5 : 0.42));
+        raiseUnit(ctx, r * (H_ ? 0.5 : 0.42), wallA, (c) => drawAllyBody(c, a, r, pal.ally, tm ? tm.color : null, on, now, px, t));
+      }
+      else if (!flat) up = liftUnit(ctx, a.x, a.y, r, r * (H_ ? 0.5 : 0.42), wallA);
+      else { ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(a.x + r * 0.45, a.y + r * 0.35, r * 0.95, r * 0.7, 0, 0, TAU); ctx.fill(); }     // (0.59) its shadow
+      if (!fine) drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t);
+      if (up) dropUnit(ctx, up);
       if (t - a.hurtAt < 0.1 && !hideUi) { ctx.strokeStyle = '#ff6a6a'; ctx.lineWidth = px(1.5); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.3, 0, TAU); ctx.stroke(); }
       if (H_ && !hideUi) { ctx.strokeStyle = tm ? tm.color : '#e8f6ff'; ctx.globalAlpha = 0.8; ctx.lineWidth = px(1.3); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.55, 0, TAU); ctx.stroke(); }
       else if (!hideUi) drawSeafMark(ctx, m, a, r * 0.8, px, seafMulti, on);
@@ -1178,9 +1206,12 @@ export class Renderer {
       if (this._fx23(ctx, f, p, now, px)) continue;     // (0.23) the stratagems' own explosions
       if (f.k === 'flash') {
         const r = f.r * (0.6 + 0.6 * p);
-        const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, r);
+        // (0.61.2) a blast has height: its glow stays on the ground, squashed, and the fireball climbs off it as it swells
+        const up = isFlat() || f.r < 3 ? 0 : r * 0.42 * p, fy = f.y - up;
+        if (up) { ctx.fillStyle = f.col ? this._rgba(f.col, 0.22 * a) : `rgba(255,220,150,${0.22 * a})`; ctx.beginPath(); ctx.ellipse(f.x + up * 0.5, f.y + up * 0.3, r * 0.9, r * 0.55, 0, 0, TAU); ctx.fill(); }
+        const g = ctx.createRadialGradient(f.x, fy, 0, f.x, fy, r);
         g.addColorStop(0, `rgba(255,255,255,${0.95 * a})`); g.addColorStop(0.5, f.col ? this._rgba(f.col, 0.55 * a) : `rgba(255,245,200,${0.55 * a})`); g.addColorStop(1, 'rgba(255,200,100,0)');
-        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, TAU); ctx.fill();
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, fy, r, 0, TAU); ctx.fill();
       } else if (f.k === 'spark') {
         const r = f.r * (0.5 + p);
         ctx.fillStyle = this._rgba(f.col || '#ffffff', 0.95 * (1 - p)); ctx.beginPath(); ctx.arc(f.x, f.y, Math.max(r, px(2)), 0, TAU); ctx.fill();
@@ -1251,11 +1282,13 @@ export class Renderer {
         ctx.strokeStyle = `rgba(255,250,235,${0.75 * a})`; ctx.lineWidth = px(3) * (1 - p) + px(0.5);
         ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (0.25 + 0.75 * Math.sqrt(p)), 0, TAU); ctx.stroke();
       } else if (f.k === 'debris') {
-        const e = 1 - (1 - p) * (1 - p), x = f.x + f.vx * e, y = f.y + f.vy * e - Math.sin(Math.PI * p) * 3;
+        const e = 1 - (1 - p) * (1 - p), flatFx = isFlat(), hgt = Math.sin(Math.PI * p) * (flatFx ? 3 : 3 + Math.hypot(f.vx, f.vy) * 0.3), x = f.x + f.vx * e, y = f.y + f.vy * e - hgt;
+        if (!flatFx) { ctx.fillStyle = `rgba(0,0,0,${0.28 * (1 - p)})`; ctx.beginPath(); ctx.arc(x + hgt * 0.55, y + hgt * 1.4, Math.max(px(1.1), 0.25), 0, TAU); ctx.fill(); }     // (0.61.2) its shadow on the ground
         ctx.strokeStyle = `rgba(255,${180 + Math.round(60 * (1 - p))},120,${0.9 * (1 - p)})`; ctx.lineWidth = Math.max(px(1.4), 0.3);
         ctx.beginPath(); ctx.moveTo(x - f.vx * 0.12, y - f.vy * 0.12); ctx.lineTo(x, y); ctx.stroke();
       } else if (f.k === 'smoke') {
-        const r = f.r * (0.6 + 0.9 * p), y = f.y - p * 6, x = f.x + f.drift * p;
+        const flatFx = isFlat(), rise = flatFx ? p * 6 : p * (6 + f.r * 0.9), r = f.r * (0.6 + 0.9 * p), y = f.y - rise, x = f.x + f.drift * p;
+        if (!flatFx && r > 3) { ctx.fillStyle = `rgba(0,0,0,${0.1 * (1 - p)})`; ctx.beginPath(); ctx.ellipse(f.x + f.drift * p + rise * 0.55, f.y + rise * 0.4, r * 0.8, r * 0.5, 0.63, 0, TAU); ctx.fill(); }     // (0.61.2) the column's shadow
         const g = ctx.createRadialGradient(x, y, 0, x, y, r);
         g.addColorStop(0, `rgba(60,64,60,${0.35 * (1 - p)})`); g.addColorStop(1, 'rgba(60,64,60,0)');
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
@@ -1335,6 +1368,10 @@ export class Renderer {
       const left = sh.at - t;
       if (left <= 0 || left > fall) continue;
       const q = 1 - left / fall, h = (sh.nuke ? 260 : sh.big ? 170 : 120) * (1 - q), x = sh.x + h * 0.18, y = sh.y - h;
+      if (!isFlat()) {     // (0.61.2) its shadow on the ground, down and to the right of the mark, closing in and darkening as it comes down
+        const sr = Math.max(px(sh.big ? 5 : 3.5), sh.big ? 2.2 : 1.4) * (1 + 1.2 * (1 - q));
+        ctx.fillStyle = `rgba(0,0,0,${0.08 + 0.3 * q})`; ctx.beginPath(); ctx.ellipse(sh.x + h * 0.2, sh.y + h * 0.145, sr * 1.3, sr * 0.8, 0.63, 0, TAU); ctx.fill();
+      }
       ctx.lineCap = 'round';
       ctx.strokeStyle = `rgba(255,190,110,${0.25 + 0.3 * q})`; ctx.lineWidth = px(sh.big ? 6 : 4);
       ctx.beginPath(); ctx.moveTo(x + 9, y - 50); ctx.lineTo(x, y); ctx.stroke();
