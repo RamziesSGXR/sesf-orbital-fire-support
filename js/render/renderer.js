@@ -403,7 +403,7 @@ export class Renderer {
           for (const sp of b.spawners) {
             const sb = { ...b, x: sp.x, y: sp.y, r: Math.max(sp.r * 1.5, px(6)), hp: sp.hp, maxHp: sp.maxHp, spawners: undefined };
             if (sp.dead) { drawBaseRuin(ctx, sb, now, px); continue; }
-            raise(ctx, sp, sb.x, sb.y, sb.r * 1.7, sb.r * 0.42, (c) => drawBaseArt(c, sb, m.faction.id, pal.enemy, inZ, now, px), { ...RAISE_B, sig: inZ ? 1 : 0 });
+            raise(ctx, sp, sb.x, sb.y, sb.r * 1.7, sb.r * 0.42, (c) => drawBaseArt(c, sb, m.faction.id, pal.enemy, inZ, now, px), { ...RAISE_B, live: true, sig: inZ ? 1 : 0 });
             if (sp.hp < sp.maxHp && !hideUi) { const bw = sb.r * 2.2; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25, bw, px(3)); ctx.fillStyle = pal.enemy; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25, bw * Math.max(0, sp.hp / sp.maxHp), px(3)); }
             if (t - (sp.hurtAt ?? -99) < 0.12) { ctx.strokeStyle = '#fff'; ctx.lineWidth = px(2); ctx.beginPath(); ctx.arc(sp.x, sp.y, sb.r * 1.1, 0, TAU); ctx.stroke(); }
             if (sp.maxShield && sp.shield > 0) {      // (0.55) the squids' light shield: a bubble that flares when hit
@@ -416,7 +416,7 @@ export class Renderer {
           for (const T of b.turrets || []) {      // (0.55) a bot base's turrets
             const R = Math.max(T.r, px(5));
             if (T.dead) { ctx.fillStyle = 'rgba(30,30,30,0.7)'; ctx.beginPath(); ctx.arc(T.x, T.y, R, 0, TAU); ctx.fill(); continue; }
-            raise(ctx, T, T.x, T.y, R * 2.6, R * 0.7, (c) => drawTurretArt(c, T.x, T.y, T.face || 0, R, pal.enemy, px, t - (T.hurtAt ?? -99) < 0.1, t - (T.firedAt ?? -9)), { ...RAISE_B, sig: Math.round((T.face || 0) * 12) * 4 + (t - (T.hurtAt ?? -99) < 0.1 ? 1 : 0) + (t - (T.firedAt ?? -9) < 0.12 ? 2 : 0) });
+            raise(ctx, T, T.x, T.y, R * 2.6, R * 0.7, (c) => drawTurretArt(c, T.x, T.y, T.face || 0, R, pal.enemy, px, t - (T.hurtAt ?? -99) < 0.1, t - (T.firedAt ?? -9)), { ...RAISE_B, live: true, sig: Math.round((T.face || 0) * 12) * 4 + (t - (T.hurtAt ?? -99) < 0.1 ? 1 : 0) + (t - (T.firedAt ?? -9) < 0.12 ? 2 : 0) });
             if (T.hp < T.maxHp && !hideUi) { const bw = R * 2.4; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(T.x - bw / 2, T.y + R * 1.5, bw, px(3)); ctx.fillStyle = pal.enemy; ctx.fillRect(T.x - bw / 2, T.y + R * 1.5, bw * T.hp / T.maxHp, px(3)); }
           }
         }
@@ -424,9 +424,9 @@ export class Renderer {
         if (b === sqBase && !b.fortress) labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 16, text: tr('lab.base'), col: 'rgba(215,230,220,0.9)' });
         continue;
       }
-      if (b.cannon) raise(ctx, b, b.x, b.y, b.r * 2.4, b.r * 0.5, (c) => drawCannonArt(c, b, pal.enemy, now, px, t), { ...RAISE_B, every: 0.5 });
-      else if (b.node) raise(ctx, b, b.x, b.y, b.r * 1.8, b.r * 0.5, (c) => drawNodeArt(c, b, pal.enemy, now, px), RAISE_B);
-      else raise(ctx, b, b.x, b.y, b.r * 1.7, b.r * 0.42, (c) => drawBaseArt(c, b, m.faction.id, pal.enemy, inZ, now, px), { ...RAISE_B, sig: inZ ? 1 : 0 });
+      if (b.cannon) raise(ctx, b, b.x, b.y, b.r * 2.4, b.r * 0.5, (c) => drawCannonArt(c, b, pal.enemy, now, px, t), { ...RAISE_B, live: true });
+      else if (b.node) raise(ctx, b, b.x, b.y, b.r * 1.8, b.r * 0.5, (c) => drawNodeArt(c, b, pal.enemy, now, px), { ...RAISE_B, live: true });
+      else raise(ctx, b, b.x, b.y, b.r * 1.7, b.r * 0.42, (c) => drawBaseArt(c, b, m.faction.id, pal.enemy, inZ, now, px), { ...RAISE_B, live: true, sig: inZ ? 1 : 0 });
       if (t - (b.lastHit ?? -99) < 0.12) { ctx.strokeStyle = '#fff'; ctx.lineWidth = px(2); ctx.beginPath(); ctx.arc(b.x, b.y, r * 1.1, 0, TAU); ctx.stroke(); }
       if (tgBs.has(b) && !hideUi) this._bracket(ctx, b.x, b.y, r * 1.5, px(1.8), pal.ally);
       if (b.cannon && !b.destroyed) labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 18, text: tr('lab.cannon'), col: pal.enemy, pri: 2 });

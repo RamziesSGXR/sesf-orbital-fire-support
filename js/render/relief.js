@@ -65,7 +65,13 @@ export function raiseUnit(ctx, h, wall, draw) {
 // shape, dark, stacked from the ground up), and itself on top, h metres up. The picture is kept for who (the base, the post...)
 // and laid on the map each frame; it is made again when opts.sig changes, when the zoom changes, and every opts.every seconds
 // (2.5) so slow lights still move, one a frame at most. opts.wall: how dark the walls are (default 0.56).
-let spare = null, tint = null, FLAT = true, budget = 0, urgent = 0, clock = 0;
+// (0.62.1) opts.live: only the walls and the shadow are kept; the thing itself is painted fresh on top every frame, so what moves
+// in it (a pump's beam, a pulse, smoke, a gun turning or firing) moves smoothly instead of jumping every few seconds. Its walls
+// then last opts.every seconds (default 30). While the walls are made, baking() is true: art can leave out what moves.
+// The picture is laid at the exact place, not rounded to whole pixels: the camera's sway moves the ground smoothly, and a
+// building that steps a pixel at a time judders on it.
+let spare = null, tint = null, FLAT = true, budget = 0, urgent = 0, clock = 0, BAKING = false;
+export const baking = () => BAKING;
 const kept = new Map();     // who -> { cv, k, sig, at, seen, ... }
 export function setFlat(v) { FLAT = !!v; }
 export const isFlat = () => FLAT;
@@ -83,7 +89,7 @@ export function raise(ctx, who, x, y, R, h, draw, opts = {}) {
   let e = kept.get(who);
   const sig = opts.sig ?? 0;
   const stale = !e || e.sig !== sig || Math.abs(e.k / k - 1) > 0.015 || e.S !== S;
-  const old = e && clock - e.at > (opts.every ?? 2.5);
+  const live = !!opts.live, old = e && clock - e.at > (opts.every ?? (live ? 30 : 2.5));
   if ((stale && urgent > 0) || (!stale && old && budget > 0)) {
     if (stale) urgent--; else budget--;
     if (!spare) { spare = document.createElement('canvas'); tint = document.createElement('canvas'); }
@@ -92,7 +98,7 @@ export function raise(ctx, who, x, y, R, h, draw, opts = {}) {
     sx.setTransform(1, 0, 0, 1, 0, 0); sx.clearRect(0, 0, S, S);
     sx.setTransform(k, 0, 0, T.d, half - x * k, half - y * T.d);
     sx.globalAlpha = 1;
-    draw(sx);
+    BAKING = true; try { draw(sx); } finally { BAKING = false; }
     const sdx = opts.noShadow ? 0 : Math.ceil(h * LIGHT.x * k), sdy = opts.noShadow ? 0 : Math.ceil(h * LIGHT.y * k);
     const W = S + sdx, H = S + lift + sdy;
     if (!e) { e = { cv: document.createElement('canvas') }; kept.set(who, e); }
@@ -113,13 +119,14 @@ export function raise(ctx, who, x, y, R, h, draw, opts = {}) {
       c.globalAlpha = 1;
     }
     for (let d = 0; d < lift; d++) c.drawImage(tint, 0, 0, S, S, 0, lift - d, S, S);
-    c.drawImage(spare, 0, 0, S, S, 0, 0, S, S);
+    if (!live) c.drawImage(spare, 0, 0, S, S, 0, 0, S, S);     // (live: its top is painted each frame, below)
     e.k = k; e.sig = sig; e.at = clock + Math.random() * 0.6; e.S = S; e.half = half; e.lift = lift; e.W = W; e.H = H; e.kd = T.d;
   }
   if (!e) { draw(ctx); return; }     // (no picture yet and too many being made this frame: flat, for a frame)
   e.seen = clock;
   const q = k / e.k, cx = x * k + T.e, cy = y * T.d + T.f;
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.drawImage(e.cv, 0, 0, e.W, e.H, Math.round(cx - e.half * q), Math.round(cy - (e.half + e.lift) * q), e.W * q, e.H * q);
+  ctx.drawImage(e.cv, 0, 0, e.W, e.H, cx - e.half * q, cy - (e.half + e.lift) * q, e.W * q, e.H * q);
   ctx.restore();
+  if (live) { ctx.save(); ctx.translate(0, -(e.lift * q) / T.d); draw(ctx); ctx.restore(); }     // its top, lifted as high as the walls
 }

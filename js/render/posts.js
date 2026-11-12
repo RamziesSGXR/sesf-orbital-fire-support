@@ -3,7 +3,7 @@
 // Turrets the Helldivers called (sentries) show their reach only when selected too.
 import { t as tr } from '../i18n.js';
 import { VIEW } from './view.js';
-import { raise, isFlat, LIGHT } from './relief.js';
+import { raise, isFlat, LIGHT, baking } from './relief.js';
 import { siteGain } from '../sim/sites.js';
 import { postReach, foxholeSlots, demoRadius, wireEnds } from '../sim/posts.js';
 import { lzStatus } from '../sim/seaf.js';
@@ -230,7 +230,7 @@ function art(ctx, p, now, px, t) {
   ctx.restore();
   if (p.what === 'arty') {
     cannonArt(ctx, x, y, p.face, px, p.manned);
-    if (p.firedAt !== undefined && t - p.firedAt < 0.5) { ctx.fillStyle = `rgba(255,220,140,${0.8 * (1 - (t - p.firedAt) / 0.5)})`; ring(ctx, x + Math.cos(p.face) * px(20), y + Math.sin(p.face) * px(20), px(7)); ctx.fill(); }
+    if (p.firedAt !== undefined && t - p.firedAt < 0.5 && !baking()) { ctx.fillStyle = `rgba(255,220,140,${0.8 * (1 - (t - p.firedAt) / 0.5)})`; ring(ctx, x + Math.cos(p.face) * px(20), y + Math.sin(p.face) * px(20), px(7)); ctx.fill(); }
   }
 }
 
@@ -409,7 +409,7 @@ export function drawPosts(ctx, m, now, px, labels, scale, sel) {
   for (const p of m.posts || []) {
     if (p.dead) continue;
     const ph = POST_H[p.what];
-    if (ph) raise(ctx, p, p.x, p.y, Math.max(ph[1], (p.r || 0) * 1.35 + 4), ph[0], (c) => art(c, p, now, px, t), { wall: 0.56, noShadow: !!ph[2], every: 1.2, sig: Math.round((p.face || 0) * 12) * 8 + (t - p.hurtAt < 0.12 ? 1 : 0) + (p.manned ? 2 : 0) + (p.ghost ? 4 : 0) }); else art(ctx, p, now, px, t);
+    if (ph) raise(ctx, p, p.x, p.y, Math.max(ph[1], (p.r || 0) * 1.35 + 4), ph[0], (c) => art(c, p, now, px, t), { wall: 0.56, noShadow: !!ph[2], live: true, sig: Math.round((p.face || 0) * 12) * 8 + (t - p.hurtAt < 0.12 ? 1 : 0) + (p.manned ? 2 : 0) + (p.ghost ? 4 : 0) }); else art(ctx, p, now, px, t);
     if (p.what === 'lz') { labels.push({ x: p.x, y: p.y, dy: -p.r * scale - 8, text: `${tr('build.lz').toUpperCase()} · ${lzStatus(m, p)}`, col: '#8fe0ff', pri: 2 }); continue; }
     if (p.what === 'site') {     // (0.52) the work site: its name and how it stands, always shown
       if (p !== sel && !p.fallen) useRing(ctx, p.x, p.y, p.r + px(4), px, now);
