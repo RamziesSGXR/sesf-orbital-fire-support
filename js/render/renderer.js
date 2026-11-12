@@ -26,6 +26,8 @@ import { Lighting, ambient, washKey, bakeWash } from './light.js';
 const SIZE = C.world.size;
 export const MINI_Q = 0.9;      // the share of the round minimap's width the (round) area of operations fills
 const TAU = Math.PI * 2;
+// (0.60) the interface's line colour for what the renderer draws as chrome (the frame corners, the minimap's rim and grid)
+const uiRgb = () => (typeof document !== 'undefined' && document.body.classList.contains('ui-scifi') ? '127,233,224' : '157,255,184');
 // (0.58) the colours a hit throws off, by faction: the main colour, then the bright one
 const FP_LIFE = 14, FP_MAX = 6000;     // (0.58) footprints: how long one lasts, how many at most
 const BURST = { bugs: ['#a9d63a', '#f2ff9a'], bots: ['#ff9a3a', '#fff0c0'], squids: ['#b26cff', '#7af6ff'] };
@@ -115,7 +117,7 @@ export class Renderer {
     g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.3)');
     c.fillStyle = g; c.fillRect(0, 0, W, H);
     // Frame corners
-    c.strokeStyle = 'rgba(157,255,184,0.5)'; c.lineWidth = Math.max(1, dpr * 1.5);
+    c.strokeStyle = `rgba(${uiRgb()},0.5)`; c.lineWidth = Math.max(1, dpr * 1.5);
     const m = 8 * dpr, l = 26 * dpr;
     for (const [x, y, sx, sy] of [[m, m, 1, 1], [W - m, m, -1, 1], [m, H - m, 1, -1], [W - m, H - m, -1, -1]]) {
       c.beginPath(); c.moveTo(x, y + l * sy); c.lineTo(x, y); c.lineTo(x + l * sx, y); c.stroke();
@@ -1664,7 +1666,7 @@ export class Renderer {
     // N E S W, about eight screen pixels tall whatever size the minimap is shown at
     const shown = cv.clientWidth || S;
     this._compass(c, S, Math.max(9, Math.min(S * 0.16, 8.5 * (S / shown))));
-    c.strokeStyle = 'rgba(157,255,184,0.55)'; c.lineWidth = 2; c.beginPath(); c.arc(R, R, R - 1.5, 0, TAU); c.stroke();
+    c.strokeStyle = `rgba(${uiRgb()},0.55)`; c.lineWidth = 2; c.beginPath(); c.arc(R, R, R - 1.5, 0, TAU); c.stroke();
   }
   // The tactical map: the minimap's picture, big, with a grid, labels and a compass rose.
   drawBigMap(cv, m, cam) {
@@ -1675,7 +1677,7 @@ export class Renderer {
     c.strokeStyle = 'rgba(255,200,40,0.5)'; c.lineWidth = 2; c.beginPath(); c.arc(S / 2, S / 2, S / 2 - 1, 0, TAU); c.stroke();
     // a 100 m grid with sector letters (columns) and numbers (rows)
     const cells = Math.max(4, Math.round(a.size / 100)), cw = S / cells, fs = Math.max(12, S / 44);
-    c.strokeStyle = 'rgba(157,255,184,0.16)'; c.lineWidth = 1; c.beginPath();
+    c.strokeStyle = `rgba(${uiRgb()},0.16)`; c.lineWidth = 1; c.beginPath();
     for (let i = 1; i < cells; i++) { c.moveTo(i * cw, 0); c.lineTo(i * cw, S); c.moveTo(0, i * cw); c.lineTo(S, i * cw); }
     c.stroke();
     c.font = `${Math.round(fs * 0.8)}px ui-monospace, Menlo, Consolas, monospace`; c.fillStyle = 'rgba(157,255,184,0.45)';
@@ -1718,7 +1720,7 @@ export class Renderer {
     c.fillStyle = '#ffe600'; c.beginPath(); c.moveTo(rx, ry - rr * 1.15); c.lineTo(rx + rr * 0.28, ry); c.lineTo(rx - rr * 0.28, ry); c.closePath(); c.fill();
     c.fillStyle = 'rgba(215,255,228,0.75)'; c.beginPath(); c.moveTo(rx, ry + rr * 1.15); c.lineTo(rx + rr * 0.28, ry); c.lineTo(rx - rr * 0.28, ry); c.closePath(); c.fill();
     c.beginPath(); c.moveTo(rx - rr, ry); c.lineTo(rx + rr, ry); c.stroke();
-    c.strokeStyle = 'rgba(157,255,184,0.5)'; c.lineWidth = 1; c.strokeRect(0.5, 0.5, S - 1, S - 1);
+    c.strokeStyle = `rgba(${uiRgb()},0.5)`; c.lineWidth = 1; c.strokeRect(0.5, 0.5, S - 1, S - 1);
   }
   // Everything both maps show, at k canvas units per metre.
   _mapMarks(c, m, k, t, ac, ec, big = false) {

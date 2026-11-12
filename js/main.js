@@ -176,17 +176,23 @@ function pickEnemy(e) { audio.unlock(); audio.click(); settings.enemy = e; S.sav
 
 // ---------------- input hooks ----------------
 document.body.classList.add('rts');     // (0.20: the HUD as an RTS, css)
-// (0.60 beta) the sci-fi interface, opt-in: ?ui=scifi turns it on and it stays on (this browser); ?ui=classic turns it off
-try {
-  const q = new URLSearchParams(location.search).get('ui');
-  if (q === 'scifi' || q === 'classic') localStorage.setItem('ofs.ui', q);
-  if (localStorage.getItem('ofs.ui') === 'scifi') {
+// (0.60) the sci-fi interface is the default; ?ui=classic goes back to the old green one (remembered in this browser), ?ui=scifi returns
+{
+  let ui = 'scifi';
+  try {
+    const q = new URLSearchParams(location.search).get('ui');
+    if (q === 'scifi' || q === 'classic') localStorage.setItem('ofs.ui', q);
+    if (localStorage.getItem('ofs.ui') === 'classic') ui = 'classic';
+  } catch (e) { /* no storage: the default */ }
+  if (ui === 'scifi') {
     document.body.classList.add('ui-scifi');
+  }
+  if (ui === 'scifi' && /^https?:$/.test(location.protocol)) {     // (the two web fonts: not from a file opened offline, which falls back to the system monospace)
     const l = document.createElement('link'); l.rel = 'stylesheet';
     l.href = 'https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Share+Tech+Mono&display=swap';
     document.head.appendChild(l);
   }
-} catch (e) { /* no storage: the classic interface */ }
+}
 const input = new Input(canvas, $('minimap'), cam, {
   weapon: (i) => { if (!act()) return; if (live() && hbFilling(mission)) { hbTap(i); return; } if (live() && supplyFilling(mission)) { supTap(i); return; } setDrawing(false); arm(i); },
   eagleRearm: () => eagleRearmNow(),
