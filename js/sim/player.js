@@ -15,7 +15,7 @@ import { strikeAt, queueZone, destroyAsset } from './strat.js';
 export const SLOT_ARTY = 8, ORB_SLOTS = 5;
 export const UAV_REACH = 70;       // a UAV can be dropped this far beyond the strike zone of the allies
 const ALL = { L: 1, M: 1, H: 1, B: 1 };
-const GUN_MULT = { L: 1, M: 1, H: 0.7, B: C.gun.struct };     // (0.26) heavy penetration: mediums take full damage, heavies most of it (a Harvester goes down to it)
+// (0.59) the gun's damage table goes with its Penetrator Rounds level (GUN_PEN): light to start, medium, then heavy
 
 export function initPlayer(m) {
   const p = {
@@ -433,7 +433,7 @@ function updateGun(m, dt, pressed) {
     while (g.acc >= 1 && g.ammo >= 1) {
       g.acc -= 1; g.ammo -= 1;
       const [ox, oy] = m.rng.inDisc(spread), x = p.aimX + ox, y = p.aimY + oy;
-      damageArea(m, x, y, G.splash * m.biome.splash, gs.dmg, GUN_MULT, 'player', false, 'gun', x, y - 3);   // rounds fall from the ship
+      damageArea(m, x, y, G.splash * m.biome.splash, gs.dmg, gs.pen, 'player', false, 'gun', x, y - 3);   // rounds fall from the ship
       if (pts.length < 4) pts.push([x, y]);
       m.stats.gunRounds = (m.stats.gunRounds || 0) + 1;
     }

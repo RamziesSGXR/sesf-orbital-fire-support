@@ -19,10 +19,12 @@ export function initBoss(m, opts = {}) {
   if (opts.boss === false) return;
   const chance = Math.min(B.maxChance, B.chance + B.perSessionMin * m.W);
   const roll = m.rng.next();
-  if (opts.boss === true || roll < chance) m.bossPlan = { at: opts.bossAt ?? m.rng.range(B.window[0], B.window[1]) };
+  if (opts.boss === true || (roll < chance && heavyLevelOk(m))) m.bossPlan = { at: opts.bossAt ?? m.rng.range(B.window[0], B.window[1]) };
 }
 
 export const bossAlive = (m) => !!(m.boss && !m.boss.dead);
+// (0.59) super heavies only from C.boss.minLevel up
+export const heavyLevelOk = (m) => (m.difficulty ?? 10) >= C.boss.minLevel;
 export const bossDef = (m) => C.boss[m.faction.id];
 
 // opts.at: a citadel's guardian, standing at the keep (opts.guard) rather than coming in out of sight; it is weaker on the lower

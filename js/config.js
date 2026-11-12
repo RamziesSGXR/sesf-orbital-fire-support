@@ -501,7 +501,8 @@ export const CONFIG = {
   // hangs `dist` metres from the squad and drops `groups` groups every waveEvery s. hp and shield are huge, it heals `heal` hp/s, and a
   // SAM hit is cut to samMul (about 20 sites to bring it down). When every one is down, the next set comes after respawnSec, one more
   // each time up to maxShips. crashSec: how long it falls; crashR/crashDmg the blast where it lands; the wreck stays.
-  mother:   { after: 4, minT: 150, hp: 36000, shield: 24000, heal: 220, regen: 260, regenDelay: 6, samMul: 0.2, r: 62, speed: 38, approach: 520, dist: [150, 230],
+  mother:   { after: 4, minT: 150, hp: 48000, shield: 32000,     // (0.59: 80,000 in all, four super heavies)
+              heal: 220, regen: 260, regenDelay: 6, samMul: 0.2, r: 62, speed: 38, approach: 520, dist: [150, 230],
               firstWave: 5, waveEvery: 24, groups: 2, maxShips: 3, respawnSec: 70, crashSec: 7, crashR: 60, crashDmg: 700, reward: 900, keepR: 110 },
   // Points of interest: random spots SEAF can take out for credits. Guarded by an enemy group that wakes when allies come close.
   // (0.18: fewer of these; the finds below are the rest)
@@ -529,7 +530,8 @@ export const CONFIG = {
   weapons:  { swapSec: 0.3, warmupSec: 8, startCdFrac: 0.5, startCdMin: 12 },
   // The destroyer's free-fire Ship Gun (its one gatling). It fires wherever the player can see, so it is not tied to the strike zone, and it is the
   // only thing that uses the player's ammo. Rounds scatter around the aim point and the spread blooms while the trigger is held.
-  gun:      { ammo: 600, regen: 9, regenDelay: 1.3, rps: 22, dmg: 16, splash: 1.9, spread: 4.5, bloom: 7, bloomUp: 2.4, bloomDown: 5, struct: 0.04, body: 0.75, bodyMax: 8,
+  // (0.59) ammo 600 -> 200; light penetration to start (pen[0]), the Penetrator Rounds upgrade takes it to medium then heavy
+  gun:      { ammo: 200, pen: [{ L: 1, M: 0.35, H: 0.12 }, { L: 1, M: 1, H: 0.35 }, { L: 1, M: 1, H: 0.7 }], regen: 9, regenDelay: 1.3, rps: 22, dmg: 16, splash: 1.9, spread: 4.5, bloom: 7, bloomUp: 2.4, bloomDown: 5, struct: 0.04, body: 0.75, bodyMax: 8,
               upAmmo: 150, upDmg: 0.2, upRegen: 0.25, upSpread: 0.1, maxLevel: 5 },
 
   // The player's kit. Orbital strikes level 1 to 5; every level adds damage, size and shell count and trims the recharge.
@@ -624,7 +626,9 @@ export const CONFIG = {
   // in the window (seconds into the mission), or as soon as the objective is done, and it must be destroyed before the pelican will
   // land. hp grows with half the session's health ramp, damage with the damage ramp. Back hits do the heavy multiplier.
   // giveUpSec: once the squad has waited this long at the extraction point with it still alive, it withdraws (no bounty).
-  boss: { chance: 0.12, perSessionMin: 0.003, maxChance: 0.5, window: [170, 450], dist: [190, 240], reward: 700, score: 3000, giveUpSec: 210,
+  // (0.59) minLevel: no super heavy of any kind below this difficulty level (the random one, the alert's, a citadel's guardian,
+  // the mothership's; reinforcements start at reinf.from)
+  boss: { minLevel: 8, chance: 0.12, perSessionMin: 0.003, maxChance: 0.5, window: [170, 450], dist: [190, 240], reward: 700, score: 3000, giveUpSec: 210,
           // (0.55) super heavies brought by reinforcements (boss.js reinfHeavyChance): per call, (level - from) x perLevel, and for the bots
           // perDown more for each dropship shot down this mission past botsAfter; at most max, maxPer a mission, gapSec apart, not before minT
           // (0.55) every super heavy reaches as far as the allies see (C.sight.helldiver x the biome x reachMul), stops at standOff of
@@ -633,16 +637,18 @@ export const CONFIG = {
           // (0.55.1) arrivals: sec long, the impact at `hit` of the way (render/bossin.js draws them)
           arrive: { bugs: { sec: 3.2, hit: 0.45 }, bots: { sec: 2.8, hit: 0.55 }, squids: { sec: 3.4, hit: 0.7 } },
           reinf: { from: 10, perLevel: 0.012, max: 0.35, botsAfter: 4, perDown: 0.04, maxPer: 3, gapSec: 100, minT: 120 },
-          bugs:   { hp: 4500, r: 10, speed: 2.3, stop: 7,
+          // (0.59) all three about 20,000 to kill (3x what the old 600-round heavy-penetrating gun could do to one); the colossus's
+          // shield counts toward it
+          bugs:   { hp: 20000, r: 10, speed: 2.3, stop: 7,
                     spit: { range: 50, dmg: 38, splash: 6, every: 3.8, flight: 1.1, acc: 0.8 }, stomp: { range: 10, dmg: 85, every: 1.8, splash: 5.5, acc: 0.8 },
                     // (0.55) the spray: n blobs over a cone `cone` rad wide out to range m, every s (first after `first` s); every
                     // other blob leaves a pool (r m, dps to allies in it, sec long)
                     spray: { first: 6, every: 10, range: 46, n: 12, cone: 0.7, dmg: 18, splash: 4.5, flight: 1.0, pool: { r: 5, dps: 16, sec: 7 } } },
-          bots:   { hp: 5500, r: 11, speed: 1.7, stop: 40,
+          bots:   { hp: 20000, r: 11, speed: 1.7, stop: 40,
                     cannon: { range: 62, dmg: 26, splash: 4, every: 1.6, acc: 0.7 }, deploy: { every: 30 },
                     // (0.55) turrets on its back (x, y in its radii, +x forward), as a bot base's (C.eturret), damage x turretMul
                     turrets: [[-0.45, -0.42], [-0.45, 0.42]], turretMul: 1.2 },
-          squids: { hp: 3800, shield: 2000, regen: 120, regenDelay: 7, r: 12, speed: 1.9, stop: 48,
+          squids: { hp: 14000, shield: 6000, regen: 120, regenDelay: 7, r: 12, speed: 1.9, stop: 48,
                     // (0.55) walk: its beam walks the ground like the orbital laser (enemies.js colossusBeam): charge s, then dur s
                     // burning width across at dps, starting lead m short of the target and steering at follow m/s; every s between
                     walk: { range: 78, charge: 2.2, lock: 0.6, dur: 5, dps: 60, width: 6, follow: 7, lead: 16, every: 7 } } },
@@ -668,6 +674,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.58.2',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.59.0',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

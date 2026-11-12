@@ -111,7 +111,7 @@ const seafReady = (m, n = 5) => { m.seaf.readyAt = 0; m.callSeaf(m.hx + 10, m.hy
   for (const a of easy.hdAlive) { a.x = go.base.x - 40; a.y = go.base.y; }
   easy.squad.ax = go.base.x - 40; easy.squad.ay = go.base.y;
   run(easy, 2);
-  check('and it is weaker on the low levels', easy.boss && g.boss && easy.boss.maxHp < g.boss.maxHp, `${easy.boss && easy.boss.maxHp} vs ${g.boss && g.boss.maxHp}`);
+  check('(0.59) below level 8 the citadel has no super heavy', !easy.boss && !!g.boss, `${easy.boss ? easy.boss.name : 'none'} at level 1`);
 }
 
 // ---------------------------------------------------------------- bases: easier, and clusters work together

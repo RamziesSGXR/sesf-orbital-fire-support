@@ -2727,3 +2727,6 @@ body.rts.lay-phone #hud #tactical .tct span { display: none !important; } body.r
   body.rts.lay-phone.lay-land #hud #topbar .alertc b em.al-n.hot { color: #ff5a3c; }
   body.rts.lay-phone.lay-land #hud #topbar .alertc { padding: 0 6px; }
 }
+/* (0.59) PLACE's bar sat at left: 50%, so it shrank to half the screen and its text went one word a line: it sizes to its content now */
+#hud #place-ok { width: max-content; }
+#hud #place-ok .po-t { flex: 1 1 auto; min-width: 140px; }
