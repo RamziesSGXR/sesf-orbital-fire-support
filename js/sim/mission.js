@@ -336,7 +336,9 @@ export class Mission {
     const atLz = this.earlyLz(x, y);
     if (!this.alive.length && !atLz) return this._deny(this.earlyDrop() ? 'nearlz' : 'noallies');     // (0.53.6: early, say where)
     const bc = beaconAt(this, x, y);
-    if (bc) { x = bc.x; y = bc.y; }      // a drop beacon takes it anywhere on the map (while it is lit)
+    if (bc && !bc.post) { x = bc.x; y = bc.y; }      // a drop beacon takes it anywhere on the map (while it is lit). (0.61.3) A Propaganda
+    // Tower's does not pull the drop onto itself: it lands where it was called, anywhere within the beacon's reach of the tower.
+    else if (bc) { /* where it was called */ }
     else if (!atLz && !this.inZone(x, y, -5)) return this._deny('nocoverage', COMMS.noCoverage);
     // (0.39) troopers aboard the destroyer (picked up) come down first; new ones only as far as there is room
     const room = Math.max(0, st.max - seafHeld(this)) + sf.reserve.length;
@@ -361,7 +363,8 @@ export class Mission {
     if (this.over) return { ok: false, reason: 'over' };
     if (!this.seafAlive.length) return this._deny('noseaf');
     const bc = beaconAt(this, x, y);
-    if (bc) { x = bc.x; y = bc.y; }
+    if (bc && !bc.post) { x = bc.x; y = bc.y; }
+    else if (bc) { /* (0.61.3) by a Propaganda Tower: where it was called */ }
     else if (!this.inZone(x, y, -5)) return this._deny('nocoverage', COMMS.noCoverage);
     ({ x, y } = aoClamp(this.ao, x, y, 20));
     if (!this.terrain.isLand(x, y) || this.terrain.blocked(x, y)) return this._deny('water', COMMS.noWater);

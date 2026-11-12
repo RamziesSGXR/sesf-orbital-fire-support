@@ -680,7 +680,7 @@ export default {
   'info.sides': 'OBJETIVOS SECUNDARIOS',
   'info.sidesV': '<b>Torre de radio:</b> un Helldiver la activa; el terreno a su alrededor queda a la vista, y se puede atacar allí, el resto de la misión. <b>Torre de propaganda:</b> una torre enemiga que atrae a las patrullas hacia el escuadrón. Destrúyela; mientras siga entera, el escuadrón te pide una Hellbomb. <b>Interferidor:</b> un escupidor de esporas, un interferidor de estratagemas o un disruptor cognitivo. Ninguna orbital ni estratagema cae dentro de su anillo discontinuo (el cañón de la nave sigue disparando allí), y solo una Hellbomb lo derriba: el escuadrón despeja la zona, tú armas la Hellbomb, uno de ellos la activa y salen corriendo. <b>SEAF ocultos:</b> una escuadra SEAF escondida en algún punto cerca del camino. No los ves ni a ellos ni nada a su alrededor hasta que un Helldiver o uno de tus SEAF pasa cerca; entonces se te unen.',
   'info.beacons': 'PUNTOS DE DESPLIEGUE SEAF',
-  'info.beaconsV': 'Las torres de propaganda que construye el SEAF (CONSTRUIR, luego TORRE DE PROPAGANDA). Un despliegue SEAF apuntado a una aterriza allí, esté donde esté el escuadrón.',
+  'info.beaconsV': 'Las torres de propaganda que construye el SEAF (CONSTRUIR, luego TORRE DE PROPAGANDA). Un despliegue SEAF pedido a menos de {n} m de una aterriza donde lo pides, esté donde esté el escuadrón.',
   'info.radar': 'RADAR Y ENEMIGOS DELATADOS',
   'info.radarV': 'El dron barre todo el mapa cada pocos segundos (más rápido con mejoras): marcas tenues donde estaba cada enemigo. Un enemigo que dispara a tus aliados se delata (rombo rojo). Mantenlo delatado {n} segundos y queda fijado (corchetes blancos): tus ataques y el cañón pueden alcanzarlo en cualquier sitio.',
   'info.hits': 'IMPACTOS',

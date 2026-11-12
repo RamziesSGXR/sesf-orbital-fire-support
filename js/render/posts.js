@@ -2,7 +2,7 @@
 // a crew and has none), its health when hurt, a wrench while it is being patched up, and, when selected, its reach and brackets.
 // Turrets the Helldivers called (sentries) show their reach only when selected too.
 import { t as tr } from '../i18n.js';
-import { raise } from './relief.js';
+import { raise, isFlat, LIGHT } from './relief.js';
 import { siteGain } from '../sim/sites.js';
 import { postReach, foxholeSlots, demoRadius, wireEnds } from '../sim/posts.js';
 import { lzStatus } from '../sim/seaf.js';
@@ -162,6 +162,7 @@ function art(ctx, p, now, px, t) {
     ctx.restore();
     return;
   }
+  if ((p.what === 'lookout' || p.what === 'tower') && !isFlat() && !p.ghost) { ctx.restore(); tall(ctx, p, now, px, f, hit); return; }
   if (p.what === 'lookout') {
     // the Lookout Tower from above: four stilts throwing long shadows, a plank platform with a rail round it (the crew stand on
     // it), and a searchlight that sweeps while it is manned
@@ -233,6 +234,91 @@ function art(ctx, p, now, px, t) {
 }
 
 // A light bridge: a hard-light deck from bank to bank between two emitter pylons, its edges bright and a shimmer running across.
+// (0.61.3) The two towers in the 3D look, drawn standing: their feet on the ground, their tops up the screen, their shadows down
+// and to the right in the land's light (relief.js LIGHT), as long as they are tall.
+//   Lookout Tower     four stilts with cross braces, a plank platform with a rail on top, the searchlight on its front rail
+//   Propaganda Tower  a lattice mast narrowing to the top, four yellow loudspeaker horns facing out, a Super Earth banner hanging
+//                     from an arm, a red light on the tip, and broadcast rings off the horns while someone mans it
+function tall(ctx, p, now, px, f, hit) {
+  const x = p.x, y = p.y, lookout = p.what === 'lookout', H = (lookout ? 5 : 9) * f, up = H * LIGHT.up, sx = H * LIGHT.x, sy = H * LIGHT.y;
+  const b = (lookout ? 2.1 : 1.7) * f, tw = (lookout ? 2.2 : 0.55) * f, a0 = lookout ? (p.face || 0) : 0, ca = Math.cos(a0), sa = Math.sin(a0);
+  const C4 = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+  const foot = C4.map(([i, j]) => [x + (i * ca - j * sa) * b, y + (i * sa + j * ca) * b]);
+  const at = (k, q) => { const w = b + (tw - b) * q, [i, j] = C4[k]; return [x + (i * ca - j * sa) * w, y + (i * sa + j * ca) * w - up * q]; };     // corner k, q of the way up
+  const sh = (k, q) => { const w = b + (tw - b) * q, [i, j] = C4[k]; return [x + (i * ca - j * sa) * w + sx * q, y + (i * sa + j * ca) * w + sy * q]; };     // its shadow
+  const lw = (n) => Math.max(px(n), 0.05 * f);
+  // the shadow: the legs', and the top's
+  ctx.fillStyle = 'rgba(0,0,0,0.27)'; ctx.strokeStyle = 'rgba(0,0,0,0.27)'; ctx.lineCap = 'round';
+  if (lookout) {
+    ctx.lineWidth = 0.5 * f; ctx.beginPath(); for (let k = 0; k < 4; k++) { ctx.moveTo(foot[k][0], foot[k][1]); ctx.lineTo(...sh(k, 1)); } ctx.stroke();
+    ctx.beginPath(); for (let k = 0; k < 4; k++) { const q = sh(k, 1); if (k) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); } ctx.closePath(); ctx.fill();
+  } else {
+    ctx.beginPath(); ctx.moveTo(...sh(3, 0)); ctx.lineTo(...sh(1, 0)); ctx.lineTo(...sh(1, 1)); ctx.lineTo(...sh(3, 1)); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x + sx, y + sy, 1.9 * f, 1.2 * f, 0.63, 0, TAU); ctx.fill();     // (the horns' and the banner's)
+  }
+  // the legs and their braces (the far ones first)
+  const steel = hit ? '#ffffff' : lookout ? '#4a4034' : '#aab4ad', dim = hit ? '#ffffff' : lookout ? '#332b22' : '#5d6660';
+  const levels = lookout ? [0, 0.5, 1] : [0, 0.25, 0.5, 0.75, 1];
+  const face = (k0, k1, col) => {     // one side of the frame: its two legs, the rungs across, a diagonal a bay
+    ctx.strokeStyle = col; ctx.lineWidth = lw(lookout ? 1.6 : 1.3);
+    ctx.beginPath(); ctx.moveTo(...at(k0, 0)); ctx.lineTo(...at(k0, 1)); ctx.moveTo(...at(k1, 0)); ctx.lineTo(...at(k1, 1)); ctx.stroke();
+    ctx.lineWidth = lw(lookout ? 1 : 0.8); ctx.beginPath();
+    for (let i = 0; i < levels.length; i++) {
+      const q = levels[i]; if (i) { ctx.moveTo(...at(k0, q)); ctx.lineTo(...at(k1, q)); }
+      if (i + 1 < levels.length) { const [u, v] = i % 2 ? [k1, k0] : [k0, k1]; ctx.moveTo(...at(u, q)); ctx.lineTo(...at(v, levels[i + 1])); }
+    }
+    ctx.stroke();
+  };
+  if (!lookout) { ctx.fillStyle = 'rgba(52,58,54,0.95)'; ctx.beginPath(); for (let k = 0; k < 4; k++) { if (k) ctx.lineTo(...foot[k]); else ctx.moveTo(...foot[k]); } ctx.closePath(); ctx.fill(); }     // the concrete foot
+  face(0, 1, dim); face(3, 0, dim); face(1, 2, steel); face(2, 3, steel);     // (back, left; then right and front, lit)
+  const tx = x, ty = y - up;
+  if (lookout) {
+    // the platform, as it was drawn flat, up on its stilts; a dark edge under its front
+    ctx.fillStyle = 'rgba(30,24,16,0.9)'; ctx.beginPath(); for (let k = 0; k < 4; k++) { const q = at(k, 1); if (k) ctx.lineTo(q[0], q[1] + 0.45 * f); else ctx.moveTo(q[0], q[1] + 0.45 * f); } ctx.closePath(); ctx.fill();
+    ctx.save(); ctx.translate(tx, ty); ctx.rotate(p.face || 0); ctx.scale(f, f);
+    ctx.fillStyle = hit ? '#fff' : '#7a6444'; ctx.fillRect(-2.2, -2.2, 4.4, 4.4);
+    ctx.strokeStyle = 'rgba(40,30,18,0.7)'; ctx.lineWidth = Math.max(px(0.7) / f, 0.05);
+    for (let k = -1.6; k <= 1.7; k += 0.8) { ctx.beginPath(); ctx.moveTo(-2.2, k); ctx.lineTo(2.2, k); ctx.stroke(); }
+    ctx.strokeStyle = '#c9d4cd'; ctx.lineWidth = 0.28; ctx.strokeRect(-2.2, -2.2, 4.4, 4.4);
+    ctx.fillStyle = '#3a3f3b'; for (const [i, j] of C4) ctx.fillRect(i * 2.2 - 0.35, j * 2.2 - 0.35, 0.7, 0.7);
+    ctx.fillStyle = '#e8f0ea'; ring(ctx, 2.0, 0, 0.45); ctx.fill();
+    ctx.restore();
+    if (p.manned) {
+      const a = (p.face || 0) + Math.sin(now * 0.7) * 0.6, L = Math.min(60, (p.reach || 120) * 0.35), sp = 0.16;
+      const g = ctx.createRadialGradient(tx, ty, 0, tx, ty, L);
+      g.addColorStop(0, 'rgba(255,250,210,0.35)'); g.addColorStop(1, 'rgba(255,250,210,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(tx + Math.cos(a) * 2 * f, ty + Math.sin(a) * 2 * f); ctx.arc(tx, ty, L, a - sp, a + sp); ctx.closePath(); ctx.fill();
+    }
+    ctx.lineCap = 'butt';
+    return;
+  }
+  // the banner: an arm out to the left two thirds of the way up, Super Earth yellow hanging from it, a black disc on it
+  const by = y - up * 0.72, bx = x - 0.7 * f, bw = 2.5 * f, bh = 3.6 * f, wave = Math.sin(now * 1.6 + (p.id || 0)) * 0.18 * f;
+  ctx.strokeStyle = steel; ctx.lineWidth = lw(1.2); ctx.beginPath(); ctx.moveTo(x, by); ctx.lineTo(bx - bw, by); ctx.stroke();
+  ctx.fillStyle = hit ? '#fff' : '#ffe600'; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx - bw, by); ctx.lineTo(bx - bw + wave, by + bh); ctx.lineTo(bx - bw / 2 + wave, by + bh - 0.7 * f); ctx.lineTo(bx + wave, by + bh); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(190,160,0,0.9)'; ctx.fillRect(bx - bw, by, bw, 0.35 * f);     // (the fold along the arm, in shade)
+  ctx.fillStyle = '#14181a'; ring(ctx, bx - bw / 2 + wave * 0.5, by + bh * 0.45, 0.62 * f); ctx.fill();
+  ctx.fillStyle = '#ffe600'; ring(ctx, bx - bw / 2 + wave * 0.5, by + bh * 0.45, 0.26 * f); ctx.fill();
+  // the head: a small deck, four horns facing out (the two at the back first), the tip and its light
+  const horn = (a) => {
+    const hx = tx + Math.cos(a) * 0.5 * f, hy = ty + Math.sin(a) * 0.32 * f, ex = tx + Math.cos(a) * 2.5 * f, ey = ty + Math.sin(a) * 1.6 * f + 0.25 * f, wx = -Math.sin(a) * 0.95 * f, wy = Math.cos(a) * 0.6 * f + 0.0;
+    ctx.fillStyle = hit ? '#fff' : '#d9c200'; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(ex + wx, ey + wy); ctx.lineTo(ex - wx, ey - wy); ctx.closePath(); ctx.fill();     // the bell's side
+    ctx.fillStyle = '#ffe600'; ctx.strokeStyle = 'rgba(40,36,0,0.8)'; ctx.lineWidth = lw(0.8);
+    ctx.beginPath(); ctx.ellipse(ex, ey, Math.max(0.3 * f, Math.hypot(wx, wy)), 0.55 * f, Math.atan2(wy, wx), 0, TAU); ctx.fill(); ctx.stroke();     // its mouth
+    ctx.fillStyle = '#2a2600'; ctx.beginPath(); ctx.ellipse(ex, ey, Math.max(0.12 * f, Math.hypot(wx, wy) * 0.45), 0.25 * f, Math.atan2(wy, wx), 0, TAU); ctx.fill();
+  };
+  const hs = [0, 1, 2, 3].map((k) => (p.face || 0) + Math.PI / 4 + k * Math.PI / 2).sort((u, v) => Math.sin(u) - Math.sin(v));
+  horn(hs[0]); horn(hs[1]);
+  ctx.fillStyle = hit ? '#fff' : '#c9d4cd'; ctx.strokeStyle = 'rgba(20,24,22,0.8)'; ctx.lineWidth = lw(0.8);
+  ctx.beginPath(); ctx.ellipse(tx, ty, 0.95 * f, 0.62 * f, 0, 0, TAU); ctx.fill(); ctx.stroke();
+  horn(hs[2]); horn(hs[3]);
+  ctx.strokeStyle = steel; ctx.lineWidth = lw(1.2); ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx, ty - 1.9 * f); ctx.stroke();
+  ctx.fillStyle = Math.sin(now * 4 + (p.id || 0)) > 0 ? '#ff5a3a' : '#7a2a1c'; ring(ctx, tx, ty - 1.9 * f, Math.max(0.24 * f, px(1.4))); ctx.fill();
+  if (p.manned) {     // the broadcast, going out from the horns
+    for (let i = 0; i < 2; i++) { const k = (now * 0.6 + i * 0.5) % 1; ctx.strokeStyle = `rgba(255,230,0,${0.5 * (1 - k)})`; ctx.lineWidth = px(1.6); ctx.beginPath(); ctx.ellipse(tx, ty, f * (2.6 + 7 * k), f * (1.7 + 4.5 * k), 0, 0, TAU); ctx.stroke(); }
+  }
+  ctx.lineCap = 'butt';
+}
 function bridgeArt(ctx, p, now, px) {
   const s = p.span || { x1: p.x - 20, y1: p.y, x2: p.x + 20, y2: p.y };
   const L = Math.hypot(s.x2 - s.x1, s.y2 - s.y1), a = Math.atan2(s.y2 - s.y1, s.x2 - s.x1), w = p.w || 14;
@@ -313,7 +399,7 @@ function useRing(ctx, x, y, R, px, now) {
   ring(ctx, x, y, R); ctx.stroke(); ctx.restore();
 }
 // (0.61) how tall each post stands, and how far its drawing reaches [height m, reach m, has its own shadows]
-const POST_H = { mg: [1.1, 7], lookout: [2.6, 9, 1], tower: [4.2, 8], sam: [1.7, 11], arty: [1.6, 17], site: [1.8, 11] };
+const POST_H = { mg: [1.1, 7], sam: [1.7, 11], arty: [1.6, 17], site: [1.8, 11] };
 export function drawPosts(ctx, m, now, px, labels, scale, sel) {
   const t = m.t;
   for (const s of m.coverSites || []) if (s.kind !== 'built' && !s.dead && s !== sel) useRing(ctx, s.x, s.y, Math.max(px(10), (s.R || 8) * 0.8), px, now);
