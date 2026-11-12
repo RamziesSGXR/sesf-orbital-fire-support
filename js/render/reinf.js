@@ -2,6 +2,7 @@
 // evacuation site and its civilians, and the extraction pad with its pelican. Every function draws in metres; px(n) is n screen
 // pixels in metres at the current zoom.
 import { t as tr } from '../i18n.js';
+import { VIEW } from './view.js';
 import { CONFIG as C } from '../config.js';
 import { pelicanBody, pelicanDetail } from './squads.js';
 import { drawCivBody } from './units.js';
@@ -208,7 +209,8 @@ export function drawEvac(ctx, m, now, px, labels, scale) {
   const active = !o.done && o === m.objectives.find((q) => !q.done), col = o.done ? 'rgba(125,255,155,0.6)' : active ? '#ffe600' : 'rgba(255,230,0,0.45)';
   // the site
   ctx.strokeStyle = col; ctx.lineWidth = px(1.6); ctx.setLineDash([px(8), px(6)]); ctx.lineDashOffset = -now * px(6);
-  ring(ctx, o.x, o.y, o.r); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+  // (0.61.5) the site's ring: faint, and gone while something is being placed
+  ctx.globalAlpha = 0.4; ring(ctx, o.x, o.y, o.r); if (!VIEW.quiet) ctx.stroke(); ctx.globalAlpha = 1; ctx.setLineDash([]); ctx.lineDashOffset = 0;
   // the walkway
   ctx.strokeStyle = 'rgba(230,230,210,0.35)'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(o.sx, o.sy); ctx.lineTo(o.hx, o.hy); ctx.stroke();
   ctx.strokeStyle = 'rgba(255,230,0,0.6)'; ctx.lineWidth = px(1.4); ctx.setLineDash([px(4), px(6)]); ctx.lineDashOffset = -now * px(10);

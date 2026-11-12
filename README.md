@@ -25,6 +25,12 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**A clearer map (0.61.5).**
+- **Fewer zones.** A Helldiver's pod coming down shows a small blinking beacon where it will land, not two rings (it is theirs, not yours). Your own SEAF drop shows one small ring. The dashed cyan rings round posts and sites you can man show only while a squad is selected (when you could send it there). While you are placing a building or a drop, the rings round objectives, sites and the evacuation area are hidden, so you can see the ghost and the ground.
+- **Names only when you want them.** Labels over buildings, objectives, drops and squads are hidden until the thing is selected or your aim is within 20 m of it. What stays: your own strikes' countdowns, urgent warnings (a nuke coming in), the Helldiver groups' tags, and the arrows at the screen's edge.
+- **Zoom in further.** The closest zoom is now 90 m across (it was 200 m), so you can watch a fight up close.
+- **Footprints look like footprints.** They are their true size (they were drawn several times too big when zoomed out, which made smoky trails), a left and a right with a sole and a heel, much fainter, gone after 9 seconds, and not drawn at all at the widest zooms.
+
 **Players' feedback: strike areas, gun tracers, a smoother game (0.61.4).**
 - **Your own strikes show where they will land.** Every strike you call (the ship's orbitals and your Eagles) draws its area on the ground again: the ring or the corridor, and the Eagle's approach line. Nothing the Helldivers call does: theirs still show only their beacon. Settings > Show blast areas now only adds the rings for the enemy's rockets, mortar shells and grenades.
 - **The ship's Gatling gun throws more tracers.** Each round is a longer, brighter streak down out of the sky, with two more tracers beside it striking the ground round the mark.
