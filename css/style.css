@@ -2730,3 +2730,58 @@ body.rts.lay-phone #hud #tactical .tct span { display: none !important; } body.r
 /* (0.59) PLACE's bar sat at left: 50%, so it shrank to half the screen and its text went one word a line: it sizes to its content now */
 #hud #place-ok { width: max-content; }
 #hud #place-ok .po-t { flex: 1 1 auto; min-width: 140px; }
+
+/* =====================================================================================================================
+   (0.60 beta) The sci-fi interface: an opt-in skin (body.ui-scifi; ?ui=scifi turns it on, ?ui=classic off; see main.js).
+   Amber for what is yours to spend or call, cyan for information and troops, red for the enemy. Thin lines, cut corners,
+   square readouts. Colours and shapes only: nothing moves, so every layout rule above still holds.
+   ===================================================================================================================== */
+body.ui-scifi {
+  --g: #e6eadc; --g-dim: rgba(230, 234, 220, 0.62); --line: rgba(127, 233, 224, 0.4); --panel: rgba(10, 13, 12, 0.76);
+  --yellow: #f5d547; --amber: #ffb648; --blue: #7fe9e0; --cy: #7fe9e0; --cy-d: rgba(127, 233, 224, 0.4); --am-d: rgba(245, 213, 71, 0.45);
+  --mono: "Share Tech Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; --hd: "Chakra Petch", "Share Tech Mono", ui-monospace, sans-serif;
+  --cut: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  /* the 1 px line along each cut corner (a clipped border has none) */
+  --cutline-c: linear-gradient(135deg, transparent 4.4px, var(--cy-d) 4.4px 5.6px, transparent 5.6px), linear-gradient(315deg, transparent 4.4px, var(--cy-d) 4.4px 5.6px, transparent 5.6px);
+  --cutline-a: linear-gradient(135deg, transparent 4.4px, var(--am-d) 4.4px 5.6px, transparent 5.6px), linear-gradient(315deg, transparent 4.4px, var(--am-d) 4.4px 5.6px, transparent 5.6px);
+  letter-spacing: 0.03em;
+}
+body.ui-scifi .panel { border-radius: 0; backdrop-filter: none; border-color: var(--cy-d); background-color: var(--panel); }
+body.ui-scifi h1, body.ui-scifi h2, body.ui-scifi h3, body.ui-scifi .btn, body.ui-scifi #timer, body.ui-scifi .bigcr b, body.ui-scifi .ord .n, body.ui-scifi .sqb .n,
+body.ui-scifi .dkb .n, body.ui-scifi .tct span, body.ui-scifi .wbtn .wn, body.ui-scifi #fire-btn, body.ui-scifi .tc-h b, body.ui-scifi .tacb .n { font-family: var(--hd); font-weight: 600; }
+/* buttons: cut corners, a dark plate, a cyan line (amber for the ones that spend or call) */
+body.ui-scifi .btn, body.ui-scifi .ord, body.ui-scifi .sqb, body.ui-scifi .sqa, body.ui-scifi .tct, body.ui-scifi .dkb, body.ui-scifi .wbtn, body.ui-scifi .tacb,
+body.ui-scifi .tc-grid button, body.ui-scifi .co-b {
+  border-radius: 0; clip-path: var(--cut); background-color: rgba(12, 16, 14, 0.9); background-image: var(--cutline-c); border-color: var(--cy-d); box-shadow: none;
+}
+body.ui-scifi .btn:hover, body.ui-scifi .ord:hover, body.ui-scifi .sqb:hover, body.ui-scifi .sqa:hover, body.ui-scifi .tct:hover, body.ui-scifi .dkb:hover { border-color: var(--cy); background-color: rgba(22, 34, 32, 0.95); }
+body.ui-scifi .wbtn { background-image: var(--cutline-a); border-color: var(--am-d); }
+body.ui-scifi .wbtn.uav-w, body.ui-scifi .wbtn.gun-w { background-image: var(--cutline-c); border-color: var(--cy-d); }
+body.ui-scifi .wbtn.sel { border-color: var(--yellow); background-color: rgba(40, 36, 10, 0.95); }
+body.ui-scifi .btn.primary, body.ui-scifi #fire-btn, body.ui-scifi .co-b.primary { background-color: var(--yellow); background-image: none; border-color: var(--yellow); color: #141204; border-radius: 0; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); box-shadow: none; letter-spacing: 0.14em; }
+body.ui-scifi .btn.primary:hover { background-color: #fff0a0; }
+body.ui-scifi .btn.danger { border-color: #ff6a4d; color: #ff6a4d; }
+body.ui-scifi .ord.on, body.ui-scifi .sqb.on, body.ui-scifi .sqb.sel, body.ui-scifi .tct.on, body.ui-scifi .dkb.on, body.ui-scifi .ord.active { border-color: var(--yellow); background-color: rgba(40, 36, 10, 0.95); background-image: var(--cutline-a); }
+body.ui-scifi .ord .n, body.ui-scifi .sqa .n, body.ui-scifi .dkb .n { color: var(--cy); }
+body.ui-scifi .ord .s, body.ui-scifi .sqb .s, body.ui-scifi .dkb .s { color: var(--g-dim); }
+/* the top readouts: square, a line under them, no rounded pill */
+body.ui-scifi .bigcr { border-radius: 0; background: rgba(10, 13, 12, 0.8); border: 0; border-left: 2px solid var(--yellow); border-bottom: 1px solid var(--am-d); }
+body.ui-scifi .bigcr.lives, body.ui-scifi .bigcr.seafc { border-left-color: var(--cy); border-bottom-color: var(--cy-d); }
+body.ui-scifi .bigcr.lives b, body.ui-scifi .bigcr.seafc b { color: var(--cy); }
+body.ui-scifi .bigcr.alertc { border-left-color: #ff6a4d; border-bottom-color: rgba(255, 106, 77, 0.45); }
+body.ui-scifi .bigcr span { color: var(--g-dim); }
+body.ui-scifi #mbox, body.ui-scifi #objective { border: 0; border-top: 1px solid var(--am-d); border-bottom: 1px solid var(--am-d); background: rgba(10, 13, 12, 0.72); }
+body.ui-scifi #objective #obj-main { color: var(--yellow); }
+body.ui-scifi #obj-bar { border-radius: 0; height: 3px; background: #263029; border: 0; } body.ui-scifi #obj-bar i { border-radius: 0; background: var(--yellow); }
+body.ui-scifi #sqpanel, body.ui-scifi #selpanel, body.ui-scifi #squads, body.ui-scifi #orders { border: 0; border-top: 1px solid var(--cy-d); background: rgba(10, 13, 12, 0.72); }
+body.ui-scifi #tactical { border: 1px solid var(--cy-d); background: rgba(10, 13, 12, 0.9); }
+body.ui-scifi .callout, body.ui-scifi #hottip, body.ui-scifi #selpop, body.ui-scifi #place-ok, body.ui-scifi .item, body.ui-scifi kbd, body.ui-scifi #radiolog, body.ui-scifi #btn-radio { border-radius: 0; }
+body.ui-scifi kbd { border-color: var(--cy-d); background: rgba(127, 233, 224, 0.08); color: var(--cy); }
+body.ui-scifi .item { border-color: rgba(127, 233, 224, 0.18); }
+body.ui-scifi #minimap { border-color: var(--cy-d); box-shadow: 0 0 0 1px rgba(127, 233, 224, 0.15); }
+body.ui-scifi.rts #hud #tactical, body.ui-scifi.rts #hud #mbox, body.ui-scifi.rts #hud #objective, body.ui-scifi.rts #hud #btn-radio, body.ui-scifi.rts #hud #squads,
+body.ui-scifi.rts #hud #orders, body.ui-scifi.rts #hud #sqpanel, body.ui-scifi.rts #hud #selpanel, body.ui-scifi.rts #hud .bigcr, body.ui-scifi.rts #hud #weapons .wbtn { border-radius: 0 !important; }
+body.ui-scifi.rts #hud #tactical { border-color: var(--cy-d) !important; }
+body.ui-scifi.rts #hud #btn-radio { border-color: var(--cy-d); background-color: rgba(12, 16, 14, 0.9); clip-path: var(--cut); background-image: var(--cutline-c); }
+body.ui-scifi.rts #hud #weapons .wbtn { background-color: rgba(12, 16, 14, 0.86); }
+body.ui-scifi #fire-btn { opacity: 1; }
