@@ -2253,6 +2253,7 @@ export function buildSettings(settings, onChange) {
   row(t('set.color'), t('set.colorHint'), toggle('colorblind'));
   row(t('set.names'), t('set.namesHint'), toggle('showNames'));     // (0.54)
   row(t('set.blasts'), t('set.blastsHint'), toggle('showBlasts'));     // (0.58)
+  row(t('set.relief3d'), t('set.relief3dHint'), select('relief3d', [['auto', t('set.auto')], ['on', t('set.on')], ['off', t('set.off')]]));     // (0.61.2)
   sec('set.sec.controls');
   row(t('set.lefty'), t('set.leftyHint'), toggle('lefty'));
   row(t('set.touch'), '', range('touchSens', 0.5, 2, 0.1));

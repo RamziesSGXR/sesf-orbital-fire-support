@@ -1,6 +1,7 @@
 // The art of fixed places, seen from above: enemy bases and the citadel (a hive nest, a fabricator or a warp gate, by faction),
 // points of interest, the nuclear launch site and the VIP's crash site and pickup pad. Each draws in metres around the place's
 // centre; the state that matters (health, progress, labels) is drawn by the callers in renderer.js and world.js.
+import { raise, isFlat } from './relief.js';
 const TAU = Math.PI * 2;
 function rgba(hex, a) {
   if (hex.startsWith('rgb')) return hex;
@@ -196,9 +197,15 @@ export function drawPad(ctx, x, y, lit, now, px) {
 export function drawCover(ctx, m, px) {
   for (const p of m.cover || []) {
     if (p.post && p.post.what !== 'bastion') continue;     // a post's places: the post draws itself (render/posts.js)
+    raise(ctx, p, p.x, p.y, p.len / 2 + 1.6, p.style === 2 ? 1.5 : 1.1, (c) => coverPiece(c, p, px), COVER_R);
+  }
+}
+const COVER_R = { wall: 0.55, shadow: 0.32, every: 30 };
+function coverPiece(ctx, p, px) {
+  {
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.ang + Math.PI / 2);
     const L = p.len, w = 1.5;
-    ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(-L / 2 - 0.4, -w / 2 + 0.5, L + 0.8, w + 0.6);    // shadow
+    if (isFlat()) { ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(-L / 2 - 0.4, -w / 2 + 0.5, L + 0.8, w + 0.6); }    // shadow (flat look only)
     if (p.style === 0) {
       const n = Math.max(3, Math.round(L / 1.3));
       for (let i = 0; i < n; i++) {

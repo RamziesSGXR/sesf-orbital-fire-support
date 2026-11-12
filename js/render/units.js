@@ -17,12 +17,16 @@ function line(ctx, x0, y0, x1, y1) { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.li
 
 // ---------------------------------------------------------------- allies
 // strobe: whether the IR strobe on the backpack is lit this frame. team: the Helldiver's group colour (null for SEAF).
+// (0.61) the slight 3D look is on: the dark halo behind a body is smaller and lighter (renderer.js sets it each frame)
+let RELIEF = false;
+export function setRelief(v) { RELIEF = v === 2 ? 2 : v ? 1 : false; }
 export function drawAllyBody(ctx, a, r, col, team, strobe, now, px, mt = 0) {
   const H = a.type === 'H';
   if (!H) { drawSeafBody(ctx, a, r, col, strobe, now, px, mt); return; }
   ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.face || 0);
   // dark halo so the shape reads on any ground
-  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ell(ctx, -0.15 * r, 0, r * 1.25, r * 1.05); ctx.fill();
+  if (RELIEF === 2) { /* raised whole: its own sides are its edge */ } else if (RELIEF) { ctx.fillStyle = 'rgba(0,0,0,0.38)'; ell(ctx, -0.15 * r, 0, r * 0.98, r * 0.92); ctx.fill(); }     // (0.61: with the 3D look the shadow and the side do the halo's work)
+  else { ctx.fillStyle = 'rgba(0,0,0,0.55)'; ell(ctx, -0.15 * r, 0, r * 1.25, r * 1.05); ctx.fill(); }
   // backpack, with the strobe, edged in the squad colour
   ctx.fillStyle = '#174f86';
   rect(ctx, -0.82 * r, -0.42 * r, -0.28 * r, 0.42 * r); ctx.fill();
@@ -52,7 +56,8 @@ function drawSeafBody(ctx, a, r, col, strobe, now, px, mt) {
   const role = a.role || 'rifle', down = !!a.down, lw = (n) => Math.max(px(n), 0.04);
   ctx.save(); ctx.translate(a.x, a.y); ctx.rotate((a.face || 0) + (down ? Math.PI / 2 : 0));
   if (down) ctx.globalAlpha *= 0.75;
-  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ell(ctx, -0.15 * r, 0, r * 1.25, r * 1.05); ctx.fill();
+  if (RELIEF === 2) { /* raised whole: its own sides are its edge */ } else if (RELIEF) { ctx.fillStyle = 'rgba(0,0,0,0.38)'; ell(ctx, -0.15 * r, 0, r * 0.98, r * 0.92); ctx.fill(); }     // (0.61: with the 3D look the shadow and the side do the halo's work)
+  else { ctx.fillStyle = 'rgba(0,0,0,0.55)'; ell(ctx, -0.15 * r, 0, r * 1.25, r * 1.05); ctx.fill(); }
   const medic = role === 'medic', orange = medic && a.id % 3 === 0;
   const body = down ? '#7f8a92' : medic ? (orange ? '#ff8a2a' : '#d4dbe0') : role === 'spec' ? shade(col, -0.18) : col;
   // what is on the back
@@ -144,7 +149,8 @@ export function drawEnemyBody(ctx, e, fac, r, col, now, px, hot) {
   const air = e.air || 0;     // (0.54) a leaper in mid-jump: a shadow on the ground, and it grows as it comes up
   if (air > 0) { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ell(ctx, -0.1 * r, 0, r * 1.0, r * 0.75); ctx.fill(); ctx.scale(1 + 0.55 * air, 1 + 0.55 * air); }
   // dark halo
-  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ell(ctx, -0.1 * r, 0, r * 1.25, r * 1.1); ctx.fill();
+  if (RELIEF === 2) { /* raised whole */ } else if (RELIEF) { ctx.fillStyle = 'rgba(0,0,0,0.36)'; ell(ctx, -0.1 * r, 0, r * 1.0, r * 0.9); ctx.fill(); }
+  else { ctx.fillStyle = 'rgba(0,0,0,0.55)'; ell(ctx, -0.1 * r, 0, r * 1.25, r * 1.1); ctx.fill(); }
   const pulse = 0.6 + 0.4 * Math.sin(now * 6 + e.id);
   if (e.sub) { drawSpecial(ctx, e, r, col, body, dark, lw, now, px, pulse); ctx.restore(); return; }
   if (fac === 'bugs') {

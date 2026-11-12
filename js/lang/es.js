@@ -1064,6 +1064,8 @@ export default {
   'info.rocksV': 'El terreno tiene su propia cobertura: un soldado junto a una roca grande recibe {p} menos del fuego enemigo, y los fusileros en combate sin muros cerca se ponen detrás de una, lejos del enemigo. Una explosión grande rompe la roca en escombros, y ya no cubre. Árboles y hierba alta no esconden nada, pero se ve la hierba apartarse donde algo camina, y el enemigo deja su marca donde se reúne: los insectos un olor naranja, los calamares una bruma de calor, los bots humo negro.',
   'set.blasts': 'Mostrar zonas de explosión',
   'set.blastsHint': 'Dibuja un círculo donde caerá cada ataque, granada, cohete y proyectil. Desactivado: solo ves la explosión (tus tropas saben igualmente dónde caerá).',
+  'set.relief3d': "Aspecto 3D",     // (0.61.2)
+  'set.relief3dHint': "Las unidades y los edificios tienen lados y sombras más largas, con la misma luz que el terreno y los árboles. AUTO: activado, salvo en teléfonos y con gráficos BAJOS (es dibujo extra).",
   'pen.line': 'Penetración: {lvl} (ligero {l}, medio {m}, pesado {h}).',
   'pen.light': 'LIGERO',
   'pen.medium': 'MEDIO',
