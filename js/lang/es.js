@@ -553,6 +553,8 @@ export default {
   'arm.coinPart': '{n} CR DE UNA MONEDA',
   'arm.coinPaid': '{n} CR DE UNA MONEDA SESF PAGADOS PARA {name}',
   'arm.payIn': 'ABONAR',
+  'arm.payHold': "Toca para un crédito. Mantén pulsado para seguir pagando, cada vez más rápido.",     // (0.61) the + button
+  'arm.liveEye': "LA MISIÓN ESPERA MIENTRAS LA ARMERÍA ESTÁ ABIERTA · LO QUE COMPRAS FUNCIONA AL INSTANTE",
   'arm.paid': '{n} DE {c} CR PAGADOS',
   'arm.paidIn': '{n} CR PAGADOS PARA {name}: FALTAN {left} CR',
   'arm.mix': 'COMPOSICIÓN',

@@ -303,6 +303,7 @@ export function drawPresence(ctx, st, m, now, px, vb, low) {
   const P = st.pres, fac = m.faction.id;
   if (!P || !P.size) return;
   if (low !== (fac === 'bugs')) return;
+  let haze = null;
   for (const [k, v] of P) {
     const cx = ((k / 1000) | 0) * PCELL + PCELL / 2, cy = (k % 1000) * PCELL + PCELL / 2;
     if (cx < vb.x0 - PCELL || cx > vb.x1 + PCELL || cy < vb.y0 - PCELL || cy > vb.y1 + PCELL || v < 0.12) continue;
@@ -319,17 +320,8 @@ export function drawPresence(ctx, st, m, now, px, vb, low) {
       for (let i = 0; i < 4; i++) { const ph = (now * 0.25 + h * 10 + i * 0.25) % 1, x = cx + (((h * (i + 3) * 13.1) % 1) - 0.5) * PCELL + Math.sin(now + i) * 0.8, y = cy + (((h * (i + 7) * 5.3) % 1) - 0.5) * PCELL - ph * 5; ctx.globalAlpha = 1 - ph; ctx.fillRect(x - 0.2, y - 0.2, 0.4, 0.4); }
       ctx.globalAlpha = 1;
     } else if (fac === 'squids') {
-      // a heat haze: thin bright ripples rising and wavering over the ground
-      ctx.strokeStyle = `rgba(230,210,255,${0.24 * a})`; ctx.lineWidth = Math.max(px(1.2), 0.25);
-      ctx.beginPath();
-      for (let i = 0; i < 4; i++) {
-        const ph = (now * 0.35 + h * 5 + i * 0.25) % 1, y = cy + PCELL * 0.4 - ph * PCELL * 0.9, x0 = cx - PCELL * 0.4, w = PCELL * 0.8;
-        ctx.moveTo(x0, y);
-        for (let s = 1; s <= 8; s++) ctx.lineTo(x0 + (w * s) / 8, y + Math.sin(now * 4 + s * 1.3 + i + h * 9) * 0.6);
-      }
-      ctx.stroke();
-      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, PCELL * 0.7); g.addColorStop(0, `rgba(190,140,255,${0.12 * a})`); g.addColorStop(1, 'rgba(190,140,255,0)');
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, PCELL * 0.7, 0, TAU); ctx.fill();
+      // a heat haze: kept for after the loop (the ground under it is bent, all the cells in one go)
+      (haze || (haze = [])).push(cx, cy, a, h);
     } else {
       // black smoke: dark puffs drifting up and away
       for (let i = 0; i < 3; i++) {
@@ -338,4 +330,67 @@ export function drawPresence(ctx, st, m, now, px, vb, low) {
       }
     }
   }
+  // (the shimmer reads the frame back: on HIGH graphics only, never on a phone, and not once the game has had to lighten itself)
+  if (haze) { if (st.quality === 'high' && !st.phone && !(st.perf && st.perf.low)) drawShimmer(ctx, haze, now); drawHaze(ctx, haze, now); }
+}
+// (0.61) The squids' heat haze, seen from above: the picture under it shimmers (drawShimmer), with a soft violet warmth that
+// breathes over it. No lines are drawn. Where the shimmer is off (see drawPresence), the warmth alone.
+const HAZE_MAX = 12;
+function drawHaze(ctx, haze, now) {
+  for (let i = 0; i < haze.length; i += 4) {
+    const a = haze[i + 2], h = haze[i + 3];
+    // two soft patches drifting slowly round the cell's middle, swelling and fading out of step
+    for (let j = 0; j < 2; j++) {
+      const ph = now * (0.5 + 0.2 * j) + h * 30 + j * 2.4, cx = haze[i] + Math.cos(ph * 0.7) * PCELL * 0.16, cy = haze[i + 1] + Math.sin(ph) * PCELL * 0.14;
+      const r = PCELL * (0.55 + 0.12 * Math.sin(ph * 1.3)), al = a * (0.07 + 0.035 * Math.sin(ph * 1.7));
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r); g.addColorStop(0, `rgba(196,150,255,${al})`); g.addColorStop(0.6, `rgba(170,130,255,${al * 0.45})`); g.addColorStop(1, 'rgba(170,130,255,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.fill();
+    }
+  }
+}
+// the shimmer itself: the picture under each patch is copied off the frame (all the patches first, side by side on a spare
+// canvas, so the frame is read once), then laid back in thin rows, each a little to one side in a slow wave: most in the middle
+// of the patch, nothing at its rim. At most HAZE_MAX patches a frame, the strongest first.
+let hazeCv = null;
+function drawShimmer(ctx, haze, now) {
+  const T = ctx.getTransform(), cv = ctx.canvas, W = cv.width, H = cv.height, k = T.a;
+  const R = PCELL * 0.66 * k, D = Math.ceil(R * 2) + 12, step = Math.max(3, Math.round(R / 13)), amp = Math.max(1.2, Math.min(3.2, k * 0.32));
+  if (D > 700) return;
+  const on = [];
+  for (let i = 0; i < haze.length; i += 4) {
+    const X = haze[i] * k + T.e, Y = haze[i + 1] * T.d + T.f;
+    if (X + R < 0 || X - R > W || Y + R < 0 || Y - R > H) continue;
+    on.push(i);
+  }
+  if (!on.length) return;
+  if (on.length > HAZE_MAX) { on.sort((a, b) => haze[b + 2] - haze[a + 2]); on.length = HAZE_MAX; }
+  const sc = hazeCv || (hazeCv = document.createElement('canvas'));
+  const cols = Math.min(on.length, 4), rows = Math.ceil(on.length / 4);
+  if (sc.width < D * cols || sc.height < D * rows) { sc.width = Math.max(sc.width, D * cols); sc.height = Math.max(sc.height, D * rows); }
+  const sx = sc.getContext('2d'); sx.globalCompositeOperation = 'copy';
+  const box = [];
+  on.forEach((i, n) => {
+    const X = Math.round(haze[i] * k + T.e), Y = Math.round(haze[i + 1] * T.d + T.f);
+    const bx = Math.max(0, X - (D >> 1)), by = Math.max(0, Y - (D >> 1)), bw = Math.min(W, X + (D >> 1)) - bx, bh = Math.min(H, Y + (D >> 1)) - by;
+    box.push(bx, by, bw, bh);
+    if (bw >= 8 && bh >= 8) { sx.beginPath(); sx.drawImage(cv, bx, by, bw, bh, (n % 4) * D, ((n / 4) | 0) * D, bw, bh); sx.globalCompositeOperation = 'source-over'; }
+  });
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  for (let n = 0; n < on.length; n++) {
+    const i = on[n], X = Math.round(haze[i] * k + T.e), Y = Math.round(haze[i + 1] * T.d + T.f), a = haze[i + 2], h = haze[i + 3];
+    const bx = box[n * 4], by = box[n * 4 + 1], bw = box[n * 4 + 2], bh = box[n * 4 + 3], ox = (n % 4) * D, oy = ((n / 4) | 0) * D;
+    if (bw < 8 || bh < 8) continue;
+    for (let y = -Math.floor(R / step) * step; y < R; y += step) {
+      const sy = Y + y;
+      if (sy < by || sy + step > by + bh) continue;
+      const q = (y + step / 2) / R, half = R * Math.sqrt(Math.max(0, 1 - q * q)), win = (1 - q * q) * (1 - q * q);
+      const x0 = Math.max(bx, Math.round(X - half)), x1 = Math.min(bx + bw, Math.round(X + half));
+      if (x1 - x0 < 4) continue;
+      // two slow waves of different pace (long ones, so neighbouring rows move together and nothing looks torn)
+      const dx = (Math.sin(now * 3.1 + sy * 0.035 + h * 40) + 0.5 * Math.sin(now * 5.3 - sy * 0.08 + h * 17)) * amp * win * a * 0.66;
+      if (Math.abs(dx) < 0.2) continue;
+      ctx.drawImage(sc, ox + x0 - bx, oy + sy - by, x1 - x0, step, x0 + dx, sy, x1 - x0, step);
+    }
+  }
+  ctx.restore();
 }

@@ -3,7 +3,7 @@ import { CONFIG as C } from './config.js';
 import { COMMS } from './data/data.js';
 import { Mission } from './sim/mission.js';
 import { STRAT_IDS } from './data/strat.js';
-import { buy, equip, unequip, loadoutIds, tierFor, tierItems, TIER_MAX, shopItems, payToward, payStep, mixOpen } from './data/kit.js';
+import { buy, equip, unequip, loadoutIds, tierFor, tierItems, TIER_MAX, shopItems, payToward, mixOpen } from './data/kit.js';
 import { makeBot, botStep, botShop } from './sim/bot.js';
 import { Renderer } from './render/renderer.js';
 import { buildTerrain } from './render/terrain.js';
@@ -232,7 +232,7 @@ const input = new Input(canvas, $('minimap'), cam, {
   speed: () => toggleSpeed(),
   tap: (type, x, y) => tapAt(type, x, y),
   tac: () => act(),                                    // (0.20: the command panel is always up; a left drag boxes troopers; 0.22: paused too)
-  ctx: (c) => { if (!act()) return; audio.unlock(); hud.setTcTab(hud.tcTab === c ? 'units' : c); setTac(true); },
+  ctx: (c) => { if (c === 'armory') { if (live() || UI.isOn('s-armory')) openArmory(); return; } if (!act()) return; audio.unlock(); hud.setTcTab(hud.tcTab === c ? 'units' : c); setTac(true); },
   tacForm: (i) => setForm(FORMS[i]),
   boxing: () => boxArm && act(),     // (0.53.4: in the pause too)
   boxBegin: (x, y) => { if (act()) box = { x0: x, y0: y, x1: x, y1: y }; },
@@ -245,7 +245,7 @@ const input = new Input(canvas, $('minimap'), cam, {
     else if (r) { audio.deny(); hud.toast(deny(r.reason)); }
   },
   boxCancel: () => { box = null; },
-  armory: () => openArmory(),
+  armory: () => { if (live() || UI.isOn('s-armory') || UI.isOn('s-pause')) openArmory(); },
   polarity: () => { settings.polarity = settings.polarity === 'white' ? 'black' : 'white'; onSettingChange('polarity'); },
   relief: () => { settings.relief = !settings.relief; onSettingChange('relief'); if (mission) hud.notice(t(settings.relief ? 'set.reliefOn' : 'set.reliefOff'), 'info'); },
   info: () => openInfo(),
@@ -313,7 +313,7 @@ hud.onBuild = (what) => {
 hud.onForm = (f) => setForm(f);
 hud.onDeployNow = () => { audio.unlock(); if (live() && mission.deployNow().ok) audio.ready(); };
 // (0.18) the tactical console's modes
-hud.onArmory = () => { audio.unlock(); if (live()) openArmory(); };
+hud.onArmory = () => { audio.unlock(); if (live() || (soft && state === 'play')) openArmory(); };
 hud.onToSquad = (i) => input.h.toSquad(i);
 hud.onPickOne = (id) => { if (!live()) return; const a = mission.seafAlive.find((x) => x.id === id); if (!a) return; audio.click(); if (a.inside) { cam.follow = false; cam.x = a.x; cam.y = a.y; return; } deselect(); mission.pickSeaf([a]); hud.fillTactical(mission, sel); };
 // The tactical build screen (O, or TACTICAL at the top left): what is selected, the builds and the formations, and a box dragged on
@@ -1042,6 +1042,9 @@ function rankLine() {
   const tut = !!session.tutorial, k = tierNow(), at = tut ? C.ranks.tutKills : C.ranks.at, n = tut ? killsN() : doneN(session);
   return `${t('arm.rankN', { n: k })} ${t('rank.' + k)}` + (k < at.length ? ` · ${t(tut ? 'arm.rankNextKills' : 'arm.rankNext', { n: k + 1, name: t('rank.' + (k + 1)), m: at[k], left: at[k] - n })}` : '');
 }
+// (0.61) the sound of credits going in while "+" is held: a click, no more often than eight a second
+let payTickAt = 0;
+function payTick() { const n = performance.now(); if (n - payTickAt > 120) { payTickAt = n; audio.click(); } }
 function drawShop(note, focus = false) {
   UI.renderShop($('shop-root'), {
     kit: session.kit, wallet: session.wallet, live: false, note, tier: tierNow(), done: doneN(session), fresh: session.fresh, focus,
@@ -1061,14 +1064,15 @@ function drawShop(note, focus = false) {
       if (r.ok && session.fresh) session.fresh = session.fresh.filter((f) => f !== id);      // (bought: no longer new)
       if (r.ok) { audio.ready(); persist(); drawShop(t('arm.bought', { name: r.item.name.toUpperCase() }) + (r.gift ? ' · ' + t(r.equipped ? 'arm.gift' : 'arm.giftOwned', { name: String(r.giftName).toUpperCase() }) : '')); } else { audio.deny(); drawShop(deny(r.reason)); }
     },
-    // (0.50) PAY IN: a quarter of the price (or what you have) put toward it, kept on it
-    onPay: (id) => {
-      const it = shopItems(session.kit).find((x) => x.id === id);
-      const r = it ? payToward(session.kit, session.wallet, id, payStep(it, session.wallet.bal), false, tierNow()) : { ok: false, reason: 'unknown' };
-      if (!r.ok) { audio.deny(); drawShop(deny(r.reason)); return; }
+    // (0.50) PAY IN: credits put toward it, kept on it. (0.61) a "+": a credit a tap, more and faster while it is held
+    onPayStep: (id, n) => { const r = payToward(session.kit, session.wallet, id, n, false, tierNow()); if (r.ok) payTick(); return r; },
+    onPayEnd: (id, total, r) => {
+      if (!r || (!r.ok && !total)) { audio.deny(); drawShop(deny(r ? r.reason : 'unknown')); return; }
       if (r.bought && session.fresh) session.fresh = session.fresh.filter((f) => f !== id);
-      audio.click(); persist();
-      drawShop(r.bought ? t('arm.bought', { name: r.item.name.toUpperCase() }) : t('arm.paidIn', { n: S.fmtNum(r.paid), name: String(r.item.name).toUpperCase(), left: S.fmtNum(r.left) }));
+      if (r.bought) audio.ready();
+      persist();
+      const it = shopItems(session.kit).find((x) => x.id === id), nm = String((r.item || it || {}).name || '').toUpperCase();
+      drawShop(r.bought ? t('arm.bought', { name: nm }) : t('arm.paidIn', { n: S.fmtNum(total), name: nm, left: S.fmtNum(it ? it.due : 0) }));
     },
     // (0.50) the troop mix for the next drop
     onMix: (k) => { if (!mixOpen(session.kit, k)) { audio.deny(); return; } session.kit.mix = k; audio.click(); persist(); drawShop(t('arm.mixSet', { name: t('mix.' + k) })); },
@@ -1424,6 +1428,7 @@ function togglePause(force) {
   if (UI.isOn('s-manual')) { closePanel('s-manual'); return; }
   if (UI.isOn('s-map')) { closeMap(); return; }
   if (UI.isOn('s-info')) { closeInfo(); return; }
+  if (UI.isOn('s-armory')) { closeArmory(); return; }
   if (UI.isOn('s-credits')) { closeCredits(); return; }
   if (UI.isOn('s-radio')) { closeRadioLog(); return; }
   if (UI.isOn('s-names')) { closeNames(false); return; }
@@ -1521,15 +1526,61 @@ function drawArmory(note) {
     onTipLeave: () => hud.tipLeave(),
   });
 }
-// (0.19.1) ARMORY (the button at the top, or the pause menu's) opens the sheet on its armory tab: the clock keeps running.
+// (0.61) ARMORY in a mission (the command panel's tab, Y, the pause menu's) opens the armory as a window, like the one before
+// each mission, and the mission waits while it is open. What can be bought in the field is bought (or paid toward with "+")
+// and works at once; the rest says BETWEEN MISSIONS. The tutorial has no between-missions: everything open can be bought.
+let armFrom = null;
+function drawArm(note) {
+  const tutM = !!session.tutorial;
+  $('arm-eyebrow').textContent = t('arm.liveEye');
+  UI.renderShop($('arm-root'), {
+    kit: session.kit, wallet: mission.wallet, live: true, any: tutM, liveEquip: tutM, note, tier: tierNow(), fresh: session.fresh, focus: armFocus,
+    onBuy: (id) => {
+      armFocus = false;
+      const r = mission.spend(id, tierNow());
+      if (r.ok && session.fresh) session.fresh = session.fresh.filter((f) => f !== id);
+      const out = r.swapped ? shopItems(session.kit).find((it) => it.orb === r.swapped || it.id === 'own:' + r.swapped) : null;
+      const msg = r.ok && r.slot >= 0 && r.slot !== undefined ? t(out ? 'arm.swapped' : 'arm.slotted', { name: r.item.name.toUpperCase(), n: r.slot + 2, old: out ? out.name.toUpperCase() : '' }) : r.ok ? t('arm.bought', { name: r.item.name.toUpperCase() }) : '';
+      if (r.ok) { audio.ready(); persist(); drawArm(msg); } else { audio.deny(); drawArm(deny(r.reason)); }
+    },
+    onPayStep: (id, n) => { const r = mission.payIn(id, n, tierNow()); if (r.ok) payTick(); return r; },
+    onPayEnd: (id, total, r) => {
+      armFocus = false;
+      if (!r || (!r.ok && !total)) { audio.deny(); drawArm(deny(r ? r.reason : 'unknown')); return; }
+      if (r.bought && session.fresh) session.fresh = session.fresh.filter((f) => f !== id);
+      if (r.bought) audio.ready();
+      persist();
+      const it = shopItems(session.kit).find((x) => x.id === id), nm = String((r.item || it || {}).name || '').toUpperCase();
+      drawArm(r.bought ? t('arm.bought', { name: nm }) : t('arm.paidIn', { n: S.fmtNum(total), name: nm, left: S.fmtNum(it ? it.due : 0) }));
+    },
+    // (0.47) the tutorial: put a stratagem back in the bar (one a new purchase took the slot of)
+    onEquip: tutM ? (sid) => {
+      const r = mission.equipLive(sid);
+      if (!r.ok) { audio.deny(); drawArm(); return; }
+      const nm = (k) => (shopItems(session.kit).find((it) => it.orb === k) || {}).name || k;
+      audio.ready(); drawArm(t(r.swapped ? 'arm.eqSwap' : 'arm.eqIn', { name: String(nm(sid)).toUpperCase(), n: r.slot + 2, old: r.swapped ? String(nm(r.swapped)).toUpperCase() : '' }));
+    } : null,
+    onUnequip: () => {},
+  });
+}
 function openArmory(from) {
   if (state !== 'play' || !mission || mission.over) return;
-  if (from === 'pause' || UI.isOn('s-pause')) togglePause(false);
-  if (soft) { soft = false; hud.setSoft(false); paused = false; audio.unlock(); audio.humStart(); }
-  if (tac && hud.tcTab === 'armory') { setTac(false); return; }
-  hud.setTcTab('armory'); setTac(true);
+  if (UI.isOn('s-armory')) { closeArmory(); return; }
+  if (UI.anyOverlay() && !UI.isOn('s-pause')) return;
+  armFrom = from === 'pause' || UI.isOn('s-pause') ? 'pause' : soft ? 'soft' : paused ? 'pause' : 'play';
+  paused = true; firePending = false; setPlacing(null); setDrawing(false); disarm(); mission.setFiring(false);
+  UI.overlay('s-pause', false);
+  drawArm(); armFocus = false;
+  UI.overlay('s-armory', true);
+  audio.click();
 }
-function closeArmory() { if (tac && hud.tcTab === 'armory') setTac(false); }
+function closeArmory() {
+  if (!UI.isOn('s-armory')) return;
+  UI.overlay('s-armory', false);
+  if (mission && tac) hud.fillTactical(mission, sel);      // (what was bought shows in the panel)
+  if (armFrom === 'pause') UI.overlay('s-pause', true); else if (armFrom === 'soft') afterPanel(); else { paused = false; audio.unlock(); }
+  armFrom = null;
+}
 
 // ---------------- mission info and the project page ----------------
 // MISSION INFO: what this mission is and how to finish it, step by step, with the current step lit. The game waits while it is open.
@@ -1696,6 +1747,7 @@ $('credits-ver').textContent = t('credits.ver', { v: C.share.version });
 $('btn-info').onclick = () => openInfo();
 $('btn-info-m').onclick = () => openInfo('pause');
 $('info-close').onclick = closeInfo;
+$('arm-close').onclick = closeArmory;
 $('btn-credits-t').onclick = () => { audio.unlock(); openCredits('title'); };
 $('btn-credits-m').onclick = () => openCredits('pause');
 $('btn-radio-m').onclick = () => openRadioLog('pause');
@@ -1708,7 +1760,7 @@ $('credits-close').onclick = closeCredits;
 const CLOSE = {
   's-pause': () => togglePause(false), 's-names': () => closeNames(false), 's-settings': () => closeSettings(),
   's-notice': () => $('btn-notice').click(), 's-lock': () => closeLock(),
-  's-controls': () => closePanel('s-controls'), 's-manual': () => closePanel('s-manual'), 's-info': () => closeInfo(), 's-credits': () => closeCredits(), 's-map': () => closeMap(), 's-radio': () => closeRadioLog(),
+  's-controls': () => closePanel('s-controls'), 's-manual': () => closePanel('s-manual'), 's-info': () => closeInfo(), 's-armory': () => closeArmory(), 's-credits': () => closeCredits(), 's-map': () => closeMap(), 's-radio': () => closeRadioLog(),
 };
 for (const b of document.querySelectorAll('.x-close[data-close]')) { const f = CLOSE[b.dataset.close]; if (f) b.addEventListener('click', f); }
 

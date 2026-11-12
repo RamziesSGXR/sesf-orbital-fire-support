@@ -80,15 +80,21 @@ for (const [vp, [W, H, touch]] of Object.entries(VPS)) {
   await clean('the start'); await noScroll('the start');
   const hs = [];
   for (const c of ['build', 'armory', 'units']) {
-    await tap(`#tactical .tct[data-tab="${phone && c === 'units' ? 'armory' : c}"]`); await page.waitForTimeout(350);     // (a phone has no TROOPS button: ARMORY again goes back)
+    await tap(`#tactical .tct[data-tab="${phone && c === 'units' ? 'build' : c}"]`); await page.waitForTimeout(350);     // (a phone has no TROOPS button: BUILD again goes back)
+    if (c === 'armory') {
+      // (0.61) ARMORY opens the armory as a window, and the mission waits
+      const a = await ev(() => ({ dbg: JSON.stringify([window.__game.soft, window.__game.state, [...document.querySelectorAll('.screen.overlay.on')].map((x) => x.id)]), on: document.getElementById('s-armory').classList.contains('on'), n: document.querySelectorAll('#arm-root .btn.buy').length, plus: document.querySelectorAll('#arm-root .btn.pay').length, t: window.__game.mission.t, paused: window.__game.paused }));
+      await page.waitForTimeout(500);
+      check(`${vp}: (0.61) ARMORY opens the armory window (upgrades, + to pay in) and the mission waits`, a.on && a.n > 0 && a.plus > 0 && a.paused && (await ev(() => window.__game.mission.t)) === a.t, JSON.stringify(a));
+      await page.screenshot({ path: path.join(SHOTS, `ui20_${vp}_armory.png`) });
+      await tap('#arm-close'); await page.waitForTimeout(300);
+      const b = await ev(() => ({ on: document.getElementById('s-armory').classList.contains('on'), t: window.__game.mission.t, paused: window.__game.paused }));
+      await page.waitForTimeout(400);
+      check(`${vp}: (0.61) BACK TO THE MISSION closes it and the mission goes on`, !b.on && !b.paused && (await ev(() => window.__game.mission.t)) > b.t, JSON.stringify(b));
+      hs.push(hs[0]); continue;
+    }
     hs.push(await ev(() => Math.round(document.getElementById('tactical').getBoundingClientRect().height)));
     await clean(`the ${c} context`); await noScroll(`the ${c} context`);
-    if (c === 'armory') {
-      const a = await ev(() => ({ n: document.querySelectorAll('#tc-arm .la-it').length, t: window.__game.mission.t, paused: window.__game.paused }));
-      await page.waitForTimeout(500);
-      check(`${vp}: the armory shows upgrade buttons and the war goes on`, a.n > 0 && !a.paused && (await ev(() => window.__game.mission.t)) > a.t, JSON.stringify(a));
-      await page.screenshot({ path: path.join(SHOTS, `ui20_${vp}_armory.png`) });
-    }
   }
   if (phone) check(`${vp}: BUILD and ARMORY pull the command panel up as a drawer, and pressed again it goes back to the troops`, hs[0] === hs[1] && hs[2] < hs[0] && (await ev(() => window.__game.hud.tcTab)) === 'units', hs.join(','));
   else check(`${vp}: the command panel is the same size in every context`, new Set(hs).size === 1, hs.join(','));
@@ -96,10 +102,12 @@ for (const [vp, [W, H, touch]] of Object.entries(VPS)) {
     await page.keyboard.press('KeyB'); await page.waitForTimeout(200);
     const k1 = await ev(() => window.__game.hud.tcTab);
     await page.keyboard.press('KeyY'); await page.waitForTimeout(200);
-    const k2 = await ev(() => window.__game.hud.tcTab);
+    const k2 = await ev(() => document.getElementById('s-armory').classList.contains('on') ? 'armory' : '-');
+    await page.keyboard.press('Escape'); await page.waitForTimeout(200);
+    const k2b = await ev(() => document.getElementById('s-armory').classList.contains('on') || (window.__game.paused && !window.__game.soft)), k2c = await ev(() => JSON.stringify([document.getElementById('s-armory').classList.contains('on'), window.__game.paused, window.__game.soft, [...document.querySelectorAll('.screen.overlay.on')].map((x) => x.id)]));
     await page.keyboard.press('Escape'); await page.waitForTimeout(200);
     const k3 = await ev(() => window.__game.hud.tcTab);
-    check(`${vp}: B builds, Y the armory, Esc goes back to the troops`, k1 === 'build' && k2 === 'armory' && k3 === 'units', [k1, k2, k3].join(' '));
+    check(`${vp}: B builds, Y the armory (a window: 0.61), Esc shuts it, Esc again goes back to the troops`, k1 === 'build' && k2 === 'armory' && !k2b && k3 === 'units', [k1, k2, k2b, k3, k2c].join(' '));
     await page.keyboard.press('Tab'); await page.waitForTimeout(300);
     const m1 = await ev(() => document.getElementById('s-map').classList.contains('on'));
     await page.keyboard.press('Tab'); await page.waitForTimeout(300);

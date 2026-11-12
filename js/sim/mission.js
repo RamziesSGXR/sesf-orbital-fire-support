@@ -11,7 +11,7 @@ import { RNG } from '../util/rng.js';
 import { Grid } from '../util/grid.js';
 import { FACTIONS, SUBTYPES, ALLY, BIOMES, NUKE, COMMS } from '../data/data.js';
 import { rollLoadout } from '../data/strat.js';
-import { newKit, newWallet, seafStats, maxLives, zoneExtra, buy, equip, loadoutIds, buildStats, buildLevel } from '../data/kit.js';
+import { newKit, newWallet, seafStats, maxLives, zoneExtra, buy, equip, loadoutIds, buildStats, buildLevel, shopItems, payToward } from '../data/kit.js';
 import { seafName } from '../data/names.js';
 import { updateSquad } from './squad.js';
 import { setupDefenders } from './defenders.js';
@@ -678,6 +678,20 @@ export class Mission {
     this.notice(tr('n.bought', { name: r.item.name.toUpperCase() }), 'good');
     if (r.gift) this.notice(tr('n.gift', { name: String(r.giftName).toUpperCase() }), 'good');     // (0.31: the Hangar's free Eagle)
     return r;
+  }
+
+  // (0.61) PAY IN during a mission: credits put toward an item that can be bought now; the payment that covers the rest buys it
+  // (as spend does, with everything a purchase in the field brings).
+  payIn(id, amount, tier) {
+    const it = shopItems(this.kit).find((x) => x.id === id);
+    if (!it) return { ok: false, reason: 'unknown' };
+    amount = Math.min(Math.max(0, Math.round(amount)), this.wallet.bal, it.due || 0);
+    if (it.cost !== null && !it.locked && amount > 0 && amount >= it.due) {
+      const due = it.due, r = this.spend(id, tier);
+      if (r.ok) { r.bought = true; r.paid = due; r.left = 0; }
+      return r;
+    }
+    return payToward(this.kit, this.wallet, id, amount, !this.ls, tier);
   }
 
   // (0.47) The tutorial puts a stratagem in a slot: a free one; with none free, the bar grows a slot, up to five; with five full, it

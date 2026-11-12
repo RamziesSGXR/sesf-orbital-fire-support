@@ -2393,10 +2393,10 @@ body.rts #hud #topmid #ask.anchored.below::after { bottom: auto; top: -7px; bord
   body:not(.touch) #s-final .card { width: min(96vw, 1180px); }
 
   /* the armory between missions: two items to a row */
-  body:not(.touch) #s-shop .card { width: min(96vw, 1560px); }
-  body:not(.touch) #s-shop .shop-scroll .tabpane.on { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 10px; align-items: start; }
-  body:not(.touch) #s-shop .shop-scroll .tabpane.on > :not(.item) { grid-column: 1 / -1; }
-  body:not(.touch) #s-shop .shop-scroll .tabpane.on > .item { margin-bottom: 8px; }
+  body:not(.touch) #s-shop .card, body:not(.touch) #s-armory .card { width: min(96vw, 1560px); }
+  body:not(.touch) #s-shop .shop-scroll .tabpane.on, body:not(.touch) #s-armory .shop-scroll .tabpane.on { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 10px; align-items: start; }
+  body:not(.touch) #s-shop .shop-scroll .tabpane.on > :not(.item), body:not(.touch) #s-armory .shop-scroll .tabpane.on > :not(.item) { grid-column: 1 / -1; }
+  body:not(.touch) #s-shop .shop-scroll .tabpane.on > .item, body:not(.touch) #s-armory .shop-scroll .tabpane.on > .item { margin-bottom: 8px; }
 
   /* the field manual, the mission's info and the credits: wider, in columns, taller before they scroll */
   body:not(.touch) #s-manual .card, body:not(.touch) #s-info .card, body:not(.touch) #s-credits .card { width: min(96vw, 1320px); }
@@ -2659,6 +2659,11 @@ body.rts.lay-phone.lay-port #hud #topbar .alertc { padding: 0 6px; }
 .shop-mix .mx-b { flex: 1 1 100%; font-size: 11px; color: var(--g-dim); }
 .btn.small.pay { border-color: var(--amber); color: var(--amber); }
 .btn.small.pay small { color: var(--amber); }
+/* (0.61) PAY IN is a "+": a credit a tap, held it runs up */
+.btn.small.pay { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; min-width: 58px; }
+.btn.small.pay b { display: block; font-size: 20px; line-height: 0.9; font-weight: 700; }
+.btn.small.pay.held { background: rgba(255, 176, 32, 0.22); }
+#s-armory .shop-go { margin-top: 8px; }
 .it-paid { position: relative; height: 14px; margin-top: 5px; border: 1px solid rgba(255, 176, 32, 0.55); background: rgba(255, 176, 32, 0.06); }
 .it-paid i { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(255, 176, 32, 0.32); }
 .it-paid span { position: relative; display: block; padding: 0 6px; font-size: 9px; line-height: 12px; letter-spacing: 0.08em; color: #ffd27a; }

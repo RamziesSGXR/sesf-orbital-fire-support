@@ -25,6 +25,11 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Pay in credit by credit, the armory in a mission, a better heat haze (0.61).**
+- **PAY IN is a "+".** A tap puts one credit toward an item. Hold it and it keeps paying, faster the longer you hold; let go to stop. The item's bar, its price and your credits follow as it goes, and the credit that covers the rest buys it.
+- **The armory in a mission is a window.** ARMORY (the command panel's button, `Y`, or the pause menu) now pauses the mission and opens the armory as it looks before each mission: every tab, the full cards, UPGRADE and "+". What you buy works at once. What can only be bought between missions says so. BACK TO THE MISSION (or `Esc`) closes it; opened from the pause menu, it goes back there.
+- **The squids' heat haze.** The wavy lines are gone. The picture under the haze now shimmers (a real distortion of what is there), with a soft violet warmth over it. The shimmer runs on HIGH graphics on a computer; on phones and LOW graphics it is the soft warmth alone.
+
 **The sci-fi interface is the game's look (0.60).**
 - The new interface is now the default everywhere, on desktop and phones: menus, armory, briefing, the mission screen and the tactical panels. Amber is what you spend or call, cyan is information and troops, red is the enemy.
 - The last green pieces follow it too: the frame corners round the map, the minimap's rim and the big map's grid.

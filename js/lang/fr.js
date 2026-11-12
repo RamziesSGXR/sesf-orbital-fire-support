@@ -553,6 +553,8 @@ export default {
   'arm.coinPart': '{n} CR D’UNE PIÈCE',
   'arm.coinPaid': '{n} CR D’UNE PIÈCE SESF VERSÉS POUR {name}',
   'arm.payIn': 'VERSER',
+  'arm.payHold': "Touchez pour un crédit. Maintenez pour continuer à payer, de plus en plus vite.",     // (0.61) the + button
+  'arm.liveEye': "LA MISSION ATTEND TANT QUE L'ARMURERIE EST OUVERTE · CE QUE VOUS ACHETEZ SERT TOUT DE SUITE",
   'arm.paid': '{n} SUR {c} CR VERSÉS',
   'arm.paidIn': '{n} CR VERSÉS POUR {name} : ENCORE {left} CR',
   'arm.mix': 'COMPOSITION',

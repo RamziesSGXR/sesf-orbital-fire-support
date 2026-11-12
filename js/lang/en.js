@@ -553,6 +553,8 @@ export default {
   'arm.coinPart': '{n} CR FROM A COIN',
   'arm.coinPaid': '{n} CR FROM AN SESF COIN PAID TOWARD {name}',
   'arm.payIn': 'PAY IN',
+  'arm.payHold': "Tap for one credit. Hold to keep paying, faster the longer you hold.",     // (0.61) the + button
+  'arm.liveEye': "THE MISSION WAITS WHILE THE ARMORY IS OPEN · WHAT YOU BUY WORKS AT ONCE",
   'arm.paid': '{n} OF {c} CR PAID',
   'arm.paidIn': '{n} CR PAID TOWARD {name}: {left} CR TO GO',
   'arm.mix': 'TROOP MIX',

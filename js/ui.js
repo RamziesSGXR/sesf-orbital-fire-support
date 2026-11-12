@@ -8,7 +8,7 @@ import { STORY } from './data/story.js';
 import { buildCostMul, PERKS, perkN, perkPct, perksTotal } from './data/perks.js';
 import { costSiteMul, siteGain } from './sim/sites.js';
 import { GROUPS as KEY_GROUPS, label as keyLabelOf, keyOf as keyOfAction, defaultOf as defaultKeyOf } from './keys.js';
-import { penOf, GUN_PEN, shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, hangarStats, shownAt, TIER_MAX, tierItems, itemTier, FLAT_BUILDS, fleetSize, coinOk, payStep, MIXES, mixOpen, mixNeeds } from './data/kit.js';
+import { penOf, GUN_PEN, shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, hangarStats, shownAt, TIER_MAX, tierItems, itemTier, FLAT_BUILDS, fleetSize, coinOk, MIXES, mixOpen, mixNeeds } from './data/kit.js';
 import { stratReady, stratOnline } from './sim/strat.js';
 import { slotStats } from './sim/player.js';
 import { compass } from './sim/enemies.js';
@@ -27,7 +27,7 @@ import { CAST, CAST_ORDER } from './data/story.js';
 
 const $ = (id) => document.getElementById(id);
 const SCREENS = ['s-title', 's-campaign', 's-glass', 's-shop', 's-brief', 's-debrief', 's-final', 's-next'];
-const OVERLAYS = ['s-pause', 's-lock', 's-controls', 's-manual', 's-names', 's-settings', 's-notice', 's-info', 's-credits', 's-map', 's-radio'];
+const OVERLAYS = ['s-pause', 's-lock', 's-controls', 's-manual', 's-names', 's-settings', 's-notice', 's-info', 's-armory', 's-credits', 's-map', 's-radio'];
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // (0.27.3) a label too long for its box in some language: its font steps down until the words fit (never under `min` pixels)
@@ -291,8 +291,16 @@ export class Hud {
     document.querySelector('#tactical .tc-u').appendChild(document.querySelector('#tactical .tac-form'));     // (0.20: formations with the troops)
     document.querySelectorAll('#tactical .tct').forEach((b) => b.addEventListener('pointerdown', (ev) => {
       ev.preventDefault(); ev.stopPropagation();
+      if (b.dataset.tab === 'armory' && this.onArmory) { this._armDown = performance.now(); return; }     // (0.61) the armory is a window now, opened by the click (below)
       this.setTcTab(b.dataset.tab === this.tcTab && b.dataset.tab !== 'units' ? 'units' : b.dataset.tab);     // (0.21: pressed again, back to the troops)
     }));
+    // (0.61) ARMORY opens the armory window; on the click, not the press, so the click cannot land on the window that opens
+    document.querySelector('#tactical .tct[data-tab="armory"]').addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      // (only a press that began on this button: BUILD pulls the panel up, and its click can land here)
+      if (ev.detail !== 0 && !(performance.now() - (this._armDown || -9999) < 1500)) return;
+      this._armDown = 0; if (this.onArmory) this.onArmory();
+    });
     const ordBox = document.querySelector('#tactical .tac-ord');
     for (const o of ['seaf', 'pickup', 'auto', 'move', 'protect', 'attack', 'escort']) {     // (0.20: DISBAND is on the squad bar, once; 0.39: PICKUP)
       const e = el('button', 'tco ' + o, `<span class="k">${esc(orderKey(o))}</span><span class="n"></span><span class="s"></span>`);     // (0.50.1: the player's own keys)
@@ -1781,10 +1789,53 @@ export function rankBar(tier, done, kills = false) {
   return box;
 }
 let shopTab = 'orb';
+// (0.61) PAY IN is a "+": a tap puts in one credit; held, it keeps paying, faster the longer it is held (up to cap a step).
+// step(n) pays n and returns the payment ({ ok, paid, bought }); end(total, last) is called once when the hold ends.
+export function holdPay(btn, cap, step, end) {
+  // by the clock, not by the tick (a slow frame must not slow the paying): a credit every 70 ms to start with, a fifth more each
+  // 70 ms it is held, up to cap a 70 ms (the whole price in about a second, at full speed)
+  let timer = 0, k = 0, total = 0, on = false, last = null, t0 = 0, tl = 0;
+  // (the click that follows the press must not land on whatever the redraw puts under the finger: it is swallowed)
+  const eat = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
+  const stop = () => {
+    if (!on) return; on = false; clearTimeout(timer); btn.classList.remove('held');
+    // (swallowed until the finger is off the glass and a moment more: a hold that ends by buying leaves the finger down)
+    const off = () => { setTimeout(() => document.removeEventListener('click', eat, true), 350); for (const e of ['pointerup', 'pointercancel', 'touchend']) document.removeEventListener(e, off, true); };
+    document.addEventListener('click', eat, true);
+    if (down) { for (const e of ['pointerup', 'pointercancel', 'touchend']) document.addEventListener(e, off, true); setTimeout(off, 8000); } else off();
+    end(total, last);
+  };
+  const tick = () => {
+    if (!on) return;
+    const now = performance.now();
+    let n = 1;
+    if (k > 0) { const held = (now - t0) / 70, dt = Math.min(6, (now - tl) / 70); n = Math.max(1, Math.round(Math.min(Math.max(1, cap()), Math.pow(1.2, held)) * dt)); }
+    else t0 = now + 380;
+    tl = k > 0 ? now : t0; k++;
+    const r = step(n);
+    last = r;
+    if (!r || !r.ok) { stop(); return; }
+    total += r.paid || 0;
+    if (r.bought || r.done) { stop(); return; }
+    timer = setTimeout(tick, k === 1 ? 380 : 70);
+  };
+  const start = () => { if (on) return; on = true; k = 0; total = 0; last = null; btn.classList.add('held'); tick(); };
+  let down = false;
+  btn.addEventListener('pointerdown', (ev) => { if (ev.button > 0) return; ev.preventDefault(); down = true; try { btn.setPointerCapture(ev.pointerId); } catch { /* fine */ } start(); });
+  for (const e of ['pointerup', 'pointercancel']) btn.addEventListener(e, () => { down = false; stop(); });
+  btn.addEventListener('lostpointercapture', stop);
+  btn.addEventListener('keydown', (ev) => { if ((ev.code === 'Enter' || ev.code === 'Space') && !ev.repeat) { ev.preventDefault(); start(); } else if (ev.code === 'Enter' || ev.code === 'Space') ev.preventDefault(); });
+  btn.addEventListener('keyup', (ev) => { if (ev.code === 'Enter' || ev.code === 'Space') { ev.preventDefault(); stop(); } });
+  btn.addEventListener('blur', stop);
+  // a click with no press before it (a screen reader's, a script's): one credit
+  btn.addEventListener('click', () => { if (on) return; const r = step(1); end(r && r.ok ? r.paid || 0 : 0, r); });
+  btn.addEventListener('contextmenu', (ev) => ev.preventDefault());
+}
 export function renderShop(root, opts) {
   const { kit, wallet, live } = opts, tier = opts.tier ?? TIER_MAX, fresh = new Set(opts.fresh || []);
   // (0.25) everything shows; what your rank has not reached is locked (and a classified one is blacked out)
   const items = shopItems(kit), rankOf = (it) => itemTier(it.id), open = (it) => shownAt(it, tier);
+  const later = (it) => live && !it.live && !opts.any;      // (0.61) in a mission: only between missions (the tutorial has none: opts.any)
   // (0.24) SHOW ME: open the tab with the first new item in it
   if (opts.focus && fresh.size) { const f = firstNew(items, opts.fresh); if (f) shopTab = (SHOP_TABS.find((x) => x.secs.includes(f.section)) || SHOP_TABS[0]).id; }
   const scroll = root.querySelector('.shop-scroll'), keep = scroll ? scroll.scrollTop : 0;
@@ -1840,7 +1891,7 @@ export function renderShop(root, opts) {
   const shownTabs = SHOP_TABS.filter((tb) => items.some((it) => tb.secs.includes(it.section)));      // (0.24: the Hangar's comes with its milestone)
   if (!shownTabs.some((tb) => tb.id === shopTab)) shopTab = (shownTabs[0] || SHOP_TABS[0]).id;
   for (const tb of shownTabs) {
-    const can = items.some((it) => tb.secs.includes(it.section) && it.cost !== null && !it.locked && open(it) && (coinMode ? coinOk(it) : wallet.bal >= it.due) && !(live && !it.live));
+    const can = items.some((it) => tb.secs.includes(it.section) && it.cost !== null && !it.locked && open(it) && (coinMode ? coinOk(it) : wallet.bal >= it.due) && !later(it));
     const b = el('button', 'btn tab' + (shopTab === tb.id ? ' on' : '') + (can ? ' can' : ''), esc(t('arm.tab.' + tb.id)));
     b.type = 'button'; b.dataset.tab = tb.id; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(shopTab === tb.id));
     b.onclick = () => { shopTab = tb.id; root.querySelectorAll('.shop-tabs .tab').forEach((x) => { x.classList.toggle('on', x.dataset.tab === shopTab); x.setAttribute('aria-selected', String(x.dataset.tab === shopTab)); }); root.querySelectorAll('.tabpane').forEach((x) => x.classList.toggle('on', x.dataset.tab === shopTab)); const sc = root.querySelector('.shop-scroll'); if (sc) sc.scrollTop = 0; const tbar = root.querySelector('.shop-tabs'); if (tbar && tbar.getBoundingClientRect().top < 0) tbar.scrollIntoView({ block: 'start' }); };     // (0.53.9: a phone's page scrolled past the tabs comes back to them)
@@ -1876,7 +1927,7 @@ export function renderShop(root, opts) {
       if (shut && it.cost !== null) { b.innerHTML = `${t('arm.rankN', { n: rk })}<small>${esc(t('rank.' + rk))}</small>`; b.disabled = true; b.classList.add('small', 'rankb'); }     // (0.25) not your rank yet
       else if (it.cost === null) { b.textContent = t(it.locked ? 'arm.locked' : 'arm.max'); b.disabled = true; }
       else if (it.locked && it.needs) { b.innerHTML = `${t('arm.needs.' + it.needs)}<small>${t('arm.cr', { n: fmtNum(it.cost) })}</small>`; b.disabled = true; b.classList.add('small'); }     // (0.23: Eagles need the Hangar)
-      else if (live && !it.live) { b.textContent = t('arm.between'); b.disabled = true; b.classList.add('small'); }
+      else if (later(it)) { b.textContent = t('arm.between'); b.disabled = true; b.classList.add('small'); }
       else if (coinMode && !coinOk(it)) { b.innerHTML = `${t('arm.coinNo')}<small></small>`; b.disabled = true; b.classList.add('small'); }      // (0.44) no coin for the Classified ones
       else if (coinMode) {
         const cv = opts.coinVal || 0, all = cv >= it.due;      // (0.50) the coin's credits: the whole of what is left, or toward it
@@ -1890,17 +1941,32 @@ export function renderShop(root, opts) {
         else b.onclick = () => opts.onBuy(it.id);
       }
       btns.appendChild(b);
-      // (0.50) PAY IN: put credits toward it now (a quarter of its price a press); what is paid stays on it
-      if (!shut && it.cost !== null && !it.locked && !coinMode && !(live && !it.live) && opts.onPay && wallet.bal > 0 && wallet.bal < it.due) {
-        const p = el('button', 'btn small pay', `${t('arm.payIn')}<small>${t('arm.cr', { n: fmtNum(payStep(it, wallet.bal)) })}</small>`);
-        p.type = 'button'; p.onclick = () => opts.onPay(it.id);
+      // (0.50) PAY IN: put credits toward it now; what is paid stays on it. (0.61) a "+": a credit a tap, and held it runs up,
+      // faster the longer it is held; the card and the credits follow as it goes, and the page is redrawn when the hold ends
+      if (!shut && it.cost !== null && !it.locked && !coinMode && !later(it) && opts.onPayStep && wallet.bal > 0) {
+        const p = el('button', 'btn small pay', `<b>+</b><small>${t('arm.payIn')}</small>`);
+        p.type = 'button'; p.title = t('arm.payHold'); p.setAttribute('aria-label', `${t('arm.payIn')}: ${it.orb ? shortName(it.orb) : it.name}. ${t('arm.payHold')}`);
+        holdPay(p, () => Math.ceil(it.cost / 15), (n) => {
+          const r = opts.onPayStep(it.id, n);
+          if (r && r.ok && !r.bought) {
+            const cr = root.querySelector('.shop-cr b'); if (cr) cr.textContent = fmtNum(wallet.bal);
+            const paid = it.cost - r.left;
+            let bar = main.querySelector('.it-paid');
+            if (!bar) { bar = el('div', 'it-paid', '<i></i><span></span>'); main.appendChild(bar); }
+            bar.firstChild.style.width = Math.round((paid / it.cost) * 100) + '%';
+            bar.lastChild.textContent = t('arm.paid', { n: fmtNum(paid), c: fmtNum(it.cost) });
+            const sm = b.querySelector('small'); if (sm) sm.textContent = t('arm.cr', { n: fmtNum(r.left) });
+            if (wallet.bal <= 0) r.done = true;
+          }
+          return r;
+        }, (total, last) => opts.onPayEnd && opts.onPayEnd(it.id, total, last));
         btns.appendChild(p);
       }
       if (it.paid > 0 && it.cost !== null && !black) {
         const bar = el('div', 'it-paid', `<i style="width:${Math.round((it.paid / it.cost) * 100)}%"></i><span>${esc(t('arm.paid', { n: fmtNum(it.paid), c: fmtNum(it.cost) }))}</span>`);
         main.appendChild(bar);
       }
-      if (it.owned && it.orb && !live) {          // (orbitals and utilities go in a loadout slot; buildables do not)
+      if (it.owned && it.orb && (!live || (opts.liveEquip && !inLoad))) {          // (orbitals and utilities go in a loadout slot; buildables do not. 0.61: the tutorial's armory in the field puts one back in the bar)
         const q = el('button', 'btn small', t(inLoad ? 'arm.unequip' : 'arm.equip'));
         q.onclick = () => (inLoad ? opts.onUnequip(kit.loadout.indexOf(it.orb)) : opts.onEquip(it.orb));
         btns.appendChild(q);
