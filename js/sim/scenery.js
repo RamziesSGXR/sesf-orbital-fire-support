@@ -149,7 +149,7 @@ export function damageRock(m, x, y, rad, dmg) {
     if (!q.big || q.broken || (q.x - x) ** 2 + (q.y - y) ** 2 > (rad + q.r) ** 2) continue;
     q.hp -= dmg * C.scenery.rockTake;
     if (q.hp > 0) continue;
-    q.broken = true;
+    q.broken = true; m.scenery.broken = (m.scenery.broken || 0) + 1;
     for (let i = 0; i < 5; i++) { const a = (i / 5) * TAU + q.seed, d = q.r * (0.5 + 0.6 * ((q.seed * (i + 3)) % 1)); sc.rubble.push({ x: q.x + Math.cos(a) * d, y: q.y + Math.sin(a) * d, r: q.r * 0.3, a, seed: q.seed + i }); }
     m.emit('rock_break', { x: q.x, y: q.y, r: q.r });
     m.dirtyCover = true;

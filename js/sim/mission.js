@@ -2,6 +2,7 @@
 // The player runs the destroyer: a UAV scan, orbital stratagems from the armory, and SEAF pods and orders.
 // The four Helldivers (one per stratagem group) fight on their own and are reinforced automatically from a pool of lives.
 import { buildCostMul } from '../data/perks.js';
+import { solids, keepOut } from './solids.js';
 import { setupSite, updateSite, costSiteMul } from './sites.js';
 import { addSpawners, hitSpawners, liveSpawners } from './spawners.js';
 import { initAlert, updateAlert, alertRaise, alertClear } from './alert.js';
@@ -1271,10 +1272,19 @@ export class Mission {
     // nobody walks out of the area of operations
     const A = this.ao, X0 = A.x0 + 2, X1 = A.x1 - 2, Y0 = A.y0 + 2, Y1 = A.y1 - 2;
     const inX = (v) => (v < X0 ? X0 : v > X1 ? X1 : v), inY = (v) => (v < Y0 ? Y0 : v > Y1 ? Y1 : v);
-    for (const e of this.enemies) if (!e.dead) { go(e.px, e.py, e.x, e.y, 1); e.x = inX(R.x); e.y = inY(R.y); }
+    // (0.62) and nobody walks through a boulder, a tree or a building: sim/solids.js
+    const solid = C.solids.on && solids(this);
+    for (const e of this.enemies) if (!e.dead) { go(e.px, e.py, e.x, e.y, 1); if (solid && !e.boss && !e.air) { if (keepOut(this, e, e.px, e.py, R, null, e.kind === 'H') && tr.blocked(R.x, R.y)) { R.x = e.px; R.y = e.py; } } e.x = inX(R.x); e.y = inY(R.y); }
     // (allies keep to the square: a way round water can cut through a corner of it, outside the round area; 0.40: holding them to
     // the circle there left squads stuck against its edge, so a Helldiver pulling back is kept off the edge instead: helldiver.js)
-    for (const a of this.alive) if (!a.mounted) { go(a.px, a.py, a.x, a.y, a.type === 'H' && jump ? 0 : 1); a.x = inX(R.x); a.y = inY(R.y); }
+    for (const a of this.alive) if (!a.mounted) {
+      go(a.px, a.py, a.x, a.y, a.type === 'H' && jump ? 0 : 1);
+      if (solid && !(a.type === 'H' && jump) && !a.inside) {
+        const own = a.post || (a.type === 'S' && a.sq >= 0 && this.seaf.squads[a.sq] && this.seaf.squads[a.sq].order.post) || null;
+        if (keepOut(this, a, a.px, a.py, R, own) && tr.blocked(R.x, R.y)) { R.x = a.px; R.y = a.py; }
+      }
+      a.x = inX(R.x); a.y = inY(R.y);
+    }
     for (const g of this.groups) { go(g.pcx, g.pcy, g.cx, g.cy, 1); g.cx = inX(R.x); g.cy = inY(R.y); }
     const sq = this.squad;
     go(sq.pax, sq.pay, sq.ax, sq.ay, jump ? 0 : sq.mounted ? 0.5 : 1); sq.ax = inX(R.x); sq.ay = inY(R.y);

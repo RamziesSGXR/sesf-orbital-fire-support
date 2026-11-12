@@ -257,10 +257,12 @@ function seafShare(seed, role, n, targets, sec = 10) {
   const m2 = mk(4202, 'squids'), b = m2.hdAlive[0];
   for (const h of m2.hdAlive) { h.hp = h.maxHp = 1e9; h.gren = 0; h.ult = 0; h.speed = 0; }
   const g2 = spawnGroup(m2, b.x + 40, b.y, 'hunt', { kinds: ['H'] }), hv = g2.members[0]; hv.hp = hv.maxHp = 1e9; hv.speed = 0; if (hv.shield) hv.shield = hv.maxShield = 1e9;
+  for (const h of m2.hdAlive) h._pin = [h.x, h.y];
   let beams = 0, wide = 0, tg = null;
   for (let i = 0; i < 30 * 150; i++) {
     if (hv.ch && hv.ch.tgt) tg = { x: hv.ch.tx, y: hv.ch.ty };      // (where it locked on)
     m2.step(dt);
+    for (const h of m2.hdAlive) if (h._pin) { h.x = h._pin[0]; h.y = h._pin[1]; }     // (0.62: held where they stand; speed 0 alone did not keep the squad from walking off to its objective)
     for (const ev of m2.events) if (ev.type === 'beam' && tg) { beams++; const dx = ev.tx - ev.x, dy = ev.ty - ev.y, l = Math.hypot(dx, dy) || 1, u = Math.max(0, Math.min(1, ((tg.x - ev.x) * dx + (tg.y - ev.y) * dy) / (l * l))); if (Math.hypot(tg.x - (ev.x + u * dx), tg.y - (ev.y + u * dy)) > C.combat.atk.squids.H.width / 2 + 1.5) wide++; }
     m2.events.length = 0;
   }
