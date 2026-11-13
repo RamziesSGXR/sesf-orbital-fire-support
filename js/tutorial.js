@@ -65,7 +65,7 @@ export class Tutorial {
     $('tut-go').onclick = () => this.begin();
     $('tut-x').onclick = () => this.fold(!this.el.classList.contains('fold'));
     // starting to do what a lesson card says (a tap, a click or a key anywhere but on the card) lets the game go too
-    this.act = (e) => { if (this.held && this.o && this.o.ok && !this.el.contains(e.target) && e.key !== 'Escape') this.release(); };
+    this.act = (e) => { if (this.held && this.o && this.o.ok && !this.el.contains(e.target)) this.release(); };
     document.addEventListener('pointerdown', this.act, true); document.addEventListener('keydown', this.act, true);
   }
   start() { this.el.classList.remove('hidden', 'fold', 'warn'); this.advance(); }
@@ -200,8 +200,10 @@ export class Tutorial {
     const st = this.step;
     if (st && st.tick && this.s && !this.held) st.tick(this.g, this.s);
     // done while the card held the game (the sheet opened, say): it lets go; a short pause, then the next card
-    if (st && st.done && !this.s.doneAt && st.done(this.g, this.s)) { this.s.doneAt = this.g.mission.t; if (this.held) this.release(); }
-    if (this.s && this.s.doneAt && this.g.mission.t - this.s.doneAt > 0.8) this.advance();
+    // (0.62.2) the wait before the next card is in real seconds: the mission clock stops while anything holds the game, and a
+    // step that finished under a hold used to sit there for good
+    if (st && st.done && !this.s.doneAt && st.done(this.g, this.s)) { this.s.doneAt = now; if (this.held) this.release(); }
+    if (this.s && this.s.doneAt && now - this.s.doneAt > 800) this.advance();
   }
   close() {
     document.removeEventListener('pointerdown', this.act, true); document.removeEventListener('keydown', this.act, true);

@@ -2065,6 +2065,26 @@ function onEvent(ev, now) {
 let frameAt = 0;
 // (0.61.4) AUTO on a computer: as fast as the screen, up to 144 (it was 60); 30 on a phone. 144 is a choice too.
 function fpsCap() { const f = settings.fps; return f === 'max' ? 0 : f === '30' ? 30 : f === '60' ? 60 : f === '144' ? 144 : applyLayout.last === 'phone' ? 30 : 144; }
+// (0.62.2) The soft-lock guard. The game waits under a cinematic and under a tutorial card: it keeps drawing, so animations
+// play on, but nothing moves. That is right while there is something on screen to let go of, and a freeze when there is not —
+// a card hidden behind another panel, or a cinematic that never ended. So each hold gets a ceiling, and a hold with no card
+// showing is let go after a moment. The player's only way out used to be to stumble on whatever the card was waiting for.
+// (0.62.2) Anything thrown by a step or by the smoothing: logged the first few times, then counted. The frame goes on.
+let simFails = 0;
+function simBroke(err) { simFails++; if (simFails <= 5) console.error('[sim] step failed (' + simFails + ')', err); }
+
+let holdKind = null, holdAt = 0;
+function unstick(now) {
+  const kind = paused ? 'pause' : cinema.on ? 'cine' : (tut && tut.held) ? 'tut' : null;
+  if (kind !== holdKind) { holdKind = kind; holdAt = now; return; }
+  if (!kind || kind === 'pause') return;
+  const held = now - holdAt;
+  if (kind === 'tut') {
+    const el = tut && tut.el, shown = el && !el.classList.contains('hidden') && el.offsetParent !== null;
+    if ((!shown && held > 1) || held > 45) tut.release();
+  } else if (held > 240) cinema.stop();
+}
+
 function frame(ts) {
   requestAnimationFrame(frame);
   const cap = paused && !soft && state === 'play' ? 12 : fpsCap();     // (the pause menu over a still game: no need to redraw it often; 0.53.4: not the soft pause, where the map is panned and planned on)
@@ -2097,7 +2117,13 @@ function frame(ts) {
     hud.doorsPlace((p) => { const R = p.what === 'bastion' ? p.r + 2 : p.what === 'site' ? p.r * 0.6 : 5; return renderer.worldToScreen(p.x, p.y - R, canvas); });
     if (hud.askAnchor) { const an = hud.askAnchor; if (an.dead) hud.askEnd(); else { const p = renderer.worldToScreen(an.x, an.y, canvas); if (p) hud.askPlace(p.x, p.y); } }
     if (plan() && !bot) { const sa = input.screenAim(), w = renderer.screenToWorld(sa.x, sa.y, canvas); if (w) mission.setAim(w.x, w.y); refreshAim(mission); squadCentres(mission); }     // (the reticle follows in the pause too; 0.47: and shows the weapon picked in it)
-    if (!paused && !cinema.on && !(tut && tut.held) && state === 'play') { simulate(dt, now); ambient(mission, dt); if (castRadio && !mission.over) castRadio.tick(mission); }
+    unstick(now);     // (0.62.2) nothing may hold the game with nothing on screen to let go of
+    if (!paused && !cinema.on && !(tut && tut.held) && state === 'play') {
+      // (0.62.2) a step that throws used to take the whole frame down with it: the picture stopped, and since the pause skips
+      // the step the game looked alive again the moment it was paused and froze again on resume. Now the step is caught and
+      // the frame carries on drawing, so the player keeps the map, the pause and the menu whatever happens in here.
+      try { simulate(dt, now); ambient(mission, dt); if (castRadio && !mission.over) castRadio.tick(mission); } catch (err) { simBroke(err); }
+    }
     else if (tut && tut.held && mission.events.length) { for (const ev of mission.events) onEvent(ev, now); mission.events.length = 0; }   // (an order given with a card up counts)
     // The camera is the player's. It follows the squad only when locked on, and moves to a callout only when the player asks to
     // look (J, a callout button, a double tap on a team). The map holds still under a play being drawn.
@@ -2135,7 +2161,8 @@ function frame(ts) {
     const p = mission.player;
     if (sel && (sel.dead || (sel.kind !== 'post' && sel.kind && !mission.assets.includes(sel)))) deselect();
     const ga = placing ? ghostAt || (input.touch ? null : aimWorld()) : null;     // (0.22: the ghost of what is being placed)
-    const tw = !paused && state === 'play' && !mission.over && !cinema.on && !(tut && tut.held); if (tw) tween(mission, acc / STEP);
+    const tw = !paused && state === 'play' && !mission.over && !cinema.on && !(tut && tut.held);
+    if (tw) { try { tween(mission, acc / STEP); } catch (err) { simBroke(err); } }
     try { renderer.draw(mission, cam, { now, aim: drawing || box ? null : { x: p.aimX, y: p.aimY }, armed, placing, ghost: ga, plan: planQ, draw: stroke, snap: (x, y) => snap(x, y), sel, box, pface: placeFace, pshape: placeShape }); } finally { if (tw) untween(mission); }
     if (sel) placeSel(); else if (insp) placeInsp();
     sizeMini();

@@ -25,6 +25,13 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**The squids, redrawn — and they fight better (0.62.2).**
+- **New squid art.** The warrior, the overseer, the bombardier and the fleshmob are armoured now, not blobs: flared shoulder plates, a narrow head with a lit visor, limbs folded back under the mantle, and a plasma weapon held across the body. The overseer carries a crest and an energy lance.
+- **A proper harvester.** It walks on three heavy legs with knee plates and clawed feet, under a chamfered hull with a wide lens at the nose that whitens as its beam charges. Its shield shows as a dome of light.
+- **No more plinking from safety.** An enemy shooting one of your buildings now walks into that building's own reach, so a turret nest it is chipping at can shoot back. It used to stand just outside and fire for free.
+- **The squids spread out.** A school keeps its shape but no longer piles into one spot, so a single blast can't wipe it out, and every faction's bodies now ease apart instead of stacking. A group that loses sight of you goes back on patrol together instead of stringing out one by one.
+- **No more frozen frame.** If a step of the game throws, the picture keeps drawing and the game carries on instead of locking up. Nothing can hold the game with no card on screen to let go of, and pressing Escape clears a card too.
+
 **No more stutter on buildings (0.62.1).** Bases, points of interest, mission sites, posts and turrets no longer judder as the camera sways: they glide with the ground instead of stepping a pixel at a time. What moves on them (the oil pump's beam, pulsing lights, smoke, a turret turning or firing) now moves every frame instead of jumping every few seconds.
 
 **Solid ground (0.62).**

@@ -260,7 +260,14 @@ export const CONFIG = {
                 swarm: { callRadius: 130, rushMul: 1.25, rushN: 8, weave: 3.5, fan: 0.6, arc: 2.0, reach: 48 },
                 line:  { standoff: 0.62, spacing: 4.4, rank: 4.5, tankBack: 10, arm: 70 },
                 ring:  { radius: 0.66, arm: 95, slack: 5 },
+                // (0.62.2) An enemy shooting a building of the player's walks into that building's own reach x closeIn, so a gun
+                // it is chipping at can shoot back: standing outside a turret nest's range and plinking it was free damage.
+                closeIn: 0.8,
               },
+              // (0.62.2) Bodies keep their distance: two enemies closer than (their drawn radii added) x body are eased apart,
+              // at most step metres a second each, so a pack stands as a crowd of bodies and not one blob. by faction, since a
+              // bug swarm should still press in. Bosses, super heavies and anything in the air are left alone.
+              spread: { on: true, body: { bugs: 0.72, bots: 0.95, squids: 1.05 }, step: 6, rate: 20, max: 18 },
               hp: { light: 30, medium: 200, heavy: 1000 },
               speed: { light: 4.0, medium: 3.2, heavy: 2.4 },
               // Enemies notice allies at their own (shorter) sight. Fire, noise or a neighbor's call alerts a group.
@@ -313,7 +320,7 @@ export const CONFIG = {
   formations: {
     bots:   { square: 0.45, line: { spacing: 6.5 }, block: { spacing: 5.2 }, rank: 7 },
     bugs:   { trail: 0.5, gap: 3.2 },
-    squids: { inner: 7, ringGap: 6.5, gap: 6.5, spin: 0.38, mid: 3, hold: 1.0, breathe: 0.12, breatheSec: 5, startle: { mul: 1.75, sec: 4, speed: 1.6, rest: 5 } },
+    squids: { inner: 7, ringGap: 6.5, gap: 6.5, spin: 0.38, mid: 3, hold: 1.0, breathe: 0.12, breatheSec: 5, startle: { mul: 1.75, sec: 4, speed: 1.6, rest: 5 }, lost: 42 },     // (0.62.2) lost: this far from its school and it swims back to the school itself, not to its own place in it
   },
   // Patrols: every base keeps perBase (more later in the session and the mission, up to maxPerBase) out on a route of its own, radius
   // metres out, replacing a lost one every `every` seconds while it stands; atStart are out at the drop. An intercept is a patrol
@@ -684,6 +691,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.1',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.2',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };
