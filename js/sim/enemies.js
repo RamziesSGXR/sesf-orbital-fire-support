@@ -552,15 +552,31 @@ function arrangeSchool(g, t) {
   g.schoolN = live.length;
   const st = Math.max(0, Math.min(1, ((g.startle ?? -99) - t) / S.startle.sec)), burst = 1 + (S.startle.mul - 1) * Math.sin(Math.min(1, st * 1.6) * Math.PI / 2);
   const size = burst * (1 + S.breathe * Math.sin((t / S.breatheSec) * TAU + (g.id || 0)));
-  lead.forEach((q, i) => { const a = (i / Math.max(1, lead.length)) * TAU + t * 0.2; const r = lead.length > 1 ? S.mid * (lead.length > 3 ? 1.6 : 1) * burst : 0; q.ox = Math.cos(a) * r; q.oy = Math.sin(a) * r; });
-  let i = 0, k = 0;
-  for (const ring of schoolRings(rest.length, S)) {
-    const dir = k % 2 ? -1 : 1, w = S.spin * (S.inner / ring.r);
-    for (let j = 0; j < ring.n; j++, i++) {
-      const q = rest[i], a = (j / ring.n) * TAU + dir * t * w + k * 0.7, r = ring.r * size;
-      q.ox = Math.cos(a) * r; q.oy = Math.sin(a) * r;
+  // (0.62.2) Who swims where is settled once, when the school changes size, and by where each one already stands: the ones
+  // nearest the middle take the inner ring, and round each ring the places are handed out in the order they already are in.
+  // Each then keeps its place while the school turns. Before this the places were handed out by list order and settled again
+  // every tick, so a light could be sent to the far side of a turning school and spend the mission chasing it through its own pack.
+  const bear = (q) => Math.atan2(q.y - g.cy, q.x - g.cx);
+  if (g.schoolN !== g.schoolKey) {
+    g.schoolKey = g.schoolN;
+    lead.slice().sort((a, b) => bear(a) - bear(b)).forEach((q, i) => { q.sJ = i; q.sN = lead.length; });
+    const by = rest.slice().sort((a, b) => Math.hypot(a.x - g.cx, a.y - g.cy) - Math.hypot(b.x - g.cx, b.y - g.cy));
+    let i = 0, k = 0;
+    for (const ring of schoolRings(rest.length, S)) {
+      const on = by.slice(i, i + ring.n);
+      on.sort((a, b) => bear(a) - bear(b));
+      const a0 = on.length ? bear(on[0]) : 0;
+      on.forEach((q, j) => { q.sRing = k; q.sN = ring.n; q.sA = a0 + (j / ring.n) * TAU; });
+      i += ring.n; k++;
     }
-    k++;
+  }
+  for (const q of lead) { const a = ((q.sJ || 0) / Math.max(1, q.sN || 1)) * TAU + t * 0.2, r = lead.length > 1 ? S.mid * (lead.length > 3 ? 1.6 : 1) * burst : 0; q.ox = Math.cos(a) * r; q.oy = Math.sin(a) * r; }
+  const rings = schoolRings(rest.length, S);
+  for (const q of rest) {
+    const ring = rings[Math.min(q.sRing || 0, rings.length - 1)] || rings[0];
+    const dir = (q.sRing || 0) % 2 ? -1 : 1, w = S.spin * (S.inner / ring.r);
+    const a = (q.sA || 0) + dir * t * w, r = ring.r * size;
+    q.ox = Math.cos(a) * r; q.oy = Math.sin(a) * r;
   }
 }
 
@@ -577,7 +593,7 @@ function swarmMove(m, g, e, tgt, dt, size, sightE) {
     else { const h = homeOf(g, e); moveToward(e, h.x, h.y, e.speed * 1.5, dt, size); }
     return;
   }
-  if (e.tgt) { e.vx = 0; e.vy = 0; return; }   // in biting range
+  if (e.tgt && holdHere(e)) { e.vx = 0; e.vy = 0; return; }   // in biting range (0.62.2: unless it is plinking a gun from outside its reach)
   e.ptT -= dt;
   if (e.ptT <= 0) { e.ptT = 0.25 + m.rng.next() * 0.15; e.pt = nearestTarget(m, e.x, e.y, sightE * 1.6); }
   const p = e.pt && !e.pt.dead ? e.pt : null;
@@ -594,6 +610,21 @@ function swarmMove(m, g, e, tgt, dt, size, sightE) {
 
 // Bots: a firing line. The pack advances abreast, perpendicular to the way it faces; close in, every bot walks to its own spot on
 // a line across the approach, a standoff short of its weapon range (the tank hangs back behind the others), and stands there firing.
+// (0.62.2) Standing still and shooting is fair against anything that can shoot back: a live ally, or a building whose own gun
+// reaches this far. Against a gun it outranges, the enemy keeps walking in until it is inside that gun's reach (x closeIn), so a
+// turret nest is fought for instead of plinked from outside it.
+// How far out this enemy may take its stand: its own reach, or the reach of the gun it is shooting at, whichever is shorter.
+export function standCap(e, range, tg = e.tgt) {
+  const gr = tg && tg.kind && !tg.dead && tg.p && tg.p.range;
+  return gr ? Math.min(range, gr * C.enemies.tactics.closeIn) : range;
+}
+export function holdHere(e) {
+  const tg = e.tgt;
+  if (!tg || !tg.kind) return true;                                  // a live ally, or nothing: stand
+  const gr = tg.p && tg.p.range;                                     // the building's own gun (a turret nest, a sentry)
+  if (!gr || tg.dead) return true;                                   // an unarmed thing: no need to walk into it
+  return (tg.x - e.x) ** 2 + (tg.y - e.y) ** 2 <= (gr * C.enemies.tactics.closeIn) ** 2;
+}
 function arrangeLine(g, L) {
   const lights = g.members.filter((q) => !q.dead && q.kind !== 'H'), n = lights.length, nx = -g.uy, ny = g.ux;
   g.members.forEach((q) => {
@@ -604,11 +635,11 @@ function arrangeLine(g, L) {
 }
 function lineMove(m, g, e, tgt, dt, size, atk) {
   const L = C.enemies.tactics.line;
-  if (e.tgt || e.vol) { e.vx = 0; e.vy = 0; return; }   // something is in range: stand and shoot
+  if ((e.tgt || e.vol) && holdHere(e)) { e.vx = 0; e.vy = 0; return; }   // something is in range: stand and shoot
   if (!tgt) { moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size); return; }
   const range = profileOf(m.faction.id, e).range, d = Math.hypot(tgt.x - e.x, tgt.y - e.y);
   if (d > L.arm + range) { moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size); return; }   // (still marching: its slot in the line or the block)
-  const stand = range * L.standoff + (e.kind === 'H' ? L.tankBack : e.kind === 'M' ? L.rank * 0.5 : 0) + (e.sub === 'cmd' ? L.rank * 1.1 : 0), nx = -g.uy, ny = g.ux;   // (the leaders stand behind the line)
+  const stand = standCap(e, range, e.tgt || tgt) * L.standoff + (e.kind === 'H' ? L.tankBack : e.kind === 'M' ? L.rank * 0.5 : 0) + (e.sub === 'cmd' ? L.rank * 1.1 : 0), nx = -g.uy, ny = g.ux;   // (the leaders stand behind the line)
   moveToward(e, tgt.x - g.ux * stand + nx * (e.lane || 0), tgt.y - g.uy * stand + ny * (e.lane || 0), e.speed * 1.3, dt, size);
 }
 
@@ -616,49 +647,56 @@ function lineMove(m, g, e, tgt, dt, size, atk) {
 // ring toward its own slot while it closes to its firing distance, shooting as it goes, and stops once it is in place.
 // (0.54) a squid leader (a medium that is not the fleshmob) keeps inside the ring instead of on it
 const midOf = (e) => e.kind === 'M' && !e.sub && !e.boss;
+// (0.62.2) The leaders get their own evenly spaced slots on the inner ring, as the lights do on the outer one. Before this they
+// only held their current bearing, so every leader hunting one target could end up on the same side of it, in a heap.
 function assignRings(m) {
   const byT = new Map();
   for (const g of m.groups) {
     if (g.state !== 'hunt' || !g.target || g.target.dead) continue;
     let l = byT.get(g.target);
-    if (!l) byT.set(g.target, (l = []));
-    for (const e of g.members) if (!e.dead && e.kind !== 'H' && !midOf(e)) l.push(e);
+    if (!l) byT.set(g.target, (l = [[], []]));
+    for (const e of g.members) { if (e.dead || e.kind === 'H') continue; l[midOf(e) ? 1 : 0].push(e); }
   }
-  for (const [tg, l] of byT) {
-    if (!l.length) continue;
+  const ring = (tg, l) => {
+    if (!l.length) return;
     for (const e of l) e.ra = Math.atan2(e.y - tg.y, e.x - tg.x);
     l.sort((a, b) => a.ra - b.ra);
     const base = l[0].ra;
     l.forEach((e, i) => { e.slot = base + (i / l.length) * TAU; });
-  }
+  };
+  for (const [tg, [out, mid]] of byT) { ring(tg, out); ring(tg, mid); }
+}
+// To its own place in the school. (0.62.2) One that has fallen a long way behind it (a lake in the way, a wall, a place that
+// landed in deep water) swims back to the school itself first, instead of walking for ever at a place it cannot reach.
+function schoolTo(m, g, e, dt, size) {
+  const far = (e.x - g.cx) ** 2 + (e.y - g.cy) ** 2 > C.formations.squids.lost ** 2;
+  const sp = e.speed * 1.5 * startled(g, m.t);
+  if (far) moveToward(e, g.cx, g.cy, sp, dt, size);
+  else moveToward(e, g.cx + e.ox, g.cy + e.oy, sp, dt, size);
 }
 function ringMove(m, g, e, tgt, dt, size, atk, engaged) {
   const R = C.enemies.tactics.ring;
   if (!tgt || e.kind === 'H') {
-    if (e.tgt) { e.vx = 0; e.vy = 0; return; }
+    if (e.tgt && holdHere(e)) { e.vx = 0; e.vy = 0; return; }
+    if (e.tgt) { moveToward(e, e.tgt.x, e.tgt.y, e.speed, dt, size); return; }     // (0.62.2) walking into the gun it is shooting
     if (e.kind === 'H' && engaged && tgt) { moveToward(e, tgt.x, tgt.y, e.speed, dt, size); return; }
-    moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5 * startled(g, m.t), dt, size);
+    schoolTo(m, g, e, dt, size);
     return;
   }
-  const range = profileOf(m.faction.id, e).range, Rr = range * R.radius, d = Math.hypot(tgt.x - e.x, tgt.y - e.y);
+  const range = standCap(e, profileOf(m.faction.id, e).range, e.tgt || tgt), Rr = range * R.radius, d = Math.hypot(tgt.x - e.x, tgt.y - e.y);
   if (d > R.arm + Rr) {   // still on the way in: move with the school
-    if (e.tgt) { e.vx = 0; e.vy = 0; return; }
-    moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5 * startled(g, m.t), dt, size);
+    if (e.tgt && holdHere(e)) { e.vx = 0; e.vy = 0; return; }
+    schoolTo(m, g, e, dt, size);
     return;
   }
-  if (midOf(e)) {   // (0.54) a leader holds a little way in from the ring, behind its lights
-    const Rm = Rr * C.formations.squids.hold;
-    if (Math.abs(d - Rm) < R.slack) { e.vx = 0; e.vy = 0; return; }
-    const cur = Math.atan2(e.y - tgt.y, e.x - tgt.x);
-    moveToward(e, tgt.x + Math.cos(cur) * Rm, tgt.y + Math.sin(cur) * Rm, e.speed * 1.2, dt, size);
-    return;
-  }
+  // (0.54) a leader holds a little way in from the ring, behind its lights; (0.62.2) on a slot of its own, as the lights are
+  const Rw = midOf(e) ? Rr * C.formations.squids.hold : Rr;
   const cur = Math.atan2(e.y - tgt.y, e.x - tgt.x), diff = e.slot === undefined ? 0 : wrap(e.slot - cur);
-  const inPlace = Math.abs(diff) < 0.3 && Math.abs(d - Rr) < R.slack;
+  const inPlace = Math.abs(diff) < 0.3 && Math.abs(d - Rw) < R.slack;
   if (inPlace) { e.vx = 0; e.vy = 0; return; }   // in position: stand and shoot (the attack step does the rest)
-  const sp = e.speed * 1.4, step = Math.min(Math.abs(diff), Math.max(2.5, sp * 0.35) / Math.max(8, Rr));   // aim a few metres ahead along the ring
+  const sp = e.speed * 1.4, step = Math.min(Math.abs(diff), Math.max(2.5, sp * 0.35) / Math.max(8, Rw));   // aim a few metres ahead along the ring
   const ang = cur + Math.sign(diff) * step;
-  moveToward(e, tgt.x + Math.cos(ang) * Rr, tgt.y + Math.sin(ang) * Rr, sp, dt, size);
+  moveToward(e, tgt.x + Math.cos(ang) * Rw, tgt.y + Math.sin(ang) * Rw, sp, dt, size);
 }
 
 export function updateEnemies(m, dt) {
@@ -785,7 +823,9 @@ export function updateEnemies(m, dt) {
     }
     if (g.alertT <= 0) {
       // lost the squad: back to its route (from the nearest waypoint), or to wandering where it is
-      g.state = 'patrol'; g.home = { x: g.cx, y: g.cy }; g.patrolT = 0; g.pt = null; g.inv = null;
+      // (0.62.2) and it lets go of what it was after: the group kept walking to the last place it saw someone, so members
+      // strung out toward it one by one and left their formation behind
+      g.state = 'patrol'; g.target = null; g.home = { x: g.cx, y: g.cy }; g.patrolT = 0; g.pt = null; g.inv = null;
       if (g.route) { let bi = 0, bd = Infinity; g.route.pts.forEach((p, i) => { const d = (p.x - g.cx) ** 2 + (p.y - g.cy) ** 2; if (d < bd) { bd = d; bi = i; } }); g.ri = bi; }
       continue;
     }

@@ -55,7 +55,11 @@ export function spawnGroup(m, x, y, state = 'patrol', opts = {}) {
   // opts.kinds: exactly these (the last stand's scripted groups), not drawn from the bag
   for (let i = 0, n = opts.kinds ? opts.kinds.length : opts.size || m.groupSize; i < n; i++) {     // (opts.size: a smaller pack, 0.31)
     const tok = opts.kinds ? opts.kinds[i] : m.drawToken(), special = tok === 'S', kind = special ? 'M' : tok, st = SUBTYPES[kind];
-    const [ox, oy] = rng.inDisc(opts.emerge ? Math.min(4, fac.spread) : fac.spread);   // out of a hole or off a ship: bunched up
+    // (0.62.2) spread evenly over the spawn disc (a turn of the golden angle each, a little jitter on top) instead of dropped at
+    // random in it, where a pack of ten could start as a heap and take seconds to untangle
+    const [jx, jy] = rng.inDisc(1.2);
+    const sr = opts.emerge ? Math.min(4, fac.spread) : fac.spread, aa = i * 2.3999632 + g.id;
+    const ox = Math.cos(aa) * sr * Math.sqrt((i + 0.6) / Math.max(1, n)) + jx, oy = Math.sin(aa) * sr * Math.sqrt((i + 0.6) / Math.max(1, n)) + jy;
     let px = aoX(m, x + ox, 3), py = aoY(m, y + oy, 3);
     if (m.terrain.blocked(px, py)) { const l = m.terrain.nearestLand(px, py); px = l.x; py = l.y; }   // never in deep water
     const e = {

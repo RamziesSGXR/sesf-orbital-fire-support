@@ -1235,6 +1235,42 @@ export class Mission {
     const s = rate * dt;
     o.face += Math.abs(d) <= s ? d : Math.sign(d) * s;
   }
+  // (0.62.2) Bodies keep their distance: two enemies whose bodies have walked into each other are eased apart, half the overlap
+  // each, before the step is taken (so the water and the solids still have their say). A pack then stands as a crowd of bodies
+  // instead of one blob, and a squid school keeps its shape. Bosses, super heavies and whatever is in the air are left out.
+  _spread(dt) {
+    const S = C.enemies.spread;
+    if (!S || !S.on) return;
+    // every other tick, with twice the move: the push is small and smoothed between steps anyway, and the search is the
+    // priciest thing in a step when a swarm is on the field
+    this._sprN = (this._sprN || 0) + 1;
+    if (this._sprN % 2) return;
+    dt *= 2;
+    const body = S.body[this.faction.id] ?? 0.7, k = Math.min(1, dt * S.rate), cap = S.step * dt;
+    // how far to look: only a body this wide can be overlapping, so the search stays as tight as the field allows
+    let big = 0;
+    for (const e of this.enemies) if (!e.dead && !e.boss && !e.air) { const b = (e.r || 2.2) * body; if (b > big) big = b; }
+    big = Math.min(big, S.max);
+    for (const e of this.enemies) {
+      if (e.dead || e.boss || e.air || e.lp || e.inAir) continue;
+      const er = (e.r || 2.2) * body;
+      let px = 0, py = 0, n = 0;
+      this.eGrid.near(e.x, e.y, er + big, (o) => {
+        if (o === e || o.dead || o.boss || o.air) return;
+        const need = er + (o.r || 2.2) * body;
+        let dx = e.x - o.x, dy = e.y - o.y, d2 = dx * dx + dy * dy;
+        if (d2 >= need * need) return;
+        let d = Math.sqrt(d2);
+        if (d < 0.05) { const a = e.id * 2.3999632; dx = Math.cos(a); dy = Math.sin(a); d = 1; }     // dead on top of each other: apart on its own bearing
+        const push = (need - d) * 0.5;
+        px += (dx / d) * push; py += (dy / d) * push; n++;
+      });
+      if (!n) continue;
+      const l = Math.hypot(px, py) || 1, w = Math.min(cap, l) * k / l;
+      e.x += px * w; e.y += py * w;
+    }
+  }
+
   _walk(dt = 1 / C.world.tickHz) {
     const tr = this.terrain, jump = this.t < this.buff.jumpUntil, R = this._wr || (this._wr = { x: 0, y: 0 });
     // One mover's step from (x0, y0) to (x1, y1), with the going and the water applied. The answer is left in R (no garbage).
@@ -1272,6 +1308,7 @@ export class Mission {
     // nobody walks out of the area of operations
     const A = this.ao, X0 = A.x0 + 2, X1 = A.x1 - 2, Y0 = A.y0 + 2, Y1 = A.y1 - 2;
     const inX = (v) => (v < X0 ? X0 : v > X1 ? X1 : v), inY = (v) => (v < Y0 ? Y0 : v > Y1 ? Y1 : v);
+    this._spread(dt);     // (0.62.2) bodies keep their distance
     // (0.62) and nobody walks through a boulder, a tree or a building: sim/solids.js
     const solid = C.solids.on && solids(this);
     for (const e of this.enemies) if (!e.dead) { go(e.px, e.py, e.x, e.y, 1); if (solid && !e.boss && !e.air) { if (keepOut(this, e, e.px, e.py, R, null, e.kind === 'H') && tr.blocked(R.x, R.y)) { R.x = e.px; R.y = e.py; } } e.x = inX(R.x); e.y = inY(R.y); }

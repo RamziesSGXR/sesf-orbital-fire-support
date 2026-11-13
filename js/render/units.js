@@ -230,64 +230,170 @@ export function drawEnemyBody(ctx, e, fac, r, col, now, px, hot) {
       }
     }
   } else {
-    // squids
-    if (k === 'H') {
-      // the harvester: a tripod of long legs, the body, and the beam emitter at the front; a glowing core behind
-      ctx.strokeStyle = rgba(col, 0.95); ctx.lineWidth = lw(1.6);
-      for (const a of [Math.PI * 0.68, Math.PI, Math.PI * 1.32]) {
-        const sw = Math.sin(now * 2 + a * 3 + e.id) * 0.08;
-        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a + sw) * 0.85 * r, Math.sin(a + sw) * 0.85 * r); ctx.lineTo(Math.cos(a + sw) * 1.3 * r, Math.sin(a + sw) * 1.3 * r); ctx.stroke();
-      }
-      for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0.55 * r, s * 0.95 * r); ctx.lineTo(0.75 * r, s * 1.3 * r); ctx.stroke(); }
-      ctx.fillStyle = `rgba(230,200,255,${0.5 + 0.45 * pulse})`; circ(ctx, -0.5 * r, 0, 0.26 * r); ctx.fill();
-      ctx.fillStyle = body; circ(ctx, 0, 0, 0.55 * r); ctx.fill(); ctx.strokeStyle = dark; ctx.lineWidth = lw(1); ctx.stroke();
-      ctx.fillStyle = '#ffffff'; circ(ctx, 0.48 * r, 0, Math.max(0.16 * r, px(1.2))); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = lw(0.8); ctx.beginPath(); ctx.arc(0, 0, 0.36 * r, -0.6, 0.6); ctx.stroke();
-    } else {
-      drawSquidBiped(ctx, e, r, col, body, dark, lw, now, px, pulse);
-    }
+    // squids (0.62.2)
+    if (k === 'H') drawHarvester(ctx, e, r, col, body, dark, lw, now, px, pulse);
+    else drawSquidBiped(ctx, e, r, col, body, dark, lw, now, px, pulse);
   }
   ctx.restore();
 }
 
-// (0.54) The squid on two legs (0.55: no trailing mantle): a domed head with its lens at the front, broad shoulders, two jointed legs that
-// stride (opposite feet forward, only while it is moving) and arms out in front (the warrior holds its rifle; the bombardier carries
-// a mortar tube).
+// (0.62.2) The squids, redrawn. Not blobs: an armoured warrior caste. From above each one reads as a pair of flared shoulder
+// plates with a narrow head set between them, a lit visor facing front, limbs folded back under a tapering mantle, and a
+// plasma weapon held across the body. Their own light is cold cyan against the purple.
+const SQ_LIT = '#8fe9ff', SQ_HOT = '#eafaff', SQ_DK = 'rgba(18,9,34,0.95)';
+// a curved armour plate
+function plate(ctx, x, y, rx, ry, a) { ctx.beginPath(); ctx.ellipse(x, y, Math.max(0.01, rx), Math.max(0.01, ry), a, 0, TAU); }
+// the mantle: narrow at the nose, flared at the shoulders, tapering to a point behind
+function mantle(ctx, r, w, back) {
+  ctx.beginPath();
+  ctx.moveTo(0.52 * r, 0);
+  ctx.bezierCurveTo(0.5 * r, -0.45 * w, 0.34 * r, -0.95 * w, 0.12 * r, -w);
+  ctx.bezierCurveTo(-0.24 * r, -1.02 * w, -back * 0.76, -0.72 * w, -back, -0.3 * w);
+  ctx.bezierCurveTo(-back * 1.1, -0.1 * w, -back * 1.1, 0.1 * w, -back, 0.3 * w);
+  ctx.bezierCurveTo(-back * 0.76, 0.72 * w, -0.24 * r, 1.02 * w, 0.12 * r, w);
+  ctx.bezierCurveTo(0.34 * r, 0.95 * w, 0.5 * r, 0.45 * w, 0.52 * r, 0);
+  ctx.closePath();
+}
+// the head: a narrow dark helm with a cyan chevron visor and two mandible prongs
+function helm(ctx, r, hr, lw, hot) {
+  ctx.fillStyle = SQ_DK; plate(ctx, 0.44 * r, 0, hr * 1.15, hr, 0); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.65)'; ctx.lineWidth = lw(0.7); ctx.stroke();
+  ctx.strokeStyle = SQ_DK; ctx.lineWidth = lw(1.5); ctx.lineCap = 'round';     // mandibles
+  for (const s of [-1, 1]) line(ctx, 0.5 * r, s * hr * 0.8, 0.44 * r + hr * 1.9, s * hr * 0.45);
+  ctx.strokeStyle = hot ? '#ffffff' : SQ_LIT; ctx.lineWidth = lw(1.6);         // the visor, a V pointing ahead
+  ctx.beginPath();
+  ctx.moveTo(0.42 * r + hr * 0.1, -hr * 0.75); ctx.lineTo(0.44 * r + hr * 1.05, 0); ctx.lineTo(0.42 * r + hr * 0.1, hr * 0.75);
+  ctx.stroke();
+}
 function drawSquidBiped(ctx, e, r, col, body, dark, lw, now, px, pulse) {
-  const M = e.kind === 'M', mort = e.v === 'mort', sp = Math.hypot(e.vx || 0, e.vy || 0), walk = sp > 0.3 ? 1 : 0;
-  const sw = Math.sin(now * (4 + sp * 0.7) + e.id * 1.7) * walk, wob = Math.sin(now * 3 + e.id) * 0.08 * r;
-  // two legs: hip, knee out to the side, foot planted forward or back (dark outline under a lighter leg so they read on any ground)
+  const M = e.kind === 'M', mort = e.v === 'mort', hot = body !== col;
+  const sp = Math.hypot(e.vx || 0, e.vy || 0), walk = sp > 0.3 ? 1 : 0;
+  const sw = Math.sin(now * (4 + sp * 0.7) + e.id * 1.7) * walk;
+  const w = (M ? 0.68 : 0.58) * r, back = (M ? 1.0 : 0.92) * r, hr = (M ? 0.22 : 0.19) * r;
+  const lit = hot ? '#ffffff' : shade(col, 0.26), dkp = hot ? '#ffffff' : shade(col, -0.32);
+  // the legs fold back under the mantle: hip in, knee out behind, foot planted
   for (const s of [-1, 1]) {
-    const fx = sw * s * 0.6 * r, fy = s * 0.72 * r;
-    for (const [c, w] of [[dark, M ? 3.2 : 2.6], [rgba(col, 1), M ? 1.9 : 1.5]]) {
-      ctx.strokeStyle = c; ctx.lineWidth = lw(w); ctx.beginPath(); ctx.moveTo(0, s * 0.25 * r); ctx.lineTo(fx * 0.35, s * 1.0 * r); ctx.lineTo(fx, fy); ctx.stroke();
+    const kx = -0.46 * r, ky = s * (1.02 * w + sw * s * 0.08 * r), fx = -0.82 * r + sw * s * 0.22 * r, fy = s * 0.86 * w;
+    for (const [c, n] of [['rgba(0,0,0,0.6)', M ? 3.8 : 3.2], [dkp, M ? 2.3 : 1.9]]) {
+      ctx.strokeStyle = c; ctx.lineWidth = lw(n); ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-0.1 * r, s * 0.4 * w); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
     }
-    ctx.fillStyle = '#e9dcff'; ell(ctx, fx + 0.08 * r, fy, 0.2 * r, 0.12 * r); ctx.fill();
+    ctx.fillStyle = SQ_DK; plate(ctx, fx - 0.03 * r, fy, 0.12 * r, 0.07 * r, s * -0.4); ctx.fill();
   }
-  // torso and head
-  ctx.fillStyle = body; ell(ctx, 0, 0, 0.42 * r, (M ? 0.45 : 0.38) * r); ctx.fill(); ctx.strokeStyle = dark; ctx.lineWidth = lw(0.8); ctx.stroke();
-  ctx.fillStyle = body; circ(ctx, 0.48 * r, 0, (M ? 0.28 : 0.24) * r); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#ffffff'; circ(ctx, 0.62 * r, 0, Math.max(0.11 * r, px(0.9))); ctx.fill();
-  // the arms: the warrior and the warlord hold a rifle (barrel, glowing emitter); a drone has two short tendrils with a spark each
+  // the mantle, its lit spine and the split down the back
+  ctx.fillStyle = body; mantle(ctx, r, w, back); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = lw(1); ctx.stroke();
+  ctx.fillStyle = lit; plate(ctx, -0.1 * r, 0, 0.42 * r, 0.17 * r, 0); ctx.fill();
+  ctx.fillStyle = 'rgba(14,7,28,0.55)';
+  ctx.beginPath(); ctx.moveTo(-0.2 * r, -0.06 * r); ctx.lineTo(-back * 0.98, 0); ctx.lineTo(-0.2 * r, 0.06 * r); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = hot ? '#ffffff' : rgba(SQ_LIT, 0.45 + 0.35 * pulse); plate(ctx, -0.38 * r, 0, 0.13 * r, 0.06 * r, 0); ctx.fill();
+  // the shoulder plates: the widest part of it, and what you read at a glance
+  for (const s of [-1, 1]) {
+    ctx.fillStyle = lit; plate(ctx, 0.04 * r, s * 0.78 * w, 0.3 * r, 0.21 * r, s * 0.62); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = lw(0.8); ctx.stroke();
+    ctx.fillStyle = hot ? '#ffffff' : rgba(SQ_LIT, 0.3 + 0.25 * pulse); plate(ctx, -0.02 * r, s * 0.82 * w, 0.12 * r, 0.05 * r, s * 0.62); ctx.fill();
+  }
+  if (M) {     // the overseer wears a crest, two blades swept back over the mantle
+    ctx.strokeStyle = hot ? '#ffffff' : shade(col, 0.5); ctx.lineWidth = lw(1.7); ctx.lineCap = 'round';
+    for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(0.4 * r, s * 0.1 * r); ctx.quadraticCurveTo(0.16 * r, s * 0.5 * r, -0.26 * r, s * 0.4 * r); ctx.stroke(); }
+  }
+  helm(ctx, r, hr, lw, hot);
+  // the arm across the body, and what it holds
+  ctx.strokeStyle = dkp; ctx.lineWidth = lw(M ? 2.2 : 1.8); ctx.lineCap = 'round';
+  line(ctx, 0.04 * r, 0.6 * w, 0.4 * r, 0.52 * w);
   if (mort) {
-    // the bombardier: a fat mortar tube carried along its back (a dark barrel with a glowing mouth), both arms on it, a base plate behind
-    ctx.strokeStyle = dark; ctx.lineWidth = lw(5); ctx.lineCap = 'butt'; line(ctx, -0.75 * r, 0, 0.6 * r, 0);
-    ctx.strokeStyle = '#d9c8ff'; ctx.lineWidth = lw(2.2); line(ctx, -0.7 * r, 0, 0.55 * r, 0); ctx.lineCap = 'round';
-    ctx.fillStyle = `rgba(255,170,90,${0.55 + 0.4 * (e.atk < 0.6 ? 1 : pulse)})`; circ(ctx, 0.62 * r, 0, Math.max(0.17 * r, px(1.2))); ctx.fill();
-    ctx.fillStyle = dark; rect(ctx, -0.95 * r, -0.3 * r, -0.75 * r, 0.3 * r); ctx.fill();
-    ctx.strokeStyle = rgba(col, 0.95); ctx.lineWidth = lw(1.1); line(ctx, 0.2 * r, -0.4 * r, 0.1 * r, -0.05 * r); line(ctx, 0.2 * r, 0.4 * r, 0.1 * r, 0.05 * r);
+    // the bombardier: a heavy mortar tube over the shoulder, mouth forward, with shell pods behind
+    ctx.save(); ctx.translate(0.05 * r, 0.42 * r); ctx.rotate(-0.16);
+    ctx.fillStyle = SQ_DK; ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(-0.72 * r, -0.17 * r, 1.36 * r, 0.34 * r, 0.12 * r); else ctx.rect(-0.72 * r, -0.17 * r, 1.36 * r, 0.34 * r);
+    ctx.fill();
+    ctx.fillStyle = lit; rect(ctx, -0.6 * r, -0.1 * r, 0.36 * r, -0.01 * r); ctx.fill();
+    ctx.fillStyle = SQ_DK; plate(ctx, 0.64 * r, 0, 0.12 * r, 0.24 * r, 0); ctx.fill();
+    ctx.fillStyle = `rgba(255,186,110,${0.45 + 0.5 * (e.atk < 0.6 ? 1 : pulse)})`; plate(ctx, 0.64 * r, 0, 0.07 * r, 0.17 * r, 0); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = dkp;
+    for (const s of [-1, 1]) { plate(ctx, -0.5 * r, s * 0.42 * w, 0.14 * r, 0.1 * r, 0); ctx.fill(); }
   } else if (M) {
-    ctx.strokeStyle = rgba(col, 0.95); ctx.lineWidth = lw(1.1); line(ctx, 0.25 * r, -0.45 * r, 0.75 * r, -0.2 * r);
-    ctx.strokeStyle = dark; ctx.lineWidth = lw(2.2); ctx.lineCap = 'butt'; line(ctx, 0.1 * r, 0.5 * r, 1.4 * r, 0.42 * r);
-    ctx.strokeStyle = '#e6d8ff'; ctx.lineWidth = lw(1.1); line(ctx, 0.2 * r, 0.5 * r, 1.35 * r, 0.42 * r); ctx.lineCap = 'round';
-    ctx.fillStyle = rgba(col, 0.6 + 0.4 * pulse); circ(ctx, 1.4 * r, 0.42 * r, Math.max(0.1 * r, px(0.9))); ctx.fill();
+    // the overseer's lance: a dark haft with twin blades of light at its head
+    ctx.save(); ctx.translate(0.12 * r, 0.44 * r); ctx.rotate(-0.08);
+    ctx.strokeStyle = SQ_DK; ctx.lineWidth = lw(2.6); ctx.lineCap = 'butt'; line(ctx, -0.5 * r, 0, 0.92 * r, 0);
+    ctx.strokeStyle = lit; ctx.lineWidth = lw(1.1); line(ctx, -0.44 * r, 0, 0.86 * r, 0);
+    ctx.strokeStyle = hot ? '#ffffff' : rgba(SQ_HOT, 0.5 + 0.45 * pulse); ctx.lineWidth = lw(2.1); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0.92 * r, -0.02 * r); ctx.quadraticCurveTo(1.22 * r, -0.16 * r, 1.42 * r, -0.2 * r); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0.92 * r, 0.04 * r); ctx.quadraticCurveTo(1.22 * r, 0.16 * r, 1.4 * r, 0.22 * r); ctx.stroke();
+    ctx.fillStyle = rgba(SQ_LIT, 0.4 + 0.4 * pulse); circ(ctx, 0.98 * r, 0, Math.max(0.09 * r, px(0.8))); ctx.fill();
+    ctx.restore();
   } else {
-    ctx.strokeStyle = rgba(col, 0.9); ctx.lineWidth = lw(0.9);
-    for (const s of [-1, 1]) {
-      const ex = 0.95 * r, ey = s * (0.38 + 0.08 * Math.sin(now * 5 + e.id + s)) * r;
-      ctx.beginPath(); ctx.moveTo(0.25 * r, s * 0.38 * r); ctx.quadraticCurveTo(0.6 * r, s * 0.6 * r, ex, ey); ctx.stroke();
-      ctx.fillStyle = rgba(col, 0.6 + 0.4 * pulse); circ(ctx, ex, ey, Math.max(0.07 * r, px(0.6))); ctx.fill();
+    // the warrior's carbine: a short curved plasma gun held across the front
+    ctx.save(); ctx.translate(0.3 * r, 0.62 * w); ctx.rotate(-0.26);
+    ctx.fillStyle = SQ_DK; ctx.beginPath();
+    ctx.moveTo(-0.34 * r, -0.11 * r); ctx.quadraticCurveTo(0.3 * r, -0.24 * r, 0.72 * r, -0.05 * r);
+    ctx.lineTo(0.72 * r, 0.1 * r); ctx.quadraticCurveTo(0.26 * r, 0.03 * r, -0.34 * r, 0.14 * r); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = lw(0.7); ctx.stroke();
+    ctx.strokeStyle = hot ? '#ffffff' : rgba(SQ_LIT, 0.45 + 0.4 * pulse); ctx.lineWidth = lw(1.3); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-0.16 * r, -0.08 * r); ctx.quadraticCurveTo(0.26 * r, -0.16 * r, 0.56 * r, -0.04 * r); ctx.stroke();
+    ctx.fillStyle = hot ? '#ffffff' : rgba(SQ_HOT, 0.55 + 0.4 * pulse); circ(ctx, 0.75 * r, 0.02 * r, Math.max(0.1 * r, px(0.9))); ctx.fill();
+    ctx.restore();
+  }
+}
+
+// (0.62.2) The harvester: a three-legged strider, not a spider of lines. Heavy tapered legs with knee plates and clawed feet,
+// a chamfered hull with a raised deck and vents, and a wide lens at the nose that whitens as its beam charges. Its limbs are
+// sized off its own radius, so a big walker gets thick legs however far the camera is.
+function drawHarvester(ctx, e, r, col, body, dark, lw, now, px, pulse) {
+  const hot = body !== col, sp = Math.hypot(e.vx || 0, e.vy || 0), walk = sp > 0.25 ? 1 : 0;
+  const ch = e.ch ? Math.max(0, Math.min(1, e.ch.t || 0)) : 0;
+  const lit = hot ? '#ffffff' : shade(col, 0.3), dkp = hot ? '#ffffff' : shade(col, -0.36);
+  const L = (f, n) => Math.max(f * r, px(n));     // a limb's width: off its own size, with a floor in screen pixels
+  // the legs: two forward at the hips, one behind. Hip, knee out, foot planted, claws spread
+  [-0.9, 0.9, Math.PI].forEach((a, i) => {
+    const step = Math.sin(now * 2.4 + i * 2.1 + e.id) * walk;
+    const hx = Math.cos(a) * 0.42 * r, hy = Math.sin(a) * 0.42 * r;
+    const ka = a + (a === Math.PI ? 0 : Math.sign(a) * 0.34), fa = a + (a === Math.PI ? 0 : Math.sign(a) * 0.08);
+    const kx = hx + Math.cos(ka) * (0.44 + 0.05 * step) * r, ky = hy + Math.sin(ka) * (0.44 + 0.05 * step) * r;
+    const fx = kx + Math.cos(fa) * (0.42 + 0.08 * step) * r, fy = ky + Math.sin(fa) * (0.42 + 0.08 * step) * r;
+    for (const [c, f, n] of [['rgba(0,0,0,0.6)', 0.26, 5], [dkp, 0.19, 3.4], [lit, 0.06, 1.1]]) {
+      ctx.strokeStyle = c; ctx.lineWidth = L(f, n); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
     }
+    ctx.fillStyle = lit; plate(ctx, kx, ky, 0.16 * r, 0.11 * r, ka); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = lw(0.8); ctx.stroke();
+    ctx.strokeStyle = SQ_DK; ctx.lineWidth = L(0.07, 1.6); ctx.lineCap = 'round';     // the clawed foot
+    for (const o of [-0.6, 0, 0.6]) line(ctx, fx, fy, fx + Math.cos(fa + o) * 0.24 * r, fy + Math.sin(fa + o) * 0.24 * r);
+  });
+  // the hull: a chamfered shell, nose forward, narrower than its stance so the legs carry the silhouette
+  ctx.beginPath();
+  ctx.moveTo(0.86 * r, 0);
+  ctx.quadraticCurveTo(0.6 * r, -0.26 * r, 0.3 * r, -0.44 * r);
+  ctx.quadraticCurveTo(-0.08 * r, -0.56 * r, -0.44 * r, -0.36 * r);
+  ctx.quadraticCurveTo(-0.64 * r, -0.24 * r, -0.64 * r, 0);
+  ctx.quadraticCurveTo(-0.64 * r, 0.24 * r, -0.44 * r, 0.36 * r);
+  ctx.quadraticCurveTo(-0.08 * r, 0.56 * r, 0.3 * r, 0.44 * r);
+  ctx.quadraticCurveTo(0.6 * r, 0.26 * r, 0.86 * r, 0);
+  ctx.closePath();
+  ctx.fillStyle = body; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,0.65)'; ctx.lineWidth = lw(1.3); ctx.stroke();
+  ctx.fillStyle = lit;     // the raised deck down the middle
+  ctx.beginPath(); ctx.moveTo(0.44 * r, 0); ctx.lineTo(0.16 * r, -0.24 * r); ctx.lineTo(-0.3 * r, -0.17 * r);
+  ctx.lineTo(-0.37 * r, 0); ctx.lineTo(-0.3 * r, 0.17 * r); ctx.lineTo(0.16 * r, 0.24 * r); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = lw(0.7); ctx.stroke();
+  for (const s of [-1, 1]) {     // the hip cowls over the front legs, each with a lit rim
+    ctx.fillStyle = dkp; plate(ctx, 0.14 * r, s * 0.34 * r, 0.26 * r, 0.14 * r, s * 0.52); ctx.fill();
+    ctx.strokeStyle = rgba(SQ_LIT, 0.3); ctx.lineWidth = lw(0.9); ctx.stroke();
+  }
+  ctx.fillStyle = hot ? '#ffffff' : rgba(SQ_LIT, 0.32 + 0.35 * pulse);     // vents at the back
+  for (const s of [-1, 1]) { plate(ctx, -0.42 * r, s * 0.14 * r, 0.08 * r, 0.045 * r, 0); ctx.fill(); }
+  // the lens at the nose: a wide slot that whitens as the beam charges
+  ctx.fillStyle = SQ_DK; plate(ctx, 0.52 * r, 0, 0.17 * r, 0.26 * r, 0); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = lw(0.8); ctx.stroke();
+  ctx.fillStyle = hot ? '#ffffff' : rgba(ch > 0 ? SQ_HOT : SQ_LIT, Math.min(1, 0.45 + 0.4 * pulse + ch * 0.6));
+  plate(ctx, 0.54 * r, 0, 0.09 * r + 0.04 * r * ch, 0.18 * r, 0); ctx.fill();
+  if (ch > 0) { ctx.fillStyle = rgba(SQ_HOT, 0.16 * ch); circ(ctx, 0.72 * r, 0, 0.4 * r * ch); ctx.fill(); }
+  // the shield, when it is up: a faint dome with a rim of light
+  if (e.shield > 0 && e.maxShield) {
+    const k = e.shield / e.maxShield;
+    ctx.fillStyle = `rgba(150,225,255,${0.07 + 0.07 * k})`;
+    ctx.beginPath(); ctx.ellipse(0, 0, 1.15 * r, 1.0 * r, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = `rgba(190,240,255,${0.18 + 0.25 * k})`; ctx.lineWidth = lw(1.4); ctx.stroke();
   }
 }
 
@@ -319,17 +425,32 @@ function drawSpecial(ctx, e, r, col, body, dark, lw, now, px, pulse) {
     ctx.fillStyle = '#ff6a6a'; circ(ctx, -0.95 * r, -1.25 * r, Math.max(0.1 * r, px(1))); ctx.fill();
     return;
   }
-  // the fleshmob: a heaving lump of bodies with several glowing eyes and arms reaching ahead
-  ctx.fillStyle = body;
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * TAU + e.id, w = 0.08 * Math.sin(now * 3 + i * 1.7);
-    ell(ctx, Math.cos(a) * 0.38 * r, Math.sin(a) * 0.38 * r, (0.48 + w) * r, (0.42 - w) * r); ctx.fill();
+  // (0.62.2) the fleshmob: warriors fused into one heaving mass. Armour plates still show on its back, four lit visors face
+  // out of the front of it, and two long arms reach ahead to grab.
+  const lit = body !== col ? '#ffffff' : shade(col, 0.24), dkp = body !== col ? '#ffffff' : shade(col, -0.34);
+  ctx.strokeStyle = dkp; ctx.lineWidth = lw(2.6); ctx.lineCap = 'round';     // the arms, swinging as it comes on
+  for (const s of [-1, 1]) {
+    const rch = 0.15 * Math.sin(now * 2.6 + s * 1.2 + e.id);
+    ctx.beginPath(); ctx.moveTo(0.3 * r, s * 0.4 * r);
+    ctx.quadraticCurveTo(0.95 * r, s * (0.6 + rch) * r, 1.22 * r, s * (0.16 + rch) * r); ctx.stroke();
+    ctx.fillStyle = SQ_DK; plate(ctx, 1.24 * r, s * (0.15 + rch) * r, 0.14 * r, 0.1 * r, s * 0.4); ctx.fill();
   }
-  ctx.strokeStyle = dark; ctx.lineWidth = lw(0.9); circ(ctx, 0, 0, 0.78 * r); ctx.stroke();
-  ctx.strokeStyle = rgba(col, 1); ctx.lineWidth = lw(1.6);
-  for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(0.4 * r, s * 0.35 * r); ctx.quadraticCurveTo(1.0 * r, s * (0.55 + 0.15 * Math.sin(now * 5 + s)) * r, 1.25 * r, s * 0.2 * r); ctx.stroke(); }
-  ctx.fillStyle = '#ffffff';
-  for (const [x, y] of [[0.45, -0.2], [0.5, 0.15], [0.15, 0.4], [0.1, -0.45]]) { circ(ctx, x * r, y * r, Math.max(0.07 * r, px(0.7))); ctx.fill(); }
+  ctx.fillStyle = body;     // the mass: overlapping bodies, breathing
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * TAU + e.id, w = 0.06 * Math.sin(now * 2.2 + i * 1.7);
+    ell(ctx, Math.cos(a) * 0.34 * r, Math.sin(a) * 0.34 * r, (0.46 + w) * r, (0.42 - w) * r); ctx.fill();
+  }
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = lw(1.1); circ(ctx, -0.02 * r, 0, 0.76 * r); ctx.stroke();
+  ctx.fillStyle = lit;     // plates still showing on its back
+  for (const [x, y, a] of [[-0.4, -0.3, 0.6], [-0.5, 0.18, -0.3], [-0.1, 0.46, 0.2], [-0.12, -0.5, -0.4]]) {
+    plate(ctx, x * r, y * r, 0.22 * r, 0.12 * r, a); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = lw(0.7); ctx.stroke();
+  }
+  for (const [x, y, a] of [[0.46, -0.24, -0.5], [0.5, 0.2, 0.4], [0.16, 0.5, 1.1], [0.14, -0.52, -1.1]]) {
+    ctx.fillStyle = SQ_DK; plate(ctx, x * r, y * r, 0.17 * r, 0.14 * r, a); ctx.fill();     // a head, and its visor
+    ctx.strokeStyle = body !== col ? '#ffffff' : rgba(SQ_LIT, 0.45 + 0.4 * pulse); ctx.lineWidth = lw(1.3);
+    ctx.beginPath(); ctx.arc(x * r, y * r, 0.11 * r, a - 0.9, a + 0.9); ctx.stroke();
+  }
 }
 
 // How big an enemy is drawn: its real size, but never smaller than a few screen pixels.
