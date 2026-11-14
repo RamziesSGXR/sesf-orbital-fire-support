@@ -551,34 +551,61 @@ function arrangeSchool(g, t) {
   }
   g.schoolN = live.length;
   const st = Math.max(0, Math.min(1, ((g.startle ?? -99) - t) / S.startle.sec)), burst = 1 + (S.startle.mul - 1) * Math.sin(Math.min(1, st * 1.6) * Math.PI / 2);
-  const size = burst * (1 + S.breathe * Math.sin((t / S.breatheSec) * TAU + (g.id || 0)));
-  // (0.62.2) Who swims where is settled once, when the school changes size, and by where each one already stands: the ones
-  // nearest the middle take the inner ring, and round each ring the places are handed out in the order they already are in.
-  // Each then keeps its place while the school turns. Before this the places were handed out by list order and settled again
-  // every tick, so a light could be sent to the far side of a turning school and spend the mission chasing it through its own pack.
-  const bear = (q) => Math.atan2(q.y - g.cy, q.x - g.cx);
+  // (0.62.4) An arrowhead. The school swims as a filled triangle, its point the way it is going: one in front, two behind it,
+  // three behind those, `wedge.gap` metres apart across and `wedge.row` front to back. The leaders take the places nearest its
+  // middle, with lights ahead of them and on both sides. Every place is fixed in the arrow, so a member only moves when the
+  // school does (the old rings turned all the time, so everyone was always chasing a place through its neighbours). The arrow
+  // turns toward the school's heading at `wedge.turn` radians a second at most. Places are handed out when the school changes
+  // size, by where each one already is: the ones furthest forward get the front rows.
+  const W = S.wedge, want = Math.atan2(g.hy, g.hx);
+  if (g.wA === undefined) { g.wA = want; g.wSharp = t; }
+  {
+    // A turn of more than `wedge.flip` radians: the arrow does not wheel round (its ends would have to outrun everyone), it
+    // points the new way at once and the places are handed out again from where everyone is, so the back becomes the front.
+    const d = wrap(want - g.wA), lim = W.turn * (g.wT === undefined ? 0 : Math.max(0, t - g.wT));
+    if (Math.abs(d) <= W.flip) g.wSharp = t;     // (the last moment it was not asking for a sharp turn)
+    if (t - (g.wSharp ?? t) > W.flipSec) { g.wA = want; g.schoolKey = -1; g.wSharp = t; }     // (it has meant it for flipSec: a wandering patrol changing its mind does not re-form the school)
+    else if (Math.abs(d) <= W.flip) g.wA += Math.max(-lim, Math.min(lim, d));
+    g.wT = t;
+  }
+  const fx = Math.cos(g.wA), fy = Math.sin(g.wA);
   if (g.schoolN !== g.schoolKey) {
     g.schoolKey = g.schoolN;
-    lead.slice().sort((a, b) => bear(a) - bear(b)).forEach((q, i) => { q.sJ = i; q.sN = lead.length; });
-    const by = rest.slice().sort((a, b) => Math.hypot(a.x - g.cx, a.y - g.cy) - Math.hypot(b.x - g.cx, b.y - g.cy));
-    let i = 0, k = 0;
-    for (const ring of schoolRings(rest.length, S)) {
-      const on = by.slice(i, i + ring.n);
-      on.sort((a, b) => bear(a) - bear(b));
-      const a0 = on.length ? bear(on[0]) : 0;
-      on.forEach((q, j) => { q.sRing = k; q.sN = ring.n; q.sA = a0 + (j / ring.n) * TAU; });
-      i += ring.n; k++;
+    const n = live.length, slots = [];
+    let rows = 0; while ((rows * (rows + 1)) / 2 < n) rows++;
+    for (let k = 0, left = n; k < rows; k++) { const c = Math.min(k + 1, left); for (let j = 0; j < c; j++) slots.push({ f: -k, s: j - (c - 1) / 2 }); left -= c; }
+    const mf = slots.reduce((a, q) => a + q.f, 0) / (n || 1);
+    for (const q of slots) q.f -= mf;     // (the school's own point is the middle of the arrow)
+    const along = (q) => (q.x - g.cx) * fx + (q.y - g.cy) * fy, across = (q) => -(q.x - g.cx) * fy + (q.y - g.cy) * fx;
+    // the leaders: the places nearest the middle
+    const free = slots.slice().sort((a, b) => (a.f * a.f * W.row * W.row + a.s * a.s * W.gap * W.gap) - (b.f * b.f * W.row * W.row + b.s * b.s * W.gap * W.gap));
+    const mine = free.splice(0, lead.length).sort((a, b) => a.s - b.s);
+    lead.slice().sort((a, b) => across(a) - across(b)).forEach((q, i) => { q.sF = mine[i].f; q.sS = mine[i].s; });
+    // the lights: front rows to the ones furthest forward, and across each row in the order they already are
+    free.sort((a, b) => b.f - a.f || a.s - b.s);
+    const by = rest.slice().sort((a, b) => along(b) - along(a));
+    for (let i = 0; i < free.length;) {
+      let j = i; while (j < free.length && free[j].f === free[i].f) j++;
+      by.slice(i, j).sort((a, b) => across(a) - across(b)).forEach((q, k) => { q.sF = free[i + k].f; q.sS = free[i + k].s; });
+      i = j;
     }
   }
-  for (const q of lead) { const a = ((q.sJ || 0) / Math.max(1, q.sN || 1)) * TAU + t * 0.2, r = lead.length > 1 ? S.mid * (lead.length > 3 ? 1.6 : 1) * burst : 0; q.ox = Math.cos(a) * r; q.oy = Math.sin(a) * r; }
-  const rings = schoolRings(rest.length, S);
-  for (const q of rest) {
-    const ring = rings[Math.min(q.sRing || 0, rings.length - 1)] || rings[0];
-    const dir = (q.sRing || 0) % 2 ? -1 : 1, w = S.spin * (S.inner / ring.r);
-    const a = (q.sA || 0) + dir * t * w, r = ring.r * size;
-    q.ox = Math.cos(a) * r; q.oy = Math.sin(a) * r;
+  for (const q of live) {
+    const f = (q.sF || 0) * W.row * burst, sd = (q.sS || 0) * W.gap * burst;
+    q.ox = fx * f - fy * sd; q.oy = fy * f + fx * sd;
   }
+  // How far behind its places the school is (the mean, over those not busy shooting): its own point waits for it (schoolPace),
+  // so the arrow forms and holds instead of its point running off ahead of a crowd that never catches it.
+  let lag = 0, ln = 0;
+  const aR = AOB ? (AOB.R || AOB.size / 2) - 3 : 0;
+  for (const q of live) if (!q.tgt) {
+    let sx = g.cx + q.ox, sy = g.cy + q.oy;
+    if (AOB) { const dx = sx - AOB.cx, dy = sy - AOB.cy, d2 = dx * dx + dy * dy; if (d2 > aR * aR) { const k = aR / Math.sqrt(d2); sx = AOB.cx + dx * k; sy = AOB.cy + dy * k; } }     // (a place past the rim of the map: as near to it as anyone can stand)
+    lag += Math.hypot(q.x - sx, q.y - sy); ln++;
+  }
+  g.lag = ln ? lag / ln : 0;
 }
+const schoolPace = (g) => { const W = C.formations.squids.wedge; return Math.max(W.wait, Math.min(1, 1 - ((g.lag || 0) - W.slack) / W.leash)); };
 
 // ---------------------------------------------------------------- how each faction fights
 const TAU = Math.PI * 2;
@@ -774,14 +801,14 @@ export function updateEnemies(m, dt) {
         goal = g.pt;
       }
       const o = g.mv || (g.mv = { x: 0, y: 0, nv: null, nvc: null }); o.x = g.cx; o.y = g.cy; o.nv = g.nv;
-      moveToward(o, goal.x, goal.y, minSpeed * pace, dt, size);
+      moveToward(o, goal.x, goal.y, minSpeed * pace * (fac.id === 'squids' ? schoolPace(g) : 1), dt, size);
       g.cx = o.x; g.cy = o.y; g.nv = o.nv;
       for (const e of g.members) {
         if (e.dead) continue;
         e.tgt = null;
         if (e.stunUntil > t) { e.vx = 0; e.vy = 0; continue; }
         const h = homeOf(g, e);
-        moveToward(e, h.x, h.y, e.speed * 0.8, dt, size);
+        moveToward(e, h.x, h.y, e.speed * (fac.id === 'squids' ? ((e.x - h.x) ** 2 + (e.y - h.y) ** 2 > 9 ? 1.6 : 1.1) : 0.8), dt, size);     // (0.62.4: a squid keeps up with its place in the arrow)
       }
       continue;
     }
@@ -843,7 +870,7 @@ export function updateEnemies(m, dt) {
     const tgt = g.target && !g.target.dead ? g.target : null;
     if (!engaged && g.tp) {
       const o = g.mv || (g.mv = { x: 0, y: 0, nv: null, nvc: null }); o.x = g.cx; o.y = g.cy; o.nv = g.nv;
-      moveToward(o, g.tp.x, g.tp.y, minSpeed, dt, size);
+      moveToward(o, g.tp.x, g.tp.y, minSpeed * (fac.id === 'squids' ? schoolPace(g) : 1), dt, size);
       g.cx = o.x; g.cy = o.y; g.nv = o.nv;
     }
     // Which way the group is facing the target and how its members line up across it (used by the firing line).

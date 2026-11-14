@@ -25,6 +25,11 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Squids swim as an arrowhead; the ship gun lets go on phones (0.62.4).**
+- **Squid schools are an arrowhead now.** One at the point, two behind it, three behind those, about 8 m apart, the leaders in the middle. Everyone has a fixed place, so nobody chases a turning ring through its neighbours any more: that was the shaking and the clumping.
+- **The school waits for itself.** Its point slows down when its members fall behind their places, so the arrow forms in a few seconds and holds. On a sharp turn it re-forms facing the new way; it does not wheel round.
+- **Phones: a tap on your own troops puts the ship gun away.** The gun stays armed after it fires, and with it armed a tap only moved the reticle, so nothing could be selected and the next burst landed where you had tapped: on your own squad. Now a tap on a trooper, a post or a work site selects it. Tapping the gun's card again, or anything in the troop panel, puts the gun away too.
+
 **The freeze, found — and a debug readout (0.62.3).**
 - **The freeze is fixed.** With a squad selected, a right-click on an enemy sent the squad to "man" it like a building, and the game froze until another order replaced that one. A right-click on an enemy is an attack order again.
 - **One broken part no longer stops the rest.** If one part of the game hits an error, the other parts carry on: no more Helldivers walking while every enemy stands still.

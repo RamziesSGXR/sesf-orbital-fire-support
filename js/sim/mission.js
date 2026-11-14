@@ -1288,6 +1288,7 @@ export class Mission {
     let big = 0;
     for (const e of this.enemies) if (!e.dead && !e.boss && !e.air) { const b = (e.r || 2.2) * body; if (b > big) big = b; }
     big = Math.min(big, S.max);
+    const school = this.faction.id === 'squids';
     for (const e of this.enemies) {
       if (e.dead || e.boss || e.air || e.lp || e.inAir) continue;
       const er = (e.r || 2.2) * body;
@@ -1303,7 +1304,10 @@ export class Mission {
         px += (dx / d) * push; py += (dy / d) * push; n++;
       });
       if (!n) continue;
-      const l = Math.hypot(px, py) || 1, w = Math.min(cap, l) * k / l;
+      let l = Math.hypot(px, py) || 1, w = Math.min(cap, l) * k / l;
+      // (0.62.4) a squid on its way to its place in the arrow is let through the crowd: pushed back at full strength by everyone
+      // it passed, a school took most of a minute to form and its members shook on the spot meanwhile
+      if (school && e.g && e.ox !== undefined && (e.x - e.g.cx - e.ox) ** 2 + (e.y - e.g.cy - e.oy) ** 2 > S.transit * S.transit) w *= S.transitMul;
       e.x += px * w; e.y += py * w;
     }
   }

@@ -335,8 +335,11 @@ function setTac(on) {
 const buildMenu = (on) => setTac(on);     // (older name, still used by tests)
 // ---- the cursor: with no weapon armed it selects; a weapon key or the weapon bar arms one (the reticle), and after one call the
 // cursor goes back to selecting (hold Shift to keep it armed). The ship gun stays armed until Esc or a right click.
+const gunArmed = () => armed && mission && mission.player.slots[mission.player.weapon] && mission.player.slots[mission.player.weapon].type === 'gun';
 function arm(i) {
   if (!act()) return;
+  // (0.62.4) the ship gun stays armed after it fires, and a touch screen has no Esc: its own card, tapped again, puts it away
+  if (input.touch && gunArmed() && mission.player.weapon === i) { disarm(); audio.click(); return; }
   if (placing && placing.startsWith('build:')) setPlacing(null);
   mission.selectWeapon(i);
   if (mission.player.weapon !== i) return;      // (the nuke before it is armed, an empty slot)
@@ -348,6 +351,8 @@ function disarm() {
   armed = false; hud.setArmed(false); firePending = false;
   if (mission) { mission.setFiring(false); mission.player.queued = -1; }
 }
+// (0.62.4) and anything pressed in the troop panel (a squad, an order, a tab) puts the ship gun away first
+{ const tc = $('tactical'); if (tc) tc.addEventListener('click', () => { if (gunArmed()) disarm(); }, true); }
 const shiftHeld = () => input.keys.has('ShiftLeft') || input.keys.has('ShiftRight');
 let keepArmed = false;
 function afterCall(ev) { if (ev && ev.planned) return; if (armed && !keepArmed && !shiftHeld() && mission.player.slots[mission.player.weapon].type !== 'gun') disarm(); keepArmed = false; }
@@ -534,6 +539,10 @@ function tapAt(type, x, y) {
   }
   // (0.42) a stratagem or weapon armed: the tap aims it (the map slides so the reticle sits on the spot). It never orders the
   // SEAF or picks anything: CALL is what throws it.
+  // (0.62.4) the ship gun still armed and one of your own tapped (a trooper, a post, a work site): the gun is put away and the
+  // tap selects it. Before, the tap slid the reticle onto the trooper, so nothing could be selected after the gun had been
+  // used, and the next burst went into your own squad.
+  if (gunArmed() && act()) { const own = pickAt(x, y); if (own && !isFoe(own)) { disarm(); clickAt(x, y); return; } }
   if (armed && act()) {
     const w = renderer.screenToWorld(x, y, canvas), a = aimWorld();
     if (w && a) { cam.x += w.x - a.x; cam.y += w.y - a.y; cam.follow = false; input._clamp(); audio.click(); }
