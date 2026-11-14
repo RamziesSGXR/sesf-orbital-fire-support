@@ -147,7 +147,7 @@ export function updateAllies(m, dt) {
           // the densest spot within reach; a lone light enemy is not worth a grenade
           let e = null, bn = 0;
           // (0.40) not a spot someone else has just put a grenade (or an Ultimatum) on
-          m.eGrid.near(a.x, a.y, spec.range, (q, d2) => { if (d2 < spec.minR * spec.minR || claimedBy(m, a, q.x, q.y)) return; let n = 0; m.eGrid.near(q.x, q.y, 6, () => { n++; }); if (q.kind === 'H') n += 2; if (n > bn) { bn = n; e = q; } });
+          m.eGrid.near(a.x, a.y, spec.range, (q, d2) => { if (d2 < spec.minR * spec.minR || claimedBy(m, a, q.x, q.y)) return; let n = 0; m.eGrid.near(q.x, q.y, spec.near || 6, () => { n++; }); if (q.kind === 'H') n += 2; if (n > bn) { bn = n; e = q; } });
           if (bn < spec.group) e = null;
           if (e) {
             a.grT = spec.every * (0.9 + 0.2 * m.rng.next());
@@ -155,7 +155,7 @@ export function updateAllies(m, dt) {
             const prof = { ...GRENADE };
             if (a.dmgMul) prof.dmg *= a.dmgMul;
             fireShot(m, a, e, prof, 'squad', 'a', 'grenade');
-            claim(m, a, e, 'gren', 6, C.hd.stagger.seafGren);     // (6 m: the group it counted, not just the splash)
+            claim(m, a, e, 'gren', spec.near || 6, C.hd.stagger.seafGren);     // (the group it counted, not just the splash)
             bark(m, a, 'gren', '');
           } else a.grT = 0.5;
         }

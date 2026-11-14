@@ -28,7 +28,7 @@ export const CONFIG = {
               // weight of enemies (light 1, medium 2, heavy 4) round a spot worth a grenade.
               // (0.26) more of them, thrown sooner, and when it gets bad (dump: that much weight round one spot, a heavy inside
               // heavyR, or a Helldiver falling back with a crowd on him) he throws every one he has, gap seconds apart.
-              grenades: 6, gren: { light: 2.5, med: 0.55, heavy: 0.27, boss: 0.25, struct: 60, splash: 5.5, range: 44, minRange: 9, every: 1.5, acc: 0.85, flight: 0.9, group: 3,
+              grenades: 6, gren: { light: 2.5, med: 0.55, heavy: 0.27, boss: 0.25, struct: 60, splash: 6.5, range: 44, minRange: 9, every: 1.5, acc: 0.85, flight: 0.9, group: 3,
                 dump: 9, heavyR: 24, gap: 0.25 },
               // The Ultimatum: one round, a direct hit kills almost anything (a super heavy loses bossFrac of its health; structures are
               // too hard for it). splashChance of rounds also burst round the target. A supply pod reloads it. markSec: the target is
@@ -215,7 +215,7 @@ export const CONFIG = {
     // and a little extra damage, out to `medium` it is a little worse, and at long range (out to the reach) it is clearly worse.
     bands: { short: 0.4, medium: 0.75, acc: [1, 0.85, 0.65], dmg: [1.1, 0.9, 0.75] },
     // SEAF specialists. Grenades lob, rockets are the answer to heavies. Both also hurt POIs and breaches.
-    grenadier: { dmg: 55, splash: 4.2, every: 7, range: 40, flight: 0.85, fuse: 2, acc: 0.8, minR: 9, group: 3, mult: { L: 1, M: 0.9, H: 0.3, B: 0.25 } },     // (0.26) the G-12 every trooper throws
+    grenadier: { dmg: 55, splash: 5.2, near: 7.5, every: 7, range: 40, flight: 0.85, fuse: 2, acc: 0.8, minR: 9, group: 3, mult: { L: 1, M: 0.9, H: 0.3, B: 0.25 } },     // (0.26) the G-12 every trooper throws
     rocketeer: { dmg: 300, splash: 5, every: 5.2, range: 78, flight: 0.55, acc: 0.85, mult: { L: 1, M: 1, H: 0.8, B: 0.3 } },     // (0.26) the Specialist's EAT-17
     // (0.26) the Specialist's MG-43 (braced, a steady stream) and the Medic's SMG-37 Defender (short and quick)
     seafMg:  { dps: 21, burst: 0.25, acc: 0.62, range: 54, mult: { L: 1, M: 0.55, H: 0.16 } },
@@ -267,7 +267,8 @@ export const CONFIG = {
               // (0.62.2) Bodies keep their distance: two enemies closer than (their drawn radii added) x body are eased apart,
               // at most step metres a second each, so a pack stands as a crowd of bodies and not one blob. by faction, since a
               // bug swarm should still press in. Bosses, super heavies and anything in the air are left alone.
-              spread: { transit: 3, transitMul: 0.2, on: true, body: { bugs: 0.72, bots: 0.95, squids: 1.05 }, step: 6, rate: 20, max: 18 },
+              spread: { transit: 3, transitMul: 0.2, on: true, body: { bugs: 0.72, bots: 0.95, squids: 1.05 }, step: 6, rate: 20, max: 18,
+                        room: { bugs: 4.4, bots: 6, squids: 7.5 }, roomMelee: 3.4 },     // (0.62.5) room: metres two of them keep between their centres whatever their size (a body's own width still counts when it is wider); roomMelee: what one that fights hand to hand keeps while it has someone to hit, so a swarm can still close
               hp: { light: 30, medium: 200, heavy: 1000 },
               speed: { light: 4.0, medium: 3.2, heavy: 2.4 },
               // Enemies notice allies at their own (shorter) sight. Fire, noise or a neighbor's call alerts a group.
@@ -318,8 +319,8 @@ export const CONFIG = {
   //          `startle.mul` times its size at `startle.speed` times its pace, and closes up again over `startle.sec` seconds; it
   //          cannot be startled again for `startle.rest` seconds after that.
   formations: {
-    bots:   { square: 0.45, line: { spacing: 6.5 }, block: { spacing: 5.2 }, rank: 7 },
-    bugs:   { trail: 0.5, gap: 3.2 },
+    bots:   { square: 0.45, line: { spacing: 8 }, block: { spacing: 6.5 }, rank: 8 },     // (0.62.5: 6.5 / 5.2 / 7; they stood shoulder to shoulder)
+    bugs:   { trail: 0.5, gap: 4.5 },     // (0.62.5: 3.2)
     squids: { inner: 7, ringGap: 6.5, gap: 6.5, spin: 0.38, mid: 3, hold: 1.0, breathe: 0.12, breatheSec: 5, startle: { mul: 1.6, sec: 4, speed: 1.6, rest: 5 }, lost: 42,
               wedge: { gap: 8.5, row: 7.5, turn: 0.3, flip: 1.3, flipSec: 2.5, slack: 2.5, leash: 7, wait: 0.12 } },     // (0.62.4) the school is an arrowhead: metres between places across and front to back, how fast it turns (rad/s); a turn over `flip` radians re-forms it facing the new way; its point slows once the school is `slack` m behind its places on average and all but stops (`wait`) at slack + `leash`     // (0.62.2) lost: this far from its school and it swims back to the school itself, not to its own place in it
   },
@@ -692,6 +693,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.4',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.5',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

@@ -149,7 +149,9 @@ export class Renderer {
     const now = this.fxNow(m);
     this.launch.onEvent(ev, now);
     const fx = this.fx;
-    if (fx.length > 320) return;
+    // (0.62.5) a full list turns effects away, but never the player's own gun or strikes: in a big fight (the list sat at 321)
+    // every round of the ship gun was dropped here, so it hit and showed nothing. Those get through up to a higher ceiling.
+    if (fx.length > 320 && !((ev.type === 'gun' || (ev.type === 'boom' && ev.by === 'player')) && fx.length < 520)) return;
     const flash = this.settings.reduceFlash ? 0.5 : 1;
     switch (ev.type) {
       case 'boom': {

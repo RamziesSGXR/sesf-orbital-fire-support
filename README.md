@@ -25,6 +25,11 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Room to breathe, and a gun you can see (0.62.5).**
+- **Enemies stand apart.** Every faction now keeps real room between bodies instead of only just not overlapping: bugs about 5 m (was 3.6), bots 6 m (was 5.2), squids 7.5 m on the hunt too (was 4.6). Bot lines and blocks are wider, and bugs still close in when they have someone to bite.
+- **Grenades keep up.** The enemy stands about a quarter wider, so Helldiver and SEAF grenades reach a quarter further.
+- **The ship gun shows in a big fight.** With a lot going on, the game stopped drawing new effects, and that included every round of your own gun: it hit, and you saw nothing. Your gun and your strikes are always drawn now.
+
 **Squids swim as an arrowhead; the ship gun lets go on phones (0.62.4).**
 - **Squid schools are an arrowhead now.** One at the point, two behind it, three behind those, about 8 m apart, the leaders in the middle. Everyone has a fixed place, so nobody chases a turning ring through its neighbours any more: that was the shaking and the clumping.
 - **The school waits for itself.** Its point slows down when its members fall behind their places, so the arrow forms in a few seconds and holds. On a sharp turn it re-forms facing the new way; it does not wheel round.
