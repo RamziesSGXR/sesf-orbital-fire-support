@@ -223,6 +223,8 @@ export default {
   'brief.area': 'ZONE',
   'brief.areaVal': 'CARRÉ DE {n} M',
   'brief.diff': 'DIFFICULTÉ',
+  'brief.loadouts': 'LES STRATAGÈMES DE L’ESCOUADE',     // (0.62.9)
+  'brief.failShort': '{n} VIES POUR REMPLIR L’OBJECTIF',
   'brief.pay': 'CRÉDITS ET SCORE ×{x}',
   'brief.opBonus': 'BONUS D’OPÉRATION : CRÉDITS ×{x} ({n} FAITES)',
   'brief.objective': 'OBJECTIF',

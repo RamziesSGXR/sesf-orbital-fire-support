@@ -54,6 +54,8 @@ const RAMPS = {
   mars:   { ramp: [[30, 10, 6], [142, 62, 34], [222, 148, 104]],   light: [246, 190, 150], dark: [22, 6, 2] },
   city:   { ramp: [[16, 18, 22], [92, 96, 102], [188, 190, 194]],  light: [232, 232, 236], dark: [8, 8, 12] },     // (0.53)
 };
+// (0.62.10) the biome's own light and dark, for what is drawn on its ground afterwards (craters)
+export const propCols = (biomeId) => { const R = RAMPS[biomeId] || RAMPS.moon; return { light: R.light, dark: R.dark }; };
 function lut(ramp) {
   const out = new Uint8ClampedArray(256 * 3);
   for (let i = 0; i < 256; i++) {
@@ -147,6 +149,7 @@ export function buildTerrain(biomeId, seed, { polarity = 'white', quality = 1, r
   // Light from the north west. Slopes are in metres of rise per metre along the ground.
   const REL = kd.relief, lx = sun ? sun.lx : -0.5, ly = sun ? sun.ly : -0.5, lz = sun ? sun.lz : 0.72, ln = Math.hypot(lx, ly, lz);
   const flat = lz / ln, per = 1 / (2 * step), tint = [0, 0, 0];
+  const TB = C.elev && C.elev.terrace && C.elev.terrace.bands ? C.elev.terrace : null;
   const tmp = document.createElement('canvas');
   tmp.width = tmp.height = G;
   const tctx = tmp.getContext('2d');
@@ -164,6 +167,14 @@ export function buildTerrain(biomeId, seed, { polarity = 'white', quality = 1, r
       // a rough shoreline: the picture's water edge wobbles a little, never more than the cell it is built from
       const wd = D[o] + (n.v(x / 9, y / 9) - 0.5) * 0.05;
       let g = shade(n, x, y) + lit * 1.5 + (h - 0.5) * 0.22;
+      // (0.62.10) terraces: the height cut into steps for the eye. A pixel with a higher step between it and the light lies in
+      // that step's shade; one at the foot of a step that faces the light catches it. Two pixels deep for the shade, one for the light.
+      if (TB && D[o] <= kd.wet) {
+        const b = (h * TB.bands) | 0, sx1 = lx < 0 ? -1 : 1, sy1 = ly < 0 ? -1 : 1;
+        const b1 = (at(H, i + sx1, j + sy1) * TB.bands) | 0, b2 = (at(H, i + 2 * sx1, j + 2 * sy1) * TB.bands) | 0;
+        if (b1 > b) g -= TB.shade; else if (b2 > b) g -= TB.shade * 0.5;
+        else if (((at(H, i - sx1, j - sy1) * TB.bands) | 0) > b) g += TB.lit;
+      }
 
       // mud and soft ground, with edges that are not the grid
       const mud = sstep(0.38, 0.62, M[o] + (n.fbm(x / 10 + 7, y / 10 + 7, 2) - 0.5) * 0.3);

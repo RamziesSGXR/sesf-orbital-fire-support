@@ -40,7 +40,7 @@ const ver = await ev(() => document.getElementById('ver-t').textContent);
 check('the title screen shows the version', /\d+\.\d+\.\d+/.test(ver), ver);
 const fb = await ev(() => [...document.querySelectorAll('a.fb')].map((a) => a.href));
 check('every FEEDBACK button goes to the SESF Helldivers Discord', fb.length >= 4 && fb.every((h) => h === 'https://discord.com/invite/qruRY4nkEz'), fb[0]);
-check('and says so', /DISCORD/.test(await ev(() => document.getElementById('lnk-fb-t').textContent)));
+check('and the note under them says where it goes', /Discord/i.test(await ev(() => document.querySelector('.fb-note').textContent)));     // (0.62.8: FEEDBACK opens a form that posts there; the button no longer has DISCORD in its name)
 
 await tap('#btn-play'); await page.waitForTimeout(250);
 if (await page.isVisible('#btn-notice')) { await tap('#btn-notice'); await page.waitForTimeout(250); }

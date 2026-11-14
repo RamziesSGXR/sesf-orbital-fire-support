@@ -3,6 +3,7 @@
 // edged in the squad colour) behind; a SEAF trooper is smaller and plainer. Enemies show their head, eyes or gun at the front; heavies carry a glowing weak spot on the
 // back, where hits do the most. All sizes are in metres with a floor in screen pixels (px), so a unit reads at any zoom.
 import { CONFIG as C } from '../config.js';
+import { elevK } from './relief.js';
 const TAU = Math.PI * 2;
 
 function rgba(hex, a) {
@@ -455,8 +456,9 @@ function drawSpecial(ctx, e, r, col, body, dark, lw, now, px, pulse) {
 
 // How big an enemy is drawn: its real size, but never smaller than a few screen pixels.
 export function enemyR(e, st, px) {
-  if (e.sub) return Math.max(e.r, px(8));
-  return Math.max(st.r * (e.kind === 'L' ? 1.15 : 1), px(e.kind === 'L' ? 4.2 : e.kind === 'M' ? 6.5 : 10));
+  const k = elevK(e.x, e.y);     // (0.62.10) a little bigger on high ground, smaller in a hollow
+  if (e.sub) return Math.max(e.r, px(8)) * k;
+  return Math.max(st.r * (e.kind === 'L' ? 1.15 : 1), px(e.kind === 'L' ? 4.2 : e.kind === 'M' ? 6.5 : 10)) * k;
 }
 
 // ---------------------------------------------------------------- super heavies
@@ -478,7 +480,7 @@ export function drawTurretArt(ctx, x, y, face, r, col, px, hot = false, fired = 
   if (fired < 0.08) { ctx.fillStyle = 'rgba(255,220,150,0.9)'; circ(ctx, r * 2.05, 0, r * 0.35); ctx.fill(); }
   ctx.restore();
 }
-export function bossR(e, px) { return Math.max(e.r * 1.5, px(20)); }
+export function bossR(e, px) { return Math.max(e.r * 1.5, px(20)) * elevK(e.x, e.y); }
 export function drawBossBody(ctx, e, fac, r, col, now, px, hot, t) {
   // (0.55) redrawn: bigger silhouettes in layers (a dark outline, the armour in two tones, plates and joints picked out), moving
   // parts that show what it is about to do, and a glow underneath so it reads as a super heavy at any zoom.

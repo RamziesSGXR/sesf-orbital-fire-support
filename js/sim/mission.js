@@ -123,7 +123,7 @@ export class Mission {
     applyDifficulty(this.difficulty);
     this.reward = reward(this.difficulty);     // credits and score multiplier
     this.opDone = Math.max(0, opts.opDone || 0);                                // (0.40) missions already done in this operation
-    this.opBonus = 1 + C.difficulty.opBonus * this.opDone;                       // ...and what that adds to every credit
+    this.opBonus = Math.min(C.difficulty.opBonusMax || Infinity, 1 + C.difficulty.opBonus * this.opDone);     // (0.62.9: up to opBonusMax)                       // ...and what that adds to every credit
     this.bump = Math.max(0, opts.bump | 0); this.bumpPay = 1 + C.offers.payPer * this.bump;     // (0.51) the offer's bump: harder, and paid for it
     this._crc = 0;                             // the fraction of a credit carried over between payouts
     this.seed = opts.seed >>> 0;
@@ -812,8 +812,14 @@ export class Mission {
 
   earn(kind, amt, x, y) {
     if (!(amt > 0)) return;
-    const mul = this.reward * this.opBonus * this.bumpPay;     // the difficulty's pay, (0.40) the operation's bonus and (0.51) the bump's
-    if (mul !== 1) { const v = amt * mul + this._crc; amt = Math.floor(v); this._crc = v - amt; if (amt <= 0) return; }
+    // the difficulty's pay, (0.40) the operation's bonus and (0.51) the bump's. (0.62.9) Kills: no operation bonus, and past
+    // credits.killSoft of them in a mission (before the multipliers) each pays killTaper of its worth
+    let mul = this.reward * this.bumpPay;
+    if (kind === 'kills') {
+      const S = C.credits.killSoft, k0 = this._killBase || 0;
+      if (S) { const full = Math.max(0, Math.min(amt, S - k0)); this._killBase = k0 + amt; amt = full + (amt - full) * (C.credits.killTaper ?? 1); }
+    } else mul *= this.opBonus;
+    if (mul !== 1 || amt % 1) { const v = amt * mul + this._crc; amt = Math.floor(v); this._crc = v - amt; if (amt <= 0) return; }
     const cr = this.cr, w = this.wallet;
     cr[kind] = (cr[kind] || 0) + amt; cr.total += amt;
     w.bal += amt; w.earned += amt;
