@@ -792,7 +792,7 @@ export default {
   'c.uavUp': 'UAV scan live. The squad sees the whole circle.',
   'c.breachDown': 'Breach destroyed.',
   'c.poiDown': '{name} destroyed. Credits banked.',
-  'c.gunDry': 'Ship gun dry. Ammo recharging.',
+  'c.gunDry': 'Ship gun dry. Firing slow: let go to reload.',
   'c.noVisual': 'No visual on that ground. Scan it first.',
   'c.stratCall': 'Squad calls {name}.',
   'c.assetDown': '{name} destroyed.',
@@ -912,6 +912,7 @@ export default {
   // the reticle
   'ret.gunNoVis': 'NO VISUAL. FREE FIRE NEEDS SIGHT',
   'ret.gunDry': 'MAGAZINE EMPTY. RELOADING',
+  'ret.gunSlow': 'MAGAZINE EMPTY. FIRING SLOW',     // (0.62.6)
   'ret.firing': 'FIRING',
   'ret.freeFire': 'FREE FIRE',
   'ret.locked': 'LOCKED TARGET',
