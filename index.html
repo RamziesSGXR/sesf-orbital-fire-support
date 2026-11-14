@@ -506,6 +506,22 @@
     </div>
   </section>
 
+  <section id="s-feedback" class="screen overlay">
+    <div class="card fb-card">
+      <button class="x-close" id="fb-x" data-ta="ui.close">✕</button>
+      <div class="eyebrow" data-t="fb.eyebrow">Feedback</div>
+      <h2 data-t="fb.title">SEND FEEDBACK</h2>
+      <p class="fine" data-t="fb.sub"></p>
+      <textarea id="fb-text" rows="6" maxlength="900" data-tp="fb.ph"></textarea>
+      <div class="fb-row"><label class="fb-chk"><input type="checkbox" id="fb-report" checked> <span data-t="fb.report"></span></label><span id="fb-count" class="fine"></span></div>
+      <p id="fb-msg" class="fine fb-msg" aria-live="polite"></p>
+      <div class="btns">
+        <button id="fb-send" class="btn primary" type="button" data-t="fb.send">SEND</button>
+        <a id="fb-discord" class="btn" target="_blank" rel="noopener" data-t="fb.discord">OPEN THE DISCORD</a>
+        <button id="fb-cancel" class="btn" type="button" data-t="ui.closeBtn">CLOSE</button>
+      </div>
+    </div>
+  </section>
   <section id="s-credits" class="screen overlay">
     <div class="card wide">
       <button class="x-close" data-close="s-credits" data-ta="ui.close">✕</button>

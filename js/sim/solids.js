@@ -23,6 +23,10 @@ function stamp(m) {
   for (const p of m.posts) if (p.dead || p.ghost || p.building) n += 3;
   for (const b of m.bases) { if (b.destroyed) n += 5; if (b.spawners) for (const s of b.spawners) if (s.dead) n += 11; if (b.turrets) for (const t of b.turrets) if (t.dead) n += 13; }
   const sc = m.scenery; if (sc) n += (sc.broken || 0) * 17 + sc.rocks.length + sc.trees.length;
+  for (const p of m.pois) n += p.done ? 19 : 23;
+  for (const s of m.sides) n += s.done || s.failed ? 29 : s.hidden ? 31 : 37;
+  for (const q of m.loot) n += q.done ? 41 : 43;
+  for (const a of m.assets) if (a.kind === 'turret') n += a.dead ? 47 : 53;
   return n;
 }
 function build(m) {
@@ -30,7 +34,8 @@ function build(m) {
   const add = (x, y, r, ref, soft = false) => {
     if (!(r > 0.2)) return;
     const o = { x, y, r, ref, soft };     // soft: a heavy walks over it (a tree, a small boulder)
-    for (let cx = ((x - r) / CELL) | 0; cx <= ((x + r) / CELL) | 0; cx++) for (let cy = ((y - r) / CELL) | 0; cy <= ((y + r) / CELL) | 0; cy++) {
+    const rr = r + (soft ? 0 : (C.solids.padMax || 0));     // (listed in every cell its padded edge reaches)
+    for (let cx = ((x - rr) / CELL) | 0; cx <= ((x + rr) / CELL) | 0; cx++) for (let cy = ((y - rr) / CELL) | 0; cy <= ((y + rr) / CELL) | 0; cy++) {
       const k = key(cx, cy); let l = grid.get(k); if (!l) grid.set(k, (l = [])); l.push(o);
     }
   };
@@ -42,10 +47,23 @@ function build(m) {
   for (const p of m.posts) { if (p.dead || p.ghost) continue; const r = POST_R[p.what]; if (r) add(p.x, p.y, r, p); }
   for (const b of m.bases) {
     if (b.destroyed) continue;
-    if (b.spawners && b.spawners.length) { for (const s of b.spawners) if (!s.dead) add(s.x, s.y, (s.r || 6) * S.base, b); }
-    else add(b.x, b.y, (b.r || 8) * S.base, b);
-    if (b.turrets) for (const t of b.turrets) if (!t.dead) add(t.x, t.y, Math.max(1.2, (t.r || 2) * 0.8), b);
+    if (b.spawners && b.spawners.length) { for (const s of b.spawners) if (!s.dead) add(s.x, s.y, (s.r || 6) * (S.spawner || S.base), b); }     // (0.62.8: a spawner is solid to nearly what is drawn; a base with none keeps the half, its r is its yard)
+    else add(b.x, b.y, (b.r || 8) * (b.cannon ? S.cannon : b.node ? S.node : (S.baseBy && S.baseBy[m.faction.id]) || S.base), b);     // (0.62.8: to what is drawn, by kind; measured off the art)
+    if (b.turrets) for (const t of b.turrets) if (!t.dead) add(t.x, t.y, Math.max(1.2, (t.r || 2) * (S.turret || 0.8)), b);
   }
+  // (0.62.8) the small buildings too: a point of interest, a side mission's tower or gun, a wreck or a strongbox. Only the
+  // structure in the middle is solid; the ground round it, where whoever works it stands, stays open. Hidden SEAF are people,
+  // not a building.
+  for (const p of m.pois) if (!p.done) add(p.x, p.y, (p.r || 12) * ((S.poiBy && S.poiBy[p.kind]) || S.poi), p);
+  for (const s of m.sides) if (!s.isPoi && !s.done && !s.failed && s.kind !== 'rescue') add(s.x, s.y, (s.r || 9) * ((S.sideBy && S.sideBy[s.kind]) ?? S.side), s);
+  for (const q of m.loot) if (!q.done) add(q.x, q.y, (q.r || 10) * ((S.lootBy && S.lootBy[q.kind]) || S.loot), q);
+  // the mission's own sites: the oil pump, the launch silo, the crashed shuttle; and the Helldivers' sentries
+  for (const o of m.objectives || []) {
+    if (o.type === 'oil') add(o.x, o.y, o.r * S.oil, o);
+    else if (o.type === 'nuke') add(o.x, o.y, o.r * S.nuke, o);
+    else if (o.type === 'vip') add(o.x, o.y, S.crash, o);
+  }
+  for (const a of m.assets) if (a.kind === 'turret' && !a.dead) add(a.x, a.y, S.sentry, a);
   return grid;
 }
 export function solids(m) {
@@ -68,10 +86,11 @@ export function keepOut(m, who, x0, y0, R, own, heavy) {
   const l = m._solids.get(key((R.x / CELL) | 0, (R.y / CELL) | 0));
   if (!l) { who._held = 0; return false; }
   let hit = false;
+  const pad = Math.min(C.solids.padMax || 0, (who.r || 1.6) * (C.solids.pad || 0));
   for (let i = 0; i < l.length; i++) {
     const o = l[i];
     if (o.ref === own || (heavy && o.soft)) continue;
-    const dx = R.x - o.x, dy = R.y - o.y, d2 = dx * dx + dy * dy, r = o.r;
+    const dx = R.x - o.x, dy = R.y - o.y, d2 = dx * dx + dy * dy, r = o.r + (o.soft ? 0 : pad);     // (0.62.8) a mover has a body: its middle keeps that much further off, so it does not walk with half of it in the wall
     if (d2 >= r * r) continue;
     const ex = x0 - o.x, ey = y0 - o.y;
     if (ex * ex + ey * ey < r * r * 0.96) continue;     // it started inside: it walks out as it likes

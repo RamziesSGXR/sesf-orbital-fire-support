@@ -80,7 +80,8 @@ const land = (m, x, y) => (m.terrain.isLand(x, y) && !m.terrain.blocked(x, y) ? 
   removePost(m, w2);
   // lights walking into it stop, then crawl
   for (const a of m.allies) { a.x = w.x; a.y = w.y - 90; }
-  const g = spawnGroup(m, w.x, w.y + 25, 'hunt', { kinds: ['L', 'L', 'L', 'L', 'L', 'L'] });     // (lights, going for the allies on the far side of the wire)
+  const g = spawnGroup(m, w.x, w.y + 25, 'hunt', { kinds: ['L', 'L', 'L', 'L', 'L', 'L'], alertT: 999 });     // (0.62.8: kept on the hunt; since 0.62.2 a group that loses its target goes back on patrol where it stands)
+  for (const en of g.members) en.hp = en.maxHp = 1e7;     // (0.62.8: and kept alive; the squad now shoots them dead before the wire)     // (lights, going for the allies on the far side of the wire)
   let stop = 0, slow = 0, minK = 9, maxStop = 0;
   const seen = new Map();
   for (let i = 0; i < 30 * 25; i++) {

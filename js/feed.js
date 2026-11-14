@@ -94,3 +94,35 @@ export function feedEnd(s, fin, settings) {
       ch ? `campaign chapter ${ch.n} of ${chapters()}` : s.story ? 'past the end of the campaign' : '', how].filter(Boolean).join(' · '),
   ].filter(Boolean).join('\n'));
 }
+
+// (0.62.8) FEEDBACK, typed in the game: one post to the same channel the scores go to. What it carries: the text, the callsign
+// typed in (or "an unnamed gunner"), the version, what it was played on (phone / tablet / computer, the browser's own name),
+// and, when the player ticks the box, the debug report (the last errors and what the game was doing: nothing personal).
+// It is the player's own act, so Settings > SESF feed does not stop it; it is still only sent from the live game (or to a test's
+// sink). At most one a minute and FB_DAY a day from one browser.
+const FB_LEDGER = 'ofs.fbSent', FB_GAP = 60000, FB_DAY = 6;
+export const FB_MAX = 900;
+export function feedbackCan() {
+  if (sink()) return 'ok';
+  try { if (!(LIVE.test(location.hostname) && !navigator.webdriver)) return 'offline'; } catch { return 'offline'; }
+  return 'ok';
+}
+function fbLedger() { try { const L = JSON.parse(localStorage.getItem(FB_LEDGER) || '[]'); return Array.isArray(L) ? L.filter((t) => Date.now() - t < 86400000) : []; } catch { return []; } }
+// -> 'sent' | 'empty' | 'wait' (one a minute) | 'limit' (the day's are used) | 'offline' (not the live game)
+export function feedFeedback(text, o = {}) {
+  const body = String(text || '').replace(/\r/g, '').replace(/\n{3,}/g, '\n\n').trim().slice(0, FB_MAX);
+  if (body.length < 3) return 'empty';
+  if (feedbackCan() !== 'ok') return 'offline';
+  const L = fbLedger(), now = Date.now();
+  if (L.length && now - L[L.length - 1] < FB_GAP) return 'wait';
+  if (L.length >= FB_DAY) return 'limit';
+  // quoted, so nothing typed can pose as the game's own posts; pings are off for every post (allowed_mentions)
+  const quoted = body.split('\n').map((l) => '> ' + l.replace(/`/g, "'")).join('\n');
+  const head = `📝 **Feedback** · ${who(o.callsign)} · v${o.version || '?'} · ${o.device || 'unknown device'}${o.where ? ' · ' + o.where : ''}`;
+  let msg = head + '\n' + quoted;
+  if (o.report) { const room = 1880 - msg.length; if (room > 120) msg += '\n```\n' + String(o.report).replace(/```/g, "'''").slice(0, room - 10) + '\n```'; }
+  lastAt = 0;     // (its own limits above; the scores' double-click guard is not for this)
+  if (!post(msg)) return 'offline';
+  L.push(now); try { localStorage.setItem(FB_LEDGER, JSON.stringify(L)); } catch { /* storage off: sent anyway */ }
+  return 'sent';
+}

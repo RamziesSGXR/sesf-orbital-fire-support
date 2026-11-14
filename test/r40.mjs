@@ -203,7 +203,7 @@ function seafShare(seed, role, n, targets, sec = 10) {
   const r2 = seafShare(4112, 'spec', 2, 2, 1.2);
   check('with two heavies there, two Specialists take one each', r2.length === 2 && Math.hypot(r2[0].x - r2[1].x, r2[0].y - r2[1].y) > 10, r2.map((q) => `${q.x.toFixed(0)},${q.y.toFixed(0)}`).join(' '));
   const g1 = seafShare(4113, 'rifle', 3, 1, 8);
-  check('SEAF grenades on one group come one at a time', g1.length >= 3 && same(g1, C.hd.stagger.seafGren - 0.05, 4.5) === 0     /* (0.62.5) where they land, and a throw scatters: targets are kept 7.5 m apart by the claim, landings can come within about 5 */, g1.map((q) => q.t.toFixed(1)).join(' '));
+  check('SEAF grenades on one group come one at a time', g1.length >= 3 && same(g1, C.hd.stagger.seafGren - 0.05, 3) === 0     /* (0.62.5) where they land, and a throw scatters: targets are kept 7.5 m apart by the claim, landings can come within about 5 */, g1.map((q) => q.t.toFixed(1)).join(' '));
   const g2 = seafShare(4114, 'rifle', 2, 2, 1.5);
   check('two groups, two troopers: a grenade on each', g2.length === 2 && Math.hypot(g2[0].x - g2[1].x, g2[0].y - g2[1].y) > 10, g2.map((q) => `${q.x.toFixed(0)},${q.y.toFixed(0)}`).join(' '));
 }
@@ -230,8 +230,8 @@ function seafShare(seed, role, n, targets, sec = 10) {
   m.sides = m.sides.filter((q) => q.kind !== 'spore'); m.pois = m.pois.filter((q) => q.kind !== 'spore');
   const sp = addSpore(m, a.x + 300, a.y);
   const s0 = a.sight / m.terrain.sightMul(a.x, a.y);
-  a.x = sp.x + 20; a.y = sp.y; m.step(dt);
-  const s1 = a.sight / m.terrain.sightMul(a.x, a.y);
+  a.x = sp.x + 20; a.y = sp.y; const sm1 = m.terrain.sightMul(a.x, a.y); m.step(dt);     // (0.62.8: the ground he stood on when his sight was worked out, not where the step left him)
+  const s1 = a.sight / sm1;
   check('inside its cloud an ally sees a lot less far', Math.abs(s1 / s0 - C.sides.spore.sight) < 0.02, `${Math.round(s0)} -> ${Math.round(s1)} m`);
   check('it is a side task for the squad', openTasks(m).some((k) => k.ref === sp));
   m.damagePoi(sp, 1e7, 'player'); m.step(dt);

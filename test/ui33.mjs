@@ -18,7 +18,7 @@ const open = async (faction, style) => {
   const ctx = await browser.newContext(touch ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } : { viewport: { width: 1400, height: 860 } });
   const page = await ctx.newPage(); page.on('pageerror', (e) => errs.push(`${faction}: ${e.message}`));
   await page.addInitScript((style) => { try { localStorage.clear(); localStorage.setItem('ofs.notice', 'true'); if (style) localStorage.setItem('ofs.settings', JSON.stringify({ musicStyle: style })); } catch (e) { /* */ } }, style);
-  await page.goto(`file://${ROOT}/dist/orbital-fury.html?skipstart&faction=${faction}&biome=grass&seed=32&tod=13&difficulty=6`); await page.waitForTimeout(800);
+  await page.goto(`file://${ROOT}/dist/orbital-fury.html?skipstart&music&faction=${faction}&biome=grass&seed=32&tod=13&difficulty=6`); await page.waitForTimeout(800);
   await page.mouse.click(5, 5); await page.waitForTimeout(600);
   return page;
 };

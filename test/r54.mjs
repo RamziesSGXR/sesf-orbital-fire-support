@@ -22,7 +22,8 @@ function quiet(faction, seed = 77) {
   return m;
 }
 // a dry spot well away from the squad, and the squad (one ally, hp topped up) moved to a given offset from it
-function land(m) { const a = m.hdAlive[0]; for (let r = 80; r < 200; r += 10) for (let q = 0; q < 12; q++) { const x = a.x + Math.cos(q * 0.52) * r, y = a.y + Math.sin(q * 0.52) * r; if ([0, 1, 2, 3].every((i) => m.terrain.isLand(x + Math.cos(i * 1.57) * 40, y + Math.sin(i * 1.57) * 40))) return { x, y }; } return { x: a.x + 100, y: a.y }; }
+function land(m, inside = -1e9) { const a = m.hdAlive[0]; for (let r = 80; r < 200; r += 10) for (let q = 0; q < 12; q++) { const x = a.x + Math.cos(q * 0.52) * r, y = a.y + Math.sin(q * 0.52) * r; const A = m.ao, inAo = !A || (x - A.cx) ** 2 + (y - A.cy) ** 2 < ((A.R || A.size / 2) - inside) ** 2;     /* (0.62.8) `inside` metres in from the rim of the area of operations, when the test needs the room */
+  if (inAo && [0, 1, 2, 3].every((i) => m.terrain.isLand(x + Math.cos(i * 1.57) * 40, y + Math.sin(i * 1.57) * 40))) return { x, y }; } return { x: a.x + 100, y: a.y }; }
 function place(m, at, dx, dy) { const a = m.hdAlive[0]; a.x = at.x + dx; a.y = at.y + dy; a.hp = a.maxHp = 5000; for (const o of m.hdAlive) if (o !== a) { o.x = at.x + dx + 6; o.y = at.y + dy + 6; } m.squad.ax = a.x; m.squad.ay = a.y; return a; }
 // (the squad kept in a pile at the given spots while it runs: the AI would walk them apart)
 function pinned(m, sec, spots) { for (let i = 0, n = Math.round(sec / dt); i < n && !m.over; i++) { m.hdAlive.forEach((o, k) => { o.x = spots[k % spots.length][0]; o.y = spots[k % spots.length][1]; o.hp = Math.max(o.hp, 1); }); m.step(dt); } }
@@ -56,7 +57,7 @@ const still = (g) => { g.hx = 1; g.hy = 0; g.pt = { x: g.cx, y: g.cy }; g.patrol
 
 // ---------------------------------------------------------------- the leaper
 {
-  const m = quiet('bugs'), at = land(m), a = place(m, at, 30, 0);
+  const m = quiet('bugs'), at = land(m, 50), a = place(m, at, 30, 0);     // (0.62.8: a leap has to land inside the map)
   const g = make(m, at, ['L']), e = g.members[0];
   e.v = 'leap'; e.x = at.x; e.y = at.y; e.ox = 0; e.oy = 0; g.cx = at.x; g.cy = at.y;
   let jumped = false, hurtInAir = null, maxSp = 0, t0 = 0, hp0 = 0, hpAir = 0;
@@ -97,9 +98,9 @@ const still = (g) => { g.hx = 1; g.hy = 0; g.pt = { x: g.cx, y: g.cy }; g.patrol
   check('it stands still while it fires', moved < 0.5, `${moved.toFixed(2)} m`);
   
   check('and the spread is wide enough that not every rocket hits', new Set(tr.map((x) => x.tx.toFixed(1))).size > 1);
-  run(m, 40);
+  let lowHp = a.maxHp, hurtN = 0; const hp0 = new Map(m.alive.map((o) => [o, o.hp])); for (let i = 0; i < 40 / dt && !m.over; i++) { m.step(dt); for (const o of m.alive) { const h = hp0.get(o); if (h !== undefined && o.hp < h) { hurtN++; lowHp = Math.min(lowHp, a.maxHp - (h - o.hp)); } hp0.set(o, o.hp); } }     // (0.62.8: anyone in the squad it was fired at, at the moment he is hit; not one man's health at the end)
   check('barrages keep coming, a volley at a time', tr.length >= V.n * 4 && tr.length % V.n === 0, `${tr.length} rockets in ${m.t.toFixed(0)} s`);
-  check('and they hurt what they are aimed at', a.hp < a.maxHp, `${(a.maxHp - a.hp).toFixed(0)} damage`);
+  check('and they hurt what they are aimed at', lowHp < a.maxHp, `${(a.maxHp - lowHp).toFixed(0)} damage`);
 }
 
 // ---------------------------------------------------------------- the bombardier, and the blast of both
@@ -155,7 +156,7 @@ const still = (g) => { g.hx = 1; g.hy = 0; g.pt = { x: g.cx, y: g.cy }; g.patrol
     check('ants: the lights each follow another bug, the leaders follow none', lights.every((e) => e.fol && g.members.includes(e.fol)) && lead.every((e) => !e.fol));
     check('ants: the leaders are at the front', lead.every((e) => dotf(g, e) > Math.max(...lights.map((q) => dotf(g, q)))));
     g.pt = { x: at.x - 90, y: at.y }; g.patrolT = 1e9;
-    run(m, 30);
+    { const hold = m.hdAlive.map((o) => [o.x, o.y]); pinned(m, 30, hold); }     // (0.62.8: the squad kept where it stands; left to itself it walked up and the trail went on the hunt)
     const order = g.members.slice().sort((p, q) => dotf(g, q) - dotf(g, p));
     const sp = []; for (let i = 1; i < order.length; i++) sp.push(Math.hypot(order[i].x - order[i - 1].x, order[i].y - order[i - 1].y));
     check('ants: walking, they stay in a line, a few metres apart', Math.max(...sp) < C.formations.bugs.gap * 4, `${Math.max(...sp).toFixed(1)} m the widest gap, ${C.formations.bugs.gap} m wanted`);

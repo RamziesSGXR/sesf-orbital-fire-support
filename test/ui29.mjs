@@ -22,7 +22,7 @@ const ev = (f, a) => page.evaluate(f, a);
 const tap = async (s) => { await page.locator(s).scrollIntoViewIfNeeded(); return touch ? page.tap(s) : page.click(s); };
 const shot = (n) => page.screenshot({ path: path.join(SHOTS, `ui29_${mode}_${n}.png`) });
 await page.addInitScript(() => { try { localStorage.clear(); localStorage.setItem('ofs.notice', 'true'); } catch (e) { /* */ } });
-await page.goto(`file://${ROOT}/dist/orbital-fury.html?skipstart&faction=bugs&biome=desert&seed=29&tod=14&difficulty=6`); await page.waitForTimeout(900);
+await page.goto(`file://${ROOT}/dist/orbital-fury.html?skipstart&music&faction=bugs&biome=desert&seed=29&tod=14&difficulty=6`); await page.waitForTimeout(900);
 
 // ---------------------------------------------------------------- Settings: the sections and the audio controls
 await tap('#btn-settings'); await page.waitForTimeout(400);

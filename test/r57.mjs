@@ -19,7 +19,8 @@ check('the enemy ceiling reaches 1,000 at the top levels', c25 === 1000 && l25 =
   const g1 = spawnGroup(m, a.x + 40, a.y, 'hunt', { kinds: ['L'], size: 1 }), e = g1.members[0];
   const g2 = spawnGroup(m, a.x + 20, a.y, 'hunt', { kinds: ['H'], size: 1 }), wall = g2.members[0];
   e.hp = e.maxHp = 1e9; wall.hp = wall.maxHp = 1e9; wall.speed = 0; e.speed = 0;
-  m.step(1 / 30);
+  e.x = a.x + 24; e.y = a.y; wall.x = a.x + 12; wall.y = a.y;     // (0.62.8: placed exactly, as the firing below does; a spawn is moved off water and solids)
+  m.step(1 / 30); e.x = a.x + 24; e.y = a.y; wall.x = a.x + 12; wall.y = a.y;
   check('another enemy in the line of fire is seen as in the way', eBlocker(m, e, a.x, a.y) === wall);
   const fire = (wallOn) => { let n = 0; for (let i = 0; i < 30 * 20; i++) { for (const o of m.alive) if (o !== a) { o.x = a.x - 60; o.y = a.y + 30; } e.x = a.x + 24; e.y = a.y; wall.x = wallOn ? a.x + 12 : a.x + 24; wall.y = wallOn ? a.y : a.y + 40; m.step(1 / 30); for (const v of m.events) if (v.type === 'tracer' && v.s === 'e' && v.k === 'L') n++; m.events.length = 0; } return n; };
   const open = fire(false), blocked = fire(true);

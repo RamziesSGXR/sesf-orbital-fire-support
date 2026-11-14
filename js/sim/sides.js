@@ -29,6 +29,11 @@ import { RNG } from '../util/rng.js';
 
 const SD = () => C.sides;
 
+// Does a kind of side mission go with this mission's objectives?
+export function sideFits(m, kind) {
+  const not = (SD().notWith || {})[kind];
+  return !not || !(m.objectives || []).some((o) => not.includes(o.type));
+}
 // Which side missions this mission has: more on the bigger maps.
 function kindsFor(m) {
   const n = Math.min(SD().max, SD().min + Math.floor((m.ao.size - C.ao.start) / SD().perAoM));
@@ -72,11 +77,30 @@ export function setupSides(m) {
       m.sides.push(s);
     }
   }
+  // (0.62.8) One of each at most, and none that repeats the mission's own objective (sides.notWith): a big map used to get the
+  // same side mission twice (two radio towers, two broadcast towers), and SEAF to rescue beside a VIP, a howitzer beside a
+  // defence gun. They are all placed as before and the ones not wanted taken off again, so the map's dice roll as they did
+  // and everything else is where it was.
+  {
+    const seen = new Set(), drop = [];
+    for (const q of m.sides) { if (seen.has(q.kind) || !sideFits(m, q.kind)) drop.push(q); else seen.add(q.kind); }
+    if (drop.length) {
+      const gone = new Set(drop), men = new Set();
+      for (const q of drop) for (const a of q.troops || []) men.add(a);
+      m.sides = m.sides.filter((q) => !gone.has(q)); m.pois = m.pois.filter((q) => !gone.has(q));
+      if (men.size) { m.allies = m.allies.filter((a) => !men.has(a)); if (m._refreshAlive) m._refreshAlive(); }
+      // a big map left short takes the howitzer, if the operation is far enough along for it: placed from a stream of its own
+      if (!seen.has('arty') && (m.missionN || 1) >= C.arty.fromMission && sideFits(m, 'arty')) {
+        const r0 = m.rng; m.rng = new RNG((m.seed ^ 0x27d4eb2f) >>> 0);
+        try { const p = findSpot(m, avoid(), 70, way); m.sides.push({ id: m.nextId++, side: true, kind: 'arty', x: p.x, y: p.y, r: 10, state: 'idle', holdT: 0, done: false, failed: false, callT: 0, face: m.rng.angle() }); } finally { m.rng = r0; }
+      }
+    }
+  }
   // (0.37) a jammer, rolled and placed from a stream of its own so the rest of the map (and everything after) rolls as it did
   // before there were any
   const jr = new RNG((m.seed ^ 0x3c6ef372) >>> 0);
   const jamRoll = jr.next();
-  if (!m.noHbSides && (m.forceJam || ((m.missionN || 1) >= S.jammer.fromMission && jamRoll < S.jammer.chance))) {     // (0.38: a chapter can ask for one, or for none)
+  if (!m.noHbSides && (m.forceJam || ((m.missionN || 1) >= S.jammer.fromMission && jamRoll < S.jammer.chance && sideFits(m, 'jammer')))) {     // (0.38: a chapter can ask for one, or for none)
     const r0 = m.rng; m.rng = jr;
     try { const p = findSpot(m, avoid(), 70, way); addJammer(m, p.x, p.y); } finally { m.rng = r0; }
   }

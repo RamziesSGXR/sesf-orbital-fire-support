@@ -58,7 +58,7 @@ check('picked: it is on the kit', (await ev((p) => window.__game.session.kit.per
 
 // the offers
 c = await cards();
-check('then three missions to pick from, each +1, +2 or +3 levels, with its enemy, objective and pay (on different ground)', c.length === 3 && new Set(c.map((x) => x.split('·')[1].split(/[A-Z]{3,}/)[0])).size === 3 && /\+1 DIFFICULTY/.test(c[0]) && /\+2 DIFFICULTY/.test(c[1]) && /\+3 DIFFICULTY/.test(c[2]) && c.every((x) => /(BUGS|BOTS|SQUIDS)/.test(x) && /PAY ×\d\.\d\d/.test(x) && /LEVEL \d+/.test(x)), c.join(' | '));
+check('then three missions to pick from, each +1, +2 or +3 levels, with its enemy, objective and pay (on different ground)', c.length === 3 && new Set(c.map((x) => x.split('·')[1].split(/[A-Z]{3,}/)[0])).size === 3 && /\+1 DIFFICULTY/.test(c[0]) && /\+2 DIFFICULTY/.test(c[1]) && /\+3 DIFFICULTY/.test(c[2]) && c.every((x) => /(BUGS|BOTS|SQUIDS)/.test(x) && /PAY ×\d\.\d\d/.test(x) && /(HARDER|EASIER|AS HARD)/.test(x) && !/LEVEL \d+/.test(x)), c.join(' | '));
 const off = await ev(() => { const o = window.__game.session.pend.offers[2]; document.querySelectorAll('#nx-cards .nx-c')[2].click(); return o; });
 await wait(300);
 check('picked: on to the armory', await on('s-shop'));

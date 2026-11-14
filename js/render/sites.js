@@ -2,6 +2,7 @@
 // points of interest, the nuclear launch site and the VIP's crash site and pickup pad. Each draws in metres around the place's
 // centre; the state that matters (health, progress, labels) is drawn by the callers in renderer.js and world.js.
 import { raise, isFlat, baking } from './relief.js';
+import { poiArt } from './sideart.js';
 const TAU = Math.PI * 2;
 function rgba(hex, a) {
   if (hex.startsWith('rgb')) return hex;
@@ -89,62 +90,12 @@ export function drawBaseRuin(ctx, b, now, px) {
 // ---------------------------------------------------------------- points of interest
 // kind: relay | cache | battery. Seen: in sight (brighter).
 export function drawPoiArt(ctx, p, fac, col, seen, now, px) {
-  const r = p.r * 0.62, id = p.id || 1, a0 = hash(id, 2) * TAU;
-  const lit = seen ? 0.95 : 0.65, edge = '#ffb020';
+  // (0.62.8) redrawn as solid buildings, one outline each (sideart.js); half the site's radius is the building, the rest its yard
   ctx.save(); ctx.translate(p.x, p.y);
-  ctx.fillStyle = 'rgba(0,0,0,0.45)'; circ(ctx, 0, 0, r * 1.2); ctx.fill();
-  if (p.kind === 'spore') {
-    // (0.40) the spore tower: a ribbed fungal stalk, a swollen cap with vents, spores puffing out
-    ctx.fillStyle = `rgba(120,95,60,${lit})`; circ(ctx, 0, 0, r * 0.95); ctx.fill();
-    ctx.strokeStyle = `rgba(80,60,35,${lit})`; ctx.lineWidth = px(1.2);
-    for (let i = 0; i < 7; i++) { const a = a0 + i * 0.898; ctx.beginPath(); ctx.moveTo(Math.cos(a) * r * 0.35, Math.sin(a) * r * 0.35); ctx.lineTo(Math.cos(a) * r * 0.92, Math.sin(a) * r * 0.92); ctx.stroke(); }
-    ctx.fillStyle = `rgba(170,200,90,${lit})`; circ(ctx, 0, 0, r * 0.45); ctx.fill();
-    for (let i = 0; i < 5; i++) { const a = a0 + i * 1.257; ctx.fillStyle = 'rgba(60,70,30,0.9)'; circ(ctx, Math.cos(a) * r * 0.62, Math.sin(a) * r * 0.62, r * 0.09); ctx.fill(); }
-    const ph = (now * 0.5 + (id % 5) * 0.2) % 1;
-    ctx.fillStyle = `rgba(210,240,130,${0.45 * (1 - ph)})`; circ(ctx, 0, 0, r * (0.5 + ph * 1.6)); ctx.fill();
-  } else if (p.kind === 'propaganda') {
-    // a broadcast tower: a mast with loudspeaker horns, sending out rings in the enemy's colour
-    ctx.fillStyle = `rgba(120,115,110,${lit})`; ctx.fillRect(-r * 0.2, -r * 0.2, r * 0.4, r * 0.4);
-    ctx.strokeStyle = `rgba(200,195,185,${lit})`; ctx.lineWidth = px(1.4);
-    for (let i = 0; i < 4; i++) { const a = a0 + i * 1.571; ctx.beginPath(); ctx.moveTo(Math.cos(a) * r * 0.2, Math.sin(a) * r * 0.2); ctx.lineTo(Math.cos(a) * r * 0.7, Math.sin(a) * r * 0.7); ctx.lineTo(Math.cos(a + 0.35) * r * 0.85, Math.sin(a + 0.35) * r * 0.85); ctx.moveTo(Math.cos(a) * r * 0.7, Math.sin(a) * r * 0.7); ctx.lineTo(Math.cos(a - 0.35) * r * 0.85, Math.sin(a - 0.35) * r * 0.85); ctx.stroke(); }
-    const ph = (now * 0.7 + (id % 7) * 0.13) % 1;
-    ctx.strokeStyle = rgba(col, 0.55 * (1 - ph)); ctx.lineWidth = px(1.6); circ(ctx, 0, 0, r * (0.9 + ph * 2.2)); ctx.stroke();
-    ctx.fillStyle = Math.floor(now * 3 + id) % 2 ? col : 'rgba(255,255,255,0.3)'; circ(ctx, 0, 0, Math.max(px(1.6), r * 0.12)); ctx.fill();
-  } else if (p.kind === 'relay') {
-    // a mast with a dish and a blinking light
-    ctx.fillStyle = `rgba(150,150,145,${lit})`; ctx.fillRect(-r * 0.35, -r * 0.35, r * 0.7, r * 0.7);
-    ctx.strokeStyle = `rgba(200,200,195,${lit})`; ctx.lineWidth = px(1.2);
-    for (let i = 0; i < 3; i++) { const a = a0 + i * 2.09; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * r * 1.05, Math.sin(a) * r * 1.05); ctx.stroke(); }
-    ctx.strokeStyle = edge; ctx.lineWidth = px(1.8); ctx.beginPath(); ctx.arc(0, 0, r * 0.55, a0 - 0.8, a0 + 0.8); ctx.stroke();
-    ctx.fillStyle = Math.floor(now * 2 + id) % 2 ? '#ff5050' : 'rgba(255,80,80,0.25)'; circ(ctx, 0, 0, Math.max(px(1.6), r * 0.1)); ctx.fill();
-  } else if (p.kind === 'cache') {
-    // crates (bots), an egg clutch (bugs) or pods (squids)
-    for (let i = 0; i < 5; i++) {
-      const a = a0 + i * 1.26, d = i ? r * 0.55 : 0;
-      ctx.save(); ctx.translate(Math.cos(a) * d, Math.sin(a) * d); ctx.rotate(a);
-      if (fac === 'bugs') { ctx.fillStyle = `rgba(230,210,170,${lit})`; ctx.beginPath(); ctx.ellipse(0, 0, r * 0.3, r * 0.22, 0, 0, TAU); ctx.fill(); }
-      else if (fac === 'squids') { ctx.fillStyle = `rgba(200,180,230,${lit})`; ctx.beginPath(); for (let k = 0; k < 6; k++) ctx.lineTo(Math.cos(k * 1.047) * r * 0.26, Math.sin(k * 1.047) * r * 0.26); ctx.closePath(); ctx.fill(); }
-      else { ctx.fillStyle = `rgba(150,140,110,${lit})`; ctx.fillRect(-r * 0.24, -r * 0.24, r * 0.48, r * 0.48); ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = px(0.8); ctx.strokeRect(-r * 0.24, -r * 0.24, r * 0.48, r * 0.48); }
-      ctx.restore();
-    }
-  } else {
-    // a battery: a gun pit with barrels (bots), a spitter mound (bugs), a crystal array (squids)
-    ctx.strokeStyle = `rgba(170,170,160,${lit})`; ctx.lineWidth = Math.max(px(2), r * 0.12); circ(ctx, 0, 0, r * 0.85); ctx.stroke();
-    if (fac === 'squids') {
-      ctx.fillStyle = `rgba(220,200,255,${lit})`;
-      for (let i = 0; i < 3; i++) { const a = a0 + i * 2.09; ctx.beginPath(); ctx.moveTo(Math.cos(a) * r * 0.6, Math.sin(a) * r * 0.6); ctx.lineTo(Math.cos(a + 0.4) * r * 0.2, Math.sin(a + 0.4) * r * 0.2); ctx.lineTo(Math.cos(a - 0.4) * r * 0.2, Math.sin(a - 0.4) * r * 0.2); ctx.closePath(); ctx.fill(); }
-    } else if (fac === 'bugs') {
-      ctx.fillStyle = `rgba(170,120,60,${lit})`; circ(ctx, 0, 0, r * 0.55); ctx.fill();
-      ctx.fillStyle = `rgba(200,255,120,${0.5 + 0.3 * Math.sin(now * 3 + id)})`; circ(ctx, 0, 0, r * 0.22); ctx.fill();
-    } else {
-      ctx.fillStyle = `rgba(110,110,105,${lit})`; circ(ctx, 0, 0, r * 0.45); ctx.fill();
-      ctx.strokeStyle = `rgba(210,210,200,${lit})`; ctx.lineWidth = Math.max(px(1.8), r * 0.12);
-      for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(0, s * r * 0.15); ctx.lineTo(Math.cos(a0) * r * 1.1 - Math.sin(a0) * s * r * 0.15, Math.sin(a0) * r * 1.1 + Math.cos(a0) * s * r * 0.15); ctx.stroke(); }
-    }
-  }
+  poiArt(ctx, p.kind, fac, col, p.r * (p.r <= 13 ? 0.72 : POI_ART), p.id || 1, seen, now, px);
   ctx.restore();
-  void col;
 }
+export const POI_ART = 0.58;
 
 // ---------------------------------------------------------------- the nuclear launch site
 // state: travel | hold | armed | inbound | done. f: how far the countdown is (0..1).
@@ -252,7 +203,7 @@ export function drawCitadelWalls(ctx, m, col, px) {
 // A crashed pelican, a lost hellpod, a Super Earth strongbox, a SEAF supply cache: each drawn as a small scene, with a beacon light
 // that blinks while it has not been found. Found: the wreck stays, burnt out; the rest are gone.
 export function drawLootArt(ctx, q, now, px) {
-  const f = Math.max(1, px(2)) * 0.6, id = q.id || 1, blink = 0.5 + 0.5 * Math.sin(now * 3 + id);
+  const f = Math.max(1, px(2)) * 0.92, id = q.id || 1, blink = 0.5 + 0.5 * Math.sin(now * 3 + id);
   ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.face || 0); ctx.scale(f, f);
   if (q.kind === 'wreck') {
     // scorched ground, the broken hull in two pieces, ammo crates thrown out of it, smoke

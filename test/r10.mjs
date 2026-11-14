@@ -135,7 +135,10 @@ function quiet(faction = 'bots', seed = 77, opts = {}) {
   check('maps carry radio towers, propaganda towers and SEAF under fire', kinds.has('radio') && kinds.has('propaganda') && kinds.has('rescue'), [...kinds].join(', '));
   const n1 = new Mission({ seed: 6100, faction: 'bots', biome: 'grass', events: false, sessionMinutes: 0, missionN: 1 });
   const n6 = new Mission({ seed: 6100, faction: 'bots', biome: 'grass', events: false, sessionMinutes: 60, missionN: 6 });
-  check('bigger maps carry more side missions', n1.sides.length >= C.sides.min && n6.sides.length > n1.sides.length, `${n1.sides.length} on mission 1, ${n6.sides.length} on mission 6`);
+  // (0.62.8) never the same kind twice, so a big map has as many as there are kinds that go with its objective: more than a
+  // small one on average, not on every seed
+  { let a = 0, b = 0, twice = 0; for (let k = 0; k < 20; k++) { const x = new Mission({ seed: 6100 + k, faction: 'bots', biome: 'grass', events: false, sessionMinutes: 0, missionN: 1 }), y = new Mission({ seed: 6100 + k, faction: 'bots', biome: 'grass', events: false, sessionMinutes: 60, missionN: 6 }); a += x.sides.length; b += y.sides.length; for (const mm of [x, y]) { const K = mm.sides.map((q) => q.kind); if (new Set(K).size !== K.length) twice++; } }
+    check('bigger maps carry more side missions, and none has a kind twice', n1.sides.length >= C.sides.min && b > a && twice === 0, `${(a / 20).toFixed(1)} a map on mission 1, ${(b / 20).toFixed(1)} on mission 6, ${twice} with a repeat`); }
 
   // radio tower: hold it, and it relights the beacons around it
   let m = null, s = null;

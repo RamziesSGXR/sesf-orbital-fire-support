@@ -8,7 +8,10 @@ export const CONFIG = {
   // of a rock's radius is solid, for rocks of rockMin metres and up; trunk: a tree's trunk as a share of its crown, between
   // trunkMin and trunkMax metres; base: how much of an enemy building's radius is solid. A mover held up for giveTicks steps
   // without making giveDist metres is let through for thruSec seconds.
-  solids:   { on: true, rock: 0.82, rockMin: 1.5, trunk: 0.2, trunkMin: 0.45, trunkMax: 0.9, base: 0.5, giveTicks: 45, giveDist: 1.5, thruSec: 3 },
+  // (0.62.8) The score is switched off for now: the game is to be heard from the field (see audio.js, the sounds placed where
+  // they are made). Set to true and the music, its volume and its style come back as they were.
+  musicOn:  false,
+  solids:   { on: true, rock: 0.82, rockMin: 1.5, trunk: 0.2, trunkMin: 0.45, trunkMax: 0.9, base: 0.5, baseBy: { bugs: 0.85, bots: 0.85, squids: 0.5 }, spawner: 1, cannon: 0.95, node: 0.9, turret: 1, poi: 0.5, poiBy: { propaganda: 0.55, spore: 0.6 }, side: 0.8, sideBy: { rescue: 0, arty: 0.6 }, loot: 0.3, lootBy: { vault: 0.36, wreck: 0.5 }, oil: 0.36, nuke: 0.38, crash: 6, sentry: 1.3, pad: 0.45, padMax: 1.1, giveTicks: 45, giveDist: 1.5, thruSec: 3 },
   // The area of operations: each mission is fought in a square of the map, start metres across on the first mission and perMission
   // more on each one after, up to max. The first maps are small enough to clear completely.
   ao:       { start: 760, perMission: 110, max: 1500, margin: 40, tries: 14 },
@@ -268,7 +271,7 @@ export const CONFIG = {
               // at most step metres a second each, so a pack stands as a crowd of bodies and not one blob. by faction, since a
               // bug swarm should still press in. Bosses, super heavies and anything in the air are left alone.
               spread: { transit: 3, transitMul: 0.2, on: true, body: { bugs: 0.72, bots: 0.95, squids: 1.05 }, step: 6, rate: 20, max: 18,
-                        room: { bugs: 4.4, bots: 6, squids: 7.5 }, roomMelee: 3.4 },     // (0.62.5) room: metres two of them keep between their centres whatever their size (a body's own width still counts when it is wider); roomMelee: what one that fights hand to hand keeps while it has someone to hit, so a swarm can still close
+                        room: { bugs: 4.4, bots: 6, squids: 6.5 }, roomMelee: 3.4 },     // (0.62.5) room: metres two of them keep between their centres whatever their size (a body's own width still counts when it is wider); roomMelee: what one that fights hand to hand keeps while it has someone to hit, so a swarm can still close
               hp: { light: 30, medium: 200, heavy: 1000 },
               speed: { light: 4.0, medium: 3.2, heavy: 2.4 },
               // Enemies notice allies at their own (shorter) sight. Fire, noise or a neighbor's call alerts a group.
@@ -361,7 +364,9 @@ export const CONFIG = {
               jammer: { R: 85, r: 10, reward: 320, chance: 0.6, fromMission: 2 },     // (from an operation's second mission: the first is a calm start)
               // (0.37) the squad calls a Hellbomb on an enemy broadcast tower too (from jammer.fromMission), while it still has more than
               // this share of its health
-              propBomb: 0.5 },
+              propBomb: 0.5,
+              // (0.62.8) side missions that would repeat the mission's own objective are left out of it
+              notWith: { rescue: ['vip', 'evac'], arty: ['cannon', 'gun'], jammer: ['dome'] } },
   // The Helldivers' plan (planner.js): side tasks within `detour` extra metres of the way to the main objective, if there is time to
   // spare (reserve seconds) for them, the objective and extraction. After the objective a full clear only with more than clearLives
   // lives left and the time for it. Time is estimated at pace x squad speed plus `work` seconds per task. Re-planned every `every` s.
@@ -490,7 +495,9 @@ export const CONFIG = {
   // The war escalates with every minute of the session, so the run only ends in failure: tougher, harder-hitting enemies and more heavies.
   // missionDmg: enemy damage also climbs a little with every minute of the mission itself.
   // (0.53.8) fac: bugs 1.2 -> 1.0, bots 0.8 -> 1.45, squids 0.75 -> 1.45, so each enemy is about as hard as the others at a level
-  ramp:     { base: 4.0, fac: { bugs: 1.0, bots: 1.45, squids: 1.45 }, hp: 0.02, dmg: 0.015, missionDmg: 0.06, mediumEvery: 25, heavyEvery: 45, hpCap: 7, dmgCap: 6 },
+  // (0.62.8) fac: bots and squids were 1.45. Standing wider (0.62.5) they are hit by fewer blasts and more of them have a clear shot;
+  // at level 6 the squad's losses against bots doubled and one squid mission in three more was lost. Their fire is turned down to pay for it.
+  ramp:     { base: 4.0, fac: { bugs: 1.0, bots: 1.2, squids: 1.25 }, hp: 0.02, dmg: 0.015, missionDmg: 0.06, mediumEvery: 25, heavyEvery: 45, hpCap: 7, dmgCap: 6 },
   // Enemy reinforcements. A patrol that finds the squad, or is shot at, may fire a flare (callChance, once per group); if the one
   // holding it is still alive when it has burned (flareSec), reinforcements arrive near it. They also come in waves at objective
   // sites (siteEvery) and at the extraction point once extraction is called (extractEvery). Each faction has its own way in:
@@ -693,6 +700,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.7',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.8',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

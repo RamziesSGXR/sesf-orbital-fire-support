@@ -34,7 +34,7 @@ import { setupCover } from './cover.js';
 import { setupScenery, placeMarks } from './scenery.js';
 import { updateChatter } from './chatter.js';
 import { initKit, updateHelldivers } from './helldiver.js';
-import { buildDanger, updateEvade } from './safety.js';
+import { buildDanger, updateEvade, inDanger } from './safety.js';
 import { getTerrain } from './terrain.js';
 import { domeBlocks } from './ops.js';
 import { boardingNow } from './extract.js';
@@ -1308,6 +1308,9 @@ export class Mission {
         px += (dx / d) * push; py += (dy / d) * push; n++;
       });
       if (!n) continue;
+      // (0.62.8) not one that is caught in wire, and not when the mission asks for none (noSpread: a test that places enemies
+      // exactly). The crowd behind was pushing a snagged light out of the wire in a third of the time it should hold it.
+      if (this.noSpread || (e.wireIn && this.t < (e.wireUntil || 0))) continue;
       let l = Math.hypot(px, py) || 1, w = Math.min(cap, l) * k / l;
       // (0.62.4) a squid on its way to its place in the arrow is let through the crowd: pushed back at full strength by everyone
       // it passed, a school took most of a minute to form and its members shook on the spot meanwhile
@@ -1361,7 +1364,7 @@ export class Mission {
     // the circle there left squads stuck against its edge, so a Helldiver pulling back is kept off the edge instead: helldiver.js)
     for (const a of this.alive) if (!a.mounted) {
       go(a.px, a.py, a.x, a.y, a.type === 'H' && jump ? 0 : 1);
-      if (solid && !(a.type === 'H' && jump) && !a.inside) {
+      if (solid && !(a.type === 'H' && jump) && !a.inside && !inDanger(this, a.px, a.py)) {     // (0.62.8: nobody is held at a wall with a blast coming: he runs straight out)
         const own = a.post || (a.type === 'S' && a.sq >= 0 && this.seaf.squads[a.sq] && this.seaf.squads[a.sq].order.post) || null;
         if (keepOut(this, a, a.px, a.py, R, own) && tr.blocked(R.x, R.y)) { R.x = a.px; R.y = a.py; }
       }
