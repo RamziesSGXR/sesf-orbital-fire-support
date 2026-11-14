@@ -4,6 +4,7 @@ import { stepSpawners, checkSeen, stepDefences } from './spawners.js';
 import { alertSpike } from './alert.js';
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
+import { solidAt } from './solids.js';
 import { SUBTYPES, COMMS, attackProfile } from '../data/data.js';
 import { alertGroup } from './enemies.js';
 import { damageArea } from './combat.js';
@@ -58,10 +59,20 @@ export function spawnGroup(m, x, y, state = 'patrol', opts = {}) {
     // (0.62.2) spread evenly over the spawn disc (a turn of the golden angle each, a little jitter on top) instead of dropped at
     // random in it, where a pack of ten could start as a heap and take seconds to untangle
     const [jx, jy] = rng.inDisc(1.2);
-    const sr = opts.emerge ? Math.min(4, fac.spread) : fac.spread, aa = i * 2.3999632 + g.id;
+    const sr = n === 1 ? 0 : opts.emerge ? Math.min(4, fac.spread) : fac.spread, aa = i * 2.3999632 + g.id;     // (0.62.8: one alone starts where it was asked for, give or take the jitter)
     const ox = Math.cos(aa) * sr * Math.sqrt((i + 0.6) / Math.max(1, n)) + jx, oy = Math.sin(aa) * sr * Math.sqrt((i + 0.6) / Math.max(1, n)) + jy;
     let px = aoX(m, x + ox, 3), py = aoY(m, y + oy, 3);
     if (m.terrain.blocked(px, py)) { const l = m.terrain.nearestLand(px, py); px = l.x; py = l.y; }   // never in deep water
+    // (0.62.8) nor on top of a building: one that would start inside something solid (its own spawner, most of all) comes out
+    // at its edge instead, on the side it was already nearest, so a pack steps out of the doors and not up through the roof
+    { const so = solidAt(m, px, py, st.r * 0.5 + 0.6);
+      if (so) {
+        let dx = px - so.x, dy = py - so.y, dl = Math.hypot(dx, dy);
+        if (dl < 0.3) { dx = Math.cos(aa); dy = Math.sin(aa); dl = 1; }
+        const qx = so.x + (dx / dl) * (so.r + st.r * 0.5 + 0.8), qy = so.y + (dy / dl) * (so.r + st.r * 0.5 + 0.8);
+        // (not out into the squad's sight when where it was is hidden: then it starts inside and walks out, as before)
+        if (!m.terrain.blocked(qx, qy) && !solidAt(m, qx, qy) && (m.visLevel(qx, qy) === 0 || m.visLevel(px, py) > 0)) { px = aoX(m, qx, 3); py = aoY(m, qy, 3); }
+      } }
     const e = {
       id: m.nextId++, kind, hp: Math.round(st.hp * m.hpMul), maxHp: Math.round(st.hp * m.hpMul), x: px, y: py,
       ox, oy, vx: 0, vy: 0, g, lasedUntil: 0, lasedBy: null, vis: 0, atk: rng.next(), tgt: null, dead: false,

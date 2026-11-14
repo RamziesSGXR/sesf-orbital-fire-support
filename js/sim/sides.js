@@ -29,14 +29,22 @@ import { RNG } from '../util/rng.js';
 
 const SD = () => C.sides;
 
+// Does a kind of side mission go with this mission's objectives?
+export function sideFits(m, kind) {
+  const not = (SD().notWith || {})[kind];
+  return !not || !(m.objectives || []).some((o) => not.includes(o.type));
+}
 // Which side missions this mission has: more on the bigger maps.
 function kindsFor(m) {
   const n = Math.min(SD().max, SD().min + Math.floor((m.ao.size - C.ao.start) / SD().perAoM));
-  const pool = ['radio', 'propaganda', 'rescue'], out = [];
+  // (0.62.8) One of each at most: a big map used to get the same side mission twice (two radio towers, two broadcast towers).
+  // And none that repeats the mission's own objective (sides.notWith): no SEAF to rescue beside a VIP or an evacuation, no
+  // howitzer to take beside a defence gun, no jammer under the shield dome.
+  const pool = ['radio', 'propaganda', 'rescue'].filter((k) => sideFits(m, k)), out = [];
   const order = m.rng.shuffle(pool.slice());
-  for (let i = 0; i < n; i++) out.push(order[i % order.length]);
+  for (let i = 0; i < Math.min(n, order.length); i++) out.push(order[i]);
   // some maps have an abandoned SEAF howitzer the squad can take over (from the second mission of a session)
-  if ((m.missionN || 1) >= C.arty.fromMission && m.rng.next() < C.arty.chance) out.push('arty');
+  if ((m.missionN || 1) >= C.arty.fromMission && m.rng.next() < C.arty.chance && sideFits(m, 'arty')) out.push('arty');
   return out;
 }
 
@@ -76,7 +84,7 @@ export function setupSides(m) {
   // before there were any
   const jr = new RNG((m.seed ^ 0x3c6ef372) >>> 0);
   const jamRoll = jr.next();
-  if (!m.noHbSides && (m.forceJam || ((m.missionN || 1) >= S.jammer.fromMission && jamRoll < S.jammer.chance))) {     // (0.38: a chapter can ask for one, or for none)
+  if (!m.noHbSides && (m.forceJam || ((m.missionN || 1) >= S.jammer.fromMission && jamRoll < S.jammer.chance && sideFits(m, 'jammer')))) {     // (0.38: a chapter can ask for one, or for none)
     const r0 = m.rng; m.rng = jr;
     try { const p = findSpot(m, avoid(), 70, way); addJammer(m, p.x, p.y); } finally { m.rng = r0; }
   }

@@ -25,6 +25,18 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Buildings you walk round, one Pelican at a time, side missions redrawn, feedback from inside the game (0.62.8).**
+- **Nothing walks on buildings.** Every building is now solid to what is drawn of it (bases, spawners, cannons, turrets, the enemy's targets, side missions, the oil pump, the launch silo, the crashed shuttle, the Helldivers' sentries), and a body keeps its own width off the wall. Enemies come out at a spawner's edge, not up through its roof, and a place in a formation that falls on a building is swapped for the spot at its edge.
+- **Troops that stopped for no reason.** A squad ordered to move while its Pelican was still dropping troops kept the landing's "hold here" order and stopped; and a trooper whose place in the formation fell in a river waited at the near bank for good. Both fixed.
+- **One Pelican at a time.** Five turret nests ordered at once used to bring five Pelicans down together. Now one cargo Pelican makes the trips: in, crate down, away, next. SEAF pickups work the same way, a load at a time.
+- **The Helldivers' Pelican** is the same size as the SEAF's (it was more than twice as big).
+- **Side missions cleaned up.** A map never has the same side mission twice, and none that repeats the mission's own objective: no SEAF to rescue beside a VIP or an evacuation, no howitzer beside a defence gun, no jammer under the shield dome. The bugs had four things named "spore": the jammer is now the **Shrieker Nest**, their broadcast tower the **Pheromone Spire**, their relay the **Brood Spire**. The bots' **Artillery Battery** is a **Mortar Pit**, and their mast a **Broadcast Tower**.
+- **Side missions and targets redrawn.** Every relay, cache, battery, broadcast tower, jammer, the radio tower, the SEAF redoubt and the abandoned howitzer is a solid building with its own outline, standing up like the bases do. They were circles with lines in them.
+- **Feedback from inside the game.** FEEDBACK opens a short form: type, press SEND, and it goes to the SESF Helldivers Discord with your callsign, the version, your device and (if the box is ticked) the debug report. One a minute, six a day from a device.
+- **No music for now.** The score is switched off while the game's sound is rebuilt round what happens on the field.
+- **The next-mission cards** say how much harder the mission is than your last one ("+2 HARDER THAN YOUR LAST MISSION") instead of a level number and name.
+- Balance: bots and squids hit a little softer (they stand wider since 0.62.5, so more of them have a clear shot).
+
 **A plain magazine for the ship gun (0.62.7).**
 - **No more slow fire.** The gun fires at its normal rate through whatever is in the magazine. Empty, it stops and reloads, even with the trigger held.
 - **No minimum to wait for.** Press again and it fires what has reloaded so far, however little. It used to stay locked until 45 rounds were back.

@@ -40,7 +40,14 @@ function walk(m, a, tx, ty, speed, dt) {
   if (m.terrain && m.terrain.blocked(tx, ty)) {          // a spot in the water: the nearest dry ground to it instead
     const c = a.nlc;
     if (c && Math.abs(c.tx - tx) + Math.abs(c.ty - ty) < 3) { tx = c.x; ty = c.y; }
-    else { const l = shoreToward(m.terrain, tx, ty, a.x, a.y); a.nlc = { tx, ty, x: l.x, y: l.y }; tx = l.x; ty = l.y; }
+    else {
+      // (0.62.8) the dry ground on the side of where the squad was SENT, when the spot is a place in its formation there: by
+      // the side of the trooper himself, a place that fell in a river on the far bank stood in as the near bank, and he
+      // stopped at the water for good while the rest of the squad crossed ("I order them to move and they just stop")
+      const q = a.sq >= 0 && m.seaf.squads[a.sq], o = q && q.order;
+      const an = o && (o.x || o.y) && (o.x - tx) ** 2 + (o.y - ty) ** 2 < 45 * 45 && !m.terrain.blocked(o.x, o.y) ? o : a;
+      const l = shoreToward(m.terrain, tx, ty, an.x, an.y); a.nlc = { tx, ty, x: l.x, y: l.y }; tx = l.x; ty = l.y;
+    }
   }
   const w = steer(m.terrain, a, a.x, a.y, tx, ty, m.t);     // round the water, if there is any in the way
   tx = w.x; ty = w.y;
@@ -298,10 +305,23 @@ function keepLeaders(m, by) {
 }
 
 // A cargo pelican: brings a crate for SEAF to deploy (a wall, an MG nest, a drop beacon, a howitzer), drops it and leaves.
+// (0.62.8) One cargo Pelican, and it makes the trips one after another: in, lower the crate, away, and the next crate is on
+// its way as the last one's Pelican climbs out. Five nests ordered at once used to bring five Pelicans down together.
 export function callCargo(m, x, y, crate) {
+  (m.cargoQ || (m.cargoQ = [])).push({ x, y, crate });
+  cargoNext(m);
+}
+function cargoNext(m) {
+  const Q = m.cargoQ;
+  if (!Q || !Q.length) return;
+  for (const p of m.pelicans) if (p.cargo && p.state !== 'out') return;     // one is still coming in or lowering its crate
+  const { x, y, crate } = Q.shift();
+  if (crate.used || !m.crates.includes(crate)) return cargoNext(m);     // (called off, or dealt with, while it waited)
   m.pelicans.push(newPelican(m, x, y, { cargo: crate }));
   m.emit('cargo_call', { x, y, what: crate.what });
 }
+// how many crates are still waiting for the cargo Pelican (for the build bar and the tests)
+export const cargoWaiting = (m) => (m.cargoQ ? m.cargoQ.length : 0);
 // (0.39) A pelican on its way: it comes down from orbit to (x, y) in CONFIG.pelican.inSec, from behind the squad (or from `from`
 // radians), works there for workSec and climbs away (updatePelicans).
 export function newPelican(m, x, y, o = {}) {
@@ -334,8 +354,9 @@ export function callPelican(m, x, y, n, squad, hold = false) {
   const back = m.seaf.reserve.splice(0, n).map((r) => r.role || 'rifle');
   const roles = back.length ? [...back, ...rollRoles(m, n - back.length, st).filter((r, k) => k > 0 || !back.includes('leader'))].slice(0, n) : rollRoles(m, n, st);
   while (roles.length < n) roles.push('rifle');
-  m.pelicans.push(newPelican(m, x, y, { roles, squad, hold, back: back.length }));
-  if (hold && m.seaf.squads[squad]) setSquadOrder(m, m.seaf.squads[squad], 'protect', x, y);      // (the first ones down hold too)
+  const pel = newPelican(m, x, y, { roles, squad, hold, back: back.length });
+  m.pelicans.push(pel);
+  if (hold && m.seaf.squads[squad]) { setSquadOrder(m, m.seaf.squads[squad], 'protect', x, y); pel.holdOrder = m.seaf.squads[squad].order; }      // (the first ones down hold too)
 }
 
 export function pelicanGun(m, p, dt) {
@@ -350,6 +371,7 @@ export function pelicanGun(m, p, dt) {
 
 export function updatePelicans(m, dt) {
   const P = C.pelican, ps = m.pelicans;
+  cargoNext(m);
   for (let i = ps.length - 1; i >= 0; i--) {
     const p = ps[i];
     if (p.state === 'in') {
@@ -391,7 +413,9 @@ export function updatePelicans(m, dt) {
         const extra = [c('spec') ? tr('n.pSpec') : '', c('medic') ? tr('n.pMedic') : ''].filter(Boolean).join(' ');
         m.notice(tr('n.seafDown', { n, extra: extra ? ' ' + extra : '', sq: p.squad + 1 }), 'info');
         m.radio(COMMS.seafLanded, 'land', 0);
-        if (p.hold && m.seaf.squads[p.squad]) dropHold(m, m.seaf.squads[p.squad], p.tx, p.ty);
+        // (0.62.8) only if the player has not ordered the squad somewhere since the Pelican was called: the landing order used
+        // to replace his, so a squad told to move while its last troopers were still coming down set off and then stopped
+        if (p.hold && m.seaf.squads[p.squad] && (!p.holdOrder || m.seaf.squads[p.squad].order === p.holdOrder)) dropHold(m, m.seaf.squads[p.squad], p.tx, p.ty);
         const s = m.seafAlive.filter((a) => a.sq === p.squad).pop();
         if (s) bark(m, s, 'land', '');
       }
@@ -451,19 +475,18 @@ export function updatePickups(m) {
     if (!lz.waiting) lz.firstIn = null;
     if (lz.pel || !lz.waiting || m.over) continue;
     if (lz.owed > 0 && t - lz.firstIn < LZ_WAIT) continue;      // (the rest are on their way)
-    // (0.47) As many pelicans as the crowd needs come at once, a load each (Pelican Bay), while the fleet has them; the last one
-    // sent takes whoever is left (so with one pelican it is as before: it takes everyone).
-    const load = Math.max(1, seafStats(m.kit).drop), need = Math.max(1, Math.ceil(lz.waiting / load));
+    // (0.62.8) One Pelican at a time, a load each: it comes in, takes its load, climbs away, and the next is sent for whoever
+    // is still waiting (0.47 sent as many as the crowd needed all at once). When the fleet has no second Pelican ready to
+    // follow, the one that comes takes everyone, so nobody is stranded for want of a ship.
+    const load = Math.max(1, seafStats(m.kit).drop);
     lz.pels = [];
-    for (let k = 0; k < need; k++) {
-      if (takePelican(m) < 0) break;
-      const ang = (k / need) * Math.PI * 2, off = k ? 9 : 0;
-      const p = newPelican(m, lz.x + Math.cos(ang) * off, lz.y + Math.sin(ang) * off, { pick: lz, aboard: 0, left: lz.waiting, cap: load });
+    if (takePelican(m) >= 0) {
+      const more = pelicansReady(m) > 0 && lz.waiting > load;
+      const p = newPelican(m, lz.x, lz.y, { pick: lz, aboard: 0, left: lz.waiting, cap: more ? load : Infinity });
       m.pelicans.push(p); lz.pels.push(p);
     }
     if (!lz.pels.length) { lz.noPel = true; continue; }
     lz.noPel = false;
-    lz.pels[lz.pels.length - 1].cap = Infinity;
     lz.pel = lz.pels[0];
     m.stats.pickups = (m.stats.pickups || 0) + lz.pels.length;
     m.radio(COMMS.pickupIn, 'pickupin', 0);

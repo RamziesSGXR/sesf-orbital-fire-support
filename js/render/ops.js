@@ -7,6 +7,9 @@ import { postArt, trenchArt, wireArt } from './posts.js';
 import { crateSec, foxholeSlots, wireEnds } from '../sim/posts.js';
 import { t as tr } from '../i18n.js';
 import { drawHellbomb } from './sites.js';
+import { raise } from './relief.js';
+import { jammerBody, radioBody, redoubtBody, howitzerBody } from './sideart.js';
+const RAISE_S = { wall: 0.56, live: true };     // (0.62.8) the side objectives stand up like every other building
 
 const TAU = Math.PI * 2;
 function ring(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); }
@@ -29,18 +32,12 @@ export function drawAoEdge(ctx, m, px, x0, y0, x1, y1) {
   ring(ctx, a.cx, a.cy, R); ctx.stroke(); ctx.setLineDash([]);
 }
 
-// A radio tower: a lattice mast; once the squad is powering it, a ring fills; online, it pulses blue.
+// A radio tower (sideart.js radioBody), raised; online, it pulses blue.
 function radioArt(ctx, s, now, px, col) {
-  const r = Math.max(s.r, px(8));
-  ctx.save(); ctx.translate(s.x, s.y);
-  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ring(ctx, 0, 0, r * 1.2); ctx.fill();
-  ctx.strokeStyle = 'rgba(205,215,210,0.95)'; ctx.lineWidth = px(1.4);
-  ctx.beginPath(); for (let i = 0; i < 3; i++) { const a = -Math.PI / 2 + i * 2.094; ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.stroke();
-  ctx.beginPath(); for (let i = 0; i <= 3; i++) { const a = -Math.PI / 2 + i * 2.094; ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r * 0.6, Math.sin(a) * r * 0.6); } ctx.stroke();
-  const on = s.done;
-  ctx.fillStyle = on ? '#7fd8ff' : Math.floor(now * 1.5 + s.id) % 2 ? col : 'rgba(255,255,255,0.25)'; ring(ctx, 0, 0, Math.max(px(2), r * 0.18)); ctx.fill();
-  if (on) { const p = (now * 0.6) % 1; ctx.strokeStyle = `rgba(127,216,255,${0.6 * (1 - p)})`; ctx.lineWidth = px(1.5); ring(ctx, 0, 0, r * (1.2 + p * 2.5)); ctx.stroke(); }
-  ctx.restore();
+  const r = Math.max(s.r, px(8)) * 1.1;
+  raise(ctx, s, s.x, s.y, r * 1.7, 3.2, (c) => { c.save(); c.translate(s.x, s.y); radioBody(c, r, s.id || 1, !!s.done, now, px); c.restore(); }, { ...RAISE_S, sig: s.done ? 1 : 0 });
+  if (s.done) { const p = (now * 0.6) % 1; ctx.strokeStyle = `rgba(127,216,255,${0.6 * (1 - p)})`; ctx.lineWidth = px(1.5); ring(ctx, s.x, s.y, r * (1.2 + p * 2.5)); ctx.stroke(); }
+  void col;
 }
 
 // (0.37) A jammer site, by the enemy: a spore spewer (a swollen pod with spore vents), a stratagem jammer (a mast with a dish) or
@@ -53,25 +50,9 @@ function jammerArt(ctx, s, now, px) {
   ctx.strokeStyle = rgba(col, 0.22 + 0.25 * p); ctx.lineWidth = px(2); ctx.setLineDash([px(10), px(7)]);
   ctx.lineDashOffset = -now * px(6); ring(ctx, s.x, s.y, s.R); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
   ctx.fillStyle = rgba(col, 0.05 + 0.04 * p); ring(ctx, s.x, s.y, s.R); ctx.fill();
-  ctx.save(); ctx.translate(s.x, s.y);
-  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ring(ctx, 0, 0, r * 1.25); ctx.fill();
-  if (s.fac === 'bugs') {
-    ctx.fillStyle = '#6b4a2a'; ring(ctx, 0, 0, r * 0.95); ctx.fill();
-    ctx.fillStyle = col;
-    for (let k = 0; k < 5; k++) { const a = s.face + k * 1.2566; ring(ctx, Math.cos(a) * r * 0.55, Math.sin(a) * r * 0.55, r * (0.16 + 0.06 * p)); ctx.fill(); }
-    ctx.fillStyle = rgba(col, 0.35 * p); ring(ctx, 0, 0, r * (1.4 + p * 0.6)); ctx.fill();
-  } else if (s.fac === 'bots') {
-    ctx.strokeStyle = '#9aa3a8'; ctx.lineWidth = px(1.6);
-    ctx.beginPath(); for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + Math.PI / 4; ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.stroke();
-    ctx.rotate(now * 1.5);
-    ctx.fillStyle = '#5c6468'; ctx.beginPath(); ctx.ellipse(0, 0, r * 0.75, r * 0.3, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = Math.floor(now * 3) % 2 ? col : 'rgba(255,255,255,0.3)'; ring(ctx, r * 0.6, 0, r * 0.14); ctx.fill();
-  } else {
-    ctx.strokeStyle = col; ctx.lineWidth = px(1.8); ring(ctx, 0, 0, r * (0.8 + 0.15 * p)); ctx.stroke();
-    ctx.fillStyle = '#2a2340'; ring(ctx, 0, 0, r * 0.5); ctx.fill();
-    ctx.fillStyle = rgba(col, 0.6 + 0.4 * p); ring(ctx, 0, 0, r * 0.22); ctx.fill();
-  }
-  ctx.restore();
+  // (0.62.8) the thing itself: a shrieker nest, a stratagem jammer or a cognitive disruptor (sideart.js), raised
+  raise(ctx, s, s.x, s.y, r * 1.9, 2.6, (c) => { c.save(); c.translate(s.x, s.y); jammerBody(c, s.fac, col, r, s.id || 1, s.face || 0, now, px); c.restore(); }, RAISE_S);
+  void p;
 }
 
 // (0.40) A spore tower's cloud: a slow, drifting haze of spores out to its reach, thicker toward the stalk, with its edge marked.
@@ -131,27 +112,18 @@ export function drawSides(ctx, m, now, px, labels, scale) {
     if (s.hidden) continue;           // hidden SEAF: nothing shows until they are found
     if (s.done || s.failed) { if (s.failed) labels.push({ x: s.x, y: s.y, dy: -14, text: OPS.rescueLost, col: 'rgba(255,120,100,0.6)', pri: 0 }); continue; }
     const R = Math.max(s.r, px(10)), hot = s.state === 'siege';
-    ctx.strokeStyle = 'rgba(190,170,120,0.9)'; ctx.lineWidth = Math.max(px(3), 1.6);
-    ctx.setLineDash([px(4), px(2)]); ring(ctx, s.x, s.y, R); ctx.stroke(); ctx.setLineDash([]);
+    // (0.62.8) a sandbag redoubt with their flag in it (sideart.js), raised: it was a dashed ring
+    raise(ctx, s, s.x, s.y, R * 1.25, 0.9, (c) => { c.save(); c.translate(s.x, s.y); redoubtBody(c, R, s.id || 1, hot, now, px); c.restore(); }, { ...RAISE_S, sig: hot ? 1 : 0 });
     if (hot) { const p = 0.5 + 0.5 * Math.sin(now * 5); ctx.strokeStyle = `rgba(255,80,60,${0.35 + 0.4 * p})`; ctx.lineWidth = px(2); ring(ctx, s.x, s.y, R * 1.6); ctx.stroke(); }
     labels.push({ x: s.x, y: s.y, dy: -R * scale - 8, text: `${hot ? OPS.rescueHot : OPS.rescue} ${alive}`, col: hot ? '#ff8a6a' : '#9dd0ff', pri: s === task || hot ? 2 : 1 });
   }
 }
 
-// A howitzer from above: a dug-in pit, the carriage and a long barrel that points where it last fired. live = it can fire.
-function howitzerArt(ctx, x, y, face, now, px, live, firedAt) {
-  const s = Math.max(px(9), 6);
-  ctx.save(); ctx.translate(x, y);
-  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ring(ctx, 0, 0, s * 1.5); ctx.fill();
-  ctx.strokeStyle = live ? 'rgba(111,192,255,0.9)' : 'rgba(150,160,160,0.6)'; ctx.lineWidth = px(1.4);
-  ctx.setLineDash([px(3), px(2)]); ring(ctx, 0, 0, s * 1.5); ctx.stroke(); ctx.setLineDash([]);
-  ctx.rotate(face || 0);
-  ctx.fillStyle = live ? 'rgba(200,225,240,0.95)' : 'rgba(150,160,160,0.75)';
-  ctx.fillRect(-s * 0.6, -s * 0.45, s * 1.0, s * 0.9);                  // the carriage
-  const kick = firedAt !== undefined && now >= 0 ? 0 : 0;
-  ctx.fillRect(s * 0.3 - kick, -s * 0.12, s * 1.7, s * 0.24);           // the barrel
-  ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = px(1); ctx.strokeRect(-s * 0.6, -s * 0.45, s * 1.0, s * 0.9);
-  ctx.restore();
+// A howitzer in its sandbag pit (sideart.js howitzerBody), raised. live = it can fire. who: the thing it is drawn for.
+function howitzerArt(ctx, x, y, face, now, px, live, who) {
+  const r = Math.max(px(9), 6);
+  const draw = (c) => { c.save(); c.translate(x, y); howitzerBody(c, r, face || 0, live, now, px); c.restore(); };
+  if (who) raise(ctx, who, x, y, r * 1.6, 1.1, draw, { ...RAISE_S, sig: Math.round((face || 0) * 12) + (live ? 100 : 0) }); else draw(ctx);
 }
 
 // Howitzers the gunner can fire (built by SEAF or taken on the map), and the abandoned ones still waiting for the squad.
@@ -159,7 +131,7 @@ function howitzerArt(ctx, x, y, face, now, px, live, firedAt) {
 export function drawArty(ctx, m, now, px, labels, scale) {
   for (const s of m.sides || []) {
     if (s.kind !== 'arty' || s.done || s.failed) continue;
-    howitzerArt(ctx, s.x, s.y, s.face, now, px, false);
+    howitzerArt(ctx, s.x, s.y, s.face, now, px, false, s);
     if (s.state === 'active') {
       const f = s.holdT / C.sides.arty.holdSec, R = Math.max(C.sides.arty.holdR, px(14));
       ctx.strokeStyle = 'rgba(127,216,255,0.35)'; ctx.lineWidth = px(3); ring(ctx, s.x, s.y, R); ctx.stroke();

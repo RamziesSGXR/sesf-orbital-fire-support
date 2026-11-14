@@ -15,7 +15,7 @@ import * as S from './session.js';
 import { startTitleBg } from './render/titlebg.js';
 import { STORY, CAST, chapterFor } from './data/story.js';
 import { castLines, CastRadio, RadioLog, aarMission, aarSession, aarStand } from './campaign.js';
-import { feedEnd, feedOn } from './feed.js';
+import { feedEnd, feedOn, feedFeedback, feedbackCan, FB_MAX } from './feed.js';
 import { rollPerks, addPerk, perkRoom } from './data/perks.js';
 import * as UI from './ui.js';
 import { sunAt, todName, todClock } from './render/sky.js';
@@ -23,7 +23,7 @@ import { acceptSupply, declineSupply, fillSupply, launchSupply, supplyFilling } 
 import { hbFilling, tapHellbomb } from './sim/ops.js';
 const handsBusy = (m) => !!m && (supplyFilling(m) || hbFilling(m));     // the supply loader or the Hellbomb is open
 import { t, tEn, setLang, getLang, applyDom, startLang } from './i18n.js';
-import { clampLevel, LEVELS, levelName, TOP } from './difficulty.js';
+import { clampLevel, LEVELS, levelName, levelAt, TOP } from './difficulty.js';
 import { answerTime } from './sim/planner.js';
 import { spawnGroup } from './sim/director.js';
 import { POSTS, makePost, foxholeSlots, turns, wirePlan, chains, chainPlan, planChain } from './sim/posts.js';
@@ -36,6 +36,7 @@ import { Cinema } from './render/cinema.js';
 
 const $ = (id) => document.getElementById(id);
 const qs = new URLSearchParams(location.search);
+if (qs.has('music')) C.musicOn = true;     // (0.62.8) the score is off for now (config.musicOn); ?music brings it back, for its tests and for a listen
 const DEBUG = qs.has('debug');
 const FAST = Math.max(1, Math.min(20, Number(qs.get('fast')) || 1));
 const BOT = qs.has('bot');
@@ -113,7 +114,7 @@ function applySettings() {
   renderer.setSettings(settings);
   renderer.quality = settings.quality === 'low' ? 'low' : 'high'; renderer.qset = settings.quality;     // (0.42: AUTO caps a phone's resolution; HIGH does not)
   audio.set(settings.volume, settings.muted, settings.music, settings.sfx);
-  music.setStyle(settings.musicStyle);
+  music.setStyle(C.musicOn ? settings.musicStyle : 'off');     // (0.62.8) no score for now
   document.body.classList.toggle('lefty', !!settings.lefty);
   if (settings.cards !== 'off') settings.cards = 'side';     // (0.17.2: tips over the button, on or off)
   document.body.classList.toggle('cards-off', settings.cards === 'off');
@@ -972,6 +973,8 @@ function goNext() {
   const ch = p.story ? chapterFor(session, done + 1) : null;
   UI.renderNext({
     step, done, kit: session.kit, perks: p.perks || [], offers: p.offers || [], level: S.levelNow(session), story: !!ch,
+    // (0.62.8) the level of the mission just flown, its bump included: the cards say how much harder the next one is than that
+    prev: (() => { const M = session.missions || [], l = M[M.length - 1]; return l ? levelAt(session.difficulty ?? LEVELS, M.length) + (l.bump || 0) : null; })(),
     storyFac: ch ? ch.play.faction : null, storyBiome: ch ? ch.play.biome : null, storyObj: ch ? tEn(`cp.${STORY.id}.c${ch.n}`) : '',
     onPick: (i) => {
       audio.ready();
@@ -1444,6 +1447,7 @@ function togglePause(force) {
   if (UI.isOn('s-map')) { closeMap(); return; }
   if (UI.isOn('s-info')) { closeInfo(); return; }
   if (UI.isOn('s-armory')) { closeArmory(); return; }
+  if (UI.isOn('s-feedback')) { closeFeedback(); return; }
   if (UI.isOn('s-credits')) { closeCredits(); return; }
   if (UI.isOn('s-radio')) { closeRadioLog(); return; }
   if (UI.isOn('s-names')) { closeNames(false); return; }
@@ -1756,6 +1760,38 @@ function closeCredits() {
 }
 hud.onInfo = () => openInfo();
 for (const a of document.querySelectorAll('a.fb')) a.href = C.share.feedbackUrl;
+// (0.62.8) FEEDBACK opens a form in the game: what is typed goes to the SESF Discord through the feed (feed.js feedFeedback),
+// with the debug report if the box is ticked. The links keep the Discord's address, for a middle click and for copies of the
+// game that cannot send; the form has OPEN THE DISCORD too.
+let fbUnder = null;
+function fbDevice() {
+  const ua = navigator.userAgent, touch = document.body.classList.contains('touch');
+  const br = /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'browser';
+  const os = /Android/.test(ua) ? 'Android' : /iPhone|iPad|iPod/.test(ua) ? 'iOS' : /Windows/.test(ua) ? 'Windows' : /Mac OS X/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : '';
+  return `${touch ? (Math.min(innerWidth, innerHeight) < 600 ? 'phone' : 'tablet') : 'computer'} (${[os, br].filter(Boolean).join(' ')}, ${innerWidth}x${innerHeight})`;
+}
+function fbCount() { $('fb-count').textContent = t('fb.count', { n: $('fb-text').value.length, max: FB_MAX }); }
+function openFeedback() {
+  fbUnder = ['s-pause', 's-credits'].find((id) => UI.isOn(id)) || null;
+  if (fbUnder) UI.overlay(fbUnder, false);
+  const can = feedbackCan() === 'ok';
+  $('fb-msg').className = 'fine fb-msg'; $('fb-msg').textContent = can ? '' : t('fb.offline');
+  $('fb-send').disabled = !can; $('fb-discord').href = C.share.feedbackUrl;
+  fbCount(); UI.overlay('s-feedback', true);
+  if (!document.body.classList.contains('touch')) setTimeout(() => $('fb-text').focus(), 30);
+}
+function closeFeedback() { UI.overlay('s-feedback', false); if (fbUnder) UI.overlay(fbUnder, true); fbUnder = null; }
+for (const a of document.querySelectorAll('a.fb')) a.addEventListener('click', (e) => { if (e.button || e.ctrlKey || e.metaKey || e.shiftKey) return; e.preventDefault(); openFeedback(); });
+$('fb-text').addEventListener('input', fbCount);
+for (const k of ['keydown', 'keyup', 'keypress']) $('fb-text').addEventListener(k, (e) => { e.stopPropagation(); if (k === 'keydown' && e.key === 'Escape') closeFeedback(); });     // typing is not the game's keys; Escape shuts the form
+$('fb-x').onclick = closeFeedback; $('fb-cancel').onclick = closeFeedback;
+$('fb-send').onclick = () => {
+  const m = mission, where = state === 'play' && m ? `mission ${m.missionN}, ${m.faction.id}, level ${m.difficulty}` : state;
+  const r = feedFeedback($('fb-text').value, { callsign: (session && session.callsign) || S.load('callsign', ''), version: C.share.version, device: fbDevice(), where,
+    report: $('fb-report').checked ? debugReport() : '' });
+  const el = $('fb-msg'); el.className = 'fine fb-msg' + (r === 'sent' ? ' ok' : ''); el.textContent = t('fb.' + r);
+  if (r === 'sent') { $('fb-text').value = ''; fbCount(); audio.click(); setTimeout(() => { if (UI.isOn('s-feedback')) closeFeedback(); }, 1400); }
+};
 for (const a of document.querySelectorAll('a.sp')) { a.href = C.share.sponsorUrl; a.classList.toggle('hidden', !C.share.sponsorUrl); }     // (0.37) GitHub Sponsors
 $('lnk-proj').href = C.share.projectUrl;
 $('credits-ver').textContent = t('credits.ver', { v: C.share.version });

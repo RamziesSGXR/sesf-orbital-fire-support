@@ -54,6 +54,16 @@ kbd {
 }
 .screen.on { display: flex; }
 .screen.overlay { background: rgba(0, 4, 2, 0.78); z-index: 30; }
+/* (0.62.8) the feedback form: above every other overlay, since it opens from them */
+#s-feedback { z-index: 34; }
+.fb-card { width: min(94vw, 560px); }
+#fb-text { width: 100%; box-sizing: border-box; min-height: 110px; max-height: 38vh; resize: vertical; background: rgba(0, 0, 0, 0.45); color: var(--g); border: 1px solid var(--g-dim); padding: 8px; font: inherit; font-size: 16px; line-height: 1.35; }
+#fb-text:focus { outline: none; border-color: var(--g); }
+.fb-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 0 2px; }
+.fb-chk { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--g-dim); cursor: pointer; }
+.fb-chk input { width: 18px; height: 18px; accent-color: var(--g); }
+.fb-msg { min-height: 1.3em; color: var(--amber); }
+.fb-msg.ok { color: var(--g); }
 .card {
   width: min(94vw, 560px); padding: 22px 22px 18px; text-align: center; margin: auto;
   background: var(--panel); border: 1px solid var(--line); border-radius: 10px; backdrop-filter: blur(4px);

@@ -147,10 +147,11 @@ const mk = (seed, fac = 'bots', o = {}) => { const m = new Mission({ seed, facti
   run(m, 12); m.seaf.fleet.fill(0);
   const r = m.callPickup(x, y);
   for (const q of m.seaf.squads) if (q.n) { m.selectSquad(q.i); m.seafOrder('move', x, y); }
-  run(m, 25, (mm) => mm.pelicans.some((p) => p.pick));
-  const n = m.pelicans.filter((p) => p.pick).length, load = seafStats(m.kit).drop;
-  check('a crowd at a pickup point gets a pelican per load, all at once', r.ok && n >= 2 && n === Math.ceil(r.lz.waiting / load), `${r.lz.waiting} waiting, load ${load}, ${n} pelicans`);
-  run(m, 20);
+  // (0.62.8) one Pelican at a time, a load each, one after another (0.47 sent one per load all at once)
+  const load = seafStats(m.kit).drop, waiting0 = m.seafAlive.length;
+  let most = 0; const trips = new Set();
+  run(m, 70, (mm) => { const P = mm.pelicans.filter((p) => p.pick); for (const p of P) trips.add(p); most = Math.max(most, P.filter((p) => p.state !== 'out').length); return mm.seafAlive.length === 0 && !P.length; });
+  check('a crowd at a pickup point gets a pelican per load, one after another', r.ok && most === 1 && trips.size >= 2 && trips.size <= Math.ceil(waiting0 / load) + 1, `${waiting0} troopers, load ${load}, ${trips.size} trips, at most ${most} at once`);
   check('...and they take them all up', m.seafAlive.length <= 1, `${m.seafAlive.length} left`);
 }
 // the extraction pad is never put on an objective (an evacuation bunker had one on top of it)

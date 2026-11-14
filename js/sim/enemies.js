@@ -5,6 +5,7 @@ import { CONFIG as C } from '../config.js';
 import { ALLY } from '../data/data.js';
 import { armorOf, fireShot, hurtTarget, hurtAlly, hurtEnemy, nearestTarget, inZoneKind, pickClear, eBlocker, bandOf, bandAcc, bandDmg, reveal } from './combat.js';
 import { steer } from './terrain.js';
+import { solidAt } from './solids.js';
 import { softNear, baseNear } from './pois.js';
 import { bark } from './chatter.js';
 import { dropNear } from './reinforce.js';
@@ -181,7 +182,7 @@ export const profileOf = (fid, e) => (e.sub ? C.special[fid].atk : e.v && C.vari
 // inside it). A goal on blocked ground (deep water, rock) is moved to the nearest dry ground, so a slot in a formation that falls
 // in the water does not leave its enemy standing at the shore. And anyone who has made no headway for a while takes a short step
 // sideways and plans again, so nothing stays wedged in a corner.
-let NAV = null, NAVT = 0, AOB = null, FB = null;   // FB: the group being moved (its members fall back toward its centre)
+let NAV = null, NAVT = 0, AOB = null, FB = null, MM = null;   // FB: the group being moved (its members fall back toward its centre)
 const WIRES = [];                                  // (0.39) the concertina wire standing this tick (posts.js)
 // (0.39) How fast an enemy can go where it is, in concertina wire (1: it is in none). A light one stops when it first walks into a
 // section, then crawls through; mediums and (0.39.2) heavies wade through slowly; only a super heavy tears the section down as it
@@ -222,6 +223,16 @@ function moveToward(o, tx, ty, speed, dt, size) {
     else {
       const an = FB && o !== FB.mv && !NAV.blocked(FB.cx, FB.cy) ? { x: FB.cx, y: FB.cy } : o;   // a member: the shore on its group's side
       const l = shoreToward(NAV, tx, ty, an.x, an.y); o.nlc = { tx, ty, x: l.x, y: l.y }; tx = l.x; ty = l.y;
+    }
+  }
+  // (0.62.8) a place inside something solid (a formation slot or a guard post that falls on its own base) is swapped for the
+  // spot on that thing's edge nearest the mover. It used to walk at the wall, be held a second and a half, and then be let
+  // through to stand on the roof.
+  if (MM && C.solids.on && !o.air && !o.boss) {
+    const so = solidAt(MM, tx, ty, (o.r || 2) * 0.5);
+    if (so && !(o.kind === 'H' && so.soft)) {
+      let dx = o.x - so.x, dy = o.y - so.y, dl = Math.hypot(dx, dy);
+      if (dl > so.r) { const k = (so.r + (o.r || 2) * 0.5 + 0.4) / dl; tx = so.x + dx * k; ty = so.y + dy * k; }
     }
   }
   const far = Math.hypot(tx - o.x, ty - o.y);
@@ -601,6 +612,10 @@ function arrangeSchool(g, t) {
   for (const q of live) if (!q.tgt) {
     let sx = g.cx + q.ox, sy = g.cy + q.oy;
     if (AOB) { const dx = sx - AOB.cx, dy = sy - AOB.cy, d2 = dx * dx + dy * dy; if (d2 > aR * aR) { const k = aR / Math.sqrt(d2); sx = AOB.cx + dx * k; sy = AOB.cy + dy * k; } }     // (a place past the rim of the map: as near to it as anyone can stand)
+    // (0.62.8) one that is AHEAD of its place (nearer where the school is going than its place is) is not behind: on a hunt the
+    // squids near enough to go for the ring ran on, that read as the school falling behind, and its point stopped to wait
+    const T = g.tp || g.target;
+    if (T && (q.x - T.x) ** 2 + (q.y - T.y) ** 2 < (sx - T.x) ** 2 + (sy - T.y) ** 2) { ln++; continue; }
     lag += Math.hypot(q.x - sx, q.y - sy); ln++;
   }
   g.lag = ln ? lag / ln : 0;
@@ -713,7 +728,10 @@ function ringMove(m, g, e, tgt, dt, size, atk, engaged) {
   const range = standCap(e, profileOf(m.faction.id, e).range, e.tgt || tgt), Rr = range * R.radius, d = Math.hypot(tgt.x - e.x, tgt.y - e.y);
   if (d > R.arm + Rr) {   // still on the way in: move with the school
     if (e.tgt && holdHere(e)) { e.vx = 0; e.vy = 0; return; }
-    schoolTo(m, g, e, dt, size);
+    // (0.62.8) unless the school has stopped because its front is already fighting: the group's point only moves while nobody
+    // is engaged, so the back rows of the arrowhead were left standing at their places a hundred metres off, for good. They
+    // come in to the fight.
+    if (engaged) moveToward(e, tgt.x, tgt.y, e.speed * 1.2, dt, size); else schoolTo(m, g, e, dt, size);
     return;
   }
   // (0.54) a leader holds a little way in from the ring, behind its lights; (0.62.2) on a slot of its own, as the lights are
@@ -729,7 +747,7 @@ function ringMove(m, g, e, tgt, dt, size, atk, engaged) {
 export function updateEnemies(m, dt) {
   const fac = m.faction, rng = m.rng, size = C.world.size, A = C.enemies.alert, t = m.t, T = C.enemies.tactics;
   const sightE = fac.sight * m.biome.ping;
-  NAV = m.terrain; NAVT = m.t; AOB = m.ao;
+  NAV = m.terrain; NAVT = m.t; AOB = m.ao; MM = m;
   WIRES.length = 0; for (const p of m.posts) if (p.what === 'wire' && !p.dead && p.wireHp > 0) WIRES.push(p);
   const atk = C.combat.atk[fac.id], prof = (e) => profileOf(fac.id, e);
   if (fac.id === 'squids') { m.ringT = (m.ringT || 0) - dt; if (m.ringT <= 0) { m.ringT = 0.5; assignRings(m); } }

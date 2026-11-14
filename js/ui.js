@@ -27,7 +27,7 @@ import { CAST, CAST_ORDER } from './data/story.js';
 
 const $ = (id) => document.getElementById(id);
 const SCREENS = ['s-title', 's-campaign', 's-glass', 's-shop', 's-brief', 's-debrief', 's-final', 's-next'];
-const OVERLAYS = ['s-pause', 's-lock', 's-controls', 's-manual', 's-names', 's-settings', 's-notice', 's-info', 's-armory', 's-credits', 's-map', 's-radio'];
+const OVERLAYS = ['s-pause', 's-lock', 's-controls', 's-manual', 's-names', 's-settings', 's-notice', 's-info', 's-armory', 's-credits', 's-map', 's-radio', 's-feedback'];
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // (0.27.3) a label too long for its box in some language: its font steps down until the words fit (never under `min` pixels)
@@ -1749,7 +1749,7 @@ export function renderNext(opts) {
       const b = el('button', 'nx-c nx-offer bump-' + o.bump + (fac ? ' fac-' + fac : ''), `<span class="nx-tag">${esc(t('nx.bump', { n: o.bump }))}</span>`
         + `<b class="nx-n">${esc(fac ? t('fac.' + fac) : '')}${bio ? ` · ${esc(t('biome.' + bio))}` : ''}</b>`
         + `<span class="nx-b">${esc(o.obj ? t('obj.name.' + o.obj) : opts.storyObj || '')}</span>`
-        + `<span class="nx-v">${esc(t('nx.level', { n: lv, name: t(...levelName(lv)) }))}</span><span class="nx-pay">${esc(t('nx.pay', { x: (reward(lv) * (1 + C.offers.payPer * o.bump)).toFixed(2) }))}</span>`);
+        + `<span class="nx-v">${esc(opts.prev == null ? t('nx.level', { n: lv, name: t(...levelName(lv)) }) : lv > opts.prev ? t('nx.harder', { n: lv - opts.prev }) : lv < opts.prev ? t('nx.easier', { n: opts.prev - lv }) : t('nx.same'))}</span><span class="nx-pay">${esc(t('nx.pay', { x: (reward(lv) * (1 + C.offers.payPer * o.bump)).toFixed(2) }))}</span>`);
       b.type = 'button'; b.dataset.i = String(i); b.onclick = () => opts.onPick(i);
       box.appendChild(b);
     });
@@ -2234,8 +2234,8 @@ export function buildSettings(settings, onChange) {
   row(t('set.feed'), t('set.feedHint'), toggle('feed'));     // (0.43)
   sec('set.sec.audio');
   row(t('set.volume'), t('set.volumeHint'), range('volume', 0, 1, 0.05));
-  row(t('set.music'), t('set.musicHint'), range('music', 0, 1, 0.05));
-  row(t('set.style'), t('set.styleHint'), select('musicStyle', [['dynamic', t('set.st.dynamic')], ['ambient', t('set.st.ambient')], ['off', t('set.st.off')]]));
+  if (C.musicOn) row(t('set.music'), t('set.musicHint'), range('music', 0, 1, 0.05));     // (0.62.8) no score for now: its two settings go with it
+  if (C.musicOn) row(t('set.style'), t('set.styleHint'), select('musicStyle', [['dynamic', t('set.st.dynamic')], ['ambient', t('set.st.ambient')], ['off', t('set.st.off')]]));
   row(t('set.sfx'), t('set.sfxHint'), range('sfx', 0, 1, 0.05));
   row(t('set.mute'), t('set.muteHint'), toggle('muted'));
   sec('set.sec.display');

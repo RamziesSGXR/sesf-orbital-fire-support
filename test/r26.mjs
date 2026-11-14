@@ -73,7 +73,7 @@ const quiet = (faction = 'bots', seed = 61) => { const m = new Mission({ seed, f
   const m = new Mission({ seed: 62, faction: 'bugs', biome: 'grass', difficulty: 2, events: false }); m.deployNow(); run(m, 10);
   const a0 = m.hdAlive[0];
   const rf = m.addAlly('S', a0.x - 20, a0.y - 30, { role: 'rifle' }), sp = m.addAlly('S', a0.x - 24, a0.y - 30, { role: 'spec' }); rf.sq = sp.sq = 5; m._refreshAlive();
-  const g = spawnGroup(m, rf.x, rf.y - 24, 'hunt', { kinds: ['L', 'L', 'L', 'L', 'M', 'M'] });
+  const g = spawnGroup(m, rf.x, rf.y - 40, 'hunt', { kinds: ['L', 'L', 'L', 'L', 'M', 'M'] });     // (0.62.8: from 40 m, was 24: the first throw waits 2 to 5 s, and from 24 m the bugs were on him before it)
   const n0 = rf.gren; let braced = false;
   const shots = []; const e0 = m.emit.bind(m); m.emit = (t, e) => { if (t === 'tracer' && e.s === 'a' && (e.snd === 'grenade' || e.snd === 'mg' || e.snd === 'rocket')) shots.push(e.snd); return e0(t, e); };
   run(m, 12, () => { if (m.t < (sp.braceUntil || 0)) braced = true; });
@@ -145,7 +145,7 @@ check('in the tutorial, ranks come with kills', tierFor(0, true) === 0 && tierFo
   for (const a of m.hdAlive) { a.x = o.x + (a.id % 3); a.y = o.y; }
   m.squad.ax = o.x; m.squad.ay = o.y;
   const g = spawnGroup(m, o.x + 120, o.y + 40, 'hunt', { kinds: ['L', 'L', 'L'] });
-  run(m, 14, () => { m.squad.ax = o.x; m.squad.ay = o.y; for (const e of g.members) if (!e.dead) { e.x = o.x + 120; e.y = o.y + 40; } });
+  run(m, 14, () => { m.squad.ax = o.x; m.squad.ay = o.y; for (const e of g.members) if (!e.dead) { e.x = o.x + 120; e.y = o.y + 40; } for (const e of m.enemies) if (e.g !== g) e.dead = true; });     // (0.62.8: only the group the test is about; a patrol wandering by decided where the squad stood)
   const atWall = m.hdAlive.filter((a) => sites.some((st) => st.pieces.some((p) => Math.hypot(p.x - a.x, p.y - a.y) < 6))).length;
   const mid = m.hdAlive.filter((a) => Math.hypot(a.x - o.x, a.y - o.y) < 14).length;
   check('holding it, the Helldivers go to the walls, not the open middle', atWall >= Math.ceil(m.hdAlive.length / 2) && mid === 0, `${atWall} of ${m.hdAlive.length} at a wall, ${mid} in the middle`);
