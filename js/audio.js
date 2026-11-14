@@ -5,12 +5,14 @@
 // Every enemy type also has a voice of its own when it is on screen (a bug's chitter, a bot's servos, a squid's whisper), and
 // each faction's reinforcements arrive with their own sound. Sounds are placed where they happen: panned left or right by where
 // they are on screen and quieter the farther they are from the middle of the view (main.js works out pan and loudness).
+import { CONFIG as C } from './config.js';
 export class Audio {
   constructor() {
     this.ctx = null; this.master = null; this.volume = 0.6; this.muted = false; this.voices = 0; this.hum = null; this.noiseBuf = null;
     // (0.29) two buses under the master: the sound effects and the music, each with its own volume
     this.sfxBus = null; this.musBus = null; this.music = 0.5; this.sfx = 1;
     this.last = {}; this._pan = 0;
+    this.ear = { x: 0, y: 0, h: 60, pw: 100 }; this.scape = new Map(); this.said = 0;     // (0.62.10) where the listener is; the sources playing; lines voiced
   }
 
   // Browsers only allow audio after a user gesture, so call this from a click or tap.
@@ -29,6 +31,9 @@ export class Audio {
       } catch { this.master.connect(this.ctx.destination); }
       this.sfxBus = this.ctx.createGain(); this.sfxBus.connect(this.master);
       this.musBus = this.ctx.createGain(); this.musBus.connect(this.master);
+      // (0.62.10) under the effects: the field's standing sounds (packs, squads, fights, buildings) and the voices
+      this.ambBus = this.ctx.createGain(); this.ambBus.gain.value = 0.9; this.ambBus.connect(this.sfxBus);
+      this.voiceBus = this.ctx.createGain(); this.voiceBus.gain.value = 0.9; this.voiceBus.connect(this.sfxBus);
       this._applyVolume();
       const len = this.ctx.sampleRate * 1.5, buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate), d = buf.getChannelData(0);
       for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
@@ -189,12 +194,149 @@ export class Audio {
     o.connect(f); o2.connect(f); f.connect(g); g.connect(this.sfxBus);
     o.start(); o2.start(); this.hum = { o, o2, g };
   }
+  // ---------------------------------------------------------------- (0.62.10) the field's own sound
+  // The listener is over the middle of the view, as high as the view is wide: zoom in and the field is louder and closer.
+  listen(x, y, view) { const S = C.scape; this.ear = { x, y, h: view * S.height, pw: view * 0.55 }; }
+  heard(x, y) {
+    const E = this.ear, R = C.scape.ref, dx = x - E.x, dy = y - E.y;
+    return { g: R * R / (R * R + dx * dx + dy * dy + E.h * E.h), pan: Math.max(-1, Math.min(1, dx / E.pw)) * 0.85 };
+  }
+  // list: [{ key, kind, x, y, vol, moving }] (soundscape.js). Called a few times a second: the nearest few play, each from its
+  // place, and the rest fade out.
+  emitters(list, max = C.scape.voices) {
+    const c = this.ctx; if (!c || c.state !== 'running') return;
+    const t = c.currentTime;
+    const scored = list.filter((e) => KINDS[e.kind]).map((e) => ({ e, h: this.heard(e.x, e.y) })).map((q) => { q.v = q.h.g * (q.e.vol ?? 1) * (KINDS[q.e.kind].vol || 1); return q; })
+      .filter((q) => q.v > 0.02).sort((a, b) => b.v - a.v).slice(0, max);
+    const keep = new Set(scored.map((q) => q.e.key));
+    for (const [k, v] of this.scape) if (!keep.has(k)) this._drop(k, v, t);
+    for (const { e, h, v: vol } of scored) {
+      let v = this.scape.get(e.key);
+      const K = KINDS[e.kind];
+      if (!v) {
+        const g = c.createGain(); g.gain.value = 0;
+        const p = c.createStereoPanner ? c.createStereoPanner() : null;
+        if (p) { p.pan.value = h.pan; g.connect(p); p.connect(this.ambBus); } else g.connect(this.ambBus);
+        v = { g, p, out: c.createGain(), stop: [], next: t + Math.random() * 0.8, kind: e.kind }; v.out.connect(g);
+        if (K.loop) K.loop(this, v);
+        this.scape.set(e.key, v);
+      }
+      v.g.gain.setTargetAtTime(Math.min(1, vol * 2.4), t, 0.18); if (v.p) v.p.pan.setTargetAtTime(h.pan, t, 0.18);
+      if (v.eng) v.eng.frequency.setTargetAtTime((e.moving ? 1.5 : 1) * v.eng0, t, 0.4);
+      if (K.tick && t >= v.next) { K.tick(this, v.out, t + 0.02, e); v.next = t + (K.every ? K.every * (0.85 + Math.random() * 0.3) : 1.2 + Math.random() * 2.4); }
+    }
+  }
+  _drop(k, v, t) {
+    v.g.gain.setTargetAtTime(0, t, 0.2);
+    setTimeout(() => { for (const n of v.stop) try { n.stop(); } catch { /* stopped */ } try { v.g.disconnect(); if (v.p) v.p.disconnect(); } catch { /* gone */ } }, 1100);
+    this.scape.delete(k);
+  }
+  scapeStop() { if (!this.ctx) return; const t = this.ctx.currentTime; for (const [k, v] of this.scape) this._drop(k, v, t); }
+  scapeInfo() { return { n: this.scape.size, kinds: [...this.scape.values()].map((v) => v.kind), keys: [...this.scape.keys()], said: this.said }; }
+  // a held sound inside a source: an oscillator, or filtered noise
+  _osc(v, type, f, vol, lp) {
+    const c = this.ctx, n = c.createOscillator(), g = c.createGain(); n.type = type; n.frequency.value = f; g.gain.value = vol;
+    if (lp) { const fl = c.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = lp; n.connect(fl); fl.connect(g); } else n.connect(g);
+    g.connect(v.out); n.start(); v.stop.push(n); return n;
+  }
+  _hiss(v, f, vol, q = 1, type = 'bandpass') {
+    const c = this.ctx, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.noiseBuf; s.loop = true; fl.type = type; fl.frequency.value = f; fl.Q.value = q; g.gain.value = vol;
+    s.connect(fl); fl.connect(g); g.connect(v.out); s.start(0, Math.random() * 1.4); v.stop.push(s); return g;
+  }
+  _lfo(v, param, rate, depth) { const c = this.ctx, l = c.createOscillator(), g = c.createGain(); l.frequency.value = rate; g.gain.value = depth; l.connect(g); g.connect(param); l.start(); v.stop.push(l); }
+  // one short sound into a source (or any node): a burst of filtered noise, or a note
+  _n1(dest, t, dur, vol, freq = 1200, q = 1, type = 'bandpass') {
+    const c = this.ctx, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.noiseBuf; s.loop = true; fl.type = type; fl.frequency.value = freq; fl.Q.value = q;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+    s.connect(fl); fl.connect(g); g.connect(dest); s.start(t, Math.random()); s.stop(t + dur + 0.03);
+  }
+  _t1(dest, t, f0, f1, dur, vol, type = 'sine') {
+    const c = this.ctx, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol), t + Math.min(0.012, dur / 3)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(dest); o.start(t); o.stop(t + dur + 0.03);
+  }
+  // A little voice: not words, the sound of someone saying something (as in FOB Super Commander). Syllables on a buzzing
+  // source through two vowel filters. pitch: the speaker's voice. type 'square' and a flat pitch make a machine of it.
+  babble(dest, t, syll = 8, pitch = 150, vol = 0.18, type = 'sawtooth') {
+    const c = this.ctx, flat = type === 'square';
+    for (let i = 0; i < syll; i++) {
+      const [f1, f2] = VOWELS[(Math.random() * VOWELS.length) | 0], len = 0.08 + Math.random() * 0.09, p = pitch * (flat ? 1 : 0.9 + Math.random() * 0.25);
+      const o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.setValueAtTime(p, t);
+      if (!flat) o.frequency.linearRampToValueAtTime(p * (Math.random() < 0.3 ? 1.15 : 0.95), t + len);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.02); g.gain.linearRampToValueAtTime(0, t + len);
+      for (const [ff, q] of [[f1, 6], [f2, 8]]) { const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = ff; bp.Q.value = q; o.connect(bp); bp.connect(g); }
+      g.connect(dest); o.start(t); o.stop(t + len + 0.02);
+      t += len + (Math.random() < 0.18 ? 0.11 : 0.02);
+    }
+    return t;
+  }
+  // Someone at (x, y) says a line: their own voice, from where they stand. radio: over a handset (a click, thinner).
+  say(x, y, o = {}) {
+    const c = this.ctx; if (!c || c.state !== 'running' || !this._ok('say', 0.25)) return;
+    const h = this.heard(x, y), vol = Math.min(1, h.g * 2.6); if (vol < 0.05) return;
+    const g = c.createGain(); g.gain.value = vol; let dest = g;
+    const p = c.createStereoPanner ? c.createStereoPanner() : null;
+    if (p) { p.pan.value = h.pan; g.connect(p); p.connect(this.voiceBus); } else g.connect(this.voiceBus);
+    const t = c.currentTime + 0.02;
+    if (o.radio) { const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1500; bp.Q.value = 0.9; bp.connect(g); dest = bp; this._n1(g, t, 0.05, 0.1, 3200, 2); }
+    const end = this.babble(dest, t + (o.radio ? 0.06 : 0), o.syll || 7, o.pitch || 150, o.vol || 0.16);
+    if (o.radio) this._n1(g, end + 0.02, 0.06, 0.08, 2800, 2);
+    this.said++;
+    setTimeout(() => { try { g.disconnect(); if (p) p.disconnect(); } catch { /* gone */ } }, (end - c.currentTime + 0.5) * 1000);
+  }
+
   humStop() {
+    this.scapeStop();
     if (!this.hum) return;
     try { this.hum.o.stop(); this.hum.o2.stop(); } catch { /* already stopped */ }
     this.hum = null;
   }
 }
+
+// (0.62.10) What each kind of source on the field sounds like: a held sound (loop), and things that happen now and then
+// (tick, every `every` seconds or at random). A: the Audio, v: the source (v.out is where its sound goes), s: the source's entry.
+const VOWELS = [[730, 1090], [270, 2290], [530, 1840], [570, 840], [440, 1020], [300, 870]];
+const steps = (A, o, t, n, vol) => { for (let i = 0; i < n; i++) A._n1(o, t + i * (0.5 / n) + Math.random() * 0.03, 0.06, vol, 800 + Math.random() * 300, 1.2); };
+const KINDS = {
+  // a pack of bugs: a bed of skittering, then chitters and now and then a screech
+  bugs:   { loop: (A, v) => { const g = A._hiss(v, 3200, 0.03, 1.2); A._lfo(v, g.gain, 9, 0.02); A._hiss(v, 240, 0.03, 0.7, 'lowpass'); },
+    tick: (A, o, t) => { const n = 3 + (Math.random() * 5 | 0); for (let i = 0; i < n; i++) A._n1(o, t + i * 0.045 + Math.random() * 0.02, 0.03, 0.16, 3600 + Math.random() * 2400, 5); if (Math.random() < 0.25) A._t1(o, t + 0.3, 520, 260, 0.35, 0.05, 'sawtooth'); } },
+  // a column of bots: servos and engines, clanks, and a flat machine voice giving orders
+  bots:   { loop: (A, v) => { A._osc(v, 'sawtooth', 46, 0.05, 170); A._hiss(v, 150, 0.05, 0.7, 'lowpass'); },
+    tick: (A, o, t) => { if (Math.random() < 0.55) { A._t1(o, t, 240 + Math.random() * 260, 200, 0.22, 0.04, 'square'); A._n1(o, t, 0.05, 0.16, 1900, 3); } if (Math.random() < 0.3) A.babble(o, t + 0.25, 3 + (Math.random() * 4 | 0), 78, 0.07, 'square'); if (Math.random() < 0.3) A._t1(o, t + 0.1, 300, 900, 0.3, 0.02, 'sawtooth'); } },
+  // squids: a slow beating hum, whispers, a glassy note
+  squids: { loop: (A, v) => { A._osc(v, 'sine', 96, 0.05); A._osc(v, 'sine', 97.3, 0.05); A._hiss(v, 5200, 0.012, 0.6, 'highpass'); },
+    tick: (A, o, t) => { if (Math.random() < 0.6) A._n1(o, t, 0.7, 0.07, 2400 + Math.random() * 1800, 7); if (Math.random() < 0.35) A._t1(o, t + 0.2, 1300 + Math.random() * 500, 1250, 0.9, 0.03); } },
+  // the Helldivers: boots when they move, a handset now and then
+  squad:  { every: 0.5, tick: (A, o, t, s) => { if (s.moving) steps(A, o, t, 3, 0.12); if (Math.random() < 0.05) { A._n1(o, t, 0.05, 0.05, 3000, 2); A.babble(o, t + 0.06, 3 + (Math.random() * 4 | 0), 120 + Math.random() * 60, 0.05); } } },
+  // a SEAF squad: more boots, kit, and talk when they stand about
+  seaf:   { every: 0.5, tick: (A, o, t, s) => { if (s.moving) { steps(A, o, t, Math.min(6, 2 + (s.n >> 1)), 0.1); if (Math.random() < 0.3) A._n1(o, t + 0.2, 0.04, 0.05, 2600, 6); } else if (Math.random() < 0.09) A.babble(o, t, 4 + (Math.random() * 5 | 0), 105 + Math.random() * 110, 0.05); } },
+  // a fight: the crackle and thump of fire traded, busier with more of it. Heard a long way off
+  fight:  { vol: 1.6, every: 0.22, loop: (A, v) => { A._hiss(v, 260, 0.05, 0.6, 'lowpass'); },
+    tick: (A, o, t, s) => { const n = 1 + Math.round((s.vol || 0.3) * 4); for (let i = 0; i < n; i++) if (Math.random() < 0.75) A._n1(o, t + Math.random() * 0.2, 0.07, 0.13, 700 + Math.random() * 900, 0.8, 'lowpass'); if (Math.random() < 0.18) A._t1(o, t, 80, 38, 0.35, 0.16); } },
+  // a bug nest: wet, breathing
+  nest:   { loop: (A, v) => { const g = A._hiss(v, 210, 0.07, 0.8, 'lowpass'); A._lfo(v, g.gain, 0.4, 0.04); },
+    tick: (A, o, t) => { if (Math.random() < 0.6) A._t1(o, t, 140 + Math.random() * 80, 60, 0.25, 0.09); if (Math.random() < 0.3) A._n1(o, t + 0.2, 0.25, 0.06, 900, 3); } },
+  // a bot fabricator: heavy plant, a press, steam
+  fab:    { loop: (A, v) => { A._osc(v, 'sawtooth', 38, 0.06, 130); A._hiss(v, 110, 0.08, 0.7, 'lowpass'); },
+    every: 1.3, tick: (A, o, t) => { A._t1(o, t, 110, 55, 0.2, 0.14, 'square'); A._n1(o, t, 0.06, 0.14, 1500, 2); if (Math.random() < 0.3) A._n1(o, t + 0.5, 0.6, 0.05, 4200, 0.8, 'highpass'); } },
+  // a squid ship on the ground: a deep chord that swells, a chime
+  ship:   { loop: (A, v) => { const a = A._osc(v, 'sine', 62, 0.08), g = A._hiss(v, 1400, 0.012, 3); A._osc(v, 'sine', 93.4, 0.05); A._lfo(v, a.frequency, 0.25, 1.5); A._lfo(v, g.gain, 0.3, 0.008); },
+    tick: (A, o, t) => { if (Math.random() < 0.4) A._t1(o, t, 1568, 1560, 1.2, 0.025); } },
+  // a SEAF post: a generator, a set left on
+  post:   { loop: (A, v) => { A._osc(v, 'sawtooth', 52, 0.025, 150); },
+    tick: (A, o, t) => { if (Math.random() < 0.25) { A._n1(o, t, 0.3, 0.02, 2400, 1.4); A.babble(o, t + 0.05, 3 + (Math.random() * 3 | 0), 150, 0.025); } } },
+  // a mast: static, Morse, a voice in the static
+  radio:  { loop: (A, v) => { A._hiss(v, 2600, 0.016, 1.2); },
+    tick: (A, o, t) => { if (Math.random() < 0.3) A.babble(o, t, 4 + (Math.random() * 5 | 0), 160, 0.045); else if (Math.random() < 0.5) for (let i = 0; i < 6; i++) A._t1(o, t + i * 0.11, 820, 820, Math.random() < 0.5 ? 0.05 : 0.1, 0.035); } },
+  // a Pelican: turbines over a heavy thrum, higher as it moves off
+  pelican:{ vol: 1.3, every: 0.12, loop: (A, v) => { v.eng = A._osc(v, 'sawtooth', 55, 0.07, 300); v.eng0 = 55; A._osc(v, 'triangle', 1900, 0.005); A._hiss(v, 420, 0.09, 0.5, 'lowpass'); },
+    tick: (A, o, t) => { A._n1(o, t, 0.08, 0.05, 160, 1); } },
+};
+export const SCAPE_KINDS = Object.keys(KINDS);
 
 // The voice of every weapon. gap = minimum seconds between two of them, vol = base loudness, f = how it sounds.
 const VOICES = {

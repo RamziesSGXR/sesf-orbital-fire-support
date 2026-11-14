@@ -25,6 +25,15 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**The field has its own sound (0.62.10).**
+- **Sound from where things are.** With the music off, what you hear is what is on the field. Each source plays from its own place: louder near the middle of the view, left or right by where it is on screen, louder zoomed in and quieter zoomed out. Only the nearest eight play at once (five on a phone).
+- **Packs of enemies** in sight each make their faction's noise: bugs skitter, chitter and screech; bots hum, clank and give orders in a flat machine voice; squids hum and whisper. Enemies you cannot see make no sound of their own.
+- **Your own troops.** The Helldivers and every SEAF squad have boots when they march, kit, and a handset or talk when they stand.
+- **Fights.** Wherever shots are being traded there is a crackle and thump of gunfire from that spot, busier with more firing, and heard from well outside the view. It dies away when the firing stops.
+- **Buildings and aircraft.** Bug nests breathe, bot fabricators pound, squid ships hold a deep chord, SEAF posts and work sites run a generator, masts and jammers hiss with static and Morse, Pelicans have turbines that rise as they leave.
+- **Little voices.** Every line a Helldiver or trooper says in a bubble now has a voice: not words, the sound of speech, from where they stand. Each Helldiver has their own pitch, and SEAF come over the handset with a click. The voice and the positional sound system come from FOB Super Commander.
+- A pause silences the field. All of it runs on the Effects volume.
+
 **Mission start on a phone without scrolling, pay that keeps pace at level 10 and beyond, ground with height (0.62.9).**
 - **Starting a mission on a phone.** The new-operation screen and the briefing fit one screen in portrait, with about a quarter of the words. The briefing is five lines with an icon each (enemy, ground, objective, difficulty, lives), the tip and CONTINUE. "How an operation works", "The situation" and "The squad's stratagems" are a tap away behind a +. In the armory each card is its name and its buy button until you tap it open.
 - **Pay at high levels.** A long operation at level 10 and up used to pay more every mission without limit (about 70,000 CR by mission 5 and 210,000 by mission 15, when the whole armory costs 222,600). Now a mission's kills pay in full up to 5,000 CR and 30% after that, the operation bonus grows to +60% and stops, and it no longer multiplies kills. Level pay runs from 75% at level 1 to 120% at level 10 and keeps rising above it. A level-10 operation now pays about 7,000 CR on its first mission, about 31,000 by mission 5 and levels off near 34,000, so the whole armory takes about nine missions. Scores are credits earned, so scores from long high-level operations will be lower than before.

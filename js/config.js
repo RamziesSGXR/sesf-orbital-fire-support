@@ -14,6 +14,12 @@ export const CONFIG = {
   // `px` pixels of the ground's picture, like the side of a building. craters: a blast of r metres or more leaves one (the
   // newest `max` are kept); rim and depth are how strongly its lit rim and its shaded bowl are drawn.
   elev:     { size: 0.1, terrace: { bands: 8, lit: 0.07, shade: 0.11 }, craters: { minR: 3.5, max: 220, rim: 0.5, depth: 0.55 } },
+  // (0.62.10) The field's own sound (soundscape.js, audio.js). pack: enemies in sight, in one 48 m square, that make a pack you
+  // can hear. stride: metres a group moves between looks (a quarter second) to count as marching. A fight is fightMin shots in
+  // fightSec seconds in one 60 m square, at full noise from fightFull. voices: how many sources play at once (fewer on a phone).
+  // ref: metres at which a source is at half loudness with the camera right down; height: how much of the view's width the
+  // listener is above the ground (zoom out and everything is farther away).
+  scape:    { pack: 2, packJoin: 75, stride: 0.25, fightSec: 1.5, fightMin: 3, fightFull: 16, voices: 8, voicesTouch: 5, ref: 70, height: 0.3, everySec: 0.25 },
   // (0.62.8) The score is switched off for now: the game is to be heard from the field (see audio.js, the sounds placed where
   // they are made). Set to true and the music, its volume and its style come back as they were.
   musicOn:  false,
@@ -713,6 +719,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.9',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.10',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

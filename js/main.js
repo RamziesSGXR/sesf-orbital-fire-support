@@ -10,6 +10,7 @@ import { buildTerrain } from './render/terrain.js';
 import { Input } from './input.js';
 import { setKey, resetKeys, isDefault, onKeysChange, label as keyLabel, canBind, keyLabel as codeLabel } from './keys.js';
 import { Audio } from './audio.js';
+import { soundSources, resetScape } from './soundscape.js';
 import { Music } from './music.js';
 import * as S from './session.js';
 import { startTitleBg } from './render/titlebg.js';
@@ -1192,6 +1193,7 @@ function deploy() {
   startSnap = JSON.stringify(session);      // what RETRY MISSION puts back: credits, kit, score and time as they were at the drop
   persist();
   if (terrainKey !== `${info.biome}|${info.seed}`) buildFor(info.biome, info.seed);
+  shots.length = 0; resetScape();
   mission = new Mission({ seed: info.seed, faction: info.faction, biome: info.biome, sessionMinutes: SMIN ?? S.sessionMinutes(session), events: true, missionN: session.missions.length + 1, opDone: session.missions.length, difficulty: levelFor(info), bump: (info && info.bump) | 0,
     loadout: info.loadout, keepOrder: true, objectives: info.ovObj, kit: session.kit, wallet: session.wallet, names: session.names, tod: info.tod,
     countdown: qs.has('skipstart') || BOT ? 0 : C.helldivers.countdown, defenders: !qs.has('skipstart'), ...chapterOpts() });
@@ -1297,6 +1299,7 @@ function startLastStand() {
   info = { seed: L.seed, faction: L.faction, biome: L.biome, op: t('ls.op'), tod: L.tod, ovObj: [], loadout: null };
   buildFor(info.biome, info.seed);
   startSnap = null;
+  shots.length = 0; resetScape();
   mission = new Mission({ seed: L.seed, faction: L.faction, biome: L.biome, sessionMinutes: 0, events: true, missionN: 2, difficulty: L.level, kit: session.kit, wallet: session.wallet,
     names: session.names, tod: L.tod, countdown: C.lastStand.countdown, lastStand: true, defenders: false, boss: false });
   info.loadout = mission.loadout.slice();
@@ -1948,8 +1951,17 @@ function loudness(x, y) {
 // Left or right of where the camera looks (-1 .. 1), for stereo.
 function pan(x) { return Math.max(-1, Math.min(1, (x - cam.x) / (cam.view * 0.55))); }
 // Now and then an enemy on screen makes the noise its kind makes (a chitter, servos, a whisper), and civilians call out.
-let idleT = 0;
+let idleT = 0, scapeT = 0;
+const shots = [];     // (0.62.10) where shots were fired lately: a fight is heard from where it is
 function ambient(m, dt) {
+  // (0.62.10) the field's own sound: packs, squads, fights and buildings, each from where it is
+  scapeT -= dt;
+  if (scapeT <= 0) {
+    scapeT = C.scape.everySec;
+    while (shots.length && (shots[0].t < m.t - 4 || shots[0].t > m.t)) shots.shift();
+    audio.listen(cam.x, cam.y, cam.view);
+    audio.emitters(soundSources(m, shots), input.touch ? C.scape.voicesTouch : C.scape.voices);
+  }
   idleT -= dt;
   if (idleT > 0) return;
   idleT = 0.3;
@@ -2024,7 +2036,9 @@ function onEvent(ev, now) {
       if (ev.nuke) audio.nukeBlast(); else audio.boom(ev.r, L, P);
       if (ev.r >= 10 && input.touch && !settings.reduceFlash && navigator.vibrate) navigator.vibrate(ev.nuke ? 80 : 12);
       break;
-    case 'tracer': if (mission.visLevel(ev.x, ev.y) > 0 || mission.visLevel(ev.tx, ev.ty) > 0) audio.snd(ev.snd || ev.s, L, P); break;
+    case 'tracer': if (shots.length < 600) shots.push({ x: ev.x, y: ev.y, t: mission.t }); if (mission.visLevel(ev.x, ev.y) > 0 || mission.visLevel(ev.tx, ev.ty) > 0) audio.snd(ev.snd || ev.s, L, P); break;
+    // (0.62.10) a line said has a voice: each Helldiver their own, SEAF over the handset
+    case 'bark': { const a = mission.alive.find((q) => q.id === ev.id); if (a) audio.say(a.x, a.y, { pitch: ev.h ? 100 + (a.id * 37) % 90 : 120 + (a.id * 53) % 100, radio: !ev.h, syll: 5 + Math.min(8, ((a.say && a.say.text.length) || 20) / 9 | 0), vol: ev.h ? 0.17 : 0.11 }); break; }
     case 'beam': case 'beam_walk': audio.beam(); break;
     case 'gun': audio.snd('shipgat', L, P); break;
     case 'heal': audio.snd('heal', L, P); break;
