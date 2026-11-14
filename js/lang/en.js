@@ -223,6 +223,8 @@ export default {
   'brief.area': 'AREA',
   'brief.areaVal': '{n} M SQUARE',
   'brief.diff': 'DIFFICULTY',
+  'brief.loadouts': 'THE SQUAD\'S STRATAGEMS',     // (0.62.9)
+  'brief.failShort': '{n} LIVES TO GET THE OBJECTIVE DONE',
   'brief.pay': 'CREDITS AND SCORE ×{x}',
   'brief.opBonus': 'OPERATION BONUS: CREDITS ×{x} ({n} DONE)',
   'brief.objective': 'OBJECTIVE',

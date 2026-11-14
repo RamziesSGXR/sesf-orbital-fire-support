@@ -296,9 +296,9 @@ function seafShare(seed, role, n, targets, sec = 10) {
   const mk2 = (done) => new Mission({ seed: 4401, faction: 'bots', biome: 'grass', events: true, sessionMinutes: 0, missionN: done + 1, opDone: done, difficulty: 5 });
   const a = mk2(0), b = mk2(2);
   const w0 = a.wallet.bal, w1 = b.wallet.bal;
-  a.earn('kills', 1000); b.earn('kills', 1000);
+  a.earn('bases', 1000); b.earn('bases', 1000);     // (0.62.9) objectives and the like: kills are no longer multiplied (test/r629.mjs)
   const ga = a.wallet.bal - w0, gb = b.wallet.bal - w1;
-  check('every mission done in the operation makes credits worth 0.2 more (two done: x1.4)', a.opBonus === 1 && Math.abs(b.opBonus - 1.4) < 1e-9 && Math.abs(gb / ga - 1.4) < 0.01, `${ga} then ${gb} for the same 1000`);
+  check('every mission done in the operation makes what is not a kill worth 0.2 more (two done: x1.4)', a.opBonus === 1 && Math.abs(b.opBonus - 1.4) < 1e-9 && Math.abs(gb / ga - 1.4) < 0.01, `${ga} then ${gb} for the same 1000`);
   b.sc.kills = 500; check('score is not touched by it', b._rawScore() === b._baseScore() * b.reward && b._rawScore() > 0);
 }
 

@@ -20,6 +20,8 @@ const tap = (s) => (phone ? page.tap(s) : page.click(s));
 const shot = (tag) => page.screenshot({ path: path.join(ROOT, 'test', 'shots', `ui61_${phone ? 'phone' : 'desk'}_${tag}.png`) });
 // press and hold the first "+" of the open tab for ms; returns the credits it took
 const hold = async (root, ms, bal) => {
+  // (0.62.9) on a phone a card shows its name and its buy button until it is tapped open: open the one with the first "+"
+  await ev((r) => { const b = document.querySelector(`${r} .tabpane.on .btn.pay`), c = b && b.closest('.item'); if (c && !c.classList.contains('open') && getComputedStyle(b).display === 'none') c.querySelector('.it-main').click(); }, root); await page.waitForTimeout(80);
   const b = await page.locator(`${root} .tabpane.on .btn.pay`).first().boundingBox(), b0 = await ev(bal);
   const x = b.x + b.width / 2, y = b.y + b.height / 2;
   if (phone) { const c = await ctx.newCDPSession(page); await c.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] }); await page.waitForTimeout(ms); await c.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); }

@@ -8,6 +8,12 @@ export const CONFIG = {
   // of a rock's radius is solid, for rocks of rockMin metres and up; trunk: a tree's trunk as a share of its crown, between
   // trunkMin and trunkMax metres; base: how much of an enemy building's radius is solid. A mover held up for giveTicks steps
   // without making giveDist metres is let through for thruSec seconds.
+  // (0.62.10) Height you can see. size: how much bigger a thing is drawn on the highest ground, and smaller in the deepest
+  // hollow, than at the middle height (the gunship looks straight down, so high ground is nearer). terrace: the ground is cut
+  // into `bands` steps for the eye only; the edge of each is lit on the sun's side (lit) and shaded on the other (shade), over
+  // `px` pixels of the ground's picture, like the side of a building. craters: a blast of r metres or more leaves one (the
+  // newest `max` are kept); rim and depth are how strongly its lit rim and its shaded bowl are drawn.
+  elev:     { size: 0.1, terrace: { bands: 8, lit: 0.07, shade: 0.11 }, craters: { minR: 3.5, max: 220, rim: 0.5, depth: 0.55 } },
   // (0.62.8) The score is switched off for now: the game is to be heard from the field (see audio.js, the sounds placed where
   // they are made). Set to true and the music, its volume and its style come back as they were.
   musicOn:  false,
@@ -468,7 +474,7 @@ export const CONFIG = {
                jamOff: 115, jamR: 55 },     // (0.37) the Hellbomb lesson's disruptor: how far from the base, and the ground it jams
   // (0.40) opBonus: credits are worth 0.2 more for every mission already done in the operation (the second mission x1.2, the
   // third x1.4 and so on), on top of the level's pay; score is not.
-  difficulty: { start: 3, spawn: 0.55, medium: 0.6, heavy: 0.4, boss: 0.3, curve: 1, reward: [0.75, 1.2], opBonus: 0.2, ramp: 0.6, beyond: 1, beyondSpawn: 2, hardCapMax: 1000, liveBeyond: 0.08,     // (0.31: ramp 0.39 -> 0.6, a level nearly every mission)
+  difficulty: { start: 3, spawn: 0.55, medium: 0.6, heavy: 0.4, boss: 0.3, curve: 1, reward: [0.75, 1.2], opBonus: 0.2, opBonusMax: 1.6, ramp: 0.6, beyond: 1, beyondSpawn: 2, hardCapMax: 1000, liveBeyond: 0.08,     // (0.31: ramp 0.39 -> 0.6, a level nearly every mission)
                 // war minutes at each level (1 to 10), war minutes a level past 10, and the share of each real session minute that counts
                 // (0.53.8) the levels step evenly up to 9: 3 is easy, 6 hard, 9 very hard (it was 0, 15, 37, 38 ... 42: level 3 was
                 // nearly as tough as 10, and only the numbers of enemies told them apart)
@@ -590,7 +596,14 @@ export const CONFIG = {
               // (0.26) the tutorial has one mission: its ranks come with kills instead (and everything open can be bought mid-mission)
               tutKills: [10, 25, 45, 70, 100, 140, 190, 250, 320] },
   econ:     { priceMul: 1.1, earnPerMin: 640, maxAtMin: 300 },     // (0.17.3: prices up about a quarter; 0.18: two more buildables; 0.23: the Hangar and minefields add about an hour)
-  credits:  { start: 1200, kill: { L: 2, M: 8, H: 45 }, base: 150, objective: 500, extraction: 800, perMission: 0, civ: 8, fullClear: 400 },
+  // (0.62.9) The top end. Measured with the sharp bot: kills were three quarters of a mission's pay, and they were multiplied
+  // three ways at once (the level, +20% for every mission of the operation with no ceiling, the bump) while the enemy also
+  // came in far greater numbers. An operation begun at level 10 paid 8,900 CR on its first mission, 69,000 on its fifth and
+  // 127,000 on its tenth, against 222,600 for everything in the armory. So:
+  //   killSoft / killTaper: in one mission, kill credits (before the multipliers) past killSoft pay killTaper of their worth
+  //   kills are paid at the level's and the bump's rate, not the operation bonus
+  //   difficulty.opBonusMax: the operation bonus stops there
+  credits:  { killSoft: 5000, killTaper: 0.3, start: 1200, kill: { L: 2, M: 8, H: 45 }, base: 150, objective: 500, extraction: 800, perMission: 0, civ: 8, fullClear: 400 },
 
   // Mission objectives. The squad does these before anything else.
   objective: {
@@ -700,6 +713,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.8',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.9',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

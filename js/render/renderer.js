@@ -9,7 +9,7 @@ import { drawSquadOrders, drawSeafMark, drawStroke, drawPelicans, drawMiniSeaf, 
 import { slotStats } from '../sim/player.js';
 import { drawAllyBody, drawEnemyBody, enemyR, drawBossBody, bossR, drawTurretArt, setRelief } from './units.js';
 import { VIEW } from './view.js';
-import { liftUnit, dropUnit, unitShadow, shadeHex, raise, raiseUnit, setFlat, isFlat, reliefFrame, reliefClear } from './relief.js';
+import { liftUnit, dropUnit, unitShadow, shadeHex, raise, raiseUnit, setFlat, isFlat, reliefFrame, reliefClear, setElev, elevK } from './relief.js';
 import { Launch } from './launch.js';
 import { drawAoEdge, drawSides, drawBeacons, drawRevealed, drawRadar, drawArty, drawCrates, drawMarks } from './ops.js';
 import { OPS } from '../data/data.js';
@@ -24,6 +24,7 @@ import { foxReach, wireEnds, bastionWalls, wallShape, foxholeSlots, turns, onEne
 import { buildStats, uavStats, seafStats, buildLevel } from '../data/kit.js';
 import { todAt, skyTint } from './sky.js';
 import { Lighting, ambient, washKey, bakeWash } from './light.js';
+import { propCols } from './terrain.js';
 
 const SIZE = C.world.size;
 export const MINI_Q = 0.9;      // the share of the round minimap's width the (round) area of operations fills
@@ -173,7 +174,8 @@ export class Renderer {
         }
         if (ev.r >= 3.5) fx.push({ k: 'ring', x: ev.x, y: ev.y, r: ev.r * 1.4, t0: now, life: 0.55, a: flash, col: ecol });
         if (ev.r >= 2.5) this._scorch(ev.x, ev.y, ev.r * (ev.r >= 6 ? 1 : 0.7), black);
-        if (ev.r >= 4 && !ev.acid) { const cr = this.craters; cr.push({ x: ev.x, y: ev.y, r: Math.min(14, ev.r * 0.5), t0: now, life: 40, a: Math.random() * TAU }); if (cr.length > 260) cr.splice(0, cr.length - 260); }     // (0.58) a crater
+        // (0.58) a crater. (0.62.10) It stays for the mission, as damage to the ground (the oldest go when there are more than craters.max); never in water
+        if (ev.r >= ((C.elev && C.elev.craters.minR) || 4) && !ev.acid && !(m && m.terrain && m.terrain.blocked(ev.x, ev.y))) { const cr = this.craters, mx = (C.elev && C.elev.craters.max) || 220; cr.push({ x: ev.x, y: ev.y, r: Math.min(14, ev.r * 0.5), t0: now }); if (cr.length > mx) cr.splice(0, cr.length - mx); }
         if (ev.r >= 10) this.shake = Math.min(12, this.shake + ev.r * 0.35);
         if (ev.sid || ev.mine) this._strikeFx(ev, now, flash);     // (0.23) each stratagem looks like what it is
         break;
@@ -336,6 +338,8 @@ export class Renderer {
   draw(m, cam, ui) {
     const ctx = this.ctx, W = this.W, H = this.H;
     const now = ui.now, t = m.t;
+    // (0.62.10) how big things are drawn by the height of their ground (relief.js elevK): elev.size either way of the middle
+    { const T = m.terrain, K = C.elev ? C.elev.size : 0; setElev(T && K ? (x, y) => 1 + K * (T.height(x, y) - 0.5) * 2 : null); }
     const v = this.updateView(cam, now), scale = v.scale;
     let ox = 0, oy = 0;
     if (this.shake > 0.3) { ox = (Math.random() - 0.5) * this.shake * this.dpr; oy = (Math.random() - 0.5) * this.shake * this.dpr; this.shake *= 0.9; } else this.shake = 0;
@@ -350,6 +354,7 @@ export class Renderer {
     // carved out of it (only the ground: every unit, building and label is drawn over it, so nothing is harder to see)
     const lit = this.settings.lighting !== false, lowFx = this.quality === 'low' || this.perf.low, hq = Math.round(todAt(m) * 4) / 4;
     const amb = lit ? ambient(todAt(m)) : null;
+    this._sun = amb && amb.sun ? { lx: amb.sun.lx, ly: amb.sun.ly, k: Math.max(0.25, 1 - amb.dark * 1.7) } : null;     // (0.62.10) for what is lit on the ground afterwards (craters)
     this._layers(ctx, scale, W, H, tx, ty, skyTint(hq).col, lit ? washKey(hq) : null);   // the tint (and the wash) move in quarter-hour steps
     if (amb) this.light.collect(m, this.fx, this.fxNow(m), { x0: -tx / scale, y0: -ty / scale, x1: (W - tx) / scale, y1: (H - ty) / scale }, this.settings, amb);
 
@@ -561,7 +566,7 @@ export class Renderer {
       const H_ = a.type === 'H', tm = H_ ? m.teams[a.team] : null;
       const phase = this.settings.reduceFlash ? ((now + a.id * 0.13) % 2) / 2 : ((now + (a.id % 5) * 0.07) % 1);
       const on = this.settings.reduceFlash ? phase < 0.15 : phase < 0.18;
-      const r = Math.max(H_ ? 2.6 : 1.9, px(H_ ? 7 : 5));
+      const r = Math.max(H_ ? 2.6 : 1.9, px(H_ ? 7 : 5)) * elevK(a.x, a.y);     // (0.62.10) sized by the ground he stands on
       if (on && !hideUi) {   // the IR strobe on the backpack flashes a ring
         ctx.strokeStyle = pal.ally; ctx.lineWidth = px(1.2); ctx.globalAlpha = 0.6;
         ctx.beginPath(); ctx.arc(a.x, a.y, r * 2.1, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
@@ -1118,17 +1123,31 @@ export class Renderer {
   // its life; and footprints where anyone in sight walks, a print every stride, fading in FP_LIFE seconds. Bugs leave rows of
   // little claw dots, bots square treads, squids three-toed prints, ours boot prints.
   _prints(ctx, m, now, px, onScr) {
+    // (0.62.10) Craters are lit the way the ground is: by the hour's sun, in the biome's own light and dark. A bowl: its wall
+    // on the sun's side is in shade and the far wall catches the light; the lip thrown up round it is the other way about,
+    // and throws a little shadow beyond. Laid over the ground see-through, so the hour's tint shows in them too.
     const cr = this.craters;
-    for (let i = cr.length - 1; i >= 0; i--) {
-      const c = cr[i], p = (now - c.t0) / c.life;
-      if (p >= 1) { cr.splice(i, 1); continue; }
-      if (!onScr(c.x, c.y, c.r * 1.5)) continue;
-      const a = Math.min(1, (1 - p) * 1.6);
-      const g = ctx.createRadialGradient(c.x + c.r * 0.15, c.y + c.r * 0.15, 0, c.x, c.y, c.r);
-      g.addColorStop(0, `rgba(10,8,6,${0.55 * a})`); g.addColorStop(0.7, `rgba(25,20,14,${0.35 * a})`); g.addColorStop(1, 'rgba(25,20,14,0)');
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, TAU); ctx.fill();
-      ctx.strokeStyle = `rgba(150,135,110,${0.3 * a})`; ctx.lineWidth = Math.max(px(1.2), c.r * 0.12);
-      ctx.beginPath(); ctx.arc(c.x, c.y, c.r * 0.92, c.a + Math.PI * 0.9, c.a + Math.PI * 1.9); ctx.stroke();
+    if (cr.length) {
+      const K = (C.elev && C.elev.craters) || { rim: 0.5, depth: 0.55 }, S = this._sun || { lx: -0.55, ly: -0.4, k: 1 };
+      const th = Math.atan2(S.ly, S.lx), ux = Math.cos(th), uy = Math.sin(th), pc = propCols(m.biome.id);
+      const dk = `${pc.dark[0]},${pc.dark[1]},${pc.dark[2]}`, lt = `${pc.light[0]},${pc.light[1]},${pc.light[2]}`;
+      for (let i = 0; i < cr.length; i++) {
+        const c = cr[i];
+        if (!onScr(c.x, c.y, c.r * 1.5)) continue;
+        const a = Math.min(1, (now - c.t0) * 2.5 + 0.2), r = c.r, d = K.depth * a, l = K.rim * a * S.k;
+        const g = ctx.createRadialGradient(c.x + ux * r * 0.22, c.y + uy * r * 0.22, 0, c.x, c.y, r);
+        g.addColorStop(0, `rgba(${dk},${0.8 * d})`); g.addColorStop(0.65, `rgba(${dk},${0.5 * d})`); g.addColorStop(1, `rgba(${dk},0)`);
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, TAU); ctx.fill();
+        if (r < px(3)) continue;     // too small on screen for more than the bowl
+        // the wall: one ring, shaded on the sun's side and lit on the far side; the lip: a thinner ring the other way about
+        const wx = ux * r, wy = uy * r;
+        let lg = ctx.createLinearGradient(c.x + wx, c.y + wy, c.x - wx, c.y - wy);
+        lg.addColorStop(0, `rgba(${dk},${0.55 * d})`); lg.addColorStop(0.45, `rgba(${dk},0)`); lg.addColorStop(0.6, `rgba(${lt},0)`); lg.addColorStop(1, `rgba(${lt},${0.34 * l})`);
+        ctx.strokeStyle = lg; ctx.lineWidth = r * 0.3; ctx.beginPath(); ctx.arc(c.x, c.y, r * 0.62, 0, TAU); ctx.stroke();
+        lg = ctx.createLinearGradient(c.x + wx, c.y + wy, c.x - wx, c.y - wy);
+        lg.addColorStop(0, `rgba(${lt},${0.4 * l})`); lg.addColorStop(0.45, `rgba(${lt},0)`); lg.addColorStop(0.6, `rgba(${dk},0)`); lg.addColorStop(1, `rgba(${dk},${0.4 * d})`);
+        ctx.strokeStyle = lg; ctx.lineWidth = Math.max(px(1), r * 0.13); ctx.beginPath(); ctx.arc(c.x, c.y, r * 0.98, 0, TAU); ctx.stroke();
+      }
     }
     // new prints: anyone in sight on screen who has gone a stride since the last one
     // (0.59) what each leaves: its own kind of print, or (no feet, or huge ones) its own mark

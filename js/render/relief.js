@@ -81,7 +81,19 @@ export function reliefFrame(now) {
   if (kept.size > 140) for (const [w, e] of kept) if (now - e.seen > 4) kept.delete(w);
 }
 export function reliefClear() { kept.clear(); }
+// (0.62.10) Height on the map. The camera is a gunship overhead, so what stands on high ground is nearer to it and drawn a
+// little bigger, and what stands in a hollow a little smaller: setElev gives the size at a place (1 at the middle height),
+// elevK reads it. Stepped in fiftieths so a building's kept picture is not remade for every hair of a slope.
+let ELEV = null;
+export function setElev(fn) { ELEV = fn; }
+export function elevK(x, y) { return ELEV && !FLAT ? Math.round(ELEV(x, y) * 50) / 50 : 1; }
 export function raise(ctx, who, x, y, R, h, draw, opts = {}) {
+  const s = opts.noElev ? 1 : elevK(x, y);
+  if (s === 1) return raise0(ctx, who, x, y, R, h, draw, opts);
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.translate(-x, -y);
+  try { raise0(ctx, who, x, y, R, h, draw, opts); } finally { ctx.restore(); }
+}
+function raise0(ctx, who, x, y, R, h, draw, opts = {}) {
   const T = ctx.getTransform(), k = T.a, lift = Math.round(h * LIGHT.up * k);
   if (FLAT || typeof document === 'undefined' || !(k > 0) || lift < 2 || R * k < 5) { draw(ctx); return; }
   const pad = 2, half = Math.ceil(R * k) + pad, S = half * 2;

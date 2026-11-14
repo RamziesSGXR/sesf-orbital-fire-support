@@ -2815,3 +2815,50 @@ body.ui-scifi .card, body.ui-scifi .screen .box, body.ui-scifi .tab, body.ui-sci
 body.ui-scifi .tut-k, body.ui-scifi #tut, body.ui-scifi .chip, body.ui-scifi .tag, body.ui-scifi .x-close { border-radius: 0; }
 body.ui-scifi input, body.ui-scifi select, body.ui-scifi textarea { background-color: rgba(12, 16, 14, 0.9); border-color: var(--cy-d); color: var(--g); font-family: var(--mono); }
 body.ui-scifi b { color: #fff; }
+
+/* ---------------------------------------------------------------- (0.62.9) the way into a mission, on a phone: no scrolling
+   The headings marked .fold-h open and shut what is under them. On a computer everything is open and the headings are plain. */
+.fold-h { cursor: default; }
+.b-load-h { display: none; }
+.r-short { display: none; }
+@media (max-width: 760px), (max-height: 520px) {
+  .fold-h { cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 0 4px !important; padding: 8px 10px; border: 1px solid rgba(var(--g-rgb), 0.28); font-size: 11px !important; letter-spacing: 0.16em; color: var(--g) !important; background: rgba(0, 0, 0, 0.3); user-select: none; }
+  .fold-h::after { content: '+'; font-size: 16px; line-height: 1; color: var(--yellow); }
+  .open > .fold-h::after, .fold-h[aria-expanded="true"]::after { content: '−'; }
+  .b-load-h { display: flex; }
+  /* new operation: the form, then START; the rules are a tap away */
+  #s-lock #lock-sub, #s-lock .diff-note { display: none; }
+  #lock-run:not(.open) .lock-rules { display: none; }
+  #s-lock .lockcard h2 { margin: 0 0 6px; }
+  /* the briefing: the facts with an icon each, the tip, CONTINUE. The situation and the stratagems are a tap away */
+  #b-sit:not(.open) #b-story { display: none; }
+  #b-load:not(.open) { display: none; }
+  #s-brief .r-line { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; padding: 6px 2px; min-height: 30px; font-size: 13.5px; }
+  #s-brief .r-line .r-k, #s-brief .r-line .r-long, #s-brief .r-line .lockchip, #s-brief .r-line .r-opb { display: none; }
+  #s-brief .r-line .r-short { display: inline; }
+  #s-brief .r-line:not(.big)::before { content: ''; flex: 0 0 18px; width: 18px; height: 18px; background: var(--g); -webkit-mask: var(--ic) center / contain no-repeat; mask: var(--ic) center / contain no-repeat; }
+  #r-enemy { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21 2 4h20z'/%3E%3C/svg%3E"); }
+  #r-enemy::before { background: var(--red) !important; }
+  #r-biome { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M1 20 8.500 7l4 6.500 2.500-3.500L23 20z'/%3E%3C/svg%3E"); }
+  #r-obj { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M11 1h2v3.100A8 8 0 0 1 19.900 11H23v2h-3.100A8 8 0 0 1 13 19.900V23h-2v-3.100A8 8 0 0 1 4.100 13H1v-2h3.100A8 8 0 0 1 11 4.100zm1 5a6 6 0 1 0 0 12 6 6 0 0 0 0-12zm0 4a2 2 0 1 1 0 4 2 2 0 0 1 0-4z'/%3E%3C/svg%3E"); }
+  #r-obj::before { background: var(--yellow) !important; }
+  #r-diff { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 15h5v6H2zm7.500-6h5v12h-5zM17 3h5v18h-5z'/%3E%3C/svg%3E"); }
+  #r-fail { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21C5 15.500 2 12 2 8.200 2 5.300 4.200 3 7 3c1.900 0 3.700 1 5 2.700C13.300 4 15.100 3 17 3c2.800 0 5 2.300 5 5.200 0 3.800-3 7.300-10 12.800z'/%3E%3C/svg%3E"); }
+  #r-fail::before { background: #ff8a7a !important; }
+  #s-brief .r-line.fail b { font-size: 12.5px; }
+}
+  /* (0.62.9) the armory on a phone: a card is its name and its price; a tap opens the rest under it */
+@media (max-width: 760px) {
+  #s-shop #shop-eyebrow { display: none; }
+  #s-shop h2 { margin: 0 0 2px; font-size: 18px; }
+  #s-shop .rankbar .rb-track, #s-shop .rankbar .rb-next { display: none; }
+  #s-shop .rankbar { padding: 6px 10px; margin: 4px 0; }
+  #s-shop .item { grid-template-columns: minmax(0, 1fr) auto; padding: 5px 6px; margin-bottom: 4px; gap: 6px; align-items: start; }
+  #s-shop .item .it-main { cursor: pointer; min-height: 40px; display: flex; flex-direction: column; justify-content: center; }
+  #s-shop .item .it-name::after { content: '+'; color: var(--yellow); margin-left: 8px; font-size: 14px; }
+  #s-shop .item.open .it-name::after { content: '−'; }
+  #s-shop .item:not(.open) .it-blurb, #s-shop .item:not(.open) .it-stat, #s-shop .item:not(.open) .it-next, #s-shop .item:not(.open) .it-path { display: none; }
+  #s-shop .item:not(.open) .it-btns .btn:not(.buy) { display: none; }
+  #s-shop .item .it-btns { min-width: 104px; }
+  #s-shop .item:not(.open) .it-btns .btn.buy { min-height: 40px; padding: 4px 8px; }
+}

@@ -1782,6 +1782,12 @@ function openFeedback() {
 }
 function closeFeedback() { UI.overlay('s-feedback', false); if (fbUnder) UI.overlay(fbUnder, true); fbUnder = null; }
 for (const a of document.querySelectorAll('a.fb')) a.addEventListener('click', (e) => { if (e.button || e.ctrlKey || e.metaKey || e.shiftKey) return; e.preventDefault(); openFeedback(); });
+// (0.62.9) Folds: on a phone the long reading on the way into a mission (how an operation works, the situation, the squad's
+// stratagems) is shut behind its heading, so the screen fits without scrolling; a tap on the heading opens it.
+for (const h of document.querySelectorAll('[data-fold]')) {
+  const flip = () => { const box = $(h.dataset.fold); if (box) { box.classList.toggle('open'); h.setAttribute('aria-expanded', box.classList.contains('open')); audio.click(); } };
+  h.addEventListener('click', flip); h.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } });
+}
 $('fb-text').addEventListener('input', fbCount);
 for (const k of ['keydown', 'keyup', 'keypress']) $('fb-text').addEventListener(k, (e) => { e.stopPropagation(); if (k === 'keydown' && e.key === 'Escape') closeFeedback(); });     // typing is not the game's keys; Escape shuts the form
 $('fb-x').onclick = closeFeedback; $('fb-cancel').onclick = closeFeedback;

@@ -1530,13 +1530,13 @@ export function runBriefing({ info, mission, touch, onContinue, onEnd, onCancel,
 
   const f = FACTIONS[info.faction], b = BIOMES[info.biome];
   $('r-op').textContent = info.op.toUpperCase();
-  $('r-enemy').innerHTML = `${t('brief.enemy')} <b style="color:${f.color}">${f.name}</b> <span style="color:var(--g-dim)">(${f.full})</span>`;
-  $('r-biome').innerHTML = `${t('brief.biome')} <b>${b.name.toUpperCase()}</b> <span style="color:var(--g-dim)">· ${t('brief.area')} ${t('brief.areaVal', { n: pre.ao })}</span>`;
-  $('r-obj').innerHTML = `${t('brief.objective')} <b style="color:var(--yellow)">${pre.objectives.map((o) => OBJ_NAME[o]).join(' + ')}</b>`
+  $('r-enemy').innerHTML = `<span class="r-k">${t('brief.enemy')}</span> <b style="color:${f.color}">${f.name}</b> <span style="color:var(--g-dim)">(${f.full})</span>`;
+  $('r-biome').innerHTML = `<span class="r-k">${t('brief.biome')}</span> <b>${b.name.toUpperCase()}</b> <span class="r-long" style="color:var(--g-dim)">· ${t('brief.area')} ${t('brief.areaVal', { n: pre.ao })}</span>`;
+  $('r-obj').innerHTML = `<span class="r-k">${t('brief.objective')}</span> <b style="color:var(--yellow)">${pre.objectives.map((o) => OBJ_NAME[o]).join(' + ')}</b>`
     + (pre.defenders ? `<br><b class="r-def">${esc(t('brief.defenders', { n: pre.defenders.n, place: t('place.' + (pre.defenders.type === 'nuke' ? 'launch' : pre.defenders.type === 'vip' ? 'pickup' : pre.defenders.type)) }))}</b>` : '');   // (0.18) SEAF already holding the site
   const dl = pre.difficulty || LEVELS, st = pre.start || dl;      // (0.19) the level climbs each mission from where the session started
-  $('r-diff').innerHTML = `${t('brief.diff')} <b>${dl} · ${esc(t(...levelName(dl)).toUpperCase())}</b> <span style="color:var(--g-dim)">· ${esc(t('brief.pay', { x: reward(dl).toFixed(2) }))}</span>${pre.opBonus > 1 ? ` <span class="r-opb">· ${esc(t('brief.opBonus', { n: pre.opDone, x: pre.opBonus.toFixed(1) }))}</span>` : ''} <span class="lockchip">${esc(t(dl > st ? 'brief.climbed' : 'brief.climbs', { n: st }))}</span>`;
-  $('r-fail').innerHTML = `${esc(t('brief.fail'))} <b>${esc(t('brief.failIf', { n: pre.lives || C.helldivers.lives }))}</b>`;
+  $('r-diff').innerHTML = `<span class="r-k">${t('brief.diff')}</span> <b>${dl} · ${esc(t(...levelName(dl)).toUpperCase())}</b> <span class="r-long" style="color:var(--g-dim)">· ${esc(t('brief.pay', { x: reward(dl).toFixed(2) }))}</span><span class="r-short" style="color:var(--g-dim)">· ${esc(t('nx.pay', { x: reward(dl).toFixed(2) }))}</span>${pre.opBonus > 1 ? ` <span class="r-opb">· ${esc(t('brief.opBonus', { n: pre.opDone, x: pre.opBonus.toFixed(1) }))}</span>` : ''} <span class="lockchip">${esc(t(dl > st ? 'brief.climbed' : 'brief.climbs', { n: st }))}</span>`;
+  $('r-fail').innerHTML = `<span class="r-k">${esc(t('brief.fail'))}</span> <b class="r-long">${esc(t('brief.failIf', { n: pre.lives || C.helldivers.lives }))}</b><b class="r-short">${esc(t('brief.failShort', { n: pre.lives || C.helldivers.lives }))}</b>`;
 
   // The squad's twelve stratagems appear group by group while the mission loads.
   const box = $('b-strats'), chips = [];
@@ -1699,6 +1699,7 @@ function keyAt(it, kit, L) {
   return '';
 }
 // What an item does now, what the next level gives, and the whole path (level by level), as HTML.
+let shopOpen = null;     // (0.62.9) the armory card open on a phone
 function upgradeLines(it, kit) {
   if (it.id.startsWith('slot')) return `<div class="it-stat">${statLine(it, kit)}</div>`;
   const L = it.level, unlock = (it.orb && !it.owned) || (it.build && !L);
@@ -1915,7 +1916,11 @@ export function renderShop(root, opts) {
       const shut = !open(it), rk = rankOf(it), black = shut && it.secret;       // (0.25) locked by rank; a classified one stays blacked out
       const card = el('div', 'item sec-' + slug + (it.owned ? ' owned' : '') + (it.cost === null ? ' maxed' : '') + (inLoad ? ' equipped' : '') + (isNew ? ' fresh' : '') + (shut ? ' ranklock' : '') + (black ? ' redacted' : ''));
       if (isNew) card.dataset.fresh = '1';
+      // (0.62.9) on a phone a card is one line (its name and its price) until it is tapped: the details and the other buttons
+      // open under it, and the one that was open stays open when the page is redrawn after a purchase
+      card.dataset.id = it.id; if (shopOpen === it.id) card.classList.add('open');
       const main = el('div', 'it-main');
+      main.addEventListener('click', () => { const was = card.classList.contains('open'); for (const c of pane.querySelectorAll('.item.open')) c.classList.remove('open'); card.classList.toggle('open', !was); shopOpen = was ? null : it.id; });
       const nm = it.orb ? shortName(it.orb) : it.name;
       main.innerHTML = black
         ? `<div class="it-name"><span class="bars" aria-label="${esc(t('arm.redactedAria'))}">${nm.replace(/\S/g, '█')}</span><span class="tagc">${esc(t('kit.tag.' + sec.name))}</span></div>`

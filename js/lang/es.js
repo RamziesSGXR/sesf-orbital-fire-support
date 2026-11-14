@@ -223,6 +223,8 @@ export default {
   'brief.area': 'ZONA',
   'brief.areaVal': 'CUADRADO DE {n} M',
   'brief.diff': 'DIFICULTAD',
+  'brief.loadouts': 'LAS ESTRATAGEMAS DEL ESCUADRÓN',     // (0.62.9)
+  'brief.failShort': '{n} VIDAS PARA CUMPLIR EL OBJETIVO',
   'brief.pay': 'CRÉDITOS Y PUNTUACIÓN ×{x}',
   'brief.opBonus': 'BONIFICACIÓN DE OPERACIÓN: CRÉDITOS ×{x} ({n} HECHAS)',
   'brief.objective': 'OBJETIVO',
