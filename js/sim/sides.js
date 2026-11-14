@@ -37,16 +37,11 @@ export function sideFits(m, kind) {
 // Which side missions this mission has: more on the bigger maps.
 function kindsFor(m) {
   const n = Math.min(SD().max, SD().min + Math.floor((m.ao.size - C.ao.start) / SD().perAoM));
-  // (0.62.8) One of each at most: a big map used to get the same side mission twice (two radio towers, two broadcast towers).
-  // And none that repeats the mission's own objective (sides.notWith): no SEAF to rescue beside a VIP or an evacuation, no
-  // howitzer to take beside a defence gun, no jammer under the shield dome.
-  const pool = ['radio', 'propaganda', 'rescue'].filter((k) => sideFits(m, k)), out = [];
+  const pool = ['radio', 'propaganda', 'rescue'], out = [];
   const order = m.rng.shuffle(pool.slice());
-  // a big map that has run out of kinds gets the howitzer as one of its own, when the operation is far enough along for it
-  if ((m.missionN || 1) >= C.arty.fromMission && sideFits(m, 'arty')) order.push('arty');
-  for (let i = 0; i < Math.min(n, order.length); i++) out.push(order[i]);
+  for (let i = 0; i < n; i++) out.push(order[i % order.length]);
   // some maps have an abandoned SEAF howitzer the squad can take over (from the second mission of a session)
-  if ((m.missionN || 1) >= C.arty.fromMission && m.rng.next() < C.arty.chance && sideFits(m, 'arty') && !out.includes('arty')) out.push('arty');
+  if ((m.missionN || 1) >= C.arty.fromMission && m.rng.next() < C.arty.chance) out.push('arty');
   return out;
 }
 
@@ -80,6 +75,25 @@ export function setupSides(m) {
         s.troops.push(a);
       }
       m.sides.push(s);
+    }
+  }
+  // (0.62.8) One of each at most, and none that repeats the mission's own objective (sides.notWith): a big map used to get the
+  // same side mission twice (two radio towers, two broadcast towers), and SEAF to rescue beside a VIP, a howitzer beside a
+  // defence gun. They are all placed as before and the ones not wanted taken off again, so the map's dice roll as they did
+  // and everything else is where it was.
+  {
+    const seen = new Set(), drop = [];
+    for (const q of m.sides) { if (seen.has(q.kind) || !sideFits(m, q.kind)) drop.push(q); else seen.add(q.kind); }
+    if (drop.length) {
+      const gone = new Set(drop), men = new Set();
+      for (const q of drop) for (const a of q.troops || []) men.add(a);
+      m.sides = m.sides.filter((q) => !gone.has(q)); m.pois = m.pois.filter((q) => !gone.has(q));
+      if (men.size) { m.allies = m.allies.filter((a) => !men.has(a)); if (m._refreshAlive) m._refreshAlive(); }
+      // a big map left short takes the howitzer, if the operation is far enough along for it: placed from a stream of its own
+      if (!seen.has('arty') && (m.missionN || 1) >= C.arty.fromMission && sideFits(m, 'arty')) {
+        const r0 = m.rng; m.rng = new RNG((m.seed ^ 0x27d4eb2f) >>> 0);
+        try { const p = findSpot(m, avoid(), 70, way); m.sides.push({ id: m.nextId++, side: true, kind: 'arty', x: p.x, y: p.y, r: 10, state: 'idle', holdT: 0, done: false, failed: false, callT: 0, face: m.rng.angle() }); } finally { m.rng = r0; }
+      }
     }
   }
   // (0.37) a jammer, rolled and placed from a stream of its own so the rest of the map (and everything after) rolls as it did

@@ -230,8 +230,8 @@ function seafShare(seed, role, n, targets, sec = 10) {
   m.sides = m.sides.filter((q) => q.kind !== 'spore'); m.pois = m.pois.filter((q) => q.kind !== 'spore');
   const sp = addSpore(m, a.x + 300, a.y);
   const s0 = a.sight / m.terrain.sightMul(a.x, a.y);
-  a.x = sp.x + 20; a.y = sp.y; m.step(dt);
-  const s1 = a.sight / m.terrain.sightMul(a.x, a.y);
+  a.x = sp.x + 20; a.y = sp.y; const sm1 = m.terrain.sightMul(a.x, a.y); m.step(dt);     // (0.62.8: the ground he stood on when his sight was worked out, not where the step left him)
+  const s1 = a.sight / sm1;
   check('inside its cloud an ally sees a lot less far', Math.abs(s1 / s0 - C.sides.spore.sight) < 0.02, `${Math.round(s0)} -> ${Math.round(s1)} m`);
   check('it is a side task for the squad', openTasks(m).some((k) => k.ref === sp));
   m.damagePoi(sp, 1e7, 'player'); m.step(dt);
