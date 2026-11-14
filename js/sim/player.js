@@ -338,7 +338,7 @@ export function refreshAim(m) {
     const gs = gunStats(m.kit), g = p.gun;
     info.lock = m.visLevel(p.aimX, p.aimY) <= 0 && !!m.nearLock(p.aimX, p.aimY);
     info.inZone = m.visLevel(p.aimX, p.aimY) > 0 || info.lock;
-    info.splash = (gs.spread + gs.bloom * g.bloom) * (m.evading ? C.objective.cannon.gunMul : 1); info.ready = info.inZone && g.ammo >= 1 && !g.dry;
+    info.splash = (gs.spread + gs.bloom * g.bloom) * (m.evading ? C.objective.cannon.gunMul : 1); info.ready = info.inZone;     // (0.62.6) an empty gun still fires, slowly
     info.gun = { ammo: g.ammo, max: g.max, dry: g.dry };
   } else { info.inZone = false; info.ready = false; }
   { const j = s.type === 'nuke' ? null : jammedAt(m, p.aimX, p.aimY, 0, s.type === 'gun'); info.jammed = !!j; info.jamSite = !!(j && j.side); }     // (0.37: the ship gun still fires into a jammer site)
@@ -419,25 +419,28 @@ function updateGun(m, dt, pressed) {
   const holding = p.slots[p.weapon].type === 'gun' && p.firing && t >= p.swapUntil;
   const jam = holding && (!!jammedAt(m, p.aimX, p.aimY, 0, true) || !!domeAt(m, p.aimX, p.aimY));
   const seen = holding && !jam && (m.visLevel(p.aimX, p.aimY) > 0 || !!m.nearLock(p.aimX, p.aimY));   // a locked enemy can be shot unseen
-  if (g.dry && g.ammo >= 45) g.dry = false;
+  if (g.dry && g.ammo >= (G.dryBack || 45)) g.dry = false;
   if (holding && pressed) {
     if (jam) deny(m, 'jammed', COMMS.jammed);
     else if (!seen) deny(m, 'novisual', COMMS.noVisual);
-    else if (g.ammo < 1 || g.dry) deny(m, 'gundry', COMMS.gunDry);
   }
-  if (seen && g.ammo >= 1 && !g.dry) {
+  // (0.62.6) An empty magazine no longer stops the gun. It used to lock until 45 rounds were back, so a held trigger gave two
+  // seconds of fire, then five of nothing, over and over: it came in spurts, and looked broken. Held on empty it now fires
+  // straight off the loader instead: a steady `dryRate` of what the reload feeds, no rounds banked. Let go and it refills.
+  if (seen) {
+    const slow = g.ammo < 1;
     g.idle = 0; g.firing = true;
-    g.bloom = Math.min(1, g.bloom + G.bloomUp * dt / 3);
-    g.acc += G.rps * dt;
+    g.bloom = Math.min(1, g.bloom + G.bloomUp * dt / 3 * (slow ? 0.4 : 1));
+    g.acc += (slow ? gs.regen * (G.dryRate || 0.7) : G.rps) * dt;
     const pts = [], spread = (gs.spread + gs.bloom * g.bloom) * (m.evading ? C.objective.cannon.gunMul : 1);
-    while (g.acc >= 1 && g.ammo >= 1) {
-      g.acc -= 1; g.ammo -= 1;
+    while (g.acc >= 1 && (slow || g.ammo >= 1)) {
+      g.acc -= 1; if (!slow) g.ammo -= 1;
       const [ox, oy] = m.rng.inDisc(spread), x = p.aimX + ox, y = p.aimY + oy;
       damageArea(m, x, y, G.splash * m.biome.splash, gs.dmg, gs.pen, 'player', false, 'gun', x, y - 3);   // rounds fall from the ship
       if (pts.length < 4) pts.push([x, y]);
       m.stats.gunRounds = (m.stats.gunRounds || 0) + 1;
     }
-    if (g.ammo < 1) { g.ammo = 0; g.dry = true; g.firing = false; m.radio(COMMS.gunDry, 'gundry', 4); }
+    if (!slow && g.ammo < 1) { g.ammo = 0; g.acc = 0; if (!g.dry) m.radio(COMMS.gunDry, 'gundry', 20); g.dry = true; }
     if (pts.length) { m.emit('gun', { x: p.aimX, y: p.aimY, pts }); noise(m, p.aimX, p.aimY, C.noise.gun); }
     m.stats.shots++;
   } else {

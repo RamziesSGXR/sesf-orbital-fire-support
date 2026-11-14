@@ -792,7 +792,7 @@ export default {
   'c.uavUp': 'Escaneo de dron activo. El escuadrón ve todo el círculo.',
   'c.breachDown': 'Brecha destruida.',
   'c.poiDown': '{name} destruido. Créditos cobrados.',
-  'c.gunDry': 'Cañón sin munición. Recargando.',
+  'c.gunDry': 'Cañón sin munición. Fuego lento: suelta para recargar.',
   'c.noVisual': 'Sin visual sobre ese terreno. Escanéalo primero.',
   'c.stratCall': 'El escuadrón pide: {name}.',
   'c.assetDown': '{name} destruido.',
@@ -912,6 +912,7 @@ export default {
   // la mira
   'ret.gunNoVis': 'SIN VISUAL. EL FUEGO LIBRE NECESITA VER',
   'ret.gunDry': 'CARGADOR VACÍO. RECARGANDO',
+  'ret.gunSlow': 'CARGADOR VACÍO. FUEGO LENTO',     // (0.62.6)
   'ret.firing': 'DISPARANDO',
   'ret.freeFire': 'FUEGO LIBRE',
   'ret.locked': 'BLANCO FIJADO',

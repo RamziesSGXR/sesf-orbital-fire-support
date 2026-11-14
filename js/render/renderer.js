@@ -1592,7 +1592,7 @@ export class Renderer {
     if (isGun) {
       const g = info.gun || { ammo: 0, max: 1, dry: true };
       if (!info.inZone) { status = tr('ret.gunNoVis'); bad = true; }
-      else if (g.dry) { status = tr('ret.gunDry'); bad = true; }
+      else if (g.ammo < 1) { status = tr(p.gun && p.gun.firing ? 'ret.gunSlow' : 'ret.gunDry'); bad = true; }     // (0.62.6) empty: firing off the loader, or reloading
       else status = tr(info.lock ? 'ret.locked' : p.gun && p.gun.firing ? 'ret.firing' : 'ret.freeFire');
     } else if (isNuke) { if (!info.ready) { status = tr(s.uses <= 0 ? 'hud.w.launched' : 'ret.notArmed'); bad = true; } else status = tr('ret.armed'); }
     else if (s.type === 'empty') { status = tr('ret.empty'); bad = true; }
