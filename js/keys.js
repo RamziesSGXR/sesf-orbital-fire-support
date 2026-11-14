@@ -13,7 +13,7 @@ export const GROUPS = [
   ['seaf', [['seaf', 'KeyG', []], ['auto', 'KeyX', []], ['move', 'KeyV', []], ['protect', 'KeyZ', []], ['attack', 'KeyN', []], ['escort', 'KeyC', []],
     ['allSquads', 'Backquote', []], ['draw', 'KeyR', []], ['disband', 'Delete', ['Backspace']]]],
   ['panel', [['build', 'KeyB', []], ['armory', 'KeyY', []], ['supply', 'KeyU', []], ['look', 'KeyJ', []], ['timeYes', 'KeyK', []], ['info', 'KeyI', []],
-    ['radio', 'KeyO', []], ['thermal', 'KeyT', []], ['relief', 'KeyH', []], ['hideUi', 'F2', []]]],
+    ['radio', 'KeyO', []], ['thermal', 'KeyT', []], ['relief', 'KeyH', []], ['hideUi', 'F2', []], ['debug', 'F3', []]]],
   ['time', [['pause', 'Space', []], ['softPause', 'KeyP', []], ['speed', 'Comma', []], ['deploy', 'Enter', ['NumpadEnter']]]],
 ];
 const DEF = {}, ALT = {};

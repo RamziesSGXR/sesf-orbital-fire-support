@@ -25,6 +25,11 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**The freeze, found — and a debug readout (0.62.3).**
+- **The freeze is fixed.** With a squad selected, a right-click on an enemy sent the squad to "man" it like a building, and the game froze until another order replaced that one. A right-click on an enemy is an attack order again.
+- **One broken part no longer stops the rest.** If one part of the game hits an error, the other parts carry on: no more Helldivers walking while every enemy stands still.
+- **Debug info (F3, or Settings).** A small readout in the corner: version, frame rate, the mission, what is holding the game if anything, and the last error. It opens by itself if something goes wrong. **COPY REPORT** puts a report on the clipboard to paste to us; errors are kept even after a reload. Nothing personal is in it.
+
 **The squids, redrawn — and they fight better (0.62.2).**
 - **New squid art.** The warrior, the overseer, the bombardier and the fleshmob are armoured now, not blobs: flared shoulder plates, a narrow head with a lit visor, limbs folded back under the mantle, and a plasma weapon held across the body. The overseer carries a crest and an energy lance.
 - **A proper harvester.** It walks on three heavy legs with knee plates and clawed feet, under a chamfered hull with a wide lens at the nose that whitens as its beam charges. Its shield shows as a dome of light.

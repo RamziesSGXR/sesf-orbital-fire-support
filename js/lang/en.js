@@ -352,6 +352,9 @@ export default {
   'keys.a.thermal': 'Thermal view',
   'keys.a.relief': 'Relief map',
   'keys.a.hideUi': 'Hide the HUD',
+  'keys.a.debug': 'Debug info',     // (0.62.3)
+  'set.debug': 'Debug info', 'set.debugHint': 'A readout in the corner of what the game is doing, and a log of errors you can copy and send to us (key F3)',
+  'dbg.copy': 'COPY REPORT', 'dbg.copied': 'COPIED', 'dbg.broke': 'SOMETHING WENT WRONG. PRESS COPY REPORT AND SEND IT TO US.', 'dbg.copyFail': 'COPY FAILED: SELECT THE TEXT INSTEAD',
   'keys.a.pause': 'Pause and plan',
   'keys.a.softPause': 'Pause (no menu)',
   'keys.a.speed': 'Half speed',

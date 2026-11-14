@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const js = await build({ entryPoints: [path.join(root, 'js/main.js')], bundle: true, minify: true, format: 'iife', target: 'es2020', write: false });
+const js = await build({ entryPoints: [path.join(root, 'js/main.js')], bundle: true, minifyWhitespace: true, minifySyntax: true, minifyIdentifiers: false, format: 'iife', target: 'es2020', write: false });
 const css = fs.readFileSync(path.join(root, 'css/style.css'), 'utf8');
 let html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 html = html.replace('<link rel="stylesheet" href="css/style.css">', () => `<style>\n${css}\n</style>`);

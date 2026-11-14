@@ -775,7 +775,7 @@ function stepSquad(m, q, list, dt, speed, bm, claimed) {
       if (pl) for (const o2 of m.seaf.squads) { if (o2.i >= q.i) break; if (o2.n && o2.order.kind === 'post' && o2.order.post === p) kk += o2.n; }
       if (pl && kk < pl.length) s = pl[kk];
       else if (pl) { const k = kk - pl.length, n = Math.max(1, kn - pl.length), ang = (p.face || 0) + Math.PI + ((k + 0.5) / n - 0.5) * Math.PI * 1.4, rr = p.what === 'lz' ? p.r * 0.75 : p.r + 5; s = { x: p.x + Math.cos(ang) * rr, y: p.y + Math.sin(ang) * rr }; }     // (0.40: round a pickup point, still in it)
-      else if (site && site.pieces.length) s = coverSlot(site, ki, kn, ((a.id % 3) - 1) * 1.8);
+      else if (site && site.pieces && site.pieces.length) s = coverSlot(site, ki, kn, ((a.id % 3) - 1) * 1.8);
       else s = { x: o.x + fo.x * 0.5, y: o.y + fo.y * 0.5 };
       tx = s.x; ty = s.y; spd = Math.hypot(tx - a.x, ty - a.y) > 18 ? chase : speed;
       if (Math.hypot(tx - a.x, ty - a.y) <= 1.1) continue;

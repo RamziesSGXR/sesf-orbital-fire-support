@@ -225,6 +225,7 @@ const input = new Input(canvas, $('minimap'), cam, {
   command: (x, y) => commandAt(x, y),
   escape: () => escapeKey(),
   hideUi: () => setHideUi(!hideUi),
+  debug: () => { settings.debug = !settings.debug; S.save('settings', settings); audio.click(); },     // (0.62.3) F3
   order: (kind, viaKey) => order(kind, viaKey),
   placing: () => !!placing && act(),
   place: () => placeNow(),
@@ -464,7 +465,10 @@ function commandAt(sx, sy) {
   if (mission.seaf.sel === -1 && !(mission.seaf.multi && mission.seaf.multi.length)) { if (mission.seafAlive.length) { audio.deny(); hud.toast(deny('picksquad'), 1600); } return; }
   const w = renderer.screenToWorld(sx, sy, canvas); if (!w) return;
   const m = mission, o = pickAt(sx, sy), r = Math.max(5, cam.view * 0.025), cr = crateAt(w.x, w.y);
-  const man = !cr && o && o.type !== 'S' && o.kind !== 'turret' ? o : null;
+  // (0.62.3) only a post or a defence site is somewhere to man. Since 0.58 an enemy in sight is picked too (to read its
+  // armour), and a right-click on one sent the squad to "man" it: every step threw from then on and the game froze until
+  // another order replaced that one. An enemy under the cursor is attacked, as it always should have been.
+  const man = !cr && o && (o.kind === 'post' || m.coverSites.includes(o)) ? o : null;
   const e = !cr && !man ? m.eGrid.nearest(w.x, w.y, r) : null, p = snap(w.x, w.y), hit = !!e || p.x !== w.x || p.y !== w.y;
   const go = () => {
     if (cr) return m.seafBuildCrate(cr);                                  // a crate (or a foxhole being dug): they go and build it
@@ -2070,8 +2074,73 @@ function fpsCap() { const f = settings.fps; return f === 'max' ? 0 : f === '30' 
 // a card hidden behind another panel, or a cinematic that never ended. So each hold gets a ceiling, and a hold with no card
 // showing is let go after a moment. The player's only way out used to be to stumble on whatever the card was waiting for.
 // (0.62.2) Anything thrown by a step or by the smoothing: logged the first few times, then counted. The frame goes on.
+// (0.62.3) They are also kept: the last few, each with where it was thrown and what the game was doing, in the debug readout
+// (F3, or Settings) and in the browser's storage, so a player can copy a report after the fact — even after a reload.
 let simFails = 0;
-function simBroke(err) { simFails++; if (simFails <= 5) console.error('[sim] step failed (' + simFails + ')', err); }
+const ERRLOG_KEY = 'ofs.errlog', ERRLOG_MAX = 12;
+let errLog = [];
+try { errLog = JSON.parse(localStorage.getItem(ERRLOG_KEY) || '[]') || []; } catch { errLog = []; }
+let debugBroke = false;     // something went wrong this visit: the readout opens by itself, with a line saying so
+function gameLine() {
+  const m = mission;
+  if (!m) return `state ${state}`;
+  return `state ${state}  t ${m.t.toFixed(1)}  seed ${m.seed}  ${m.faction && m.faction.id}/${m.biome && m.biome.id}  L${m.difficulty} #${m.missionN}` +
+    `  obj ${(m.objectives || []).map((o) => o.type + (o.done ? '+' : '-')).join(',')}` + (m.ls ? '  last-stand' : '') + (tut ? `  tutorial ${tut.stage}:${tut.i}` : '');
+}
+function logError(err, where) {
+  const msg = String((err && err.message) || err), stack = String((err && err.stack) || '').split('\n').slice(0, 9).join('\n');
+  const last = errLog[errLog.length - 1];
+  if (last && last.msg === msg && last.where === where && last.v === C.share.version) { last.n = (last.n || 1) + 1; last.at = new Date().toISOString(); }
+  else { errLog.push({ at: new Date().toISOString(), v: C.share.version, where, msg, stack, game: (() => { try { return gameLine(); } catch { return '?'; } })(), n: 1 }); if (errLog.length > ERRLOG_MAX) errLog.shift(); }
+  debugBroke = true;
+  if (!logError.saveAt || performance.now() - logError.saveAt > 2000) { logError.saveAt = performance.now(); try { localStorage.setItem(ERRLOG_KEY, JSON.stringify(errLog)); } catch { /* storage full or off: the log stays in memory */ } }
+}
+function simBroke(err, part = 'step') { simFails++; if (simFails <= 5) console.error('[sim] ' + part + ' failed (' + simFails + ')', err); logError(err, 'sim:' + part); }
+// (0.62.3) and a frame that throws while drawing: logged, and the canvas is put back as it was before the frame (a throw part
+// way through leaves its saves and transforms behind), so the next frame has a fair go and the HUD and the readout stay up.
+function drawBroke(err) {
+  logError(err, 'draw');
+  try { const c = canvas.getContext('2d'); if (c && c.reset) { c.reset(); renderer.resize(); } } catch { /* nothing more to do here */ }
+}
+window.addEventListener('error', (e) => { logError(e.error || e.message, 'page'); });
+window.addEventListener('unhandledrejection', (e) => { logError(e.reason, 'promise'); });
+// The report a player sends: nothing personal in it. The version, the browser, the settings that change how the game runs,
+// what the mission was, what was holding the game if anything, and the errors.
+function debugReport() {
+  const m = mission, L = [];
+  L.push(`Orbital Fury ${C.share.version}  ${new Date().toISOString()}`);
+  L.push(navigator.userAgent);
+  L.push(`screen ${innerWidth}x${innerHeight} @${devicePixelRatio}  layout ${applyLayout.last || '?'}  lang ${settings.lang}`);
+  L.push(`settings quality ${settings.quality} fps ${settings.fps || 'auto'} 3d ${settings.relief3d} smooth ${settings.smooth !== false}`);
+  L.push(`fps ${fps.toFixed(0)}  ${gameLine()}`);
+  L.push(`hold: paused ${paused} soft ${soft} cinema ${!!cinema.on} card ${!!(tut && tut.held)} tac ${tac} speed ${speed}  step faults ${simFails}`);
+  if (m) L.push(`enemies ${m.enemies.length} groups ${m.groups.length} allies ${m.alive.length} seaf ${m.seafAlive.length} squads ${m.seaf.squads.length} posts ${(m.posts || []).length} shells ${m.shells.length} over ${m.over}`);
+  L.push('');
+  if (!errLog.length) L.push('no errors logged');
+  for (const e of errLog.slice().reverse()) { L.push(`[${e.at}] v${e.v} ${e.where} x${e.n || 1}: ${e.msg}`); L.push(`  ${e.game}`); if (e.stack) L.push(e.stack.split('\n').map((s) => '  ' + s.trim().replace(/\(?file:\/\/[^)\s]*\/|\(?https?:\/\/[^)\s]*\//g, '(')).join('\n')); }
+  return L.join('\n');
+}
+function debugPaint(now) {
+  const on = DEBUG || settings.debug || debugBroke, d = $('debug');
+  d.classList.toggle('hidden', !on);
+  if (!on || now - (debugPaint.at || 0) < 0.25) return;
+  debugPaint.at = now;
+  const m = mission, last = errLog[errLog.length - 1];
+  $('debug-warn').classList.toggle('hidden', !debugBroke);
+  if (debugBroke) $('debug-warn').textContent = t('dbg.broke');
+  $('debug-t').textContent = `v${C.share.version}  fps ${fps.toFixed(0)}  ${gameLine()}` +
+    `\nhold: ${paused ? (soft ? 'soft pause' : 'pause') : cinema.on ? 'cinematic' : tut && tut.held ? 'tutorial card' : 'none'}  speed ${speed}  faults ${simFails}` +
+    (m ? `\nenemies ${m.enemies.length}  allies ${m.alive.length}  seaf ${m.seafAlive.length}  posts ${(m.posts || []).length}  P ${m.pressure.toFixed(2)}  fx ${renderer.fx.length}  cr ${m.wallet.bal}` : '') +
+    (last ? `\nlast error (${errLog.length} kept): ${last.where} x${last.n || 1}: ${last.msg}` : '');
+}
+$('debug-copy').onclick = async () => {
+  const txt = debugReport(), b = $('debug-copy');
+  let ok = false;
+  try { await navigator.clipboard.writeText(txt); ok = true; } catch { /* no clipboard here: show the text to select */ }
+  if (!ok) { $('debug-t').textContent = txt; debugPaint.at = Infinity; $('debug').classList.add('sel'); }
+  b.textContent = t(ok ? 'dbg.copied' : 'dbg.copyFail');
+  setTimeout(() => { b.textContent = t('dbg.copy'); if (!ok) return; debugPaint.at = 0; }, 2200);
+};
 
 let holdKind = null, holdAt = 0;
 function unstick(now) {
@@ -2163,7 +2232,7 @@ function frame(ts) {
     const ga = placing ? ghostAt || (input.touch ? null : aimWorld()) : null;     // (0.22: the ghost of what is being placed)
     const tw = !paused && state === 'play' && !mission.over && !cinema.on && !(tut && tut.held);
     if (tw) { try { tween(mission, acc / STEP); } catch (err) { simBroke(err); } }
-    try { renderer.draw(mission, cam, { now, aim: drawing || box ? null : { x: p.aimX, y: p.aimY }, armed, placing, ghost: ga, plan: planQ, draw: stroke, snap: (x, y) => snap(x, y), sel, box, pface: placeFace, pshape: placeShape }); } finally { if (tw) untween(mission); }
+    try { renderer.draw(mission, cam, { now, aim: drawing || box ? null : { x: p.aimX, y: p.aimY }, armed, placing, ghost: ga, plan: planQ, draw: stroke, snap: (x, y) => snap(x, y), sel, box, pface: placeFace, pshape: placeShape }); } catch (err) { drawBroke(err); } finally { if (tw) untween(mission); }
     if (sel) placeSel(); else if (insp) placeInsp();
     sizeMini();
     // (0.42) the minimap at 10 a second, and not at all while it is folded away
@@ -2181,10 +2250,7 @@ function frame(ts) {
     renderer.drawAttract(now);
   }
 
-  if (DEBUG) {
-    const d = $('debug'); d.classList.remove('hidden');
-    d.textContent = `fps ${fps.toFixed(0)}  state ${state}` + (mission ? `\nt ${mission.t.toFixed(0)}s  enemies ${mission.enemies.length}  allies ${mission.alive.length}  P ${mission.pressure.toFixed(2)}  fx ${renderer.fx.length}  cr ${mission.wallet.bal}` : '');
-  }
+  debugPaint(now);     // (0.62.3) the debug readout: ?debug, F3, Settings, or by itself once something has gone wrong
 }
 
 // The minimap's canvas matches the size it is shown at (Settings > Minimap size), so it stays sharp.
@@ -2226,6 +2292,7 @@ function untween(m) {
 }
 function simulate(dt, now) {
   const m = mission;
+  if (!m.guard) { m.guard = true; m.onFault = (part, err) => simBroke(err, part); }     // (0.62.3) a broken part of a step is reported, and the rest goes on
   if (!m.over) {
     // Place the reticle in the world (touch uses the fixed center reticle).
     renderer.updateView(cam, now);
@@ -2241,7 +2308,7 @@ function simulate(dt, now) {
   while (acc >= STEP && n < cap) {
     if (bot) botStep(m, bot);
     keepPrev(m);
-    m.step(STEP); acc -= STEP; n++;
+    try { m.step(STEP); } finally { acc -= STEP; n++; }     // (0.62.3: the clock moves on even when a step throws)
   }
   if (acc > STEP * cap) acc = 0;
   if (m.events.length) {
