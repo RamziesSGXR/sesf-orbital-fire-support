@@ -352,6 +352,9 @@ export default {
   'keys.a.thermal': 'Vista térmica',
   'keys.a.relief': 'Mapa de relieve',
   'keys.a.hideUi': 'Ocultar la interfaz',
+  'keys.a.debug': 'Datos de depuración',     // (0.62.3)
+  'set.debug': 'Datos de depuración', 'set.debugHint': 'Un panel en la esquina con lo que hace el juego y un registro de errores que puedes copiar y enviarnos (tecla F3)',
+  'dbg.copy': 'COPIAR INFORME', 'dbg.copied': 'COPIADO', 'dbg.broke': 'ALGO HA FALLADO. PULSA COPIAR INFORME Y ENVÍANOSLO.', 'dbg.copyFail': 'NO SE PUDO COPIAR: SELECCIONA EL TEXTO',
   'keys.a.pause': 'Pausar y planear',
   'keys.a.softPause': 'Pausa (sin menú)',
   'keys.a.speed': 'Media velocidad',

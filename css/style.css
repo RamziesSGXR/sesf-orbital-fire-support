@@ -291,7 +291,11 @@ body.lefty #orders { left: auto; right: 10px; } body.lefty #radio { left: 10px; 
 #toast.show { opacity: 1; }
 body.touch #toast { bottom: calc(max(8px, env(safe-area-inset-bottom)) + 66px); font-size: 10.5px; }
 #rotate-hint { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); padding: 6px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; font-size: 11px; z-index: 40; pointer-events: none; }
-#debug { position: absolute; left: 8px; bottom: 4px; z-index: 50; font-size: 11px; color: #0f0; white-space: pre; pointer-events: none; background: rgba(0, 0, 0, 0.6); padding: 4px 6px; }
+#debug { position: absolute; left: 50%; top: 46px; transform: translateX(-50%); z-index: 50; font-size: 11px; color: #0f0; pointer-events: none; background: rgba(0, 0, 0, 0.82); padding: 4px 6px; width: max-content; max-width: min(92vw, 560px); }     /* (0.62.3) top middle: clear of the squad list, the tray and the minimap */
+#debug pre { margin: 0; font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 46vh; overflow: hidden; }
+#debug.sel pre { user-select: text; -webkit-user-select: text; pointer-events: auto; overflow: auto; }     /* only when the copy failed and the text has to be selected by hand: otherwise clicks pass through to the game */
+#debug-warn { color: #ffb23d; font-weight: 700; margin-bottom: 3px; }
+#debug-copy { pointer-events: auto; margin-top: 4px; font-size: 11px; padding: 3px 8px; min-height: 0; }
 
 /* ---------- armory ---------- */
 .card.wide3 { width: min(100%, 980px); text-align: left; }

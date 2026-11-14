@@ -79,6 +79,40 @@ const deadE = (e) => e.dead, emptyG = (g) => !g.members.length;
 
 const SLIDE = [0.5, -0.5, 1.0, -1.0, 1.5, -1.5];   // how far (radians) a blocked step may be turned to slide along a shore
 
+// (0.62.3) What a step does, in order. Each part is named, so a fault can say where it was.
+const STAGES = [
+  ['danger', (m) => buildDanger(m)],
+  ['posts', updatePosts],
+  ['site', updateSite],     // (0.52)
+  ['sam', (m) => updateSam(m)],
+  ['player', updatePlayer],
+  ['bridges', (m) => { if (m.bridgeQ.length) m._bridges(); }],
+  ['plan', updatePlan],
+  ['squad', updateSquad],
+  ['helldivers', updateHelldivers],
+  ['evade', updateEvade],
+  ['allies', updateAllies],
+  ['enemies', updateEnemies],
+  ['lockScan', (m, dt) => m._lockScan(dt)],
+  ['radar', (m) => m._radar()],
+  ['strat', updateStrat],
+  ['supply', updateSupply],
+  ['boss', updateBoss],
+  ['pois', updatePois],
+  ['sides', updateSides],
+  ['objectives', updateObjectives],
+  ['director', updateDirector],
+  ['alert', updateAlert],
+  ['patrols', updatePatrols],
+  ['reinf', updateReinf],
+  ['civs', updateCivs],
+  ['extract', updateExtract],
+  ['lastStand', (m, dt) => { if (m.ls) updateLastStand(m, dt); }],
+  ['chatter', updateChatter],
+  ['reinforce', (m) => m._reinforce()],
+  ['walk', (m, dt) => m._walk(dt)],
+];
+
 export class Mission {
   constructor(opts) {
     // The session's difficulty (difficulty.js): applied before anything reads the numbers it scales. 10 when not given.
@@ -541,6 +575,9 @@ export class Mission {
   seafMan(target) {
     if (this.over || !target) return { ok: false, reason: 'over' };
     if (target.what === 'lz') return this.seafToLz(target);     // (0.39) a pickup point: everyone picked goes
+    // (0.62.3) a post or a defence site, nothing else: handed an enemy (a right-click on one), the squad's order had no
+    // places to take and every step threw
+    if (target.kind !== 'post' && !this.coverSites.includes(target)) return { ok: false, reason: 'kind' };
     const sq = targetSquads(this).filter((q) => q.n > 0);
     if (!sq.length) return this._deny('noseaf');
     // (0.53.1) where they go: a post's defence site, or the post itself when it has none (the work site: right-clicking it threw)
@@ -1348,36 +1385,13 @@ export class Mission {
     for (const a of this.alive) if (!a.mounted && !a.inside && !a.down) this.aGrid.insert(a);     // (0.26: nor the downed, lying low)     // (the crew inside a building are out of reach: posts.js)
     for (const s of this.assets) if (!s.dead && s.kind !== 'mines' && !s.fallen && !s.asleep) this.tGrid.insert(s);     // (0.53.6: not a fallen work site, or one not yet worked: nobody shoots at those)
 
-    buildDanger(this);
-    updatePosts(this, dt);
-    updateSite(this, dt);     // (0.52)
-    updateSam(this);
-    updatePlayer(this, dt);
-    if (this.bridgeQ.length) this._bridges();
-    updatePlan(this, dt);
-    updateSquad(this, dt);
-    updateHelldivers(this, dt);
-    updateEvade(this, dt);
-    updateAllies(this, dt);
-    updateEnemies(this, dt);
-    this._lockScan(dt);
-    this._radar();
-    updateStrat(this, dt);
-    updateSupply(this, dt);
-    updateBoss(this, dt);
-    updatePois(this, dt);
-    updateSides(this, dt);
-    updateObjectives(this, dt);
-    updateDirector(this, dt);
-    updateAlert(this, dt);
-    updatePatrols(this, dt);
-    updateReinf(this, dt);
-    updateCivs(this, dt);
-    updateExtract(this, dt);
-    if (this.ls) updateLastStand(this, dt);
-    updateChatter(this, dt);
-    this._reinforce();
-    this._walk(dt);
+    // (0.62.3) The step runs as a list of parts (STAGES, below). With `guard` on (the game sets it; the tests do not, so a
+    // fault still fails a test) a part that throws is reported through onFault and the rest of the step goes on: one broken
+    // part used to stop everything after it, so the Helldivers kept walking while every enemy stood still.
+    if (!this.guard) for (let i = 0; i < STAGES.length; i++) STAGES[i][1](this, dt);
+    else for (let i = 0; i < STAGES.length; i++) {
+      try { STAGES[i][1](this, dt); } catch (err) { this.faults = (this.faults || 0) + 1; if (this.onFault) this.onFault(STAGES[i][0], err); }
+    }
 
     // Drop the dead in place (no new arrays every tick).
     if (this.dirtyE) {

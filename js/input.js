@@ -200,6 +200,7 @@ export class Input {
       // (0.50.1) everything else by what the key does now (keys.js: the player can change them); the Shift / Alt / Ctrl ones are fixed
       const act = actionOf(e.code), mod = e.ctrlKey || e.metaKey;
       if (act === 'hideUi') { e.preventDefault(); if (this.h.hideUi) this.h.hideUi(); return; }     // hide the HUD, and back
+      if (act === 'debug') { e.preventDefault(); if (this.h.debug) this.h.debug(); return; }     // (0.62.3) the debug readout, and back
       if (act === 'map' && !(mod && e.code !== 'Tab')) { if (this.h.map && this.h.map()) { e.preventDefault(); return; } }     // (0.20) the big map, and back (in a mission)
       // (0.18) Space: the tactical screen (and its pause) on and off; Alt+1..9: the selected troopers join that squad
       if (act === 'pause') { e.preventDefault(); if (this.h.supplyTap && this.h.supplyTap()) return; this.h.soft(); return; }   // (0.18) Space pauses (look around, no orders) and goes on
