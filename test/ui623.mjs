@@ -33,7 +33,7 @@ check('the readout is off to begin with', (await shown()) === false);
 await page.keyboard.press('F3'); await page.waitForTimeout(400);
 check('F3 shows it', (await shown()) === true);
 const txt = await ev(() => document.getElementById('debug-t').textContent);
-check('it says the version, the seed and the enemy', /v0\.62\.3/.test(txt) && /seed 623/.test(txt) && /bugs/.test(txt), txt.split('\n')[0].slice(0, 90));
+check('it says the version, the seed and the enemy', /v0\.62\.\d+/.test(txt) && /seed 623/.test(txt) && /bugs/.test(txt), txt.split('\n')[0].slice(0, 90));
 check('no warning line while nothing is wrong', await ev(() => document.getElementById('debug-warn').classList.contains('hidden')));
 await page.keyboard.press('F3'); await page.waitForTimeout(400);
 check('F3 again hides it', (await shown()) === false);
@@ -82,7 +82,7 @@ check('and names the part and the error', /sim:allies/.test(await ev(() => docum
 // ---------------------------------------------------------------- the report
 await page.click('#debug-copy'); await page.waitForTimeout(300);
 const rep = await ev(() => navigator.clipboard.readText());
-check('COPY REPORT puts a report on the clipboard', /Orbital Fury 0\.62\.3/.test(rep) && /sim:allies/.test(rep) && /test: a trooper with a bad order/.test(rep), `${rep.length} chars`);
+check('COPY REPORT puts a report on the clipboard', /Orbital Fury 0\.62\.\d+/.test(rep) && /sim:allies/.test(rep) && /test: a trooper with a bad order/.test(rep), `${rep.length} chars`);
 check('with where it was thrown', /updateAllies/.test(rep), (rep.split('\n').find((l) => /updateAllies/.test(l)) || '').trim().slice(0, 80));
 check('and what the mission was', /seed 623/.test(rep) && /bugs\/grass/.test(rep));
 check('and nothing of the player\'s own (no file paths, no call sign)', !/file:\/\//.test(rep) && !/DEBUG/.test(rep) && !/home\//.test(rep));

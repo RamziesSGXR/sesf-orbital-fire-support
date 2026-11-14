@@ -203,7 +203,7 @@ function seafShare(seed, role, n, targets, sec = 10) {
   const r2 = seafShare(4112, 'spec', 2, 2, 1.2);
   check('with two heavies there, two Specialists take one each', r2.length === 2 && Math.hypot(r2[0].x - r2[1].x, r2[0].y - r2[1].y) > 10, r2.map((q) => `${q.x.toFixed(0)},${q.y.toFixed(0)}`).join(' '));
   const g1 = seafShare(4113, 'rifle', 3, 1, 8);
-  check('SEAF grenades on one group come one at a time', g1.length >= 3 && same(g1, C.hd.stagger.seafGren - 0.05, 6) === 0, g1.map((q) => q.t.toFixed(1)).join(' '));
+  check('SEAF grenades on one group come one at a time', g1.length >= 3 && same(g1, C.hd.stagger.seafGren - 0.05, 4.5) === 0     /* (0.62.5) where they land, and a throw scatters: targets are kept 7.5 m apart by the claim, landings can come within about 5 */, g1.map((q) => q.t.toFixed(1)).join(' '));
   const g2 = seafShare(4114, 'rifle', 2, 2, 1.5);
   check('two groups, two troopers: a grenade on each', g2.length === 2 && Math.hypot(g2[0].x - g2[1].x, g2[0].y - g2[1].y) > 10, g2.map((q) => `${q.x.toFixed(0)},${q.y.toFixed(0)}`).join(' '));
 }

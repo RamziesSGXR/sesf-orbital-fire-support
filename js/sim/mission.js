@@ -1284,18 +1284,22 @@ export class Mission {
     if (this._sprN % 2) return;
     dt *= 2;
     const body = S.body[this.faction.id] ?? 0.7, k = Math.min(1, dt * S.rate), cap = S.step * dt;
+    // (0.62.5) and room: a distance they keep between their centres however small they are. Bodies only just not
+    // overlapping read as one stacked blob from the gunship's height.
+    const fid = this.faction.id, room = (S.room && S.room[fid]) || 0, roomM = Math.min(room, S.roomMelee || room), bug = fid === 'bugs';
+    const tight = (q) => q.tgt && ((bug && q.kind !== 'M') || q.sub === 'guard' || q.sub === 'soak');     // hand to hand, with someone to hit
     // how far to look: only a body this wide can be overlapping, so the search stays as tight as the field allows
     let big = 0;
     for (const e of this.enemies) if (!e.dead && !e.boss && !e.air) { const b = (e.r || 2.2) * body; if (b > big) big = b; }
-    big = Math.min(big, S.max);
+    big = Math.min(Math.max(big, room * 0.5), S.max);
     const school = this.faction.id === 'squids';
     for (const e of this.enemies) {
       if (e.dead || e.boss || e.air || e.lp || e.inAir) continue;
-      const er = (e.r || 2.2) * body;
+      const er = (e.r || 2.2) * body, rm = tight(e) ? roomM : room;
       let px = 0, py = 0, n = 0;
-      this.eGrid.near(e.x, e.y, er + big, (o) => {
+      this.eGrid.near(e.x, e.y, Math.max(er + big, rm), (o) => {
         if (o === e || o.dead || o.boss || o.air) return;
-        const need = er + (o.r || 2.2) * body;
+        const need = Math.max(er + (o.r || 2.2) * body, rm);
         let dx = e.x - o.x, dy = e.y - o.y, d2 = dx * dx + dy * dy;
         if (d2 >= need * need) return;
         let d = Math.sqrt(d2);
@@ -1307,7 +1311,7 @@ export class Mission {
       let l = Math.hypot(px, py) || 1, w = Math.min(cap, l) * k / l;
       // (0.62.4) a squid on its way to its place in the arrow is let through the crowd: pushed back at full strength by everyone
       // it passed, a school took most of a minute to form and its members shook on the spot meanwhile
-      if (school && e.g && e.ox !== undefined && (e.x - e.g.cx - e.ox) ** 2 + (e.y - e.g.cy - e.oy) ** 2 > S.transit * S.transit) w *= S.transitMul;
+      if (school && !e.tgt && e.g && e.ox !== undefined && (e.x - e.g.cx - e.ox) ** 2 + (e.y - e.g.cy - e.oy) ** 2 > S.transit * S.transit) w *= S.transitMul;
       e.x += px * w; e.y += py * w;
     }
   }
