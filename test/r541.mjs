@@ -36,6 +36,7 @@ run(m, C.mother.crashSec + 1);
 check('it leaves a wreck on the map', m.motherWrecks.length === 1 && !moms(m).length);
 run(m, C.mother.respawnSec + 2);
 check('two come next', moms(m).length === 2, String(moms(m).length));
+for (const a of m.alive) a.hp = a.maxHp = 1e7;     // (0.62.4: the squad must outlive the test; the schools now arrive together)
 for (const x of moms(m)) { x.shield = 0; damageDrop(m, x, x.hp + 1, 'strat', false); }
 run(m, C.mother.crashSec + C.mother.respawnSec + 3);
 check('then three', moms(m).length === 3, String(moms(m).length));

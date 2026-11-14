@@ -169,10 +169,16 @@ const still = (g) => { g.hx = 1; g.hy = 0; g.pt = { x: g.cx, y: g.cy }; g.patrol
     run(m, 1);
     const lights = g.members.filter((e) => e.kind === 'L'), lead = g.members.filter((e) => e.kind === 'M');
     const rl = lights.map((e) => Math.hypot(e.ox, e.oy)), rm = lead.map((e) => Math.hypot(e.ox, e.oy));
-    check('a school: the leaders stay in the middle, the lights round them', Math.max(...rm) <= S.mid + 0.01 && Math.min(...rl) >= S.inner * (1 - S.breathe) - 0.01 && Math.max(...rl) <= S.inner * (1 + S.breathe) + 0.01, `lights ${Math.min(...rl).toFixed(1)}-${Math.max(...rl).toFixed(1)} m, leaders ${Math.max(...rm).toFixed(1)} m`);
-    const a0 = Math.atan2(lights[0].oy, lights[0].ox); run(m, 1);
-    const a1 = Math.atan2(lights[0].oy, lights[0].ox), d = Math.atan2(Math.sin(a1 - a0), Math.cos(a1 - a0));
-    check('and they circle', Math.abs(d) > 0.2 && Math.abs(d) < 1.2, `${d.toFixed(2)} rad in a second`);
+    // (0.62.4) the school is an arrowhead: one at the point, rows widening behind it, the leaders nearest the middle
+    const fx = Math.cos(g.wA), fy = Math.sin(g.wA), all = g.members.filter((e) => !e.dead);
+    const fwd = (e) => e.ox * fx + e.oy * fy, side = (e) => -e.ox * fy + e.oy * fx;
+    const front = Math.max(...all.map(fwd)), tip = all.filter((e) => fwd(e) > front - 0.5), back = Math.min(...all.map(fwd)), tail = all.filter((e) => fwd(e) < back + 0.5);
+    const wid = (l) => Math.max(...l.map(side)) - Math.min(...l.map(side));
+    check('(0.62.4) a school is an arrowhead: one at the point, wider behind', tip.length === 1 && tip[0].kind === 'L' && Math.abs(side(tip[0])) < 0.01 && wid(tail) >= S.wedge.gap - 0.01, `${tip.length} at the point, ${wid(tail).toFixed(1)} m across the back`);
+    check('(0.62.4) the leaders have the places nearest its middle', Math.max(...rm) <= Math.min(...rl.slice().sort((x, y) => y - x).slice(0, 3)) + 0.01, `leaders ${Math.max(...rm).toFixed(1)} m out, the outer lights ${Math.max(...rl).toFixed(1)}`);
+    const o0 = lights.map((e) => [fwd(e), side(e)]); run(m, 1);
+    const fx2 = Math.cos(g.wA), fy2 = Math.sin(g.wA), drift = Math.max(...lights.map((e, i) => Math.hypot(e.ox * fx2 + e.oy * fy2 - o0[i][0], -e.ox * fy2 + e.oy * fx2 - o0[i][1])));
+    check('(0.62.4) everyone keeps its own place in the arrow (no more circling)', drift < 0.01, `${drift.toFixed(2)} m of drift in a second`);
   }
   // (0.61.1) a big school is wide: rings a few metres apart, nobody shoulder to shoulder, so one blast cannot take it all
   {
@@ -183,7 +189,7 @@ const still = (g) => { g.hx = 1; g.hy = 0; g.pt = { x: g.cx, y: g.cy }; g.patrol
     const lights = g.members.filter((e) => e.kind === 'L');
     const rr = lights.map((e) => Math.hypot(e.ox, e.oy)), far = Math.max(...rr);
     let near = Infinity; for (let i = 0; i < lights.length; i++) for (let j = i + 1; j < lights.length; j++) near = Math.min(near, Math.hypot(lights[i].ox - lights[j].ox, lights[i].oy - lights[j].oy));
-    check('(0.61.1) twenty lights: more than one ring, the school well over 10 m out', far > 12 && new Set(rr.map((r) => Math.round(r))).size >= 2, `${far.toFixed(1)} m out`);
+    check('(0.61.1) twenty lights: several rows, the school well over 10 m out', far > 12 && new Set(rr.map((r) => Math.round(r))).size >= 2, `${far.toFixed(1)} m out`);
     check('(0.61.1) ...and nobody closer than about 5 m to the next (it was under 3 m)', near > 4.8, `${near.toFixed(1)} m`);
     const inBlast = (R) => { let best = 0; for (const c of lights) { let n = 0; for (const e of lights) if (Math.hypot(e.ox - c.ox, e.oy - c.oy) <= R) n++; best = Math.max(best, n); } return best; };
     check('(0.61.1) a 12 m blast on its best spot takes well under half of them (it took them all)', inBlast(12) <= 9, `${inBlast(12)} of ${lights.length}`);
