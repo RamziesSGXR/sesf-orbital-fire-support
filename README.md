@@ -25,6 +25,10 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**A plain magazine for the ship gun (0.62.7).**
+- **No more slow fire.** The gun fires at its normal rate through whatever is in the magazine. Empty, it stops and reloads, even with the trigger held.
+- **No minimum to wait for.** Press again and it fires what has reloaded so far, however little. It used to stay locked until 45 rounds were back.
+
 **The ship gun no longer fires in spurts (0.62.6).**
 - **Held on empty, it keeps firing.** An empty gun used to lock until 45 rounds were back, so a held trigger gave two seconds of fire and five of nothing, over and over. Now it fires on steadily at a slower rate, straight off the loader. Let go and it reloads; press again and it fires at full rate on what it has.
 - The aim marker says **MAGAZINE EMPTY. FIRING SLOW** while it does.

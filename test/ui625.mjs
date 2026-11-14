@@ -1,5 +1,5 @@
 // 0.62.5 in the browser: the ship gun's rounds show in a fight big enough to fill the effects list, and a gun held through
-// an empty magazine goes on firing steadily at a slower rate instead of in spurts.
+// an empty magazine stops, reloads, and fires at full rate on whatever is back at the next press.
 //   node test/ui625.mjs
 import { createRequire } from 'module';
 import path from 'path';
@@ -44,24 +44,24 @@ check('and its rounds still show', s1 > 3, `${s1} streaks in the air`);
 check('the list has a ceiling all the same', full <= 560, `${full}`);
 await ev(() => clearInterval(window.__fill));
 
-// ---------------------------------------------------------------- held through an empty magazine (0.62.6: it fires on, slowly)
+// ---------------------------------------------------------------- the magazine (0.62.7): full rate on whatever is in it
 await ev(() => { window.__game.mission.player.gun.ammo = 6; });
 await page.waitForTimeout(700);
 const dry = await ev(() => { const g = window.__game.mission.player.gun; return { dry: g.dry, ammo: g.ammo, firing: g.firing }; });
-check('the magazine runs dry', dry.dry === true && dry.ammo < 1, `ammo ${dry.ammo.toFixed(0)}`);
-const win = [];
-for (let k = 0; k < 8; k++) { const a = await rounds(); await page.waitForTimeout(500); win.push((await rounds()) - a); }
-const rate = win.reduce((a, b) => a + b, 0) / 4;
-check('still held, it goes on firing with no gaps', Math.min(...win) >= 1, `rounds each half second: ${win.join(' ')}`);
-check('at the slow rate, off the loader', rate > 4.5 && rate < 8.5, `${rate.toFixed(1)} rounds/s (the reload feeds 9)`);
-check('with its rounds showing', (await shots()) >= 1, `${await shots()} streaks`);
-check('and the reticle says so', await ev(() => window.__game.mission.player.gun.ammo < 1 && window.__game.mission.player.gun.firing));
-await page.mouse.up(); await page.waitForTimeout(3200);
-const re = await ev(() => window.__game.mission.player.gun.ammo);
-check('let go, it reloads', re > 12, `${re.toFixed(0)} rounds after 3.2 s`);
-await page.mouse.down(); await page.waitForTimeout(400);
-const a2 = await rounds(); await page.waitForTimeout(500); const fast = (await rounds()) - a2;
-check('and fires at full rate again on what it has', fast >= 8, `${fast} rounds in half a second`);
+check('the magazine runs dry and the gun stops', dry.dry === true && dry.firing === false, `ammo ${dry.ammo.toFixed(0)}`);
+const rd = await rounds();
+await page.waitForTimeout(2600);
+const held = await ev(() => window.__game.mission.player.gun.ammo), rh = await rounds();
+check('still held, it fires nothing (no slow fire)', rh === rd, `${rh - rd} rounds`);
+check('and reloads all the same', held > 6, `${held.toFixed(0)} rounds back`);
+await page.mouse.up(); await page.waitForTimeout(120);
+const have = await ev(() => window.__game.mission.player.gun.ammo);
+await page.mouse.down(); await page.waitForTimeout(350);
+const r3 = await rounds();
+check('pressed again it fires at once on the little that is back, no minimum', have < 45 && r3 - rh >= 5, `${have.toFixed(0)} in the magazine, ${r3 - rh} fired in 0.35 s`);
+await page.waitForTimeout(900);
+const r4 = await rounds();
+check('at full rate, through what was reloaded and no more', r4 - rh >= Math.floor(have) - 1 && r4 - rh <= Math.ceil(have) + 2, `${r4 - rh} fired of ${have.toFixed(0)}`);
 await page.mouse.up();
 check('no page errors', errs.length === 0, errs.slice(0, 2).join(' | '));
 await browser.close();

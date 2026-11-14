@@ -550,7 +550,7 @@ export const CONFIG = {
   // The destroyer's free-fire Ship Gun (its one gatling). It fires wherever the player can see, so it is not tied to the strike zone, and it is the
   // only thing that uses the player's ammo. Rounds scatter around the aim point and the spread blooms while the trigger is held.
   // (0.59) ammo 600 -> 200; light penetration to start (pen[0]), the Penetrator Rounds upgrade takes it to medium then heavy
-  gun:      { ammo: 200, pen: [{ L: 1, M: 0.35, H: 0.12 }, { L: 1, M: 1, H: 0.35 }, { L: 1, M: 1, H: 0.7 }], regen: 9, regenDelay: 1.3, dryRate: 0.7, dryBack: 45, rps: 22, dmg: 16, splash: 1.9, spread: 4.5, bloom: 7, bloomUp: 2.4, bloomDown: 5, struct: 0.04, body: 0.75, bodyMax: 8,
+  gun:      { ammo: 200, pen: [{ L: 1, M: 0.35, H: 0.12 }, { L: 1, M: 1, H: 0.35 }, { L: 1, M: 1, H: 0.7 }], regen: 9, regenDelay: 1.3, rps: 22, dmg: 16, splash: 1.9, spread: 4.5, bloom: 7, bloomUp: 2.4, bloomDown: 5, struct: 0.04, body: 0.75, bodyMax: 8,
               upAmmo: 150, upDmg: 0.2, upRegen: 0.25, upSpread: 0.1, maxLevel: 5 },
 
   // The player's kit. Orbital strikes level 1 to 5; every level adds damage, size and shell count and trims the recharge.
@@ -693,6 +693,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.6',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.7',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };
