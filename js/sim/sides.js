@@ -42,9 +42,11 @@ function kindsFor(m) {
   // howitzer to take beside a defence gun, no jammer under the shield dome.
   const pool = ['radio', 'propaganda', 'rescue'].filter((k) => sideFits(m, k)), out = [];
   const order = m.rng.shuffle(pool.slice());
+  // a big map that has run out of kinds gets the howitzer as one of its own, when the operation is far enough along for it
+  if ((m.missionN || 1) >= C.arty.fromMission && sideFits(m, 'arty')) order.push('arty');
   for (let i = 0; i < Math.min(n, order.length); i++) out.push(order[i]);
   // some maps have an abandoned SEAF howitzer the squad can take over (from the second mission of a session)
-  if ((m.missionN || 1) >= C.arty.fromMission && m.rng.next() < C.arty.chance && sideFits(m, 'arty')) out.push('arty');
+  if ((m.missionN || 1) >= C.arty.fromMission && m.rng.next() < C.arty.chance && sideFits(m, 'arty') && !out.includes('arty')) out.push('arty');
   return out;
 }
 
