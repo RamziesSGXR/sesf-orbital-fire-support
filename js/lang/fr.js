@@ -792,7 +792,7 @@ export default {
   'c.uavUp': 'Scan drone actif. L’escouade voit tout le cercle.',
   'c.breachDown': 'Brèche détruite.',
   'c.poiDown': '{name} détruit. Crédits encaissés.',
-  'c.gunDry': 'Canon à sec. Tir lent : relâchez pour recharger.',
+  'c.gunDry': 'Canon à sec. Munitions en recharge.',
   'c.noVisual': 'Pas de visuel sur ce terrain. Scannez d’abord.',
   'c.stratCall': 'L’escouade appelle : {name}.',
   'c.assetDown': '{name} détruit.',
@@ -912,7 +912,6 @@ export default {
   // le viseur
   'ret.gunNoVis': 'PAS DE VISUEL. LE TIR LIBRE EXIGE LA VUE',
   'ret.gunDry': 'CHARGEUR VIDE. RECHARGE',
-  'ret.gunSlow': 'CHARGEUR VIDE. TIR LENT',     // (0.62.6)
   'ret.firing': 'FEU',
   'ret.freeFire': 'TIR LIBRE',
   'ret.locked': 'CIBLE VERROUILLÉE',
