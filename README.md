@@ -25,6 +25,13 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Less told, more found out (0.62.12).**
+- **Field manual:** from about 2,900 words to about 400. Each section says what a thing is for and leaves how it works to be found in play. No timings, multipliers or odds.
+- **Mission INFO panel:** every entry is one to three short sentences, about half the words. The tables of hit multipliers, range bands, friendly-fire shares and armour penetration are gone; what is left are hints ("Every unit has a front and a back. The back is softer.").
+- **New operation screen:** the six rules are one line each, and the climb in difficulty is no longer given as a formula.
+- **Choosing the next mission, the SESF coin, the threat rank, post and build descriptions, weapon cards and armory blurbs:** shorter, without the numbers behind them. Prices, levels and each upgrade's stat line stay.
+- Left as they were: the controls list, settings, save and retry warnings (they say what you would lose), the story and the radio.
+
 **The Shield Dome can be broken, and a shorter tutorial (0.62.11).**
 - **Shield Dome fixed.** The squad used to stand beside a node for minutes without hurting it (their rifles were always on the enemy) and was worn down inside a dome the ship could not reach. Now:
   - Troops on foot beside a node break it as they fight: four Helldivers take about 20 seconds, and SEAF sent in with them make it quicker.
