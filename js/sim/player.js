@@ -52,9 +52,9 @@ export function syncSlots(m, start = false) {
   // gun upgrades bought mid-mission: a bigger magazine arrives full of the extra rounds
   const gs = gunStats(kit);
   if (p.gun && gs.ammo !== p.gun.max) { p.gun.ammo = Math.min(gs.ammo, p.gun.ammo + Math.max(0, gs.ammo - p.gun.max)); p.gun.max = gs.ammo; }
-  // the howitzer: weapon 9, once one stands (built by SEAF or captured on the map)
+  // the howitzer: weapon 9, once one stands (built by SEAF or captured on the map). (0.62.13) Its rounds are the cannons' own (artyTick).
   const hasArty = (m.arty || []).length > 0;
-  if (hasArty && p.slots[SLOT_ARTY].type !== 'arty') p.slots[SLOT_ARTY] = { type: 'arty', readyAt: m.t + (start ? 0 : C.weapons.warmupSec) };
+  if (hasArty && p.slots[SLOT_ARTY].type !== 'arty') { p.slots[SLOT_ARTY] = { type: 'arty', readyAt: m.t, gapAt: 0, ammo: 0, max: 0, fill: 0 }; artyTick(m, 0); }
   else if (!hasArty) p.slots[SLOT_ARTY] = { type: 'empty' };
   if (p.slots[p.weapon].type === 'empty') {
     const j = p.slots.findIndex((s, i) => i >= 1 && i <= ORB_SLOTS && s.type === 'orb');
@@ -75,9 +75,11 @@ export function slotStats(m, i) {
 // The cannon's numbers: the armory level (a captured gun fires at level 1 at least).
 export const artyStats = (m) => buildStats('arty', Math.max(1, buildLevel(m.kit, 'arty')));
 // The nearest artillery cannon to (x, y), and how far it is (0.18: it fires with or without a crew; a crew loads it faster).
-export function nearestArty(m, x, y) {
+// loaded: only cannons with a round in them.
+export function nearestArty(m, x, y, loaded = false) {
   let best = null, bd = Infinity;
   for (const g of m.arty || []) {
+    if (loaded && !(g.loaded > 0)) continue;
     const d = Math.hypot(g.x - x, g.y - y);
     if (d < bd) { bd = d; best = g; }
   }
@@ -85,13 +87,37 @@ export function nearestArty(m, x, y) {
 }
 // A mini-nuke from the cannon: anywhere in its range that is in sight (or locked), on a slow recharge, while someone mans it.
 // It hurts allies too.
+// (0.62.13) Each cannon is its own gun: it holds C.arty.mag rounds and loads the next in the level's cd, slower with a short crew or
+// none. A new cannon's first round is in after the warm-up. The slot (weapon 9) shows the rounds loaded across all of them: ammo of
+// max, fill (the bar: loaded and part-loaded), and readyAt (now, or when the next round is in).
+const artyCrewMul = (g) => { const K = C.arty.crewMul; return g.crew >= (g.cap || 2) ? K.full : g.crew > 0 ? K.short : K.none; };
+export function artyTick(m, dt) {
+  const s = m.player.slots[SLOT_ARTY];
+  if (!s || s.type !== 'arty') return;
+  const a = artyStats(m), mag = C.arty.mag, t = m.t;
+  let ammo = 0, max = 0, fill = 0, next = Infinity;
+  for (const g of m.arty || []) {
+    const per = a.cd * artyCrewMul(g);
+    if (g.loaded === undefined) { g.loaded = 0; g.load = Math.max(0, 1 - C.weapons.warmupSec / per); }     // (its first round after the warm-up, crew or none)
+    if (g.loaded < mag) {
+      g.load += dt / per;
+      if (g.load >= 1) { g.loaded++; g.load = g.loaded < mag ? g.load - 1 : 0; }
+    } else g.load = 0;
+    ammo += g.loaded; max += mag; fill += g.loaded + (g.loaded < mag ? g.load : 0);
+    g.nextIn = g.loaded < mag ? (1 - g.load) * per : 0;     // (the selection panel: when its next round is in)
+    if (g.loaded < mag) next = Math.min(next, g.nextIn);
+  }
+  s.ammo = ammo; s.max = max; s.fill = max ? fill / max : 0;
+  s.readyAt = ammo > 0 ? Math.max(t, s.gapAt || 0) : t + (next < Infinity ? next : 0);
+}
 function fireArty(m, s) {
   const p = m.player, t = m.t, a = artyStats(m), A = C.arty;
-  if (t < s.readyAt) return deny(m, 'cooldown');
-  const { g, d } = nearestArty(m, p.aimX, p.aimY);
+  if (t < (s.gapAt || 0) || !(s.ammo > 0)) return deny(m, 'cooldown');
+  const { g, d } = nearestArty(m, p.aimX, p.aimY, true);     // the nearest cannon with a round in it
   if (!g || d > a.range) return deny(m, 'artyrange');
   if (m.visLevel(p.aimX, p.aimY) <= 0 && !m.nearLock(p.aimX, p.aimY)) return deny(m, 'novisual');
-  s.readyAt = t + a.cd * (g.crew >= (g.cap || 2) ? 1 : g.crew > 0 ? 1.25 : 1.6);     // crewless it reloads slowly
+  g.loaded--; s.gapAt = t + A.gap;
+  artyTick(m, 0);
   g.face = Math.atan2(p.aimY - g.y, p.aimX - g.x); g.firedAt = t;
   m.shells.push({ x: p.aimX, y: p.aimY, at: t + A.flight, dmg: a.dmg, splash: a.r, mult: A.mult, by: 'player', friendly: true, big: true, mini: true, fx: g.x, fy: g.y, above: true });   // (a high arc: it comes down from above)
   m.markers.push({ type: 'strat', x: p.aimX, y: p.aimY, r: a.r, start: t, end: t + A.flight, impact: t + A.flight, id: tr('hud.w.arty'), cat: 'ORBITAL', by: 'player' });
@@ -329,7 +355,7 @@ export function refreshAim(m) {
   } else if (s.type === 'nuke') {
     info.inZone = true; info.splash = C.objective.nuke.blastR; info.ready = m.nukeReady() && s.uses > 0;
   } else if (s.type === 'arty') {
-    const a = artyStats(m), near = nearestArty(m, p.aimX, p.aimY);
+    const a = artyStats(m), near = nearestArty(m, p.aimX, p.aimY, (s.ammo || 0) > 0);
     info.lock = m.visLevel(p.aimX, p.aimY) <= 0 && !!m.nearLock(p.aimX, p.aimY);
     info.artyWhy = !near.g || near.d > a.range ? 'range' : m.visLevel(p.aimX, p.aimY) > 0 || info.lock ? '' : 'vis';
     info.inZone = !info.artyWhy; info.splash = a.r; info.ready = info.inZone && t >= s.readyAt;
@@ -357,6 +383,7 @@ export function updatePlayer(m, dt) {
   if (m.player.eagle) eagleTick(m);
   const p = m.player, t = m.t, info = p.aim;
   if (((m.arty || []).length > 0) !== (p.slots[SLOT_ARTY].type === 'arty')) syncSlots(m);
+  artyTick(m, dt);     // (0.62.13) every cannon loads its own round
   // The nuke slot is only usable while the launch site is armed; fall back to the first orbital when it is spent.
   if (p.slots[p.weapon].type === 'nuke' && !m.nukeReady()) {
     const j = p.slots.findIndex((q, i) => i >= 1 && i <= ORB_SLOTS && q.type === 'orb');

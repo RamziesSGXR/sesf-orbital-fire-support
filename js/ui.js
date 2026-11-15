@@ -14,7 +14,7 @@ import { slotStats } from './sim/player.js';
 import { compass } from './sim/enemies.js';
 import { builtCount, FORMS, fleet, seafHeld, lzStatus } from './sim/seaf.js';
 const noLvl = (what) => FLAT_BUILDS.has(what) || what === 'lz' || what === 'site';     // (0.52: nor the work site)      // (0.39) no levels: wire, foxholes, pickup points
-import { POSTS, INSIDE, crateSec } from './sim/posts.js';
+import { POSTS, INSIDE, crateSec, freeBuild } from './sim/posts.js';
 import { objectiveStatus, OBJ_NAME } from './sim/objectives.js';
 import { SQUAD_COLOR } from './sim/seaf.js';
 import { todAt, todName, todClock } from './render/sky.js';
@@ -1128,7 +1128,7 @@ export class Hud {
     this._tacShip(m);
     for (const [what, b] of Object.entries(this.bld)) {
       const lvl = buildLevel(m.kit, what), B = { ...buildStats(what, lvl) }, n = builtCount(m, what);
-      B.cost = Math.round(B.cost * buildCostMul(m.kit) * costSiteMul(m));     // (0.51: the Engineering Corps commendation; 0.52: a worked salvage yard)
+      B.cost = lvl ? m.buildPrice(what, lvl) : B.cost;     // (0.51: the Engineering Corps commendation; 0.52: a worked salvage yard; 0.62.13: 10% more for each one)
       const cls = !lvl ? 'off' : m.wallet.bal < B.cost ? 'poor' : 'ready';
       const name = t('build.' + what) + (!FLAT_BUILDS.has(what) && lvl ? ` L${lvl}` : '');
       const sub = !lvl ? t('hud.b.locked') : B.cost ? t('hud.b.costN', { cr: B.cost }) : t('hud.b.freeShort');
@@ -1273,10 +1273,12 @@ export class Hud {
       h = `<div class="ts-h">${esc(name.toUpperCase())}${post && !noLvl(post.what) ? ` <i>${esc(t('card.level', { n: post.lvl }))}</i>` : ''}</div>`
         + (hp !== null ? `<i class="ts-hp"><u style="width:${hp}%"></u></i>` : '')
         + (post && post.cap ? `<div class="ts-r">${esc(t('sel.crew'))} <b>${post.crew}/${post.cap}</b>${post.what === 'site' ? (post.workers && !post.fallen ? ` · <b>${esc(t(siteGain(m, post).key, { p: siteGain(m, post).now }))}</b>` : '') : post.crew ? '' : ` · <em class="ts-solo">${esc(t('sel.solo'))}</em>`}</div>` : '')
+        + (post && post.what === 'arty' && post.loaded !== undefined ? `<div class="ts-r">${esc(t('sel.round'))} <b>${esc(post.loaded > 0 ? t('sel.loaded') : t('sel.loading', { n: Math.max(1, Math.ceil(post.nextIn || 0)) }))}</b></div>` : '')     // (0.62.13) its own round
         + (crew.length ? tiles(crew) : '')
         + (post ? `<div class="ts-doors">${post.cap && post.garrison < post.cap ? `<button type="button" class="btn tsd" data-sa="in">${esc(t('sel.inBtn', { who }))}</button>` : ''}${post.garrison ? `<button type="button" class="btn tsd" data-sa="out">${esc(t('sel.outBtn'))}</button>` : ''}`
           // (0.36) blow it up: one press sets the charges (a short fuse), a press again before it blows takes them off
-          + (!post.captured && post.what !== 'site' ? `<button type="button" class="btn tsd demo${post.demo ? ' on' : ''}" data-sa="demo" title="${esc(t('sel.demoT'))}">${esc(post.demo ? t('sel.demoOff', { n: Math.max(1, Math.ceil(post.demo.at - m.t)) }) : t('sel.demo'))}</button>` : '') + `</div>` : '')
+          + (!post.captured && post.what !== 'site' ? (freeBuild(post) ? `<button type="button" class="btn tsd demo" data-sa="demo" title="${esc(t('sel.removeT'))}">${esc(t('sel.remove'))}</button>`     // (0.62.13) a free build: taken down, no blast
+            : `<button type="button" class="btn tsd demo${post.demo ? ' on' : ''}" data-sa="demo" title="${esc(t('sel.demoT'))}">${esc(post.demo ? t('sel.demoOff', { n: Math.max(1, Math.ceil(post.demo.at - m.t)) }) : t('sel.demo'))}</button>`) : '') + `</div>` : '')
         // (0.53.4) the work site: what it gives and pays (it was described as a defence position: the same key)
         + `<div class="ts-b">${esc(post && post.what === 'site' ? workB(m, post) : post ? t('sel.' + post.what) : sel.kind === 'turret' ? t('sel.sentry') : t('sel.siteB'))}</div>`;
     } else if (sf.sel === -2 && sf.pick) {
@@ -1450,11 +1452,11 @@ export class Hud {
           else if (sel && !p.aim.inZone) { sub = t('hud.w.noVisual'); cls = 'nomark'; }
           else { sub = `${Math.floor(g.ammo)}/${Math.round(gs.ammo)}`; cls = 'ready'; }
         } else if (s.type === 'arty') {
-          const cd = slotStats(m, i).cd;
-          name = t('hud.w.artyBar');
-          if (tt < s.readyAt) { sub = t('hud.o.sec', { n: Math.ceil(s.readyAt - tt) }); frac = Math.max(0, 1 - (s.readyAt - tt) / cd); cls = 'cd'; }
+          // (0.62.13) rounds loaded across the cannons, n/max, as the gun's ammo; none loaded: when the next is in
+          name = t('hud.w.artyBar'); frac = s.fill || 0;
+          if (!(s.ammo > 0)) { sub = t('hud.o.sec', { n: Math.max(1, Math.ceil(s.readyAt - tt)) }); cls = 'cd'; }
           else if (sel && !p.aim.inZone) { sub = t(p.aim.artyWhy === 'range' ? 'hud.w.outRange' : 'hud.w.noVisual'); cls = 'nomark'; }
-          else { sub = t('hud.w.ready'); cls = 'ready'; }
+          else { sub = `${s.ammo}/${s.max}`; cls = 'ready'; }
         } else {
           name = t('hud.w.nuke');
           if (s.uses <= 0) { sub = t('hud.w.launched'); frac = 0; cls = 'cd'; }
@@ -2398,7 +2400,7 @@ export function weaponInfo(m, i) {
   if (s.type === 'arty') {
     const a = slotStats(m, i), n = (m.arty || []).length;
     return `<div class="ic-h">${t('hud.w.arty')} <i>${t('card.level', { n: Math.max(1, (m.kit.build || {}).arty || 0) })}</i></div>` + row(t('card.dmg'), fmtNum(a.dmg)) + row(t('card.blast'), M(a.r))
-      + row(t('card.range'), t('tip.wholeMap')) + row(t('card.impact'), S(a.delay)) + row(t('card.recharge'), S(a.cd)) + row(t('card.guns'), String(n))
+      + row(t('card.range'), t('tip.wholeMap')) + row(t('card.impact'), S(a.delay)) + row(t('card.recharge'), S(a.cd)) + row(t('card.guns'), String(n)) + row(t('card.rounds'), `${s.ammo || 0}/${s.max || n}`)
       + `<div class="ic-b">${esc(t('card.arty.b'))}</div>`;
   }
   if (s.type === 'nuke') {

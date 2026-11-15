@@ -311,9 +311,18 @@ export function removePost(m, p) {
 // ---------------------------------------------------------------- (0.36) demolition
 // The player blows one of their own buildings: the charges go on (a short fuse), the crew and any garrison step out, and when it
 // blows the enemy round it takes the blast. Called again before it blows, the charges come off. Returns { ok, at | cancelled }.
+// (0.62.13) A free build (wire, a foxhole) has no charges in it: taken down by the player it just comes off the map, and broken by
+// the enemy it doesn't go up in a blast either.
+export const freeBuild = (p) => !!p && p.kind === 'post' && !!C.build[p.what] && !(C.build[p.what].cost > 0);
 export const demoRadius = (p) => { const D = C.demolish; return Math.max(D.blastMin, Math.min(D.blastMax, (p.r || 4) + D.blastPad)); };
 export function demolish(m, p) {
   if (!p || p.dead || p.kind !== 'post' || p.captured) return { ok: false, reason: 'nodemo' };
+  if (freeBuild(p)) {     // (0.62.13) no blast: it's taken down
+    removePost(m, p);
+    m.notice(tr('n.removed', { what: p.name.toUpperCase() }), 'info');
+    m.emit('removed', { what: p.what, x: p.x, y: p.y, id: p.id });
+    return { ok: true, removed: true };
+  }
   if (p.demo) { p.demo = null; m.notice(tr('n.demoOff', { what: p.name.toUpperCase() }), 'info'); m.emit('demo_off', { id: p.id, x: p.x, y: p.y }); return { ok: true, cancelled: true }; }
   p.demo = { at: m.t + C.demolish.fuseSec, set: m.t };
   releaseGarrison(m, p);

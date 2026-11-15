@@ -230,6 +230,16 @@ function art(ctx, p, now, px, t) {
   ctx.restore();
   if (p.what === 'arty') {
     cannonArt(ctx, x, y, p.face, px, p.manned);
+    // (0.62.13) its round: a bright shell under it when loaded, else a bar filling as the next one goes in
+    if (!baking() && p.loaded !== undefined) {
+      const y0 = y + 5.4, w = 6, hh = Math.max(px(3), 0.5);
+      if (p.loaded > 0) {
+        for (let k = 0; k < p.loaded; k++) { const cx = x + (k - (p.loaded - 1) / 2) * 1.6; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ring(ctx, cx, y0, 0.75); ctx.fill(); ctx.fillStyle = '#ffd23a'; ring(ctx, cx, y0, 0.55); ctx.fill(); }
+      } else {
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x - w / 2, y0 - hh / 2, w, hh);
+        ctx.fillStyle = '#e8f0ea'; ctx.fillRect(x - w / 2, y0 - hh / 2, w * Math.max(0, Math.min(1, p.load || 0)), hh);
+      }
+    }
     if (p.firedAt !== undefined && t - p.firedAt < 0.5 && !baking()) { ctx.fillStyle = `rgba(255,220,140,${0.8 * (1 - (t - p.firedAt) / 0.5)})`; ring(ctx, x + Math.cos(p.face) * px(20), y + Math.sin(p.face) * px(20), px(7)); ctx.fill(); }
   }
 }

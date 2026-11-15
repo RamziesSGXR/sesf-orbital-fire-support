@@ -7,7 +7,7 @@ import { CONFIG as C } from '../js/config.js';
 C.sides.jammer.chance = 0;     // (0.37: no jammer sites here: these checks call strikes and walk to objectives on maps rolled before there were any)
 import { newKit, newWallet, shopItems, buy, fixKit, buildStats, seafStats, barracksCost } from '../js/data/kit.js';
 import { initKit, restock, throwGrenade, fireUltimatum } from '../js/sim/helldiver.js';
-import { fireSlot } from '../js/sim/player.js';
+import { fireSlot, artyTick } from '../js/sim/player.js';
 import { ringOf } from '../js/sim/director.js';
 import { threatSlot } from '../js/sim/cover.js';
 
@@ -208,10 +208,12 @@ function lone(m, kind, x, y) {
   const built = m.arty.filter((g) => g.built);   // (a captured one may have joined it: the squad takes abandoned ones on the way)
   check('SEAF build the cannon, man it, and it joins the weapon bar', built.length === 1 && m.player.slots[8].type === 'arty' && built[0].crew > 0, m.arty[0] ? `crew ${m.arty[0].crew}, ${m.arty.length} cannons, slot ${m.player.slots[8].type}` : '');
   const st = buildStats('arty', 2);
-  m.player.slots[8].readyAt = 0; m.player.aimX = m.hx + 70; m.player.aimY = m.hy; m.player.weapon = 8;
-  const ok = fireSlot(m, 8);
-  check('it fires a mini-nuke on a slow recharge', ok && m.shells.some((s) => s.mini && s.splash === st.r) && Math.abs(m.player.slots[8].readyAt - m.t - st.cd) < 0.01, `${st.cd} s`);
-  m.player.slots[8].readyAt = 0; m.player.aimX = Math.max(...m.arty.map((g) => g.x)) + st.range + 60; m.player.aimY = m.arty[0].y;
+  // (0.62.13) the cannon's own round: loaded, fired, then the next one takes the level's recharge (a full crew)
+  for (const g of m.arty) { g.loaded = g === built[0] ? 1 : 0; g.load = 0; } artyTick(m, 0);
+  m.player.aimX = m.hx + 70; m.player.aimY = m.hy; m.player.weapon = 8;
+  const ok = fireSlot(m, 8); artyTick(m, 0);
+  check('it fires a mini-nuke on a slow recharge', ok && m.shells.some((s) => s.mini && s.splash === st.r) && built[0].loaded === 0 && Math.abs(built[0].nextIn - st.cd * (built[0].crew >= built[0].cap ? 1 : 1.25)) < 0.01, `${st.cd} s, next in ${built[0].nextIn.toFixed(1)}`);
+  built[0].loaded = 1; artyTick(m, 0); m.t += 1; m.player.aimX = Math.max(...m.arty.map((g) => g.x)) + st.range + 60; m.player.aimY = m.arty[0].y;
   check('not beyond its range', !fireSlot(m, 8));
   // captured on the map
   const m2 = quiet('bugs', 1541, { missionN: 3 });

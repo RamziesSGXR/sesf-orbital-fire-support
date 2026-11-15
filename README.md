@@ -25,6 +25,11 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**More cannons, more rounds; builds cost more as you add them (0.62.13).**
+- **Artillery cannons:** each cannon has its own round and reloads on its own. Build three and weapon 9 fires three rounds back to back, each from the nearest loaded cannon. The weapon bar shows a counter of rounds loaded (like **2/3**). On the map, a loaded cannon has a gold shell under it, and an empty one has a bar filling as it reloads. A crew still reloads faster.
+- **Build prices:** each build costs 10% more for every one of the same kind you already have standing or on its way. The build menu shows the price now and how many you have. Losing one brings the price back down. A captured cannon doesn't count, and free builds (wire, foxholes) stay free.
+- **Free builds don't explode:** a foxhole or concertina wire has **REMOVE** instead of DEMOLISH. It comes off the map with no charges and no blast. Broken by the enemy, it doesn't go up either.
+
 **Less told, more found out (0.62.12).**
 - **Field manual:** from about 2,900 words to about 400. Each section says what a thing is for and leaves how it works to be found in play. No timings, multipliers or odds.
 - **Mission INFO panel:** every entry is one to three short sentences, about half the words. The tables of hit multipliers, range bands, friendly-fire shares and armour penetration are gone; what is left are hints ("Every unit has a front and a back. The back is softer.").

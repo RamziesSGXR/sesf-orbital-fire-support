@@ -188,7 +188,7 @@ function finishBuild(m, q, o) {
   const p = makePost(m, o.what, cr ? cr.x : o.x, cr ? cr.y : o.y, cr && cr.span ? { span: cr.span } : cr && cr.dig ? { size: cr.size, face: cr.face } : cr ? { face: cr.face, shape: cr.shape } : {});
   if (o.what === 'arty') m.radio(COMMS.artyUp, 'artyup', 0);
   m.stats.built = (m.stats.built || 0) + 1;
-  m.notice(tr(o.what === 'foxhole' ? 'n.dug' : o.what === 'wire' ? 'n.strung' : 'n.built', { what: tr('build.' + o.what), cr: buildStats(o.what, p.lvl).cost }), 'good');
+  m.notice(tr(o.what === 'foxhole' ? 'n.dug' : o.what === 'wire' ? 'n.strung' : 'n.built', { what: tr('build.' + o.what), cr: cr && cr.paid !== undefined ? cr.paid : buildStats(o.what, p.lvl).cost }), 'good');     // (0.62.13: what was paid)
   m.emit('built', { what: o.what, x: o.x, y: o.y, sq: q.i, post: p });     // (0.25.1: a building with room inside: the game asks)
   // (0.47) The build queue: with more laid out nearby and not yet built, the builders go straight on to the nearest of them (one
   // nobody is building first), so a whole position can be laid out and one squad works through it.
