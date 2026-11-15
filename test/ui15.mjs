@@ -69,8 +69,8 @@ check('the computer controls list the cannon, pause, half speed, the command pan
 await shot('controls');
 await tap('#btn-man-m'); await page.waitForTimeout(300);   // (0.17.3: FIELD MANUAL is on the HELP panel)
 const man = await ev(() => ({ secs: document.querySelectorAll('#manual-body .man-sec').length, items: document.querySelectorAll('#manual-body li').length, text: document.getElementById('manual-body').textContent }));
-check('the FIELD MANUAL lists what the gunner can do, by section', man.secs === 7 && man.items >= 35, `${man.secs} sections, ${man.items} items`);
-check('it covers building, drawing plays, drops and the armory', /build/i.test(man.text) && /DRAW/.test(man.text) && /SEAF DROP/.test(man.text) && /Barracks/.test(man.text));
+check('the FIELD MANUAL lists what the gunner can do, by section', man.secs === 7 && man.items >= 14 && man.items <= 28 && man.text.split(/\s+/).length < 600,     // (0.62.12) short: the rest is found out in play `${man.secs} sections, ${man.items} items`);
+check('it covers building, drawing plays, drops and the armory, without the numbers', /BUILD/.test(man.text) && /Draw a line/.test(man.text) && /Pelican/.test(man.text) && /Credits buy upgrades/.test(man.text) && !/\d+ (seconds|m\b|lives)|×\d|\d%/.test(man.text));
 await shot('manual');
 await tap('#man-close'); await page.waitForTimeout(200);
 await tap('#btn-resume-m'); await page.waitForTimeout(200);
