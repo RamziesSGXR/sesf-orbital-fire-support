@@ -36,6 +36,13 @@ await press('#tc-sel [data-sa="demo"]'); await page.waitForTimeout(3600);
 check('left alone, it blows: the building is gone', await ev(() => window.__p.dead && !window.__game.mission.posts.includes(window.__p)));
 if (!touch) {
   await place('foxhole'); await page.waitForTimeout(400);
+  check('(0.62.13) a free build (a foxhole) has REMOVE, not DEMOLISH', /REMOVE/.test(await ev(() => (document.querySelector('#tc-sel [data-sa="demo"]') || {}).textContent || '')));
+  const sq0 = await ev(() => window.__game.mission.seaf.squads.filter((q) => q.n > 0).length);
+  await page.mouse.move(W / 2, H / 2 - 100);
+  const ev0 = await ev(() => window.__game.mission.events.length);
+  await page.keyboard.press('Delete'); await page.waitForTimeout(300);
+  check('Delete with a free building selected takes it down, no blast (and does not disband a squad)', await ev((ev0) => window.__p.dead && !window.__game.mission.events.slice(ev0).some((x) => x.type === 'boom'), ev0) && (await ev(() => window.__game.mission.seaf.squads.filter((q) => q.n > 0).length)) === sq0);
+  await place('mg'); await page.waitForTimeout(400);
   await page.mouse.move(W / 2, H / 2 - 100);
   await page.keyboard.press('Delete'); await page.waitForTimeout(300);
   check('Delete with a building selected sets its charges (and does not disband a squad)', await ev(() => !!window.__p.demo));

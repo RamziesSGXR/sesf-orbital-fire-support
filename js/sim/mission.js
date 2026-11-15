@@ -440,13 +440,28 @@ export class Mission {
   // on the spot (0.39.2: and so is concertina wire); everything else comes down as a crate from a cargo pelican.
   // (0.39) opts: { face (which way it faces: turned before it was put down; default away from the Helldivers' landing), shape
   // ('line' for a line of bastions) }. Concertina wire carries on from a free end of wire near the spot (posts.js wirePlan).
+  // (0.62.13) What a build costs now: its level's price (less the Engineering Corps commendation and a worked salvage yard), and
+  // C.build.moreEach (10%) more for every one of its kind already standing or paid for and on its way (a crate, a bridge coming
+  // down). A captured cannon cost nothing and doesn't count. Free builds (wire, foxholes) stay free.
+  buildsOf(what) {
+    let n = 0;
+    for (const p of this.posts) if (!p.dead && p.what === what && !p.captured) n++;
+    for (const c of this.crates) if (!c.used && c.what === what) n++;
+    if (what === 'bridge') n += this.bridgeQ.length;
+    return n;
+  }
+  buildPrice(what, lvl = Math.max(1, buildLevel(this.kit, what))) {
+    const base = (buildStats(what, lvl) || {}).cost || 0;
+    if (!(base > 0)) return 0;
+    return Math.round(base * buildCostMul(this.kit) * costSiteMul(this) * (1 + C.build.moreEach * this.buildsOf(what)));
+  }
   seafBuild(what, x, y, opts = {}) {
     if (this.over) return { ok: false, reason: 'over' };
     const B = C.build[what];
     if (!B || !POSTS.includes(what)) return { ok: false, reason: 'kind' };
     const lvl = buildLevel(this.kit, what);
     if (!lvl) return this._deny('locked');                       // (the SAM site and the cannon have to be unlocked in the armory first)
-    const st = { ...buildStats(what, lvl) }; st.cost = Math.round(st.cost * buildCostMul(this.kit) * costSiteMul(this));     // (0.51: the Engineering Corps commendation; 0.52: a worked salvage yard)
+    const st = { ...buildStats(what, lvl) }; st.cost = this.buildPrice(what, lvl);     // (0.51: the Engineering Corps commendation; 0.52: a worked salvage yard; 0.62.13: 10% more for each one)
     const sq = targetSquads(this).filter((q) => q.n > 0);
     if (!sq.length) return this._deny('noseaf');
     if (what === 'bridge') return this.bridgeDrop(x, y);     // (0.22) a light bridge comes down from the ship: nobody builds it
@@ -482,7 +497,7 @@ export class Mission {
     if (!crate) {
       if (this.wallet.bal < st.cost) return this._deny('funds');
       this.wallet.bal -= st.cost; this.wallet.spent += st.cost;     // paid now: a cargo pelican brings the crate
-      crate = { id: this.nextId++, what, x, y, landed: false, used: false, prog: 0, born: this.t, span, face, shape };
+      crate = { id: this.nextId++, what, x, y, landed: false, used: false, prog: 0, born: this.t, span, face, shape, paid: st.cost };
       this.crates.push(crate);
       callCargo(this, x, y, crate);
       this.notice(tr('n.crateIn', { what: tr('build.' + what), cr: st.cost }), 'info');
@@ -518,7 +533,7 @@ export class Mission {
     if (this.over) return { ok: false, reason: 'over' };
     const lvl = buildLevel(this.kit, 'bridge');
     if (!lvl) return this._deny('locked');
-    const st = { ...buildStats('bridge', lvl) }; st.cost = Math.round(st.cost * buildCostMul(this.kit) * costSiteMul(this));
+    const st = { ...buildStats('bridge', lvl) }; st.cost = this.buildPrice('bridge', lvl);
     if (!this.inSight(x, y)) return this._deny('nosight');
     let ref = null, rd = Infinity;
     for (const a of this.alive) { const d = Math.hypot(a.x - x, a.y - y); if (d < rd) { rd = d; ref = a; } }

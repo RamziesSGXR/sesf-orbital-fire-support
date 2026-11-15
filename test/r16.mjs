@@ -224,17 +224,17 @@ function troops(m, n, sq = 0, x = m.hx + 10, y = m.hy + 6) {
   const gun = makePost(m, 'arty', m.hx - 30, m.hy + 40);
   run(m, 0.5);
   check('weapon 9 appears with the cannon', m.player.slots[8].type === 'arty');
-  m.player.slots[8].readyAt = 0; m.player.weapon = 8;
+  gun.loaded = 1; m.player.weapon = 8;     // (0.62.13: the cannon's own round)
   for (const a of m.alive) if (a.inPost === gun) { a.x += 30; }
   run(m, 0.1);
   const tgt = { x: gun.x + 80, y: gun.y }; m.uavs.push({ x: tgt.x, y: tgt.y, r: 100, born: m.t, until: m.t + 100 });
   m.setAim(tgt.x, tgt.y); run(m, 0.1);
   const sh0 = m.shells.length; m.fire(); run(m, 0.1);
-  const cdSolo = m.player.slots[8].readyAt - m.t;
+  const cdSolo = gun.nextIn;
   check('(0.18) with nobody on it, it fires, and reloads slowly', m.shells.length > sh0 && gun.crew === 0, `${Math.round(cdSolo)} s`);
   const t3 = m.addAlly('S', gun.x + 2, gun.y, { role: 'rifle' }); const t4 = m.addAlly('S', gun.x + 3, gun.y, { role: 'rifle' }); t3.sq = t4.sq = 4; m._refreshAlive(); m.selectSquad(4); m.garrisonGo(gun); run(m, 3);
-  m.player.slots[8].readyAt = 0; const sh1 = m.shells.length; m.fire(); run(m, 0.1);
-  check('manned, it fires and reloads faster', m.shells.length > sh1 && m.player.slots[8].readyAt - m.t < cdSolo - 5, `crew ${gun.crew}, ${Math.round(m.player.slots[8].readyAt - m.t)} s`);
+  gun.loaded = 1; run(m, 0.7); const sh1 = m.shells.length; m.fire(); run(m, 0.1);
+  check('manned, it fires and reloads faster', m.shells.length > sh1 && gun.nextIn < cdSolo - 5, `crew ${gun.crew}, ${Math.round(gun.nextIn)} s`);
 }
 
 // ---------------------------------------------------------------- bastions: a full ring; SEAF hold walls without leaving cover

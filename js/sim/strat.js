@@ -14,7 +14,7 @@ import { bark } from './chatter.js';
 import { baseNear } from './pois.js';
 import { restock } from './helldiver.js';
 import { dropNear } from './reinforce.js';
-import { postDown } from './posts.js';
+import { postDown, freeBuild } from './posts.js';
 
 const M = (L, Mm, H, B) => ({ L, M: Mm, H, B });
 const TMULT = { bullet: M(1, 0.8, 0.2, 0.03), shell: M(1, 1, 0.6, 0.15), heavy: M(1, 1, 0.85, 0.25), arc: M(1, 1, 0.5, 0.15), 'arc-zap': M(1, 1, 0.4, 0) };
@@ -440,7 +440,7 @@ function land(m, it) {
 export function destroyAsset(m, s, why) {
   if (s.dead) return;
   if (s.kind === 'post' && s.what === 'site') { siteFalls(m, s); return; }     // (0.52) a work site falls, and can be taken back
-  if (s.kind === 'post') { postDown(m, s); m.emit('asset_down', { kind: 'post', sid: s.sid, x: s.x, y: s.y, why }); m.emit('boom', { x: s.x, y: s.y, r: 6, dmg: 0, by: 'enemy' }); return; }
+  if (s.kind === 'post') { const free = freeBuild(s); postDown(m, s); m.emit('asset_down', { kind: 'post', sid: s.sid, x: s.x, y: s.y, why }); if (!free) m.emit('boom', { x: s.x, y: s.y, r: 6, dmg: 0, by: 'enemy' }); return; }     // (0.62.13: a free build doesn't go up)
   s.dead = true;
   if (s.kind === 'vehicle') {
     dismount(m, s, why === 'killed' ? 'bail' : why);

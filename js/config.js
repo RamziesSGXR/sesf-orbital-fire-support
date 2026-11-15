@@ -185,6 +185,9 @@ export const CONFIG = {
               foxhole: { cost: 0,   sec: 6,  cap: 3, mul: 0.8, rof: 1.3, link: 30, maxLinks: 3, snap: 10 },     // (0.47: snap like wire; link/maxLinks no longer used)
               // (0.47) the build queue: builders who finish go on to the nearest thing still to build within queueR metres
               queueR: 60,
+              // (0.62.13) each build costs moreEach more for every one of its kind already standing or paid for and on its way
+              // (free builds stay free)
+              moreEach: 0.1,
               // (0.39) a line of bastions: the same walls side by side (lineLen metres each, lineGap apart) instead of a ring
               bastion: { cost: 100, sec: 14, n: 8, R: 10, mul: 0.55, unlock: 0, up: 120, lineLen: 4.2, lineGap: 0.5 },
               mg:      { cost: 380, sec: 28, cap: 2, hp: 5400, dmg: 1, crewMul: 0.3, unlock: 0, up: 220,
@@ -205,7 +208,11 @@ export const CONFIG = {
   // ally can see (or locked), on a slow recharge. Each round is a mini-nuke. Built from the armory unlock, or captured on the map (a side
   // mission). By level.
   arty:     { range: 1e5, rangeUp: 0, cd: 90, cdUp: 0.1, r: 20, rUp: 0.08, dmg: 2400, dmgUp: 0.15, flight: 5,
-              chance: 0.45, fromMission: 2, mult: { L: 1, M: 1, H: 1, B: 0.5 } },
+              chance: 0.45, fromMission: 2, mult: { L: 1, M: 1, H: 1, B: 0.5 },
+              // (0.62.13) each cannon is its own gun: it holds mag rounds and loads the next in cd seconds (slower with a short crew or
+              // none: crewMul by crew), so n cannons are n rounds back to back; gap: seconds between two rounds, so a double click
+              // doesn't spend two
+              mag: 1, gap: 0.6, crewMul: { full: 1, short: 1.25, none: 1.6 } },
   // Cover at the sites the squad holds (cover.js): n walls in a ring of the given radius; standing within r of one, an ally takes
   // mul of what enemy fire would do.
   cover:    { n: 7, nukeR: 30, vipR: 22, evacR: 26, padR: 20, r: 3.6, mul: 0.6, evacHold: 34 },
@@ -723,6 +730,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.12',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.13',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };
