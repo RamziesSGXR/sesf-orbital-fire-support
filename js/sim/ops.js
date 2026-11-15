@@ -68,7 +68,7 @@ export function setupDome(m, p) {
       break;
     }
   }
-  const dome = { x: p.x, y: p.y, r: K.R, up: true, hitAt: -9, downAt: -9 };
+  const dome = { x: p.x, y: p.y, r: K.R, r0: K.R, up: true, hitAt: -9, downAt: -9 };
   for (const b of [...nodes, ...bases]) b.dome = dome;
   (m.bubbles || (m.bubbles = [])).push({ x: p.x, y: p.y, r: K.R, dome });
   return { type: 'dome', state: 'travel', x: p.x, y: p.y, dome, nodes, bases, parts: [...nodes, ...bases], get text() { return tr('c.obj.dome'); } };
@@ -140,19 +140,49 @@ export function updateDome(m, o, dt, fns) {
     m.notice(tr('n.domeDown'), 'good');
     m.emit('dome_down', { x: d.x, y: d.y, r: d.r });
   }
+  // (0.62.11) Breaking the nodes. The gunner cannot reach under the dome, and with the enemy all round them the troops' rifles
+  // hardly ever turned on a node: the squad stood beside one for minutes and was ground down. Now anyone on foot who is up to a
+  // node works on it while they fight (charges, cutting its feeds): each trooper beside it takes it down at a steady rate, so four
+  // Helldivers break a node in about breakSec seconds and SEAF sent in with them make it quicker.
+  if (d.up) {
+    // (0.62.11) Every node gone, the dome is smaller: more of the ground under it, and at the last node the bases themselves, are
+    // open to the ship again. (It closes in at a walking pace, so nothing jumps.)
+    const K0 = O().dome, left = o.nodes.filter((n) => !n.destroyed).length;
+    // ...and the dome falters: for gapSec seconds after a node goes it stops nothing, and the ship can hit whatever is under it.
+    if (o.nodesLeft !== undefined && left < o.nodesLeft && left > 0) {
+      d.openUntil = m.t + K0.gapSec;
+      m.radio(tr('c.dome.gap'), 'domegap', 0); m.notice(tr('n.domeGap'), 'good');
+      m.emit('dome_gap', { x: d.x, y: d.y, r: d.r });
+    }
+    o.nodesLeft = left; d.open = m.t < (d.openUntil || 0);
+    const want = (d.r0 || K0.R) * (K0.shrinkTo + (1 - K0.shrinkTo) * left / Math.max(1, o.nodes.length));
+    if (d.r > want) { d.r = Math.max(want, d.r - K0.shrinkSpeed * dt); for (const q of m.bubbles || []) if (q.dome === d) q.r = d.r; }
+  }
+  if (d.up) {
+    const K = O().dome, reach2 = (K.breakR) ** 2, per = K.nodeHp / (K.breakSec * 4);
+    const work = new Map();
+    for (const a of m.alive) {
+      if (a.dead || a.down || a.mounted || a.inside) continue;
+      let best = null, bd = reach2;
+      for (const n of o.nodes) { if (n.destroyed) continue; const q = (a.x - n.x) ** 2 + (a.y - n.y) ** 2; if (q <= bd) { bd = q; best = n; } }
+      if (best) { const w = work.get(best); if (w) w.n++; else work.set(best, { n: 1, a }); }
+    }
+    for (const [n, w] of work) m.damageBase(n, per * Math.min(K.breakMax, w.n) * dt, 'squad', w.a.x, w.a.y);
+  }
   if (o.parts.every((b) => b.destroyed)) { fns.complete(m, o); return; }
-  if (o.state === 'travel' && squadAt(m, o.x, o.y, d.r + 60)) { o.state = 'attack'; m.radio(tr('c.dome.in'), 'domein', 0); }
-  if (o.state === 'attack' && o.parts.some((b) => b.alert) && squadAt(m, o.x, o.y, d.r + 40)) fns.siege(m, o, o.x, o.y, dt);
+  if (o.state === 'travel' && squadAt(m, o.x, o.y, (d.r0 || d.r) + 60)) { o.state = 'attack'; m.radio(tr('c.dome.in'), 'domein', 0); }
+  if (o.state === 'attack' && o.parts.some((b) => b.alert) && squadAt(m, o.x, o.y, (d.r0 || d.r) + 40)) fns.siege(m, o, o.x, o.y, dt, d.up ? O().dome.siegeGap : 1);     // (0.62.11) backup comes slower while the dome shelters it
 }
 // The dome over (x, y), while it is up (or null).
 export function domeAt(m, x, y) {
-  for (const b of m.bubbles || []) if (b.dome && b.dome.up && (x - b.x) ** 2 + (y - b.y) ** 2 <= b.r * b.r) return b.dome;
+  for (const b of m.bubbles || []) if (b.dome && b.dome.up && !b.dome.open && (x - b.x) ** 2 + (y - b.y) ** 2 <= b.r * b.r) return b.dome;
   return null;
 }
 // Does a hit on a structure under a dome get through? Only from inside it.
 export function domeBlocks(m, b, fx, fy) {
   const d = b.dome;
-  if (!d || !d.up) return false;
+  if (!d || !d.up || d.open) return false;
+  if ((b.x - d.x) ** 2 + (b.y - d.y) ** 2 > d.r * d.r) return false;     // (0.62.11) the dome has shrunk off it
   if (fx !== undefined && fy !== undefined && (fx - d.x) ** 2 + (fy - d.y) ** 2 <= d.r * d.r) return false;
   d.hitAt = m.t;
   return true;

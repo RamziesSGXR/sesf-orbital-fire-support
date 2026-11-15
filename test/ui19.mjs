@@ -73,7 +73,7 @@ await tap('#tut-next');
 check('NEXT: look around', await waitStep('LOOK AROUND'));
 c = await card();
 check('a lesson card holds the game too, with GOT IT', c.held && await page.isVisible('#tut-ok') && await frozen());
-check('...and says why, not only how', /Why/.test(c.b), c.b);
+check('...and says why, not only how', /only hit what you can see/.test(c.b), c.b);     // (0.62.11) shorter cards: the reason without the word
 await tap('#tut-ok'); await page.waitForTimeout(300);
 check('GOT IT: the game runs again, the card stays, folded to its heading', !(await card()).held && !(await frozen()) && !(await card()).hidden && (await card()).fold);
 // (0.26) and under the drop countdown when that is at the top, not over it
@@ -82,14 +82,14 @@ check('...at the top, out of the way', await ev(() => { const a = document.getEl
 if (touch) { await page.touchscreen.tap(W / 2, H / 3); await ev(() => { window.__game.cam.x += 50; }); }
 else { await page.mouse.move(W / 2, H / 3); await page.mouse.down({ button: 'right' }); await page.mouse.move(W / 2 - 260, H / 3 + 60, { steps: 10 }); await page.mouse.up({ button: 'right' }); }
 check('moving the map does it: (0.42.1) the command radio is next', await waitStep('THE COMMAND RADIO'));
-check('(0.42.1) its button is lit, and the card says the news is kept in its log', await ev(() => document.getElementById('btn-radio').classList.contains('tut-hl')) && /radio log/.test((await card()).b) && (!touch || /On a phone/.test((await card()).b)), (await card()).b);
+check('(0.42.1) its button is lit, and the card says the news is kept in its log', await ev(() => document.getElementById('btn-radio').classList.contains('tut-hl')) && /read the log/.test((await card()).b) && (!touch || /not over the map/.test((await card()).b)), (await card()).b);
 await tap('#tut-next');
 // (0.53.6) nobody holds the base at the start: the player drops the first squad, by the shelter
 check('(0.53.6) NEXT: drop your troops', await waitStep('DROP YOUR TROOPS'));
 { const st = await ev(() => { const m = window.__game.mission, b = document.querySelector('#tactical .tco.seaf'); return { n: m.seafAlive.length, hl: b.classList.contains('tut-hl'), txt: b.textContent, site: !!m.workSite }; });
   check('(0.53.6) nobody is on the ground, and SEAF DROP is lit and ready (not NO ALLIES)', st.n === 0 && st.hl && !/NO ALLIES/.test(st.txt), JSON.stringify(st));
   check('(0.53.6) ...and there is no work site in the tutorial', !st.site);
-  check('(0.53.6) the card says they come by Pelican, only where they are sent, and to drop them by the shelter', /Pelican/.test((await card()).b) && /only where you send them/.test((await card()).b) && /shelter/.test((await card()).b) && /strike zone/.test((await card()).b), (await card()).b); }
+  check('(0.53.6) the card says they come by Pelican, to drop them by the shelter, and that you fire only near your own people', /Pelican/.test((await card()).b) && /shelter/.test((await card()).b) && /only fire near your own people/.test((await card()).b), (await card()).b); }
 await shot('troops');
 { const sh = await ev(() => { const o = window.__game.mission.objectives[0]; return [o.sx, o.sy]; });
   await tap('#tut-ok'); await page.waitForTimeout(200);     // (the game runs: on a phone, tapping SEAF DROP lets the card go too)
@@ -122,7 +122,7 @@ check('calling an orbital on the warriors does it', await waitStep(MT, 9000), St
 if ((await card()).h === 'ORBITAL STRIKE') { await ev(() => { window.__game.mission.stats.orbCalls++; }); await waitStep(MT); }
 check('SEAF DROP in the command panel is lit', await ev(() => document.querySelector('#tactical .tco.seaf').classList.contains('tut-hl')));
 check('(0.53.6) the second drop\'s card says the limits, with the numbers: troopers a Pelican brings, the most on the ground, its turnaround, where a drop lands, the cost of losses',
-  /up to 5 troopers/.test((await card()).b) && /12 on the ground/.test((await card()).b) && /about \d+ seconds/.test((await card()).b) && /strike zone/.test((await card()).b) && /replaced from your credits/.test((await card()).b), (await card()).b);
+  /up to 5 troopers/.test((await card()).b) && /12 down at once/.test((await card()).b) && /about \d+ seconds/.test((await card()).b) && /cost credits/.test((await card()).b), (await card()).b);
 await shot('limits');
 await ev(() => { const m = window.__game.mission, o = m.objectives[0]; m.seaf.fleet = m.seaf.fleet.map(() => m.t); m.callSeaf(o.hx + 8, o.hy + 8); });
 if ((await card()).h === MT) await ev(() => { window.__game.mission.stats.seafCalls++; });
@@ -145,14 +145,14 @@ await page.waitForTimeout(400);
 check('(0.37) ...then at the foxhole on it', await ev(() => { const b = document.querySelector('#tactical .bld[data-b="foxhole"]'); return !!b && b.classList.contains('tut-hl'); }));
 await ev(() => { const m = window.__game.mission, o = m.objectives[0]; m.seafBuild('foxhole', o.sx - 14, o.sy + 6); });
 check('(0.37) ordering one dug does it: cover is next', await waitStep('TAKE COVER', 9000), (await card()).h);
-check('(0.37) ...and it talks about the walls and manning a post', /walls/.test((await card()).b) && /man it/.test((await card()).b), (await card()).b);
+check('(0.37) ...and it talks about the walls and manning a post', /cover/.test((await card()).b) && /man it/.test((await card()).b), (await card()).b);
 await tap('#tut-ok'); await page.waitForTimeout(200);
 await ev(() => { const m = window.__game.mission, p = m.posts.find((q) => q.what === 'mg'); m.selectSquad(0); m.seafMan(p); });
 check('(0.37) sending troopers to man a post does it', await waitStep('DROP THE HELLDIVERS', 9000), (await card()).h);
 c = await card();
 check('the card points at DEPLOY NOW, and lights the lives too', await ev(() => document.getElementById('dropcd-go').classList.contains('tut-hl') && document.getElementById('lives').classList.contains('tut-hl')));
 check('the card sits beside DEPLOY NOW', await beside('#dropcd-go'));
-check('...and says why the lives matter', /lives/.test(c.b) && /mission is lost/.test(c.b), c.b);
+check('...and says why the lives matter', /last life/.test(c.b) && /mission is lost/.test(c.b), c.b);
 await shot('deploy');
 await tap('#dropcd-go');
 check('DEPLOY NOW drops them and the card goes on: resupply', await waitStep('RESUPPLY', 9000), (await card()).h);

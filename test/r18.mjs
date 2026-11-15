@@ -210,6 +210,24 @@ const play = (fac, type, seed, until, sec = 1500) => {
   check('the dome stops strikes and fire from outside', b.hp === hp0);
   dm.damageBase(b, 500, 'squad', b.x + 5, b.y);
   check('fire from inside it gets through', b.hp < hp0);
+  {
+    // (0.62.11) troops beside a node break it; each node gone the dome shrinks and falters
+    const m2 = new Mission({ seed: 5002, faction: 'squids', biome: 'grass', events: false, sessionMinutes: 0, objectives: ['dome'] });
+    m2.deployNow(); for (let i = 0; i < 30 * 15 && !m2.hdAlive.length; i++) m2.step(dt);
+    const o2 = m2.objectives[0], d2 = o2.dome, n0 = o2.nodes[0], K = C.objective.dome, r0 = d2.r;
+    m2.enemies.length = 0;
+    const park = () => { m2.enemies.length = 0; m2.hdAlive.forEach((a, i) => { a.x = n0.x + 8 + i; a.y = n0.y + 6; a.hp = a.maxHp || a.hp; }); };
+    let t0 = m2.t; park(); m2.step(dt);
+    const far = o2.nodes.filter((n) => n !== n0).every((n) => n.hp === K.nodeHp || Math.hypot(n.x - n0.x, n.y - n0.y) < K.breakR + 12);
+    for (let i = 0; i < 30 * 60 && !n0.destroyed; i++) { park(); m2.step(dt); }
+    check('dome: four Helldivers standing beside a node break it, in about the set time', n0.destroyed && m2.t - t0 < K.breakSec * 1.4 && m2.t - t0 > K.breakSec * 0.5 && far, `${(m2.t - t0).toFixed(0)} s`);
+    check('...the dome falters: for a few seconds the ship can hit what is under it', d2.up && d2.open === true);
+    const bb = o2.bases[0], h1 = bb.hp; m2.damageBase(bb, 300, 'player');
+    check('...a strike in that window gets through', bb.hp < h1, `${h1} → ${bb.hp}`);
+    for (let i = 0; i < 30 * (K.gapSec + 2); i++) { m2.enemies.length = 0; m2.hdAlive.forEach((a) => { a.x = d2.x + 300; a.y = d2.y; }); m2.step(dt); }
+    const h2 = bb.hp; if (Math.hypot(bb.x - d2.x, bb.y - d2.y) < d2.r) m2.damageBase(bb, 300, 'player');
+    check('...and then it closes again, smaller than it was', d2.open === false && bb.hp === h2 && d2.r < r0 - 5 && (m2.bubbles || []).some((q) => q.dome === d2 && q.r === d2.r), `${r0} m → ${d2.r.toFixed(0)} m`);
+  }
   const dp = play('squids', 'dome', 5002, (m, oo) => oo.done);
   check('dome: the nodes go, the dome falls, then the bases', dp.o.done && !dp.o.dome.up && dp.o.parts.every((q) => q.destroyed), `${(dp.m.t / 60).toFixed(1)} min`);
 }
