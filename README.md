@@ -25,6 +25,14 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**The Shield Dome can be broken, and a shorter tutorial (0.62.11).**
+- **Shield Dome fixed.** The squad used to stand beside a node for minutes without hurting it (their rifles were always on the enemy) and was worn down inside a dome the ship could not reach. Now:
+  - Troops on foot beside a node break it as they fight: four Helldivers take about 20 seconds, and SEAF sent in with them make it quicker.
+  - Each node gone, the dome shrinks, so more of the ground under it is open to the ship.
+  - Each node gone, the dome flickers for 14 seconds and stops nothing: the radio calls it, and that is the gunner's window to fire.
+  - Enemy backup comes slower while the dome is up.
+- **Tutorial updated.** Every step is now two to four short sentences (about half the words), and it matches the game as it is: the ship gun fires through its magazine and then reloads, turrets and towers come by Pelican one at a time, buildings are solid, fights and enemy packs are heard from where they are, and after each mission you choose what comes next.
+
 **The field has its own sound (0.62.10).**
 - **Sound from where things are.** With the music off, what you hear is what is on the field. Each source plays from its own place: louder near the middle of the view, left or right by where it is on screen, louder zoomed in and quieter zoomed out. Only the nearest eight play at once (five on a phone).
 - **Packs of enemies** in sight each make their faction's noise: bugs skitter, chitter and screech; bots hum, clank and give orders in a flat machine voice; squids hum and whisper. Enemies you cannot see make no sound of their own.

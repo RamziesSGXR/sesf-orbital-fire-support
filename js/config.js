@@ -636,7 +636,11 @@ export const CONFIG = {
     // dome (squids): a shield dome (R) over a couple of warp-ship bases (bases, baseR from the middle) and the generator tower at
     //   its middle, with nodes beside the tower (nodeR from it, nodeHp). The dome stops every hit from outside it (strikes, the ship
     //   gun, fire from outside); anyone inside can fight. Knock out every node and the dome falls; then destroy the bases.
-    dome:   { R: 82, nodes: 4, nodeR: 15, nodeHp: 1500, bases: 2, baseR: 48 },
+    //   (0.62.11) Troops on foot within breakR of a node break it as they fight: four of them in breakSec seconds, more of them
+    //   quicker (up to breakMax at once).
+    dome:   { R: 82, nodes: 4, nodeR: 15, nodeHp: 1500, bases: 2, baseR: 48, breakR: 36, breakSec: 20, breakMax: 10, shrinkTo: 0.34, shrinkSpeed: 6, gapSec: 14, siegeGap: 1.6 },
+    //   Each node gone the dome shrinks (toward shrinkTo of R with none left) and falters: it stops nothing for gapSec seconds. While it is
+    //   up, backup for the enemy comes siegeGap times slower.
     // The citadel's keep (fortress) only falls to a Hellbomb. Once its outer bases are down and the keep is clear (fewer than
     //   clearN enemies within clearR of it, with a Helldiver close), the squad calls one: the player puts it together (the parts in
     //   the order they light up, cells taps each, fillSec of real time in slow motion), it comes down beside the keep (dropSec), a
@@ -719,6 +723,6 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.10',
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.11',
               playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
 };

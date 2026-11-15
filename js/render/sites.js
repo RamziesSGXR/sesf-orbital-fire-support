@@ -320,6 +320,8 @@ export function drawDome(ctx, o, col, now, px) {
   ctx.fillStyle = d.up ? `rgba(170,225,255,${0.7 + 0.3 * Math.sin(t * 3)})` : 'rgba(80,80,95,0.9)'; circ(ctx, 0, 0, 2.8); ctx.fill();
   ctx.restore();
   if (!d.up) return;
+  // (0.62.11) faltering after a node goes: it flickers, mostly out
+  if (d.open) { if (Math.sin(t * 31) + Math.sin(t * 47) < 0.9) { ctx.setLineDash([px(6), px(10)]); ctx.strokeStyle = 'rgba(190,230,255,0.35)'; ctx.lineWidth = px(1.5); circ(ctx, d.x, d.y, d.r); ctx.stroke(); ctx.setLineDash([]); return; } }
   const g = ctx.createRadialGradient(d.x, d.y, d.r * 0.6, d.x, d.y, d.r);
   g.addColorStop(0, 'rgba(140,200,255,0.03)'); g.addColorStop(1, 'rgba(140,200,255,0.16)');
   ctx.fillStyle = g; circ(ctx, d.x, d.y, d.r); ctx.fill();

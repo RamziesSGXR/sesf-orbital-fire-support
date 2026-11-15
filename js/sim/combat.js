@@ -89,7 +89,7 @@ export function bubbleFor(m, x, y, fx, fy) {
     const r2 = b.r * b.r;
     if ((x - b.x) ** 2 + (y - b.y) ** 2 > r2) continue;
     if (fx !== undefined && fy !== undefined && (fx - b.x) ** 2 + (fy - b.y) ** 2 <= r2) continue;    // fired from inside: through
-    if (b.dome ? b.dome.up : b.src.shield > 0) return b;
+    if (b.dome ? b.dome.up && !b.dome.open : b.src.shield > 0) return b;
   }
   return null;
 }
