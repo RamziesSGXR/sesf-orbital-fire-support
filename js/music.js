@@ -220,7 +220,6 @@ const CUES = {
     },
   },
 };
-export const CUE_NAMES = Object.keys(CUES);
 export const THEME_NAMES = Object.keys(THEMES);
 
 // How a change of cue goes: q = where it lands ('bar', or 'beat' when it can't wait); out / in = how fast the old deck fades out and
@@ -444,7 +443,7 @@ export class Music {
 
   // Change cue: on the next bar (or beat) of the deck playing now, the old one fading while the new one comes in.
   switchTo(name, how) {
-    const c = this.ctx, cur = this.deck, tr = how || transition(cur && cur.name, name);
+    const cur = this.deck, tr = how || transition(cur && cur.name, name);
     let at = this.now() + 0.05;
     // the deck that was about to start hasn't played a note yet: the new one simply takes its place, at its start
     if (cur && cur.step === 0 && cur.loops === 0 && cur.next > at) {

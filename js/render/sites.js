@@ -153,33 +153,31 @@ export function drawCover(ctx, m, px) {
 }
 const COVER_R = { wall: 0.55, shadow: 0.32, every: 30 };
 function coverPiece(ctx, p, px) {
-  {
-    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.ang + Math.PI / 2);
-    const L = p.len, w = 1.5;
-    if (isFlat()) { ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(-L / 2 - 0.4, -w / 2 + 0.5, L + 0.8, w + 0.6); }    // shadow (flat look only)
-    if (p.style === 0) {
-      const n = Math.max(3, Math.round(L / 1.3));
-      for (let i = 0; i < n; i++) {
-        const x = -L / 2 + (i + 0.5) * (L / n);
-        ctx.fillStyle = i % 2 ? '#9c8c62' : '#8a7b55'; ctx.beginPath(); ctx.ellipse(x, 0, L / n / 2 + 0.15, w / 2, 0, 0, TAU); ctx.fill();
-      }
-      ctx.strokeStyle = 'rgba(30,25,15,0.6)'; ctx.lineWidth = px(0.8); ctx.strokeRect(-L / 2, -w / 2, L, w);
-    } else if (p.style === 1) {
-      const n = Math.max(2, Math.round(L / 2.2));
-      for (let i = 0; i < n; i++) {
-        const x = -L / 2 + i * (L / n);
-        ctx.fillStyle = '#6f5a3a'; ctx.fillRect(x + 0.1, -w * 0.7, L / n - 0.2, w * 1.4);
-        ctx.strokeStyle = 'rgba(25,18,10,0.75)'; ctx.lineWidth = px(0.8); ctx.strokeRect(x + 0.1, -w * 0.7, L / n - 0.2, w * 1.4);
-        ctx.beginPath(); ctx.moveTo(x + 0.1, -w * 0.7); ctx.lineTo(x + L / n - 0.1, w * 0.7); ctx.stroke();
-      }
-    } else {
-      ctx.fillStyle = '#9aa29c'; ctx.fillRect(-L / 2, -w / 2, L, w);
-      ctx.fillStyle = '#c3cac4'; ctx.fillRect(-L / 2, -w / 2, L, w * 0.35);
-      ctx.strokeStyle = 'rgba(20,25,22,0.7)'; ctx.lineWidth = px(0.8); ctx.strokeRect(-L / 2, -w / 2, L, w);
-      for (let x = -L / 2 + 2; x < L / 2; x += 2) { ctx.beginPath(); ctx.moveTo(x, -w / 2); ctx.lineTo(x, w / 2); ctx.stroke(); }
+  ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.ang + Math.PI / 2);
+  const L = p.len, w = 1.5;
+  if (isFlat()) { ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(-L / 2 - 0.4, -w / 2 + 0.5, L + 0.8, w + 0.6); }    // shadow (flat look only)
+  if (p.style === 0) {
+    const n = Math.max(3, Math.round(L / 1.3));
+    for (let i = 0; i < n; i++) {
+      const x = -L / 2 + (i + 0.5) * (L / n);
+      ctx.fillStyle = i % 2 ? '#9c8c62' : '#8a7b55'; ctx.beginPath(); ctx.ellipse(x, 0, L / n / 2 + 0.15, w / 2, 0, 0, TAU); ctx.fill();
     }
-    ctx.restore();
+    ctx.strokeStyle = 'rgba(30,25,15,0.6)'; ctx.lineWidth = px(0.8); ctx.strokeRect(-L / 2, -w / 2, L, w);
+  } else if (p.style === 1) {
+    const n = Math.max(2, Math.round(L / 2.2));
+    for (let i = 0; i < n; i++) {
+      const x = -L / 2 + i * (L / n);
+      ctx.fillStyle = '#6f5a3a'; ctx.fillRect(x + 0.1, -w * 0.7, L / n - 0.2, w * 1.4);
+      ctx.strokeStyle = 'rgba(25,18,10,0.75)'; ctx.lineWidth = px(0.8); ctx.strokeRect(x + 0.1, -w * 0.7, L / n - 0.2, w * 1.4);
+      ctx.beginPath(); ctx.moveTo(x + 0.1, -w * 0.7); ctx.lineTo(x + L / n - 0.1, w * 0.7); ctx.stroke();
+    }
+  } else {
+    ctx.fillStyle = '#9aa29c'; ctx.fillRect(-L / 2, -w / 2, L, w);
+    ctx.fillStyle = '#c3cac4'; ctx.fillRect(-L / 2, -w / 2, L, w * 0.35);
+    ctx.strokeStyle = 'rgba(20,25,22,0.7)'; ctx.lineWidth = px(0.8); ctx.strokeRect(-L / 2, -w / 2, L, w);
+    for (let x = -L / 2 + 2; x < L / 2; x += 2) { ctx.beginPath(); ctx.moveTo(x, -w / 2); ctx.lineTo(x, w / 2); ctx.stroke(); }
   }
+  ctx.restore();
 }
 
 // The citadel's walls: from the keep out to each of its bases, so the cluster reads as one place.

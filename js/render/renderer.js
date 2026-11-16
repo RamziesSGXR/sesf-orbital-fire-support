@@ -20,7 +20,7 @@ import { drawFlares, drawHoles, drawDrops, drawEvac, drawAcidPools, drawMotherGr
 import { drawBaseArt, drawBaseRuin, drawCover, drawCitadelWalls, drawCannonArt, drawNodeArt } from './sites.js';
 import { drawPosts, postArt, lzArt, cone } from './posts.js';
 const lzArtGhost = (ctx, x, y, R, now, px, ok) => lzArt(ctx, x, y, R, now, px, ok);
-import { foxReach, wireEnds, bastionWalls, wallShape, foxholeSlots, turns, onEnemy, buildFoot, lookoutReach, chains, chainPlan, planChain } from '../sim/posts.js';
+import { foxReach, wireEnds, bastionWalls, wallShape, turns, onEnemy, buildFoot, lookoutReach, chains, chainPlan, planChain } from '../sim/posts.js';
 import { buildStats, uavStats, seafStats, buildLevel } from '../data/kit.js';
 import { todAt, skyTint } from './sky.js';
 import { Lighting, ambient, washKey, bakeWash } from './light.js';
@@ -667,7 +667,7 @@ export class Renderer {
     let ok = true, why = '', text = '', gr = 0;
     const pulse = 0.55 + 0.45 * Math.sin(now * 6);
     if (bk) {
-      const lvl = Math.max(1, buildLevel(m.kit, bk)), st = buildStats(bk, lvl), cost = st.cost || 0;
+      const lvl = Math.max(1, buildLevel(m.kit, bk)), st = buildStats(bk, lvl), cost = m.buildPrice(bk, lvl);     // (the price now: 10% more for each one, 0.62.13)
       if (!buildLevel(m.kit, bk)) { ok = false; why = tr('deny.locked'); }
       else if (m.wallet.bal < cost) { ok = false; why = tr('deny.funds'); }
       if (bk === 'bridge') {
@@ -1918,7 +1918,7 @@ export class Renderer {
     }
     // Helldiver pods, SEAF squads with their orders, and pelicans
     for (const p of m.pods) { c.strokeStyle = p.type === 'H' ? '#ffe600' : ac; c.lineWidth = 1.5; c.beginPath(); c.arc(p.x * k, p.y * k, 4, 0, TAU); c.stroke(); }
-    drawMiniSeaf(c, m, k, ac, ec);
+    drawMiniSeaf(c, m, k, ac);
     // Helldivers, with each one's ping in its group color
     c.fillStyle = ac;
     // (big and outlined so they stand out on the minimap; the tactical map adds each one's letter)

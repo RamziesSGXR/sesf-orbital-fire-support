@@ -66,7 +66,8 @@ check('buying it then pays the rest, and the deposit is used up', (await ev(() =
 // Leader Command
 await tab('seaf');
 const lc = await ev(() => { const c = [...document.querySelectorAll('.tabpane .item')].find((q) => /Leader Command/.test(q.querySelector('.it-name').textContent)); return c ? c.textContent : null; });
-check('Leader Command in the armory (Leader Radios is gone)', lc && /22 m/.test(lc) && !(await ev(() => /Leader Radios/.test(document.getElementById('shop-root').textContent))), lc && lc.slice(0, 120));
+check('Leader Command in the armory (Leader Radios is gone)', lc && /Squad Leader/.test(lc) &&     // (0.62.12: what it is for, no numbers)
+   !(await ev(() => /Leader Radios/.test(document.getElementById('shop-root').textContent))), lc && lc.slice(0, 120));
 
 check('no page errors', !errs.length, errs.join(' | '));
 await browser.close();

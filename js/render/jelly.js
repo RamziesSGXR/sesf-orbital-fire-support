@@ -189,4 +189,3 @@ export function drawJellySide(ctx, x, y, w, now, glow = 1, dark = false) {
   ctx.restore();
 }
 // Where a side-on ship's tendrils end (beams come from there), for w as above.
-export const jellySideTip = (x, y, w) => [x, y + w * 0.98];

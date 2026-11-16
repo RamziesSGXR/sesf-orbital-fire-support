@@ -214,7 +214,6 @@ const ITEM_TIER = {
   orb_laser: 5, eagle_500: 5, 'bld:arty': 5,
 };
 export const itemTier = (id) => { const k = String(id).replace(/^(own|up):/, ''); return ITEM_TIER[k] ?? (STRATS[k] && STRATS[k].secret) ?? 0; };
-export const isSecret = (id) => { const k = String(id).replace(/^(own|up):/, ''); return !!(STRATS[k] && STRATS[k].secret); };
 // The milestone reached after this many missions done (0 before the first).
 export function tierFor(done, kills = false) { let n = 0; (kills ? C.ranks.tutKills : C.ranks.at).forEach((at, i) => { if (done >= at) n = i + 1; }); return n; }
 export const TIER_MAX = C.ranks.at.length;
@@ -306,7 +305,6 @@ function shopItems0(kit) {
 }
 
 // Buy an item. inMission only allows live upgrades (levels), not new unlocks or slots.
-export const HANGAR_GIFT = 'eagle_strafe';     // (0.31) what the Hangar's first level comes with
 // (0.44) What an SESF coin can buy: anything open in the armory that has a next level, but the Classified stratagems.
 export const coinOk = (it) => !!it && it.cost !== null && !it.locked && !it.secret && it.section !== 'classified';
 // free: (0.44) paid with an SESF coin, not credits (the caller takes the coin)

@@ -145,7 +145,6 @@ export function postReach(m, p) {
 }
 const towerReach = (m, p) => Math.round(uavStats(m.kit.uav).r * (p.what === 'tower' ? 1 + 0.05 * (p.lvl - 1) : p.what === 'lookout' ? buildStats('lookout', p.lvl).reach : 1));
 // How far out a lookout spots for the fire support (enemies there, inside the strike zone, are shown).
-export const spotReach = (m, p) => Math.round(lookoutReach(m, p) * C.build.lookout.spotMul);
 // (0.47) How far a lookout sees down its cone: twice a Helldiver's sight (on this biome) at level 1, 8% more a level.
 export const lookoutReach = (m, p) => Math.round(C.build.lookout.coneMul * C.sight.helldiver * ((m.biome && m.biome.ping) || 1) * (buildStats('lookout', p.lvl || 1).reach / C.build.lookout.reach));
 // (0.47) A lookout's view as relay circles: one all round it (an ally's sight) and a fan along its face. Each fan circle has the

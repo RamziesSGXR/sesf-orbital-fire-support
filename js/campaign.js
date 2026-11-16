@@ -64,7 +64,7 @@ export class CastRadio {
     this.teach = new Set(opts.teach || []); this.taught = new Set(); this.tip = opts.tip || null; this.seen = {};
   }
   // (0.38) a lesson: the cast member's line, and its tip with it (ahead of chatter, behind anything urgent)
-  lesson(topic, m) {
+  lesson(topic) {
     if (!this.teach.has(topic) || this.taught.has(topic)) return;
     const raw = t('teach.' + topic);
     if (!raw || raw === 'teach.' + topic) return;
@@ -107,7 +107,7 @@ export class CastRadio {
     if (!this.cues) return;
     // (0.38) the lessons that come with a moment
     if (this.teach.size) {
-      const L = (k) => this.lesson(k, m);
+      const L = (k) => this.lesson(k);
       if (ev.type === 'objective_done') L('extract');
       else if (ev.type === 'supply_ask') L('supply');
       else if (ev.type === 'flare') L('flare');
@@ -156,7 +156,7 @@ export class CastRadio {
   }
   // (0.38) the lessons that come with the state of things (checked every frame, each said once)
   teachTick(m, t, since) {
-    const L = (k) => this.lesson(k, m), T = this.teach, seen = (x, y) => m.visLevel(x, y) > 0;
+    const L = (k) => this.lesson(k), T = this.teach, seen = (x, y) => m.visLevel(x, y) > 0;
     if (T.has('gun') && since > 6) L('gun');
     if (T.has('seaf') && since > 12) L('seaf');
     if (T.has('night') && since > 6) L('night');

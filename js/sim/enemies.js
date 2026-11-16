@@ -345,7 +345,6 @@ function colossusBeam(m, e, p, t, dt) {
 // they can see it, and no farther
 export const bossReach = (m) => C.sight.helldiver * ((m.biome && m.biome.ping) || 1) * (C.boss.reachMul || 1);
 function bossMove(m, e, dt, size) {
-  const D = C.boss[e.boss];
   let best = null, bd = Infinity;     // it hunts the Helldivers (anyone else only once they are gone)
   for (const a of (m.hdAlive.length ? m.hdAlive : m.alive)) { if (a.dead || a.mounted) continue; const d2 = (a.x - e.x) ** 2 + (a.y - e.y) ** 2; if (d2 < bd) { bd = d2; best = a; } }
   const gx = best ? best.x : m.hx, gy = best ? best.y : m.hy, d = Math.sqrt(bd);
@@ -540,15 +539,6 @@ function arrangeForm(g) {
     lead.forEach((q, i) => put(q, -((rows - 1) / 2 + 1) * blk - blk * 0.5, (i - (lead.length - 1) / 2) * blk));
   }
 }
-// Squids: a school. The leaders stay in the middle; the lights circle them in rings, each ring the other way round from the one
-// inside it. (0.61.1) It is as wide as it is many (a ring holds what fits `gap` metres apart; the rest go in the next ring out), so
-// one blast no longer takes a whole school; it breathes in and out; and it startles: a hit on one of it, or one lost, and it
-// bursts outward, then closes up again.
-export function schoolRings(n, S = C.formations.squids) {
-  const rings = [];
-  for (let k = 0, left = n; left > 0; k++) { const r = S.inner + k * S.ringGap, cap = Math.max(3, Math.floor((TAU * r) / S.gap)), c = Math.min(cap, left); rings.push({ r, n: c }); left -= c; }
-  return rings;
-}
 const startled = (g, t) => ((g.startle ?? -99) > t ? C.formations.squids.startle.speed : 1);
 function arrangeSchool(g, t) {
   const S = C.formations.squids, live = g.members.filter((q) => !q.dead && !q.boss);
@@ -668,14 +658,14 @@ export function holdHere(e) {
   return (tg.x - e.x) ** 2 + (tg.y - e.y) ** 2 <= (gr * C.enemies.tactics.closeIn) ** 2;
 }
 function arrangeLine(g, L) {
-  const lights = g.members.filter((q) => !q.dead && q.kind !== 'H'), n = lights.length, nx = -g.uy, ny = g.ux;
+  const lights = g.members.filter((q) => !q.dead && q.kind !== 'H'), n = lights.length;
   g.members.forEach((q) => {
     if (q.dead) return;
     const i = q.kind === 'H' ? 0 : lights.indexOf(q), lane = q.kind === 'H' ? 0 : (i - (n - 1) / 2) * L.spacing;
     q.lane = lane;
   });
 }
-function lineMove(m, g, e, tgt, dt, size, atk) {
+function lineMove(m, g, e, tgt, dt, size) {
   const L = C.enemies.tactics.line;
   if ((e.tgt || e.vol) && holdHere(e)) { e.vx = 0; e.vy = 0; return; }   // something is in range: stand and shoot
   if (!tgt) { moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size); return; }
@@ -904,7 +894,7 @@ export function updateEnemies(m, dt) {
       if (e.lp) { leapStep(m, e); continue; }                   // (0.54) in the air
       if (e.stunUntil > t || e.ch || e.vol) { e.vx = 0; e.vy = 0; continue; }
       if (fac.id === 'bugs') { swarmMove(m, g, e, tgt, dt, size, sightE); continue; }
-      if (fac.id === 'bots') { lineMove(m, g, e, tgt, dt, size, atk); continue; }
+      if (fac.id === 'bots') { lineMove(m, g, e, tgt, dt, size); continue; }
       ringMove(m, g, e, tgt, dt, size, atk, engaged);
     }
   }

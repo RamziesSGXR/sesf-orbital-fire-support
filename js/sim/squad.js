@@ -11,7 +11,7 @@ import { steer } from './terrain.js';
 import { runClear } from './ops.js';
 import { boardingNow } from './extract.js';
 import { aoX, aoY } from './ao.js';
-import { siteAt, threatSlot, holdSites } from './cover.js';
+import { threatSlot, holdSites } from './cover.js';
 
 // Where the squad waits before going in on a base: just outside its detection ring, on the near side, on dry ground.
 function stagePoint(m, b, sq) {

@@ -288,7 +288,7 @@ export function drawPelicans(ctx, m, now, px, labels, scale, pal) {
 }
 
 // ---------- minimap ----------
-export function drawMiniSeaf(c, m, k, ac, ec) {
+export function drawMiniSeaf(c, m, k, ac) {
   const multi = squadsInUse(m) > 1 || m.seaf.sel >= 0, sf = m.seaf;
   for (const q of sf.squads) {
     if (!q.n) continue;

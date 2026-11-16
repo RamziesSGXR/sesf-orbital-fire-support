@@ -9,7 +9,7 @@
 //          can be shot down too, and everyone aboard goes with it.
 // (0.31) A call can come in at several places at once, from different sides (more often later in a mission, and at extraction).
 // Every number is in CONFIG.reinf.
-import { alertMul, alertStars, callPressure } from './alert.js';
+import { alertMul, alertStars } from './alert.js';
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { aoX, aoY } from './ao.js';

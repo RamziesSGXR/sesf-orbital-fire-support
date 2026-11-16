@@ -19,7 +19,10 @@ const dt = 1 / 30;
 const run = (m, sec, each) => { for (let i = 0, n = Math.round(sec / dt); i < n && !m.over; i++) { m.step(dt); if (each && each(m) === true) break; } };
 
 // ---------------------------------------------------------------- the version
-check('version 0.62.12', C.share.version === '0.62.12' && JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url))).version === '0.62.12', C.share.version);
+{     // (the game's version is package.json's, and looks like one: no number to update here each release)
+  const pv = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url))).version;
+  check('the version: the game says what package.json says', C.share.version === pv && /^\d+\.\d+\.\d+$/.test(pv), `${C.share.version} / ${pv}`);
+}
 
 // ---------------------------------------------------------------- the climb
 {

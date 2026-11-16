@@ -1,4 +1,5 @@
 // Lists string literals that look like English text (two or more words), to find text that skipped the language tables.
+// node tools/strscan.cjs files...  (needs the typescript package, version 5, used only as a parser: npm i --no-save typescript@5)
 const ts = require('typescript'); const fs = require('fs');
 for (const file of process.argv.slice(2)) {
   const src = fs.readFileSync(file, 'utf8');

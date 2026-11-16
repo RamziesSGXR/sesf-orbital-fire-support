@@ -25,6 +25,15 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**A code check and clean-up (0.62.14).**
+- **Fixed:** the build preview, its hover card and its info card checked your credits against the list price, not the price after 0.62.13's 10% per build. It could show a build as affordable and then refuse it.
+- **Removed what nothing used:**
+  - Code: the tutorial's old mid-fight rank prompt, the feed's start-of-operation post (gone since 0.50.1), the squids' ring school (an arrowhead since 0.62.4), and a dozen unused helpers.
+  - Text: 30 lines in each language that nothing showed.
+  - Settings: the SEAF spotter's (gone since 0.50), the tutorial's pre-0.26 wave sizes, and an unused link.
+  - Styles: about 90 rules for screens and panels that no longer exist. Every element on every screen tested looks exactly as it did.
+- **Notes put right:** comments that described things the game no longer does (spotters, a breathing squid school, squads 1 to 4). Two tests that had gone stale (a hard-coded version number, a description that lost its numbers in 0.62.12), and one that couldn't run at all (a comment had swallowed part of a line), work again.
+
 **More cannons, more rounds; builds cost more as you add them (0.62.13).**
 - **Artillery cannons:** each cannon has its own round and reloads on its own. Build three and weapon 9 fires three rounds back to back, each from the nearest loaded cannon. The weapon bar shows a counter of rounds loaded (like **2/3**). On the map, a loaded cannon has a gold shell under it, and an empty one has a bar filling as it reloads. A crew still reloads faster.
 - **Build prices:** each build costs 10% more for every one of the same kind you already have standing or on its way. The build menu shows the price now and how many you have. Losing one brings the price back down. A captured cannon doesn't count, and free builds (wire, foxholes) stay free.

@@ -228,7 +228,7 @@ function utilTarget(m, st) {
   return null;
 }
 
-function targetFor(m, st, bot) {
+function targetFor(m, st) {
   if (st.k === 'util') return utilTarget(m, st);
   const g = aimGeom(m, st), danger = g.danger;
   const hold = m.squad.state === 'hold' ? m.squad.base : null;
@@ -311,7 +311,7 @@ export function botStep(m, bot) {
       const idx = 1 + ((bot.rot + k) % ORB_SLOTS), s = p.slots[idx];
       if (s.type !== 'orb' || t < s.readyAt || s.uses <= 0 || (s.eu !== undefined && !eagleReady(m, s))) continue;     // (0.53.2: an Eagle out of runs, or the Eagle away)
       const st = slotStats(m, idx);
-      const tgt = targetFor(m, st, bot);
+      const tgt = targetFor(m, st);
       if (!tgt) continue;
       tgt.x += (m.rng.next() - 0.5) * bot.aimNoise; tgt.y += (m.rng.next() - 0.5) * bot.aimNoise;
       m.setFiring(false); bot.gunOn = false;

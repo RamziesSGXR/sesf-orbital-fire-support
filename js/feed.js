@@ -65,13 +65,6 @@ function once(s, kind) {
   return true;
 }
 
-// The first drop of a new operation. chapter: the campaign chapter it starts at, if it's the campaign. (0.50.1: no longer posted:
-// one post an operation, at its end. Kept for tests and in case it comes back.)
-export function feedStart(s, settings, chapter = null) {
-  if (!s || s.tutorial || !feedOn(settings) || !once(s, 'start')) return false;
-  const camp = s.story && chapter ? ` · campaign chapter ${chapter} of ${chapters()}` : '';
-  return post(`🛰️ Super Destroyer in orbit · ${who(s.callsign)} starts ${opName(s)}${camp} · ${diff(s.difficulty || 1)}`);
-}
 
 // The operation is over. fin: session.js finalise().
 export function feedEnd(s, fin, settings) {
