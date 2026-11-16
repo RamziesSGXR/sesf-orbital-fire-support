@@ -5,10 +5,10 @@ import { fmtTime, fmtNum, sessionTotals, MAX_NAME, carriesOn, levelReached } fro
 import { STRATS, CAT_COLOR } from './data/strat.js';
 import { LETTERS, TEAM_COLOR } from './data/names.js';
 import { STORY } from './data/story.js';
-import { buildCostMul, PERKS, perkN, perkPct, perksTotal } from './data/perks.js';
-import { costSiteMul, siteGain } from './sim/sites.js';
+import { perkN, perkPct, perksTotal } from './data/perks.js';
+import { siteGain } from './sim/sites.js';
 import { GROUPS as KEY_GROUPS, label as keyLabelOf, keyOf as keyOfAction, defaultOf as defaultKeyOf } from './keys.js';
-import { penOf, GUN_PEN, shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, hangarStats, shownAt, TIER_MAX, tierItems, itemTier, FLAT_BUILDS, fleetSize, coinOk, MIXES, mixOpen, mixNeeds } from './data/kit.js';
+import { penOf, GUN_PEN, shopItems, orbStats, uavStats, seafStats, gunStats, zoneExtra, buildStats, buildLevel, uavBuff, hangarStats, shownAt, TIER_MAX, itemTier, FLAT_BUILDS, fleetSize, coinOk, MIXES, mixOpen, mixNeeds } from './data/kit.js';
 import { stratReady, stratOnline } from './sim/strat.js';
 import { slotStats } from './sim/player.js';
 import { compass } from './sim/enemies.js';
@@ -246,7 +246,7 @@ export class Hud {
     // the formations for the selected squad (clicked: Z X C V and B are orders and BUILD since 0.20). It runs in real time.
     this.bld = {}; this.frm = {};
     const tb = document.querySelector('#tactical .tac-build'), tf = document.querySelector('#tactical .tac-form');
-    POSTS.forEach((what, i) => {
+    POSTS.forEach((what) => {
       const e = el('button', 'bld', `<canvas class="ic" width="112" height="112"></canvas><span class="c"></span><span class="n"></span><span class="s"></span>`);
       e.type = 'button'; e.dataset.b = what;
       postIcon(e.querySelector('canvas'), what);
@@ -255,7 +255,7 @@ export class Hud {
       e.addEventListener('pointerleave', (ev) => { if (ev.pointerType === 'mouse') this.tipLeave(); });
       tb.appendChild(e); this.bld[what] = { el: e, n: e.querySelector('.n'), s: e.querySelector('.s'), c: e.querySelector('.c'), key: '' };
     });
-    FORMS.forEach((f, i) => {
+    FORMS.forEach((f) => {
       const e = el('button', 'frm', `<i class="fg fg-${f}"></i><span class="n"></span>`);
       e.type = 'button'; e.dataset.f = f;
       e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onForm && this.onForm(f); if (this.m) this.tip(e, () => formShort(this.m, f), null); });
@@ -1103,7 +1103,7 @@ export class Hud {
     r = cur('attack', RDY); act('attack', r[0], r[1]);
     if (none) set('escort', t('hud.o.noSeaf'), 'off');
     else if (!m.hdAlive.length) set('escort', t('hud.o.noHd'), 'off');
-    else r = cur('escort', RDY), set('escort', r[0], r[1]);
+    else { r = cur('escort', RDY); set('escort', r[0], r[1]); }
     this.fillTactical(m);     // (0.20: the command panel and the selection are always up)
   }
   // The tactical build screen: what is selected, each build's picture, name, level and cost (or LOCKED), and the selected squad's
@@ -2194,18 +2194,6 @@ export function setupBest() {
   $('best').textContent = best ? t('title.best', { n: fmtNum(best) }) : '';
 }
 
-// How far down the screen the things across the top reach: the objective and the callouts, and on a phone the button row
-// and the squad panel. Info cards and the big message go just under it.
-function topBelow(extra = null) {
-  let y = 0;
-  const under = (e) => { if (e) { const r = e.getBoundingClientRect(); if (r.height > 0 && r.width > 0) y = Math.max(y, r.bottom); } };   // hidden: a zero box
-  if (document.body.classList.contains('touch')) {
-    for (const e of $('callouts').children) if (!e.classList.contains('hidden')) under(e);
-    under(document.querySelector('.tl-btns')); under($('mbox')); under($('objective'));
-  } else y = Math.max(y, 12);     // a computer: nothing across the top in the middle any more
-  under(extra);
-  return y;
-}
 
 // ---------------- settings ----------------
 export function buildSettings(settings, onChange) {
@@ -2433,7 +2421,7 @@ export function weaponInfo(m, i) {
 // What a SEAF squad (or all of them) is made of and doing.
 // A buildable, for the tactical menu's hover card: what it does, its cost and build time at the armory level.
 export function buildInfo(m, what) {
-  const lvl = buildLevel(m.kit, what), B = buildStats(what, Math.max(1, lvl));
+  const lvl = buildLevel(m.kit, what), B = { ...buildStats(what, Math.max(1, lvl)), cost: m.buildPrice(what, Math.max(1, lvl)) };     // (the price now, 0.62.13)
   let h = `<div class="ic-h">${esc(t('build.' + what).toUpperCase())}${!noLvl(what) ? ` <i>${lvl ? t('card.level', { n: lvl }) : t('hud.b.locked')}</i>` : ''}</div>`;
   h += row(t('card.cost'), B.cost ? `${B.cost} CR` : t('hud.b.freeShort')) + row(t('card.buildTime'), `${B.sec} S`);
   if (B.hp) h += row(t('sel.hp'), String(B.hp));
@@ -2489,7 +2477,7 @@ export function weaponShort(m, i, state = '') {
   return tl1(shortName(s.id), `L${s.level}`, parts, state, bad);
 }
 export function buildShort(m, what) {
-  const lvl = buildLevel(m.kit, what), B = buildStats(what, Math.max(1, lvl));
+  const lvl = buildLevel(m.kit, what), B = { ...buildStats(what, Math.max(1, lvl)), cost: m.buildPrice(what, Math.max(1, lvl)) };     // (the price now, 0.62.13)
   if (!lvl) return tl1(t('build.' + what), '', [], t('hud.b.locked'), true);
   const parts = [B.cost ? t('hud.b.costN', { cr: B.cost }) : t('hud.b.freeShort'), t('tip.build', { n: Math.round(B.sec / seafStats(m.kit).buildSpeed) })];
   if (B.cap) parts.push(t('tip.crew', { n: B.cap }));

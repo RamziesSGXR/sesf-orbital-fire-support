@@ -381,7 +381,7 @@ export function refreshAim(m) {
 export function updatePlayer(m, dt) {
   for (let i = m.utilQ.length - 1; i >= 0; i--) if (m.t >= m.utilQ[i].at) landUtil(m, m.utilQ.splice(i, 1)[0]);
   if (m.player.eagle) eagleTick(m);
-  const p = m.player, t = m.t, info = p.aim;
+  const p = m.player, t = m.t;
   if (((m.arty || []).length > 0) !== (p.slots[SLOT_ARTY].type === 'arty')) syncSlots(m);
   artyTick(m, dt);     // (0.62.13) every cannon loads its own round
   // The nuke slot is only usable while the launch site is armed; fall back to the first orbital when it is spent.

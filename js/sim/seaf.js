@@ -1,12 +1,12 @@
-// SEAF: the troops the player directs. A troop pelican flies each drop in; the troops join a numbered squad (1 to 4).
+// SEAF: the troops the player directs. A troop pelican flies each drop in; the troops join a numbered squad (1 to 9, C.seaf.squads).
 // A squad carries out one standing order: auto (clear the nearest objective), move, protect, attack, escort, a drawn route
-// (path), or a drawn formation (line, ring). Medics patch up anyone nearby; spotters radio in Eagle fire missions.
+// (path), or a drawn formation (line, ring). Medics patch up anyone nearby.
 import { t as tr } from '../i18n.js';
 import { CONFIG as C } from '../config.js';
 import { rockNear } from './scenery.js';
 import { aoX, aoY } from './ao.js';
 import { COMMS } from '../data/data.js';
-import { seafStats, buildStats, buildLevel, hangarStats } from '../data/kit.js';
+import { seafStats, buildStats, hangarStats } from '../data/kit.js';
 import { fireShot } from './combat.js';
 import { nearestObjective } from './pois.js';
 import { bark } from './chatter.js';
@@ -321,7 +321,6 @@ function cargoNext(m) {
   m.emit('cargo_call', { x, y, what: crate.what });
 }
 // how many crates are still waiting for the cargo Pelican (for the build bar and the tests)
-export const cargoWaiting = (m) => (m.cargoQ ? m.cargoQ.length : 0);
 // (0.39) A pelican on its way: it comes down from orbit to (x, y) in CONFIG.pelican.inSec, from behind the squad (or from `from`
 // radians), works there for workSec and climbs away (updatePelicans).
 export function newPelican(m, x, y, o = {}) {
@@ -549,7 +548,7 @@ export function goDown(m, a, by, src) {
 }
 
 function updateSpecialists(m, dt) {
-  const st = seafStats(m.kit), sf = m.seaf, t = m.t, K = C.medic;
+  const st = seafStats(m.kit), t = m.t, K = C.medic;
   // the downed: bleeding out unless a Medic is on it
   for (const a of m.seafAlive) {
     if (!a.down) continue;

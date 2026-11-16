@@ -3,7 +3,7 @@
 //
 // How a body is made: the sim emits 'boom' (centre and radius) and, for each death, 'kill' or 'ally_down' (where, plus the unit's
 // id, facing and size). The order of those events inside one frame is not guaranteed, so deaths wait in `pend` and are matched to a
-// recent blast in resolve(), once the whole frame's events have come in. A death that is not inside any recent blast is ignored.
+// recent blast in _resolve(), once the whole frame's events have come in. A death that is not inside any recent blast is ignored.
 //
 // Why it is not just an animation: throw distance and height come from how close the unit was to the centre of the blast and how
 // heavy it is (a light bug flies, a heavy only lurches); bodies stop against terrain that blocks movement; a bounce takes speed and

@@ -365,7 +365,7 @@ export class Mission {
   // (0.27.3) opts.hold: a squad of its own waits for orders where it lands (see dropHold); false keeps the old way (it goes
   // straight off to clear the nearest objective: the test bot plays like that)
   callSeaf(x, y, opts = {}) {
-    const t = this.t, sf = this.seaf, st = seafStats(this.kit);
+    const sf = this.seaf, st = seafStats(this.kit);
     if (this.over) return { ok: false, reason: 'over' };
     // (0.18) before the Helldivers are down (the start, on the tactical screen) the landing zone takes a drop
     const atLz = this.earlyLz(x, y);
@@ -1146,7 +1146,7 @@ export class Mission {
   }
 
   // The four Helldivers come back by themselves, one pod per missing group, each costing one life.
-  _podSpot(tm) {
+  _podSpot() {
     const rng = this.rng;
     if (this.hdAlive.length) {
       const h = this.hdAlive[rng.int(this.hdAlive.length)];
@@ -1198,7 +1198,7 @@ export class Mission {
     for (const tm of this.teams) {
       if (!due || !dead(tm) || hd.lives <= 0) continue;
       hd.lives--;
-      const p = this._podSpot(tm), alone = !this.hdAlive.length;
+      const p = this._podSpot(), alone = !this.hdAlive.length;
       tm.pod = true;
       this.pods.push({ type: 'H', team: tm.i, n: 1, landAt: t + (alone ? H.initialDropSec : H.dropDelaySec), x: p.x, y: p.y });
       this.stats.hdCalls++;

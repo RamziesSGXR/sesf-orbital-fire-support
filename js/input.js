@@ -168,7 +168,7 @@ export class Input {
     // Fire button: independent pointer so a second finger can keep panning.
     const fb = document.getElementById('fire-btn');
     fb.addEventListener('pointerdown', (e) => { e.preventDefault(); try { fb.setPointerCapture(e.pointerId); } catch { /* not capturable */ } fb.classList.add('held'); this.setTouch(true); this.h.fire(true); });
-    const fup = (e) => { fb.classList.remove('held'); this.h.fire(false); };
+    const fup = () => { fb.classList.remove('held'); this.h.fire(false); };
     fb.addEventListener('pointerup', fup); fb.addEventListener('pointercancel', fup);
     document.getElementById('btn-follow').addEventListener('pointerdown', (e) => { e.preventDefault(); this.h.follow(); });
     document.getElementById('btn-pause').addEventListener('click', () => this.h.soft());

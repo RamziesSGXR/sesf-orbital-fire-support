@@ -111,7 +111,7 @@ export const CONFIG = {
   // many (not just a drop's load); troops sent to it stand on its lzSlots places, in three rings.
   pelican:  { speed: 92, approach: 330, inSec: 5, workSec: 3, climb: 4.5, gunRange: 66, gunEvery: 0.3, gunDmg: 30, gunSplash: 2.4, gunAcc: 0.85,
               pickR: 20, boardR: 23, lzSlots: 24 },
-  // SEAF specialists. A medic patches up anyone near it. A spotter radios in an Eagle fire mission on a big group or a heavy.
+  // SEAF specialists. A medic patches up anyone near it.
   // (0.26) a Medic heals anyone hurt within 20 m with the stim pistol (a full stim when close), and revives downed SEAF: a trooper
   // who falls with a Medic in reach goes down instead, for downSec, and is back up reviveSec after the Medic gets to work.
   // downSight (0.31): a downed trooper sees only this share of his sight (and none of the player's view past it), and adds no strike zone.
@@ -138,7 +138,6 @@ export const CONFIG = {
   // (0.50) Leader Command: SEAF within r of a Squad Leader (the bot Commander's jamR, its mirror) fire faster (rof) and hit more
   // often (acc); each level after the first adds rofUp and accUp.
   leader:   { r: 22, rof: 0.12, rofUp: 0.06, acc: 0.08, accUp: 0.04 },
-  spotter:  { coolSec: 70, minGroup: 6, minDist: 26, n: 7, len: 24, dmg: 240, splash: 8.5, delay: 5, span: 1.2, range: 150 },
   // (0.40) a squad wiped out drops again together, wipeD metres from where it fell (on the quietest side, never near the map's edge)
   // (0.53.7) padD: once the pelican is called, a wiped squad comes down this far from the pad instead
   wipe:     { d: [110, 170], padD: [18, 34], quietR: 80, edge: 70, spread: 8 },
@@ -182,7 +181,7 @@ export const CONFIG = {
               // (0.39) link: foxholes whose ends are within link metres of each other are joined by a trench (cover all along it)
               // (0.40) link: a foxhole is trenched to the nearest foxhole whose end is within this many metres of its own (and to a
               // second one off to another side, so a ring closes), each foxhole taking at most maxLinks trenches; not across water
-              foxhole: { cost: 0,   sec: 6,  cap: 3, mul: 0.8, rof: 1.3, link: 30, maxLinks: 3, snap: 10 },     // (0.47: snap like wire; link/maxLinks no longer used)
+              foxhole: { cost: 0,   sec: 6,  cap: 3, mul: 0.8, rof: 1.3, link: 30, maxLinks: 3, snap: 10 },     // (0.47: snap like wire; link, maxLinks: the trenches, sim/posts.js)
               // (0.47) the build queue: builders who finish go on to the nearest thing still to build within queueR metres
               queueR: 60,
               // (0.62.13) each build costs moreEach more for every one of its kind already standing or paid for and on its way
@@ -334,16 +333,14 @@ export const CONFIG = {
   //   bots   LINE (one long rank abreast of the way they face) or SQUARE (a block, ranks one behind the other); the mediums (the
   //          leaders) are always at the back.
   //   bugs   TRAIL (ants: each follows the one ahead, `gap` metres behind it, the leaders in front) or SWARM (loose, as before).
-  //   squids SCHOOL: the lights circle the leaders, who keep to the middle. (0.61.1) The school is as wide as it is many: rings
-  //          `ringGap` metres apart, the first `inner` metres out, each holding as many as fit `gap` metres apart, turning opposite
-  //          ways (the first at `spin` rad/s, the wider ones slower, so all swim at the same pace). It breathes: in and out by
-  //          `breathe` of its size every `breatheSec`. Like fish it startles: when one of it is hit or lost it bursts outward to
-  //          `startle.mul` times its size at `startle.speed` times its pace, and closes up again over `startle.sec` seconds; it
-  //          cannot be startled again for `startle.rest` seconds after that.
+  //   squids SCHOOL: (0.62.4) an arrowhead (`wedge`), the leaders in its middle; one more than `lost` metres from it swims
+  //          back to it first. In a fight its leaders keep `hold` of the ring's distance (1: on it). Like fish it startles: when one of it is hit or lost it bursts outward to `startle.mul` times
+  //          its size at `startle.speed` times its pace, and closes up again over `startle.sec` seconds; it cannot be startled again
+  //          for `startle.rest` seconds after that.
   formations: {
     bots:   { square: 0.45, line: { spacing: 8 }, block: { spacing: 6.5 }, rank: 8 },     // (0.62.5: 6.5 / 5.2 / 7; they stood shoulder to shoulder)
     bugs:   { trail: 0.5, gap: 4.5 },     // (0.62.5: 3.2)
-    squids: { inner: 7, ringGap: 6.5, gap: 6.5, spin: 0.38, mid: 3, hold: 1.0, breathe: 0.12, breatheSec: 5, startle: { mul: 1.6, sec: 4, speed: 1.6, rest: 5 }, lost: 42,
+    squids: { hold: 1.0, startle: { mul: 1.6, sec: 4, speed: 1.6, rest: 5 }, lost: 42,
               wedge: { gap: 8.5, row: 7.5, turn: 0.3, flip: 1.3, flipSec: 2.5, slack: 2.5, leash: 7, wait: 0.12 } },     // (0.62.4) the school is an arrowhead: metres between places across and front to back, how fast it turns (rad/s); a turn over `flip` radians re-forms it facing the new way; its point slows once the school is `slack` m behind its places on average and all but stops (`wait`) at slack + `leash`     // (0.62.2) lost: this far from its school and it swims back to the school itself, not to its own place in it
   },
   // Patrols: every base keeps perBase (more later in the session and the mission, up to maxPerBase) out on a route of its own, radius
@@ -459,10 +456,9 @@ export const CONFIG = {
   // ramp: the levels a session climbs each mission (0.19.2: halved, so from 3, mission 10 is at 7 and mission 19 at 10); beyond:
   // past 10, the step a level as a share of the average step from 1 to 10.
   // (0.19) The tutorial, the last stand on Mars (sim/laststand.js): personnel in the shelter; a Pelican lifts every evac.shuttle of
-  // them. Once the lessons end the Great Host comes in waves that never stop, from waveR out: every waveEvery seconds (from the
-  // first number down to the second over rampSec), from waveSize[0] strong and waveGrow more each minute, a Harvester in every
-  // heavyEvery-th (and in every one after rampSec), each wave tougher (hpGrow) and harder-hitting (dmgGrow, per minute) than the
-  // last. The Helldivers get `lives`; when the last one falls (or after maxHold whatever happens) the fleet glasses the plain for
+  // them. Once the lessons end the Great Host comes in waves that never stop, from waveR out, the first waveFirst seconds in; how
+  // often, how many and how heavy comes from the stage (C.lsStages, below), each wave tougher (hpGrow) and harder-hitting
+  // (dmgGrow, per minute) than the last. The Helldivers get `lives`; when the last one falls (or after maxHold whatever happens) the fleet glasses the plain for
   // glassSec, a beam every beamEvery seconds, beamR wide, and the mission ends. The lessons' groups start lessonR out. countdown:
   // the Helldivers' drop waits this long unless DEPLOY NOW is pressed (the lessons ask for it). breakAt: lives left when the radio
   // says the line is breaking. (0.19.5) It is flown at level 1 (LAST_STAND), and from the evacuation on the level the HUD shows
@@ -482,8 +478,8 @@ export const CONFIG = {
   // (0.53) winAt: this many off Mars and the tutorial is complete (MISSION COMPLETE: fight on, or move on)
   // (0.53.8) war, fac: the tutorial keeps the war minutes and enemy damage it was tuned on when the levels were re-spaced and the
   // squids' damage raised (the squid factor 0.75 with the overseer's and the beam's old rates comes to about 0.65 now)
-  lastStand: { war: 37, fac: 0.65, personnel: 160, truthAt: 100, winAt: 70, squad: 6, lzOff: 46, lives: 10, breakAt: 3, waveFirst: 5, waveEvery: [12, 3.5], rampSec: 150, waveSize: [9, 9], waveGrow: 8,
-               heavyEvery: 3, hpGrow: 0.6, dmgGrow: 0.9, levelEvery: 25, maxHold: 480, glassSec: 10, beamEvery: 0.09, beamR: 13, waveR: 230, lessonR: 160, countdown: 900,
+  lastStand: { war: 37, fac: 0.65, personnel: 160, truthAt: 100, winAt: 70, squad: 6, lzOff: 46, lives: 10, breakAt: 3, waveFirst: 5,
+               hpGrow: 0.6, dmgGrow: 0.9, levelEvery: 25, maxHold: 480, glassSec: 10, beamEvery: 0.09, beamR: 13, waveR: 230, lessonR: 160, countdown: 900,
                jamOff: 115, jamR: 55 },     // (0.37) the Hellbomb lesson's disruptor: how far from the base, and the ground it jams
   // (0.40) opBonus: credits are worth 0.2 more for every mission already done in the operation (the second mission x1.2, the
   // third x1.4 and so on), on top of the level's pay; score is not.
@@ -588,7 +584,7 @@ export const CONFIG = {
   uav:      { r: [95, 120, 145, 175, 205], sec: [24, 28, 32, 36, 40], cd: [42, 38, 34, 30, 26],
               speed: [0.05, 0.1, 0.15, 0.2], dodge: [0.05, 0.1, 0.15, 0.2], buffMax: 3, buffPrice: 300, liftCalm: 3 },
   // (0.50) every orbital slot open from the start; the Barracks a little dearer (barracks: base x (level + 1)^pow)
-  kit:      { slotsStart: 5, slotsMax: 5, barracks: { base: 320, pow: 1.45 }, seafCap: 3, seafDropEvery: 2, seafHp: 0.18, seafDmg: 0.12, seafGren: 1, seafRocket: 0.07, seafMedic: 0.14, medicRate: 0.25, spotCool: 0.12, spotDmg: 0.18, seafBuild: 0.25,
+  kit:      { slotsStart: 5, slotsMax: 5, barracks: { base: 320, pow: 1.45 }, seafCap: 3, seafDropEvery: 2, seafHp: 0.18, seafDmg: 0.12, seafGren: 1, seafRocket: 0.07, seafMedic: 0.14, medicRate: 0.25, seafBuild: 0.25,
               zonePer: 18, startLoadout: ['orb_airburst', 'orb_120', 'orb_precision'] },
   // Credits: earned from kills, bases, POIs, breaches and the objective, with a bonus at extraction. Spent in the armory.
   // One multiplier on every armory price. Bot sessions earn about 520 credits a minute, so three hours earns roughly what the whole
@@ -730,6 +726,5 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.13',
-              playUrl: 'https://orbitalfury.com/' },   // where the game lives (0.19.4: no longer in the pasted reports)
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.14' },
 };

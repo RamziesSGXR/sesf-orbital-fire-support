@@ -1,5 +1,5 @@
 // Finds calls to the translation function (t or tr) made where a local variable or parameter of the same name hides it.
-// node tools/tcheck.cjs files...  (needs the typescript package, used only as a parser)
+// node tools/tcheck.cjs files...  (needs the typescript package, version 5, used only as a parser: npm i --no-save typescript@5)
 const ts = require('typescript');
 const fs = require('fs');
 const NAMES = ['t', 'tr'];

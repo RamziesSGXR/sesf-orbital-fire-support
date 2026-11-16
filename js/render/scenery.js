@@ -58,12 +58,6 @@ function shadowPath(pa, x, y, rx, ry, h) {
   const L = h * SHL, cx = x + Math.cos(SHA) * L * 0.5, cy = y + Math.sin(SHA) * L * 0.5, a = Math.max(rx, L * 0.5 + rx * 0.4);
   pa.moveTo(cx + Math.cos(SHA) * a, cy + Math.sin(SHA) * a); pa.ellipse(cx, cy, a, Math.min(rx, ry), SHA, 0, TAU);
 }
-const shadowEll = (ctx, x, y, rx, ry, h, a) => {
-  ctx.fillStyle = `rgba(0,0,0,${a})`; ctx.beginPath();
-  const L = h * SHL;
-  ctx.ellipse(x + Math.cos(SHA) * L * 0.5, y + Math.sin(SHA) * L * 0.5, Math.max(rx, L * 0.5 + rx * 0.4), Math.min(rx, ry), SHA, 0, TAU);
-  ctx.fill();
-};
 
 // ---------------------------------------------------------------- the ground layer (under every unit)
 export function drawSceneryGround(ctx, m, now, px, scale, vb) {
@@ -116,9 +110,6 @@ export function drawSceneryGround(ctx, m, now, px, scale, vb) {
 }
 
 // ---------------------------------------------------------------- the high layer (over the units): canopies, banners, pillars
-// (0.59) for a showcase picture: one tree drawn on its own
-export function drawTreeAlone(ctx, t, now, px) { const pa = new Path2D(); treeShadow(pa, t); ctx.fillStyle = 'rgba(0,0,0,0.27)'; ctx.fill(pa); drawTree(ctx, t, now, px); }
-export function drawMarkAlone(ctx, o, fac, now, px) { if (standing(o)) { const pa = new Path2D(); shadowPath(pa, o.x, o.y, (o.kind === 'pillar' ? 0.9 : 0.35) * o.s, (o.kind === 'pillar' ? 0.9 : 0.35) * o.s, (o.kind === 'banner' ? 7 : o.kind === 'flag' ? 5 : o.h) * o.s); ctx.fillStyle = 'rgba(0,0,0,0.27)'; ctx.fill(pa); } drawMark(ctx, o, fac, now, px, false); drawMark(ctx, o, fac, now, px, true); }
 export function drawSceneryHigh(ctx, m, now, px, scale, vb) {
   const sc = m.scenery;
   if (!sc) return;

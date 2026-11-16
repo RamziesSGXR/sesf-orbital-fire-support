@@ -18,8 +18,7 @@ import { callReinforcements, reinfCount } from './reinforce.js';
 import { bark } from './chatter.js';
 import { pelicanGun } from './seaf.js';
 
-const X = C.extract, SIZE = C.world.size;
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const X = C.extract;
 
 export const boardingNow = (m) => m.phase === 'extract' && (m.extraction.state === 'boarding' || m.extraction.state === 'away');
 

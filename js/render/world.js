@@ -45,7 +45,6 @@ function shipView(m, o, now) {
     shadow: { s, yaw: now * 0.08 + fall * 2, gx: x, gy: y + 150, A: 420 - fall * 300, lx: 0.45, lz: 0.25, alpha: 0.38 * (1 - fall) } };
 }
 // The mothership and the gun's shots at it: over every unit (it fades back while anyone is under it, so the fight there shows).
-const RAISE_W = { wall: 0.56 };
 const RAISE_L = { wall: 0.56, live: true };     // (0.62.1) for what moves: its top painted every frame (relief.js)
 export function drawGunSky(ctx, m, now, px) {
   for (const o of m.objectives) {
@@ -225,7 +224,7 @@ export function drawMarkers(ctx, m, now, px, labels, scale, outlines = true) {
     }
     if (mk.type === 'strat') {
       const first = mk.impact ?? mk.end, left = Math.max(0, first - t);
-      // a Helldiver's call is in his group's colour; the player's own strikes and the spotters' in yellow
+      // a Helldiver's call is in his group's colour; the player's own strikes in yellow
       const tc = mk.team >= 0 ? TEAM_COLOR[mk.team] : null;
       const col = left > 0 ? (tc ? hexRgb(tc) : '255,230,0') : '255,170,40';
       if (tc && left > 0) beacon(ctx, mx, my, now, px, col);

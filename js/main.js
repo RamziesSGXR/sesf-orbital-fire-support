@@ -27,7 +27,7 @@ import { t, tEn, setLang, getLang, applyDom, startLang } from './i18n.js';
 import { clampLevel, LEVELS, levelName, levelAt, TOP } from './difficulty.js';
 import { answerTime } from './sim/planner.js';
 import { spawnGroup } from './sim/director.js';
-import { POSTS, makePost, foxholeSlots, turns, wirePlan, chains, chainPlan, planChain } from './sim/posts.js';
+import { makePost, foxholeSlots, turns, wirePlan, chains, chainPlan, planChain } from './sim/posts.js';
 import { addJammer } from './sim/sides.js';
 import { squadCentres, FORMS, targetSquads } from './sim/seaf.js';
 import { fireSlot, refreshAim } from './sim/player.js';
@@ -1029,30 +1029,6 @@ const doneN = (s) => (s && s.missions ? s.missions.filter((r) => S.carriesOn(r.o
 // (0.26) the tutorial is one mission: its ranks come with kills
 const killsN = () => (mission && mission.stats ? mission.stats.kills.L + mission.stats.kills.M + mission.stats.kills.H : 0);
 function tierNow() { if (!session) return TIER_MAX; return session.tutorial ? 0 : tierFor(doneN(session)); }     // (0.53: the tutorial's armory is the standard one, at the first rank)
-let lsTier = 0;
-// (0.26) In the tutorial a rank comes in the middle of the fight: the level bonus is paid at once, and a prompt (it does not stop
-// the game) says what is new, with SHOW ME to open the armory on it.
-function tutRank() {
-  if (!session || !session.tutorial || !mission || mission.over) return;
-  const t1 = tierNow();
-  if (t1 <= lsTier) return;
-  let bonus = 0; const fresh = [];
-  for (let k = lsTier + 1; k <= t1; k++) { bonus += C.ranks.bonus[k - 1] || 0; fresh.push(...tierItems(session.kit, k)); }
-  lsTier = t1;
-  mission.wallet.bal += bonus; session.fresh = fresh;
-  const names = fresh.map((id) => shopItems(session.kit).find((it) => it.id === id)).filter(Boolean).map((it) => (it.orb ? UI.shortName(it.orb) : it.name));
-  audio.ready();
-  // (0.42) on a phone, one short line low on the screen for a few seconds, and nothing to answer: the fight is on and the screen is
-  // small (what is new waits in the ARMORY, marked NEW)
-  if (applyLayout.last === 'phone') {
-    hud.toast(`${t('ms.kShort', { k: t1 })} · +${S.fmtNum(bonus)} CR${names.length ? ' · ' + t('ms.newN', { n: names.length }) : ''}`, 3500);
-    return;
-  }
-  hud.ask(`${t('ms.k', { k: t1, name: t('rank.' + t1) })} · ${t('ms.bonus', { cr: S.fmtNum(bonus) })}${names.length ? ' · ' + t('ms.new') + ': ' + names.slice(0, 4).join(', ') + (names.length > 4 ? '…' : '') : ''}`, [
-    { label: t('ms.show'), primary: true, fn: () => { armFocus = true; openArmory('rank'); } },
-    { label: t('ms.later') },
-  ], 9000);
-}
 let armFocus = false;
 function msShow(focus) { goShop(focus); }     // (the tutorial's session is never kept)
 // (0.26) the rank, one line, for the armory in a mission: where you are and what the next one needs
@@ -1268,7 +1244,7 @@ const cinema = new Cinema(audio);
 const lsLines = (kind, res) => (kind === 'intro' ? [1, 2, 3, 4, 5].map((k) => t('cine.in.' + k))
   : [t('cine.out.1'), t('cine.out.2', { saved: res ? res.civSaved || 0 : 0 }), t('cine.out.3'), t('cine.out.4')]);
 function lsReset() {
-  glassCam = null; lsEnding = false; cinema.stop(); lsTier = 0; armFocus = false;
+  glassCam = null; lsEnding = false; cinema.stop(); armFocus = false;
   document.body.classList.remove('ls-warn', 'ls-glass'); $('glassfx').classList.remove('on', 'white', 'soft');
 }
 // (0.53) The tutorial is MISSION COMPLETE: the game stops and the player picks: fight on to the end (the stand goes on until the
