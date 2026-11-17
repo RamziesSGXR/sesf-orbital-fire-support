@@ -56,11 +56,14 @@ export function updateEvac(m, o, dt) {
   // reinforcements keep coming at the site while the evacuation runs (0.26: not in the last stand, whose waves come in stages)
   if (!o.lastStand) siege(m, o, o.x, o.y, dt);
   // the shelter doors open while the squad holds the site
+  // (0.62.16) A full batch every time until enough are out, not just as many as are still needed. Counting those on the way, the
+  // last few came out one at a time, eleven seconds apart, each alone across the site: one lost was one more sent alone. Squads
+  // with 43 of 44 out held on for minutes, as the enemy kept coming, until they were worn down. The spare few board too.
   const walking = m.civs.filter((c) => !c.dead && !c.safe).length, need = o.need ?? E.need, left = (o.pop ?? Infinity) - o.released;
   o.batchT -= dt;
-  if (hold && o.batchT <= 0 && o.saved + walking < need && walking < E.maxOut && left > 0) {
+  if (hold && o.batchT <= 0 && o.saved < need && walking < E.maxOut && left > 0) {
     o.batchT = E.every;
-    const n = Math.min(E.batch, need - o.saved - walking, left);
+    const n = Math.min(E.batch, left);
     for (let i = 0; i < n; i++) {
       const [jx, jy] = m.rng.inDisc(3);
       m.civs.push({ civ: true, id: m.nextId++, x: o.sx + jx, y: o.sy + jy, hp: E.hp, maxHp: E.hp, dead: false, safe: false, hurtAt: -9,

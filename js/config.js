@@ -443,8 +443,10 @@ export const CONFIG = {
   // the site has been held sides3At seconds), each call at least as big as at pressure pMin however many bases are down (and at
   // most maxN groups in all), and up to cap enemies round it before a call waits. gap: the time between calls times this, by
   // objective (the evacuation was already the hardest of them to hold).
+  // (0.62.16) every, minEvery and cap are the level-10 numbers and scale with the level like the rest (difficulty.js); the
+  // evacuation's gap 1.6 -> 2 (with the bot gunner and a kit, it was won 2 times in 9 at level 10, against 6 in 6 for the nuke)
   siege:    { first: 10, every: 18, minEvery: 10, rampSec: 150, extra: 3, fortressR: 120, cap: 60, capR: 200, capWait: 4,
-              defend: { every: 17, minEvery: 11, extra: 1, sides: 2, sides3: 2, sides3At: 180, pMin: 1.2, cap: 70, maxN: 4, gap: { oil: 1.6, evac: 1.6 } } },
+              defend: { every: 17, minEvery: 11, extra: 1, sides: 2, sides3: 2, sides3At: 180, pMin: 1.2, cap: 70, maxN: 4, gap: { oil: 1.6, evac: 2 } } },
   // The citadel: a cluster of bases round a central keep (parts bases partR metres out, partHp each), guarded by a super heavy that
   // turns out when the squad arrives (its health x guardHp at level 1, rising to full at level 10). Every part has to come down.
   fortress: { hp: 4500, radius: 24, parts: 3, partHp: 2000, partR: 62, guardHp: 0.55, garrisonGroups: 2, garrisonCap: 24, spawnSec: 22, minFromLz: 650, detectR: 150 },
@@ -728,5 +730,5 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.15' },
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.16' },
 };
