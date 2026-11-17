@@ -392,7 +392,9 @@ export const CONFIG = {
   // mission has run so far.
   // (0.53.7) clearChance: how many missions out of a hundred the squad is set on a full clear once the objective is done (whether
   // the clock covers it or not; with more than clearLives lives)
-  plan:     { detour: 320, reserve: 150, clearLives: 3, clearChance: 0.8, every: 6, keepR: 70, pace: 0.5, extractPad: 30,
+  // (0.62.15) stick: a side task under way is kept while it is still worth it (on the way, time to do it), and only dropped for
+  // another one at under `stick` of its distance. slack: its detour may grow to that many times plan.detour before it is dropped
+  plan:     { detour: 320, reserve: 150, clearLives: 3, clearChance: 0.8, every: 6, keepR: 70, pace: 0.5, extractPad: 30, stick: 0.5, slack: 1.25,
               ask: { maxMin: 2, nearEnd: 300, perMin: 60, perMinIn: 0.1, askSec: 30, asks: 1 },     // (0.48: 2 minutes at a time, dearer, raising the alert; 0.53.5: once a mission, only in its last 5 minutes)
               // (0.40) breaking off a losing fight: `deaths` Helldivers down within deathR of the squad inside deathSec, or a wave of
               // hunting enemies within waveR weighing more than `wave` (w per kind; less with fewer Helldivers up), and the squad
@@ -726,5 +728,5 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.14' },
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.15' },
 };

@@ -25,6 +25,12 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**The squad stops walking to the map's edge and back (0.62.15).**
+- **Fixed:** on the first Squid mission, and on other maps with lakes or rivers, the squad could set out for a side objective that looked close but lay across the water. The way round went by the map's edge. Partway there it turned back for something else, then back again, and the clock ran out.
+- **Distances on foot:** the squad now measures how far it really has to walk, round the water, to choose which side objectives are on its way and to time the way out. On that map a propaganda tower 570 m away in a straight line is a 2 km walk, so the squad no longer counts it as on the way to the objective.
+- **One target at a time:** the squad keeps going for the side objective it chose. It switches only when another is less than half as far, or when the one it chose no longer makes sense (well out of the way, or no time left for it).
+- On a test run of that mission at level 6, the squad gave up on a side objective partway five times on its way to the dome before this fix, and not at all after. It finished the dome 1.2 minutes sooner.
+
 **A code check and clean-up (0.62.14).**
 - **Fixed:** the build preview, its hover card and its info card checked your credits against the list price, not the price after 0.62.13's 10% per build. It could show a build as affordable and then refuse it.
 - **Removed what nothing used:**
