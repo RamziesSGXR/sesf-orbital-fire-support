@@ -785,6 +785,7 @@ export default {
   'c.lastBase': 'Todas las bases caídas. Tráelos a casa.',
   'c.push': 'El escuadrón entra. Golpea esa base.',
   'c.fightOn': 'El escuadrón está inmovilizado pero avanza. Ábrele camino.',
+  'c.bridgeWait': 'Esperamos el puente de luz en la orilla. Más rápido que dar la vuelta.',
   'c.holdFire': 'Nada que golpear ahí. Alto el fuego.',
   'c.noCoverage': 'Fuera de la zona de ataque. Mantenlo cerca del escuadrón, escanéalo o fija un blanco que se haya delatado.',
   'c.victory': 'Pelican en el aire. Buena puntería, artillero.',

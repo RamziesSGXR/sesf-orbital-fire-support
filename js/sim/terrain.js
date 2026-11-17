@@ -441,6 +441,7 @@ export class Terrain {
     this._reroute();
   }
   _reroute() {
+    this.routeGen = (this.routeGen || 0) + 1;     // (0.62.17) for those who keep route lengths of their own (the planner's walks)
     if (this._pcC) { this._pcC.clear(); this._pcF.clear(); }
     this._acCache = null;
     if (this.bnd) this.ac = this._aoMain(this.bnd);
@@ -585,6 +586,23 @@ export class Terrain {
       if (!f) return null;
       G = this._fine; cells = f;
     }
+    return this._pull(G, cells, x1, y1, x2, y2);
+  }
+  // (0.62.17) A route on the 8 m cells alone, looking at no more than `guard` of them, and not kept: a measure of the quickest way,
+  // where the 16 m search cannot see a narrow ford (movers find those on the way, when the coarse route fails them). null if none
+  // was found within that. The route's .eff is its length at full pace (slow ground counts for more).
+  fineRoute(x1, y1, x2, y2, guard) {
+    const G = this._fine, g0 = G.guard;
+    G.guard = Math.min(g0, guard);
+    const cells = this._astar(G, x1, y1, x2, y2);
+    G.guard = g0;
+    if (!cells) return null;
+    const pts = this._pull(G, cells, x1, y1, x2, y2);
+    pts.eff = G.g[cells[cells.length - 1]] * G.cs;
+    return pts;
+  }
+  // the cells of a route as waypoints, pulled tight
+  _pull(G, cells, x1, y1, x2, y2) {
     let pts = cells.map((k) => ({ x: ((k % G.W) + 0.5) * G.cs, y: (((k / G.W) | 0) + 0.5) * G.cs }));
     if (this.spd[this._i(x2, y2)] !== 0) pts[pts.length - 1] = { x: x2, y: y2 };
     // pull the string tight: keep only the corners that the water forces

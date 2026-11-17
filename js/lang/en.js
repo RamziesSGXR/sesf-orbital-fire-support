@@ -785,6 +785,7 @@ export default {
   'c.lastBase': 'All bases down. Get them home.',
   'c.push': 'Squad pushing in. Hit that base.',
   'c.fightOn': 'Squad pinned but fighting forward. Clear them a path.',
+  'c.bridgeWait': 'Holding at the bank for that light bridge. Quicker than the long way round.',
   'c.holdFire': 'Nothing to hit there. Holding fire.',
   'c.noCoverage': 'Out of the strike zone. Keep it near the squad, scan it, or lock a target that gave itself away.',
   'c.victory': 'Pelican away. Good shooting, gunner.',

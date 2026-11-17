@@ -44,26 +44,29 @@ const travel = (m, d) => d / pace(m);
 // by. Measured straight, a task across a lake or river looked close and on the way: on the first Squid mission a propaganda tower
 // 570 m off was a 2 km walk round by the map's edge, and the squad set out for it. A plan is made in one go, so these searches are
 // not held to the few a tick that movers get; each answer is kept for a while (m.plan.wk) as most of them come up again next time.
-export function walkDist(m, a, b) {
+// (0.62.17) strict: Infinity where there is no way at all (else the straight line, as before)
+export function walkDist(m, a, b, strict = false) {
   const d = dist(a, b), tr = m.terrain;
   if (!tr || d < 30) return d;
   const pl = m.plan, W = pl.wk || (pl.wk = new Map()), key = `${a.x | 0},${a.y | 0},${b.x | 0},${b.y | 0}`;
+  if (pl.wkGen !== tr.routeGen) { W.clear(); pl.wkGen = tr.routeGen; }     // (0.62.17) a light bridge came down or was lost
   let L = W.get(key);
-  if (L !== undefined) return L;
-  L = d;
-  if (!tr.lineClear(a.x, a.y, b.x, b.y, 4)) {
-    const sv = tr.budget; tr.budget = undefined;
-    const pts = tr.path(a.x, a.y, b.x, b.y);
-    tr.budget = sv;
-    if (pts && pts.length) {      // (no way found: the straight line, as before)
-      let r = 0, x = a.x, y = a.y;
-      for (const q of pts) { r += Math.hypot(q.x - x, q.y - y); x = q.x; y = q.y; }
-      L = Math.max(d, r);
+  if (L === undefined) {
+    L = d;
+    if (!tr.lineClear(a.x, a.y, b.x, b.y, 4)) {
+      const sv = tr.budget; tr.budget = undefined;
+      const pts = tr.path(a.x, a.y, b.x, b.y);
+      tr.budget = sv;
+      if (pts && pts.length) {
+        let r = 0, x = a.x, y = a.y;
+        for (const q of pts) { r += Math.hypot(q.x - x, q.y - y); x = q.x; y = q.y; }
+        L = Math.max(d, r);
+      } else if (pts === null) L = Infinity;      // no way at all
     }
+    if (W.size > 400) W.clear();
+    W.set(key, L);
   }
-  if (W.size > 400) W.clear();
-  W.set(key, L);
-  return L;
+  return L === Infinity && !strict ? d : L;
 }
 
 // Where the main objective is (the next place the squad has to be for it).
@@ -94,6 +97,36 @@ function tourTime(m, p, tasks) {
     sec += travel(m, bd) + work(m, k); at = k;
   }
   return { sec, end: at };
+}
+
+// (0.62.17) The quickest way the squad could take on foot from a to b, in metres at full pace: the route search's, or a narrow ford
+// that only the 8 m cells show (the 16 m search misses those, and the squad often finds them on the way). Looked for only where
+// the route is much longer than the straight line, and only so far.
+function quickestWalk(m, a, b) {
+  const w = walkDist(m, a, b, true), d = dist(a, b), tr = m.terrain;
+  if (!tr || w <= d * 1.3 || d > 600) return w;
+  const f = tr.fineRoute(a.x, a.y, b.x, b.y, Math.max(3000, Math.round((d / 8) ** 2 * 4)));
+  return f ? Math.min(w, Math.max(d, f.eff)) : w;
+}
+
+// (0.62.17) A light bridge on its way (m.bridgeQ, down at b.at): is the walk over it to g, waiting at the bank for it to come down
+// included, quicker than the way there now? Then where to wait for it, a few metres back from its near end; else null. Only for a
+// clear gain (C.plan.bridgeGain of the time) at first; the bridge waited for (cur) is kept while it is quicker at all, so the squad
+// doesn't turn away at the bank. v: the squad's pace, metres a second.
+export function bridgeWait(m, here, g, v, cur) {
+  if (!m.bridgeQ || !m.bridgeQ.length || !(v > 0)) return null;
+  const now = quickestWalk(m, here, g) / v, tr = m.terrain;     // (only a bridge that beats even a ford is waited for)
+  let best = null, bt = Infinity;
+  for (const b of m.bridgeQ) {
+    const s = b.span, e1 = { x: s.x1, y: s.y1 }, e2 = { x: s.x2, y: s.y2 }, w1 = walkDist(m, here, e1, true), w2 = walkDist(m, here, e2, true);
+    const [near, far, wn] = w1 <= w2 ? [e1, e2, w1] : [e2, e1, w2];
+    const tb = Math.max(wn / v, b.at - m.t) + (dist(near, far) + walkDist(m, far, g, true)) / v;     // (Infinity: no way on from there)
+    if (tb < now * (cur && cur.b === b ? 1 : PL().bridgeGain) && tb < bt) { bt = tb; best = { b, near, far }; }
+  }
+  if (!best) return null;
+  const { near, far } = best, L = dist(near, far) || 1, back = { x: near.x + ((near.x - far.x) / L) * 6, y: near.y + ((near.y - far.y) / L) * 6 };
+  const at = tr && tr.blocked(back.x, back.y) ? near : back;
+  return { b: best.b, x: at.x, y: at.y };
 }
 
 // Tasks nearest first in a straight line, so the walks past the best one so far need not be measured.
