@@ -25,6 +25,12 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**A fairer evacuation, and held sites that follow the level (0.62.16).**
+- **Fixed:** near the end of an evacuation, the shelter sent the last few civilians out one at a time, each alone across the site. Each one lost meant another sent out alone, eleven seconds later. Squads with 43 of 44 out held on for minutes while the enemy kept coming, until they ran out of lives. The shelter now keeps sending full groups until enough are out. Any spares board too.
+- **Held sites follow the level:** the enemy's backup at the sites the squad has to hold (the nuke launch site, the evacuation, the oil pump and the defence gun) came at the level-10 pace at every level. It now scales with the level like everything else: easier below 10, the same at 10, and harder past it.
+- **The evacuation's waves come a little further apart.** It was still the hardest site to hold.
+- On bot test runs with upgrades bought, the evacuation was won 9 times in 9 at level 6, 6 in 9 at level 10 and 2 in 9 at level 13 (before: 6, 2 and 4 in 9). With no upgrades, level 10 was won 3 times in 9. The level-3 run that took 28 minutes and every life is now done in 6 minutes, with 19 lives left.
+
 **The squad stops walking to the map's edge and back (0.62.15).**
 - **Fixed:** on the first Squid mission, and on other maps with lakes or rivers, the squad could set out for a side objective that looked close but lay across the water. The way round went by the map's edge. Partway there it turned back for something else, then back again, and the clock ran out.
 - **Distances on foot:** the squad now measures how far it really has to walk, round the water, to choose which side objectives are on its way and to time the way out. On that map a propaganda tower 570 m away in a straight line is a 2 km walk, so the squad no longer counts it as on the way to the objective.

@@ -82,6 +82,9 @@ const RULES = [
   ['reinf.siteEvery', 'spawn', 'div'], ['reinf.extractEvery', 'spawn', 'div'],
   ['bases.spawners.trickleSec', 'spawn', 'div'],     // (0.49) a cluster base lets its troops out faster the higher the level
   ['siege.every', 'spawn', 'div'], ['siege.minEvery', 'spawn', 'div'], ['siege.extra', 'spawn', 'int', 0], ['siege.cap', 'spawn', 'int', 8],
+  // (0.62.16) the sites the squad holds (nuke, evacuation, oil, the defence gun) too: from 0.40 they came at their level-10 pace and
+  // cap at every level
+  ['siege.defend.every', 'spawn', 'div'], ['siege.defend.minEvery', 'spawn', 'div'], ['siege.defend.cap', 'spawn', 'int', 8],
   ['sides.rescue.groups', 'spawn', 'int', 1],
   ['pressure.perSessionMin', 'spawn', 'mul'], ['pressure.perMissionMin', 'spawn', 'mul'],
   ['enemies.bag.medium', 'medium', 'mul'], ['enemies.kindCap.M', 'medium', 'int', 1], ['enemies.kindCap.perMinM', 'medium', 'mul'],
