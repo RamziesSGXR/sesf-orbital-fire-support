@@ -40,6 +40,31 @@ function work(m, k) {
 }
 const pace = (m) => C.squad.speed * m.biome.speed * PL().pace;      // metres a second, fights included
 const travel = (m, d) => d / pace(m);
+// (0.62.15) How far the squad walks from a to b: straight across when the way is dry, else the route round the water it would steer
+// by. Measured straight, a task across a lake or river looked close and on the way: on the first Squid mission a propaganda tower
+// 570 m off was a 2 km walk round by the map's edge, and the squad set out for it. A plan is made in one go, so these searches are
+// not held to the few a tick that movers get; each answer is kept for a while (m.plan.wk) as most of them come up again next time.
+export function walkDist(m, a, b) {
+  const d = dist(a, b), tr = m.terrain;
+  if (!tr || d < 30) return d;
+  const pl = m.plan, W = pl.wk || (pl.wk = new Map()), key = `${a.x | 0},${a.y | 0},${b.x | 0},${b.y | 0}`;
+  let L = W.get(key);
+  if (L !== undefined) return L;
+  L = d;
+  if (!tr.lineClear(a.x, a.y, b.x, b.y, 4)) {
+    const sv = tr.budget; tr.budget = undefined;
+    const pts = tr.path(a.x, a.y, b.x, b.y);
+    tr.budget = sv;
+    if (pts && pts.length) {      // (no way found: the straight line, as before)
+      let r = 0, x = a.x, y = a.y;
+      for (const q of pts) { r += Math.hypot(q.x - x, q.y - y); x = q.x; y = q.y; }
+      L = Math.max(d, r);
+    }
+  }
+  if (W.size > 400) W.clear();
+  W.set(key, L);
+  return L;
+}
 
 // Where the main objective is (the next place the squad has to be for it).
 function mainPoint(m) {
@@ -48,7 +73,7 @@ function mainPoint(m) {
   return g.base ? { x: g.base.x, y: g.base.y } : { x: g.x, y: g.y };
 }
 // Time needed to get out from point p: walk to the pad, call, wait for the pelican.
-const extractTime = (m, p) => travel(m, dist(p, m.extraction)) + C.extract.callSec + PL().extractPad;
+const extractTime = (m, p) => travel(m, walkDist(m, p, m.extraction)) + C.extract.callSec + PL().extractPad;
 
 // Can the squad leave a main objective that is under way? Not once it is holding, carrying or running it.
 function mainBusy(m) {
@@ -71,24 +96,39 @@ function tourTime(m, p, tasks) {
   return { sec, end: at };
 }
 
+// Tasks nearest first in a straight line, so the walks past the best one so far need not be measured.
+const byLine = (here, tasks) => tasks.map((k) => ({ k, s: dist(here, k) })).sort((a, b) => a.s - b.s);
+// (0.62.15) The side task under way stays the choice while it still qualifies, unless another is much nearer (under
+// C.plan.stick of its distance). Choosing the nearest afresh every few seconds turned the squad back and forth between two tasks
+// at about the same distance: walking toward one brought the other nearer. Players saw the squad go to the map's edge and back
+// while the clock ran out.
+// (dc, db: how far the squad has to walk to each)
+function keepCur(cur, dc, best, db) {
+  if (!cur || !best || best.ref === cur.ref) return best;
+  return db < dc * PL().stick ? best : cur;
+}
 function choose(m) {
-  const P = PL(), here = { x: m.squad.ax, y: m.squad.ay }, left = m.limitSec - m.t;
+  const P = PL(), here = { x: m.squad.ax, y: m.squad.ay }, left = m.limitSec - m.t, cur = m.plan.task;
   const tasks = openTasks(m).filter((k) => !avoided(m, k));
   if (m.phase === 'objective') {
     const o = activeObjective(m), mp = mainPoint(m);
     const main = { kind: 'main', ref: o, x: mp ? mp.x : here.x, y: mp ? mp.y : here.y };
     if (!mp || mainBusy(m)) return main;
     { const must = tasks.find((k) => k.ref && k.ref.must); if (must) return must; }     // (0.37) a side the tutorial (or a story) sends them to first
-    const toMain = dist(here, main), detour = aoScale(m, P.detour);
-    let best = null, bd = Infinity;
-    for (const k of tasks) {
-      const d = dist(here, k), extra = d + dist(k, main) - toMain;
-      if (extra > detour) continue;
-      const need = travel(m, d + dist(k, main)) + work(m, k) + work(m, main) + extractTime(m, main);
+    const toMain = walkDist(m, here, main), detour = aoScale(m, P.detour), out = extractTime(m, main);
+    let best = null, bd = Infinity, curOk = null, cd = Infinity;
+    for (const { k, s } of byLine(here, tasks)) {
+      const mine = cur && k.ref === cur.ref;
+      if (s >= bd && !mine) continue;                                                  // a walk is never shorter than the straight line
+      if (s + dist(k, main) - toMain > detour * P.slack) continue;                    // well out of the way even in a straight line
+      const d = walkDist(m, here, k), on = walkDist(m, k, main), extra = d + on - toMain;
+      if (extra > (mine ? detour * P.slack : detour)) continue;     // the task under way keeps some slack, or it drops on the line
+      const need = travel(m, d + on) + work(m, k) + work(m, main) + out;
       if (left - need < P.reserve) continue;
+      if (mine) { curOk = k; cd = d; }
       if (d < bd) { bd = d; best = k; }
     }
-    return best || main;
+    return keepCur(curOk, cd, best, bd) || main;
   }
   if (m.phase === 'clear') {
     if (!tasks.length) return null;
@@ -96,7 +136,14 @@ function choose(m) {
     const tour = tourTime(m, here, tasks), need = tour.sec + extractTime(m, tour.end);
     const lives = m.hd.lives > P.clearLives, pl = m.plan;
     let nearest = null, nd = Infinity;
-    for (const k of tasks) { const d = dist(here, k); if (d < nd) { nd = d; nearest = k; } }
+    let cd = Infinity, curOk = null;
+    for (const { k, s } of byLine(here, tasks)) {
+      const mine = cur && k.ref === cur.ref;
+      if (s >= nd && !mine) continue;
+      const d = walkDist(m, here, k);
+      if (mine) { curOk = k; cd = d; }
+      if (d < nd) { nd = d; nearest = k; }
+    }
     // the next task alone, and still out in time
     const oneMore = nearest && left - (travel(m, nd) + work(m, nearest) + extractTime(m, nearest)) >= P.reserve;
     // (0.53.5) they go on task by task while the next one (and the way out after it) still fits: players saw a squad ask for time
@@ -115,9 +162,7 @@ function choose(m) {
     }
     m.plan.full = go;
     if (!go) return null;
-    let best = null, bd = Infinity;
-    for (const k of tasks) { const d = dist(here, k); if (d < bd) { bd = d; best = k; } }
-    return best;
+    return keepCur(curOk, cd, nearest, nd);
   }
   return null;
 }

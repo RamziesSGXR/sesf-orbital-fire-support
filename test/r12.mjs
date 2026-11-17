@@ -141,7 +141,14 @@ const seafReady = (m, n = 5) => { m.seaf.readyAt = 0; m.callSeaf(m.hx + 10, m.hy
   // longer fits, they ask)
   const near = (mm) => {
     const k = openTasks(mm).sort((a, b) => Math.hypot(a.x - mm.squad.ax, a.y - mm.squad.ay) - Math.hypot(b.x - mm.squad.ax, b.y - mm.squad.ay))[0];
-    const p = mm.terrain.nearestLand(k.x - 60, k.y);
+    // (0.62.15) a dry spot a short walk from it: the plan measures the walk now, round any water (on this map the old spot, 60 m
+    // west, was across a creek, a longer walk than two minutes cover)
+    let p = null;
+    for (let i = 0; i < 16 && !p; i++) {
+      const a = (i / 16) * Math.PI * 2, q = mm.terrain.nearestLand(k.x - Math.cos(a) * 30, k.y - Math.sin(a) * 30);
+      if (Math.hypot(q.x - k.x, q.y - k.y) > 20 && mm.terrain.lineClear(q.x, q.y, k.x, k.y, 4)) p = q;
+    }
+    p = p || mm.terrain.nearestLand(k.x - 60, k.y);
     let q = null, L = C.plan.ask.nearEnd;
     for (; L >= 20 && !q && mm.phase === 'clear'; L -= 5) {
       mm.squad.ax = p.x; mm.squad.ay = p.y; for (const h of mm.hdAlive) { h.x = p.x; h.y = p.y; }
