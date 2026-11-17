@@ -25,6 +25,11 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**The squad waits for a light bridge when it's quicker (0.62.17).**
+- **A light bridge on its way:** if crossing it gets the squad where it's going sooner, counting the wait for it to come down, the squad walks to its near end and waits there. It says so on the radio. If the way round is quicker, a ford across the shallows included, it carries on without waiting.
+- **Fixed:** the squad's planner (0.62.15) didn't notice a bridge coming down or being lost. It kept planning on the old distances, sometimes for many minutes. It now measures again as soon as a bridge lands or goes.
+- On the first Squid mission, for a spot just across a lake from the landing zone: with a bridge down in 30 s the squad gets there in 50 s instead of 73. With one down in 60 s it doesn't wait, because wading the shallows is quicker.
+
 **A fairer evacuation, and held sites that follow the level (0.62.16).**
 - **Fixed:** near the end of an evacuation, the shelter sent the last few civilians out one at a time, each alone across the site. Each one lost meant another sent out alone, eleven seconds later. Squads with 43 of 44 out held on for minutes while the enemy kept coming, until they ran out of lives. The shelter now keeps sending full groups until enough are out. Any spares board too.
 - **Held sites follow the level:** the enemy's backup at the sites the squad has to hold (the nuke launch site, the evacuation, the oil pump and the defence gun) came at the level-10 pace at every level. It now scales with the level like everything else: easier below 10, the same at 10, and harder past it.

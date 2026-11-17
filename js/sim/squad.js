@@ -3,7 +3,7 @@ import { CONFIG as C } from '../config.js';
 import { COMMS } from '../data/data.js';
 import { compass } from './enemies.js';
 import { ringOf, baseAwake } from './director.js';
-import { planGoal } from './planner.js';
+import { planGoal, bridgeWait } from './planner.js';
 import { updateSeaf } from './seaf.js';
 import { speedMul } from './helldiver.js';
 import { canStep } from './safety.js';
@@ -204,11 +204,25 @@ export function updateSquad(m, dt) {
       if (Math.hypot(near.x - sq.ax, near.y - sq.ay) <= lim) { gx = near.x; gy = near.y; goal = 'attack'; }
     }
 
+    // (0.62.17) A light bridge on its way that makes the walk quicker, the wait for it included: to its near end, and wait there
+    // until it is down. Looked at once a second, and again when the goal moves on or the bridge comes down.
+    if ((goal === 'point' || goal === 'extract' || goal === 'base' || goal === 'stage') && !sq.fallback && !mounted && m.bridgeQ.length) {
+      const bw = sq.bw;
+      if (!bw || t >= bw.next || Math.hypot(bw.gx - gx, bw.gy - gy) > 30 || (bw.on && !m.bridgeQ.includes(bw.on.b))) {
+        const on = bridgeWait(m, { x: sq.ax, y: sq.ay }, { x: gx, y: gy }, speed, bw && bw.on);
+        if (on && !(bw && bw.on && bw.on.b === on.b)) m.radio(COMMS.bridgeWait, 'bridgewait', 15);
+        sq.bw = { next: t + 1, gx, gy, on };
+      }
+      const on = sq.bw.on;
+      if (on) { gx = on.x; gy = on.y; goal = Math.hypot(on.x - sq.ax, on.y - sq.ay) > 3 ? 'bridge' : 'none'; }
+    } else if (goal !== 'attack') sq.bw = null;     // (a fight at the bank doesn't end the wait)
+    sq.bridge = sq.bw && sq.bw.on ? sq.bw.on.b : null;
+
     // Move unless we are fighting or setting up. A squad pinned down for a while on its way to the objective or the pad fights
     // its way forward at a walk instead of standing in an endless stream of enemies.
     sq.engT = engaged ? (sq.engT || 0) + dt : Math.max(0, (sq.engT || 0) - dt * 2);
     // (a base or the citadel counts too, until the squad is in rifle range of it)
-    const fightOn = engaged && (pointGoal || goal === 'base') && (goal === 'point' || goal === 'extract' || goal === 'base') && sq.engT >= C.squad.fightOnSec;
+    const fightOn = engaged && (pointGoal || goal === 'base') && (goal === 'point' || goal === 'extract' || goal === 'base' || goal === 'bridge') && sq.engT >= C.squad.fightOnSec;
     if (fightOn && !sq.fightOn) m.radio(COMMS.fightOn, 'fighton', 40);
     sq.fightOn = fightOn;
     const hbRun = !!(m.hellbomb && m.hellbomb.state === 'armed');     // (0.38.1) an armed Hellbomb: the squad moves off, fighting or not

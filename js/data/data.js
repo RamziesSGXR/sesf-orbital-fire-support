@@ -84,6 +84,7 @@ export const COMMS = {
   get lastBase() { return t('c.lastBase'); },
   get push() { return t('c.push'); },
   get fightOn() { return t('c.fightOn'); },
+  get bridgeWait() { return t('c.bridgeWait'); },     // (0.62.17)
   get holdFire() { return t('c.holdFire'); },
   get noCoverage() { return t('c.noCoverage'); },
   get victory() { return t('c.victory'); },

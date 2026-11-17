@@ -785,6 +785,7 @@ export default {
   'c.lastBase': 'Toutes les bases sont tombées. Ramenez-les.',
   'c.push': 'L’escouade donne l’assaut. Frappez cette base.',
   'c.fightOn': 'Escouade clouée mais elle avance. Ouvrez-lui un passage.',
+  'c.bridgeWait': 'On attend le pont de lumière sur la rive. Plus rapide que le grand détour.',
   'c.holdFire': 'Rien à frapper là. Tir suspendu.',
   'c.noCoverage': 'Hors zone de frappe. Restez près de l’escouade, scannez la zone, ou verrouillez une cible qui s’est trahie.',
   'c.victory': 'Pelican parti. Beau tir, artilleur.',
