@@ -25,6 +25,9 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**The final icon (0.62.20).**
+- The icon chosen from four poster-style versions: upright drop pods in the poster's own layout (two small, two larger, all kept small so the cloud shows), flame layers under the cap, a puffy ring round the stem, on the concrete wall.
+
 **The icon in the poster's style (0.62.19).**
 - The icon is redrawn after the poster: the concrete wall and its rings, a layered cloud, and the four drop pods coming in at a slant with long flame trails. Nothing at the bottom covers the pods any more.
 
