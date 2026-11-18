@@ -25,6 +25,9 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**A new icon (0.62.18).**
+- The game's icon is now a mushroom cloud with four drop pods falling through it, after the Operation Swift Disassembly poster. Drawn new as a vector (img/favicon.svg), and used for the browser tab, the home-screen icon and the app icons.
+
 **The squad waits for a light bridge when it's quicker (0.62.17).**
 - **A light bridge on its way:** if crossing it gets the squad where it's going sooner, counting the wait for it to come down, the squad walks to its near end and waits there. It says so on the radio. If the way round is quicker, a ford across the shallows included, it carries on without waiting.
 - **Fixed:** the squad's planner (0.62.15) didn't notice a bridge coming down or being lost. It kept planning on the old distances, sometimes for many minutes. It now measures again as soon as a bridge lands or goes.
