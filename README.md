@@ -25,6 +25,9 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**The icon in the poster's style (0.62.19).**
+- The icon is redrawn after the poster: the concrete wall and its rings, a layered cloud, and the four drop pods coming in at a slant with long flame trails. Nothing at the bottom covers the pods any more.
+
 **A new icon (0.62.18).**
 - The game's icon is now a mushroom cloud with four drop pods falling through it, after the Operation Swift Disassembly poster. Drawn new as a vector (img/favicon.svg), and used for the browser tab, the home-screen icon and the app icons.
 
