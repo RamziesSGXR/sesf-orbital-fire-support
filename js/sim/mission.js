@@ -896,27 +896,42 @@ export class Mission {
       const b = C.enemies.bag;
       // (below level 10 the medium and heavy counts are fractional: the remainder is a chance of one more)
       const whole = (x) => { const f = x - Math.floor(x); return Math.floor(x) + (f > 1e-9 && this.rng.next() < f ? 1 : 0); };
-      for (let i = 0; i < b.light; i++) this.bag.push('L');
-      const nm = whole(b.medium + Math.floor(this.W / C.ramp.mediumEvery)), nh = whole(b.heavy + Math.floor(this.W / C.ramp.heavyEvery));
+      const nl = whole(b.light);     // (0.62.21: past level 10 the lights thin out, see difficulty.js applyMix)
+      for (let i = 0; i < nl; i++) this.bag.push('L');
+      const nm = whole(b.medium + Math.floor(this.W / C.ramp.mediumEvery) * (C.enemies.mix ? 1 - C.enemies.mix.u : 1)), nh = whole(b.heavy + Math.floor(this.W / C.ramp.heavyEvery));
       for (let i = 0; i < nm; i++) this.bag.push('M');
       // (0.40) the heavy draws: a share of them are specials ('S'; which ones from their own stream, so the map does not change)
       for (let i = 0; i < nh; i++) this.bag.push(this.srng.next() < C.special.share ? 'S' : 'H');
+      if (!this.bag.length) this.bag.push('H');
       this.rng.shuffle(this.bag);
     }
     const k = this.bag.pop();
     if (k === 'L') return k;
     // Keep the field mostly light: past the cap for live mediums and heavies, the draw comes out light instead. (0.40) Specials
     // and heavies share the heavy cap.
-    const cap = C.enemies.kindCap, mm = this.t / 60;   // more mediums and heavies allowed as the war and the mission go on
-    const max = k === 'M' ? Math.min(cap.maxM, cap.M + cap.perMinM * this.W + cap.perMissionMinM * mm) : Math.min(cap.maxH, cap.H + cap.perMinH * this.W + cap.perMissionMinH * mm);
+    const max = this.kindMax(k === 'M' ? 'M' : 'H');
     let n = 0;
     if (k === 'M') { for (const e of this.enemies) if (!e.dead && e.kind === 'M' && !e.sub) n++; }
     else for (const e of this.enemies) if (!e.dead && !e.boss && (e.kind === 'H' || e.sub)) n++;
-    return n >= max ? 'L' : k;
+    if (n < max) return k;
+    // (0.62.21) a level with no lights left in its mix sends none in place of a medium or heavy over its cap: it comes anyway
+    // (the ceiling on everything alive is what holds the numbers)
+    return C.enemies.mix && C.enemies.mix.t >= 1 ? k : 'L';
   }
   // (0.49) is there room under the heavy cap for one more heavy (drawToken's rule), for heavies placed outside the bag
+  // How many mediums ('M') or heavies and specials ('H') may be alive at once: more as the war and the mission go on. (0.62.21)
+  // Past level 10 the level's mix sets it when that is more: its share of everything that may be alive now, and a bit over.
+  kindMax(k) {
+    const cap = C.enemies.kindCap, E = C.enemies, mm = this.t / 60;
+    let max = k === 'M' ? Math.min(cap.maxM, cap.M + cap.perMinM * this.W + cap.perMissionMinM * mm) : Math.min(cap.maxH, cap.H + cap.perMinH * this.W + cap.perMissionMinH * mm);
+    if (E.mix) {
+      const live = Math.min(E.maxLive, E.liveCap + E.capPerMissionMin * mm + E.capPerSessionMin * (this.W ?? 0));
+      max = Math.max(max, Math.ceil(live * (k === 'M' ? E.mix.shareM : E.mix.shareH) * 1.2));
+    }
+    return max;
+  }
   heavyRoom() {
-    const cap = C.enemies.kindCap, max = Math.min(cap.maxH, cap.H + cap.perMinH * this.W + cap.perMissionMinH * (this.t / 60));
+    const max = this.kindMax('H');
     let n = 0; for (const e of this.enemies) if (!e.dead && !e.boss && (e.kind === 'H' || e.sub)) n++;
     return n < max;
   }

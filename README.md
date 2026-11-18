@@ -25,6 +25,13 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Past level 8 the enemy gets heavier, not only more numerous (0.62.21).**
+- **From level 9 up, every level trades lights for mediums and heavies.** At level 8 about 83 of every 100 that come are light. At 10 it is 68, at 15 it is 32, and at level 20 there are none: only mediums (70) and heavies (30).
+- **From 20 to 30 the mediums go the same way.** At 25 about two in three are heavy; at level 30 and beyond, everything is.
+- **There are still more of them as the levels climb, but not a sea of lights.** A medium counts as several lights and a heavy as many, so level 20 has about 390 alive at most (it was about 680) and level 30 about 410 (it was 1,000).
+- **Groups get smaller as they get heavier,** and past level 20 the enemy's bases start sending heavies out too.
+- Levels 9 and 10 are harder than they were: in a small test the squad lasted a few minutes less.
+
 **The final icon (0.62.20).**
 - The icon chosen from four poster-style versions: upright drop pods in the poster's own layout (two small, two larger, all kept small so the cloud shows), flame layers under the cap, a puffy ring round the stem, on the concrete wall.
 

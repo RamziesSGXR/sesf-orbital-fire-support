@@ -273,6 +273,7 @@ export const CONFIG = {
               // (0.40) the heavy draws include the specials (C.special.share of them), so heavies and specials scale together: the
               // difficulty's heavy factor, the war's heavy ramp (ramp.heavyEvery) and the heavy cap below are theirs together
               bag: { light: 32, medium: 4.5, heavy: 3 },
+              mix: null,     // (0.62.21) past level 10, set by difficulty.js: { t, u, shareM, shareH }, the heavier mix of that level
               // Mediums and heavies die slowly, so they pile up in the field while the lights melt away. This keeps them in proportion:
               // only so many of each can be alive at once (more as the session goes on); the rest of the draws come out light.
               // perMissionMinM/H: more of them allowed the longer a mission runs. (0.40) H counts the heavies and the specials.
@@ -489,7 +490,14 @@ export const CONFIG = {
                jamOff: 115, jamR: 55 },     // (0.37) the Hellbomb lesson's disruptor: how far from the base, and the ground it jams
   // (0.40) opBonus: credits are worth 0.2 more for every mission already done in the operation (the second mission x1.2, the
   // third x1.4 and so on), on top of the level's pay; score is not.
-  difficulty: { start: 3, spawn: 0.55, medium: 0.6, heavy: 0.4, boss: 0.3, curve: 1, reward: [0.75, 1.2], opBonus: 0.2, opBonusMax: 1.6, ramp: 0.6, beyond: 1, beyondSpawn: 2, hardCapMax: 1000, liveBeyond: 0.08,     // (0.31: ramp 0.39 -> 0.6, a level nearly every mission)
+  // (0.62.21) mix: past level `from` the enemy gets heavier, level by level, and not only more numerous. The lights in every
+  // draw of forty thin out evenly until there are none at `noLight` (toM of them become mediums, the rest heavies); then the
+  // mediums thin out the same way until at `noMedium` everything that comes is heavy. The ceiling on how many are alive at once
+  // is a budget: a medium counts wM lights and a heavy wH, softened by `crowd` (1: the crowd shrinks as fast as it hardens; 0:
+  // not at all), so there are still more of them as the levels climb, but hundreds fewer than a crowd of lights would be
+  // (level 20: about 390 alive, it was about 680). Groups get smaller by the whole weight to the power groupPow.
+  difficulty: { mix: { from: 8, noLight: 20, noMedium: 30, toM: 0.75, wM: 5, wH: 20, crowd: 0.6, groupPow: 0.8, groupMin: 3 },
+                start: 3, spawn: 0.55, medium: 0.6, heavy: 0.4, boss: 0.3, curve: 1, reward: [0.75, 1.2], opBonus: 0.2, opBonusMax: 1.6, ramp: 0.6, beyond: 1, beyondSpawn: 2, hardCapMax: 1000, liveBeyond: 0.08,     // (0.31: ramp 0.39 -> 0.6, a level nearly every mission)
                 // war minutes at each level (1 to 10), war minutes a level past 10, and the share of each real session minute that counts
                 // (0.53.8) the levels step evenly up to 9: 3 is easy, 6 hard, 9 very hard (it was 0, 15, 37, 38 ... 42: level 3 was
                 // nearly as tough as 10, and only the numbers of enemies told them apart)
@@ -732,5 +740,5 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.20' },
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.21' },
 };

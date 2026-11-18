@@ -121,7 +121,7 @@ export function updateSite(m, dt) {
   }
   if (!spot) return;
   const size = Math.round(P.size[0] + Math.min(1, min / P.growMin) * (P.size[1] - P.size[0]));
-  const kinds = Array.from({ length: Math.max(1, size) }, () => { const k = m.drawToken(); return k === 'H' ? 'M' : k; });
+  const kinds = Array.from({ length: Math.max(1, size) }, () => { const k = m.drawToken(); return k === 'H' && !(C.enemies.mix && m.rng.next() < C.enemies.mix.u) ? 'M' : k; });
   const g = spawnGroup(m, spot.x, spot.y, 'hunt', { kinds });
   g.state = 'hunt'; g.target = p; g.inv = { x: p.x, y: p.y }; g.invUntil = m.t + 90; g.siteProbe = true;     // (it comes for the site)
   p.probes++;

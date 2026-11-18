@@ -122,5 +122,33 @@ export function applyDifficulty(d) {
     set('enemies.maxLive', Math.min(top, Math.round(C.enemies.maxLive * k)));
     set('enemies.hardCap', Math.min(top, Math.max(C.enemies.hardCap, Math.round(C.enemies.hardCap * k), C.enemies.maxLive + 40)));
   }
+  applyMix(d);
   applied = d;
 }
+// (0.62.21) The heavier mix past level mix.from (see CONFIG.difficulty.mix). Runs after the rules, on their values.
+const MIXB = { light: C.enemies.bag.light, liveCap: 0 };
+export function mixAt(d, bag = C.enemies.bag) {
+  const X = D().mix, t = Math.max(0, Math.min(1, (d - X.from) / (X.noLight - X.from))), u = Math.max(0, Math.min(1, (d - X.noLight) / (X.noMedium - X.noLight)));
+  const cut = MIXB.light * t, light = MIXB.light - cut, m0 = bag.medium + cut * X.toM, medium = m0 * (1 - u), heavy = bag.heavy + cut * (1 - X.toM) + m0 * u;
+  const n = light + medium + heavy;
+  return { t, u, light, medium, heavy, shareL: light / n, shareM: medium / n, shareH: heavy / n, weight: (light + medium * X.wM + heavy * X.wH) / n };
+}
+function applyMix(d) {
+  const X = D().mix, E = C.enemies;
+  E.bag.light = MIXB.light; E.mix = null;
+  if (!X || d <= X.from) return;
+  // the budget: what this level's draw weighed before the shift, over what it weighs now, softened by `crowd` (1: the crowd
+  // shrinks as fast as it hardens; 0: it does not shrink at all), so there are still more of them level by level
+  const b = E.bag, w0 = (MIXB.light + b.medium * X.wM + b.heavy * X.wH) / (MIXB.light + b.medium + b.heavy), mx = mixAt(d), k = Math.pow(w0 / mx.weight, X.crowd ?? 1);
+  E.bag.light = mx.light; E.bag.medium = mx.medium; E.bag.heavy = mx.heavy;
+  E.mix = { t: mx.t, u: mx.u, shareM: mx.shareM, shareH: mx.shareH, budget: k };
+  // the same budget buys fewer, heavier enemies
+  // (never fewer than the level had before the shift, up to level 10's number: the first levels trade lights for mediums one for one)
+  const floor = Math.min(E.maxLive, BASE['enemies.maxLive']), k2 = Math.max(k, floor / E.maxLive);
+  E.liveCap *= k2; E.capPerMissionMin *= k2; E.maxLive = Math.round(E.maxLive * k2);
+  E.hardCap = Math.max(BASE['enemies.hardCap'], E.maxLive + 40);
+  const g = Math.pow(w0 / mx.weight, X.groupPow);     // (groups by the whole weight, not the softened budget)
+  for (const f of ['bugs', 'bots', 'squids']) E.group[f] = Math.max(X.groupMin, Math.round(E.group[f] * g));
+}
+// Level 10 is what CONFIG holds before any level is applied, and level 10 has a mix: put it in from the start.
+applyMix(LEVELS);
