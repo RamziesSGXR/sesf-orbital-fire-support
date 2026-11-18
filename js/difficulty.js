@@ -125,7 +125,7 @@ export function applyDifficulty(d) {
   applyMix(d);
   applied = d;
 }
-// (0.62.19) The heavier mix past level mix.from (see CONFIG.difficulty.mix). Runs after the rules, on their values.
+// (0.62.21) The heavier mix past level mix.from (see CONFIG.difficulty.mix). Runs after the rules, on their values.
 const MIXB = { light: C.enemies.bag.light, liveCap: 0 };
 export function mixAt(d, bag = C.enemies.bag) {
   const X = D().mix, t = Math.max(0, Math.min(1, (d - X.from) / (X.noLight - X.from))), u = Math.max(0, Math.min(1, (d - X.noLight) / (X.noMedium - X.noLight)));

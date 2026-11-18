@@ -1,4 +1,4 @@
-// 0.62.19: past level 10 the enemy gets heavier, not only more numerous. Run: node test/r6219.mjs
+// 0.62.21: past level 10 the enemy gets heavier, not only more numerous. Run: node test/r6221.mjs
 import { Mission } from '../js/sim/mission.js';
 import { CONFIG as C } from '../js/config.js';
 import { applyDifficulty, mixAt } from '../js/difficulty.js';

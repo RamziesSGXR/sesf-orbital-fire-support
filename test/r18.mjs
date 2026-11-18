@@ -13,8 +13,8 @@ import { hurtEnemy } from '../js/sim/combat.js';
 import { tapHellbomb, hbFilling } from '../js/sim/ops.js';
 import { makeBot, botStep } from '../js/sim/bot.js';
 import { inAO } from '../js/sim/ao.js';
-// (0.62.19) These checks are about the base rules at the default level (10): the shift to heavier enemies from level 8 up is
-// switched off for them (test/r6219.mjs covers it).
+// (0.62.21) These checks are about the base rules at the default level (10): the shift to heavier enemies from level 8 up is
+// switched off for them (test/r6221.mjs covers it).
 import { CONFIG as CFG0 } from '../js/config.js';
 import { applyDifficulty as AD0 } from '../js/difficulty.js';
 CFG0.difficulty.mix.from = 99; AD0(9); AD0(10);

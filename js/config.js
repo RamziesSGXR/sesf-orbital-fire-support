@@ -273,7 +273,7 @@ export const CONFIG = {
               // (0.40) the heavy draws include the specials (C.special.share of them), so heavies and specials scale together: the
               // difficulty's heavy factor, the war's heavy ramp (ramp.heavyEvery) and the heavy cap below are theirs together
               bag: { light: 32, medium: 4.5, heavy: 3 },
-              mix: null,     // (0.62.19) past level 10, set by difficulty.js: { t, u, shareM, shareH }, the heavier mix of that level
+              mix: null,     // (0.62.21) past level 10, set by difficulty.js: { t, u, shareM, shareH }, the heavier mix of that level
               // Mediums and heavies die slowly, so they pile up in the field while the lights melt away. This keeps them in proportion:
               // only so many of each can be alive at once (more as the session goes on); the rest of the draws come out light.
               // perMissionMinM/H: more of them allowed the longer a mission runs. (0.40) H counts the heavies and the specials.
@@ -490,7 +490,7 @@ export const CONFIG = {
                jamOff: 115, jamR: 55 },     // (0.37) the Hellbomb lesson's disruptor: how far from the base, and the ground it jams
   // (0.40) opBonus: credits are worth 0.2 more for every mission already done in the operation (the second mission x1.2, the
   // third x1.4 and so on), on top of the level's pay; score is not.
-  // (0.62.19) mix: past level `from` the enemy gets heavier, level by level, and not only more numerous. The lights in every
+  // (0.62.21) mix: past level `from` the enemy gets heavier, level by level, and not only more numerous. The lights in every
   // draw of forty thin out evenly until there are none at `noLight` (toM of them become mediums, the rest heavies); then the
   // mediums thin out the same way until at `noMedium` everything that comes is heavy. The ceiling on how many are alive at once
   // is a budget: a medium counts wM lights and a heavy wH, softened by `crowd` (1: the crowd shrinks as fast as it hardens; 0:
@@ -740,5 +740,5 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.19' },
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.21' },
 };

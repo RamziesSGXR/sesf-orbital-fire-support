@@ -11,7 +11,7 @@ const mk = (faction, difficulty = 8, seed = 5701) => { const m = new Mission({ s
 
 // ---- the ceiling
 applyDifficulty(25); const c25 = C.enemies.hardCap, l25 = C.enemies.maxLive; applyDifficulty(10); const c10 = C.enemies.hardCap;
-check('(0.62.19) the enemy ceiling still climbs at the top levels, as a budget for a heavier crowd (it was 1,000 lights)', c25 > 450 && c25 <= 1000 && l25 > 400 && c10 < 300, `${c10} at 10, ${c25} at 25`);
+check('(0.62.21) the enemy ceiling still climbs at the top levels, as a budget for a heavier crowd (it was 1,000 lights)', c25 > 450 && c25 <= 1000 && l25 > 400 && c10 < 300, `${c10} at 10, ${c25} at 25`);
 
 // ---- an enemy holds fire for its own, and its misses and splash can hurt its own
 { const m = mk('bots'), a = m.hdAlive[0];

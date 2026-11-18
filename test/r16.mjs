@@ -14,8 +14,8 @@ import { fireUltimatum } from '../js/sim/helldiver.js';
 import { POSTS, makePost, GARRISON } from '../js/sim/posts.js';
 import { formOff } from '../js/sim/seaf.js';
 import { carriesOn } from '../js/session.js';
-// (0.62.19) These checks are about the base rules at the default level (10): the shift to heavier enemies from level 8 up is
-// switched off for them (test/r6219.mjs covers it).
+// (0.62.21) These checks are about the base rules at the default level (10): the shift to heavier enemies from level 8 up is
+// switched off for them (test/r6221.mjs covers it).
 import { CONFIG as CFG0 } from '../js/config.js';
 import { applyDifficulty as AD0 } from '../js/difficulty.js';
 CFG0.difficulty.mix.from = 99; AD0(9); AD0(10);

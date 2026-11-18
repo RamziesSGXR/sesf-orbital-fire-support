@@ -896,7 +896,7 @@ export class Mission {
       const b = C.enemies.bag;
       // (below level 10 the medium and heavy counts are fractional: the remainder is a chance of one more)
       const whole = (x) => { const f = x - Math.floor(x); return Math.floor(x) + (f > 1e-9 && this.rng.next() < f ? 1 : 0); };
-      const nl = whole(b.light);     // (0.62.19: past level 10 the lights thin out, see difficulty.js applyMix)
+      const nl = whole(b.light);     // (0.62.21: past level 10 the lights thin out, see difficulty.js applyMix)
       for (let i = 0; i < nl; i++) this.bag.push('L');
       const nm = whole(b.medium + Math.floor(this.W / C.ramp.mediumEvery) * (C.enemies.mix ? 1 - C.enemies.mix.u : 1)), nh = whole(b.heavy + Math.floor(this.W / C.ramp.heavyEvery));
       for (let i = 0; i < nm; i++) this.bag.push('M');
@@ -914,12 +914,12 @@ export class Mission {
     if (k === 'M') { for (const e of this.enemies) if (!e.dead && e.kind === 'M' && !e.sub) n++; }
     else for (const e of this.enemies) if (!e.dead && !e.boss && (e.kind === 'H' || e.sub)) n++;
     if (n < max) return k;
-    // (0.62.19) a level with no lights left in its mix sends none in place of a medium or heavy over its cap: it comes anyway
+    // (0.62.21) a level with no lights left in its mix sends none in place of a medium or heavy over its cap: it comes anyway
     // (the ceiling on everything alive is what holds the numbers)
     return C.enemies.mix && C.enemies.mix.t >= 1 ? k : 'L';
   }
   // (0.49) is there room under the heavy cap for one more heavy (drawToken's rule), for heavies placed outside the bag
-  // How many mediums ('M') or heavies and specials ('H') may be alive at once: more as the war and the mission go on. (0.62.19)
+  // How many mediums ('M') or heavies and specials ('H') may be alive at once: more as the war and the mission go on. (0.62.21)
   // Past level 10 the level's mix sets it when that is more: its share of everything that may be alive now, and a bit over.
   kindMax(k) {
     const cap = C.enemies.kindCap, E = C.enemies, mm = this.t / 60;
