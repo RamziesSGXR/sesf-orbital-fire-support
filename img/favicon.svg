@@ -1,13 +1,56 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="y" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffbd0"/><stop offset=".42" stop-color="#ffe600"/><stop offset="1" stop-color="#ffae00"/></linearGradient>
-    <radialGradient id="bg" cx=".5" cy=".38" r=".75"><stop offset="0" stop-color="#0b2414"/><stop offset="1" stop-color="#030805"/></radialGradient>
+    <radialGradient id="bg" cx=".5" cy=".42" r=".8"><stop offset="0" stop-color="#55677a"/><stop offset=".6" stop-color="#2c3742"/><stop offset="1" stop-color="#151b21"/></radialGradient>
+    <linearGradient id="stem" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ff7a00"/><stop offset=".45" stop-color="#ffd21a"/><stop offset="1" stop-color="#ff8a00"/></linearGradient>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
   </defs>
-  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
-  <path d="M-2 58 Q32 40 66 58" fill="none" stroke="#3da9ff" stroke-width="2" opacity=".75"/>
-  <g fill="none" stroke="url(#y)" stroke-width="5.5">
-    <circle cx="32" cy="30" r="15.5"/>
-    <path d="M32 5v11M32 44v11M7 30h11M46 30h11"/>
+  <g clip-path="url(#tile)">
+    <rect width="512" height="512" fill="url(#bg)"/>
+    <g fill="none" stroke="#8fa3b5" opacity=".16" stroke-width="14"><circle cx="256" cy="330" r="150"/><circle cx="256" cy="330" r="226"/></g>
+    <!-- the ring, behind the stem -->
+    <ellipse cx="256" cy="324" rx="128" ry="24" fill="none" stroke="#ff5a00" stroke-width="20"/>
+    <!-- the stem -->
+    <path d="M196 236 C232 268 236 300 234 352 C232 404 222 440 196 470 H316 C290 440 280 404 278 352 C276 300 280 268 316 236Z" fill="url(#stem)"/>
+    <path d="M250 262 C254 320 252 400 246 462 H262 C258 400 258 320 262 262Z" fill="#fff0a0" opacity=".55"/>
+    <!-- the cap -->
+    <circle cx="256" cy="150" r="96" fill="#f21d0a"/><circle cx="170" cy="160" r="74" fill="#f21d0a"/><circle cx="342" cy="160" r="74" fill="#f21d0a"/><circle cx="104" cy="196" r="56" fill="#f21d0a"/><circle cx="408" cy="196" r="56" fill="#f21d0a"/><circle cx="200" cy="110" r="62" fill="#f21d0a"/><circle cx="312" cy="110" r="62" fill="#f21d0a"/><circle cx="256" cy="92" r="56" fill="#f21d0a"/><circle cx="148" cy="214" r="48" fill="#f21d0a"/><circle cx="364" cy="214" r="48" fill="#f21d0a"/><circle cx="256" cy="214" r="70" fill="#f21d0a"/><circle cx="72" cy="214" r="34" fill="#f21d0a"/><circle cx="440" cy="214" r="34" fill="#f21d0a"/>
+    <circle cx="256" cy="170" r="78" fill="#ff6200"/><circle cx="180" cy="178" r="58" fill="#ff6200"/><circle cx="332" cy="178" r="58" fill="#ff6200"/><circle cx="120" cy="206" r="42" fill="#ff6200"/><circle cx="392" cy="206" r="42" fill="#ff6200"/><circle cx="214" cy="132" r="46" fill="#ff6200"/><circle cx="300" cy="132" r="46" fill="#ff6200"/><circle cx="256" cy="222" r="56" fill="#ff6200"/><circle cx="168" cy="226" r="38" fill="#ff6200"/><circle cx="344" cy="226" r="38" fill="#ff6200"/>
+    <circle cx="256" cy="214" r="54" fill="#ff9a00"/><circle cx="196" cy="214" r="42" fill="#ff9a00"/><circle cx="316" cy="214" r="42" fill="#ff9a00"/><circle cx="146" cy="226" r="30" fill="#ff9a00"/><circle cx="366" cy="226" r="30" fill="#ff9a00"/><circle cx="256" cy="246" r="40" fill="#ff9a00"/>
+    <path d="M150 206 Q256 150 362 206 Q256 182 150 206Z" fill="#ffc21a"/>
+    <path d="M196 150 Q256 118 316 150 Q256 136 196 150Z" fill="#ff8a00"/>
+    <!-- the ring, in front of the stem -->
+    <path d="M128 324 A128 24 0 0 0 384 324" fill="none" stroke="#ff8a00" stroke-width="20" stroke-linecap="round"/>
+    <path d="M150 330 A108 16 0 0 0 362 330" fill="none" stroke="#ffc21a" stroke-width="7" stroke-linecap="round"/>
+    <!-- four pods coming down through it -->
+    <g transform="translate(84 352) rotate(0) scale(0.92)">
+    <path d="M-20 -46 C-30 -78 -10 -96 -6 -128 C4 -104 22 -92 20 -46Z" fill="#ff5a00"/>
+    <path d="M-10 -44 C-14 -66 -2 -78 0 -98 C6 -80 12 -66 10 -44Z" fill="#ffc21a"/>
+    <path d="M-27 -44 H27 V4 C27 34 12 52 0 60 C-12 52 -27 34 -27 4Z" fill="#fff4e6" stroke="#ff4a12" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M-23 -42 H23 V-6 H9 V8 H-23Z" fill="#7d3a33"/>
+    <rect x="-36" y="-50" width="72" height="9" rx="4" fill="#fff4e6"/>
   </g>
-  <circle cx="32" cy="30" r="5" fill="url(#y)"/>
+    <g transform="translate(166 408) rotate(0) scale(1.0)">
+    <path d="M-20 -46 C-30 -78 -10 -96 -6 -128 C4 -104 22 -92 20 -46Z" fill="#ff5a00"/>
+    <path d="M-10 -44 C-14 -66 -2 -78 0 -98 C6 -80 12 -66 10 -44Z" fill="#ffc21a"/>
+    <path d="M-27 -44 H27 V4 C27 34 12 52 0 60 C-12 52 -27 34 -27 4Z" fill="#fff4e6" stroke="#ff4a12" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M-23 -42 H23 V-6 H9 V8 H-23Z" fill="#7d3a33"/>
+    <rect x="-36" y="-50" width="72" height="9" rx="4" fill="#fff4e6"/>
+  </g>
+    <g transform="translate(346 396) rotate(0) scale(0.92)">
+    <path d="M-20 -46 C-30 -78 -10 -96 -6 -128 C4 -104 22 -92 20 -46Z" fill="#ff5a00"/>
+    <path d="M-10 -44 C-14 -66 -2 -78 0 -98 C6 -80 12 -66 10 -44Z" fill="#ffc21a"/>
+    <path d="M-27 -44 H27 V4 C27 34 12 52 0 60 C-12 52 -27 34 -27 4Z" fill="#fff4e6" stroke="#ff4a12" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M-23 -42 H23 V-6 H9 V8 H-23Z" fill="#7d3a33"/>
+    <rect x="-36" y="-50" width="72" height="9" rx="4" fill="#fff4e6"/>
+  </g>
+    <g transform="translate(428 340) rotate(0) scale(1.0)">
+    <path d="M-20 -46 C-30 -78 -10 -96 -6 -128 C4 -104 22 -92 20 -46Z" fill="#ff5a00"/>
+    <path d="M-10 -44 C-14 -66 -2 -78 0 -98 C6 -80 12 -66 10 -44Z" fill="#ffc21a"/>
+    <path d="M-27 -44 H27 V4 C27 34 12 52 0 60 C-12 52 -27 34 -27 4Z" fill="#fff4e6" stroke="#ff4a12" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M-23 -42 H23 V-6 H9 V8 H-23Z" fill="#7d3a33"/>
+    <rect x="-36" y="-50" width="72" height="9" rx="4" fill="#fff4e6"/>
+  </g>
+    <!-- what it landed on -->
+    <path d="M96 512 L132 472 L150 478 L162 452 L186 462 L204 436 L222 452 L240 428 L258 446 L274 424 L292 450 L310 438 L326 462 L350 452 L362 478 L380 472 L416 512Z" fill="#0a0c0e"/>
+  </g>
 </svg>
