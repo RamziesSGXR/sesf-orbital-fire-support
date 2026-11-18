@@ -99,7 +99,8 @@ export function stepSpawners(m, b, dt) {
     if (!H.length) return true;
     b.trickle = S().trickleSec;
     const s = H[Math.floor(m.rrng.next() * H.length)];
-    let tok = m.drawToken(); if (tok === 'H') tok = 'M';          // (heavies come by call-in, not out of a base)
+    // (heavies come by call-in, not out of a base; 0.62.19: until the level's mix has no mediums left to send, past mix.noLight)
+    let tok = m.drawToken(); if (tok === 'H' && !(C.enemies.mix && m.rng.next() < C.enemies.mix.u)) tok = 'M';
     // a group is groupSize troopers, let out one at a time; the base owes one group less once the last of them is out (a group
     // wiped out while it fills up is carried on in a new one, never more troopers than were owed)
     if (!(b.unitsLeft > 0)) b.unitsLeft = m.groupSize;

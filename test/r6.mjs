@@ -9,6 +9,11 @@ import { hurtAlly, blocker, pickClear } from '../js/sim/combat.js';
 import { spawnGroup, pickSpawn, unseenSpot } from '../js/sim/director.js';
 import { strikeAt } from '../js/sim/strat.js';
 import { orbStats, newKit, fixKit, ORB_PRICE } from '../js/data/kit.js';
+// (0.62.19) These checks are about the base rules at the default level (10): the shift to heavier enemies from level 8 up is
+// switched off for them (test/r6219.mjs covers it).
+import { CONFIG as CFG0 } from '../js/config.js';
+import { applyDifficulty as AD0 } from '../js/difficulty.js';
+CFG0.difficulty.mix.from = 99; AD0(9); AD0(10);
 
 let fails = 0;
 const check = (name, ok, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  (' + detail + ')' : ''}`); if (!ok) fails++; };
