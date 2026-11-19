@@ -10,6 +10,9 @@ import { buildTerrain } from './render/terrain.js';
 import { Input } from './input.js';
 import { setKey, resetKeys, isDefault, onKeysChange, label as keyLabel, canBind, keyLabel as codeLabel } from './keys.js';
 import { Audio } from './audio.js';
+import { TwitchChat } from './twitch.js';
+import { ChatPlay } from './chatplay.js';
+import { CHAT_HELP } from './sim/chat.js';
 import { soundSources, resetScape } from './soundscape.js';
 import { Music } from './music.js';
 import * as S from './session.js';
@@ -1426,6 +1429,7 @@ function togglePause(force) {
   if (UI.isOn('s-map')) { closeMap(); return; }
   if (UI.isOn('s-info')) { closeInfo(); return; }
   if (UI.isOn('s-armory')) { closeArmory(); return; }
+  if (UI.isOn('s-twitch')) { closeTwitch(); return; }
   if (UI.isOn('s-feedback')) { closeFeedback(); return; }
   if (UI.isOn('s-credits')) { closeCredits(); return; }
   if (UI.isOn('s-radio')) { closeRadioLog(); return; }
@@ -1770,6 +1774,67 @@ for (const h of document.querySelectorAll('[data-fold]')) {
 $('fb-text').addEventListener('input', fbCount);
 for (const k of ['keydown', 'keyup', 'keypress']) $('fb-text').addEventListener(k, (e) => { e.stopPropagation(); if (k === 'keydown' && e.key === 'Escape') closeFeedback(); });     // typing is not the game's keys; Escape shuts the form
 $('fb-x').onclick = closeFeedback; $('fb-cancel').onclick = closeFeedback;
+
+// ---------------------------------------------------------------- (0.62.22) Twitch chat
+// A streamer connects their channel (Settings > TWITCH); the game reads its chat, nothing more. Chatters name the SEAF troopers
+// coming down, and every couple of minutes chat votes for help or trouble (chatplay.js; what each does: sim/chat.js).
+const TW_KEY = 'ofs.twitch';
+const twOpt = { ch: '', on: false, names: true, votes: true };
+try { Object.assign(twOpt, JSON.parse(localStorage.getItem(TW_KEY) || '{}')); } catch { /* defaults */ }
+const twSave = () => { try { localStorage.setItem(TW_KEY, JSON.stringify(twOpt)); } catch { /* not remembered */ } };
+const chatPlay = new ChatPlay(); chatPlay.names = twOpt.names !== false; chatPlay.votes = twOpt.votes !== false;
+const twitch = new TwitchChat((user, text, name) => chatPlay.onChat(user, text, name), () => twShow());
+function twShow() {
+  const s = twitch.state, on = s === 'on' || s === 'connecting';
+  $('tw-go').textContent = t(on ? 'tw.disconnect' : 'tw.connect');
+  $('tw-go').classList.toggle('primary', !on);
+  $('tw-msg').className = 'fine fb-msg' + (s === 'error' || s === 'bad' ? ' bad' : s === 'on' ? ' ok' : '');
+  $('tw-msg').textContent = t('tw.st.' + s, { ch: twitch.channel, n: chatPlay.pool.length });
+}
+let twUnder = null;
+function openTwitch() {
+  twUnder = ['s-settings'].find((id) => UI.isOn(id)) || null;
+  if (twUnder) UI.overlay(twUnder, false);
+  $('tw-ch').value = twitch.channel || twOpt.ch || ''; $('tw-names').checked = chatPlay.names; $('tw-votes').checked = chatPlay.votes;
+  twShow(); UI.overlay('s-twitch', true);
+}
+function closeTwitch() { UI.overlay('s-twitch', false); if (twUnder) UI.overlay(twUnder, true); twUnder = null; }
+function twToggle() {
+  audio.click();
+  if (twitch.state === 'on' || twitch.state === 'connecting') { twitch.disconnect(); twOpt.on = false; chatPlay.reset(); }
+  else { const ok = twitch.connect($('tw-ch').value); if (ok) { twOpt.ch = twitch.channel; twOpt.on = true; chatPlay.reset(); } }
+  twSave(); twShow();
+}
+$('btn-twitch-m').onclick = openTwitch; $('tw-x').onclick = closeTwitch; $('tw-close').onclick = closeTwitch; $('tw-go').onclick = twToggle;
+$('tw-ch').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') twToggle(); else if (e.key === 'Escape') closeTwitch(); });
+$('tw-names').onchange = (e) => { chatPlay.names = twOpt.names = e.target.checked; twSave(); };
+$('tw-votes').onchange = (e) => { chatPlay.votes = twOpt.votes = e.target.checked; twSave(); };
+if (twOpt.on && twOpt.ch) twitch.connect(twOpt.ch);     // the channel from last time
+// each frame of play: names waiting for the next troopers, the vote, and its readout at the top of the screen
+let twDrawT = 0, twLast = '';
+function twTick(m, dt) {
+  const box = $('tw-vote'), live = twitch.state === 'on' && !tut;
+  if (!live) { if (twLast !== 'off') { box.classList.add('hidden'); twLast = 'off'; } if (m.guests.length) m.guests.length = 0; return; }
+  chatPlay.topUp(m);
+  const r = chatPlay.tick(m, true);
+  if (r) {
+    const what = r.kind ? t('tw.opt.' + r.kind) : '';
+    m.notice(!r.kind ? t('tw.none') : t(r.ok ? 'tw.won' : 'tw.fail', { what }), !r.kind ? 'dim' : r.ok ? (CHAT_HELP[r.kind] ? 'good' : 'bad') : 'dim');
+    if (r.kind && r.ok) audio.click();
+  }
+  twDrawT -= dt; if (twDrawT > 0 && !r) return; twDrawT = 0.25;
+  const v = chatPlay.view(m), mmss = (s) => `${Math.floor(s / 60)}:${String(Math.ceil(s) % 60).padStart(2, '0')}`;
+  let key, head, time, rows = '', foot = '';
+  if (v.open) {
+    const top = Math.max(1, ...v.options.map((o) => o.n));
+    head = t('tw.vote'); time = mmss(Math.min(v.left, C.twitch.voteSec - 0.01)); foot = t('tw.how');
+    rows = v.options.map((o, i) => `<div class="tw-o${CHAT_HELP[o.kind] ? '' : ' bad'}"><i style="width:${Math.round(o.n / top * 100)}%"></i><span><kbd>!${i + 1}</kbd>${t('tw.opt.' + o.kind)}</span><b>${o.n}</b></div>`).join('');
+    key = 'v' + time + v.options.map((o) => o.n).join(',');
+  } else if (chatPlay.votes && !m.over) { head = t('tw.next'); time = mmss(Math.min(v.next, 5999)); key = 'n' + time; }
+  else { head = t('tw.idle', { n: chatPlay.pool.length }); time = ''; key = 'i' + chatPlay.pool.length; }
+  if (key === twLast) return; twLast = key;
+  box.classList.remove('hidden'); $('tw-vh').textContent = head; $('tw-t').textContent = time; $('tw-rows').innerHTML = rows; $('tw-f').textContent = foot;
+}
 $('fb-send').onclick = () => {
   const m = mission, where = state === 'play' && m ? `mission ${m.missionN}, ${m.faction.id}, level ${m.difficulty}` : state;
   const r = feedFeedback($('fb-text').value, { callsign: (session && session.callsign) || S.load('callsign', ''), version: C.share.version, device: fbDevice(), where,
@@ -2232,7 +2297,7 @@ function frame(ts) {
       // (0.62.2) a step that throws used to take the whole frame down with it: the picture stopped, and since the pause skips
       // the step the game looked alive again the moment it was paused and froze again on resume. Now the step is caught and
       // the frame carries on drawing, so the player keeps the map, the pause and the menu whatever happens in here.
-      try { simulate(dt, now); ambient(mission, dt); if (castRadio && !mission.over) castRadio.tick(mission); } catch (err) { simBroke(err); }
+      try { simulate(dt, now); ambient(mission, dt); twTick(mission, dt); if (castRadio && !mission.over) castRadio.tick(mission); } catch (err) { simBroke(err); }
     }
     else if (tut && tut.held && mission.events.length) { for (const ev of mission.events) onEvent(ev, now); mission.events.length = 0; }   // (an order given with a card up counts)
     // The camera is the player's. It follows the squad only when locked on, and moves to a callout only when the player asks to
@@ -2369,7 +2434,7 @@ if (wipedOld) { $('tt-wiped').textContent = t('title.wiped'); $('tt-wiped').clas
 requestAnimationFrame((t) => { lastT = t / 1000; frame(t); });
 
 // Test hooks (used by the Playwright checks; harmless in production).
-window.__game = { hud, audio, music, get tut() { return tut; }, get frames() { return frame.n || 0; },
+window.__game = { hud, audio, music, twitch, chatPlay, get tut() { return tut; }, get frames() { return frame.n || 0; },
   get state() { return state; }, get mission() { return mission; }, get session() { return session; }, get info() { return info; },
   get paused() { return paused; }, get soft() { return soft; }, get speed() { return speed; }, softPause, togglePause, retryMission, toggleSpeed,
   cam, input, renderer, settings, order, get placing() { return placing; }, get drawing() { return drawing; }, squadAct, selectSquad, focusTeam, strokeBegin, strokeMove, strokeEnd, goShop, openArmory, closeArmory,

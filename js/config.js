@@ -20,6 +20,12 @@ export const CONFIG = {
   // ref: metres at which a source is at half loudness with the camera right down; height: how much of the view's width the
   // listener is above the ground (zoom out and everything is farther away).
   scape:    { pack: 2, packJoin: 75, stride: 0.25, fightSec: 1.5, fightMin: 3, fightFull: 16, voices: 8, voicesTouch: 5, ref: 70, height: 0.3, everySec: 0.25 },
+  // (0.62.22) Twitch chat (js/twitch.js, js/chatplay.js, sim/chat.js). The game only reads the streamer's chat. Chatters give SEAF
+  // troopers their names; every voteEvery seconds of mission time chat votes for voteSec seconds on one of `options`, and the
+  // winner happens. firstVote: seconds into a mission before the first one. troops: how many a chat-sent Pelican carries.
+  // pool: how many chatters are remembered. nameMax: letters of a name shown. ignore: bots that never get a trooper or a vote.
+  twitch:   { voteEvery: 120, voteSec: 30, firstVote: 60, options: ['troops', 'supply', 'patrol', 'flare'], troops: 4, pool: 300, nameMax: 14,
+              ignore: ['nightbot', 'streamelements', 'streamlabs', 'moobot', 'fossabot', 'wizebot', 'soundalerts', 'sery_bot'] },
   // (0.62.8) The score is switched off for now: the game is to be heard from the field (see audio.js, the sounds placed where
   // they are made). Set to true and the music, its volume and its style come back as they were.
   musicOn:  false,
@@ -740,5 +746,5 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.21' },
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.22' },
 };

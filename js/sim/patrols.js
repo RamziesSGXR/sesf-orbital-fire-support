@@ -134,6 +134,17 @@ function roamLaunch(m) {
   return made;
 }
 
+// (0.62.22) A patrol Twitch chat sent: one group in from the map's edge, coming straight for the squad.
+export function chatPatrol(m) {
+  if (m.enemies.length + m.groupSize > liveCap(m)) return 0;
+  const sp = edgeSpot(m, m.rrng.angle(), m.faction.spread);
+  if (!sp) return 0;
+  const g = spawnGroup(m, aoX(m, sp.x, 10), aoY(m, sp.y, 10), 'patrol');
+  g.patrol = true; g.roam = true; g.farT = 0; g.hunter = true; alertGroup(m, g);
+  m.emit('roam', { x: sp.x, y: sp.y, n: 1 });
+  return 1;
+}
+
 // The squad's heading, a little way ahead: where the enemy expects it to be in `lead` seconds.
 function predict(m, lead) {
   const sq = m.squad, sp = C.squad.speed * m.biome.speed * 0.75;

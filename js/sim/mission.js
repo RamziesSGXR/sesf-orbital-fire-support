@@ -200,6 +200,7 @@ export class Mission {
     this.support = { spawnT: 0, lastSpawn: -99, scanT: 0, near: 0 };
     this.chat = { t: 0, hd: 0, seaf: 0, moveAt: -99, heavyAt: -99, seafAt: -99, wasEngaged: false, lastState: '' };
     this.noticeAt = { seaf: -99 };
+    this.guests = [];     // (0.62.22) names from Twitch chat waiting for a trooper (main.js keeps it topped up)
     this.nuke = null;
     // The hour of the drop (cosmetic: it sets the light and the tint of the map, see render/sky.js). opts.tod forces it.
     this.tod0 = opts.tod ?? this.crng.range(0, 24);
@@ -882,6 +883,9 @@ export class Mission {
       a.hp = a.maxHp = Math.round(base.hp * st.hpMul); a.dmgMul = st.dmgMul;
       a.gren = st.grenades;            // (0.26) G-12 grenades, every role
       a.name = seafName(this.crng, a.role);
+      // (0.62.22) a chatter's name, if Twitch chat has one waiting: the rank stays, the surname is theirs
+      const gn = this.guests.length ? this.guests.shift() : null;
+      if (gn) { a.name = `${a.name.split(' ')[0]} ${gn}`; a.guest = gn; this.stats.guests = (this.stats.guests || 0) + 1; }
     }
     a.sight0 = base.sight * this.biome.ping;   // flat-ground sight; a rise adds to it (see _refreshAlive)
     a.zone0 = (C.sight.zoneBase[type === 'H' ? 'helldiver' : 'seaf'] || base.sight) * this.biome.ping;   // the strike zone does not grow with sight
@@ -1110,6 +1114,9 @@ export class Mission {
     if (isH) {
       this.notice(tr('n.kia', { who: this.tag(a), cause }) + (tm ? '  ' + tm.ship : ''), 'bad');
       if (this.hd.lives <= 0) this.radio(COMMS.noLives, 'nolives', 8);
+    } else if (a.guest) {     // (0.62.22) a trooper named after a chatter: always said, and chat is told
+      this.notice(tr('n.guestKia', { who: this.tag(a), cause }), 'bad');
+      this.emit('guest_down', { name: a.guest, x: a.x, y: a.y });
     } else if (t - this.noticeAt.seaf > 1.2) {
       this.noticeAt.seaf = t;
       this.notice(tr('n.kia', { who: this.tag(a), cause }), 'dim');
