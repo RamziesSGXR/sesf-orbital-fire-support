@@ -31,6 +31,7 @@ Recent changes, by version. The guide sections after this cover everything in fu
 - **Chat votes.** A minute into a mission, and every two minutes after, a vote opens at the top of the screen for half a minute. Chat types !1, !2, !3 or !4 (one vote each, the last one counts): a SEAF squad (a free Pelican of four beside the squad), a supply pod (free and already full), an enemy patrol hunting the squad, or enemy reinforcements called on it. The most votes wins; a tie is drawn; no votes, nothing happens. A pause holds the vote.
 - Both parts can be switched off on the Twitch screen. Nothing changes for anyone who has not connected a channel. Not available in the tutorial.
 - Scores: help from chat is not marked on the score feed.
+- **Android icon.** A second, full-bleed icon (img/icon-maskable-*.png, marked `maskable` in the manifest) fills Android's own icon shape, so it no longer sits small on a white disc. Remove the home-screen shortcut and add it again to see it.
 
 **Past level 8 the enemy gets heavier, not only more numerous (0.62.21).**
 - **From level 9 up, every level trades lights for mediums and heavies.** At level 8 about 83 of every 100 that come are light. At 10 it is 68, at 15 it is 32, and at level 20 there are none: only mediums (70) and heavies (30).
