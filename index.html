@@ -45,6 +45,8 @@
         <div id="alertc" class="bigcr alertc" data-tt="hud.alertTitle"><b id="alertc-v"></b><span id="alertc-n">CALM</span></div>
       </div>
     </div>
+    <!-- (0.62.22) Twitch chat: the vote, or the wait for the next one (only while a channel is connected) -->
+    <div id="tw-vote" class="panel hidden" aria-live="off"><div class="tw-h"><b id="tw-vh"></b><span id="tw-t"></span></div><div id="tw-rows"></div><div id="tw-f" class="tw-f"></div></div>
     <button id="showui" class="btn icon" type="button"><span data-t="hud.showUi">SHOW UI</span> <kbd data-k="hideUi">F2</kbd></button>
     <!-- top right: the clock, the mission and the difficulty, the score; the objective under it -->
     <div class="hud-tr">
@@ -458,7 +460,7 @@
     <div class="card">
       <button class="x-close" data-close="s-settings" data-ta="set.close">✕</button>
       <h2 data-t="ui.settings">SETTINGS</h2>
-      <div class="set-acts"><button id="btn-names-m" class="btn" type="button" data-t="ui.names">SQUAD NAMES</button><button id="btn-keys-m" class="btn desk-only" type="button" data-t="keys.change">CHANGE KEYS</button><button id="btn-hideui-m" class="btn" type="button"><span data-t="pause.hideUi">HIDE UI</span> <kbd data-k="hideUi">F2</kbd></button></div>
+      <div class="set-acts"><button id="btn-names-m" class="btn" type="button" data-t="ui.names">SQUAD NAMES</button><button id="btn-twitch-m" class="btn" type="button" data-t="tw.btn">TWITCH</button><button id="btn-keys-m" class="btn desk-only" type="button" data-t="keys.change">CHANGE KEYS</button><button id="btn-hideui-m" class="btn" type="button"><span data-t="pause.hideUi">HIDE UI</span> <kbd data-k="hideUi">F2</kbd></button></div>
       <div id="settings-body"></div>
       <div class="btns"><button id="btn-settings-close" class="btn primary" data-t="set.done">DONE</button></div>
     </div>
@@ -504,6 +506,22 @@
       <div class="map-key"><span class="k-hd">● <span data-t="map.k.allies">ALLIES</span></span><span class="k-en">■ <span data-t="map.k.enemies">ENEMIES</span></span><span class="k-rad">▪ <span data-t="map.k.radar">RADAR</span></span><span class="k-obj">◆ <span data-t="map.k.obj">OBJECTIVE</span></span><span class="k-base">○ <span data-t="map.k.base">ENEMY BASE</span></span><span class="k-poi">□ <span data-t="map.k.poi">TARGET</span></span><span class="k-side">◇ <span data-t="map.k.side">SIDE OBJECTIVE</span></span><span class="k-bcn">⊥ <span data-t="map.k.beacon">SEAF DROP</span></span><span class="k-boss">⊗ <span data-t="map.k.boss">SUPER HEAVY</span></span></div>
       <p class="fine" data-t="map.note"></p>
       <div class="btns"><button id="map-follow" class="btn" data-t="map.follow">FOLLOW SQUAD</button><button id="map-close" class="btn primary" data-t="map.back">BACK</button></div>
+    </div>
+  </section>
+
+  <!-- (0.62.22) Twitch chat: connect a channel so chat can name troopers and vote. Opens from Settings -->
+  <section id="s-twitch" class="screen overlay">
+    <div class="card fb-card">
+      <button class="x-close" id="tw-x" data-ta="ui.close">✕</button>
+      <div class="eyebrow" data-t="tw.eyebrow">For streamers</div>
+      <h2 data-t="tw.title">TWITCH CHAT</h2>
+      <p class="fine" data-t="tw.sub"></p>
+      <ol class="tw-steps"><li data-t="tw.s1"></li><li data-t="tw.s2"></li><li data-t="tw.s3"></li><li data-t="tw.s4"></li></ol>
+      <div class="tw-row"><label for="tw-ch" data-t="tw.label">Channel</label><input id="tw-ch" type="text" maxlength="60" autocomplete="off" autocapitalize="off" spellcheck="false" data-tp="tw.ph"><button id="tw-go" class="btn primary" type="button" data-t="tw.connect">CONNECT</button></div>
+      <p id="tw-msg" class="fine fb-msg" aria-live="polite"></p>
+      <label class="fb-chk"><input type="checkbox" id="tw-names" checked> <span data-t="tw.names"></span></label>
+      <label class="fb-chk"><input type="checkbox" id="tw-votes" checked> <span data-t="tw.votes"></span></label>
+      <div class="btns"><button id="tw-close" class="btn" type="button" data-t="ui.closeBtn">CLOSE</button></div>
     </div>
   </section>
 

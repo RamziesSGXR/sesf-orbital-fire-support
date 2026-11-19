@@ -64,6 +64,7 @@ kbd {
 .fb-chk input { width: 18px; height: 18px; accent-color: var(--g); }
 .fb-msg { min-height: 1.3em; color: var(--amber); }
 .fb-msg.ok { color: var(--g); }
+.fb-msg.bad { color: var(--red); }
 .card {
   width: min(94vw, 560px); padding: 22px 22px 18px; text-align: center; margin: auto;
   background: var(--panel); border: 1px solid var(--line); border-radius: 10px; backdrop-filter: blur(4px);
@@ -2771,3 +2772,25 @@ body.ui-scifi b { color: #fff; }
   #s-shop .item .it-btns { min-width: 104px; }
   #s-shop .item:not(.open) .it-btns .btn.buy { min-height: 40px; padding: 4px 8px; }
 }
+
+/* ---------- (0.62.22) Twitch chat ---------- */
+.tw-steps { margin: 6px 0 10px 0; padding-left: 22px; display: flex; flex-direction: column; gap: 5px; text-align: left; font-size: 13px; line-height: 1.35; }
+.tw-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; flex-wrap: wrap; }
+.tw-row label { font-size: 12px; opacity: 0.8; }
+#tw-ch { flex: 1; min-width: 150px; min-height: 44px; padding: 6px 10px; background: rgba(0, 0, 0, 0.45); color: var(--g); border: 1px solid var(--g-dim); font: inherit; font-size: 16px; user-select: text; -webkit-user-select: text; }
+#s-twitch .fb-chk { display: flex; align-items: center; gap: 8px; min-height: 36px; text-align: left; font-size: 13px; }
+#tw-vote { position: fixed; z-index: 6; left: 50%; top: max(8px, env(safe-area-inset-top)); transform: translateX(-50%); width: min(360px, 44vw); padding: 6px 10px 7px 10px; pointer-events: none; border-color: rgba(191, 148, 255, 0.6); }
+#tw-vote .tw-h { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 13px; letter-spacing: 0.08em; }
+#tw-vote .tw-h b { color: #bf94ff; }
+#tw-vote .tw-h span { color: #fff; font-weight: 700; }
+#tw-rows { display: flex; flex-direction: column; gap: 3px; margin-top: 5px; }
+#tw-rows:empty { display: none; }
+.tw-o { position: relative; display: flex; justify-content: space-between; gap: 8px; padding: 2px 6px; font-size: 12px; line-height: 1.3; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
+.tw-o i { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(191, 148, 255, 0.28); }
+.tw-o.bad i { background: rgba(255, 106, 77, 0.28); }
+.tw-o span, .tw-o b { position: relative; }
+.tw-o kbd { margin: 0 6px 0 0; min-width: 0; padding: 0 5px; color: #fff; border-color: rgba(255, 255, 255, 0.5); }
+.tw-f { margin-top: 4px; font-size: 11px; opacity: 0.8; }
+.tw-f:empty { display: none; }
+body.hide-ui #tw-vote { display: none; }
+@media (max-width: 760px), (max-height: 520px) { #tw-vote { width: min(250px, 46vw); top: calc(max(8px, env(safe-area-inset-top)) + 46px); } .tw-o { font-size: 11px; } }

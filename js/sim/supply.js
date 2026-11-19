@@ -88,6 +88,16 @@ function ask(m, a) {
   m.emit('supply_ask', { x: a.x, y: a.y, team: a.team });
 }
 // (0.37) The tutorial's resupply lesson: a Helldiver asks now (the one who needs it most, or the first), whatever the cooldown.
+// (0.62.22) A full pod nobody had to load (Twitch chat sent it): it lands by the squad now, and costs the player's own pod nothing.
+export function giftSupply(m) {
+  const S = m.supply, a = m.hdAlive[0];
+  if (!a || S.state !== 'idle') return false;
+  const cd = S.cdUntil, n = S.n;
+  S.drop = { x: a.x + 5, y: a.y + 4, frac: { stims: 1, grenades: 1, ammo: 1 }, fast: false };
+  land(m);
+  S.drop = null; S.cdUntil = cd; S.n = n;
+  return true;
+}
 export function askSupply(m) {
   const S = m.supply;
   if (!S || S.state !== 'idle' || !m.hdAlive.length || boardingNow(m)) return false;
