@@ -53,7 +53,13 @@ export function patrolCap(m, b) {
 }
 
 function launch(m, b, opts = {}) {
-  const route = makeRoute(m, b), start = opts.along ? route.pts[m.rng.int(route.pts.length)] : { x: b.x, y: b.y };
+  const route = makeRoute(m, b);
+  // (0.62.25) each patrol walks its own lane: its waypoints are set off to one side by a bearing of its own (the golden angle
+  // by how many this base has sent). Several patrols of one base used to turn round on the very same point, met there in
+  // formation, and stood in each other's places shaking until something drew them off.
+  { const n = (b.sent = (b.sent || 0) + 1), a = n * 2.39996, d = C.patrols.lane ?? 0, tr = m.terrain;
+    if (d) for (const p of route.pts) { const x = p.x + Math.cos(a) * d, y = p.y + Math.sin(a) * d; if (tr.isLand(x, y) && !tr.blocked(x, y)) { const q = aoClamp(m.ao, x, y, 25); p.x = q.x; p.y = q.y; } } }
+  const start = opts.along ? route.pts[m.rng.int(route.pts.length)] : { x: b.x, y: b.y };
   const g = spawnGroup(m, start.x, start.y, 'patrol', { emerge: !opts.along });
   g.route = route; g.ri = route.pts.indexOf(start) >= 0 ? route.pts.indexOf(start) : 0; g.rdir = 1; g.from = b; g.patrol = true;
   b.patrols.push(g);

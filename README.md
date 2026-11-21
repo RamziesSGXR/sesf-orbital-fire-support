@@ -25,6 +25,17 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**A cleaner map; groups that stand still; squids that keep apart (0.62.25).**
+- **No more dashed circles.** The rings round the launch site, bases, side objectives and your own buildings are gone. Dashed lines are now only your own marks: where a strike or pod will land, what you are placing, your squads' orders. Red warnings stay.
+- **The launch site has no symbol beside it,** and a side objective has no outline.
+- **Damage shows on the building, not on a bar.** Side objectives, bases, their turrets, cannons and shield nodes crack and scorch as they are hurt, smoke under about half health, and burn under a third. A destroyed side objective leaves a crater and rubble, not an X.
+- **Units are drawn flat with a small shadow.** The dark copy under each body, meant as its side, read as a smeared second shadow.
+- **No wavy ground round the squids.**
+- **Groups no longer shake on the spot.** A group standing at a base or walking a patrol was being pushed off its places by the rule that keeps enemies apart, and walking back, every other step. The formation now sets the room inside a group. The bots' line and block keep fixed places and turn smoothly, as the squids' arrow does.
+- **Patrols from one base walk their own lanes,** and two patrols meeting head on pass through each other instead of stopping in each other's places.
+- **Squids closing on a target keep apart.** A school that left its arrow to surround a target had nothing keeping it apart, so it arrived as one knot. Six in ten were under 3 m from a neighbour; now fewer than one in ten. It also fans out as it comes in.
+- Squids are harder for it: spread out, fewer of them are caught by one strike.
+
 **How bodies move, and quieter dashed lines (0.62.24).**
 - **Forward and back.** Everyone, friend and enemy, is a little quicker going the way they face (12%). One that has turned to fire and is still moving the other way is backing up, and slower: 68% of its pace straight backwards, 86% across its aim, in proportion in between. Advancing on what it fires at costs nothing.
 - **Momentum.** Heavies, mediums, every bug and anything going faster than 6.5 m/s no longer turn on the spot. The way they move swings round toward the way they want to go, and the faster they are going the wider the turn: a tank at walking pace comes round in about a second and a half, a charger at a sprint overshoots by more than ten metres. While it is swinging round a body goes slower. From a standstill it sets off any way it likes, and shuffling slowly onto its place it turns freely. Light bots, light squids and troopers on foot turn as before.

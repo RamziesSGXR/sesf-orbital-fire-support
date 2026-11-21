@@ -279,6 +279,7 @@ export function stirScenery(m, now, vb, fx) {
 // A coarse map of where the enemy has been (cells of PCELL metres): every half second each enemy in sight adds to its cell, its
 // bases keep theirs full, and everything fades (half gone in PHALF seconds). Drawn where it is strong enough.
 const PCELL = 24, PHALF = 50;
+import { CONFIG as C } from '../config.js';
 export function updatePresence(st, m, now) {
   if (!st.pres || st.presM !== m) { st.pres = new Map(); st.presM = m; st.presT = now; }
   if (now - st.presT < 0.5) return;
@@ -312,7 +313,7 @@ export function drawPresence(ctx, st, m, now, px, vb, low) {
       ctx.globalAlpha = 1;
     } else if (fac === 'squids') {
       // a heat haze: kept for after the loop (the ground under it is bent, all the cells in one go)
-      (haze || (haze = [])).push(cx, cy, a, h);
+      if (C.look && C.look.squidHaze) (haze || (haze = [])).push(cx, cy, a, h);     // (0.62.25) off: the wavy ground round the squids did not read as heat
     } else {
       // black smoke: dark puffs drifting up and away
       for (let i = 0; i < 3; i++) {

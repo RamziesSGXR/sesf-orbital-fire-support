@@ -12,6 +12,7 @@ import { TEAM_COLOR } from '../data/names.js';
 import { drawPoiArt, drawNukeSite, drawCrash, drawPad, drawLootArt, drawOilSite, drawDome, drawDomeHit, drawHellbomb } from './sites.js';
 import { pelicanBody, pelicanDetail } from './squads.js';
 import { sentryArt } from './posts.js';
+import { drawDamage, drawWreckCrater } from './sideart.js';
 
 const TAU = Math.PI * 2;
 const O = C.objective;
@@ -294,13 +295,8 @@ export function drawObjectives(ctx, m, now, px, labels, scale, pal) {
     if (o.type === 'nuke') {
       const r = o.r;
       raise(ctx, o, o.x, o.y, o.r * 1.5 + 6, 2.2, (c) => drawNukeSite(c, o, now, px), RAISE_L);
-      ctx.strokeStyle = o.state === 'armed' ? `rgba(255,70,50,${0.5 + 0.5 * pulse})` : col; ctx.lineWidth = px(active ? 2.2 : 1.4);
-      ctx.setLineDash([px(8), px(6)]); ctx.lineDashOffset = -now * px(8); ring(ctx, o.x, o.y, r); if (!VIEW.quiet) ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
-      // a small trefoil beside the pad, so the site reads as the launch site from far out
-      const rr = Math.max(4, px(8)), tx = o.x + r * 0.7, ty = o.y - r * 0.7;
-      ctx.fillStyle = col;
-      for (let k = 0; k < 3; k++) { const a0 = k * (TAU / 3) - Math.PI / 2 - 0.5; ctx.beginPath(); ctx.moveTo(tx, ty); ctx.arc(tx, ty, rr, a0, a0 + 1.05); ctx.closePath(); ctx.fill(); }
-      ctx.fillStyle = '#000'; ring(ctx, tx, ty, rr * 0.22); ctx.fill();
+      // (0.62.25) no ring round the site and no trefoil beside it: the pad is the mark. Armed, the ground it will take pulses red.
+      if (o.state === 'armed') { ctx.strokeStyle = `rgba(255,70,50,${0.5 + 0.5 * pulse})`; ctx.lineWidth = px(2.2); ring(ctx, o.x, o.y, r); ctx.stroke(); }
       if (!o.done && (o.state === 'hold' || o.state === 'armed')) {
         const f = o.state === 'armed' ? 1 : o.holdT / O.nuke.holdSec;
         ctx.strokeStyle = o.state === 'armed' ? '#ff5a3a' : '#7dff9b'; ctx.lineWidth = px(4);
@@ -677,19 +673,16 @@ export function drawPois(ctx, m, now, px, labels, scale, pal) {
   }
   for (const p of m.pois) {
     if (p.done) {
-      const r = Math.max(p.r * 0.5, px(6));
-      ctx.strokeStyle = 'rgba(160,170,165,0.4)'; ctx.lineWidth = px(1.4);
-      ctx.beginPath(); ctx.moveTo(p.x - r, p.y - r); ctx.lineTo(p.x + r, p.y + r); ctx.moveTo(p.x + r, p.y - r); ctx.lineTo(p.x - r, p.y + r); ctx.stroke();
+      drawWreckCrater(ctx, p.x, p.y, Math.max(p.r * 0.62, 4), p.id || 1, now);     // (0.62.25) what is left: a crater and rubble, not an X
       continue;
     }
     const hit = t - p.hurtAt < 0.12, R = Math.max(p.r, px(9)), seen = m.visLevel(p.x, p.y) > 0;
     const col = hit ? '#ffffff' : seen ? '#ffb020' : 'rgba(255,176,32,0.65)';
     raise(ctx, p, p.x, p.y, Math.max(p.r, px(9)) * 1.7, 1.6, (c) => drawPoiArt(c, p, m.faction.id, pal.enemy, seen, now, px), { wall: 0.56, live: true, sig: (seen ? 1 : 0) + (hit ? 2 : 0) });
-    ctx.strokeStyle = col; ctx.lineWidth = px(seen ? 1.6 : 1.2);
-    ctx.setLineDash([px(4), px(4)]); ctx.globalAlpha = 0.7; ring(ctx, p.x, p.y, R); if (!VIEW.quiet) ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
-    ctx.fillStyle = 'rgba(255,176,32,0.07)'; ring(ctx, p.x, p.y, R); ctx.fill();
+    // (0.62.25) no outline round it and no health bar under it: the building shows its own damage (drawDamage)
+    drawDamage(ctx, p.x, p.y, R * 0.62, p.hp / p.maxHp, p.id || 1, now, px);
+    void col;
     if (tgs.has(p)) bracket(ctx, p.x, p.y, R * 1.5, px(1.8), pal.ally);
-    if (p.hp < p.maxHp) hpBar(ctx, p.x, p.y + R * 1.15, R * 2, px(4), p.hp / p.maxHp, '#ffb020');
     labels.push({ x: p.x, y: p.y, dy: -R * scale - 6, text: `${p.name}  +${p.reward}`, col: '#ffb020' , pri: 1 });
   }
 }

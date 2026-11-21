@@ -28,8 +28,8 @@ export function drawAoEdge(ctx, m, px, x0, y0, x1, y1) {
   ctx.beginPath(); ctx.rect(x0, y0, x1 - x0, y1 - y0); ctx.arc(a.cx, a.cy, R, 0, Math.PI * 2, true); ctx.fill('evenodd');
   ctx.strokeStyle = 'rgba(255,200,40,0.12)'; ctx.lineWidth = px(14);
   ring(ctx, a.cx, a.cy, R - px(7)); ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,200,40,0.75)'; ctx.lineWidth = px(2); ctx.setLineDash([px(14), px(8)]);
-  ring(ctx, a.cx, a.cy, R); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle = 'rgba(255,200,40,0.45)'; ctx.lineWidth = px(1.6);
+  ring(ctx, a.cx, a.cy, R); ctx.stroke();     // (0.62.25: the edge of the map, a plain line)
 }
 
 // A radio tower (sideart.js radioBody), raised; online, it pulses blue.
