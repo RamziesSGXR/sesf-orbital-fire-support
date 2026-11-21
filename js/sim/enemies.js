@@ -518,27 +518,69 @@ function homeOf(g, e) {
 }
 const isLeader = (e) => e.kind !== 'L';
 // Bots and bugs: slots in the group's own frame (forward = the way it is heading, or at its target once it hunts). Twice a second.
-function arrangeForm(g) {
-  const F = C.formations, hunt = g.state === 'hunt', hx = hunt ? g.ux : g.hx, hy = hunt ? g.uy : g.hy, sx = -hy, sy = hx;
+function arrangeForm(g, t) {
+  const F = C.formations, hunt = g.state === 'hunt', hx = hunt ? g.ux : g.hx, hy = hunt ? g.uy : g.hy;
   const live = g.members.filter((q) => !q.dead && !q.boss);
-  const put = (q, fwd, side) => { q.ox = hx * fwd + sx * side; q.oy = hy * fwd + sy * side; };
   const open = formOpen(live);     // (0.62.23) wider with heavies in it
   if (g.form === 'trail') {
+    const sx = -hy, sy = hx, put = (q, fwd, side) => { q.ox = hx * fwd + sx * side; q.oy = hy * fwd + sy * side; };
     const order = live.filter(isLeader).concat(live.filter((q) => !isLeader(q))), gap = F.bugs.gap * open, n = order.length;
     order.forEach((q, i) => { q.fol = i && !isLeader(q) ? order[i - 1] : null; put(q, ((n - 1) / 2 - i) * gap, 0); });
     return;
   }
   if (g.form === 'swarm') { for (const q of live) q.fol = null; return; }
-  const lead = live.filter(isLeader), rest = live.filter((q) => !isLeader(q));
-  const lineSp = F.bots.line.spacing * open, blk = F.bots.block.spacing * open;
-  if (g.form === 'line') {
-    rest.forEach((q, i) => put(q, 0, (i - (rest.length - 1) / 2) * lineSp));
-    lead.forEach((q, i) => put(q, -F.bots.rank * open, (i - (lead.length - 1) / 2) * lineSp));
-  } else {
-    const cols = Math.max(1, Math.ceil(Math.sqrt(rest.length))), rows = Math.max(1, Math.ceil(rest.length / cols));
-    rest.forEach((q, i) => put(q, ((rows - 1) / 2 - Math.floor(i / cols)) * blk, ((i % cols) - (cols - 1) / 2) * blk));
-    lead.forEach((q, i) => put(q, -((rows - 1) / 2 + 1) * blk - blk * 0.5, (i - (lead.length - 1) / 2) * blk));
+  // (0.62.25) The bots' line and block, as the squids' arrow has been since 0.62.4: every place is fixed in the formation and
+  // handed out once (when the group changes size, or turns right round), by where each one already stands; the formation turns
+  // toward its heading at a limited rate, where it used to swing round with every change of heading and re-deal its places
+  // twice a second; and the group's own point waits for it (formPace). Before, a patrol's members were 6 to 11 m off their
+  // places the whole time and bunched 4 m apart, shaking, as the spacing pass pushed them off each other.
+  const W = F.squids.wedge, want = Math.atan2(hy, hx);
+  if (g.wA === undefined) { g.wA = want; g.wSharp = t; }
+  {
+    const d = wrap(want - g.wA), lim = W.turn * 2 * (g.wT === undefined ? 0 : Math.max(0, t - g.wT));
+    if (Math.abs(d) <= W.flip) g.wSharp = t;
+    if (t - (g.wSharp ?? t) > W.flipSec) { g.wA = want; g.formKey = ''; g.wSharp = t; }
+    else if (Math.abs(d) <= W.flip) g.wA += Math.max(-lim, Math.min(lim, d));
+    g.wT = t;
   }
+  const fx = Math.cos(g.wA), fy = Math.sin(g.wA);
+  const lead = live.filter(isLeader), rest = live.filter((q) => !isLeader(q)), key = g.form + ':' + rest.length + ':' + lead.length;
+  if (key !== g.formKey) {
+    g.formKey = key;
+    const along = (q) => (q.x - g.cx) * fx + (q.y - g.cy) * fy, across = (q) => -(q.x - g.cx) * fy + (q.y - g.cy) * fx;
+    const deal = (who, slots) => {     // rows from the front, each row left to right, to whoever is already nearest that way
+      slots.sort((a, b) => b.f - a.f || a.s - b.s);
+      const by = who.slice().sort((a, b) => along(b) - along(a));
+      for (let i = 0; i < slots.length;) {
+        let j = i; while (j < slots.length && slots[j].f === slots[i].f) j++;
+        by.slice(i, j).sort((a, b) => across(a) - across(b)).forEach((q, k) => { q.sF = slots[i + k].f; q.sS = slots[i + k].s; });
+        i = j;
+      }
+    };
+    const lineSp = F.bots.line.spacing, blk = F.bots.block.spacing;
+    if (g.form === 'line') {
+      deal(rest, rest.map((q, i) => ({ f: 0, s: (i - (rest.length - 1) / 2) * lineSp })));
+      deal(lead, lead.map((q, i) => ({ f: -F.bots.rank, s: (i - (lead.length - 1) / 2) * lineSp })));
+    } else {
+      const cols = Math.max(1, Math.ceil(Math.sqrt(rest.length))), rows = Math.max(1, Math.ceil(rest.length / cols));
+      deal(rest, rest.map((q, i) => ({ f: ((rows - 1) / 2 - Math.floor(i / cols)) * blk, s: ((i % cols) - (cols - 1) / 2) * blk })));
+      deal(lead, lead.map((q, i) => ({ f: -((rows - 1) / 2 + 1) * blk - blk * 0.5, s: (i - (lead.length - 1) / 2) * blk })));
+    }
+  }
+  for (const q of live) { const f = (q.sF || 0) * open, sd = (q.sS || 0) * open; q.ox = fx * f - fy * sd; q.oy = fy * f + fx * sd; }
+  formLag(g, live);
+}
+// How far behind its places a formation is (the mean, over those not busy shooting): its own point waits for it (formPace).
+function formLag(g, live) {
+  const aR = AOB ? (AOB.R || AOB.size / 2) - 3 : 0;
+  let lag = 0, ln = 0;
+  for (const q of live) if (!q.tgt) {
+    let sx = g.cx + q.ox, sy = g.cy + q.oy;
+    if (AOB) { const dx = sx - AOB.cx, dy = sy - AOB.cy, d2 = dx * dx + dy * dy; if (d2 > aR * aR) { const k = aR / Math.sqrt(d2); sx = AOB.cx + dx * k; sy = AOB.cy + dy * k; } }     // (a place past the rim of the map: as near to it as anyone can stand)
+    if (NAV && (NAV.blocked(sx, sy) || !NAV.isLand(sx, sy))) continue;     // (a place in water or rock: nobody can stand there, so the formation does not wait for it)
+    lag += Math.hypot(q.x - sx, q.y - sy); ln++;
+  }
+  g.lag = ln ? lag / ln : 0;
 }
 // (0.62.23) A formation with heavies in it stands wider: its spacing grows by up to formations.heavyOpen when it is all heavies,
 // so they have the room they keep (enemies.spread.roomBy) without leaving their places.
@@ -602,22 +644,9 @@ function arrangeSchool(g, t) {
     const f = (q.sF || 0) * W.row * burst * open, sd = (q.sS || 0) * W.gap * burst * open;
     q.ox = fx * f - fy * sd; q.oy = fy * f + fx * sd;
   }
-  // How far behind its places the school is (the mean, over those not busy shooting): its own point waits for it (schoolPace),
-  // so the arrow forms and holds instead of its point running off ahead of a crowd that never catches it.
-  let lag = 0, ln = 0;
-  const aR = AOB ? (AOB.R || AOB.size / 2) - 3 : 0;
-  for (const q of live) if (!q.tgt) {
-    let sx = g.cx + q.ox, sy = g.cy + q.oy;
-    if (AOB) { const dx = sx - AOB.cx, dy = sy - AOB.cy, d2 = dx * dx + dy * dy; if (d2 > aR * aR) { const k = aR / Math.sqrt(d2); sx = AOB.cx + dx * k; sy = AOB.cy + dy * k; } }     // (a place past the rim of the map: as near to it as anyone can stand)
-    // (0.62.8) one that is AHEAD of its place (nearer where the school is going than its place is) is not behind: on a hunt the
-    // squids near enough to go for the ring ran on, that read as the school falling behind, and its point stopped to wait
-    const T = g.tp || g.target;
-    if (T && (q.x - T.x) ** 2 + (q.y - T.y) ** 2 < (sx - T.x) ** 2 + (sy - T.y) ** 2) { ln++; continue; }
-    lag += Math.hypot(q.x - sx, q.y - sy); ln++;
-  }
-  g.lag = ln ? lag / ln : 0;
+  formLag(g, live);
 }
-const schoolPace = (g) => { const W = C.formations.squids.wedge; return Math.max(W.wait, Math.min(1, 1 - ((g.lag || 0) - W.slack) / W.leash)); };
+const formPace = (g) => { if (g.lag === undefined) return 1; const W = C.formations.squids.wedge; return Math.max(W.wait, Math.min(1, 1 - ((g.lag || 0) - W.slack) / W.leash)); };
 
 // ---------------------------------------------------------------- how each faction fights
 const TAU = Math.PI * 2;
@@ -675,9 +704,9 @@ function arrangeLine(g, L) {
 function lineMove(m, g, e, tgt, dt, size) {
   const L = C.enemies.tactics.line;
   if ((e.tgt || e.vol) && holdHere(e)) { e.vx = 0; e.vy = 0; return; }   // something is in range: stand and shoot
-  if (!tgt) { moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size); return; }
+  if (!tgt) { e.fs = m.t; moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size); return; }
   const range = profileOf(m.faction.id, e).range, d = Math.hypot(tgt.x - e.x, tgt.y - e.y);
-  if (d > L.arm + range) { moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size); return; }   // (still marching: its slot in the line or the block)
+  if (d > L.arm + range) { e.fs = m.t; moveToward(e, g.cx + e.ox, g.cy + e.oy, e.speed * 1.5, dt, size); return; }   // (still marching: its slot in the line or the block)
   const stand = standCap(e, range, e.tgt || tgt) * L.standoff + (e.kind === 'H' ? L.tankBack : e.kind === 'M' ? L.rank * 0.5 : 0) + (e.sub === 'cmd' ? L.rank * 1.1 : 0), nx = -g.uy, ny = g.ux;   // (the leaders stand behind the line)
   moveToward(e, tgt.x - g.ux * stand + nx * (e.lane || 0), tgt.y - g.uy * stand + ny * (e.lane || 0), e.speed * 1.3, dt, size);
 }
@@ -711,7 +740,7 @@ function schoolTo(m, g, e, dt, size) {
   const far = (e.x - g.cx) ** 2 + (e.y - g.cy) ** 2 > C.formations.squids.lost ** 2;
   const sp = e.speed * 1.5 * startled(g, m.t);
   if (far) moveToward(e, g.cx, g.cy, sp, dt, size);
-  else moveToward(e, g.cx + e.ox, g.cy + e.oy, sp, dt, size);
+  else { e.fs = m.t; moveToward(e, g.cx + e.ox, g.cy + e.oy, sp, dt, size); }     // (fs: the moment it was last heading for its place in the formation; mission._spread)
 }
 function ringMove(m, g, e, tgt, dt, size, atk, engaged) {
   const R = C.enemies.tactics.ring;
@@ -736,7 +765,17 @@ function ringMove(m, g, e, tgt, dt, size, atk, engaged) {
   const cur = Math.atan2(e.y - tgt.y, e.x - tgt.x), diff = e.slot === undefined ? 0 : wrap(e.slot - cur);
   const inPlace = Math.abs(diff) < 0.3 && Math.abs(d - Rw) < R.slack;
   if (inPlace) { e.vx = 0; e.vy = 0; return; }   // in position: stand and shoot (the attack step does the rest)
-  const sp = e.speed * 1.4, step = Math.min(Math.abs(diff), Math.max(2.5, sp * 0.35) / Math.max(8, Rw));   // aim a few metres ahead along the ring
+  const sp = e.speed * 1.4;
+  // (0.62.25) Still well out from the ring: it heads for the ring up to `fan` radians round from where it is, toward its own
+  // place on it, so the school opens out as it comes in. Before, each one aimed at the ring a few metres along from its own
+  // bearing; coming from a hundred metres off they all had the same bearing, so they closed into one knot on the way in and
+  // only spread once they stood on the ring.
+  if (d > Rw + R.fanFrom) {
+    const a2 = cur + diff * (R.fan / Math.PI);     // (in proportion: places all the way round the ring map onto an arc of ±fan, evenly)
+    moveToward(e, tgt.x + Math.cos(a2) * Rw, tgt.y + Math.sin(a2) * Rw, sp, dt, size);
+    return;
+  }
+  const step = Math.min(Math.abs(diff), Math.max(2.5, sp * 0.35) / Math.max(8, Rw));   // aim a few metres ahead along the ring
   const ang = cur + Math.sign(diff) * step;
   moveToward(e, tgt.x + Math.cos(ang) * Rw, tgt.y + Math.sin(ang) * Rw, sp, dt, size);
 }
@@ -773,7 +812,7 @@ export function updateEnemies(m, dt) {
       g.lx = g.cx; g.ly = g.cy;
       if (md > 0.01) { const k = Math.min(1, dt * 3), hx = g.hx + (mx / md - g.hx) * k, hy = g.hy + (my / md - g.hy) * k, hn = Math.hypot(hx, hy) || 1; g.hx = hx / hn; g.hy = hy / hn; }
       if (fac.id === 'squids') arrangeSchool(g, t);
-      else if ((g.formT -= dt) <= 0) { g.formT = 0.5; arrangeForm(g); }
+      else arrangeForm(g, t);     // (0.62.25: every step; the places no longer change when it runs)
     }
 
     // Notice allies at the enemy's own (shorter) sight, four times a second.
@@ -816,14 +855,14 @@ export function updateEnemies(m, dt) {
         goal = g.pt;
       }
       const o = g.mv || (g.mv = { x: 0, y: 0, nv: null, nvc: null }); o.x = g.cx; o.y = g.cy; o.nv = g.nv;
-      moveToward(o, goal.x, goal.y, minSpeed * pace * (fac.id === 'squids' ? schoolPace(g) : 1), dt, size);
+      moveToward(o, goal.x, goal.y, minSpeed * pace * formPace(g), dt, size);
       g.cx = o.x; g.cy = o.y; g.nv = o.nv;
       for (const e of g.members) {
         if (e.dead) continue;
         e.tgt = null;
         if (e.stunUntil > t) { e.vx = 0; e.vy = 0; continue; }
-        const h = homeOf(g, e);
-        moveToward(e, h.x, h.y, e.speed * (fac.id === 'squids' ? ((e.x - h.x) ** 2 + (e.y - h.y) ** 2 > 9 ? 1.6 : 1.1) : 0.8), dt, size);     // (0.62.4: a squid keeps up with its place in the arrow)
+        const h = homeOf(g, e); if (!e.fol && e.ox !== undefined) e.fs = t;
+        moveToward(e, h.x, h.y, e.speed * (g.lag !== undefined && !e.fol ? ((e.x - h.x) ** 2 + (e.y - h.y) ** 2 > 9 ? 1.6 : 1.1) : 0.8), dt, size);     // (0.62.4: a squid keeps up with its place in the arrow)
       }
       continue;
     }
@@ -885,7 +924,7 @@ export function updateEnemies(m, dt) {
     const tgt = g.target && !g.target.dead ? g.target : null;
     if (!engaged && g.tp) {
       const o = g.mv || (g.mv = { x: 0, y: 0, nv: null, nvc: null }); o.x = g.cx; o.y = g.cy; o.nv = g.nv;
-      moveToward(o, g.tp.x, g.tp.y, minSpeed * (fac.id === 'squids' ? schoolPace(g) : 1), dt, size);
+      moveToward(o, g.tp.x, g.tp.y, minSpeed * formPace(g), dt, size);
       g.cx = o.x; g.cy = o.y; g.nv = o.nv;
     }
     // Which way the group is facing the target and how its members line up across it (used by the firing line).

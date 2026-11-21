@@ -14,6 +14,7 @@ export function quietDashes(ctx, k) {
     ctx.stroke = (...a) => {
       const q = ctx._qd;
       if (!q.on || q.k >= 1 || VIEW.loud || isWarn(ctx.strokeStyle)) return stroke(...a);
+      if (q.k <= 0) return;     // (0.62.25) not drawn at all
       const g = ctx.globalAlpha; ctx.globalAlpha = g * q.k; stroke(...a); ctx.globalAlpha = g;
     };
   }

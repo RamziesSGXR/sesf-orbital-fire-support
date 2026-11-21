@@ -24,7 +24,8 @@ export const CONFIG = {
   // outline round a cluster. heavy: the ring round a heavy with no shield up (none is drawn while its shield is up).
   //   (0.62.24) dash: every dashed line on the map (area edge, pickup rings, objective rings, reaches) is drawn at this much of its
   //   strength; not while something is being placed or a squad's orders are shown, and never a red one (a warning).
-  rings:    { zone: 0.2, zoneOut: 0.62, shieldFill: 0.06, shieldLine: 0.34, heavy: 0.4, dash: 0.4 },
+  look:     { unitSides: false, squidHaze: false },     // (0.62.25) both off: the units' dark "sides" and the squids' heat haze
+  rings:    { zone: 0.2, zoneOut: 0.62, shieldFill: 0.06, shieldLine: 0.34, heavy: 0.4, dash: 0 },     // (0.62.25) dash 0: a dashed line that is not the player's own mark or a warning is not drawn at all
   // (0.62.24) How bodies move (Mission._walk). fwd: pace going the way it faces; back / side: pace of one that has turned to fire
   // and is moving straight backwards / straight across its aim (in between, in proportion). Momentum: heavies (by faction), mediums,
   // every bug, and anything faster than `fast` m/s swing their heading at no more than acc / speed radians a second (never more
@@ -299,7 +300,7 @@ export const CONFIG = {
               tactics: {
                 swarm: { callRadius: 130, rushMul: 1.25, rushN: 8, weave: 3.5, fan: 0.6, arc: 2.0, reach: 48 },
                 line:  { standoff: 0.62, spacing: 4.4, rank: 4.5, tankBack: 10, arm: 70 },
-                ring:  { radius: 0.66, arm: 95, slack: 5 },
+                ring:  { fan: 1.25, fanFrom: 8, radius: 0.66, arm: 95, slack: 5 },
                 // (0.62.2) An enemy shooting a building of the player's walks into that building's own reach x closeIn, so a gun
                 // it is chipping at can shoot back: standing outside a turret nest's range and plinking it was free damage.
                 closeIn: 0.8,
@@ -358,17 +359,17 @@ export const CONFIG = {
   //          its size at `startle.speed` times its pace, and closes up again over `startle.sec` seconds; it cannot be startled again
   //          for `startle.rest` seconds after that.
   formations: {
-    heavyOpen: 0.9,     // (0.62.23) every formation's spacing grows by up to this much (all heavies) with the share of heavies in it
+    heavyOpen: 1.5,     // (0.62.23) every formation's spacing grows by up to this much (all heavies) with the share of heavies in it
     bots:   { square: 0.45, line: { spacing: 8 }, block: { spacing: 6.5 }, rank: 8 },     // (0.62.5: 6.5 / 5.2 / 7; they stood shoulder to shoulder)
     bugs:   { trail: 0.5, gap: 4.5 },     // (0.62.5: 3.2)
     squids: { hold: 1.0, startle: { mul: 1.6, sec: 4, speed: 1.6, rest: 5 }, lost: 42,
-              wedge: { gap: 8.5, row: 7.5, turn: 0.3, flip: 1.3, flipSec: 2.5, slack: 2.5, leash: 7, wait: 0.12 } },     // (0.62.4) the school is an arrowhead: metres between places across and front to back, how fast it turns (rad/s); a turn over `flip` radians re-forms it facing the new way; its point slows once the school is `slack` m behind its places on average and all but stops (`wait`) at slack + `leash`     // (0.62.2) lost: this far from its school and it swims back to the school itself, not to its own place in it
+              wedge: { gap: 8.5, row: 7.5, turn: 0.3, flip: 1.3, flipSec: 2.5, slack: 2.5, leash: 7, wait: 0.35 } },     // (0.62.4) the school is an arrowhead: metres between places across and front to back, how fast it turns (rad/s); a turn over `flip` radians re-forms it facing the new way; its point slows once the school is `slack` m behind its places on average and all but stops (`wait`) at slack + `leash`     // (0.62.2) lost: this far from its school and it swims back to the school itself, not to its own place in it
   },
   // Patrols: every base keeps perBase (more later in the session and the mission, up to maxPerBase) out on a route of its own, radius
   // metres out, replacing a lost one every `every` seconds while it stands; atStart are out at the drop. An intercept is a patrol
   // already waiting out of sight where the squad is heading (interceptLead seconds ahead), every interceptSec; forgotten once the
   // squad has been far from it for interceptForget seconds. Patrols walk at speed x their own pace.
-  patrols:  { perBase: 2, fortressExtra: 2, maxPerBase: 5, perSessionMin: 40, perMissionMin: 8, atStart: 2, every: 55, radius: [90, 230],
+  patrols:  { lane: 26, perBase: 2, fortressExtra: 2, maxPerBase: 5, perSessionMin: 40, perMissionMin: 8, atStart: 2, every: 55, radius: [90, 230],
               interceptFirst: 40, interceptSec: 55, interceptLead: 22, interceptForget: 50, speed: 0.6, investigateSec: 35 },
   // (0.31) Off-map patrols: groups that walk in from the edge of the map for the whole mission, bases or no bases, so a cleared map
   // never goes quiet. The first comes after firstSec; then one every `every` seconds, shorter by perMin for every minute of the
@@ -760,5 +761,5 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.24' },
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.25' },
 };

@@ -18,6 +18,7 @@ import { beaconAt } from '../sim/sides.js';
 import { drawBossArrival, arriving } from './bossin.js';
 import { drawFlares, drawHoles, drawDrops, drawEvac, drawAcidPools, drawMotherGround, drawMotherSky, drawExtraction, drawExtractionPelican, critText, drawSupply } from './reinf.js';
 import { drawBaseArt, drawBaseRuin, drawCover, drawCitadelWalls, drawCannonArt, drawNodeArt } from './sites.js';
+import { drawDamage } from './sideart.js';
 import { drawPosts, postArt, lzArt, cone } from './posts.js';
 const lzArtGhost = (ctx, x, y, R, now, px, ok) => lzArt(ctx, x, y, R, now, px, ok);
 import { foxReach, wireEnds, bastionWalls, wallShape, turns, onEnemy, buildFoot, lookoutReach, chains, chainPlan, planChain } from '../sim/posts.js';
@@ -404,28 +405,27 @@ export class Renderer {
             const a = b.id * 1.7 + k * 1.26 + now * 0.08, rr = r * (0.45 + 0.12 * k), sx = b.x + Math.cos(a) * r * 0.45, sy = b.y + Math.sin(a * 1.3) * r * 0.4;
             ctx.fillStyle = `rgba(120,124,118,${0.16 + 0.04 * Math.sin(now * 0.7 + k)})`; ctx.beginPath(); ctx.arc(sx, sy, rr, 0, TAU); ctx.fill();
           }
-          ctx.strokeStyle = 'rgba(255,90,70,0.35)'; ctx.lineWidth = px(1.2); ctx.setLineDash([px(4), px(5)]); ctx.beginPath(); ctx.arc(b.x, b.y, r * 1.15, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
           labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 4, text: tr('lab.hidden'), col: 'rgba(255,150,130,0.75)' });
         } else {
-          ctx.strokeStyle = 'rgba(255,90,70,0.28)'; ctx.lineWidth = px(1); ctx.setLineDash([px(3), px(5)]); ctx.beginPath(); ctx.arc(b.x, b.y, r * 1.15, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+          // (0.62.25: no dashed ring round a base)
           for (const sp of b.spawners) {
             const sb = { ...b, x: sp.x, y: sp.y, r: Math.max(sp.r * 1.5, px(6)), hp: sp.hp, maxHp: sp.maxHp, spawners: undefined };
             if (sp.dead) { drawBaseRuin(ctx, sb, now, px); continue; }
             raise(ctx, sp, sb.x, sb.y, sb.r * 1.7, sb.r * 0.42, (c) => drawBaseArt(c, sb, m.faction.id, pal.enemy, inZ, now, px), { ...RAISE_B, live: true, sig: inZ ? 1 : 0 });
-            if (sp.hp < sp.maxHp && !hideUi) { const bw = sb.r * 2.2; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25, bw, px(3)); ctx.fillStyle = pal.enemy; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25, bw * Math.max(0, sp.hp / sp.maxHp), px(3)); }
+            drawDamage(ctx, sp.x, sp.y, sb.r, sp.hp / sp.maxHp, (b.id || 1) * 7 + b.spawners.indexOf(sp), now, px);     // (0.62.25) its damage shows on it: no bar
             if (t - (sp.hurtAt ?? -99) < 0.12) { ctx.strokeStyle = '#fff'; ctx.lineWidth = px(2); ctx.beginPath(); ctx.arc(sp.x, sp.y, sb.r * 1.1, 0, TAU); ctx.stroke(); }
             if (sp.maxShield && sp.shield > 0) {      // (0.55) the squids' light shield: a bubble that flares when hit
               const f = sp.shield / sp.maxShield, hit = t - (sp.shieldAt ?? -9) < 0.15, R = sb.r * 1.55;
               ctx.fillStyle = `rgba(150,200,255,${(hit ? 0.2 : 0.05) + 0.06 * f})`; ctx.beginPath(); ctx.arc(sp.x, sp.y, R, 0, TAU); ctx.fill();
               ctx.strokeStyle = `rgba(190,225,255,${hit ? 0.95 : 0.3 + 0.4 * f})`; ctx.lineWidth = px(hit ? 2 : 1.2); ctx.beginPath(); ctx.arc(sp.x, sp.y, R, 0, TAU); ctx.stroke();
-              if (f < 1 && !hideUi) { const bw = sb.r * 2.2; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25 - px(4), bw, px(2.5)); ctx.fillStyle = '#8fd0ff'; ctx.fillRect(sp.x - bw / 2, sp.y + sb.r * 1.25 - px(4), bw * f, px(2.5)); }
+              // (0.62.25: no bar for the shield either; the bubble fades as it weakens)
             }
           }
           for (const T of b.turrets || []) {      // (0.55) a bot base's turrets
             const R = Math.max(T.r, px(5));
             if (T.dead) { ctx.fillStyle = 'rgba(30,30,30,0.7)'; ctx.beginPath(); ctx.arc(T.x, T.y, R, 0, TAU); ctx.fill(); continue; }
             raise(ctx, T, T.x, T.y, R * 2.6, R * 0.7, (c) => drawTurretArt(c, T.x, T.y, T.face || 0, R, pal.enemy, px, t - (T.hurtAt ?? -99) < 0.1, t - (T.firedAt ?? -9)), { ...RAISE_B, live: true, sig: Math.round((T.face || 0) * 12) * 4 + (t - (T.hurtAt ?? -99) < 0.1 ? 1 : 0) + (t - (T.firedAt ?? -9) < 0.12 ? 2 : 0) });
-            if (T.hp < T.maxHp && !hideUi) { const bw = R * 2.4; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(T.x - bw / 2, T.y + R * 1.5, bw, px(3)); ctx.fillStyle = pal.enemy; ctx.fillRect(T.x - bw / 2, T.y + R * 1.5, bw * T.hp / T.maxHp, px(3)); }
+            drawDamage(ctx, T.x, T.y, R * 1.2, T.hp / T.maxHp, (b.id || 1) * 13 + (T.id || 0), now, px);
           }
         }
         if (tgBs.has(b) && !hideUi) this._bracket(ctx, b.x, b.y, r * 1.5, px(1.8), pal.ally);
@@ -439,11 +439,7 @@ export class Renderer {
       if (tgBs.has(b) && !hideUi) this._bracket(ctx, b.x, b.y, r * 1.5, px(1.8), pal.ally);
       if (b.cannon && !b.destroyed) labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 18, text: tr('lab.cannon'), col: pal.enemy, pri: 2 });
       if (b === sqBase && !b.fortress && !b.cannon) labels.push({ x: b.x, y: b.y, dy: -r * scale * 1.3 - 4, text: tr('lab.base'), col: 'rgba(215,230,220,0.9)' });
-      if ((b.hp < b.maxHp || b.fortress) && !hideUi) {
-        const bw = r * 2.2, f = b.hp / b.maxHp;
-        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(b.x - bw / 2, b.y + r * 1.25, bw, px(4));
-        ctx.fillStyle = pal.enemy; ctx.fillRect(b.x - bw / 2, b.y + r * 1.25, bw * f, px(4));
-      }
+      drawDamage(ctx, b.x, b.y, r, b.hp / b.maxHp, b.id || 1, now, px);     // (0.62.25) a base, cannon or node shows its damage on itself: no bar
     }
 
     nm(nm0);
@@ -463,7 +459,7 @@ export class Renderer {
 
     // Inbound strikes, drops and warnings, and laser beams
     const outl = !!(this.settings && this.settings.showBlasts); setShowBlasts(outl);
-    drawMarkers(ctx, m, now, px, labels, scale, outl);
+    { const l0 = VIEW.loud; VIEW.loud = true; drawMarkers(ctx, m, now, px, labels, scale, outl); VIEW.loud = l0; }     // (0.62.25: the player's own strikes and pods coming down)
     for (const bm of m.beams) {
       if (t < bm.start) continue;
       const r = Math.max(bm.width / 2, px(5));
@@ -492,7 +488,10 @@ export class Renderer {
     const flat = isFlat(), wallE = shadeHex(pal.enemy, 0.34), wallA = shadeHex(pal.ally, 0.36);
     setRelief(!flat);
     let nAll = nOn; for (const a of m.alive) if (!a.dead && !a.inside && onScr(a.x, a.y, 6)) nAll++;
-    const fine = !flat && nAll <= 60 && !(this.perf.tier >= 1);
+    // (0.62.25) units are drawn flat with a small shadow under them: the dark copy under each body (its "side") read as a
+    // smeared second shadow, not as height. C.look.unitSides brings it back. Buildings keep their walls.
+    const sides = !!(C.look && C.look.unitSides);
+    const fine = sides && !flat && nAll <= 60 && !(this.perf.tier >= 1);
     if (fine) setRelief(2);
     const crowd = this.perf.low ? 150 : 300, dotKinds = nOn > crowd * 2 ? 'LM' : nOn > crowd ? 'L' : '', lod0 = [], lod1 = [], hot = [];
     for (const e of m.enemies) {
@@ -505,7 +504,7 @@ export class Renderer {
       ctx.globalAlpha = e.vis >= 2 ? 1 : 0.6;
       // (0.61) a slight 3D: its shadow as long as it is tall, a dark side under it, the body drawn a little up from its feet
       let up = 0;
-      if (!e.boss && !flat) {
+      if (!e.boss && !flat && sides) {
         const sr = enemyR(e, SUBTYPES[e.kind], px), eh = sr * (e.kind === 'H' ? 0.62 : e.kind === 'M' ? 0.5 : 0.4);
         if (fine) {     // few enough on screen: true sides, whatever its shape
           unitShadow(ctx, e.x, e.y, sr, eh, e.vis >= 2 ? 1 : 0.6);
@@ -519,7 +518,7 @@ export class Renderer {
       if (e.boss) {
         const br = bossR(e, px), body = (q) => drawBossBody(ctx, q, fid, br, pal.enemy, now, px, t - e.hurtAt < 0.06, t);
         if (arriving(e, t)) drawBossArrival(ctx, e, fid, br, pal.enemy, now, px, t, body);     // (0.55.1) its arrival
-        else if (flat) body(e);
+        else if (flat || !sides) body(e);
         else raiseUnit(ctx, br * 0.34, wallE, (c) => drawBossBody(c, e, fid, br, pal.enemy, now, px, t - e.hurtAt < 0.06, t));
       }
       else drawEnemyBody(ctx, e, fid, enemyR(e, SUBTYPES[e.kind], px), pal.enemy, now, px, t - e.hurtAt < 0.06);
@@ -577,8 +576,8 @@ export class Renderer {
         unitShadow(ctx, a.x, a.y, r, r * (H_ ? 0.5 : 0.42));
         raiseUnit(ctx, r * (H_ ? 0.5 : 0.42), wallA, (c) => drawAllyBody(c, a, r, pal.ally, tm ? tm.color : null, on, now, px, t));
       }
-      else if (!flat) up = liftUnit(ctx, a.x, a.y, r, r * (H_ ? 0.5 : 0.42), wallA);
-      else { ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(a.x + r * 0.45, a.y + r * 0.35, r * 0.95, r * 0.7, 0, 0, TAU); ctx.fill(); }     // (0.59) its shadow
+      else if (!flat && sides) up = liftUnit(ctx, a.x, a.y, r, r * (H_ ? 0.5 : 0.42), wallA);
+      else { ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(a.x + r * 0.3, a.y + r * 0.45, r * 0.8, r * 0.42, 0, 0, TAU); ctx.fill(); }     // (0.59) its shadow (0.62.25: flat, under its feet)
       if (!fine) drawAllyBody(ctx, a, r, pal.ally, tm ? tm.color : null, on, now, px, t);
       if (up) dropUnit(ctx, up);
       if (t - a.hurtAt < 0.1 && !hideUi) { ctx.strokeStyle = '#ff6a6a'; ctx.lineWidth = px(1.5); ctx.beginPath(); ctx.arc(a.x, a.y, r * 1.3, 0, TAU); ctx.stroke(); }

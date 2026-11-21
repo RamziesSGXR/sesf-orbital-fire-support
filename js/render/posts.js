@@ -78,8 +78,8 @@ export function wireArt(ctx, a, b, f, k = 1, ghost = false) {
 // (0.39) A pickup point: a ring of blinking blue lights round the spot, chevrons pointing in, and the pelican's mark in the middle.
 export function lzArt(ctx, x, y, R, now, px, busy = false) {
   ctx.save();
-  ctx.strokeStyle = `rgba(95,208,255,${busy ? 0.9 : 0.7})`; ctx.lineWidth = px(1.6); ctx.setLineDash([px(6), px(5)]); ctx.lineDashOffset = -now * px(8);
-  ring(ctx, x, y, R); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle = `rgba(95,208,255,${busy ? 0.5 : 0.3})`; ctx.lineWidth = px(1.2);
+  ring(ctx, x, y, R); ctx.stroke();
   ctx.fillStyle = 'rgba(95,208,255,0.08)'; ring(ctx, x, y, R); ctx.fill();
   for (let k = 0; k < 8; k++) {
     const a = (k / 8) * TAU, on = Math.floor(now * 3 + k * 0.5) % 2 === 0;
@@ -450,7 +450,8 @@ export function drawPosts(ctx, m, now, px, labels, scale, sel) {
   const pulse = 0.5 + 0.5 * Math.sin(now * 4);
   bracket(ctx, sel.x, sel.y, R, px(2), `rgba(255,230,0,${0.7 + 0.3 * pulse})`);
   if (reach > 0) {
-    ctx.strokeStyle = 'rgba(255,230,0,0.7)'; ctx.lineWidth = px(1.6); ctx.setLineDash([px(8), px(6)]); ctx.lineDashOffset = -now * px(8);
+    // (0.62.25) how far the selected post reaches: a thin plain line (it is what the player asked to see)
+    ctx.strokeStyle = 'rgba(255,230,0,0.45)'; ctx.lineWidth = px(1.2);
     // (0.47) a lookout sees down a half disc toward its face
     const shape = () => (sel.what === 'lookout' ? cone(ctx, sel.x, sel.y, reach, sel.face) : ring(ctx, sel.x, sel.y, reach));
     shape(); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;

@@ -271,3 +271,52 @@ export function howitzerBody(c, r, face, live, now, px) {
   c.fillStyle = live ? '#7fd8ff' : '#e6c22a'; c.fillRect(-r * 0.12, -r * 0.2, r * 0.1, r * 0.1);
   c.restore();
 }
+
+// ---------------------------------------------------------------- damage you can see (0.62.25)
+// An enemy building shows how hurt it is on itself, not on a bar under it. f: the share of its health left. Under 0.8 scorch
+// marks and cracks, under 0.55 grey smoke, under 0.3 fire and thick black smoke. Where each mark sits comes from its id, so a
+// building keeps the same wounds from frame to frame.
+const dh = (id, i) => { const v = Math.sin(id * 127.1 + i * 311.7) * 43758.5453; return v - Math.floor(v); };
+export function drawDamage(c, x, y, r, f, id, now, px) {
+  if (!(f < 0.8)) return;
+  const d = Math.min(1, (0.8 - f) / 0.8), n = 2 + Math.round(d * 5);
+  // scorch marks and cracks
+  for (let i = 0; i < n; i++) {
+    const a = dh(id, i) * TAU, q = r * (0.15 + 0.6 * dh(id, i + 9)), sx = x + Math.cos(a) * q, sy = y + Math.sin(a) * q * 0.85, sr = r * (0.1 + 0.13 * dh(id, i + 17));
+    c.fillStyle = `rgba(12,10,9,${0.3 + 0.25 * d})`; c.beginPath(); c.ellipse(sx, sy, sr, sr * 0.7, a, 0, TAU); c.fill();
+    c.strokeStyle = `rgba(8,7,6,${0.55 + 0.3 * d})`; c.lineWidth = Math.max(px(1), r * 0.018); c.beginPath(); c.moveTo(sx, sy);
+    let cx = sx, cy = sy, ca = a + 1.3;
+    for (let k = 0; k < 3; k++) { ca += (dh(id, i * 5 + k) - 0.5) * 1.6; cx += Math.cos(ca) * sr * 1.3; cy += Math.sin(ca) * sr * 1.3; c.lineTo(cx, cy); }
+    c.stroke();
+  }
+  if (f < 0.55) {
+    // smoke rising and drifting off: grey, then black and more of it as the fires take hold
+    const hot = f < 0.3, m = hot ? 3 : 2;
+    for (let i = 0; i < m; i++) {
+      const a = dh(id, 40 + i) * TAU, q = r * 0.5 * dh(id, 44 + i), bx = x + Math.cos(a) * q, by = y + Math.sin(a) * q * 0.85;
+      for (let k = 0; k < 4; k++) {
+        const ph = (now * (hot ? 0.34 : 0.26) + k / 4 + dh(id, 50 + i)) % 1, pr = r * (0.14 + 0.34 * ph);
+        c.fillStyle = hot ? `rgba(22,20,20,${0.5 * (1 - ph)})` : `rgba(120,118,116,${0.36 * (1 - ph)})`;
+        c.beginPath(); c.arc(bx + ph * r * 0.7 + Math.sin(now * 0.9 + k + i) * r * 0.05, by - ph * r * 1.5, pr, 0, TAU); c.fill();
+      }
+      if (hot) {
+        const fl = 0.6 + 0.4 * Math.sin(now * 13 + i * 2.1), fr = r * 0.17 * (0.8 + 0.4 * fl);
+        c.fillStyle = `rgba(255,120,30,${0.75 * fl})`; c.beginPath(); c.moveTo(bx - fr, by); c.quadraticCurveTo(bx - fr * 0.4, by - fr * 1.2, bx + fr * 0.15 * Math.sin(now * 9 + i), by - fr * 2.4 * fl); c.quadraticCurveTo(bx + fr * 0.5, by - fr * 1.1, bx + fr, by); c.closePath(); c.fill();
+        c.fillStyle = `rgba(255,225,130,${0.8 * fl})`; c.beginPath(); c.arc(bx, by - fr * 0.4, fr * 0.45, 0, TAU); c.fill();
+      }
+    }
+  }
+}
+// What is left where an enemy building stood: a blast crater with a raised rim, scorched ground and a few pieces of rubble.
+export function drawWreckCrater(c, x, y, r, id, now) {
+  c.fillStyle = 'rgba(14,12,10,0.42)'; c.beginPath(); c.ellipse(x, y, r * 1.3, r * 1.02, dh(id, 1) * TAU, 0, TAU); c.fill();     // the scorch
+  c.fillStyle = 'rgba(150,140,125,0.3)'; c.beginPath(); c.ellipse(x, y, r * 1.02, r * 0.8, 0, 0, TAU); c.fill();                 // the rim, lit
+  c.fillStyle = 'rgba(8,7,6,0.72)'; c.beginPath(); c.ellipse(x + r * 0.05, y + r * 0.06, r * 0.84, r * 0.64, 0, 0, TAU); c.fill();   // the pit
+  c.fillStyle = 'rgba(40,36,32,0.6)'; c.beginPath(); c.ellipse(x - r * 0.12, y - r * 0.1, r * 0.5, r * 0.34, 0, 0, TAU); c.fill();  // its floor
+  for (let i = 0; i < 7; i++) {
+    const a = dh(id, 60 + i) * TAU, q = r * (0.95 + 0.7 * dh(id, 70 + i)), w = r * (0.1 + 0.14 * dh(id, 80 + i)), px_ = x + Math.cos(a) * q, py_ = y + Math.sin(a) * q * 0.85;
+    c.fillStyle = 'rgba(22,20,18,0.5)'; c.fillRect(px_ - w / 2 + w * 0.2, py_ - w * 0.3 + w * 0.2, w, w * 0.7);
+    c.fillStyle = i % 2 ? 'rgba(112,106,98,0.85)' : 'rgba(84,80,76,0.85)'; c.fillRect(px_ - w / 2, py_ - w * 0.3, w, w * 0.7);
+  }
+  void now;
+}

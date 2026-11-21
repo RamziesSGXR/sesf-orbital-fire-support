@@ -1339,21 +1339,38 @@ export class Mission {
     for (const e of this.enemies) if (!e.dead && !e.boss && !e.air) { const b = (e.r || 2.2) * body; if (b > big) big = b; }
     big = Math.min(Math.max(big, room * 0.5), S.max);
     const kMax = Math.max(1, RB.L || 1, RB.M || 1, RB.H || 1);
-    const school = this.faction.id === 'squids';
+    // (0.62.25) in its formation: it has a place and was heading for it this step (enemies.js sets fs). The squids' pass-through
+    // (0.62.4) asked only whether a squid was off its place in the arrow, and a school that has left the arrow to ring a target
+    // is all off its places: so nothing kept a hunting school apart, and it closed on its target as one knot.
+    const tNow = this.t, inForm = (q) => !q.tgt && q.g && q.ox !== undefined && tNow - (q.fs ?? -9) < 0.11;
     for (const e of this.enemies) {
       if (e.dead || e.boss || e.air || e.lp || e.inAir) continue;
       const er = (e.r || 2.2) * body, te = tight(e), rm = te ? roomM : room, ke = te ? 1 : rk(e);
-      let px = 0, py = 0, n = 0, qx = 0, qy = 0;     // (qx, qy: the part of the push that comes from its own group)
+      let px = 0, py = 0, n = 0, qx = 0, qy = 0;     // (qx, qy: the part of the push that comes from those of its own group standing in their places)
+      const eF = inForm(e), eT = eF && (e.x - e.g.cx - e.ox) ** 2 + (e.y - e.g.cy - e.oy) ** 2 > S.transit * S.transit;     // (in its formation; on its way to its place in it)
       this.eGrid.near(e.x, e.y, Math.min(S.max, Math.max(er + big, rm * (ke + kMax) * 0.5)), (o) => {
         if (o === e || o.dead || o.boss || o.air) return;
-        const need = Math.max(er + (o.r || 2.2) * body, rm * (ke + (te ? 1 : rk(o))) * 0.5);
+        // (0.62.25) two of the same group that both have a place in its formation: the formation sets the room between them,
+        // so this pass never asks for more than nine tenths of the distance between their two places. (Before, the formation
+        // put them 8 to 9 m apart and this pass wanted 10: it pushed each one off its place every other tick and it walked
+        // back, so an idle group shook on the spot.)
+        // (0.62.25) two patrols walking their routes pass through each other: bots march between their sites and meet head on,
+        // and each one standing in the other's places stopped both (their members pushed off their places, shaking)
+        if (o.g !== e.g && e.g && o.g && e.g.route && o.g.route && e.g.state === 'patrol' && o.g.state === 'patrol' && !e.tgt && !o.tgt) return;
+        // (only while both are heading for their places in it: a school that has left its arrow to ring a target is not)
+        const mates = o.g === e.g && eF && inForm(o);
+        // (one of its own group on the way to its place walks through: a bot medium crossing its own line to the rear rank)
+        // (two that are both on their way push each other as usual: a pair whose places cannot be reached must not end up in a heap)
+        const oT = mates && (o.x - o.g.cx - o.ox) ** 2 + (o.y - o.g.cy - o.oy) ** 2 > S.transit * S.transit;
+        if (oT && !eT) return;
+        const room2 = Math.max(er + (o.r || 2.2) * body, rm * (ke + (te ? 1 : rk(o))) * 0.5), need = mates ? Math.min(room2, 0.9 * Math.hypot(e.ox - o.ox, e.oy - o.oy)) : room2;
         let dx = e.x - o.x, dy = e.y - o.y, d2 = dx * dx + dy * dy;
         if (d2 >= need * need) return;
         let d = Math.sqrt(d2);
         if (d < 0.05) { const a = e.id * 2.3999632; dx = Math.cos(a); dy = Math.sin(a); d = 1; }     // dead on top of each other: apart on its own bearing
         const push = (need - d) * 0.5;
         px += (dx / d) * push; py += (dy / d) * push; n++;
-        if (o.g === e.g) { qx += (dx / d) * push; qy += (dy / d) * push; }
+        if (mates && !oT) { qx += (dx / d) * push; qy += (dy / d) * push; }
       });
       if (!n) continue;
       // (0.62.8) not one that is caught in wire, and not when the mission asks for none (noSpread: a test that places enemies
@@ -1364,7 +1381,7 @@ export class Mission {
       // it passed, a school took most of a minute to form and its members shook on the spot meanwhile
       // (0.62.23) ...by its own school only. Another group standing in the same place still pushes at full strength: two schools
       // on one spot used to stay one heap, each squid 'on its way to its place' and so let through.
-      if (school && !e.tgt && e.g && e.ox !== undefined && (e.x - e.g.cx - e.ox) ** 2 + (e.y - e.g.cy - e.oy) ** 2 > S.transit * S.transit) { const cut = 1 - S.transitMul; px -= qx * cut; py -= qy * cut; }
+      if (eT) { const cut = 1 - S.transitMul; px -= qx * cut; py -= qy * cut; }
       // (0.62.23) and never into a building: with more room asked for, the crowd was shoving its edge onto its own spawners
       const nx = e.x + px * w, ny = e.y + py * w;
       if (solidAt(this, nx, ny, 0) && !solidAt(this, e.x, e.y, 0)) continue;
