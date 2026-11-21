@@ -389,8 +389,9 @@ function drawHarvester(ctx, e, r, col, body, dark, lw, now, px, pulse) {
   ctx.fillStyle = hot ? '#ffffff' : rgba(ch > 0 ? SQ_HOT : SQ_LIT, Math.min(1, 0.45 + 0.4 * pulse + ch * 0.6));
   plate(ctx, 0.54 * r, 0, 0.09 * r + 0.04 * r * ch, 0.18 * r, 0); ctx.fill();
   if (ch > 0) { ctx.fillStyle = rgba(SQ_HOT, 0.16 * ch); circ(ctx, 0.72 * r, 0, 0.4 * r * ch); ctx.fill(); }
-  // the shield, when it is up: a faint dome with a rim of light
-  if (e.shield > 0 && e.maxShield) {
+  // the shield, when it is up: a faint dome with a rim of light. (0.62.23) Not on one whose shield is a bubble round it (the
+  // harvester): that is drawn once for the whole pack (world.js), and a second circle on each body was only noise
+  if (e.shield > 0 && e.maxShield && !e.bubR) {
     const k = e.shield / e.maxShield;
     ctx.fillStyle = `rgba(150,225,255,${0.07 + 0.07 * k})`;
     ctx.beginPath(); ctx.ellipse(0, 0, 1.15 * r, 1.0 * r, 0, 0, TAU); ctx.fill();

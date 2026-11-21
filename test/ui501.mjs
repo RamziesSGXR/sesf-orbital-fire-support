@@ -57,7 +57,7 @@ await click('btn-play'); await wait(300);
 await ev(() => { document.getElementById('callsign').value = 'keys'; }); await click('btn-lock'); await wait(300);
 await click('shop-go'); await page.waitForFunction(() => !document.getElementById('b-continue').disabled, null, { timeout: 30000 });
 await click('b-continue'); await wait(1200);
-await ev(() => { const m = window.__game.mission; m.deployNow && m.deployNow(); for (let i = 0; i < 30 * 30; i++) m.step(1 / 30); m.seaf.readyAt = 0; });
+await ev(() => { const m = window.__game.mission; m.deployNow && m.deployNow(); for (let i = 0; i < 30 * 30; i++) m.step(1 / 30); m.seaf.readyAt = 0; m.seaf.cdUntil = -1; const h = m.hdAlive[0] || m.alive[0]; if (h) { window.__game.cam.x = h.x; window.__game.cam.y = h.y; } });     // (0.62.23: the view on the squad, so the drop is asked for where it can land whatever the fight has done)
 await page.mouse.move(640, 380); await wait(100);
 const relief0 = await ev(() => JSON.parse(localStorage.getItem('ofs.settings') || '{}').relief || false);
 const p0 = await ev(() => window.__game.mission.pelicans.length + window.__game.mission.seaf.reserve.length);

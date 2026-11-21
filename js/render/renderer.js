@@ -801,7 +801,10 @@ export class Renderer {
     for (const u of m.uavs) cs.push(u.x * scale + tx, u.y * scale + ty, u.r * scale);
     for (const u of m.relays || []) cs.push(u.x * scale + tx, u.y * scale + ty, u.r * scale);
     const n = cs.length / 3, W = this.W, H = this.H, lw = Math.max(1.2, 1.5 * this.dpr);
-    ctx.strokeStyle = 'rgba(157,255,184,0.55)'; ctx.lineWidth = lw;
+    // (0.62.23) quiet until it matters: faint while the aim is inside it, bright the moment the aim is outside it
+    const out = m.player && m.player.aim && m.player.aim.inZone === false, RK = C.rings || {};
+    this._zoneA = (this._zoneA ?? RK.zone) + ((out ? RK.zoneOut : RK.zone) - (this._zoneA ?? RK.zone)) * 0.2;
+    ctx.strokeStyle = `rgba(157,255,184,${this._zoneA.toFixed(3)})`; ctx.lineWidth = lw;
     ctx.beginPath();
     const iv = this._ziv || (this._ziv = []);
     for (let i = 0; i < n; i++) {

@@ -464,6 +464,7 @@ let SHOW_BLASTS = false;
 export function setShowBlasts(v) { SHOW_BLASTS = !!v; }
 export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal, vb = null) {
   const t = m.t, fac = m.faction, col = pal.enemy;
+  const shields = SH; shields.length = 0; const RK = C.rings || {};     // (0.62.23) the heavies' shields in view: x, y, r, how full
   for (const e of m.enemies) {
     if (e.dead || e.vis <= 0) continue;
     if (vb && !e.boss) { const R = (e.jamR || 0) + 20; if (e.x + R < vb.x0 || e.x - R > vb.x1 || e.y + R < vb.y0 || e.y - R > vb.y1) continue; }     // (0.56) off screen
@@ -522,13 +523,14 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal, vb = null) 
       ctx.strokeStyle = '#2a0808'; ctx.lineWidth = px(2.4); const a = Math.atan2(e.tgt.y - e.y, e.tgt.x - e.x);
       ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x + Math.cos(a) * r * 1.6, e.y + Math.sin(a) * r * 1.6); ctx.stroke();
     }
-    ctx.strokeStyle = rgba(col, 0.9); ctx.lineWidth = px(1.2); ring(ctx, e.x, e.y, r * 1.35); ctx.stroke();
-    // a squid heavy's shield: a bubble that flares when hit
-    if (e.maxShield && e.shield > 0) {
-      const f = e.shield / e.maxShield, hit = t - (e.shieldAt || -9) < 0.15;
-      const R = e.bubR || r * 1.7;     // the harvester's bubble reaches out past it, over the squids round it
-      ctx.fillStyle = `rgba(150,200,255,${(hit ? 0.16 : 0.05) + 0.05 * f})`; ring(ctx, e.x, e.y, R); ctx.fill();
-      ctx.strokeStyle = `rgba(190,225,255,${hit ? 0.95 : 0.3 + 0.4 * f})`; ctx.lineWidth = px(hit ? 2 : 1.2); ring(ctx, e.x, e.y, R); ctx.stroke();
+    // (0.62.23) Fewer circles. A heavy's own ring is faint, and left off while its shield is up (the shield says it). The shields
+    // of a pack are drawn as one field (below): one wash and one outline round the lot, not a disc and a rim for each.
+    const shOn = e.maxShield && e.shield > 0;
+    if (!shOn) { ctx.strokeStyle = rgba(col, RK.heavy ?? 0.4); ctx.lineWidth = px(1); ring(ctx, e.x, e.y, r * 1.35); ctx.stroke(); }
+    if (shOn) {
+      const hit = t - (e.shieldAt || -9) < 0.15, R = e.bubR || r * 1.7;     // the harvester's bubble reaches out past it, over the squids round it
+      shields.push(e.x, e.y, R, e.shield / e.maxShield);
+      if (hit) { ctx.fillStyle = 'rgba(150,200,255,0.12)'; ring(ctx, e.x, e.y, R); ctx.fill(); ctx.strokeStyle = 'rgba(190,225,255,0.9)'; ctx.lineWidth = px(2); ring(ctx, e.x, e.y, R); ctx.stroke(); }
     }
     if (e.vis >= 2) {      // (0.53.5: its bars under its name, in screen space: the renderer's labels)
       const bars = [];
@@ -537,6 +539,46 @@ export function drawEnemyExtras(ctx, m, now, px, labels, scale, pal, vb = null) 
       labels.push({ x: e.x, y: e.y, dy: -r * scale * 1.5 - 8, text: fac.heavy, col, pri: 0, bars: bars.length ? bars : null });
     }
   }
+  // the shields of the heavies, as one field: washed once however many overlap, and outlined round the outside only
+  if (shields.length) {
+    ctx.fillStyle = `rgba(150,200,255,${RK.shieldFill ?? 0.06})`; ctx.beginPath();
+    for (let i = 0; i < shields.length; i += 4) { ctx.moveTo(shields[i] + shields[i + 2], shields[i + 1]); ctx.arc(shields[i], shields[i + 1], shields[i + 2], 0, TAU); }
+    ctx.fill();
+    ctx.strokeStyle = `rgba(190,225,255,${RK.shieldLine ?? 0.34})`; ctx.lineWidth = px(1.1);
+    outerEdge(ctx, shields, 4);
+  }
+}
+
+// (0.62.23) Strokes the outside edge of a set of circles (cs: x, y, r, … every `step` numbers): for each circle, the parts of
+// its rim that lie inside another are left out, so a cluster reads as one shape. (The strike zone's outline is drawn the same way.)
+const SH = [], IV = [];
+export function outerEdge(ctx, cs, step = 3) {
+  const n = cs.length / step;
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const x = cs[i * step], y = cs[i * step + 1], r = cs[i * step + 2];
+    IV.length = 0; let inside = false;
+    for (let j = 0; j < n && !inside; j++) {
+      if (j === i) continue;
+      const dx = cs[j * step] - x, dy = cs[j * step + 1] - y, rj = cs[j * step + 2], d = Math.hypot(dx, dy);
+      if (d + r <= rj + 0.01) { inside = j < i || d + r < rj - 0.01; continue; }
+      if (d >= r + rj || d + rj <= r) continue;
+      const c = Math.acos(Math.max(-1, Math.min(1, (r * r + d * d - rj * rj) / (2 * r * d)))), mid = Math.atan2(dy, dx);
+      IV.push(mid - c, mid + c);
+    }
+    if (inside) continue;
+    if (!IV.length) { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, TAU); continue; }
+    const base = IV[0], segs = [];
+    for (let k = 0; k < IV.length; k += 2) { let s0 = IV[k] - base; s0 = ((s0 % TAU) + TAU) % TAU; segs.push([s0, s0 + (IV[k + 1] - IV[k])]); }
+    segs.sort((p, q) => p[0] - q[0]);
+    let cur = segs[0][1];
+    for (let k = 1; k < segs.length; k++) {
+      if (segs[k][0] > cur) { ctx.moveTo(x + r * Math.cos(base + cur), y + r * Math.sin(base + cur)); ctx.arc(x, y, r, base + cur, base + segs[k][0]); }
+      cur = Math.max(cur, segs[k][1]);
+    }
+    if (cur < TAU) { ctx.moveTo(x + r * Math.cos(base + cur), y + r * Math.sin(base + cur)); ctx.arc(x, y, r, base + cur, base + TAU); }
+  }
+  ctx.stroke();
 }
 
 // A special medium: the commander's jammer bubble (shown wherever the commander is known), a ring and health bar, and its name.

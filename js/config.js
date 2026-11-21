@@ -19,6 +19,10 @@ export const CONFIG = {
   // fightSec seconds in one 60 m square, at full noise from fightFull. voices: how many sources play at once (fewer on a phone).
   // ref: metres at which a source is at half loudness with the camera right down; height: how much of the view's width the
   // listener is above the ground (zoom out and everything is farther away).
+  // (0.62.23) How loud the rings on the map are (0 to 1). zone: the strike zone's outline while the aim is inside it; zoneOut: while
+  // the aim is outside it (it lights up when it matters). shieldFill / shieldLine: the heavies' shields, drawn as one field with one
+  // outline round a cluster. heavy: the ring round a heavy with no shield up (none is drawn while its shield is up).
+  rings:    { zone: 0.2, zoneOut: 0.62, shieldFill: 0.06, shieldLine: 0.34, heavy: 0.4 },
   scape:    { pack: 2, packJoin: 75, stride: 0.25, fightSec: 1.5, fightMin: 3, fightFull: 16, voices: 8, voicesTouch: 5, ref: 70, height: 0.3, everySec: 0.25 },
   // (0.62.22) Twitch chat (js/twitch.js, js/chatplay.js, sim/chat.js). The game only reads the streamer's chat. Chatters give SEAF
   // troopers their names; every voteEvery seconds of mission time chat votes for voteSec seconds on one of `options`, and the
@@ -296,7 +300,8 @@ export const CONFIG = {
               // at most step metres a second each, so a pack stands as a crowd of bodies and not one blob. by faction, since a
               // bug swarm should still press in. Bosses, super heavies and anything in the air are left alone.
               spread: { transit: 3, transitMul: 0.2, on: true, body: { bugs: 0.72, bots: 0.95, squids: 1.05 }, step: 6, rate: 20, max: 18,
-                        room: { bugs: 4.4, bots: 6, squids: 6.5 }, roomMelee: 3.4 },     // (0.62.5) room: metres two of them keep between their centres whatever their size (a body's own width still counts when it is wider); roomMelee: what one that fights hand to hand keeps while it has someone to hit, so a swarm can still close
+                        room: { bugs: 4.4, bots: 6, squids: 6.5 }, roomMelee: 3.4, roomBy: { L: 1, M: 1.3, H: 2.3 }, pack: 0.6 },     // (0.62.23) roomBy: how much more room a medium and a heavy keep (two heavies: room x 2.3 apart; a heavy and a light: the mean)
+              //     // (0.62.5) room: metres two of them keep between their centres whatever their size (a body's own width still counts when it is wider); roomMelee: what one that fights hand to hand keeps while it has someone to hit, so a swarm can still close
               hp: { light: 30, medium: 200, heavy: 1000 },
               speed: { light: 4.0, medium: 3.2, heavy: 2.4 },
               // Enemies notice allies at their own (shorter) sight. Fire, noise or a neighbor's call alerts a group.
@@ -345,6 +350,7 @@ export const CONFIG = {
   //          its size at `startle.speed` times its pace, and closes up again over `startle.sec` seconds; it cannot be startled again
   //          for `startle.rest` seconds after that.
   formations: {
+    heavyOpen: 0.9,     // (0.62.23) every formation's spacing grows by up to this much (all heavies) with the share of heavies in it
     bots:   { square: 0.45, line: { spacing: 8 }, block: { spacing: 6.5 }, rank: 8 },     // (0.62.5: 6.5 / 5.2 / 7; they stood shoulder to shoulder)
     bugs:   { trail: 0.5, gap: 4.5 },     // (0.62.5: 3.2)
     squids: { hold: 1.0, startle: { mul: 1.6, sec: 4, speed: 1.6, rest: 5 }, lost: 42,
@@ -746,5 +752,5 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.22' },
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.23' },
 };

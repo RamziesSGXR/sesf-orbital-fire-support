@@ -34,6 +34,7 @@ d.shield = 0; damageDrop(m, d, d.hp + 1, 'strat', false);
 check('shot down it starts to fall', d.state === 'down');
 run(m, C.mother.crashSec + 1);
 check('it leaves a wreck on the map', m.motherWrecks.length === 1 && !moms(m).length);
+for (const a of m.alive) a.hp = a.maxHp = 1e7;     // (0.62.23: from here, not only after the second pair; with the enemy standing wider the squad could be lost first)
 run(m, C.mother.respawnSec + 2);
 check('two come next', moms(m).length === 2, String(moms(m).length));
 for (const a of m.alive) a.hp = a.maxHp = 1e7;     // (0.62.4: the squad must outlive the test; the schools now arrive together)

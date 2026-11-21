@@ -25,6 +25,18 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Heavies keep their distance, and fewer circles (0.62.23).**
+- **Less clumping at high levels.** A high-level group is mostly heavies, and they stood as close as lights do, so a pack read as one mass.
+  - Heavies now keep 2.3 times the room a light keeps from each other (about 15 m for squids, 14 m for bots, 10 m for bugs), and mediums 1.3 times.
+  - Every formation (the squids' arrow, the bots' line and block, the bugs' trail) stands wider the more heavies are in it.
+  - A group starts spread over the room its members need, not on one small spawn disc.
+  - Two squid groups on the same spot now push each other apart. They used to stay one heap.
+- **Fewer circles on the map.**
+  - Squid heavies' shields are drawn as one field: one wash and one outline round a whole pack, where each heavy used to have a disc, a rim, a second small dome and a ring of its own.
+  - A heavy's own ring is faint, and not drawn while its shield is up.
+  - The strike zone's outline is faint while your aim is inside it and lights up when your aim is outside it.
+- The shields still work the same: a hit from outside a shield field lands on the shield first.
+
 **Twitch chat plays along (0.62.22).**
 - **For streamers.** Settings has a TWITCH button. Type your channel name, press CONNECT, and the game reads your chat. No login, no key, nothing to install, and the game never writes to chat. The channel is remembered for next time.
 - **Chatters become troopers.** Everyone who chats goes into a pool, and the SEAF troopers in your next drops take their names (rank first: "SGT ALICE_W"). Nobody gets a second trooper while their first is alive. When one falls, the feed says so by name. Common chat bots are left out.
