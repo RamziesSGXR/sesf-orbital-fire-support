@@ -77,7 +77,7 @@ const centre = (L) => ({ x: L.reduce((s, a) => s + a.x, 0) / L.length, y: L.redu
     const L1 = members(m, r.squad);
     if (!L1.length) { det.push(`${fac}: all down`); continue; }
     const c1 = centre(L1), went = Math.hypot(c1.x - c0.x, c1.y - c0.y), left = Math.hypot(c1.x - away.x, c1.y - away.y);
-    if (left < 40 && went > 70 && shots > 10) ok++;
+    if (left < 62 && went > 50 && shots > 10) ok++;     // (0.62.24: 40 short and 70 moved; one that fires behind it as it goes is backing up now, and slower)
     det.push(`${fac}: ${eng0}/${L0.length} engaged, moved ${Math.round(went)} m, ${Math.round(left)} m short, ${shots} shots`);
   }
   check('a move order pulls an engaged squad out of the fight (firing on the way)', n >= 2 && ok === n, det.join('; '));

@@ -8,7 +8,7 @@ import { drawSquadOrders, drawSeafMark, drawStroke, drawPelicans, drawMiniSeaf, 
 
 import { slotStats } from '../sim/player.js';
 import { drawAllyBody, drawEnemyBody, enemyR, drawBossBody, bossR, drawTurretArt, setRelief } from './units.js';
-import { VIEW } from './view.js';
+import { VIEW, quietDashes } from './view.js';
 import { liftUnit, dropUnit, unitShadow, shadeHex, raise, raiseUnit, setFlat, isFlat, reliefFrame, reliefClear, setElev, elevK } from './relief.js';
 import { Launch } from './launch.js';
 import { drawAoEdge, drawSides, drawBeacons, drawRevealed, drawRadar, drawArty, drawCrates, drawMarks } from './ops.js';
@@ -374,6 +374,7 @@ export class Renderer {
     const hideUi = document.body.classList.contains('hide-ui');     // (0.54) Hide UI: no outlines, rings or health bars either
     const nm = (i0) => { for (let i = i0; i < labels.length; i++) labels[i].nm = true; };     // (0.54) names of buildings and enemies: hidden unless Settings > Show names, or selected / under the aim
     const aim = ui.aim;
+    quietDashes(ctx, hideUi ? 1 : (C.rings.dash ?? 1)); VIEW.loud = !!ui.placing;     // (0.62.24) dashed lines are quiet unless something is being placed
     VIEW.quiet = !!ui.placing; VIEW.squad = !!(m.seaf && (m.seaf.sel >= 0 || m.seaf.sel === -2 || (m.seaf.multi && m.seaf.multi.length)));     // (0.61.5)
     this._namesFor = [ui.sel, aim].filter((o) => o && Number.isFinite(o.x) && Number.isFinite(o.y));
     ctx.lineJoin = 'round';
@@ -458,7 +459,7 @@ export class Renderer {
     drawHoles(ctx, m, now, px, labels, scale, pal);
     drawObjectives(ctx, m, now, px, labels, scale, pal);
     drawEvac(ctx, m, now, px, labels, scale);
-    drawSquadOrders(ctx, m, now, px, labels, scale, pal);
+    { const l0 = VIEW.loud; VIEW.loud = true; drawSquadOrders(ctx, m, now, px, labels, scale, pal); VIEW.loud = l0; }     // (orders are what the player asked to see)
 
     // Inbound strikes, drops and warnings, and laser beams
     const outl = !!(this.settings && this.settings.showBlasts); setShowBlasts(outl);
@@ -616,6 +617,7 @@ export class Renderer {
     drawMotherGround(ctx, m, now, labels, scale);
     drawDrops(ctx, m, now, px, labels, scale, pal);
     drawSupply(ctx, m, now, px, labels, scale, (team) => (m.teams[team] ? m.teams[team].color : '#9dffb8'));
+    VIEW.loud = true;     // (0.62.24) from here on it is the player's own marks: a line being drawn, the aim
     if (ui.draw) drawStroke(ctx, m, now, px, labels, scale, ui.draw);
 
     // (0.22) The plan made in the pause: each order, build, drop and call where it will go, numbered in the order they go out

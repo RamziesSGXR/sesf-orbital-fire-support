@@ -25,6 +25,13 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**How bodies move, and quieter dashed lines (0.62.24).**
+- **Forward and back.** Everyone, friend and enemy, is a little quicker going the way they face (12%). One that has turned to fire and is still moving the other way is backing up, and slower: 68% of its pace straight backwards, 86% across its aim, in proportion in between. Advancing on what it fires at costs nothing.
+- **Momentum.** Heavies, mediums, every bug and anything going faster than 6.5 m/s no longer turn on the spot. The way they move swings round toward the way they want to go, and the faster they are going the wider the turn: a tank at walking pace comes round in about a second and a half, a charger at a sprint overshoots by more than ten metres. While it is swinging round a body goes slower. From a standstill it sets off any way it likes, and shuffling slowly onto its place it turns freely. Light bots, light squids and troopers on foot turn as before.
+- Not touched: leaps, flyers, the super heavies, anything thrown by a blast, and the push that keeps bodies apart.
+- **Dashed lines.** Every dashed line on the map (the edge of the area, pickup rings, objective rings, reaches) is drawn at 40% of its strength. They come back to full while you are placing something, for a selected squad's orders, for your own aim and drawn lines, and red warning rings are never dimmed.
+- Balance: with the test bot, missions take about as long as before; the Helldivers lose more lives against bugs and bots, because backing away while firing is slower and the enemy closes faster.
+
 **Heavies keep their distance, and fewer circles (0.62.23).**
 - **Less clumping at high levels.** A high-level group is mostly heavies, and they stood as close as lights do, so a pack read as one mass.
   - Heavies now keep 2.3 times the room a light keeps from each other (about 15 m for squids, 14 m for bots, 10 m for bugs), and mediums 1.3 times.

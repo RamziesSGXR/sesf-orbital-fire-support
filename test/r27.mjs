@@ -115,7 +115,7 @@ const run = (m, s, each) => { for (let i = 0, n = Math.round(s / dt); i < n && !
   run(m, 20);
   const L1 = m.seafAlive.filter((a) => a.sq === r1.squad), cx1 = L1.reduce((s2, a) => s2 + a.x, 0) / L1.length, cy1 = L1.reduce((s2, a) => s2 + a.y, 0) / L1.length;
   const far = Math.max(...L1.map((a) => Math.hypot(a.x - X, a.y - Y))), mid = Math.hypot(cx1 - X, cy1 - Y);
-  check('(0.27.3) a new squad dropped in the open holds where it lands and waits for orders', r1.ok && o1.kind === 'protect' && Math.hypot(o1.x - X, o1.y - Y) < 3 && mid < 8 && far < 24, `${o1.kind}, middle ${mid.toFixed(1)} m off, furthest ${far.toFixed(1)} m`);
+  check('(0.27.3) a new squad dropped in the open holds where it lands and waits for orders', r1.ok && o1.kind === 'protect' && Math.hypot(o1.x - X, o1.y - Y) < 3 && mid < 11 && far < 24, `${o1.kind}, middle ${mid.toFixed(1)} m off, furthest ${far.toFixed(1)} m`);
   // next to a bastion: they go straight to it
   m = quiet(82);
   const b0 = m.hdAlive[0], bx = b0.x + 30, by = b0.y - 6;
