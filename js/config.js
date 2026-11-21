@@ -22,7 +22,15 @@ export const CONFIG = {
   // (0.62.23) How loud the rings on the map are (0 to 1). zone: the strike zone's outline while the aim is inside it; zoneOut: while
   // the aim is outside it (it lights up when it matters). shieldFill / shieldLine: the heavies' shields, drawn as one field with one
   // outline round a cluster. heavy: the ring round a heavy with no shield up (none is drawn while its shield is up).
-  rings:    { zone: 0.2, zoneOut: 0.62, shieldFill: 0.06, shieldLine: 0.34, heavy: 0.4 },
+  //   (0.62.24) dash: every dashed line on the map (area edge, pickup rings, objective rings, reaches) is drawn at this much of its
+  //   strength; not while something is being placed or a squad's orders are shown, and never a red one (a warning).
+  rings:    { zone: 0.2, zoneOut: 0.62, shieldFill: 0.06, shieldLine: 0.34, heavy: 0.4, dash: 0.4 },
+  // (0.62.24) How bodies move (Mission._walk). fwd: pace going the way it faces; back / side: pace of one that has turned to fire
+  // and is moving straight backwards / straight across its aim (in between, in proportion). Momentum: heavies (by faction), mediums,
+  // every bug, and anything faster than `fast` m/s swing their heading at no more than acc / speed radians a second (never more
+  // than turnMax), and go at least minTurn of their pace while swinging round. tp: a step faster than this (m/s) is not walking.
+  move:     { on: true, fwd: 1.12, side: 0.86, back: 0.68, fast: 6.5, turnMax: 9, minTurn: 0.35, tp: 45,
+              acc: { H: { bugs: 5, bots: 3, squids: 4 }, M: 12, bugL: 18, fast: 34 } },
   scape:    { pack: 2, packJoin: 75, stride: 0.25, fightSec: 1.5, fightMin: 3, fightFull: 16, voices: 8, voicesTouch: 5, ref: 70, height: 0.3, everySec: 0.25 },
   // (0.62.22) Twitch chat (js/twitch.js, js/chatplay.js, sim/chat.js). The game only reads the streamer's chat. Chatters give SEAF
   // troopers their names; every voteEvery seconds of mission time chat votes for voteSec seconds on one of `options`, and the
@@ -752,5 +760,5 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.23' },
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.24' },
 };

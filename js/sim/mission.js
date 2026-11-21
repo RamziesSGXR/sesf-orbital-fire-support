@@ -1409,6 +1409,43 @@ export class Mission {
     // nobody walks out of the area of operations
     const A = this.ao, X0 = A.x0 + 2, X1 = A.x1 - 2, Y0 = A.y0 + 2, Y1 = A.y1 - 2;
     const inX = (v) => (v < X0 ? X0 : v > X1 ? X1 : v), inY = (v) => (v < Y0 ? Y0 : v > Y1 ? Y1 : v);
+    // (0.62.24) How a body moves, for everyone on foot or on legs (C.move):
+    //   FORWARD AND BACK  Going the way it faces it is a little quicker (`fwd`). One that has turned to fire and is still going
+    //     the other way backs up: slower the more its aim and its way differ, down to `back` straight backwards (`side` across).
+    //   MOMENTUM  The heavy, the medium, most bugs and anything going faster than `fast` cannot turn on the spot: the way it
+    //     moves swings toward the way it wants to go at no more than acc / speed radians a second (so the faster, the wider
+    //     the turn), and while it is still swinging round it goes slower. From a standstill it sets off any way it likes.
+    // The step each one's own logic asked for (from px, py to x, y) is reshaped here, before bodies are eased apart (that push is
+    // not a step of its own, and is not turned) and before the water and the buildings.
+    const MV = C.move;
+    if (MV && MV.on && !this.noDrive) {
+      const t = this.t, fid = this.faction.id, tp = MV.tp * dt, PI2 = Math.PI * 2;
+      const drive = (o, acc, flee) => {
+        const dx = o.x - o.px, dy = o.y - o.py, L = Math.hypot(dx, dy);
+        if (o.px === undefined || !(L > 0.004) || L > tp) { o.mvA = undefined; o.mvL = 0; return; }     // standing, or moved by something else (a blast, a leap)
+        const A = Math.atan2(dy, dx), full = o.mvL = Math.max(L, (o.mvL || 0) * 0.985);
+        let k = L >= full * 0.8 ? MV.fwd : 1;     // (only at its full pace: the last short step onto its place is not stretched past it)
+        if (o.aimUntil > t && !flee) { const c = Math.cos(A - o.aimA); k = c >= 0 ? MV.side + (k - MV.side) * c : MV.side + (MV.side - MV.back) * c; }
+        let hx = dx / L, hy = dy / L, f = 1;
+        if (acc) {
+          if (o.mvA === undefined) o.mvA = A;
+          else {
+            let d = A - o.mvA; d -= Math.round(d / PI2) * PI2;
+            const w = Math.min(MV.turnMax, acc / Math.max(L / dt, 0.25)) * dt;     // (slow, it turns as it likes: shuffling onto its place)
+            if (Math.abs(d) <= w) o.mvA = A;
+            else { const s = d > 0 ? w : -w; o.mvA += s; f = Math.max(MV.minTurn, Math.cos(d - s)); hx = Math.cos(o.mvA); hy = Math.sin(o.mvA); }
+          }
+        } else o.mvA = undefined;
+        o.x = o.px + hx * L * k * f; o.y = o.py + hy * L * k * f;
+      };
+      const AC = MV.acc;
+      for (const e of this.enemies) {
+        if (e.dead || e.boss || e.air || e.inAir || e.lp) continue;
+        drive(e, e.kind === 'H' ? AC.H[fid] : e.kind === 'M' ? AC.M : fid === 'bugs' ? AC.bugL : (e.speed || 0) > MV.fast ? AC.fast : 0);
+      }
+      // (nobody backs out of a blast that is coming: with a strike or a charge about to land on him he turns and runs)
+      for (const a of this.alive) if (!a.mounted && !a.inside) drive(a, Math.hypot(a.x - a.px, a.y - a.py) > MV.fast * dt ? AC.fast : 0, inDanger(this, a.px, a.py));
+    }
     this._spread(dt);     // (0.62.2) bodies keep their distance
     // (0.62) and nobody walks through a boulder, a tree or a building: sim/solids.js
     const solid = C.solids.on && solids(this);
