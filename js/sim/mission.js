@@ -2,7 +2,7 @@
 // The player runs the destroyer: a UAV scan, orbital stratagems from the armory, and SEAF pods and orders.
 // The four Helldivers (one per stratagem group) fight on their own and are reinforced automatically from a pool of lives.
 import { buildCostMul } from '../data/perks.js';
-import { solids, keepOut } from './solids.js';
+import { solids, keepOut, solidAt } from './solids.js';
 import { setupSite, updateSite, costSiteMul } from './sites.js';
 import { addSpawners, hitSpawners, liveSpawners } from './spawners.js';
 import { initAlert, updateAlert, alertRaise, alertClear } from './alert.js';
@@ -1331,24 +1331,29 @@ export class Mission {
     // overlapping read as one stacked blob from the gunship's height.
     const fid = this.faction.id, room = (S.room && S.room[fid]) || 0, roomM = Math.min(room, S.roomMelee || room), bug = fid === 'bugs';
     const tight = (q) => q.tgt && ((bug && q.kind !== 'M') || q.sub === 'guard' || q.sub === 'soak');     // hand to hand, with someone to hit
+    // (0.62.23) the big ones keep more room: a pack of heavies standing a body apart read as one mass at high levels, where a
+    // group is mostly heavies. Between two enemies the room is the mean of what each wants.
+    const RB = S.roomBy || {}, rk = (q) => RB[q.kind] || 1;
     // how far to look: only a body this wide can be overlapping, so the search stays as tight as the field allows
     let big = 0;
     for (const e of this.enemies) if (!e.dead && !e.boss && !e.air) { const b = (e.r || 2.2) * body; if (b > big) big = b; }
     big = Math.min(Math.max(big, room * 0.5), S.max);
+    const kMax = Math.max(1, RB.L || 1, RB.M || 1, RB.H || 1);
     const school = this.faction.id === 'squids';
     for (const e of this.enemies) {
       if (e.dead || e.boss || e.air || e.lp || e.inAir) continue;
-      const er = (e.r || 2.2) * body, rm = tight(e) ? roomM : room;
-      let px = 0, py = 0, n = 0;
-      this.eGrid.near(e.x, e.y, Math.max(er + big, rm), (o) => {
+      const er = (e.r || 2.2) * body, te = tight(e), rm = te ? roomM : room, ke = te ? 1 : rk(e);
+      let px = 0, py = 0, n = 0, qx = 0, qy = 0;     // (qx, qy: the part of the push that comes from its own group)
+      this.eGrid.near(e.x, e.y, Math.min(S.max, Math.max(er + big, rm * (ke + kMax) * 0.5)), (o) => {
         if (o === e || o.dead || o.boss || o.air) return;
-        const need = Math.max(er + (o.r || 2.2) * body, rm);
+        const need = Math.max(er + (o.r || 2.2) * body, rm * (ke + (te ? 1 : rk(o))) * 0.5);
         let dx = e.x - o.x, dy = e.y - o.y, d2 = dx * dx + dy * dy;
         if (d2 >= need * need) return;
         let d = Math.sqrt(d2);
         if (d < 0.05) { const a = e.id * 2.3999632; dx = Math.cos(a); dy = Math.sin(a); d = 1; }     // dead on top of each other: apart on its own bearing
         const push = (need - d) * 0.5;
         px += (dx / d) * push; py += (dy / d) * push; n++;
+        if (o.g === e.g) { qx += (dx / d) * push; qy += (dy / d) * push; }
       });
       if (!n) continue;
       // (0.62.8) not one that is caught in wire, and not when the mission asks for none (noSpread: a test that places enemies
@@ -1357,8 +1362,13 @@ export class Mission {
       let l = Math.hypot(px, py) || 1, w = Math.min(cap, l) * k / l;
       // (0.62.4) a squid on its way to its place in the arrow is let through the crowd: pushed back at full strength by everyone
       // it passed, a school took most of a minute to form and its members shook on the spot meanwhile
-      if (school && !e.tgt && e.g && e.ox !== undefined && (e.x - e.g.cx - e.ox) ** 2 + (e.y - e.g.cy - e.oy) ** 2 > S.transit * S.transit) w *= S.transitMul;
-      e.x += px * w; e.y += py * w;
+      // (0.62.23) ...by its own school only. Another group standing in the same place still pushes at full strength: two schools
+      // on one spot used to stay one heap, each squid 'on its way to its place' and so let through.
+      if (school && !e.tgt && e.g && e.ox !== undefined && (e.x - e.g.cx - e.ox) ** 2 + (e.y - e.g.cy - e.oy) ** 2 > S.transit * S.transit) { const cut = 1 - S.transitMul; px -= qx * cut; py -= qy * cut; }
+      // (0.62.23) and never into a building: with more room asked for, the crowd was shoving its edge onto its own spawners
+      const nx = e.x + px * w, ny = e.y + py * w;
+      if (solidAt(this, nx, ny, 0) && !solidAt(this, e.x, e.y, 0)) continue;
+      e.x = nx; e.y = ny;
     }
   }
 

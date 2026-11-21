@@ -522,23 +522,27 @@ function arrangeForm(g) {
   const F = C.formations, hunt = g.state === 'hunt', hx = hunt ? g.ux : g.hx, hy = hunt ? g.uy : g.hy, sx = -hy, sy = hx;
   const live = g.members.filter((q) => !q.dead && !q.boss);
   const put = (q, fwd, side) => { q.ox = hx * fwd + sx * side; q.oy = hy * fwd + sy * side; };
+  const open = formOpen(live);     // (0.62.23) wider with heavies in it
   if (g.form === 'trail') {
-    const order = live.filter(isLeader).concat(live.filter((q) => !isLeader(q))), gap = F.bugs.gap, n = order.length;
+    const order = live.filter(isLeader).concat(live.filter((q) => !isLeader(q))), gap = F.bugs.gap * open, n = order.length;
     order.forEach((q, i) => { q.fol = i && !isLeader(q) ? order[i - 1] : null; put(q, ((n - 1) / 2 - i) * gap, 0); });
     return;
   }
   if (g.form === 'swarm') { for (const q of live) q.fol = null; return; }
   const lead = live.filter(isLeader), rest = live.filter((q) => !isLeader(q));
-  const lineSp = F.bots.line.spacing, blk = F.bots.block.spacing;
+  const lineSp = F.bots.line.spacing * open, blk = F.bots.block.spacing * open;
   if (g.form === 'line') {
     rest.forEach((q, i) => put(q, 0, (i - (rest.length - 1) / 2) * lineSp));
-    lead.forEach((q, i) => put(q, -F.bots.rank, (i - (lead.length - 1) / 2) * lineSp));
+    lead.forEach((q, i) => put(q, -F.bots.rank * open, (i - (lead.length - 1) / 2) * lineSp));
   } else {
     const cols = Math.max(1, Math.ceil(Math.sqrt(rest.length))), rows = Math.max(1, Math.ceil(rest.length / cols));
     rest.forEach((q, i) => put(q, ((rows - 1) / 2 - Math.floor(i / cols)) * blk, ((i % cols) - (cols - 1) / 2) * blk));
     lead.forEach((q, i) => put(q, -((rows - 1) / 2 + 1) * blk - blk * 0.5, (i - (lead.length - 1) / 2) * blk));
   }
 }
+// (0.62.23) A formation with heavies in it stands wider: its spacing grows by up to formations.heavyOpen when it is all heavies,
+// so they have the room they keep (enemies.spread.roomBy) without leaving their places.
+function formOpen(live) { let hv = 0; for (const q of live) if (q.kind === 'H') hv++; return 1 + (C.formations.heavyOpen || 0) * (live.length ? hv / live.length : 0); }
 const startled = (g, t) => ((g.startle ?? -99) > t ? C.formations.squids.startle.speed : 1);
 function arrangeSchool(g, t) {
   const S = C.formations.squids, live = g.members.filter((q) => !q.dead && !q.boss);
@@ -591,8 +595,11 @@ function arrangeSchool(g, t) {
       i = j;
     }
   }
+  // (0.62.23) a school with heavies in it is a wider arrow: its places open out by up to `wedge.heavy` when it is all heavies,
+  // so they have the room they keep (enemies.spread.roomBy) without leaving their places
+  const open = formOpen(live);
   for (const q of live) {
-    const f = (q.sF || 0) * W.row * burst, sd = (q.sS || 0) * W.gap * burst;
+    const f = (q.sF || 0) * W.row * burst * open, sd = (q.sS || 0) * W.gap * burst * open;
     q.ox = fx * f - fy * sd; q.oy = fy * f + fx * sd;
   }
   // How far behind its places the school is (the mean, over those not busy shooting): its own point waits for it (schoolPace),

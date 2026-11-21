@@ -86,6 +86,21 @@ export function spawnGroup(m, x, y, state = 'patrol', opts = {}) {
     else variantKit(m, fac.id, e);
     g.members.push(e); m.enemies.push(e);
   }
+  // (0.62.23) Room at the start. The spawn disc was one size whatever came out of it, so a group that is mostly heavies began
+  // as a knot. The disc it needs is worked out from the room each member keeps (enemies.spread), and the group opened out to
+  // it: each member moves out from the middle by the same factor, unless that would put it in water or in a building.
+  { const S = C.enemies.spread, room = (S.room && S.room[fac.id]) || 0, RB = S.roomBy || {};
+    // (only a group with a heavy in it: lights and mediums settle from the usual disc in a moment. Not a base's own garrison: its places are among its buildings)
+    if (room && g.members.length > 1 && !opts.emerge && !opts.tight && !opts.base && g.members.some((e) => e.kind === 'H')) {
+      let a = 0, far = 0;
+      for (const e of g.members) { const r = room * (RB[e.kind] || 1) * 0.5; a += r * r; far = Math.max(far, Math.hypot(e.ox, e.oy)); }
+      const need = Math.sqrt(a / (S.pack || 0.6)), k = far > 0.5 ? Math.min(3, need / far) : 1;
+      if (k > 1.05) for (const e of g.members) {
+        const nx = aoX(m, x + e.ox * k, 3), ny = aoY(m, y + e.oy * k, 3);
+        e.ox *= k; e.oy *= k;
+        if (Math.hypot(e.x - (x + e.ox / k), e.y - (y + e.oy / k)) < 1.5 && !m.terrain.blocked(nx, ny) && !solidAt(m, nx, ny, e.r * 0.5 + 0.6) && (m.visLevel(nx, ny) === 0 || m.visLevel(e.x, e.y) > 0)) { e.x = nx; e.y = ny; }
+      }
+    } }
   m.groups.push(g);
   m.emit('spawn', { x, y });
   return g;

@@ -209,8 +209,9 @@ function lone(m, kind, x, y) {
   check('SEAF build the cannon, man it, and it joins the weapon bar', built.length === 1 && m.player.slots[8].type === 'arty' && built[0].crew > 0, m.arty[0] ? `crew ${m.arty[0].crew}, ${m.arty.length} cannons, slot ${m.player.slots[8].type}` : '');
   const st = buildStats('arty', 2);
   // (0.62.13) the cannon's own round: loaded, fired, then the next one takes the level's recharge (a full crew)
+  for (const e of m.enemies) e.dead = true; m.enemies = []; m.groups = []; run(m, 0.2);     // (0.62.23) nothing of the enemy's near the aim: a commander's jammer over it refuses the shot
   for (const g of m.arty) { g.loaded = g === built[0] ? 1 : 0; g.load = 0; } artyTick(m, 0);
-  m.player.aimX = m.hx + 70; m.player.aimY = m.hy; m.player.weapon = 8;
+  m.player.aimX = built[0].x + 38; m.player.aimY = built[0].y; m.player.weapon = 8;     // (0.62.23: a spot its own crew can see, wherever the rest of the squad has gone)
   const ok = fireSlot(m, 8); artyTick(m, 0);
   check('it fires a mini-nuke on a slow recharge', ok && m.shells.some((s) => s.mini && s.splash === st.r) && built[0].loaded === 0 && Math.abs(built[0].nextIn - st.cd * (built[0].crew >= built[0].cap ? 1 : 1.25)) < 0.01, `${st.cd} s, next in ${built[0].nextIn.toFixed(1)}`);
   built[0].loaded = 1; artyTick(m, 0); m.t += 1; m.player.aimX = Math.max(...m.arty.map((g) => g.x)) + st.range + 60; m.player.aimY = m.arty[0].y;

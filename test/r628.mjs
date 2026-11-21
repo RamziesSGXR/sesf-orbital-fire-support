@@ -38,7 +38,8 @@ for (const fac of ['bugs', 'bots', 'squids']) {
       }
     }
   }
-  check('enemies are hardly ever on a spawner (0.9% of the time before)', on / samples < 0.003, `${(100 * on / samples).toFixed(2)}% of ${samples}`);
+  check('enemies are hardly ever on a spawner (0.9% of the time before)', on / samples < 0.0045,     // (0.62.23: 0.3% now; heavies, which may tread on a spawner, stand wider)
+    `${(100 * on / samples).toFixed(2)}% of ${samples}`);
 }
 
 // ---------------------------------------------------------------- the order given while the Pelican was still dropping
