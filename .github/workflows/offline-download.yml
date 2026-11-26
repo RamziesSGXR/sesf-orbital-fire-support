@@ -20,7 +20,11 @@ jobs:
         with:
           node-version: 20
       - run: sudo apt-get update && sudo apt-get install -y nsis
-      - run: npm ci --ignore-scripts
+      # only the bundler is needed (not the test browser), so the lock file being behind on test tools does not matter here
+      - run: |
+          EB=$(node -p "require('./package.json').devDependencies.esbuild")
+          npm install --prefix /tmp/eb "esbuild@$EB"
+          mkdir -p node_modules && ln -sfn /tmp/eb/node_modules/esbuild node_modules/esbuild
       - run: python3 tools/package.py
       - name: Attach to this version's release
         env:
