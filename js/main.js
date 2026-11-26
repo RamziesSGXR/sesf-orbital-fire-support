@@ -278,6 +278,9 @@ const input = new Input(canvas, $('minimap'), cam, {
   drawExit: () => setDrawing(false),
 }, () => state === 'play' && (!paused || soft) && !UI.anyOverlay());
 input.setTouch(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+// (0.62.26) A laptop with a touch screen (a Surface with its keyboard on) starts on the desktop layout. The first finger on the
+// screen moves it to the tablet layout, with buttons big enough to tap; the next mouse or trackpad click moves it back.
+{ const set0 = input.setTouch.bind(input); input.setTouch = (on) => { const was = input.touch; set0(on); if (was !== on && settings.layout !== 'phone' && settings.layout !== 'tab' && settings.layout !== 'desk') applyLayout(); }; }
 applyLayout();
 hud.onWeapon = (i) => {     // (0.25.1: in the pause too, so a weapon call can be planned from the bar)
   audio.unlock(); if (!act()) return;
@@ -1843,6 +1846,33 @@ $('fb-send').onclick = () => {
   if (r === 'sent') { $('fb-text').value = ''; fbCount(); audio.click(); setTimeout(() => { if (UI.isOn('s-feedback')) closeFeedback(); }, 1400); }
 };
 for (const a of document.querySelectorAll('a.sp')) { a.href = C.share.sponsorUrl; a.classList.toggle('hidden', !C.share.sponsorUrl); }     // (0.37) GitHub Sponsors
+// (0.62.26) Playing offline. The website keeps a copy of itself (sw.js) so it opens with no connection once it has been opened
+// once; on a phone, adding it to the home screen makes that an app. On a computer, PLAY OFFLINE downloads the one-file game.
+// Opened from that file there is nothing to do, so the button is hidden.
+{
+  const web = /^https?:$/.test(location.protocol), btn = $('btn-offline-t'), sub = $('tt-off-sub');
+  let ask = null;     // the browser's own install prompt, where it offers one (Chrome, Edge, Android)
+  window.addEventListener('beforeinstallprompt', (ev) => { ev.preventDefault(); ask = ev; });
+  if (web && 'serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(() => navigator.serviceWorker.ready).then((reg) => {
+      // everything this first visit loaded before the worker was in charge: it keeps a copy of each
+      const urls = [location.href.split('#')[0], ...performance.getEntriesByType('resource').map((e) => e.name)];
+      (reg.active || navigator.serviceWorker.controller)?.postMessage({ keep: urls });
+    }).catch(() => { /* no offline copy: the game still plays online */ });
+  }
+  if (btn) {
+    btn.classList.toggle('hidden', !web);
+    // a phone or tablet OS gets the browser's own install (or how to do it by hand); a computer, even with a touch screen, the download
+    const phone = () => /Android|iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+    btn.addEventListener('click', async () => {
+      audio.click();
+      if (phone() && ask) { ask.prompt(); try { await ask.userChoice; } catch (e) { /* */ } ask = null; return; }
+      if (phone()) { if (sub) sub.textContent = t(/iPhone|iPad|iPod/.test(navigator.userAgent) ? 'title.offIos' : 'title.offPhone'); return; }
+      const a = document.createElement('a'); a.href = /Windows/.test(navigator.userAgent) ? C.share.offlineWin : C.share.offlineUrl; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove();
+      if (sub) sub.textContent = t('title.offPc');
+    });
+  }
+}
 $('lnk-proj').href = C.share.projectUrl;
 $('credits-ver').textContent = t('credits.ver', { v: C.share.version });
 $('btn-info').onclick = () => openInfo();

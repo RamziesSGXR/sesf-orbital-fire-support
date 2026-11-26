@@ -761,5 +761,9 @@ export const CONFIG = {
               // Where the FEEDBACK buttons go: the SESF Helldivers Discord.
               feedbackUrl: 'https://discord.com/invite/qruRY4nkEz',     // the SESF Helldivers Discord
               sponsorUrl: 'https://github.com/sponsors/RamziesSGXR',       // (0.37) supporting the project lead (GitHub Sponsors)
-              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support', version: '0.62.25' },
+              projectUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support',
+              // (0.62.26) PLAY OFFLINE on a computer: the newest PC download (.github/workflows/offline-download.yml builds it)
+              offlineUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support/releases/latest/download/Orbital-Fury-PC.zip',
+              offlineWin: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support/releases/latest/download/Orbital-Fury-Setup.exe',     // (Windows: the installer)
+              version: '0.62.26' },
 };

@@ -2381,6 +2381,11 @@ export default {
   // ---------- 0.37 ----------
   'ui.support': 'SOUTENIR',
   'title.spSub': 'Soutenez le projet sur GitHub Sponsors',
+  'title.offline': 'JOUER HORS LIGNE',
+  'title.offSub': 'Téléchargez-le sur votre ordinateur, ou gardez-le sur votre téléphone',
+  'title.offPc': 'Téléchargement. Décompressez-le et ouvrez Orbital-Fury.html : pas besoin d’internet',
+  'title.offPhone': 'Ouvrez le menu du navigateur et choisissez Installer l’appli ou Ajouter à l’écran d’accueil. Il se joue ensuite sans réseau',
+  'title.offIos': 'Touchez Partager, puis Sur l’écran d’accueil. Il se joue ensuite sans réseau',
   'tut.build.h': 'CONSTRUIRE',
   'tut.build.d': 'Appuyez sur B ou BÂTIR, cliquez sur TROU D’HOMME, puis devant l’abri. L’escouade la plus proche le creuse. Les trous d’homme sont gratuits. Les tourelles et les tours coûtent des crédits et arrivent par Pelican, une à la fois.',
   'tut.build.t': 'Touchez BÂTIR, puis TROU D’HOMME. Touchez devant l’abri, puis PLACER. L’escouade la plus proche le creuse. Les trous d’homme sont gratuits. Les tourelles et les tours coûtent des crédits et arrivent par Pelican, une à la fois.',
