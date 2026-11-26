@@ -2381,6 +2381,11 @@ export default {
   // ---------- 0.37 ----------
   'ui.support': 'APOYAR',
   'title.spSub': 'Apoya el proyecto en GitHub Sponsors',
+  'title.offline': 'JUGAR SIN CONEXIÓN',
+  'title.offSub': 'Descárgalo en tu ordenador o guárdalo en tu teléfono',
+  'title.offPc': 'Descargando. Descomprímelo y abre Orbital-Fury.html: no hace falta internet',
+  'title.offPhone': 'Abre el menú del navegador y elige Instalar aplicación o Añadir a pantalla de inicio. Luego se juega sin cobertura',
+  'title.offIos': 'Toca Compartir y luego Añadir a pantalla de inicio. Luego se juega sin cobertura',
   'tut.build.h': 'CONSTRUIR',
   'tut.build.d': 'Pulsa B o CONSTRUIR, haz clic en POZO DE TIRADOR y luego delante del refugio. La escuadra más cercana lo cava. Los pozos son gratis. Las torretas y las torres cuestan créditos y llegan en Pelican, de una en una.',
   'tut.build.t': 'Toca CONSTRUIR y luego POZO DE TIRADOR. Toca delante del refugio y luego COLOCAR. La escuadra más cercana lo cava. Los pozos son gratis. Las torretas y las torres cuestan créditos y llegan en Pelican, de una en una.',

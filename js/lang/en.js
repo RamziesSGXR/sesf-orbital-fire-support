@@ -2381,6 +2381,11 @@ export default {
   // ---------- 0.37 ----------
   'ui.support': 'SUPPORT',
   'title.spSub': 'Back the project on GitHub Sponsors',
+  'title.offline': 'PLAY OFFLINE',
+  'title.offSub': 'Download it for your computer, or keep it on your phone',
+  'title.offPc': 'Downloading. Run it (or unzip it and open Orbital-Fury.html): no internet needed',
+  'title.offPhone': 'Open your browser menu and choose Install app or Add to Home screen. It then plays with no signal',
+  'title.offIos': 'Tap Share, then Add to Home Screen. It then plays with no signal',
   'tut.build.h': 'BUILD',
   'tut.build.d': 'Press B or BUILD, click FOXHOLE, then click in front of the shelter. The nearest squad digs it. Foxholes are free. Turrets and towers cost credits and come by Pelican, one at a time.',
   'tut.build.t': 'Tap BUILD, then FOXHOLE. Tap in front of the shelter, then PLACE. The nearest squad digs it. Foxholes are free. Turrets and towers cost credits and come by Pelican, one at a time.',

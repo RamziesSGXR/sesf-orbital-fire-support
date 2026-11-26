@@ -32,6 +32,20 @@ with zipfile.ZipFile(pc, 'w') as z:
     add(z, root / 'tools/pc/Play-Linux.sh', f'{folder}/Play-Linux.sh', 0o755)
     add(z, root / 'tools/pc/README-PC.txt', f'{folder}/README-PC.txt', crlf=True)
 
+# ---- Windows installer (0.62.26): needs NSIS (makensis); skipped with a note if it is not installed ----
+import json, shutil, tempfile
+ver = json.loads((root / 'package.json').read_text())['version']
+exe = rel / 'Orbital-Fury-Setup.exe'
+if shutil.which('makensis'):
+    with tempfile.TemporaryDirectory() as td:
+        t = pathlib.Path(td)
+        shutil.copy(root / 'dist' / 'orbital-fury.html', t / 'Orbital-Fury.html')
+        shutil.copy(root / 'tools/win/orbital-fury.ico', t / 'orbital-fury.ico')
+        (t / 'README.txt').write_bytes((root / 'tools/win/README-WIN.txt').read_bytes().replace(b'\r\n', b'\n').replace(b'\n', b'\r\n'))
+        subprocess.run(['makensis', '-V2', f'-DVERSION={ver}', f'-DSRC={td}', f'-DOUT={exe}', str(root / 'tools/win/installer.nsi')], check=True)
+else:
+    print('makensis not found: no Windows installer (apt install nsis, or NSIS on Windows)')
+
 # ---- Web (GitHub Pages) ----
 web = rel / 'orbital-fury-web.zip'
 skip_dirs = {'node_modules', 'dist', 'release', 'shots', '.git'}
@@ -44,5 +58,5 @@ with zipfile.ZipFile(web, 'w') as z:
             continue
         add(z, p, str(rp), 0o644)
 
-for f in (pc, web):
+for f in (pc, web) + ((exe,) if exe.exists() else ()):
     print(f'wrote {f.relative_to(root)} ({f.stat().st_size / 1024:.0f} KB)')

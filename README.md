@@ -25,6 +25,12 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Play offline, and touch screens on a laptop (0.62.26).**
+- **PLAY OFFLINE** on the title screen. On Windows it downloads an installer (Orbital-Fury-Setup.exe): no administrator needed, a Start menu and desktop shortcut that opens the game in its own window, and Uninstall in Settings > Apps. On a Mac or Linux it downloads Orbital-Fury-PC.zip: unzip it and open Orbital-Fury.html. Neither needs the internet.
+- **The website plays offline too,** once it has been opened once: it keeps a copy of itself. On a phone, add it to your home screen (the button tells you how) and it opens like an app with no signal.
+- **Touch-screen laptops** (a Surface with its keyboard on): the first finger on the screen switches to the tablet layout, with buttons big enough to tap; a mouse or trackpad click switches back. Tablet mode was already fine.
+- Windows may warn that the installer is from an unknown publisher (it is not signed): More info, then Run anyway.
+
 **A cleaner map; groups that stand still; squids that keep apart (0.62.25).**
 - **No more dashed circles.** The rings round the launch site, bases, side objectives and your own buildings are gone. Dashed lines are now only your own marks: where a strike or pod will land, what you are placing, your squads' orders. Red warnings stay.
 - **The launch site has no symbol beside it,** and a side objective has no outline.

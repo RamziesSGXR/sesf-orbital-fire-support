@@ -1,0 +1,34 @@
+# Builds the PC download (one self-contained HTML file and launchers, tools/package.py) for every version that reaches main and
+# attaches it to that version's GitHub release. The game's PLAY OFFLINE button links to the newest one:
+#   https://github.com/RamziesSGXR/sesf-orbital-fire-support/releases/latest/download/Orbital-Fury-PC.zip
+name: Offline download
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: offline-download
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: sudo apt-get update && sudo apt-get install -y nsis
+      - run: npm ci --ignore-scripts
+      - run: python3 tools/package.py
+      - name: Attach to this version's release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(node -p "require('./package.json').version")
+          if ! gh release view "v$V" >/dev/null 2>&1; then
+            gh release create "v$V" --target "$GITHUB_SHA" --title "Orbital Fury $V" \
+              --notes "Play offline on a computer: download Orbital-Fury-PC.zip, unzip it, and open Orbital-Fury.html (or run the launcher for your system). On a phone, open orbitalfury.com once and add it to your home screen: it then plays offline. What changed: see the README."
+          fi
+          gh release upload "v$V" release/Orbital-Fury-PC.zip release/Orbital-Fury-Setup.exe --clobber
