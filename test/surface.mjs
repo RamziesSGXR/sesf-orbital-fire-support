@@ -82,7 +82,7 @@ const ns = await ev(() => window.__game.mission.seafAlive.length); ok(ns > 0, 'S
 // tap a trooper to select
 if (ns) { const p = await ev(() => { const g = window.__game, a = g.mission.seafAlive[0], c = document.querySelector('canvas'); g.cam.follow = false; g.cam.x = a.x; g.cam.y = a.y; return { x: a.x, y: a.y }; }); await page.waitForTimeout(300);
   const sp = await ev((p) => window.__game.renderer.worldToScreen(p.x, p.y, document.querySelector('canvas')), p); await tapXY(sp.x, sp.y); await page.waitForTimeout(300);
-  ok((await ev(() => (window.__game.mission.seaf.pick || []).length)) > 0, 'tapping a trooper selects it'); }
+  ok((await ev(() => (window.__game.mission.seaf.pick || []).length > 0 || window.__game.mission.seaf.sel >= 0)), 'tapping a trooper selects him (0.63: his squad)'); }
 // pause and resume
 await tap('#btn-pause') || await tap('#btn-menu'); await page.waitForTimeout(400);
 await page.screenshot({ path: `/tmp/sf_${mode}_4pause.png` });

@@ -78,8 +78,9 @@ await ev(() => window.__game.setPlacing(null));
 
 // ---------------------------------------------------------------- the pause: formations, the reticle, the weapon in hand
 await ev(() => window.__game.softPause(true)); await page.waitForTimeout(150);
-const form = await ev(() => { const g = window.__game, m = g.mission, q = m.seaf.squads.find((x) => x.n); m.selectSquad(q.i); const was = q.form; g.setForm(was === 'line' ? 'wedge' : 'line'); return { was, got: q.form }; });
-check('a formation can be picked in the pause', !!form.got && form.got !== form.was, JSON.stringify(form));
+// (0.63) the formations are gone; a squad is still picked here for what follows
+await ev(() => { const g = window.__game, m = g.mission, q = m.seaf.squads.find((x) => x.n); m.selectSquad(q.i); });
+check('(0.63) no formations to pick', !(await ev(() => typeof window.__game.setForm === 'function')));
 const rings = await ev(async () => {
   const g = window.__game, m = g.mission, p = m.player;
   const orb = p.slots.findIndex((s, i) => i > 0 && s.type === 'orb');

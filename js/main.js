@@ -30,9 +30,9 @@ import { t, tEn, setLang, getLang, applyDom, startLang } from './i18n.js';
 import { clampLevel, LEVELS, levelName, levelAt, TOP } from './difficulty.js';
 import { answerTime } from './sim/planner.js';
 import { spawnGroup } from './sim/director.js';
-import { makePost, foxholeSlots, turns, wirePlan, chains, chainPlan, planChain } from './sim/posts.js';
+import { makePost, foxholeSlots, turns, wirePlan, chains, chainPlan, planChain, INSIDE } from './sim/posts.js';
 import { addJammer } from './sim/sides.js';
-import { squadCentres, FORMS, targetSquads } from './sim/seaf.js';
+import { squadCentres, targetSquads } from './sim/seaf.js';
 import { fireSlot, refreshAim } from './sim/player.js';
 import { LAST_STAND } from './sim/laststand.js';
 import { Tutorial } from './tutorial.js';
@@ -265,7 +265,7 @@ const input = new Input(canvas, $('minimap'), cam, {
   },
   fire: (b) => {
     if (mission && handsBusy(mission)) { if (mission) mission.setFiring(false); return; }   // hands on the supply loader (or the Hellbomb)
-    if (b && !armed) { if (act() && input.touch) { audio.deny(); hud.toast(deny('noweapon'), 1600); } return; }   // nothing armed: CALL has nothing to call
+    if (b && !armed) { if (touchCmd()) { audio.unlock(); cmdGo(); } else if (act() && input.touch) { audio.deny(); hud.toast(deny('noweapon'), 1600); } return; }   // nothing armed: (0.63) on the troops tab CALL is the order; else nothing to call
     if (b && plan()) { planFire(); return; }                                                                         // (0.22) paused: the call joins the plan
     if (b && live()) { audio.unlock(); firePending = true; keepArmed = shiftHeld(); }      // (Shift at the click keeps it armed after the call)
     if (mission && !bot) mission.setFiring(b && live() && armed);   // the ship gun fires for as long as the trigger is held
@@ -289,7 +289,6 @@ const input = new Input(canvas, $('minimap'), cam, {
   tap: (type, x, y) => tapAt(type, x, y),
   tac: () => act(),                                    // (0.20: the command panel is always up; a left drag boxes troopers; 0.22: paused too)
   ctx: (c) => { if (c === 'armory') { if (live() || UI.isOn('s-armory')) openArmory(); return; } if (!act()) return; audio.unlock(); hud.setTcTab(hud.tcTab === c ? 'units' : c); setTac(true); },
-  tacForm: (i) => setForm(FORMS[i]),
   boxing: () => boxArm && act(),     // (0.53.4: in the pause too)
   boxBegin: (x, y) => { if (act()) box = { x0: x, y0: y, x1: x, y1: y }; },
   boxMove: (x, y) => { if (box) { box.x1 = x; box.y1 = y; } },
@@ -369,7 +368,6 @@ hud.onBuild = (what) => {
   if (!tac) setTac(true);
   audio.click(); setPlacing(placing === 'build:' + what ? null : 'build:' + what);
 };
-hud.onForm = (f) => setForm(f);
 hud.onDeployNow = () => { audio.unlock(); if (live() && mission.deployNow().ok) audio.ready(); };
 // (0.18) the tactical console's modes
 hud.onArmory = () => { audio.unlock(); if (live() || (soft && state === 'play')) openArmory(); };
@@ -431,19 +429,16 @@ function setHideUi(on) {
     if (from === 'soft') afterPanel(); else if (paused && !soft) togglePause(false);
   } else if (hideUi && UI.isOn('s-pause')) togglePause(false);
 }
-function setForm(f) {
-  if (!act() || !f) return;      // (0.47) in the pause too: a formation takes effect at once, nothing to plan
-  const sq = mission.seafTargets();
-  if (!sq.length) { audio.deny(); hud.toast(deny('noseaf')); return; }
-  for (const q of sq) mission.setForm(q.i, f);
-  audio.chirp(); hud.toast(t('hud.formSet', { f: t('form.' + f) }), 1200);
-  if (tac) hud.fillTactical(mission, sel);
-}
+// (0.63) Formations are gone (players found they did not matter: a squad in a fight is pinned where it stands). Every squad
+// moves loose, as they always did by default.
 // ---- selecting (the cursor, with no weapon armed): what SEAF built, a sentry or a walled defence site, or a SEAF trooper (which
 // selects his squad). What is under (sx, sy), or null.
 function pickAt(sx, sy) {
   if (!mission || mission.over) return null;
   const w = renderer.screenToWorld(sx, sy, canvas); if (!w) return null;
+  return pickWorld(w);
+}
+function pickWorld(w) {
   const m = mission, r = Math.max(5, cam.view * 0.022);
   let best = null, bd = Infinity;
   const take = (o, d, lim) => { if (d <= lim && d < bd) { bd = d; best = o; } };
@@ -462,7 +457,60 @@ function pickAt(sx, sy) {
   // (0.58) nothing of ours there: an enemy in sight under the cursor is picked, to see what it is (its armour, its health)
   let foe = null, fd = Infinity;
   for (const e of m.enemies) if (!e.dead && e.vis > 0) { const d = Math.hypot(e.x - w.x, e.y - w.y), lim = Math.max(3, r * 0.6) + (e.boss ? e.r * 1.4 : e.r || 1); if (d <= lim && d < fd) { fd = d; foe = e; } }
-  return foe;
+  if (foe) return foe;
+  // (0.63) a place on the map that has been in sight: an enemy base, a side objective, a point of interest, the objective
+  let pl = null, pd = Infinity;
+  for (const o of placesNow()) { const d = Math.hypot(o.x - w.x, o.y - w.y), lim = Math.max(r + 2, (o.ref.r || 10) * 0.9); if (d <= lim && d < pd) { pd = d; pl = o; } }
+  return pl;
+}
+// ---------------- (0.63) the places on the map ----------------
+// Players wanted every building they can see to be something they can tap: what it is, and a way to send troops there. Each
+// enemy base, side objective and point of interest once it has been in sight, the objective, and the extraction once it is live,
+// is a place: tapped (or clicked) its card says what it is, and SEND sends the squad picked (or the nearest one) there.
+const PLACE_NAME = { base: 'lab.base', radio: 'lab.radio', propaganda: 'lab.prop', rescue: 'lab.rescue', arty: 'lab.artySite', jammer: 'lab.jam', spore: 'lab.spore' };
+const placeMemo = new WeakMap();
+function placeOf(ref, pk, foe) {
+  let o = placeMemo.get(ref);
+  if (!o) { o = { place: true, pk, ref, foe, get x() { return this.ref.x; }, get y() { return this.ref.y; } }; placeMemo.set(ref, o); }
+  return o;
+}
+function placesNow() {
+  const m = mission, out = [];
+  if (!m) return out;
+  const eyed = (o) => !!(o._eyed || (m.visLevel(o.x, o.y) > 0 && (o._eyed = true)));
+  for (const b of m.bases) if (!b.destroyed && Number.isFinite(b.x) && (b.seen || eyed(b))) out.push(placeOf(b, 'base', true));
+  for (const p of m.pois) if (!p.done && !p.hidden && eyed(p)) out.push(placeOf(p, p.side ? p.kind : 'poi', true));
+  for (const q of m.sides || []) if (!q.isPoi && !q.done && !q.failed && !q.hidden && eyed(q)) out.push(placeOf(q, q.kind, q.kind === 'jammer'));
+  const ao = m.phase === 'objective' && m.objectives.find((o) => !o.done);
+  if (ao && Number.isFinite(ao.x) && ao.type !== 'vip') out.push(placeOf(ao, 'obj', false));
+  if (m.extraction && m.extraction.revealed && m.phase === 'extract') out.push(placeOf(m.extraction, 'extract', false));
+  return out;
+}
+const placeGone = (o) => !o || !o.place || !placesNow().includes(o);
+function placeName(o) {
+  const m = mission, r = o.ref;
+  if (o.pk === 'poi' || r.isPoi) return r.name || t('lab.base');
+  if (o.pk === 'obj') return t(r.type === 'nuke' ? 'lab.launch' : r.type === 'evac' ? 'lab.evac' : r.type === 'oil' ? 'lab.oil' : r.type === 'cannon' ? 'lab.cannon' : r.type === 'dome' ? 'lab.dome' : r.type === 'gun' ? 'lab.gun' : 'lab.citadel');
+  if (o.pk === 'extract') return t('lab.extract');
+  if (o.pk === 'base' && m) return t('fac.' + m.faction.id + '.base');
+  return t(PLACE_NAME[o.pk] || 'lab.base');
+}
+// SEND: the squad picked goes there (an enemy place: to attack it; anywhere else, to stand by it). With no squad picked, the nearest.
+function sendTo(o) {
+  if (!act() || !o) return;
+  const m = mission, sf = m.seaf;
+  if (sf.sel === -1 && !(sf.multi && sf.multi.length)) {
+    let b = null, bd = Infinity;
+    for (const q of sf.squads) if (q.n > 0) { const d = Math.hypot(q.cx - o.x, q.cy - o.y); if (d < bd) { bd = d; b = q; } }
+    if (!b) { audio.deny(); hud.toast(deny('noseaf'), 1400); return; }
+    m.selectSquad(b.i);
+  }
+  const kind = o.foe ? 'attack' : 'move', go = () => m.seafOrder(kind, o.x, o.y);
+  const res = plan() ? queuePlan(kind, o.x, o.y, go) : go();
+  if (res && res.ok === false) { audio.deny(); hud.toast(deny(res.reason)); return; }
+  if (!res || !res.queued) audio.chirp();
+  if (tac) hud.fillTactical(mission, sel);
+  placeInsp(true);
 }
 function select(o) { insp = null; sel = o; audio.click(); placeSel(true); if (tac) hud.fillTactical(mission, sel); }
 function deselect() { if (insp) { insp = null; hud.selPop(mission, null); } if (!sel) return; sel = null; hud.selPop(mission, null); if (tac) hud.fillTactical(mission, null); }
@@ -472,8 +520,8 @@ let insp = null;
 const isFoe = (o) => o && o.g !== undefined && !o.type && (o.kind === 'L' || o.kind === 'M' || o.kind === 'H');
 function placeInsp(force = false) {
   if (!insp || !mission) return;
-  if (insp.dead || insp.vis <= 0) { insp = null; hud.selPop(mission, null); return; }
-  const q = renderer.worldToScreen(insp.x, insp.y - (insp.boss ? insp.r * 1.5 : 3), canvas);
+  if (insp.place ? placeGone(insp) : (insp.dead || insp.vis <= 0)) { insp = null; hud.selPop(mission, null); return; }
+  const q = renderer.worldToScreen(insp.x, insp.y - (insp.place ? Math.min(30, (insp.ref.r || 10) * 0.8) : insp.boss ? insp.r * 1.5 : 3), canvas);
   hud.selPop(mission, insp, q ? { x: q.x, y: q.y - 10 } : null, force);
 }
 // A click (or a tap) that is not a command: a post, sentry or site is selected; a trooper is picked alone; open ground clears it.
@@ -483,12 +531,19 @@ function clickAt(sx, sy) {
   if (!mission || mission.over || !(live() || soft)) return;
   const o = pickAt(sx, sy);
   if (!o) { deselect(); return; }
-  if (isFoe(o)) { if (sel) { sel = null; if (tac) hud.fillTactical(mission, null); } insp = o; audio.click(); placeInsp(true); return; }
+  if (isFoe(o) || o.place) { if (sel) { sel = null; if (tac) hud.fillTactical(mission, null); } insp = o; audio.click(); placeInsp(true); return; }
   if (o.type === 'S') {
     deselect(); audio.click();
     const now = performance.now(), again = clickAt.id === o.id && now - (clickAt.t || 0) < 450;
     clickAt.t = now; clickAt.id = o.id;
-    if (again && o.sq >= 0) { mission.selectSquad(o.sq); if (drawing) hud.setDrawing(true, t('hud.p.forSquad', { n: o.sq + 1 })); clickAt.id = null; }   // (paused too)
+    // (0.63) on a touch screen one tap picks the trooper's whole squad (what players reached for first) and a second tap narrows it
+    // to him alone; with a mouse a click is still the one man and a double click his squad
+    if (input.touch && !shiftHeld()) {
+      if (again) { mission.pickSeaf([o]); clickAt.id = null; }
+      else if (o.sq >= 0) { mission.selectSquad(o.sq); if (drawing) hud.setDrawing(true, t('hud.p.forSquad', { n: o.sq + 1 })); }
+      else mission.pickSeaf([o]);
+    }
+    else if (again && o.sq >= 0) { mission.selectSquad(o.sq); if (drawing) hud.setDrawing(true, t('hud.p.forSquad', { n: o.sq + 1 })); clickAt.id = null; }   // (paused too)
     else if (shiftHeld()) addPick(o);
     else mission.pickSeaf([o]);
     if (tac) hud.fillTactical(mission, sel);
@@ -523,24 +578,37 @@ function crateAt(x, y) {
 }
 function commandAt(sx, sy) {
   if (!act()) return;
-  if (mission.seaf.sel === -1 && !(mission.seaf.multi && mission.seaf.multi.length)) { if (mission.seafAlive.length) { audio.deny(); hud.toast(deny('picksquad'), 1600); } return; }
   const w = renderer.screenToWorld(sx, sy, canvas); if (!w) return;
-  const m = mission, o = pickAt(sx, sy), r = Math.max(5, cam.view * 0.025), cr = crateAt(w.x, w.y);
-  // (0.62.3) only a post or a defence site is somewhere to man. Since 0.58 an enemy in sight is picked too (to read its
-  // armour), and a right-click on one sent the squad to "man" it: every step threw from then on and the game froze until
-  // another order replaced that one. An enemy under the cursor is attacked, as it always should have been.
+  commandWorld(w, pickAt(sx, sy));
+}
+// What an order at w (o: what is there) would be. (0.62.3) only a post or a defence site is somewhere to man; an enemy under it is
+// attacked. (0.63) A post with room inside is gone into straight away: players sent troops to a building expecting them to take
+// it, and the GO INSIDE button that came up afterwards was missed. Any enemy place is attacked.
+function orderAt(w, o) {
+  const m = mission, r = Math.max(5, cam.view * 0.025), cr = crateAt(w.x, w.y);
   const man = !cr && o && (o.kind === 'post' || m.coverSites.includes(o)) ? o : null;
-  const e = !cr && !man ? m.eGrid.nearest(w.x, w.y, r) : null, p = snap(w.x, w.y), hit = !!e || p.x !== w.x || p.y !== w.y;
+  const inside = !!(man && man.kind === 'post' && man.cap && INSIDE.has(man.what) && man.garrison < man.cap && !man.fallen);
+  const pl = !cr && !man && o && o.place ? o : null;
+  const e = !cr && !man ? (o && isFoe(o) ? o : m.eGrid.nearest(w.x, w.y, r)) : null, p = snap(w.x, w.y);
+  const hit = !pl && (!!e || p.x !== w.x || p.y !== w.y);
+  const kind = cr ? 'build' : man ? (inside ? 'occupy' : 'post') : pl ? (pl.foe ? 'attack' : 'move') : hit ? 'attack' : 'move';
+  const at = man || cr || pl || (e ? { x: e.x, y: e.y } : hit ? p : w);
   const go = () => {
     if (cr) return m.seafBuildCrate(cr);                                  // a crate (or a foxhole being dug): they go and build it
-    if (man) return m.seafMan(man);
+    if (man) return inside ? m.garrisonGo(man) : m.seafMan(man);
+    if (pl) return m.seafOrder(kind, pl.x, pl.y);
     return hit ? m.seafOrder('attack', e && !e.dead ? e.x : p.x, e && !e.dead ? e.y : p.y) : m.seafOrder('move', w.x, w.y);
   };
-  const kind = cr ? 'build' : man ? 'post' : hit ? 'attack' : 'move', at = man || cr || (e ? { x: e.x, y: e.y } : hit ? p : w);
-  const res = plan() ? queuePlan(kind, at.x, at.y, go) : go();
-  if (res && res.ok === false) { audio.deny(); hud.toast(deny(res.reason)); return; }
+  return { kind, at, go, man, target: man || cr || pl || e || null };
+}
+function commandWorld(w, o) {
+  if (mission.seaf.sel === -1 && !(mission.seaf.multi && mission.seaf.multi.length)) { if (mission.seafAlive.length) { audio.deny(); hud.toast(deny('picksquad'), 1600); } return null; }
+  const od = orderAt(w, o);
+  const res = plan() ? queuePlan(od.kind === 'occupy' ? 'post' : od.kind, od.at.x, od.at.y, od.go) : od.go();
+  if (res && res.ok === false) { audio.deny(); hud.toast(deny(res.reason)); return res; }
   if (!res || !res.queued) audio.chirp();
-  if (res && res.canGarrison) doorPin(man, res.squad);      // (0.27.3: a small GO INSIDE over it, no question)
+  if (res && res.canGarrison) doorPin(od.man, res.squad);      // (0.27.3: a small GO INSIDE over it, no question; 0.63: only if they could not go in)
+  return res || { ok: true };
 }
 // (0.22) Nobody goes into a building unless told to: sent to one, the squad holds beside it. (0.27.3) No question any more: a
 // small GO INSIDE button sits over the building for a few seconds (the selected building's door does the same any time).
@@ -565,6 +633,7 @@ function placeSel(force = false) {
 // comes back to the selected squad).
 hud.onSelAct = (k) => {
   audio.unlock();
+  if (k === 'send') { if (insp && insp.place) sendTo(insp); return; }     // (0.63) a place's card: SEND
   if (!sel || !mission) return;
   const r = k === 'man' ? mission.seafMan(sel) : k === 'in' ? mission.garrisonGo(sel) : k === 'out' ? mission.ungarrison(sel) : k === 'demo' ? mission.demolishPost(sel) : null;     // (0.36: demo, blow it up)
   if (r && r.ok) audio.chirp(); else if (r) { audio.deny(); hud.toast(deny(r.reason)); }
@@ -582,6 +651,7 @@ function boxEnd() {
 }
 hud.onCallout = (k) => { audio.unlock(); supplyCall(k); };
 // MENU: the pause menu, straight away (it has the settings, the controls and the field manual).
+hud.placeName = (o) => placeName(o);     // (0.63) a place's name, for its card
 hud.onMenu = () => { if (state === 'play' && mission && !mission.over) togglePause(true); };
 // A tap on the map (touch; not a drag). With a build picked on the tactical screen it goes there. With the squad panel open the tap
 // only closes it. Otherwise it selects what is there (a trooper selects his squad); on the tactical screen, with a squad selected,
@@ -605,12 +675,69 @@ function tapAt(type, x, y) {
     return;
   }
   if (!tac && $('hud').classList.contains('tray-open')) { hud.trayToggle(false); return; }
+  if (touchCmd()) { cmdTap(x, y); return; }     // (0.63) the troops tab on a touch screen: a tap marks the spot, CALL gives the order
   const o = pickAt(x, y), w = renderer.screenToWorld(x, y, canvas);
   const none = mission.seaf.sel === -1 && !(mission.seaf.multi && mission.seaf.multi.length);
   if (tac && !none && w && crateAt(w.x, w.y)) { commandAt(x, y); return; }   // a crate: the selected squad builds it
   if (o || !tac || none) { clickAt(x, y); return; }
   commandAt(x, y);
 }
+// ---------------- (0.63) TOUCH COMMAND ----------------
+// Players found troops nearly impossible to handle on a touch screen: the controls were a PC game's (right-click orders, a MOVE button
+// that put down a ghost to place). Now, with the troops tab open on a touch screen and nothing armed, it works like a mouse:
+//   - a tap on a trooper picks his squad (a second tap: just him); a tap anywhere else marks that spot (and shows what is there:
+//     a building's card, an enemy's, a place's);
+//   - CALL says what the squad picked will do at the spot (MOVE, ATTACK, GO IN, MAN, BUILD) and does it; a double tap does it at once;
+//   - PAUSE sits by CALL: paused, the orders queue up and go out together when the game goes on.
+let cmdCur = null;     // { x, y, o, tap }: the spot marked, in the world, and what was there
+const touchCmd = () => !!(mission && input.touch && act() && !armed && !placing && !drawing && !boxArm && hud.tcTab === 'units' && !handsBusy(mission));
+const haveSquad = () => { const sf = mission.seaf; return sf.sel !== -1 || !!(sf.multi && sf.multi.length); };
+function whoSel() {
+  const sf = mission.seaf;
+  if (sf.sel >= 0) return `S${sf.sel + 1}`;
+  if (sf.multi && sf.multi.length) return sf.multi.map((i) => `S${i + 1}`).join('+');
+  if (sf.sel === -2 && sf.pick) return t('cmd.men', { n: sf.pick.length });
+  return '';
+}
+// what was marked, as it is now: an enemy that moved is followed, one dead or out of sight leaves the spot
+function cmdObj() {
+  const o = cmdCur && cmdCur.o;
+  if (!o) return null;
+  if (o.place) return placeGone(o) ? null : o;
+  if (isFoe(o)) return o.dead || o.vis <= 0 ? null : o;
+  return o.dead ? null : o;
+}
+function cmdTap(x, y) {
+  const o = pickAt(x, y), w = renderer.screenToWorld(x, y, canvas);
+  if (o && o.type === 'S') { cmdCur = null; clickAt(x, y); return; }     // a trooper: his squad (clickAt)
+  if (!w) return;
+  const now = performance.now();
+  if (cmdCur && now - cmdCur.tap < 420 && Math.hypot(cmdCur.x - w.x, cmdCur.y - w.y) < Math.max(6, cam.view * 0.04) && haveSquad()) { cmdGo(); return; }     // a double tap: at once
+  cmdCur = { x: w.x, y: w.y, o: o || null, tap: now };
+  if (o && (o.kind === 'post' || o.kind === 'turret' || mission.coverSites.includes(o))) select(o);
+  else if (o && (isFoe(o) || o.place)) { if (sel) { sel = null; hud.selPop(mission, null); if (tac) hud.fillTactical(mission, null); } insp = o; placeInsp(true); }
+  else deselect();
+  audio.click();
+}
+function cmdGo() {
+  if (!mission) return;
+  if (!haveSquad()) { audio.deny(); hud.toast(mission.seafAlive.length ? t('cmd.pickFirst') : deny('noseaf'), 1800); return; }
+  if (!cmdCur) { audio.deny(); hud.toast(t('cmd.tapFirst'), 1800); return; }
+  const o = cmdObj(), w = o && !o.place && Number.isFinite(o.x) ? { x: o.x, y: o.y } : { x: cmdCur.x, y: cmdCur.y };
+  const r = commandWorld(w, o);
+  if (r && r.ok !== false) { cmdCur = null; deselect(); }     // (the order is out: the card it came from closes, so it covers nothing)
+}
+// What CALL says now, and the mark on the map. null: CALL is the weapon's (or nothing).
+function cmdPreview() {
+  if (!touchCmd()) return null;
+  const who = whoSel();
+  if (!haveSquad()) return { verb: 'pick', who: '' };
+  if (!cmdCur) return { verb: 'tap', who };
+  const o = cmdObj(), w = o && !o.place && Number.isFinite(o.x) ? { x: o.x, y: o.y } : { x: cmdCur.x, y: cmdCur.y };
+  const od = orderAt(w, o);
+  return { verb: od.kind, who, x: od.at.x, y: od.at.y, foe: od.kind === 'attack' };
+}
+
 // Half speed: the whole game runs at half speed; every control works as normal.
 function toggleSpeed(force) {
   if (state !== 'play' || !mission) return;
@@ -918,6 +1045,7 @@ function runOrderNow(kind, x, y, o = null) {
 }
 // A key press or a touch button acts at the cursor / crosshair. A mouse click on a button starts placement mode.
 function order(kind, viaKey) {
+  if (kind === 'pause') { audio.unlock(); softPause(); return; }     // (0.63) PAUSE on the troops tab (touch)
   if (!act()) return;
   audio.unlock();
   if (kind === 'auto' || kind === 'escort') { runOrder(kind); return; }
@@ -2418,7 +2546,10 @@ function frame(ts) {
     const ga = placing ? ghostAt || (input.touch ? null : aimWorld()) : null;     // (0.22: the ghost of what is being placed)
     const tw = !paused && state === 'play' && !mission.over && !cinema.on && !(tut && tut.held);
     if (tw) { try { tween(mission, acc / STEP); } catch (err) { simBroke(err); } }
-    try { renderer.draw(mission, cam, { now, aim: drawing || box ? null : { x: p.aimX, y: p.aimY }, armed, placing, ghost: ga, plan: planQ, draw: stroke, snap: (x, y) => snap(x, y), sel, box, pface: placeFace, pshape: placeShape }); } catch (err) { drawBroke(err); } finally { if (tw) untween(mission); }
+    let cmdP = null; try { cmdP = cmdPreview(); } catch (err) { cmdP = null; }     // (0.63) the troops' order CALL would give (touch)
+    if (!cmdP && cmdCur && !touchCmd()) cmdCur = null;
+    hud.setCall(cmdP, armed ? mission.player.weapon : -1);
+    try { renderer.draw(mission, cam, { now, aim: drawing || box ? null : { x: p.aimX, y: p.aimY }, armed, placing, ghost: ga, plan: planQ, draw: stroke, snap: (x, y) => snap(x, y), sel, box, pface: placeFace, pshape: placeShape, cmd: cmdP && cmdP.x !== undefined ? cmdP : null }); } catch (err) { drawBroke(err); } finally { if (tw) untween(mission); }
     if (sel) placeSel(); else if (insp) placeInsp();
     sizeMini();
     // (0.42) the minimap at 10 a second, and not at all while it is folded away
@@ -2514,7 +2645,7 @@ if (wipedOld) { $('tt-wiped').textContent = t('title.wiped'); $('tt-wiped').clas
 requestAnimationFrame((t) => { lastT = t / 1000; frame(t); });
 
 // Test hooks (used by the Playwright checks; harmless in production).
-window.__game = { hud, audio, music, twitch, chatPlay, get tut() { return tut; }, get frames() { return frame.n || 0; },
+window.__game = { get insp() { return insp; }, placesNow: () => placesNow(), hud, audio, music, twitch, chatPlay, get tut() { return tut; }, get frames() { return frame.n || 0; },
   get state() { return state; }, get mission() { return mission; }, get session() { return session; }, get info() { return info; },
   get paused() { return paused; }, get soft() { return soft; }, get speed() { return speed; }, softPause, togglePause, retryMission, toggleSpeed,
   cam, input, renderer, settings, order, get placing() { return placing; }, get drawing() { return drawing; }, squadAct, selectSquad, focusTeam, strokeBegin, strokeMove, strokeEnd, goShop, openArmory, closeArmory,
@@ -2522,5 +2653,5 @@ window.__game = { hud, audio, music, twitch, chatPlay, get tut() { return tut; }
   makePost: (w, x, y, o) => (mission ? makePost(mission, w, x, y, o) : null), spawnGroup: (x, y, o) => (mission ? spawnGroup(mission, x, y, 'hunt', o) : null), addJammer: (x, y) => (mission ? addJammer(mission, x, y) : null), select: (o) => select(o), get sel() { return sel; }, buildMenu, setTac, get tac() { return tac; },
   radioLog, tickRadio: () => { if (castRadio && mission && !mission.over) castRadio.tick(mission); }, get castRadio() { return castRadio; },
   wirePlan: (x, y, f) => (mission ? wirePlan(mission, x, y, f) : null), placeTurn: (d) => placeTurn(d), placeShapeToggle: () => placeShapeToggle(), get placeFace() { return placeFace; }, get placeShape() { return placeShape; },
-  arm, disarm, get armed() { return armed; }, get cinema() { return cinema; }, clickAt, commandAt, get plan() { return planQ.length; }, get planItems() { return planQ; }, runOrder: (k, x, y) => runOrder(k, x, y), planFire: () => planFire(), setForm: (f) => setForm(f), get ghost() { return ghostAt; }, get placing2() { return placing; }, setPlacing, deselect, setHideUi, get hideUi() { return hideUi; }, get held() { return session && session.held; }, goHome,
+  arm, disarm, get armed() { return armed; }, get cinema() { return cinema; }, clickAt, commandAt, get plan() { return planQ.length; }, get planItems() { return planQ; }, runOrder: (k, x, y) => runOrder(k, x, y), planFire: () => planFire(), get ghost() { return ghostAt; }, get placing2() { return placing; }, setPlacing, deselect, setHideUi, get hideUi() { return hideUi; }, get held() { return session && session.held; }, goHome,
 };

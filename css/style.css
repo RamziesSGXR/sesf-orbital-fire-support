@@ -2824,3 +2824,30 @@ body.rts.lay-phone.lay-land:not(.notch-l):not(.notch-r) #hud #tactical .tco .s {
 body.rts #hud #tactical.tight .tco .s { display: none; }
 body.rts #hud #tactical.tight .tco { padding: 0; } body.rts #hud #tactical.tight .tco .n { margin-top: 0; letter-spacing: -0.08em; width: 100%; text-align: center; overflow: visible; }
 body.rts #hud #tactical.tight .tco:not(.seaf) { display: flex; align-items: center; justify-content: center; }
+
+/* =====================================================================================================================
+   (0.63) Troops on a touch screen. The troops tab works like a mouse: a tap marks the spot, CALL gives the order and says
+   which (MOVE S1, ATTACK S1, GO IN S1), and PAUSE takes the place of MOVE, PROTECT and ATTACK (CALL does those now). With
+   a mouse the panel is as it was, without the formations.
+   ===================================================================================================================== */
+#hud #tactical .tco.pause { display: none; }
+body.rts.touch #hud #tactical .tco.move, body.rts.touch #hud #tactical .tco.protect, body.rts.touch #hud #tactical .tco.attack { display: none; }
+body.rts.touch #hud #tactical .tco.pause { display: block; }
+body.rts.touch #hud #tactical .tco.pause .k { display: none; }
+body.rts.touch #hud #tactical .tco.pause.on { border-color: var(--yellow, #ffe600); color: var(--yellow, #ffe600); box-shadow: inset 0 0 0 1px var(--yellow, #ffe600); }
+body.rts.touch #hud #tactical .tc-grid.tac-ord { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+/* CALL in two lines: the verb, and who (or the weapon) */
+#fire-btn b { display: block; font: inherit; line-height: 1.05; white-space: nowrap; overflow: hidden; }
+#fire-btn small { display: block; margin-top: 3px; font-size: 0.62em; letter-spacing: 0.04em; line-height: 1; opacity: 0.8; white-space: nowrap; overflow: hidden; }
+#fire-btn.cmd { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+body.ui-scifi #fire-btn.wait { background-color: rgba(255, 230, 0, 0.22); color: #ffe600; }
+body.ui-scifi #fire-btn.foe { background-color: #ff6a4a; border-color: #ff6a4a; color: #1a0703; }
+/* the popups say what their buttons do */
+#selpop .dr.w { width: auto; min-width: 30px; display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px 3px 4px; font: 700 10px/1 inherit; letter-spacing: 0.06em; white-space: nowrap; }
+#selpop .dr.w svg { width: 20px; height: 20px; flex: 0 0 auto; }
+#selpop .sp-go { display: block; width: 100%; margin-top: 6px; min-height: 32px; padding: 4px 8px; border: 1px solid #7dff9b; background: rgba(125, 255, 155, 0.12); color: #7dff9b; font: 700 11px/1.1 inherit; letter-spacing: 0.08em; cursor: pointer; touch-action: manipulation; }
+#selpop .sp-go.foe { border-color: #ff6a4a; background: rgba(255, 106, 74, 0.14); color: #ff8a6a; }
+body.touch #selpop .dr.w { min-height: 34px; font-size: 11px; }
+#fire-btn b, #fire-btn small { color: inherit; }
+#hud #selpanel .tsd.foe { border-color: #ff6a4a; color: #ff8a6a; }
+#fire-btn.wait b { white-space: normal; font-size: 0.82em; line-height: 1.05; overflow: visible; }

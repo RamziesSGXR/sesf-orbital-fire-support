@@ -25,6 +25,15 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**Troops by touch (0.63).** Players found calling in and handling troops on a touch screen nearly impossible: the controls had been a PC game's. With the **TROOPS** tab open on a touch screen it now works like a mouse:
+- **Tap a trooper** to pick his whole squad (tap him again for just him; hold a finger on others to add them).
+- **Tap anywhere else** to mark the spot. **CALL says what the squad will do there** (MOVE S1, ATTACK S1, GO IN S1, MAN S1, BUILD S1) and does it. A **double tap** does it straight away. With nothing picked CALL says PICK SQUAD; with a weapon armed it says CALL and the weapon's name.
+- **PAUSE** is on the troops panel, where MOVE, PROTECT and ATTACK were (CALL does those now). Paused, orders queue up and go out together on GO ON.
+- **Every building in sight can be tapped:** enemy bases, side objectives (radio and broadcast towers, jammers, spore towers, the old cannon), the objective and the extraction. Its card says what it is and how it stands, with a button to send the squad picked (or the nearest one).
+- **Sent to a building, troops go in.** That holds for a right-click with a mouse too. Building cards say what their buttons do: GO IN, MAN, COME OUT.
+- **Formations are gone.** A squad in a fight is pinned where it stands, so they made no difference; squads move loose, as they did by default.
+- With a mouse nothing else changes: right-click orders, and the MOVE, PROTECT and ATTACK buttons are still there.
+
 **iPhones (0.62.28).**
 - **Held sideways,** the screen was squeezed by the notch's margin on both sides. The game now works out which side the notch is on and keeps only a rounded corner's room on the other, so the bottom panel gets that width back: every order's name fits (PROTECT, DISBAND, the weapons), and the threat meter no longer runs into the clock.
 - DRAW, DISBAND, MERGE and FORM show their glyphs sideways too, as they do upright. A name that still does not fit its button (a small iPhone SE, a long French word) steps its type down until it does.
