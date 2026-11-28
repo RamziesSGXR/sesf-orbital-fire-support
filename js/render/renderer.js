@@ -626,6 +626,8 @@ export class Renderer {
     // touch screen where it was put); the aim otherwise.
     const gp = ui.placing ? ui.ghost || ui.aim : null;
     if (gp) this._ghost(ctx, m, ui.placing, gp, now, px, labels, scale, pal, ui.snap, ui);
+    // (0.63) the spot marked for the troops' order on a touch screen: a ring (red on an enemy), a line from the squad, and what CALL does
+    if (ui.cmd) this._cmdMark(ctx, m, ui.cmd, now, px, labels);
 
     // Effects, and the player's orbital shells coming down (0.40: and the nuke on its way from the launch site)
     this._icbm(ctx, m, now, px);
@@ -752,6 +754,16 @@ export class Renderer {
     }
     ctx.fillStyle = ok ? pal.ally : '#ff4a4a'; this._diamond(ctx, ax, ay, Math.max(px(5), 3));
     labels.push({ x: ax, y: ay, dy: 34, text, col: ok ? '#9dffb8' : '#ff6a5a', pri: 3 });
+  }
+  _cmdMark(ctx, m, c, now, px, labels) {
+    const col = c.foe ? '255,106,74' : '255,230,0', R = Math.max(px(12), 4), pulse = 1 + 0.12 * Math.sin(now * 6);
+    const sf = m.seaf, L = sf.sel >= 0 ? [sf.squads[sf.sel]] : sf.multi && sf.multi.length ? sf.multi.map((i) => sf.squads[i]) : [];
+    for (const q of L) { if (!q || !q.n) continue; ctx.strokeStyle = `rgba(${col},0.45)`; ctx.lineWidth = px(1.2); ctx.beginPath(); ctx.moveTo(q.cx, q.cy); ctx.lineTo(c.x, c.y); ctx.stroke(); }
+    ctx.strokeStyle = `rgba(${col},0.95)`; ctx.lineWidth = px(2);
+    ctx.beginPath(); ctx.arc(c.x, c.y, R * pulse, 0, TAU); ctx.stroke();
+    const a = R * 0.45, b = R * 1.5;
+    ctx.beginPath(); ctx.moveTo(c.x - b, c.y); ctx.lineTo(c.x - a, c.y); ctx.moveTo(c.x + a, c.y); ctx.lineTo(c.x + b, c.y); ctx.moveTo(c.x, c.y - b); ctx.lineTo(c.x, c.y - a); ctx.moveTo(c.x, c.y + a); ctx.lineTo(c.x, c.y + b); ctx.stroke();
+    labels.push({ x: c.x, y: c.y, dy: -20, text: `${tr('cmd.v.' + c.verb)} · ${c.who}`, col: `rgb(${col})`, pri: 4 });
   }
   _plan(ctx, m, plan, now, px, labels, scale, pal) {
     plan.forEach((it, n) => {

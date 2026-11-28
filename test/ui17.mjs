@@ -243,9 +243,8 @@ if (touch) { await tap('#po-go'); await page.waitForTimeout(200); }     // (0.22
 check('a click (or tap) there orders it, and the screen stays open', (await ev(() => window.__game.mission.seaf.squads.some((q) => q.n && q.order.kind === 'build' && q.order.what === 'foxhole'))) && (await ev(() => window.__game.tac)) && !(await ev(() => window.__game.placing)));
 // a formation
 await toTroops(); await page.waitForTimeout(150);
-if (await ev(() => document.body.classList.contains('lay-phone'))) await tap('#squads .fcyc'); else await tap('#tactical .frm[data-f="line"]');     // (0.21: a phone steps through them with one FORM button: LOOSE, then LINE)   // (0.18: the formations are on the troops tab; 0.20: no keys, X is AUTO)
-await page.waitForTimeout(150);
-check('a formation for the selected squad (the screen stays open)', (await ev(() => { const m = window.__game.mission; return m.seaf.squads[m.seaf.sel].form; })) === 'line' && await ev(() => window.__game.tac));
+// (0.63) the formations are gone: no formation buttons are left on the troops tab
+check('(0.63) no formation buttons (the screen stays open)', !(await ev(() => !!document.querySelector('#tactical .frm, #squads .fcyc, .tac-form'))) && await ev(() => window.__game.tac));
 if (!touch) { await page.keyboard.press('KeyB'); await page.waitForTimeout(150); await page.keyboard.press('Escape'); await page.waitForTimeout(200); check('(0.20) Esc goes back to the troops (before the menu)', (await ev(() => window.__game.hud.tcTab)) === 'units' && !(await on('s-pause'))); }
 const t1 = await ev(() => window.__game.mission.t); await page.waitForTimeout(500);
 check('and the game goes on', (await ev(() => window.__game.mission.t)) > t1);

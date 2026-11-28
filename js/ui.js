@@ -12,7 +12,7 @@ import { penOf, GUN_PEN, shopItems, orbStats, uavStats, seafStats, gunStats, zon
 import { stratReady, stratOnline } from './sim/strat.js';
 import { slotStats } from './sim/player.js';
 import { compass } from './sim/enemies.js';
-import { builtCount, FORMS, fleet, seafHeld, lzStatus } from './sim/seaf.js';
+import { builtCount, fleet, seafHeld, lzStatus } from './sim/seaf.js';
 const noLvl = (what) => FLAT_BUILDS.has(what) || what === 'lz' || what === 'site';     // (0.52: nor the work site)      // (0.39) no levels: wire, foxholes, pickup points
 import { POSTS, INSIDE, crateSec, freeBuild } from './sim/posts.js';
 import { objectiveStatus, OBJ_NAME } from './sim/objectives.js';
@@ -244,8 +244,8 @@ export class Hud {
     });
     // The tactical build screen (main.js opens it): what is selected, a picture of everything SEAF can build (0.36.1: picked with a click; the number keys stay on the weapons), and
     // the formations for the selected squad (clicked: Z X C V and B are orders and BUILD since 0.20). It runs in real time.
-    this.bld = {}; this.frm = {};
-    const tb = document.querySelector('#tactical .tac-build'), tf = document.querySelector('#tactical .tac-form');
+    this.bld = {};
+    const tb = document.querySelector('#tactical .tac-build');
     POSTS.forEach((what) => {
       const e = el('button', 'bld', `<canvas class="ic" width="112" height="112"></canvas><span class="c"></span><span class="n"></span><span class="s"></span>`);
       e.type = 'button'; e.dataset.b = what;
@@ -255,23 +255,7 @@ export class Hud {
       e.addEventListener('pointerleave', (ev) => { if (ev.pointerType === 'mouse') this.tipLeave(); });
       tb.appendChild(e); this.bld[what] = { el: e, n: e.querySelector('.n'), s: e.querySelector('.s'), c: e.querySelector('.c'), key: '' };
     });
-    FORMS.forEach((f) => {
-      const e = el('button', 'frm', `<i class="fg fg-${f}"></i><span class="n"></span>`);
-      e.type = 'button'; e.dataset.f = f;
-      e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.onForm && this.onForm(f); if (this.m) this.tip(e, () => formShort(this.m, f), null); });
-      e.addEventListener('pointerenter', (ev) => { if (ev.pointerType === 'mouse' && this.m) this.tip(e, () => formShort(this.m, f), null, 0); });
-      e.addEventListener('pointerleave', (ev) => { if (ev.pointerType === 'mouse') this.tipLeave(); });
-      tf.appendChild(e); this.frm[f] = { el: e, n: e.querySelector('.n'), key: '' };
-    });
-    {     // (0.21) phones: one button on the squad bar steps through the formations (there is no room for five)
-      const e = el('button', 'sqa fcyc', `<i class="fg fg-loose"></i><span class="n">${esc(t('hud.form'))}</span>`); e.type = 'button';
-      e.addEventListener('pointerdown', (ev) => {
-        ev.preventDefault(); ev.stopPropagation(); if (!this.onForm) return;
-        const cur = this._formNow, f = FORMS[(FORMS.indexOf(cur) + 1) % FORMS.length];
-        this.onForm(f); if (this.m) this.tip(e, () => formShort(this.m, f), null);
-      });
-      $('squads').appendChild(e); this.fcyc = { el: e, i: e.querySelector('.fg'), n: e.querySelector('.n'), key: '' };
-    }
+    // (0.63) the formation buttons are gone: squads move loose
     $('mp-go').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); const L = this.merge ? [...this.merge] : []; this.mergeEnd(); if (this.onMerge) this.onMerge(L); });
     $('mp-x').addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); this.mergeEnd(); });
     document.addEventListener('pointerdown', (ev) => { if (this.merge && !ev.target.closest('#squads, #merge-pop')) this.mergeEnd(); }, true);
@@ -288,7 +272,6 @@ export class Hud {
     // the ship's weapons, and the armory (live: the war goes on while you shop)
     this.tcTab = 'units';
     document.querySelector('#tactical .tc-sqs').appendChild($('squads'));
-    document.querySelector('#tactical .tc-u').appendChild(document.querySelector('#tactical .tac-form'));     // (0.20: formations with the troops)
     document.querySelectorAll('#tactical .tct').forEach((b) => b.addEventListener('pointerdown', (ev) => {
       ev.preventDefault(); ev.stopPropagation();
       if (b.dataset.tab === 'armory' && this.onArmory) { this._armDown = performance.now(); return; }     // (0.61) the armory is a window now, opened by the click (below)
@@ -302,7 +285,7 @@ export class Hud {
       this._armDown = 0; if (this.onArmory) this.onArmory();
     });
     const ordBox = document.querySelector('#tactical .tac-ord');
-    for (const o of ['seaf', 'pickup', 'auto', 'move', 'protect', 'attack', 'escort']) {     // (0.20: DISBAND is on the squad bar, once; 0.39: PICKUP)
+    for (const o of ['seaf', 'pickup', 'auto', 'move', 'protect', 'attack', 'escort', 'pause']) {     // (0.20: DISBAND is on the squad bar, once; 0.39: PICKUP; 0.63: PAUSE, on a touch screen, where MOVE, PROTECT and ATTACK were)
       const e = el('button', 'tco ' + o, `<span class="k">${esc(orderKey(o))}</span><span class="n"></span><span class="s"></span>`);     // (0.50.1: the player's own keys)
       e.type = 'button'; e.dataset.o = o;
       e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); ev.stopPropagation(); if (o === 'disband') this.onSquadAct && this.onSquadAct('disband'); else this.onOrder && this.onOrder(o); });
@@ -716,7 +699,7 @@ export class Hud {
     for (const o of Object.values(this.ord)) o.key = '';
     this.setDrawing(false); for (const b of this.sqb) b.key = ''; for (const a of Object.values(this.sqa)) a.key = '';
     this.trayToggle(false); this.dkKey = ''; this.selKey = ''; $('selpop').classList.add('hidden'); this.setBoxArm(false); this.setArmed(false);
-    for (const b of Object.values(this.bld)) b.key = ''; for (const f of Object.values(this.frm)) f.key = '';
+    for (const b of Object.values(this.bld)) b.key = '';
     this.wake(5000);
   }
   // The soft pause: a frame and a strip saying the game is stopped, and the pause button turns into a play button.
@@ -1135,16 +1118,6 @@ export class Hud {
       const on = this.placing === 'build:' + what, key = `${name}|${sub}|${cls}|${n}|${on}`;
       if (b.key !== key) { b.key = key; b.n.textContent = name; b.s.textContent = sub; b.c.textContent = n ? `×${n}` : ''; b.el.className = 'bld ' + cls + (on ? ' on' : ''); }
     }
-    const sf = m.seaf, tq = (sf.sel >= 0 ? [sf.squads[sf.sel]] : sf.squads).filter((q) => q.n > 0), forms = new Set(tq.map((q) => q.form || 'loose'));
-    for (const [f, b] of Object.entries(this.frm)) {
-      const on = forms.size === 1 && forms.has(f), key = `${on}|${tq.length > 0}|${getLang()}`;
-      if (b.key !== key) { b.key = key; b.n.textContent = t('form.' + f); b.el.className = 'frm' + (on ? ' on' : '') + (tq.length ? '' : ' off'); }
-    }
-    if (this.fcyc) {     // the phone's one formation button: the formation now (or FORM when the squads differ)
-      const one = forms.size === 1 ? [...forms][0] : null, key = `${one}|${tq.length > 0}|${getLang()}`;
-      this._formNow = one || FORMS[FORMS.length - 1];
-      if (this.fcyc.key !== key) { this.fcyc.key = key; this.fcyc.n.textContent = one ? t('form.' + one) : t('hud.form'); this.fcyc.i.className = 'fg fg-' + (one || 'loose'); this.fcyc.el.className = 'sqa fcyc' + (tq.length ? ' ready' : ' off'); }
-    }
     // how tall the console is, so the drop menus sit just above it
     const h = $('tactical').offsetHeight;
     if (h && h !== this.last.tch) { this.last.tch = h; document.body.style.setProperty('--tch', `${h}px`); }
@@ -1153,14 +1126,14 @@ export class Hud {
   _tacUnits(m) {
     const sf = m.seaf, any = m.seafAlive.length > 0, selN = sf.sel === -2 ? (sf.pick || []).length : sf.sel >= 0 ? sf.squads[sf.sel].n : 0;
     document.querySelectorAll('#tactical .tco').forEach((b) => {
-      const o = b.dataset.o, src = this.ord[o];
-      const n = o === 'disband' ? t('hud.disband') : src ? src.el.querySelector('.n').textContent : o;
-      const s = o === 'disband' ? '' : src ? src.sub.textContent : '';
-      const off = o === 'disband' ? !selN : o === 'pickup' ? !any : o !== 'seaf' && !any;
+      const o = b.dataset.o, src = this.ord[o], ps = document.body.classList.contains('softpaused');
+      const n = o === 'pause' ? (ps ? '▶ ' + t('cmd.go') : 'II ' + t('cmd.pause')) : o === 'disband' ? t('hud.disband') : src ? src.el.querySelector('.n').textContent : o;
+      const s = o === 'pause' ? (ps ? t('cmd.paused') : '') : o === 'disband' ? '' : src ? src.sub.textContent : '';
+      const off = o === 'pause' ? false : o === 'disband' ? !selN : o === 'pickup' ? !any : o !== 'seaf' && !any;
       const key = `${n}|${s}|${off}|${src ? src.el.className : ''}`;
       if (b._k === key) return; b._k = key;
       b.querySelector('.n').textContent = n; b.querySelector('.s').textContent = s; fitEl(b.querySelector('.n')); fitEl(b.querySelector('.s'));
-      b.className = 'tco ' + o + (off ? ' off' : '') + (src && /\bcd\b/.test(src.el.className) ? ' cd' : '');
+      b.className = 'tco ' + o + (off ? ' off' : '') + (src && /\bcd\b/.test(src.el.className) ? ' cd' : '') + (o === 'pause' && ps ? ' on' : '');
     });
     document.querySelectorAll('#tactical .tcq').forEach((b, i) => {
       const n = sf.squads[i] ? sf.squads[i].n : 0, key = `${n}|${sf.sel === i}|${selN > 0}`;
@@ -1259,7 +1232,18 @@ export class Hud {
       return `<button type="button" class="tt r-${a.role || 'rifle'}${a.down ? ' down' : ''}" data-pick="${a.id}" title="${esc(m.tag(a))}" style="--sc:${a.sq >= 0 ? (SQUAD_COL[a.sq] || '#9dd8ff') : '#c8d2cc'}"><b>${ROLE_GLYPH[a.role || 'rifle'] || '•'}</b><u style="width:${Math.round(hp * 100)}%"></u></button>`;
     }).join('')}${list.length > max ? `<span class="tt-more">+${list.length - max}</span>` : ''}</div>`;
     let h;
-    if (sel && !sel.dead && sel.what === 'lz') {
+    if (sel && sel.place) {
+      // (0.63) a place on the map: what it is, how it stands, and SEND (the squad picked, or the nearest one)
+      const r = sel.ref, hp = r.maxHp ? Math.max(0, Math.round((100 * r.hp) / r.maxHp)) : null, left = r.spawners ? r.spawners.filter((z) => !z.dead).length : null;
+      const who = sf.sel >= 0 ? `S${sf.sel + 1}` : sf.multi && sf.multi.length ? sf.multi.map((i) => `S${i + 1}`).join('+') : sf.sel === -2 && sf.pick ? t('cmd.men', { n: sf.pick.length }) : '';
+      const send = who ? t(sel.foe ? 'place.attack' : 'place.send', { who }) : t(sel.foe ? 'place.attackNear' : 'place.sendNear');
+      const name = this.placeName ? this.placeName(sel) : sel.pk;
+      h = `<div class="ts-h"${sel.foe ? ' style="color:#ff8a6a"' : ''}>${esc(String(name).toUpperCase())}</div>`
+        + (hp !== null ? `<i class="ts-hp"><u style="width:${hp}%"></u></i>` : '')
+        + (left !== null ? `<div class="ts-r">${esc(t('place.left', { n: left }))}</div>` : '')
+        + (m.seafAlive.length ? `<div class="ts-doors"><button type="button" class="btn tsd${sel.foe ? ' foe' : ''}" data-sa="send">${esc(send)}</button></div>` : '')
+        + `<div class="ts-b">${esc(t('place.d.' + sel.pk))}</div>`;
+    } else if (sel && !sel.dead && sel.what === 'lz') {
       // (0.39) a pickup point: what it is doing, SEND (the troops picked go to it) and CALL OFF
       const who = sf.sel >= 0 ? `S${sf.sel + 1}` : sf.sel === -2 ? t('tac.picked') : t('hud.all');
       h = `<div class="ts-h">${esc(t('build.lz').toUpperCase())}</div><div class="ts-r">${esc(lzStatus(m, sel))}</div>`
@@ -1290,7 +1274,7 @@ export class Hud {
     } else if (q && q.n) {
       const list = m.seafAlive.filter((a) => a.sq === q.i);
       h = `<div class="ts-h" style="color:${SQUAD_COL[q.i] || '#fff'}">S${q.i + 1} <i>${esc(t('tac.troopers', { n: q.n }))}</i></div>${tiles(list)}`
-        + `<div class="ts-r">${esc(t('card.ord.' + (q.order.kind === 'post' ? 'post' : q.order.kind === 'build' ? 'build' : q.order.kind)) || q.order.kind)} · ${esc(t('form.' + (q.form || 'loose')))}</div>`;
+        + `<div class="ts-r">${esc(t('card.ord.' + (q.order.kind === 'post' ? 'post' : q.order.kind === 'build' ? 'build' : q.order.kind)) || q.order.kind)}</div>`;
     } else {
       const n = m.countAlly('S'), loose = m.seafAlive.filter((a) => a.sq === -3).length;
       h = `<div class="ts-h">${esc(t('hud.all'))} <i>${esc(t('tac.troopers', { n }))}</i></div>${loose ? `<div class="ts-r">${esc(t('tac.loose', { n: loose }))}</div>` : ''}<div class="ts-b">${esc(t(n ? (document.body.classList.contains('touch') ? 'tac.selHintTouch' : 'tac.selHint') : 'tac.noSeaf'))}</div>`;
@@ -1302,9 +1286,10 @@ export class Hud {
   // the selected SEAF squad in (they garrison it) and a door out when someone is garrisoned there. pos: where it is on screen.
   selPop(m, s, pos, force = false) {
     const c = $('selpop');
-    this.selObj = s && !s.dead ? s : null;
+    this.selObj = s && !s.dead && !(s.g !== undefined && (s.kind === 'L' || s.kind === 'M' || s.kind === 'H')) ? s : null;     // (0.63: an enemy is looked at, never the panel's selection; a place has its own card there)
     if (!s || !m || !pos) { if (!c.classList.contains('hidden')) c.classList.add('hidden'); this.selKey = ''; return; }
     if (s.g !== undefined && (s.kind === 'L' || s.kind === 'M' || s.kind === 'H')) { this._enemyPop(m, s, pos, force); return; }     // (0.58) an enemy picked: what it is
+    if (s.place) { this._placePop(m, s, pos, force, this.placeName ? this.placeName(s) : s.pk); return; }     // (0.63) a place
     const post = s.kind === 'post' ? s : null, sentry = s.kind === 'turret' ? s : null, site = !post && !sentry ? s : null;
     const hp = s.maxHp ? Math.round((100 * s.hp) / s.maxHp) : s.wireMax ? Math.round((100 * Math.max(0, s.wireHp)) / s.wireMax) : null;
     const lzs = post && post.what === 'lz' ? lzStatus(m, post) : '';
@@ -1321,20 +1306,54 @@ export class Hud {
           sub = post.workers ? esc(`${t('lab.siteWork', { n: post.workers, c: post.cap, gain: t(g.key, { p: g.now }) })}${post.workers < post.cap ? ` (${t('site.full', { p: g.full, c: post.cap })})` : ''} · ${t('site.pay', { n: g.pay, s: g.every })}`)
             : esc(t('lab.siteIdle', { gain: t(g.key, { p: g.full }) }));
         }
-        if (post.cap && post.garrison < post.cap && INSIDE.has(post.what) && !post.fallen) btns += `<button class="dr in" type="button" data-sa="in" title="${esc(t('sel.inT', { who }))}" aria-label="${esc(t('sel.inT', { who }))}">${DOOR_IN}</button>`;
-        if (post.garrison) btns += `<button class="dr out" type="button" data-sa="out" title="${esc(t('sel.outT'))}" aria-label="${esc(t('sel.outT'))}">${DOOR_OUT}</button>`;
-        if (lzs) { sub = esc(lzs); btns += `<button class="dr in" type="button" data-sa="man" title="${esc(t('sel.lzSend', { who }))}" aria-label="${esc(t('sel.lzSend', { who }))}">${DOOR_IN}</button>`; }
+        // (0.63) the doors say what they do (players did not read the door pictures): GO IN, COME OUT, SEND
+        if (post.cap && post.garrison < post.cap && INSIDE.has(post.what) && !post.fallen) btns += `<button class="dr in w" type="button" data-sa="in" title="${esc(t('sel.inT', { who }))}" aria-label="${esc(t('sel.inT', { who }))}">${DOOR_IN}<span>${esc(t('pop.in', { who }))}</span></button>`;
+        else if (post.cap && !INSIDE.has(post.what) && !post.fallen && post.what !== 'lz') btns += `<button class="dr in w" type="button" data-sa="man" title="${esc(t('sel.manT', { who }))}" aria-label="${esc(t('sel.manT', { who }))}">${DOOR_IN}<span>${esc(t('pop.man', { who }))}</span></button>`;
+        if (post.garrison) btns += `<button class="dr out w" type="button" data-sa="out" title="${esc(t('sel.outT'))}" aria-label="${esc(t('sel.outT'))}">${DOOR_OUT}<span>${esc(t('pop.out'))}</span></button>`;
+        if (lzs) { sub = esc(lzs); btns += `<button class="dr in w" type="button" data-sa="man" title="${esc(t('sel.lzSend', { who }))}" aria-label="${esc(t('sel.lzSend', { who }))}">${DOOR_IN}<span>${esc(t('pop.send', { who }))}</span></button>`; }
       } else if (sentry) {
         name = esc((sentry.name || t('lab.sentry')).toUpperCase());
         sub = `${esc(t('card.ammo'))} ${Math.max(0, Math.round(sentry.ammo))}/${sentry.maxAmmo}`;
       } else {
         name = esc(t('sel.site').toUpperCase());
         sub = esc(t('sel.walls')) + ' ' + site.pieces.length;
-        btns += `<button class="dr in" type="button" data-sa="man" title="${esc(t('sel.manT', { who }))}" aria-label="${esc(t('sel.manT', { who }))}">${DOOR_IN}</button>`;
+        btns += `<button class="dr in w" type="button" data-sa="man" title="${esc(t('sel.manT', { who }))}" aria-label="${esc(t('sel.manT', { who }))}">${DOOR_IN}<span>${esc(t('pop.man', { who }))}</span></button>`;
       }
       c.innerHTML = `<div class="sp-t"><b>${name}</b>${btns ? `<span class="sp-d">${btns}</span>` : ''}</div>`
         + (hp !== null ? `<i class="sp-hp${hp < 35 ? ' low' : ''}"><u style="width:${hp}%"></u></i>` : '')
         + (sub ? `<div class="sp-s">${sub}${post && post.repairing ? ` · ${esc(t('sel.repairing'))}` : ''}</div>` : '');
+      c.classList.remove('hidden');
+    }
+    c.style.transform = `translate(${Math.round(pos.x)}px, ${Math.round(pos.y)}px) translate(-50%, -100%)`;
+  }
+  // (0.63) CALL says what it will do. On the troops tab of a touch screen it is the order at the spot marked (MOVE S1, ATTACK S1,
+  // GO IN S1, MAN S1, BUILD S1), or what is missing (PICK A SQUAD, TAP THE MAP); with a weapon armed, CALL and the weapon's name.
+  setCall(cmd, wi) {
+    const fb = $('fire-btn'); if (!fb) return;
+    let l1 = t('hud.call'), l2 = '', mode = '';
+    if (cmd) { l1 = t('cmd.v.' + cmd.verb); l2 = cmd.who || ''; mode = cmd.verb === 'pick' || cmd.verb === 'tap' ? 'wait' : cmd.foe ? 'foe' : 'go'; }
+    else if (wi >= 0 && this.wb[wi]) l2 = this.wb[wi].n.textContent;
+    const key = `${l1}|${l2}|${mode}`;
+    if (this._callK === key) return;
+    this._callK = key;
+    fb.innerHTML = `<b>${esc(l1)}</b>${l2 ? `<small>${esc(l2)}</small>` : ''}`;
+    fb.classList.toggle('cmd', !!mode); fb.classList.toggle('wait', mode === 'wait'); fb.classList.toggle('foe', mode === 'foe');
+    fitEl(fb.querySelector('b')); const sm = fb.querySelector('small'); if (sm) fitEl(sm);
+  }
+  // (0.63) A place on the map (an enemy base, a side objective, the objective) tapped: what it is, how it stands, and SEND.
+  _placePop(m, o, pos, force, name) {
+    const c = $('selpop'), r = o.ref, sf = m.seaf;
+    const hp = r.maxHp ? Math.max(0, Math.round((100 * r.hp) / r.maxHp)) : null, left = r.spawners ? r.spawners.filter((q) => !q.dead).length : null;
+    const who = sf.sel >= 0 ? `S${sf.sel + 1}` : sf.multi && sf.multi.length ? sf.multi.map((i) => `S${i + 1}`).join('+') : sf.sel === -2 && sf.pick ? t('cmd.men', { n: sf.pick.length }) : '';
+    const key = ['p', o.pk, r.id || '', hp, left, who, getLang()].join('|');
+    if (force || key !== this.selKey) {
+      this.selKey = key;
+      const sub = [t('place.d.' + (o.pk === 'base' ? 'base' : o.pk)), left !== null ? t('place.left', { n: left }) : ''].filter(Boolean).join(' · ');
+      const send = who ? t(o.foe ? 'place.attack' : 'place.send', { who }) : t(o.foe ? 'place.attackNear' : 'place.sendNear');
+      c.innerHTML = `<div class="sp-t"><b>${esc(String(name).toUpperCase())}</b></div>`
+        + (hp !== null ? `<i class="sp-hp${hp < 35 ? ' low' : ''}"><u style="width:${hp}%"></u></i>` : '')
+        + `<div class="sp-s">${esc(sub)}</div>`
+        + (m.seafAlive.length ? `<button class="sp-go${o.foe ? ' foe' : ''}" type="button" data-sa="send">${esc(send)}</button>` : '');
       c.classList.remove('hidden');
     }
     c.style.transform = `translate(${Math.round(pos.x)}px, ${Math.round(pos.y)}px) translate(-50%, -100%)`;
@@ -1759,7 +1778,7 @@ export function renderNext(opts) {
   }
 }
 // (0.50.1) the key an order or a weapon is on now (keys.js), for the buttons that show it
-export const orderKey = (o) => (o === 'pickup' ? '⇧' + keyLabelOf('seaf') : keyLabelOf(o));
+export const orderKey = (o) => (o === 'pickup' ? '⇧' + keyLabelOf('seaf') : o === 'pause' ? keyLabelOf('pause') : keyLabelOf(o));
 // (0.50.1) CHANGE KEYS: every action, grouped, with its key; opts.listening: the action waiting for a key; opts.onPick(action)
 export function renderKeys(root, opts = {}) {
   root.innerHTML = '';
@@ -2434,7 +2453,7 @@ export function squadInfo(m, i) {
   const q = i >= 0 ? m.seaf.squads[i] : null;
   let h = `<div class="ic-h">${i >= 0 ? t('card.sq', { n: i + 1 }) : t('card.sqAll')} <i>${t('card.troopers', { n: list.length })}</i></div>`;
   h += Object.entries(roles).map(([r, n]) => row(t('card.role.' + r), n)).join('') || row(t('card.trooperRow'), t('card.noneYet'));
-  if (q && q.n) h += row(t('card.order'), t('card.ord.' + q.order.kind)) + row(t('card.form'), t('form.' + (q.form || 'loose')));
+  if (q && q.n) h += row(t('card.order'), t('card.ord.' + q.order.kind));
   return h + `<div class="ic-b">${esc(t(i >= 0 ? 'card.sq.b' : 'card.sqAll.b'))}</div>`;
 }
 
@@ -2483,7 +2502,6 @@ export function buildShort(m, what) {
   if (B.cap) parts.push(t('tip.crew', { n: B.cap }));
   return tl1(t('build.' + what), !noLvl(what) ? `L${lvl}` : '', parts, m.wallet.bal < B.cost ? t('tip.poor') : '', m.wallet.bal < B.cost);
 }
-export function formShort(m, f) { return tl1(t('form.' + f), '', [t('form.' + f + '.b')], ''); }
 export function stratShort(m, id) {
   const g = m.strat.groups[id]; if (!g) return '';
   const d = g.def, left = Math.max(0, g.readyAt - m.t), on = stratOnline(m, id);
@@ -2491,7 +2509,7 @@ export function stratShort(m, id) {
 }
 export function squadShort(m, i) {
   const list = i >= 0 ? m.seafAlive.filter((a) => a.sq === i) : m.seafAlive, q = i >= 0 ? m.seaf.squads[i] : null;
-  return tl1(i >= 0 ? `S${i + 1}` : t('hud.all'), '', [t('tac.troopers', { n: list.length }), q && q.n ? (q.order.kind === 'auto' ? t('hud.auto') : q.order.kind === 'build' ? t('card.ord.build') : t('hud.q.' + q.order.kind)) : '', q && q.n ? t('form.' + (q.form || 'loose')) : ''], '');
+  return tl1(i >= 0 ? `S${i + 1}` : t('hud.all'), '', [t('tac.troopers', { n: list.length }), q && q.n ? (q.order.kind === 'auto' ? t('hud.auto') : q.order.kind === 'build' ? t('card.ord.build') : t('hud.q.' + q.order.kind)) : ''], '');
 }
 
 // The steps of each objective, in order; the text comes from info.<type>.<step>.

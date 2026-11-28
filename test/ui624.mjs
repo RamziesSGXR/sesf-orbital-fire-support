@@ -23,7 +23,7 @@ const stat0 = (tag) => ev((tag) => { const g = window.__game, m = g.mission, R =
 const box = (q) => ev((q) => { const e = document.querySelector(q); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width }; }, q);
 const cdp = await page.context().newCDPSession(page);
 const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
-const st = () => ev(() => { const g = window.__game, m = g.mission; return { armed: g.armed, firing: !!m.player.firing, pick: (m.seaf.pick || []).length, cam: Math.round(g.cam.x) + ',' + Math.round(g.cam.y), trc: g.renderer.fx.filter((f) => f.k === 'trc').length }; });
+const st = () => ev(() => { const g = window.__game, m = g.mission; return { armed: g.armed, firing: !!m.player.firing, pick: (m.seaf.pick || []).length, sel: m.seaf.sel, cam: Math.round(g.cam.x) + ',' + Math.round(g.cam.y), trc: g.renderer.fx.filter((f) => f.k === 'trc').length }; });
 const gunCard = () => ev((gi) => { const e = document.querySelectorAll('#weapons .wbtn')[gi]; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, gi);
 for (let cyc = 0; cyc < 3; cyc++) {
   const wb = await gunCard(); await page.touchscreen.tap(wb.x, wb.y); await page.waitForTimeout(300);
@@ -36,7 +36,7 @@ for (let cyc = 0; cyc < 3; cyc++) {
   const p = await scr(tr.x, tr.y), c0 = (await st()).cam;
   await page.touchscreen.tap(p.x, p.y); await page.waitForTimeout(400);
   const s2 = await st();
-  ok(!s2.armed && s2.pick === 1 && s2.cam === c0, `round ${cyc + 1}: a trooper tapped with the gun still armed is selected, the gun is put away and the map stays put`, s2);
+  ok(!s2.armed && (s2.pick === 1 || s2.sel >= 0) && s2.cam === c0, `round ${cyc + 1}: a trooper tapped with the gun still armed is selected (0.63: his squad, on a touch screen), the gun is put away and the map stays put`, s2);
 }
 { const wb = await gunCard(); await page.touchscreen.tap(wb.x, wb.y); await page.waitForTimeout(250); const a1 = (await st()).armed;
   await page.touchscreen.tap(wb.x, wb.y); await page.waitForTimeout(250); const a2 = (await st()).armed;
