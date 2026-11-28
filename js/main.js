@@ -52,8 +52,41 @@ const renderer = new Renderer(canvas);
 const audio = new Audio();
 const music = new Music(audio);     // (0.29) the score: follows the fight in a mission, calm in the menus
 // Browsers only let sound start from a click, a tap or a key: the first one anywhere unlocks it, so the title's music begins then.
-for (const k of ['pointerdown', 'keydown']) window.addEventListener(k, () => audio.unlock(), { once: true, capture: true });
+// (0.62.28) Safari on an iPhone ignores user-scalable=no: a pinch on a menu would zoom the whole page. Pinches stay the map's.
+for (const k of ['gesturestart', 'gesturechange']) document.addEventListener(k, (e) => e.preventDefault(), { passive: false });
+// (0.62.28) iPhones count only a finger lifting (touchend, click) as a gesture that may start sound, so those are listened for too, until
+// the sound is running. iOS also stops it ('interrupted') for a call or while the game is in the background: the next touch resumes it.
+{
+  const KS = ['pointerdown', 'keydown', 'touchend', 'click'];
+  const go = () => { audio.unlock(); if (audio.ctx && audio.ctx.state === 'running') for (const k of KS) window.removeEventListener(k, go, true); };
+  const arm = () => { for (const k of KS) window.addEventListener(k, go, true); };
+  arm();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && audio.ctx && audio.ctx.state !== 'running') { try { audio.ctx.resume(); } catch { /* */ } arm(); } });
+}
 const hud = new UI.Hud();
+// (0.62.28) a button's name that does not fit its button (a small phone, a long word in French or Spanish) steps its type down
+// until it does, never under 6.5 px. It goes back to full size when its text changes or the screen does, and is fitted again.
+{
+  const SEL = '#tactical .tco .n, #tactical .tco .s, #tactical .sqb .n, #tactical .sqb .s, #tactical .sqa .n, #weapons .wbtn .n, #weapons .wbtn .sub';
+  const fit = () => {
+    fit.q = 0;
+    // (an order button under 34 px, as on an iPhone SE, drops its status line: dimmed or lit already says it, and its name gets the room)
+    { const tc = document.getElementById('tactical'), o = tc && tc.querySelector('.tac-ord .tco:not(.seaf)'); if (o && o.offsetParent) tc.classList.toggle('tight', o.getBoundingClientRect().width < 34); }
+    for (const el of document.querySelectorAll('#hud ' + SEL.split(', ').join(', #hud '))) {
+      if (!el.offsetParent) continue;
+      const txt = el.textContent;
+      if (el._ft !== txt || fit.reset) { el._ft = txt; el.style.fontSize = ''; }
+      if (!el.clientWidth) continue;
+      let fs = parseFloat(getComputedStyle(el).fontSize) || 10, n = 0;
+      while (el.scrollWidth > el.clientWidth + 0.5 && fs > 6.5 && n++ < 14) { fs -= 0.5; el.style.fontSize = fs + 'px'; }
+    }
+    fit.reset = false;
+  };
+  const ask = () => { if (!fit.q) fit.q = requestAnimationFrame(fit); };
+  const mo = new MutationObserver(ask);
+  for (const id of ['tactical', 'weapons']) { const e = document.getElementById(id); if (e) mo.observe(e, { subtree: true, childList: true, characterData: true }); }
+  window.addEventListener('resize', () => { fit.reset = true; ask(); });
+}
 const cam = { x: C.world.size / 2, y: C.world.size / 2, view: C.world.viewWidth, follow: true };
 let settings = S.getSettings();
 settings.lang = startLang(settings.lang);
@@ -100,6 +133,14 @@ function pickLayout() {
   const want = settings.layout;
   return want === 'phone' || want === 'tab' || want === 'desk' ? want : short < 540 ? 'phone' : coarse ? 'tab' : 'desk';
 }
+// the screen's safe margins (the notch, the rounded corners, the home bar) in CSS px, read from a hidden probe
+function safeInsets() {
+  let p = safeInsets.p;
+  if (!p) { p = safeInsets.p = document.createElement('div'); p.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)'; document.body.appendChild(p); }
+  const c = getComputedStyle(p), f = (k) => parseFloat(c[k]) || 0;
+  return { t: f('paddingTop'), r: f('paddingRight'), b: f('paddingBottom'), l: f('paddingLeft') };
+}
+
 function applyLayout() {
   const b = document.body, lay = pickLayout(), port = window.innerHeight > window.innerWidth;
   for (const k of ['phone', 'tab', 'desk']) b.classList.toggle('lay-' + k, k === lay);
@@ -110,6 +151,13 @@ function applyLayout() {
   if (renderer.phone !== (lay === 'phone')) { renderer.phone = lay === 'phone'; renderer.resize(); }     // (0.42: the phone's resolution cap)
   if (typeof state !== 'undefined' && state === 'play' && mission && hud.radioOn !== radioWanted()) hud.radioShow(radioWanted());     // (0.42.1)
   b.classList.toggle('lay-port', port); b.classList.toggle('lay-land', !port);
+  // (0.62.28) an iPhone held sideways keeps the notch's margin on both sides, but the notch is on one side only: the other side
+  // only needs room for the rounded corner, so the HUD gets that width back (window.orientation 90: turned left, the notch on the left)
+  {
+    const si = safeInsets(), ang = typeof window.orientation === 'number' ? window.orientation : (screen.orientation ? screen.orientation.angle : 0);
+    const both = !port && si.l >= 30 && Math.abs(si.l - si.r) <= 2;
+    b.classList.toggle('notch-l', both && ang === 90); b.classList.toggle('notch-r', both && (ang === -90 || ang === 270));
+  }
   if (lay !== applyLayout.last) { applyLayout.last = lay; if (state === 'play') hud.layout(true); if (mission && tac && hud.tcTab === 'armory') drawArmory(); }
   return lay;
 }
@@ -2008,6 +2056,8 @@ function failedOut() {
 }
 window.addEventListener('pagehide', failedOut);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', () => applyLayout());     // (0.42: the browser's toolbars come and go)
+// (0.62.28) turning a phone from one side to the other changes no size, so nothing else would notice; iOS settles its margins a moment later
+for (const tgt of [window, screen.orientation].filter(Boolean)) tgt.addEventListener(tgt === window ? 'orientationchange' : 'change', () => { applyLayout(); setTimeout(applyLayout, 350); });
 // (0.42) MAP on a phone: the minimap opens, or folds away again (kept in the settings)
 $('btn-mini').addEventListener('click', (e) => { e.stopPropagation(); audio.click(); settings.miniOpen = !settings.miniOpen; S.save('settings', settings); applyLayout(); if (state === 'play') { hud.layout(true); hud.layout(true); } if (tut) tut.poke(); });
 window.addEventListener('resize', () => { applyLayout(); renderer.resize(); if (soft) hud.placeSoft(); if (state === 'play') { hud.layout(true); hud.layout(true); } if (mission && tac && hud.tcTab === 'armory') drawArmory(); if (tut) tut.poke(); });

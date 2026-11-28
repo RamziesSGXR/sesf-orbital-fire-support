@@ -2794,3 +2794,33 @@ body.ui-scifi b { color: #fff; }
 .tw-f:empty { display: none; }
 body.hide-ui #tw-vote { display: none; }
 @media (max-width: 760px), (max-height: 520px) { #tw-vote { width: min(250px, 46vw); top: calc(max(8px, env(safe-area-inset-top)) + 46px); } .tw-o { font-size: 11px; } }
+
+/* =====================================================================================================================
+   (0.62.28) iPhones. Held sideways Safari leaves about 734 x 343 and keeps the notch's 59 px margin on both sides, so the HUD
+   was squeezed: the order buttons cut their names, DISBAND and MERGE ran out of room, and the threat meter ran into the clock.
+   - The notch is on one side only (main.js puts notch-l or notch-r on the body): the other side keeps room for its rounded
+     corner and nothing more.
+   - The squad bar's DRAW, DISBAND, MERGE and FORM show their glyphs, as upright; the weapons are a little narrower and the
+     orders' names a little smaller, so every name fits.
+   - The clock's box is only as wide as the clock.
+   ===================================================================================================================== */
+body.rts.notch-l #hud { --R: max(8px, min(env(safe-area-inset-right), 24px)); }
+body.rts.notch-r #hud { --L: max(8px, min(env(safe-area-inset-left), 24px)); }
+body.rts.lay-phone.lay-land #hud #squads .sqa .gl { display: block; font-size: 16px; line-height: 1; }
+body.rts.lay-phone.lay-land #hud #squads .sqa .n { display: none; }
+body.rts.lay-phone.lay-land #hud #squads .sqa { min-width: 34px; flex: 0 0 auto; padding: 0 6px; }
+body.rts.lay-phone.lay-land #hud #weapons { grid-auto-columns: 64px; }
+body.rts.lay-phone.lay-land.notch-l #hud #weapons, body.rts.lay-phone.lay-land.notch-r #hud #weapons { grid-auto-columns: 68px; }
+body.rts.lay-phone.lay-land #hud #weapons .wbtn { padding: 3px 4px; } body.rts.lay-phone.lay-land #hud #weapons .wbtn .n { font-size: 10px; letter-spacing: 0; }
+body.rts.lay-phone.lay-land #hud #tactical .tco .n { font-size: 10px; letter-spacing: -0.03em; }
+body.rts.lay-phone.lay-land #hud #tactical .tco .s { font-size: 9px; letter-spacing: -0.03em; }
+body.rts.lay-phone.lay-land #hud .hud-tr #mbox { align-self: flex-end; width: max-content; max-width: 100%; }
+/* a long press on a button or the map is an order, not iOS's copy and look-up menu */
+body { -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+/* (no notch side known: both margins kept, so the orders are narrower still) */
+body.rts.lay-phone.lay-land:not(.notch-l):not(.notch-r) #hud #tactical .tco { padding: 0; } body.rts.lay-phone.lay-land:not(.notch-l):not(.notch-r) #hud #tactical .tco .n { font-size: 9px; letter-spacing: -0.08em; }
+body.rts.lay-phone.lay-land:not(.notch-l):not(.notch-r) #hud #tactical .tco .s { font-size: 8px; letter-spacing: -0.06em; }
+/* the orders on the narrowest phones (an iPhone SE): the name only, centred; dimmed or lit shows the state (main.js sets .tight) */
+body.rts #hud #tactical.tight .tco .s { display: none; }
+body.rts #hud #tactical.tight .tco { padding: 0; } body.rts #hud #tactical.tight .tco .n { margin-top: 0; letter-spacing: -0.08em; width: 100%; text-align: center; overflow: visible; }
+body.rts #hud #tactical.tight .tco:not(.seaf) { display: flex; align-items: center; justify-content: center; }

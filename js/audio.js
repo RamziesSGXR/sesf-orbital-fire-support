@@ -17,7 +17,7 @@ export class Audio {
 
   // Browsers only allow audio after a user gesture, so call this from a click or tap.
   unlock() {
-    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+    if (this.ctx) { if (this.ctx.state !== 'running' && this.ctx.state !== 'closed') this.ctx.resume().catch(() => {}); return; }     // (0.62.28: iOS also has 'interrupted')
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     try {
