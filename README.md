@@ -25,6 +25,13 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 
 Recent changes, by version. The guide sections after this cover everything in full.
 
+**iPhones (0.62.28).**
+- **Held sideways,** the screen was squeezed by the notch's margin on both sides. The game now works out which side the notch is on and keeps only a rounded corner's room on the other, so the bottom panel gets that width back: every order's name fits (PROTECT, DISBAND, the weapons), and the threat meter no longer runs into the clock.
+- DRAW, DISBAND, MERGE and FORM show their glyphs sideways too, as they do upright. A name that still does not fit its button (a small iPhone SE, a long French word) steps its type down until it does.
+- The arrows to off-screen objectives stay out of the notch and step round the squad chips instead of hiding under them; their names flip side rather than run under a panel.
+- **Sound starts on the first tap** (Safari only counts a finger lifting), and comes back after a call or switching apps. A pinch on a menu no longer zooms the page, and a long press no longer brings up iOS's copy menu.
+- Added to the home screen, it opens full screen with no Safari bars.
+
 **Simplified Chinese (0.62.27).**
 - **简体中文** is a fourth language: pick it on the title screen or in **Settings**, or open the game with `?lang=zh`. Every line is translated: menus, the HUD, the armory, the briefings, the radio, the tutorial and the campaign.
 - Names follow the official Chinese terms from Helldivers 2 (绝地潜兵, 超级驱逐舰, 战备, 飞鹰, 鹈鹕, the enemy names and the difficulty names). Operation names, callsigns and ship names stay as they are, as in every language.

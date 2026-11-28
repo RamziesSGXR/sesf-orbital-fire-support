@@ -1522,6 +1522,11 @@ export class Renderer {
         if (r.width < 4 || r.height < 4) continue;
         out.push({ l: (r.left - cr.left) * k, r: (r.right - cr.left) * k, t: (r.top - cr.top) * k, b: (r.bottom - cr.top) * k });
       }
+      // (0.62.28) the screen's safe margins (an iPhone's notch and rounded corners), so the arrows stay where they can be seen
+      let p = this._sap;
+      if (!p) { p = this._sap = document.createElement('div'); p.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)'; document.body.appendChild(p); }
+      const c = getComputedStyle(p), f = (q) => (parseFloat(c[q]) || 0) * k;
+      this._safe = { l: f('paddingLeft'), r: f('paddingRight'), t: f('paddingTop') };
     } catch (e) { /* no DOM (headless) */ }
     this._hr = out; this._hrT = now;
     return out;
@@ -1562,18 +1567,23 @@ export class Renderer {
     for (const p of m.pelicans) if (p.state !== 'out') items.push({ x: p.x, y: p.y, col: this.allyColor(), label: tr(p.evac ? 'lab.evacShip' : 'lab.pelican') });
     ctx.font = `${Math.round(10 * d)}px ui-monospace, Menlo, Consolas, monospace`;
     const obs = this._hudRects(), placed = [], Hv = Math.max(H * 0.4, H - (this.insetB || 0) * d);
+    const sa = this._safe || { l: 0, r: 0, t: 0 }, x0 = pad + sa.l, x1 = W - pad - sa.r, y0 = pad + sa.t, y1 = Hv - pad;
     for (const it of items) {
       const sx = w2sx(it.x), sy = w2sy(it.y);
-      if (sx > pad && sx < W - pad && sy > pad && sy < Hv - pad) continue;
-      const cx = W / 2, cy = Hv / 2, dx = sx - cx, dy = sy - cy;
-      const k = Math.min((W / 2 - pad) / Math.abs(dx || 1e-6), (Hv / 2 - pad) / Math.abs(dy || 1e-6));
+      if (sx > x0 && sx < x1 && sy > y0 && sy < y1) continue;
+      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, dx = sx - cx, dy = sy - cy;
+      const k = Math.min((x1 - x0) / 2 / Math.abs(dx || 1e-6), (y1 - y0) / 2 / Math.abs(dy || 1e-6));
       let ax = cx + dx * k, ay = cy + dy * k;
       const ang = Math.atan2(dy, dx);
-      // Slide the marker along the screen edge until it clears the HUD panels.
+      // Slide the marker along the screen edge until it clears the HUD panels. (0.62.28) On a side edge, a panel standing against
+      // that side (the squad chips on a phone held sideways) is stepped round to its inner side, not along the edge into the next one.
+      const side = ax <= x0 + 1 ? -1 : ax >= x1 - 1 ? 1 : 0;
       for (let pass = 0; pass < 3; pass++) {
         for (const r of obs) {
           if (ax > r.l - 70 * d && ax < r.r + 70 * d && ay > r.t - 14 * d && ay < r.b + 14 * d) {
-            if (ay > Hv / 2) ay = r.t - 18 * d; else ay = r.b + 18 * d;
+            if (side < 0 && r.l < x0 + 24 * d && r.r < W / 2) ax = Math.max(ax, r.r + 16 * d);
+            else if (side > 0 && r.r > x1 - 24 * d && r.l > W / 2) ax = Math.min(ax, r.l - 16 * d);
+            else if (ay > Hv / 2) ay = r.t - 18 * d; else ay = r.b + 18 * d;
           }
         }
       }
@@ -1584,7 +1594,7 @@ export class Renderer {
         if (!hit) break;
         ay = hit.y + (ay > Hv / 2 ? -16 * d : 16 * d);
       }
-      ay = Math.max(pad * 0.6, Math.min(Hv - pad * 0.6, ay));
+      ay = Math.max(pad * 0.6 + sa.t, Math.min(Hv - pad * 0.6, ay));
       placed.push({ x: ax, y: ay });
       ctx.save(); ctx.translate(ax, ay); ctx.rotate(ang);
       ctx.fillStyle = it.col; ctx.globalAlpha = 0.9;
@@ -1599,8 +1609,12 @@ export class Renderer {
       const text = document.body.classList.contains('touch') && !it.obj && !it.far ? it.label : `${it.label} ${dist}M`;   // phones: a distance only for the objective
       if (it.team) { ctx.font = `bold ${Math.round(11 * d)}px ui-monospace, Menlo, Consolas, monospace`; ctx.lineWidth = 3 * d; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; }
       ctx.globalAlpha = 0.9; ctx.fillStyle = it.col;
-      ctx.textAlign = ax > W / 2 ? 'right' : 'left';
-      const tx2 = ax + (ax > W / 2 ? -14 * d : 14 * d), ty2 = Math.max(14 * d, Math.min(H - 8 * d, ay + 4 * d));
+      // (0.62.28) the name goes on the side away from the screen's edge, unless it would run under a panel there and the other side is clear
+      let right = ax > W / 2;
+      { const tw = ctx.measureText(text).width, hit = (rt) => obs.some((r) => r.l < (rt ? ax - 14 * d : ax + 14 * d + tw) && r.r > (rt ? ax - 14 * d - tw : ax + 14 * d) && r.t < ay + 6 * d && r.b > ay - 10 * d);
+        if (hit(right) && !hit(!right)) right = !right; }
+      ctx.textAlign = right ? 'right' : 'left';
+      const tx2 = ax + (right ? -14 * d : 14 * d), ty2 = Math.max(14 * d, Math.min(H - 8 * d, ay + 4 * d));
       if (it.team) ctx.strokeText(text, tx2, ty2);
       ctx.fillText(text, tx2, ty2);
       ctx.font = `${Math.round(10 * d)}px ui-monospace, Menlo, Consolas, monospace`;
