@@ -6,7 +6,7 @@ A Super Destroyer targeting minigame for the **Super Earth Special Forces** comm
 
 It runs in your browser on a computer, phone or tablet. There is nothing to install. Turn the sound on. Your progress and best scores stay on your own device. The one thing the game sends out is the **SESF feed**: a short post to the SESF Discord when an operation starts and ends (see [Share your score](#share-your-score)). You can turn it off in **Settings**.
 
-**Languages:** English, Français and Español. Pick one on the title screen or in **Settings**. Operation names, callsigns, ship names and the reports you post stay as they are, so posts read the same in the channel whoever wrote them.
+**Languages:** English, Français, Español and 简体中文 (Simplified Chinese). Pick one on the title screen or in **Settings**. Operation names, callsigns, ship names and the reports you post stay as they are, so posts read the same in the channel whoever wrote them.
 
 > Unofficial fan project. Not affiliated with or endorsed by Arrowhead Game Studios or Sony Interactive Entertainment. It uses no game assets, text or audio: all art is drawn in code and all sound is synthesised.
 
@@ -24,6 +24,10 @@ It runs in your browser on a computer, phone or tablet. There is nothing to inst
 ## What's new
 
 Recent changes, by version. The guide sections after this cover everything in full.
+
+**Simplified Chinese (0.62.27).**
+- **简体中文** is a fourth language: pick it on the title screen or in **Settings**, or open the game with `?lang=zh`. Every line is translated: menus, the HUD, the armory, the briefings, the radio, the tutorial and the campaign.
+- Names follow the official Chinese terms from Helldivers 2 (绝地潜兵, 超级驱逐舰, 战备, 飞鹰, 鹈鹕, the enemy names and the difficulty names). Operation names, callsigns and ship names stay as they are, as in every language.
 
 **Play offline, and touch screens on a laptop (0.62.26).**
 - **PLAY OFFLINE** on the title screen. On Windows it downloads an installer (Orbital-Fury-Setup.exe): no administrator needed, a Start menu and desktop shortcut that opens the game in its own window, and Uninstall in Settings > Apps. On a Mac or Linux it downloads Orbital-Fury-PC.zip: unzip it and open Orbital-Fury.html. Neither needs the internet.

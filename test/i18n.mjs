@@ -6,6 +6,7 @@ import path from 'node:path';
 import EN from '../js/lang/en.js';
 import FR from '../js/lang/fr.js';
 import ES from '../js/lang/es.js';
+import ZH from '../js/lang/zh.js';
 import { setLang, t } from '../js/i18n.js';
 import { STRATS } from '../js/data/strat.js';
 import { Mission } from '../js/sim/mission.js';
@@ -14,7 +15,7 @@ import { makeBot, botStep } from '../js/sim/bot.js';
 let fails = 0;
 const check = (name, ok, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  (' + detail + ')' : ''}`); if (!ok) fails++; };
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
-const TABLES = { fr: FR, es: ES };
+const TABLES = { fr: FR, es: ES, zh: ZH };
 const holes = (s) => new Set((typeof s === 'string' ? s.match(/\{(\w+)\}/g) : null) || []);
 const same = (a, b) => a.size === b.size && [...a].every((x) => b.has(x));
 // Any {name} gets a value (2 works both as a number and in text).
@@ -44,7 +45,7 @@ const SAMPLE = new Proxy({}, { get: (_, k) => (typeof k === 'string' ? 2 : undef
 }
 
 // ---------------------------------------------------------------- every line renders
-for (const l of ['en', 'fr', 'es']) {
+for (const l of ['en', 'fr', 'es', 'zh']) {
   setLang(l);
   const bad = [];
   for (const k of Object.keys(EN)) {
@@ -88,18 +89,18 @@ setLang('en');
   const ids = Object.keys(STRATS);
   const noName = ids.filter((id) => EN['strat.' + id] === undefined || EN['strat.' + id + '.b'] === undefined);
   check('every stratagem has a name and a blurb', noName.length === 0, noName.join(', '));
-  for (const l of ['en', 'fr', 'es']) {
+  for (const l of ['en', 'fr', 'es', 'zh']) {
     setLang(l);
     const long = ids.filter((id) => STRATS[id].cat === 'ORBITAL').map((id) => [id, t('strat.' + id + '.s')]).filter(([, s]) => s.length > 10);
     check(`${l}: orbital short names fit the weapon bar (10 letters or fewer)`, long.length === 0, long.map((x) => x.join('=')).join(', '));
-    check(`${l}: stratagem names follow the language`, l === 'en' || STRATS.orb_120.name !== EN['strat.orb_ems'] && STRATS.orb_ems.name === (l === 'fr' ? FR : ES)['strat.orb_ems']);
+    check(`${l}: stratagem names follow the language`, l === 'en' || STRATS.orb_120.name !== EN['strat.orb_ems'] && STRATS.orb_ems.name === TABLES[l]['strat.orb_ems']);
   }
   setLang('en');
 }
 
 // ---------------------------------------------------------------- whole missions in each language
 const RAW = /^[a-z][a-zA-Z0-9]*(\.[a-zA-Z0-9_]+)+$/;
-for (const l of ['fr', 'es']) {
+for (const l of ['fr', 'es', 'zh']) {
   setLang(l);
   let lines = 0;
   const raw = [], errs = [];

@@ -765,5 +765,5 @@ export const CONFIG = {
               // (0.62.26) PLAY OFFLINE on a computer: the newest PC download (.github/workflows/offline-download.yml builds it)
               offlineUrl: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support/releases/latest/download/Orbital-Fury-PC.zip',
               offlineWin: 'https://github.com/RamziesSGXR/sesf-orbital-fire-support/releases/latest/download/Orbital-Fury-Setup.exe',     // (Windows: the installer)
-              version: '0.62.26' },
+              version: '0.62.27' },
 };
